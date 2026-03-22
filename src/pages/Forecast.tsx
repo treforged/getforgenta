@@ -4,7 +4,7 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions } from '@/hooks/useSupabaseData';
 import { generateScheduledEvents, aggregateByMonth } from '@/lib/scheduling';
-import { buildCardData, projectCardVariable, simulateVariablePayoff, getCurrentMonthDebtRecommendations } from '@/lib/credit-card-engine';
+import { simulateVariablePayoff } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { buildPayConfig, getMonthNetIncome, getPaychecksInMonth, getMinSafeCash, mergeWithGeneratedTransactions } from '@/lib/pay-schedule';
 import {
