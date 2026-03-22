@@ -4,7 +4,9 @@ import MetricCard from '@/components/shared/MetricCard';
 import ProgressBar from '@/components/shared/ProgressBar';
 import CategoryIcon from '@/components/shared/CategoryIcon';
 import PremiumGate from '@/components/shared/PremiumGate';
+import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
 import { formatCurrency } from '@/lib/calculations';
+import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
@@ -181,18 +183,23 @@ export default function Dashboard() {
     [allMonthTransactions, currentMonthStr],
   );
 
-  // Expenses breakdown by category from current month only
+  // Expenses breakdown by category from current month only - EXCLUDES debt payments
   const expenseBreakdown = useMemo(() => {
-    const totals: Record<string, number> = {};
-    currentMonthTransactions.filter((t: any) => t.type === 'expense').forEach((t: any) => {
-      totals[t.category] = (totals[t.category] || 0) + Number(t.amount || 0);
-    });
-    return totals;
+    return categorizeExpenses(currentMonthTransactions, true);
   }, [currentMonthTransactions]);
+
+  // Debt payments breakdown by card
+  const debtPaymentBreakdown = useMemo(() => {
+    return getDebtPaymentsByCard(currentMonthTransactions);
+  }, [currentMonthTransactions]);
+
+  const totalDebtPayments = useMemo(() => {
+    return debtPaymentBreakdown.reduce((s, d) => s + d.amount, 0);
+  }, [debtPaymentBreakdown]);
 
   const summary = useMemo(() => {
     const income = currentMonthTransactions.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
-    const expenses = currentMonthTransactions.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+    const expenses = Object.values(expenseBreakdown).reduce((s: number, v: number) => s + v, 0);
     const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance || 0), 0);
     const totalSaved = goals.reduce((s: number, g: any) => {
       if ((g as any).linked_account && accountMap[(g as any).linked_account]) {
@@ -200,12 +207,12 @@ export default function Dashboard() {
       }
       return s + Number(g.current_amount || 0);
     }, 0);
-    const cashFlow = income - expenses;
+    const cashFlow = income - expenses - totalDebtPayments;
     const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
     const carSaved = carFunds[0] ? Number(carFunds[0].current_saved || 0) : 0;
     const carGoal = carFunds[0] ? Number(carFunds[0].down_payment_goal || 1) : 1;
     return { income, expenses, cashFlow, totalDebt, totalSaved, savingsRate, carSaved, carGoal };
-  }, [currentMonthTransactions, debts, goals, carFunds, accountMap]);
+  }, [currentMonthTransactions, expenseBreakdown, totalDebtPayments, debts, goals, carFunds, accountMap]);
 
   // Schedule
   const scheduledEvents = useMemo(() => {
@@ -339,13 +346,30 @@ export default function Dashboard() {
 
   const openExpenseCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = [
-      { label: 'All current-month expense transactions including:', value: '' },
+      { label: 'All current-month expense transactions (excluding debt):', value: '' },
     ];
     Object.entries(expenseBreakdown).sort((a, b) => b[1] - a[1]).forEach(([cat, val]) => {
       lines.push({ label: `  ${cat}`, value: formatCurrency(val, false), op: '+' });
     });
     lines.push({ label: 'Total Monthly Expenses', value: formatCurrency(summary.expenses, false), op: '=' });
     setCalcDrawer({ title: 'Monthly Expenses', lines });
+  };
+
+  const openDebtPaymentsCalc = () => {
+    const lines: { label: string; value: string; op?: string }[] = [
+      { label: 'All current-month debt payment transactions:', value: '' },
+    ];
+    
+    debtPaymentBreakdown.forEach(({ cardName, amount }) => {
+      lines.push({ label: `  ${cardName}`, value: formatCurrency(amount, false), op: '+' });
+    });
+    
+    if (debtPaymentBreakdown.length === 0) {
+      lines.push({ label: '  No debt payments this month', value: '$0' });
+    }
+    
+    lines.push({ label: 'Total Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '=' });
+    setCalcDrawer({ title: 'Debt Payments', lines });
   };
 
   const openNetWorthCalc = () => {
@@ -392,6 +416,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
+      <AccountUpdateReminder />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div>
@@ -454,12 +479,15 @@ export default function Dashboard() {
         <ClickableMetric onClick={openExpenseCalc} tooltip="How expenses are calculated">
           <MetricCard label="Monthly Expenses" value={summary.expenses > 0 ? formatCurrency(summary.expenses, false) : '—'} accent="crimson" icon={CreditCard} />
         </ClickableMetric>
-        <ClickableMetric onClick={openNetWorthCalc} tooltip="How net worth is calculated">
-          <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} />
+        <ClickableMetric onClick={openDebtPaymentsCalc} tooltip="View debt payment breakdown by card">
+          <MetricCard label="Debt Payments" value={totalDebtPayments > 0 ? formatCurrency(totalDebtPayments, false) : '—'} accent="blue" icon={Landmark} />
         </ClickableMetric>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <ClickableMetric onClick={openNetWorthCalc} tooltip="How net worth is calculated">
+          <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} />
+        </ClickableMetric>
         <ClickableMetric to="/budget" tooltip="Savings rate = (income - expenses) / income">
           <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent="gold" icon={Percent} />
         </ClickableMetric>
