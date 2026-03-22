@@ -115,15 +115,20 @@ export default function Premium() {
               Manage Billing
             </button>
           ) : (
-            <button
-              onClick={handleCheckout}
-              disabled={checkoutLoading || isLoading}
-              className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press flex items-center justify-center gap-2"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              {checkoutLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-              Upgrade Now
-            </button>
+            <>
+              <button
+                onClick={handleCheckout}
+                disabled={checkoutLoading || isLoading}
+                className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press flex items-center justify-center gap-2"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                {checkoutLoading ? <Loader2 size={14} className="animate-spin" /> : null}
+                Upgrade Now
+              </button>
+              <p className="text-sm text-muted-foreground mt-2">
+                Your subscription will be processed and activated via a webhook. You will receive an email once your subscription is active.
+              </p>
+            </>
           )}
         </div>
       </div>
