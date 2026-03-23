@@ -24,10 +24,10 @@ export default function DebtPayoff() {
 
   // Filter debts to non-credit-card items
   const ccAccountNames = useMemo(() => {
-    return new Set(accounts.filter((a: any) => a.account_type === 'credit_card').map((a: any) => a.name.toLowerCase()));
+    return new Set(accounts?.filter((a: any) => a.account_type === 'credit_card').map((a: any) => a.name.toLowerCase()) ?? []);
   }, [accounts]);
 
-  const otherDebts = useMemo(() => debts.filter(d => !ccAccountNames.has(d.name.toLowerCase())), [debts, ccAccountNames]);
+  const otherDebts = useMemo(() => debts?.filter(d => !ccAccountNames.has(d.name.toLowerCase())) ?? [], [debts, ccAccountNames]);
 
   const totalBalance = otherDebts.reduce((s, d) => s + Number(d.balance), 0);
   const totalMinPayment = otherDebts.reduce((s, d) => s + Number(d.min_payment), 0);
@@ -59,7 +59,7 @@ export default function DebtPayoff() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
-  const hasCreditCards = accounts.some((a: any) => a.account_type === 'credit_card' && a.active);
+  const hasCreditCards = accounts?.some((a: any) => a.account_type === 'credit_card' && a.active) ?? false;
 
   return (
     <div className="p-3 sm:p-4 lg:p-6 max-w-6xl mx-auto space-y-4 sm:space-y-6">
@@ -94,7 +94,7 @@ export default function DebtPayoff() {
         <button onClick={() => setActiveTab('cards')}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'cards' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className="ml-1 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{accounts.filter((a: any) => a.account_type === 'credit_card' && a.active).length}</span>}
+          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className="ml-1 text-[10px] bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{accounts?.filter((a: any) => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
         </button>
         <button onClick={() => setActiveTab('other')}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'other' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
