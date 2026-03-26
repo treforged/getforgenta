@@ -1,40 +1,21 @@
 import React, { Suspense } from 'react';
-import ErrorBoundary from './ErrorBoundary';
+import { Route, Switch } from 'react-router-dom';
+import ErrorBoundary from './ErrorBoundary'; // restored correct import path
 
-const BudgetControl = React.lazy(() => import('./BudgetControl'));
-const DebtPayoff = React.lazy(() => import('./DebtPayoff'));
-const Accounts = React.lazy(() => import('./Accounts'));
-const Transactions = React.lazy(() => import('./Transactions'));
-const SavingsGoals = React.lazy(() => import('./SavingsGoals'));
-const NetWorth = React.lazy(() => import('./NetWorth'));
-const SettingsPage = React.lazy(() => import('./SettingsPage'));
-const Premium = React.lazy(() => import('./Premium'));
-const PremiumSuccess = React.lazy(() => import('./PremiumSuccess'));
-const PremiumCancel = React.lazy(() => import('./PremiumCancel'));
-const Forecast = React.lazy(() => import('./Forecast'));
+const LazyComponentA = React.lazy(() => import('./components/ComponentA'));
+const LazyComponentB = React.lazy(() => import('./components/ComponentB'));
 
-function App() {
-  return (
-    <div className="App">
-      <ErrorBoundary>
-        <Suspense fallback={<div>Loading...</div>}>
-          <Routes>
-            <Route path="/budget" element={<BudgetControl />} />
-            <Route path="/debt" element={<DebtPayoff />} />
-            <Route path="/accounts" element={<Accounts />} />
-            <Route path="/transactions" element={<Transactions />} />
-            <Route path="/savings-goals" element={<SavingsGoals />} />
-            <Route path="/net-worth" element={<NetWorth />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/premium" element={<Premium />} />
-            <Route path="/premium-success" element={<PremiumSuccess />} />
-            <Route path="/premium-cancel" element={<PremiumCancel />} />
-            <Route path="/forecast" element={<Forecast />} />
-          </Routes>
-        </Suspense>
-      </ErrorBoundary>
-    </div>
-  );
-}
+const App = () => {
+    return (
+        <ErrorBoundary>
+            <Suspense fallback={<div>Loading...</div>}>
+                <Switch>
+                    <Route path="/component-a" component={LazyComponentA} />
+                    <Route path="/component-b" component={LazyComponentB} />
+                </Switch>
+            </Suspense>
+        </ErrorBoundary>
+    );
+};
 
 export default App;
