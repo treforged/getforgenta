@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(chmod +x \"/c/Users/tvonh/Desktop/webappredesign/.git/hooks/pre-commit\")",
+      "Bash(npx supabase:*)",
+      "Read(//c/Users/tvonh/.supabase/**)",
+      "Read(//c/Users/tvonh/**)",
+      "Bash(echo \"SUPABASE_ACCESS_TOKEN=$SUPABASE_ACCESS_TOKEN\")",
+      "Bash(env)",
+      "mcp__claude_ai_Supabase__deploy_edge_function"
+    ]
+  }
+}
