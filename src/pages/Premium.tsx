@@ -16,14 +16,25 @@ export default function Premium() {
     setCheckoutLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Please sign in first'); return; }
+      if (!session) {
+        toast.error('Please sign in first');
+        return;
+      }
 
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { return_url: window.location.origin },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) throw error;
-      if (data?.url) window.location.href = data.url;
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      toast.error('Checkout URL was not returned');
     } catch (e: any) {
       toast.error(e.message || 'Failed to start checkout');
     } finally {
@@ -35,14 +46,25 @@ export default function Premium() {
     setPortalLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { toast.error('Please sign in first'); return; }
+      if (!session) {
+        toast.error('Please sign in first');
+        return;
+      }
 
       const { data, error } = await supabase.functions.invoke('create-portal-session', {
         body: { return_url: window.location.origin },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) throw error;
-      if (data?.url) window.location.href = data.url;
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      toast.error('Billing portal URL was not returned');
     } catch (e: any) {
       toast.error(e.message || 'Failed to open billing portal');
     } finally {
@@ -61,17 +83,17 @@ export default function Premium() {
         </p>
       </div>
 
-      {/* Plans */}
       <div className="grid md:grid-cols-2 gap-4">
-        {/* Free */}
         <div className="card-forged p-6 space-y-4">
           <div>
             <h3 className="font-display font-semibold text-sm">Free</h3>
             <p className="text-[10px] text-muted-foreground mt-0.5">Get started with the basics</p>
           </div>
-          <p className="font-display font-bold text-3xl tracking-tight">$0<span className="text-sm text-muted-foreground font-normal">/mo</span></p>
+          <p className="font-display font-bold text-3xl tracking-tight">
+            $0<span className="text-sm text-muted-foreground font-normal">/mo</span>
+          </p>
           <ul className="space-y-2">
-            {free.map(f => (
+            {free.map((f) => (
               <li key={f} className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Check size={12} className="text-muted-foreground" /> {f}
               </li>
@@ -86,7 +108,6 @@ export default function Premium() {
           </button>
         </div>
 
-        {/* Premium */}
         <div className="card-forged p-6 space-y-4 border-gold/30">
           <div className="flex items-center gap-2">
             <Crown size={16} className="text-gold" />
@@ -97,7 +118,7 @@ export default function Premium() {
             $9<span className="text-sm text-muted-foreground font-normal">/mo</span>
           </p>
           <ul className="space-y-2">
-            {premium.map(f => (
+            {premium.map((f) => (
               <li key={f} className="flex items-center gap-2 text-xs">
                 <Check size={12} className="text-gold" /> {f}
               </li>
@@ -133,7 +154,6 @@ export default function Premium() {
         </div>
       </div>
 
-      {/* Manage billing for premium users */}
       {isPremium && hasStripeCustomer && (
         <div className="text-center">
           <button
