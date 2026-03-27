@@ -189,7 +189,7 @@ export default function NetWorth() {
         {netWorthTrend.length <= 1 ? (
           <div className="flex flex-col items-center justify-center h-[200px] text-center">
             <Wallet size={28} className="text-primary mb-3" />
-            <p className="text-2xl font-display font-bold text-primary">{formatCurrency(netWorth, false)}</p>
+            <p className="text-2xl font-display font-bold text-primary whitespace-nowrap">{formatCurrency(netWorth, false)}</p>
             <p className="text-[10px] text-muted-foreground mt-2">Historical chart will appear once monthly snapshots are saved. Only real recorded data is shown — see Forecast for projected net worth trends.</p>
           </div>
         ) : (

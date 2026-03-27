@@ -76,9 +76,9 @@ export default function Auth() {
           </p>
         </form>
         <p className="text-[10px] text-muted-foreground text-center mt-4">
-          <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+          <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
           {' · '}
-          <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Terms of Service</Link>
+          <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
         </p>
       </div>
     </div>

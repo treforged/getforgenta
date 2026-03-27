@@ -148,8 +148,8 @@ export default function Landing() {
           <span className="font-display font-bold text-xs tracking-tight text-gold">TRE FORGED BUDGET OS</span>
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
             <span>&copy; {new Date().getFullYear()} TRE Forged LLC. All rights reserved.</span>
-            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-            <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Terms of Service</Link>
+            <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
           </div>
         </div>
       </footer>

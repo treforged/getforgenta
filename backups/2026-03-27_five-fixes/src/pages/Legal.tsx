@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
 function PrivacyContent() {
@@ -300,19 +300,18 @@ function TermsContent() {
 
 export default function Legal() {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const isPrivacy = pathname === '/privacy';
 
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <div className="border-b border-border px-6 py-4 flex items-center">
-        <button
-          onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
+        <Link
+          to="/"
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
-          <ArrowLeft size={12} /> Back
-        </button>
+          <ArrowLeft size={12} /> Back to home
+        </Link>
         <span className="font-display font-bold text-xs text-gold ml-auto tracking-tight">TRE FORGED BUDGET OS</span>
       </div>
 

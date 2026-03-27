@@ -40,7 +40,7 @@ export default function MetricCard({ label, value, sub, accent = 'silver', class
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
-          <p className={cn("text-2xl font-display font-bold mt-2 tracking-tight whitespace-nowrap", colorMap[accent])}>{value}</p>
+          <p className={cn("text-2xl font-display font-bold mt-2 tracking-tight", colorMap[accent])}>{value}</p>
           {sub && <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>}
         </div>
         {Icon && (

@@ -70,7 +70,6 @@ export default function BudgetControl() {
 
   // Income state
   const [weeklyGross, setWeeklyGross] = useState(1875);
-  const [weeklyGrossInput, setWeeklyGrossInput] = useState('1875');
   const [taxRate, setTaxRate] = useState(22);
   const [paycheckDay, setPaycheckDay] = useState(5);
   const [payFrequency, setPayFrequency] = useState<PayFrequency>('weekly');
@@ -89,9 +88,7 @@ export default function BudgetControl() {
 
   useEffect(() => {
     if (profile) {
-      const wg = Number((profile as any).weekly_gross_income) || 1875;
-      setWeeklyGross(wg);
-      setWeeklyGrossInput(String(wg));
+      setWeeklyGross(Number((profile as any).weekly_gross_income) || 1875);
       setTaxRate(Number((profile as any).tax_rate) || 22);
       setPaycheckDay(Number((profile as any).paycheck_day) || 5);
       setPayFrequency(((profile as any).paycheck_frequency as PayFrequency) || 'weekly');
@@ -148,15 +145,7 @@ export default function BudgetControl() {
     }, 800);
   }, [isDemo, updateProfile, rules, updateRule]);
 
-  const handleWeeklyGrossBlur = () => {
-    const parsed = parseFloat(weeklyGrossInput);
-    if (!isNaN(parsed) && parsed > 0) {
-      setWeeklyGross(parsed);
-      doAutoSave(parsed, taxRate, paycheckDay, payFrequency);
-    } else {
-      setWeeklyGrossInput(String(weeklyGross));
-    }
-  };
+  const setWeeklyGrossAuto = (v: number) => { setWeeklyGross(v); doAutoSave(v, taxRate, paycheckDay, payFrequency); };
   const setTaxRateAuto = (v: number) => { setTaxRate(v); doAutoSave(weeklyGross, v, paycheckDay, payFrequency); };
   const setPaycheckDayAuto = (v: number) => { setPaycheckDay(v); doAutoSave(weeklyGross, taxRate, v, payFrequency); };
   const setPayFrequencyAuto = (v: PayFrequency) => { setPayFrequency(v); doAutoSave(weeklyGross, taxRate, paycheckDay, v); };
@@ -519,7 +508,7 @@ export default function BudgetControl() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">Gross Income</label>
-            <input type="number" value={weeklyGrossInput} onChange={e => setWeeklyGrossInput(e.target.value)} onBlur={handleWeeklyGrossBlur}
+            <input type="number" value={weeklyGross} onChange={e => setWeeklyGrossAuto(parseFloat(e.target.value) || 0)}
               className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
           </div>
           <div>

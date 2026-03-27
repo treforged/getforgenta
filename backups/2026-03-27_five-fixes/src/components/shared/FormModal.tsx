@@ -29,9 +29,9 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center p-4" style={{ touchAction: 'none' }} onClick={onClose}>
+    <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="card-forged w-full max-w-md flex flex-col max-h-[90dvh]"
+        className="card-forged w-full max-w-md flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
         {/* Sticky header */}
@@ -41,7 +41,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3">
           {fields.map(f => (
             <div key={f.key}>
               <label className="text-[10px] text-muted-foreground uppercase">{f.label}</label>
