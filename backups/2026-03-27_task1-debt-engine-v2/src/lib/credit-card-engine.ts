@@ -250,261 +250,121 @@ export function projectCardVariable(card: CardData, monthlyPayments: number[], m
   };
 }
 
-// ─── Simulation output types ──────────────────────────────
-
-/** A projected debt payment emitted by simulateVariablePayoff for Forecast / Transactions rendering. */
-export type SimulatedDebtPayment = {
-  date: string;           // ISO date — last day of the payment month
-  description: string;    // e.g. "Prime Visa Payment"
-  amount: number;         // positive outflow amount
-  account: string;        // funding account id ('' when unknown)
-  category: 'Debt Payments';
-  card: string;           // credit card account id
-  type: 'debt_payoff';
-  projected: true;
-};
-
-/** Flags emitted by simulateVariablePayoff describing per-month anomalies. */
-export type SimulationFlag = {
-  month: number;
-  flag: 'UNSTABLE' | 'FLOOR_BREACHED' | 'CARD_AT_RISK';
-  /** Set when flag === 'CARD_AT_RISK' — identifies which card missed its minimum. */
-  cardId?: string;
-};
-
 /**
- * Event-based, cash-floor-aware variable payoff simulation.
- *
- * Algorithm (Steps 1-8, plan debt-engine-v2.md):
- *   Step 1  Initialise balances and currentCash from inputs.
- *   Step 2  Compute available cash from events (or scalar fallback).
- *   Step 3  Pay minimums; handle FLOOR_BREACHED with snowball protection.
- *   Step 4  Allocate extra cash to priority card (avalanche / snowball).
- *           C3: card balance has NOT been reduced yet — do not double-subtract.
- *   Step 5  Deduct payments from balances and currentCash.
- *   Step 6  Apply interest AFTER all payments (C4 — never mid-month).
- *   Step 7  Advance month: currentCash += monthIncome - monthExpenses.
- *   Step 8  Repeat until all balances = 0 or month limit reached.
- *
- * Backward-compatible: existing callers pass 7 positional args (scalars).
- * Event-based callers (TASK 2) additionally pass monthEvents[] and fundingAccountId.
+ * FIXED: Simulate variable payoff with cash-floor protection.
+ * This version correctly maximizes debt payments by using ALL available cash above the floor.
  */
 export function simulateVariablePayoff(
   cards: CardData[],
   liquidCash: number,
   cashFloor: number,
   strategy: 'avalanche' | 'snowball',
-  /** Scalar fallback — used when monthEvents is not provided. */
   monthlyTakeHome: number,
-  /** Scalar fallback — used when monthEvents is not provided. */
   monthlyExpenses: number,
   months = 36,
-  /**
-   * Optional event-based per-month income/expense sums (C5).
-   * monthEvents[0]  = current month scoped today→EOM (scoped by caller, C1).
-   * monthEvents[1+] = full future month sums.
-   * When omitted, monthlyTakeHome / monthlyExpenses scalars are used for every month.
-   */
-  monthEvents?: { income: number; expenses: number }[],
-  /** Used to populate the `account` field on SimulatedDebtPayment records. */
-  fundingAccountId?: string,
 ): {
   monthlyPayments: Map<string, number[]>;
   projectedPayoffMonths: number;
   cashFloorBreaches: { month: number; endingCash: number }[];
-  flags: SimulationFlag[];
-  projectedCashByMonth: number[];
-  debtPaymentTransactions: SimulatedDebtPayment[];
-  warningMessages: { month: number; message: string }[];
 } {
-  if (cards.length === 0) {
-    return {
-      monthlyPayments: new Map(),
-      projectedPayoffMonths: 0,
-      cashFloorBreaches: [],
-      flags: [],
-      projectedCashByMonth: [],
-      debtPaymentTransactions: [],
-      warningMessages: [],
-    };
-  }
-
-  // ── Step 1 — Initialise ────────────────────────────────────
-  const balances = new Map<string, number>(cards.map(c => [c.id, c.balance]));
-  const monthlyPayments = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  const balances = new Map(cards.map(c => [c.id, c.balance]));
+  const monthlyPayments = new Map(cards.map(c => [c.id, [] as number[]]));
   let currentCash = liquidCash;
   let projectedPayoffMonths = 0;
   const cashFloorBreaches: { month: number; endingCash: number }[] = [];
-  const flags: SimulationFlag[] = [];
-  const projectedCashByMonth: number[] = [];
-  const debtPaymentTransactions: SimulatedDebtPayment[] = [];
-  const warningMessages: { month: number; message: string }[] = [];
 
-  const now = new Date();
+  const autopayCards = new Set(cards.filter(c => c.autopayFullBalance).map(c => c.id));
 
   for (let m = 0; m < months; m++) {
+    currentCash += monthlyTakeHome - monthlyExpenses;
 
-    // ── Step 2 — Available Cash ────────────────────────────────
-    const monthIncome = monthEvents?.[m]?.income ?? monthlyTakeHome;
-    const monthExpenses = monthEvents?.[m]?.expenses ?? monthlyExpenses;
+    for (const card of cards) {
+      if (autopayCards.has(card.id)) {
+        monthlyPayments.get(card.id)!.push(card.monthlyNewPurchases);
+        currentCash -= card.monthlyNewPurchases;
+      }
+    }
 
-    // End-of-month ISO date used for SimulatedDebtPayment records
-    const payDate = new Date(now.getFullYear(), now.getMonth() + m + 1, 0);
-    const payDateStr = payDate.toISOString().split('T')[0];
+    for (const card of cards) {
+      if (autopayCards.has(card.id)) continue;
+      const bal = balances.get(card.id)!;
+      if (bal <= 0) {
+        balances.set(card.id, 0);
+        autopayCards.add(card.id);
+        monthlyPayments.get(card.id)!.push(card.monthlyNewPurchases);
+        currentCash -= card.monthlyNewPurchases;
+        continue;
+      }
+      const interest = bal * (card.apr / 100 / 12);
+      balances.set(card.id, bal + card.monthlyNewPurchases + interest);
+    }
 
-    // Active = balance still > 0 after previous month's payments + interest
-    const activeCards = cards.filter(c => (balances.get(c.id) ?? 0) > 0);
+    const activeCards = cards.filter(c => !autopayCards.has(c.id) && (balances.get(c.id) || 0) > 0);
 
     if (activeCards.length === 0) {
-      // C8 overpayment guard: all debt cleared — stop allocating, accumulate cash
-      for (const card of cards) monthlyPayments.get(card.id)!.push(0);
-      currentCash += monthIncome - monthExpenses;
-      projectedCashByMonth.push(Math.round(currentCash * 100) / 100);
+      for (const card of cards) {
+        if (!autopayCards.has(card.id)) monthlyPayments.get(card.id)!.push(0);
+      }
       continue;
     }
 
     projectedPayoffMonths = m + 1;
 
-    let availableCash = currentCash + monthIncome - monthExpenses - cashFloor;
-
-    if (availableCash < 0) {
-      // Edge case: even before minimums we're short
-      flags.push({ month: m + 1, flag: 'UNSTABLE' });
-      availableCash = 0;
+    const sorted = [...activeCards];
+    if (strategy === 'avalanche') {
+      sorted.sort((a, b) => b.apr - a.apr);
+    } else {
+      sorted.sort((a, b) => (balances.get(a.id) || 0) - (balances.get(b.id) || 0));
     }
 
-    // ── Step 3 — Pay Minimums ─────────────────────────────────
-    const payments = new Map<string, number>(cards.map(c => [c.id, 0]));
+    const availableForDebt = Math.max(0, currentCash - cashFloor);
+    const payments = new Map<string, number>();
+    let remaining = availableForDebt;
 
-    const minDueMap = new Map<string, number>(
-      activeCards.map(c => [c.id, Math.min(c.minPayment, balances.get(c.id) ?? 0)]),
-    );
-    const totalMins = [...minDueMap.values()].reduce((s, v) => s + v, 0);
+    const totalMins = sorted.reduce((s, c) => s + Math.min(c.minPayment, balances.get(c.id) || 0), 0);
 
-    if (availableCash < totalMins) {
-      // FLOOR_BREACHED: minimums exceed floor-adjusted cash
-      // Allow going below floor — minimums override it — but use currentCash as hard limit
-      flags.push({ month: m + 1, flag: 'FLOOR_BREACHED' });
+    if (availableForDebt < totalMins) {
       cashFloorBreaches.push({ month: m + 1, endingCash: currentCash - totalMins });
+      for (const card of sorted) {
+        const bal = balances.get(card.id)!;
+        const min = Math.min(card.minPayment, bal);
+        const proportion = totalMins > 0 ? min / totalMins : 0;
+        const payment = Math.min(Math.round(availableForDebt * proportion * 100) / 100, bal);
+        payments.set(card.id, payment);
+        remaining -= payment;
+      }
+    } else {
+      for (const card of sorted) {
+        const bal = balances.get(card.id)!;
+        const min = Math.min(card.minPayment, bal);
+        payments.set(card.id, min);
+        remaining -= min;
+      }
 
-      // Snowball protection: pay smallest balances first so at least some cards
-      // stay current when cash is tight
-      const sortedForBreached = [...activeCards].sort(
-        (a, b) => (balances.get(a.id) ?? 0) - (balances.get(b.id) ?? 0),
-      );
-
-      let remainingForMins = currentCash; // floor ignored for minimums
-      let atRiskWarningEmitted = false;
-
-      for (const card of sortedForBreached) {
-        const min = minDueMap.get(card.id) ?? 0;
-        if (remainingForMins >= min) {
-          payments.set(card.id, min);
-          remainingForMins -= min;
-        } else {
-          // Cannot cover this card's minimum — mark at risk
-          payments.set(card.id, 0);
-          flags.push({ month: m + 1, flag: 'CARD_AT_RISK', cardId: card.id });
-          if (!atRiskWarningEmitted) {
-            warningMessages.push({
-              month: m + 1,
-              message:
-                'Available cash cannot cover all minimum payments. Consider reducing expenses or increasing income.',
-            });
-            atRiskWarningEmitted = true;
-          }
+      for (const card of sorted) {
+        if (remaining <= 0) break;
+        const bal = balances.get(card.id)!;
+        const currentPayment = payments.get(card.id) || 0;
+        const maxAdditional = bal - currentPayment;
+        const extra = Math.min(remaining, maxAdditional);
+        if (extra > 0) {
+          payments.set(card.id, currentPayment + extra);
+          remaining -= extra;
         }
       }
-      // No extra payments in floor-breach mode
-
-    } else {
-      // Normal path: pay all minimums
-      for (const card of activeCards) {
-        payments.set(card.id, minDueMap.get(card.id) ?? 0);
-      }
-
-      // ── Step 4 — Extra Payment Allocation ──────────────────
-      // C3: balances[card.id] is the PRE-PAYMENT balance here.
-      //     payments[card.id] already contains the minimum committed.
-      //     maxExtra = pre-payment balance − min = remaining balance after minimum.
-      //     Do NOT subtract minDue again — that was C3's double-subtraction bug.
-      const strategyOrder = [...activeCards].sort((a, b) =>
-        strategy === 'avalanche'
-          ? b.apr - a.apr
-          : (balances.get(a.id) ?? 0) - (balances.get(b.id) ?? 0),
-      );
-
-      let remaining = availableCash - totalMins;
-
-      for (const card of strategyOrder) {
-        if (remaining <= 0) break;
-
-        const bal = balances.get(card.id) ?? 0;
-        const alreadyPaid = payments.get(card.id) ?? 0;
-        const maxExtra = bal - alreadyPaid; // remaining balance after min
-        if (maxExtra <= 0) continue;
-
-        const extra = Math.min(remaining, maxExtra);
-        payments.set(card.id, alreadyPaid + extra);
-        remaining -= extra;
-      }
-
-      // C8 overpayment guard: clamp each payment to the card's current balance
-      for (const card of activeCards) {
-        const bal = balances.get(card.id) ?? 0;
-        const pay = payments.get(card.id) ?? 0;
-        if (pay > bal) payments.set(card.id, bal);
-      }
     }
 
-    // ── Step 5 — Update Balances and Cash ─────────────────────
     for (const card of cards) {
-      const payment = Math.round((payments.get(card.id) ?? 0) * 100) / 100;
-      monthlyPayments.get(card.id)!.push(payment);
-
-      const bal = balances.get(card.id) ?? 0;
+      if (autopayCards.has(card.id)) continue;
+      const payment = payments.get(card.id) || 0;
+      monthlyPayments.get(card.id)!.push(Math.round(payment * 100) / 100);
+      const bal = balances.get(card.id)!;
       balances.set(card.id, Math.max(0, bal - payment));
       currentCash -= payment;
-
-      if (payment > 0) {
-        debtPaymentTransactions.push({
-          date: payDateStr,
-          description: `${card.name} Payment`,
-          amount: payment,
-          account: fundingAccountId ?? '',
-          category: 'Debt Payments',
-          card: card.id,
-          type: 'debt_payoff',
-          projected: true,
-        });
-      }
     }
-
-    // ── Step 6 — Interest AFTER All Payments (C4) ─────────────
-    // Interest is never applied mid-month. It is always added to the
-    // NEXT month's starting balance only.
-    for (const card of cards) {
-      const bal = balances.get(card.id) ?? 0;
-      if (bal > 0 && card.apr > 0) {
-        const interest = (card.apr / 100 / 12) * bal;
-        balances.set(card.id, bal + interest);
-      }
-    }
-
-    // ── Step 7 — Advance Month ────────────────────────────────
-    currentCash += monthIncome - monthExpenses;
-    projectedCashByMonth.push(Math.round(currentCash * 100) / 100);
   }
 
-  return {
-    monthlyPayments,
-    projectedPayoffMonths,
-    cashFloorBreaches,
-    flags,
-    projectedCashByMonth,
-    debtPaymentTransactions,
-    warningMessages,
-  };
+  return { monthlyPayments, projectedPayoffMonths, cashFloorBreaches };
 }
 
 /**
