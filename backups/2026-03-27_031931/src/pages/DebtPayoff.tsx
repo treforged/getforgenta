@@ -4,9 +4,6 @@ import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile }
 import FormModal from '@/components/shared/FormModal';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
-import PremiumGate from '@/components/shared/PremiumGate';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark } from 'lucide-react';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
@@ -17,8 +14,6 @@ export default function DebtPayoff() {
   const { data: transactions } = useTransactions();
   const { data: rules } = useRecurringRules();
   const { data: profile } = useProfile();
-  const { isPremium } = useSubscription();
-  const { isDemo } = useAuth();
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -110,14 +105,9 @@ export default function DebtPayoff() {
           ]} />
         </div>
         {activeTab === 'other' && (
-          <PremiumGate
-            isPremium={isPremium || isDemo || otherDebts.length < 1}
-            message="Upgrade to track unlimited debts"
-          >
-            <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0" style={{ borderRadius: 'var(--radius)' }}>
-              <Plus size={12} /> Add Debt
-            </button>
-          </PremiumGate>
+          <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0" style={{ borderRadius: 'var(--radius)' }}>
+            <Plus size={12} /> Add Debt
+          </button>
         )}
       </div>
 

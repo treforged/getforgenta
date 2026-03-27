@@ -295,7 +295,7 @@ export default function NetWorth() {
         </div>
       </div>
 
-      <PremiumGate isPremium={isPremium || isDemo} message="Unlock unlimited account tracking with Premium">
+      <PremiumGate isPremium={isPremium} message="Unlock unlimited account tracking with Premium">
         <div className="card-forged p-5">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Detailed Account Management</h3>
           <div className="grid md:grid-cols-2 gap-4">

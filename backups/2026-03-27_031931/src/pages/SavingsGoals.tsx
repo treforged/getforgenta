@@ -4,9 +4,6 @@ import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts } from '@/hooks/useSupabaseData';
 import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal from '@/components/shared/FormModal';
-import PremiumGate from '@/components/shared/PremiumGate';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Edit2, Trash2, Car, Copy, Link2, Info, X } from 'lucide-react';
 import { getCurrentMonthDebtRecommendations } from '@/lib/credit-card-engine';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
@@ -57,8 +54,6 @@ export default function SavingsGoals() {
   const { data: profile } = useProfile();
   const { data: txns } = useTransactions();
   const { data: debts } = useDebts();
-  const { isPremium } = useSubscription();
-  const { isDemo } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -268,16 +263,10 @@ export default function SavingsGoals() {
             { title: 'Target Date', body: 'Set a target date to see estimated completion. The chart projects growth based on your monthly contribution.' },
           ]} />
         </div>
-        <PremiumGate
-          isPremium={isPremium || isDemo || (goals.length + carFunds.length) < 3}
-          message="Upgrade to add unlimited savings goals"
-          className="flex gap-2"
-        >
-          <div className="flex gap-2">
-            <button onClick={() => openAdd('Custom')} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add Goal</button>
-            <button onClick={() => openAdd('Car Fund')} className="flex items-center gap-1.5 border border-border text-foreground px-3 py-1.5 text-xs font-medium btn-press hover:bg-muted/30" style={{ borderRadius: 'var(--radius)' }}><Car size={12} /> Car Fund</button>
-          </div>
-        </PremiumGate>
+        <div className="flex gap-2">
+          <button onClick={() => openAdd('Custom')} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add Goal</button>
+          <button onClick={() => openAdd('Car Fund')} className="flex items-center gap-1.5 border border-border text-foreground px-3 py-1.5 text-xs font-medium btn-press hover:bg-muted/30" style={{ borderRadius: 'var(--radius)' }}><Car size={12} /> Car Fund</button>
+        </div>
       </div>
 
       <SavingsGrowthChart goals={allGoals} />

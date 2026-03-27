@@ -660,7 +660,7 @@ export default function Dashboard() {
       )}
 
       {/* Premium gated */}
-      <PremiumGate isPremium={isPremium || isDemo} message="Unlock advanced analytics with Premium">
+      <PremiumGate isPremium={isPremium} message="Unlock advanced analytics with Premium">
         <div className="card-forged p-5">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Advanced Analytics</h3>
           <div className="grid md:grid-cols-3 gap-4">

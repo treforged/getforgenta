@@ -66,21 +66,6 @@ export default function Premium() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="p-4 lg:p-6 max-w-4xl mx-auto space-y-8">
-        <div className="text-center space-y-2">
-          <div className="h-7 w-48 bg-muted rounded animate-pulse mx-auto" />
-          <div className="h-4 w-64 bg-muted rounded animate-pulse mx-auto" />
-        </div>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="card-forged p-6 h-72 bg-muted/20 animate-pulse" style={{ borderRadius: 'var(--radius)' }} />
-          <div className="card-forged p-6 h-72 bg-muted/20 animate-pulse" style={{ borderRadius: 'var(--radius)' }} />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 lg:p-6 max-w-4xl mx-auto space-y-8">
       <div className="text-center">
