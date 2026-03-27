@@ -315,7 +315,7 @@ export default function Legal() {
         <span className="font-display font-bold text-xs text-gold ml-auto tracking-tight">TRE FORGED BUDGET OS</span>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row gap-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex gap-8">
         {/* Sidebar — desktop */}
         <aside className="hidden sm:block w-44 shrink-0">
           <nav className="sticky top-8 space-y-1">

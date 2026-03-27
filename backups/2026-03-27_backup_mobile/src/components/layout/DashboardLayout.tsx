@@ -10,7 +10,7 @@ export default function DashboardLayout() {
         <main className="flex-1 pb-20 lg:pb-0">
           <Outlet />
         </main>
-        <footer className="block border-t border-border py-4 px-6 mb-16 lg:mb-0">
+        <footer className="hidden lg:block border-t border-border py-4 px-6">
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
             <span>&copy; {new Date().getFullYear()} TRE Forged LLC. All rights reserved.</span>
             <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>

@@ -126,20 +126,20 @@ export default function Accounts() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
-      <div className="flex items-start sm:items-center justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div>
             <h1 className="font-display font-bold text-2xl lg:text-3xl tracking-tight">Accounts</h1>
-            <InstructionsModal pageTitle="Accounts Guide" sections={[
-              { title: 'What is this page?', body: 'Accounts is the centralized source of truth for all your financial balances — checking, savings, investments, retirement, credit cards, and loans.' },
-              { title: 'How it connects', body: 'Account balances drive net worth, liquid cash calculations, debt payoff recommendations, and payment source availability across the entire app.' },
-              { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
-              { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
-            ]} />
+            <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>
+          <InstructionsModal pageTitle="Accounts Guide" sections={[
+            { title: 'What is this page?', body: 'Accounts is the centralized source of truth for all your financial balances — checking, savings, investments, retirement, credit cards, and loans.' },
+            { title: 'How it connects', body: 'Account balances drive net worth, liquid cash calculations, debt payoff recommendations, and payment source availability across the entire app.' },
+            { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
+            { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
+          ]} />
         </div>
-        <button onClick={openAdd} className="shrink-0 flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
+        <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
           <Plus size={14} /> Add Account
         </button>
       </div>
