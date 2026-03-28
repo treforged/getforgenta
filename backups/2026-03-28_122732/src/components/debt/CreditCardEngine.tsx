@@ -9,7 +9,6 @@ import {
   getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
   mergeWithGeneratedTransactions,
 } from '@/lib/pay-schedule';
-import { generateScheduledEvents } from '@/lib/scheduling';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDebts, useAccounts, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
@@ -160,108 +159,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return result;
   }, [cards, fundingBalance, allTransactions]);
 
-  // ── Event-based monthEvents + cardPurchasesPerMonth ──────────────────────────
-  // Uses actual scheduled income/expense occurrences instead of flat scalars so
-  // that month 0 only counts income from today forward (already-received income
-  // is baked into the live checking balance and must not be double-counted).
-  const { monthEvents, cardPurchasesPerMonth: ccPurchasesPerMonth } = useMemo(() => {
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const scheduledEvents = generateScheduledEvents(rules, accounts, 36);
-
-    const liquidAccountIds = new Set<string>(
-      accounts.filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
-        .map((a: any) => a.id),
-    );
-
-    const incomeToLiquidRuleIds = new Set<string>(
-      rules.filter((r: any) =>
-        r.active && r.rule_type === 'income' &&
-        (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-      ).map((r: any) => r.id),
-    );
-
-    const ccPaymentSources = new Set<string>(cards.flatMap(c => [c.id, `account:${c.id}`]));
-    const ccExplicitRuleIds = new Set<string>(
-      rules.filter((r: any) =>
-        r.active && r.rule_type === 'expense' && r.payment_source && ccPaymentSources.has(r.payment_source),
-      ).map((r: any) => r.id),
-    );
-    const highestAprCardId = cards.length > 0 ? [...cards].sort((a, b) => b.apr - a.apr)[0].id : '';
-    const ccDefaultRuleIds = new Set<string>(
-      rules.filter((r: any) =>
-        r.active && r.rule_type === 'expense' && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category),
-      ).map((r: any) => r.id),
-    );
-    const allCcRuleIds = new Set<string>([...ccExplicitRuleIds, ...ccDefaultRuleIds]);
-
-    const cardRuleIdMap = new Map<string, Set<string>>(
-      cards.map(c => {
-        const cKey = `account:${c.id}`;
-        const ids = new Set<string>(
-          rules.filter((r: any) =>
-            r.active && r.rule_type === 'expense' &&
-            (r.payment_source === c.id || r.payment_source === cKey),
-          ).map((r: any) => r.id),
-        );
-        if (c.id === highestAprCardId) ccDefaultRuleIds.forEach(id => ids.add(id));
-        return [c.id, ids];
-      }),
-    );
-
-    const savingsRuleIds = new Set<string>(
-      rules.filter((r: any) =>
-        r.active && r.rule_type === 'expense' && (r.category === 'Savings' || r.category === 'Investing'),
-      ).map((r: any) => r.id),
-    );
-
-    const evMonthEvents: { income: number; expenses: number }[] = [];
-    const evCardPurchases: { [cardId: string]: number }[] = [];
-
-    for (let i = 0; i < 36; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-
-      const eventsInMonth = scheduledEvents.filter(e =>
-        e.date.startsWith(monthKey) && (i > 0 || e.date >= todayStr),
-      );
-
-      const income = eventsInMonth
-        .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId))
-        .reduce((s, e) => s + e.amount, 0);
-
-      const cashExpenses = eventsInMonth
-        .filter(e =>
-          e.type === 'expense' &&
-          !(e.ruleId && allCcRuleIds.has(e.ruleId)) &&
-          !(pauseSavings && e.ruleId && savingsRuleIds.has(e.ruleId)),
-        )
-        .reduce((s, e) => s + e.amount, 0);
-
-      evMonthEvents.push({ income, expenses: cashExpenses });
-
-      const cardPurchases: { [cardId: string]: number } = {};
-      if (i > 0) {
-        for (const card of cards) {
-          const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
-          cardPurchases[card.id] = eventsInMonth
-            .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
-            .reduce((s, e) => s + e.amount, 0);
-        }
-      }
-      evCardPurchases.push(cardPurchases);
-    }
-
-    return { monthEvents: evMonthEvents, cardPurchasesPerMonth: evCardPurchases };
-  }, [rules, accounts, cards, pauseSavings]);
-
   const variableSim = useMemo(() =>
-    simulateVariablePayoff(
-      cards, liquidCash, cashFloor, strategy,
-      monthlyTakeHome, monthlyRecurringExpenses, 36,
-      monthEvents, fundingAccountId || undefined, ccPurchasesPerMonth,
-    ),
-    [cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyRecurringExpenses, monthEvents, fundingAccountId, ccPurchasesPerMonth],
+    simulateVariablePayoff(cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyRecurringExpenses, 36),
+    [cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyRecurringExpenses],
   );
 
   const recommendations: RecommendationSummary = useMemo(
@@ -288,8 +188,47 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       return projectCard(c, 36);
     });
 
+    // Sync month 0 (current month) payment with top recommendation panel
+    // and re-roll-forward all subsequent months to fix carry-forward math
+    if (recommendations.recommendations.length > 0) {
+      for (const proj of baseProjs) {
+        const rec = recommendations.recommendations.find(r => r.cardId === proj.card.id);
+        if (rec && proj.months.length > 0) {
+          const row = proj.months[0];
+          if (row && Math.abs(rec.payment - row.payment) > 0.01) {
+            row.payment = rec.payment;
+            row.endBalance = Math.round(Math.max(0, row.startBalance + row.newPurchases + row.interest - rec.payment) * 100) / 100;
+            row.utilization = proj.card.creditLimit > 0 ? (Math.max(0, row.endBalance) / proj.card.creditLimit) * 100 : 0;
+          }
+        }
+
+        // Re-roll-forward ALL months from month 1 onward using corrected month 0 endBalance
+        const monthlyRate = proj.card.apr / 100 / 12;
+        for (let i = 1; i < proj.months.length; i++) {
+          const prev = proj.months[i - 1];
+          const cur = proj.months[i];
+          cur.startBalance = Math.round(prev.endBalance * 100) / 100;
+
+          if (proj.card.autopayFullBalance || (cur.startBalance <= 0 && prev.endBalance <= 0)) {
+            cur.startBalance = 0;
+            cur.interest = 0;
+            cur.payment = cur.newPurchases;
+            cur.endBalance = 0;
+            cur.utilization = 0;
+            continue;
+          }
+
+          cur.interest = Math.round(Math.max(0, cur.startBalance) * monthlyRate * 100) / 100;
+          const maxPayable = cur.startBalance + cur.newPurchases + cur.interest;
+          cur.payment = Math.round(Math.min(cur.payment, maxPayable) * 100) / 100;
+          cur.endBalance = Math.round(Math.max(0, cur.startBalance + cur.newPurchases + cur.interest - cur.payment) * 100) / 100;
+          cur.utilization = proj.card.creditLimit > 0 ? (Math.max(0, cur.endBalance) / proj.card.creditLimit) * 100 : 0;
+        }
+      }
+    }
+
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides]);
+  }, [cards, paymentMode, variableSim, overrides, recommendations]);
 
   const totalBalance = cards.reduce((s, c) => s + c.balance, 0);
   const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
