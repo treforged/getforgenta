@@ -125,11 +125,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Including them here AND there would double-count, draining available cash
     // and causing UNSTABLE flags every month → no extra payments ever applied.
     const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
-    console.log('[DebtSim:CCEngine] ccAccountIds:', Array.from(ccPaymentSources), '| accounts count:', accounts.length);
     return rules.filter((r: any) => {
       if (!r.active || r.rule_type !== 'expense') return false;
-      // Safety: if no CC accounts loaded yet, include all expenses (no CC data to filter on)
-      if (ccPaymentSources.size === 0) return true;
       if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false; // explicit CC
       if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false; // default-card CC
       if (pauseSavings && (r.category === 'Savings' || r.category === 'Investing')) return false;
@@ -140,7 +137,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       if (r.frequency === 'yearly') return s + amt / 12;
       return s + amt;
     }, 0);
-  }, [rules, cards, accounts, pauseSavings]);
+  }, [rules, cards, pauseSavings]);
 
   // Pre-paycheck next-month bills
   const prePaycheckBills = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, fundingAccountId || null), [rules, payConfig, fundingAccountId]);
@@ -284,8 +281,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // double-counting income already reflected in the live account balance.
     const month0Income = getRemainingTransactionIncomeByDay(allTransactions, 31);
     const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true);
-    const surplus = monthlyTakeHome - monthlyRecurringExpenses - cashFloor;
-    console.log('[DebtSim:CCEngine] monthlyTakeHome:', monthlyTakeHome, '| monthlyExpenses (checking only):', monthlyRecurringExpenses, '| cashFloor:', cashFloor, '| liquidCash:', liquidCash, '| surplus:', surplus);
+    const surplus = liquidCash - cashFloor - monthlyRecurringExpenses;
+    console.log('[DebtSim] monthlyTakeHome:', monthlyTakeHome, '| monthlyExpenses (checking only):', monthlyRecurringExpenses, '| cashFloor:', cashFloor, '| liquidCash:', liquidCash, '| surplus:', surplus);
     return simulateVariablePayoff(
       cards, liquidCash, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, 36,

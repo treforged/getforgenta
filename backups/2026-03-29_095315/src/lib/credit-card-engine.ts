@@ -822,7 +822,6 @@ export function getCurrentMonthDebtRecommendations(
   const ccPaymentSources = new Set(cards.flatMap((c: CardData) => [c.id, `account:${c.id}`]));
   const monthlyExpenses = rules.filter((r: any) => {
     if (!r.active || r.rule_type !== 'expense') return false;
-    if (ccPaymentSources.size === 0) return true; // safety: no CC data, include all
     if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
     if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
     return true;
