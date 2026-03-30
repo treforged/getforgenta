@@ -219,7 +219,20 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   };
 }
 
-export function projectCardVariable(card: CardData, monthlyPayments: number[], months = 36): CardProjection {
+export function projectCardVariable(
+  card: CardData,
+  monthlyPayments: number[],
+  months = 36,
+  /**
+   * When true, month 1 uses 0 purchases instead of card.monthlyNewPurchases.
+   * Set this when monthlyPayments comes from simulateVariablePayoff, whose month 0
+   * (= rest of current month) uses 0 purchases because the live card balance already
+   * includes current-month spending. Without this flag the running balance diverges
+   * from the sim by exactly one month of purchases, causing cards to appear to never
+   * reach $0 in the projection table.
+   */
+  skipFirstMonthPurchases = false,
+): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
   let totalInterest = 0;
@@ -231,7 +244,7 @@ export function projectCardVariable(card: CardData, monthlyPayments: number[], m
     d.setMonth(d.getMonth() + m - 1);
     const label = d.toLocaleString('en', { month: 'short', year: '2-digit' });
     const startBal = bal;
-    const newPurchases = card.monthlyNewPurchases;
+    const newPurchases = (m === 1 && skipFirstMonthPurchases) ? 0 : card.monthlyNewPurchases;
 
     if (card.autopayFullBalance || (bal <= 0 && payoffMonth !== null)) {
       const payment = newPurchases;
@@ -374,17 +387,14 @@ export function simulateVariablePayoff(
 
   const now = new Date();
 
+  // Tracks cards that have reached $0 — one-way transition, never re-enters debt mode.
+  const paidOffCards = new Set<string>();
+
   for (let m = 0; m < months; m++) {
 
-    // ── Step 2 — Available Cash ────────────────────────────────
-    // Month 0: prefer explicit remaining-income/expenses derived from allTransactions
-    // (balance is ground truth; only count income/expenses from today forward).
+    // ── Income / expenses for this month ───────────────────────
+    // Month 0: use caller-provided remaining-income/expenses (today → EOM).
     // Months 1+: fall back to monthEvents or scalar.
-    // NOTE: these two ternaries are mutually exclusive — month0Remaining* is only used
-    // for m===0, the scalar/monthEvents path is only used for m>0. monthExpenses is
-    // subtracted exactly once per iteration (in availableCash at line 430 for allocation,
-    // then again in Step 7 to advance currentCash — this is intentional: availableCash
-    // derives the debt-payment budget; Step 7 closes out the month's cash flow).
     const monthIncome = (m === 0 && month0RemainingIncome !== undefined)
       ? month0RemainingIncome
       : (monthEvents?.[m]?.income ?? monthlyTakeHome);
@@ -392,225 +402,183 @@ export function simulateVariablePayoff(
       ? month0RemainingExpenses
       : (monthEvents?.[m]?.expenses ?? monthlyExpenses);
 
-    // End-of-month ISO date used for SimulatedDebtPayment records
+    // End-of-month ISO date for SimulatedDebtPayment records
     const payDate = new Date(now.getFullYear(), now.getMonth() + m + 1, 0);
     const payDateStr = payDate.toISOString().split('T')[0];
 
-    // Helper: monthly CC purchases for a card this month (T1/T3)
-    // Month 0 = 0 because live card.balance already includes today's purchases.
+    // Per-card CC purchases this month.
+    // Month 0 = 0: live card.balance already includes today's purchases.
     const cardPurchasesThisMonth = (c: CardData): number =>
       cardPurchasesPerMonth?.[m]?.[c.id] ?? (m === 0 ? 0 : c.monthlyNewPurchases);
 
-    // ── Step 2.5 — Add monthly CC purchases to each card's balance (T3) ───────
-    // Paid-off cards (bal <= 0) immediately pay new purchases in full without
-    // going through the min/extra allocation loop — they stay at $0 and never
-    // re-accumulate interest. Cards still carrying a balance have purchases added
-    // normally and are handled by Steps 3-4.
-    const prePaidThisMonth = new Set<string>();
+    // ── Step 1 — Mark newly paid-off cards (one-way transition) ──
     for (const card of cards) {
-      const bal = balances.get(card.id) ?? 0;
-      const purchases = cardPurchasesThisMonth(card);
-      if (bal <= 0) {
-        const pay = Math.round(purchases * 100) / 100;
-        monthlyPayments.get(card.id)!.push(pay);
-        currentCash -= pay;
-        prePaidThisMonth.add(card.id);
-        if (pay > 0) {
-          debtPaymentTransactions.push({
-            date: payDateStr, description: `${card.name} Payment`,
-            amount: pay, account: fundingAccountId ?? '',
-            category: 'Debt Payments', card: card.id,
-            type: 'debt_payoff', projected: true,
-          });
-        }
-        continue;
-      }
-      if (purchases > 0) {
-        balances.set(card.id, bal + purchases);
+      if (!paidOffCards.has(card.id) && (balances.get(card.id) ?? 0) <= 0) {
+        paidOffCards.add(card.id);
       }
     }
 
-    // Active = balance > 0 after adding this month's purchases
-    const activeCards = cards.filter(c => (balances.get(c.id) ?? 0) > 0);
+    // ── Step 2 — Handle paid-off cards: auto-pay purchases, no interest ──
+    // These cards stay at $0 permanently. Their purchase cost is a cash outflow
+    // but does NOT create a balance that accrues interest (grace period model).
+    let paidOffCashCost = 0;
+    for (const card of cards) {
+      if (!paidOffCards.has(card.id)) continue;
+      const purchases = cardPurchasesThisMonth(card);
+      const pay = Math.round(purchases * 100) / 100;
+      monthlyPayments.get(card.id)!.push(pay);
+      paidOffCashCost += pay;
+      if (pay > 0) {
+        debtPaymentTransactions.push({
+          date: payDateStr, description: `${card.name} Payment`,
+          amount: pay, account: fundingAccountId ?? '',
+          category: 'Debt Payments', card: card.id,
+          type: 'debt_payoff', projected: true,
+        });
+      }
+    }
 
-    // C8 overpayment guard: only exit early if ALL cards have $0 AND no pending purchases
-    const allPaid = cards.every(c =>
-      (balances.get(c.id) ?? 0) === 0 && cardPurchasesThisMonth(c) === 0,
-    );
-    if (allPaid) {
-      for (const card of cards) monthlyPayments.get(card.id)!.push(0);
-      currentCash += monthIncome - monthExpenses;
+    // Cards still carrying debt
+    const debtCards = cards.filter(c => !paidOffCards.has(c.id));
+
+    // All cards paid off — just advance cash and continue
+    if (debtCards.length === 0) {
+      currentCash += monthIncome - monthExpenses - paidOffCashCost;
+      const oneTime = oneTimeByMonth?.[m];
+      if (oneTime && (oneTime.income > 0 || oneTime.expenses > 0)) {
+        currentCash += oneTime.income - oneTime.expenses;
+      }
       projectedCashByMonth.push(Math.round(currentCash * 100) / 100);
       continue;
     }
 
-    if (activeCards.length > 0) projectedPayoffMonths = m + 1;
+    // ── Step 3 — Compute interest on STARTING balances ────────
+    // Interest is charged only on the balance carried from last month,
+    // before this month's purchases are added (standard grace period model).
+    const interestMap = new Map<string, number>();
+    for (const card of debtCards) {
+      const bal = balances.get(card.id) ?? 0;
+      const interest = Math.round(Math.max(0, bal) * (card.apr / 100 / 12) * 100) / 100;
+      interestMap.set(card.id, interest);
+    }
 
-    let availableCash = currentCash + monthIncome - monthExpenses - cashFloor;
+    // ── Step 4 — Balance before payment = startBal + interest + purchases ──
+    const balBeforePayment = new Map<string, number>();
+    for (const card of debtCards) {
+      const bal = balances.get(card.id) ?? 0;
+      const interest = interestMap.get(card.id) ?? 0;
+      const purchases = cardPurchasesThisMonth(card);
+      balBeforePayment.set(card.id, bal + interest + purchases);
+    }
 
+    // ── Step 5 — Available surplus for debt payoff ────────────
+    const totalMins = debtCards.reduce((s, c) => {
+      const bbp = balBeforePayment.get(c.id) ?? 0;
+      return s + Math.min(c.minPayment, bbp);
+    }, 0);
+
+    // availableCash = what's left above the floor after income, expenses, and paid-off costs
+    let availableCash = currentCash + monthIncome - monthExpenses - cashFloor - paidOffCashCost;
     if (availableCash < 0) {
-      // Edge case: even before minimums we're short
       flags.push({ month: m + 1, flag: 'UNSTABLE' });
       availableCash = 0;
     }
 
-    // ── Step 3 — Pay Minimums ─────────────────────────────────
     const payments = new Map<string, number>(cards.map(c => [c.id, 0]));
 
-    const minDueMap = new Map<string, number>(
-      activeCards.map(c => [c.id, Math.min(c.minPayment, balances.get(c.id) ?? 0)]),
-    );
-    const totalMins = [...minDueMap.values()].reduce((s, v) => s + v, 0);
-
     if (availableCash < totalMins) {
-      // FLOOR_BREACHED: minimums exceed floor-adjusted cash
-      // Allow going below floor — minimums override it — but use currentCash as hard limit
+      // FLOOR_BREACHED: can't cover all minimums above the floor
       flags.push({ month: m + 1, flag: 'FLOOR_BREACHED' });
-      cashFloorBreaches.push({ month: m + 1, endingCash: currentCash - totalMins });
+      cashFloorBreaches.push({ month: m + 1, endingCash: currentCash - totalMins - paidOffCashCost });
 
-      // Snowball protection: pay smallest balances first so at least some cards
-      // stay current when cash is tight
-      const sortedForBreached = [...activeCards].sort(
+      // Snowball protection: pay smallest balances first when cash is tight
+      const sortedForBreached = [...debtCards].sort(
         (a, b) => (balances.get(a.id) ?? 0) - (balances.get(b.id) ?? 0),
       );
-
-      let remainingForMins = currentCash; // floor ignored for minimums
+      let remainingForMins = Math.max(0, currentCash - paidOffCashCost);
       let atRiskWarningEmitted = false;
-
       for (const card of sortedForBreached) {
-        const min = minDueMap.get(card.id) ?? 0;
+        const bbp = balBeforePayment.get(card.id) ?? 0;
+        const min = Math.min(card.minPayment, bbp);
         if (remainingForMins >= min) {
           payments.set(card.id, min);
           remainingForMins -= min;
         } else {
-          // Cannot cover this card's minimum — mark at risk
           payments.set(card.id, 0);
           flags.push({ month: m + 1, flag: 'CARD_AT_RISK', cardId: card.id });
           if (!atRiskWarningEmitted) {
             warningMessages.push({
               month: m + 1,
-              message:
-                'Available cash cannot cover all minimum payments. Consider reducing expenses or increasing income.',
+              message: 'Available cash cannot cover all minimum payments. Consider reducing expenses or increasing income.',
             });
             atRiskWarningEmitted = true;
           }
         }
       }
-      // No extra payments in floor-breach mode
 
     } else {
-      // Sort order used throughout minimums, extra allocation, and cleanup passes
-      const strategyOrder = [...activeCards].sort((a, b) =>
+      // Sort by strategy: avalanche = highest APR first, snowball = lowest balance first
+      const strategyOrder = [...debtCards].sort((a, b) =>
         strategy === 'avalanche'
           ? b.apr - a.apr
-          : (balances.get(a.id) ?? 0) - (balances.get(b.id) ?? 0),
+          : (balBeforePayment.get(a.id) ?? 0) - (balBeforePayment.get(b.id) ?? 0),
       );
 
-      // ── Step 3 — Pay Minimums (Bug 4b) ───────────────────────
-      // Cap each minimum against the live balance AND remaining available cash so
-      // nearly-paid cards never receive more than they owe.
+      // ── Step 5a — Pay minimums ─────────────────────────────
       let remaining = availableCash;
       for (const card of strategyOrder) {
-        const currentBal = balances.get(card.id)!;
-        const min = Math.min(card.minPayment, currentBal, remaining);
+        const bbp = balBeforePayment.get(card.id) ?? 0;
+        const min = Math.min(card.minPayment, bbp, remaining);
         payments.set(card.id, min);
         remaining -= min;
       }
 
-      // ── Step 4 — Extra Payment Allocation (Bug 1) ─────────────
-      // remaining = availableCash − Σ(minimums actually paid).
-      // Use live balances from the Map (not stale card.balance) so purchases and
-      // interest added earlier this month are correctly accounted for.
+      // ── Step 5b — Cascade surplus to priority cards ────────
+      // All surplus goes to card #1 (highest APR / lowest balance).
+      // If card #1 is fully paid this month, leftover cascades to card #2, etc.
       for (const card of strategyOrder) {
         if (remaining <= 0) break;
-        const currentBal = balances.get(card.id)!;
-        const currentPayment = payments.get(card.id) || 0;
-        const maxExtra = Math.max(0, currentBal - currentPayment);
+        const bbp = balBeforePayment.get(card.id) ?? 0;
+        const currentPayment = payments.get(card.id) ?? 0;
+        const maxExtra = Math.max(0, bbp - currentPayment);
         const extra = Math.min(remaining, maxExtra);
         if (extra > 0) {
           payments.set(card.id, currentPayment + extra);
           remaining -= extra;
         }
       }
-
-      // C8 overpayment guard: clamp each payment to the card's current balance
-      for (const card of activeCards) {
-        const bal = balances.get(card.id) ?? 0;
-        const pay = payments.get(card.id) ?? 0;
-        if (pay > bal) payments.set(card.id, bal);
-      }
-
-      // Residual sweep: clear balances under $100 if cash remains
-      if (remaining > 0) {
-        for (const card of strategyOrder) {
-          if (remaining <= 0) break;
-          const bal = balances.get(card.id)!;
-          const currentPayment = payments.get(card.id) || 0;
-          const residual = bal - currentPayment;
-          if (residual > 0 && residual < 100) {
-            const extra = Math.min(remaining, residual);
-            payments.set(card.id, currentPayment + extra);
-            remaining -= extra;
-          }
-        }
-      }
-
-      // Final cleanup (Bug 4a): explicitly zero near-zero residuals < $5
-      for (const card of strategyOrder) {
-        const currentBal = balances.get(card.id)!;
-        const currentPayment = payments.get(card.id) || 0;
-        const residual = currentBal - currentPayment;
-        if (residual > 0 && residual < 5 && remaining >= residual) {
-          payments.set(card.id, currentPayment + residual);
-          remaining -= residual;
-        }
-      }
     }
 
-    // ── Step 5 — Update Balances and Cash ─────────────────────
-    for (const card of cards) {
-      if (prePaidThisMonth.has(card.id)) continue; // payment already recorded in Step 2.5
-      const payment = Math.round((payments.get(card.id) ?? 0) * 100) / 100;
-      monthlyPayments.get(card.id)!.push(payment);
+    // ── Step 6 — Apply payments, update balances, emit transactions ──
+    let totalDebtPayments = paidOffCashCost;
+    for (const card of debtCards) {
+      const startBal = balances.get(card.id) ?? 0;
+      const interest = interestMap.get(card.id) ?? 0;
+      const purchases = cardPurchasesThisMonth(card);
+      const pay = Math.round((payments.get(card.id) ?? 0) * 100) / 100;
+      monthlyPayments.get(card.id)!.push(pay);
+      totalDebtPayments += pay;
 
-      const bal = balances.get(card.id) ?? 0;
-      balances.set(card.id, Math.max(0, bal - payment));
-      currentCash -= payment;
+      const bbp = balBeforePayment.get(card.id) ?? 0; // startBal + interest + purchases
+      const endBal = Math.max(0, bbp - pay);
+      balances.set(card.id, endBal < 1 ? 0 : endBal); // clear sub-dollar dust
 
-      if (payment > 0) {
+      if (pay > 0) {
         debtPaymentTransactions.push({
-          date: payDateStr,
-          description: `${card.name} Payment`,
-          amount: payment,
-          account: fundingAccountId ?? '',
-          category: 'Debt Payments',
-          card: card.id,
-          type: 'debt_payoff',
-          projected: true,
+          date: payDateStr, description: `${card.name} Payment`,
+          amount: pay, account: fundingAccountId ?? '',
+          category: 'Debt Payments', card: card.id,
+          type: 'debt_payoff', projected: true,
         });
       }
     }
 
-    // ── Step 6 — Interest AFTER All Payments (C4) ─────────────
-    // Interest is never applied mid-month. It is always added to the
-    // NEXT month's starting balance only.
-    // Sub-dollar residuals are rounded to $0 (rounding dust — no interest charged).
-    for (const card of cards) {
-      const bal = balances.get(card.id) ?? 0;
-      const effectiveBal = bal < 1 ? 0 : bal;
-      if (effectiveBal === 0 && bal > 0) {
-        balances.set(card.id, 0); // clear sub-dollar dust
-      } else if (effectiveBal > 0 && card.apr > 0) {
-        const interest = (card.apr / 100 / 12) * effectiveBal;
-        balances.set(card.id, effectiveBal + interest);
-      }
-    }
+    // Payoff ETA = last month where any card still carried debt
+    projectedPayoffMonths = m + 1;
 
-    // ── Step 7 — Advance Month ────────────────────────────────
-    currentCash += monthIncome - monthExpenses;
-    // Apply one-time income/expenses AFTER debt allocation.
-    // This prevents future large purchases from hoarding cash in prior months —
-    // only the month the event occurs in is affected.
+    // ── Step 7 — Advance cash ──────────────────────────────────
+    currentCash += monthIncome - monthExpenses - totalDebtPayments;
+    // One-time items applied AFTER debt allocation to avoid look-ahead cash hoarding
     const oneTime = oneTimeByMonth?.[m];
     if (oneTime && (oneTime.income > 0 || oneTime.expenses > 0)) {
       currentCash += oneTime.income - oneTime.expenses;
