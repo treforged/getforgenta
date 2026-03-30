@@ -251,7 +251,7 @@ export default function Forecast() {
         );
         return cards.map(c => {
           const pays = sim.monthlyPayments.get(c.id) || [];
-          return projectCardVariable(c, pays, 36, true);
+          return projectCardVariable(c, pays, 36);
         });
       })();
 

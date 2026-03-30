@@ -125,6 +125,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Including them here AND there would double-count, draining available cash
     // and causing UNSTABLE flags every month → no extra payments ever applied.
     const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
+    console.log('[DebtSim:CCEngine] ccAccountIds:', Array.from(ccPaymentSources), '| accounts count:', accounts.length);
     return rules.filter((r: any) => {
       if (!r.active || r.rule_type !== 'expense') return false;
       // Safety: if no CC accounts loaded yet, include all expenses (no CC data to filter on)
@@ -311,13 +312,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // in simulateVariablePayoff so they don't cause look-ahead cash hoarding in prior months.
     // Month 0 is handled separately via month0Income/month0Expenses above.
     const oneTimeByMonth: { income: number; expenses: number }[] = [{ income: 0, expenses: 0 }];
-
-    // Augment ccPurchasesPerMonth with one-time (non-generated) CC transactions per card.
-    // ccPurchasesPerMonth from the outer useMemo only includes recurring rule events.
-    // One-time future CC purchases (e.g. $410 Prime Visa in June) must be added here
-    // so the simulation knows that month's purchases on that card.
-    const augmentedCCPurchases: { [cardId: string]: number }[] = [{}]; // month 0 = empty
-
     for (let i = 1; i < 36; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -336,34 +330,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         })
         .reduce((s: number, t: any) => s + Number(t.amount), 0);
       oneTimeByMonth.push({ income: inc, expenses: exp });
-
-      // Build per-card one-time CC purchases for this month
-      const baseMonth = ccPurchasesPerMonth[i] ?? {};
-      const monthCCPurchases: { [cardId: string]: number } = { ...baseMonth };
-      for (const card of cards) {
-        const cKey = `account:${card.id}`;
-        const oneTimePurchases = txns
-          .filter((t: any) =>
-            t.type === 'expense' &&
-            (t.payment_source === card.id || t.payment_source === cKey),
-          )
-          .reduce((s: number, t: any) => s + Number(t.amount), 0);
-        if (oneTimePurchases > 0) {
-          monthCCPurchases[card.id] = (monthCCPurchases[card.id] || 0) + oneTimePurchases;
-        }
-      }
-      augmentedCCPurchases.push(monthCCPurchases);
     }
 
+    const surplus = monthlyTakeHome - monthlyRecurringExpenses - cashFloor;
+    console.log('[DebtSim:CCEngine] monthlyTakeHome:', monthlyTakeHome, '| monthlyExpenses (checking only):', monthlyRecurringExpenses, '| cashFloor:', cashFloor, '| liquidCash:', liquidCash, '| surplus:', surplus);
     return simulateVariablePayoff(
       cards, liquidCash, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, 36,
-      monthEvents, undefined, augmentedCCPurchases,
+      undefined, undefined, undefined,
       month0Income, month0Expenses,
       oneTimeByMonth,
     );
   }, [cards, liquidCash, cashFloor, strategy, monthlyTakeHome,
-      monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents]);
+      monthlyRecurringExpenses, allTransactions, accounts]);
 
   const recommendations: RecommendationSummary = useMemo(
     () => generateRecommendations(
