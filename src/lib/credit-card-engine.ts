@@ -236,6 +236,14 @@ export function projectCardVariable(
    * reach $0 in the projection table.
    */
   skipFirstMonthPurchases = false,
+  /**
+   * Optional per-month purchase amounts for this card (index = m-1, same as monthlyPayments).
+   * When provided, overrides card.monthlyNewPurchases so one-time CC transactions are
+   * reflected in the Purchases column of the projection table.
+   * purchasesPerMonth[0] corresponds to projection month 1 (sim month 0) — should be 0.
+   * purchasesPerMonth[1] corresponds to projection month 2 (sim month 1), etc.
+   */
+  purchasesPerMonth?: number[],
 ): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
@@ -248,7 +256,9 @@ export function projectCardVariable(
     d.setMonth(d.getMonth() + m - 1);
     const label = d.toLocaleString('en', { month: 'short', year: '2-digit' });
     const startBal = bal;
-    const newPurchases = (m === 1 && skipFirstMonthPurchases) ? 0 : card.monthlyNewPurchases;
+    const newPurchases = purchasesPerMonth?.[m - 1] !== undefined
+      ? purchasesPerMonth[m - 1]
+      : (m === 1 && skipFirstMonthPurchases) ? 0 : card.monthlyNewPurchases;
 
     if (card.autopayFullBalance || (bal <= 0 && payoffMonth !== null)) {
       const payment = newPurchases;
@@ -488,6 +498,12 @@ export function simulateVariablePayoff(
       availableCash = 0;
     }
 
+    // Debug: log card states and cash position each month
+    for (const card of debtCards) {
+      console.log(`[DEBUG-MIN] Month ${m+1} "${card.name}": bal=${(balances.get(card.id)??0).toFixed(2)}, min=${card.minPayment}, paidOff=${paidOffCards.has(card.id)}`);
+    }
+    console.log(`[DEBUG-MIN] Month ${m+1}: currentCash=${currentCash.toFixed(2)}, paidOffCashCost=${paidOffCashCost.toFixed(2)}, availableCash=${availableCash.toFixed(2)}, totalMins=${totalMins.toFixed(2)}, debtCards=${debtCards.length}`);
+
     const payments = new Map<string, number>(cards.map(c => [c.id, 0]));
 
     if (availableCash < totalMins) {
@@ -550,6 +566,20 @@ export function simulateVariablePayoff(
           payments.set(card.id, currentPayment + extra);
           remaining -= extra;
         }
+      }
+    }
+
+    // ── Minimum enforcement guard ──────────────────────────────────────
+    // After all allocation, ensure every active debt card receives at least
+    // Math.min(minPayment, balanceBeforePayment). Prevents rounding or edge-case
+    // paths from silently skipping a minimum payment.
+    for (const card of debtCards) {
+      const bbp = balBeforePayment.get(card.id) ?? 0;
+      const currentPay = payments.get(card.id) ?? 0;
+      const minRequired = Math.min(card.minPayment, bbp);
+      if (currentPay < minRequired && bbp > 0) {
+        payments.set(card.id, minRequired);
+        console.log(`[DEBUG-MIN] Month ${m+1} "${card.name}": enforced minimum ${minRequired.toFixed(2)} (was ${currentPay.toFixed(2)})`);
       }
     }
 
