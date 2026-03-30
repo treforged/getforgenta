@@ -370,8 +370,8 @@ export default function Transactions() {
   }, [allTransactions]);
 
   const totals = useMemo(() => {
-    const income = filtered.filter(t => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s, t) => s + Number(t.amount), 0);
-    const expense = filtered.filter(t => t.type === 'expense' && t.category !== 'Balance Adjustment').reduce((s, t) => s + Number(t.amount), 0);
+    const income = filtered.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const expense = filtered.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
     return { income, expense, net: income - expense };
   }, [filtered]);
 

@@ -198,7 +198,7 @@ export default function Dashboard() {
   }, [debtPaymentBreakdown]);
 
   const summary = useMemo(() => {
-    const income = currentMonthTransactions.filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+    const income = currentMonthTransactions.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
     const expenses = Object.values(expenseBreakdown).reduce((s: number, v: number) => s + v, 0);
     const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance || 0), 0);
     const totalSaved = goals.reduce((s: number, g: any) => {

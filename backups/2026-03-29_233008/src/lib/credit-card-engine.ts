@@ -444,7 +444,7 @@ export function simulateVariablePayoff(
       continue;
     }
 
-    if (activeCards.length > 0) projectedPayoffMonths = m + 1;
+    projectedPayoffMonths = m + 1;
 
     let availableCash = currentCash + monthIncome - monthExpenses - cashFloor;
 
