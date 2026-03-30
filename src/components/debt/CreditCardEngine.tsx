@@ -355,13 +355,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       augmentedCCPurchases.push(monthCCPurchases);
     }
 
-    return simulateVariablePayoff(
+    const sim = simulateVariablePayoff(
       cards, liquidCash, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, 36,
       monthEvents, undefined, augmentedCCPurchases,
       month0Income, month0Expenses,
       oneTimeByMonth,
     );
+    // Return augmentedCCPurchases alongside the sim so projections can use it
+    // to pass per-month purchase amounts to projectCardVariable.
+    return { ...sim, augmentedCCPurchases };
   }, [cards, liquidCash, cashFloor, strategy, monthlyTakeHome,
       monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents]);
 
@@ -377,14 +380,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const projections: CardProjection[] = useMemo(() => {
     const baseProjs = cards.map(c => {
       const cardOverrides = overrides[c.id] || {};
+      // Per-month purchases for this card from the augmented sim data.
+      // Index matches projectCardVariable's purchasesPerMonth param: index 0 = month 1.
+      const cardPurchases = variableSim.augmentedCCPurchases.map(
+        (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
+      );
       if (paymentMode === 'variable') {
         const basePays = variableSim.monthlyPayments.get(c.id) || [];
         const payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
-        return projectCardVariable(c, payments, 36, true);
+        return projectCardVariable(c, payments, 36, true, cardPurchases);
       }
       if (Object.keys(cardOverrides).length > 0) {
         const payments = Array.from({ length: 36 }, (_, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : c.targetPayment);
-        return projectCardVariable(c, payments, 36);
+        return projectCardVariable(c, payments, 36, false, cardPurchases);
       }
       return projectCard(c, 36);
     });
