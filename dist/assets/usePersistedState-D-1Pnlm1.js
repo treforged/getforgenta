@@ -1,0 +1,1 @@
+import{p as e,v as t}from"./createLucideIcon-B8-tVGd8.js";var n=t(e(),1);function r(e,t){let[r,i]=(0,n.useState)(()=>{try{let t=localStorage.getItem(e);if(t!==null)return JSON.parse(t)}catch{}return t});return[r,(0,n.useCallback)(t=>{i(n=>{let r=typeof t==`function`?t(n):t;try{localStorage.setItem(e,JSON.stringify(r))}catch{}return r})},[e])]}export{r as t};

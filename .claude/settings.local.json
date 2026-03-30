@@ -8,7 +8,13 @@
       "Read(//c/Users/tvonh/**)",
       "Bash(echo \"SUPABASE_ACCESS_TOKEN=$SUPABASE_ACCESS_TOKEN\")",
       "Bash(env)",
-      "mcp__claude_ai_Supabase__deploy_edge_function"
+      "mcp__claude_ai_Supabase__deploy_edge_function",
+      "Bash(sed -n '14,55p' C:/Users/tvonh/Desktop/webappredesign/supabase/functions/create-checkout/index.ts)",
+      "Bash(sed -n '14,55p' C:/Users/tvonh/Desktop/webappredesign/supabase/functions/create-portal-session/index.ts)",
+      "mcp__claude_ai_Supabase__get_logs",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

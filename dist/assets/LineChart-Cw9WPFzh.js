@@ -1,0 +1,1 @@
+import{c as e,i as t,n,o as r,r as i}from"./index-D9RgKuZZ.js";var a=n({chartName:`LineChart`,GraphicalChild:r,axisComponents:[{axisType:`xAxis`,AxisComp:t},{axisType:`yAxis`,AxisComp:i}],formatAxisMap:e});export{a as t};
