@@ -121,11 +121,19 @@ export function buildCardData(
   return ccAccounts.map((acct, i) => {
     const acctKey = `account:${acct.id}`;
     const now = new Date();
-    // Only count CC transactions from TODAY forward — past purchases are already
-    // in the card's live balance and must not be re-added as future new purchases.
+    // Only count CC transactions in the CURRENT month from TODAY forward.
+    // Past purchases are already in the card's live balance.
+    // Future-month one-time purchases must NOT be summed here — they are
+    // attributed per-month via cardPurchasesPerMonth in the simulation.
     const todayStr = now.toISOString().split('T')[0];
+    const currentMonthStr = todayStr.slice(0, 7); // 'YYYY-MM'
     const monthPurchases = transactions
-      .filter((t: any) => t.type === 'expense' && (t.payment_source === acctKey || t.payment_source === acct.id) && t.date >= todayStr)
+      .filter((t: any) =>
+        t.type === 'expense' &&
+        (t.payment_source === acctKey || t.payment_source === acct.id) &&
+        t.date >= todayStr &&
+        t.date.startsWith(currentMonthStr),
+      )
       .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
     const recurringExplicit = rules
@@ -150,12 +158,8 @@ export function buildCardData(
       }, 0) : 0;
 
     const monthlyNewPurchases = Math.max(monthPurchases, recurringExplicit + recurringDefault);
-    console.log('[buildCardData]', acct.name,
-      'monthPurchases (future only):', monthPurchases,
-      'recurringExplicit:', recurringExplicit,
-      'recurringDefault:', recurringDefault,
-      'monthlyNewPurchases:', monthlyNewPurchases);
 
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const monthRepayments = transactions
       .filter((t: any) => t.type === 'expense' && t.category === 'Debt Payments' && t.note?.toLowerCase().includes(acct.name.toLowerCase()) && t.date >= monthStart)
       .reduce((s: number, t: any) => s + Number(t.amount), 0);
@@ -495,7 +499,7 @@ export function simulateVariablePayoff(
       const sortedForBreached = [...debtCards].sort(
         (a, b) => (balances.get(a.id) ?? 0) - (balances.get(b.id) ?? 0),
       );
-      let remainingForMins = Math.max(0, currentCash - paidOffCashCost);
+      let remainingForMins = Math.max(0, currentCash);
       let atRiskWarningEmitted = false;
       for (const card of sortedForBreached) {
         const bbp = balBeforePayment.get(card.id) ?? 0;

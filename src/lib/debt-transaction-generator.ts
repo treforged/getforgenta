@@ -143,14 +143,14 @@ function getCardProjections(
       const cardOverrides = options.overrides[c.id] || {};
       const basePays = sim.monthlyPayments.get(c.id) || [];
       const payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
-      return projectCardVariable(c, payments, months);
+      return projectCardVariable(c, payments, months, true);
     });
   }
   return cards.map(c => {
     const cardOverrides = options.overrides[c.id] || {};
     if (Object.keys(cardOverrides).length > 0) {
       const payments = Array.from({ length: months }, (_, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : c.targetPayment);
-      return projectCardVariable(c, payments, months);
+      return projectCardVariable(c, payments, months, true);
     }
     return projectCard(c, months);
   });
