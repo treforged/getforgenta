@@ -177,9 +177,9 @@ export type Database = {
         Relationships: []
       }
       savings_goals: {
-        Row: { created_at: string; current_amount: number; goal_type: string; id: string; linked_account: string | null; monthly_contribution: number; name: string; target_amount: number; target_date: string | null; updated_at: string; user_id: string }
-        Insert: { created_at?: string; current_amount?: number; goal_type?: string; id?: string; linked_account?: string | null; monthly_contribution?: number; name: string; target_amount?: number; target_date?: string | null; updated_at?: string; user_id: string }
-        Update: { created_at?: string; current_amount?: number; goal_type?: string; id?: string; linked_account?: string | null; monthly_contribution?: number; name?: string; target_amount?: number; target_date?: string | null; updated_at?: string; user_id?: string }
+        Row: { contribution_start_date: string | null; created_at: string; current_amount: number; goal_type: string; id: string; linked_account: string | null; monthly_contribution: number; name: string; target_amount: number; target_date: string | null; updated_at: string; user_id: string }
+        Insert: { contribution_start_date?: string | null; created_at?: string; current_amount?: number; goal_type?: string; id?: string; linked_account?: string | null; monthly_contribution?: number; name: string; target_amount?: number; target_date?: string | null; updated_at?: string; user_id: string }
+        Update: { contribution_start_date?: string | null; created_at?: string; current_amount?: number; goal_type?: string; id?: string; linked_account?: string | null; monthly_contribution?: number; name?: string; target_amount?: number; target_date?: string | null; updated_at?: string; user_id?: string }
         Relationships: []
       }
       subscription_tiers: {

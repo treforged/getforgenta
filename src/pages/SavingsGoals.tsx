@@ -15,17 +15,28 @@ import { toast } from 'sonner';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Car Fund', 'Retirement', 'Custom'];
-const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '' };
-const emptyCarForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Car Fund', target_price: '', tax_fees: '', monthly_insurance: '', expected_apr: '', loan_term_months: '', linked_account: '' };
+const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '' };
+const emptyCarForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Car Fund', target_price: '', tax_fees: '', monthly_insurance: '', expected_apr: '', loan_term_months: '', linked_account: '', contribution_start_date: '' };
 
 // getAccountScheduledOutflows removed — replaced by transaction-based getAccountRemainingCashThisMonth from pay-schedule
 
 function SavingsGrowthChart({ goals }: { goals: any[] }) {
   const chartData = useMemo(() => {
+    const today = new Date();
+    const todayYear = today.getFullYear();
+    const todayMonth = today.getMonth();
     const months: Record<string, any>[] = [];
     for (let i = 0; i < 12; i++) {
-      const entry: Record<string, any> = { month: new Date(new Date().getFullYear(), new Date().getMonth() + i).toLocaleString('en', { month: 'short', year: '2-digit' }) };
-      goals.forEach(g => { entry[g.name] = Math.min(Number(g.current_amount) + Number(g.monthly_contribution) * i, Number(g.target_amount)); });
+      const entry: Record<string, any> = { month: new Date(todayYear, todayMonth + i).toLocaleString('en', { month: 'short', year: '2-digit' }) };
+      goals.forEach(g => {
+        let monthsContributed = i;
+        if (g.contribution_start_date) {
+          const start = new Date(g.contribution_start_date + 'T00:00:00');
+          const j = (start.getFullYear() - todayYear) * 12 + (start.getMonth() - todayMonth);
+          if (j > 0) monthsContributed = Math.max(0, i - (j - 1));
+        }
+        entry[g.name] = Math.min(Number(g.current_amount) + Number(g.monthly_contribution) * monthsContributed, Number(g.target_amount));
+      });
       months.push(entry);
     }
     return months;
@@ -147,6 +158,7 @@ export default function SavingsGoals() {
         name: g.name, target_amount: String(g.target_amount), current_amount: String(g.current_amount),
         monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
         goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
+        contribution_start_date: (g as any).contribution_start_date || '',
       });
     }
     setEditId(g.id); setShowForm(true);
@@ -167,6 +179,7 @@ export default function SavingsGoals() {
         name: `${g.name} (Copy)`, target_amount: String(g.target_amount), current_amount: '0',
         monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
         goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
+        contribution_start_date: (g as any).contribution_start_date || '',
       });
     }
     setEditId(null); setShowForm(true);
@@ -203,6 +216,7 @@ export default function SavingsGoals() {
       target_date: form.target_date || null,
       linked_account: form.linked_account || null,
       goal_type: form.goal_type || 'Custom',
+      contribution_start_date: (form as any).contribution_start_date || null,
     };
     if (editId) update.mutate({ id: editId, ...payload });
     else add.mutate(payload);
@@ -224,7 +238,14 @@ export default function SavingsGoals() {
     const remaining = Number(g.target_amount) - Number(g.current_amount);
     if (remaining <= 0) return 'Complete';
     if (Number(g.monthly_contribution) <= 0) return 'Set contribution';
-    const months = Math.ceil(remaining / Number(g.monthly_contribution));
+    let delay = 0;
+    if (g.contribution_start_date) {
+      const today = new Date();
+      const start = new Date(g.contribution_start_date + 'T00:00:00');
+      const j = (start.getFullYear() - today.getFullYear()) * 12 + (start.getMonth() - today.getMonth());
+      delay = Math.max(0, j - 1);
+    }
+    const months = delay + Math.ceil(remaining / Number(g.monthly_contribution));
     const date = new Date(); date.setMonth(date.getMonth() + months);
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }
@@ -242,6 +263,7 @@ export default function SavingsGoals() {
     }
     fields.push(
       { key: 'monthly_contribution', label: 'Monthly Contribution', type: 'number', placeholder: '500', step: '0.01' },
+      { key: 'contribution_start_date', label: 'Contributions Start (optional)', type: 'date' },
       { key: 'target_date', label: 'Target Date', type: 'date' },
     );
     if (form.goal_type === 'Car Fund') {
