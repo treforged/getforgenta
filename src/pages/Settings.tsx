@@ -234,51 +234,53 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Subscription Status */}
-      <div className="card-forged p-5 space-y-4">
-        <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Subscription</h2>
-        {subLoading ? (
-          <p className="text-xs text-muted-foreground">Loading subscription info...</p>
-        ) : isPremium ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <CheckCircle size={14} className="text-primary" />
-              <span className="text-sm font-semibold text-primary">Premium Active</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <span className="text-muted-foreground">Status</span>
-                <p className="font-medium capitalize">{subscription?.subscription_status || '—'}</p>
+      {/* Subscription Status — hidden in demo mode */}
+      {!isDemo && (
+        <div className="card-forged p-5 space-y-4">
+          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Subscription</h2>
+          {subLoading ? (
+            <p className="text-xs text-muted-foreground">Loading subscription info...</p>
+          ) : isPremium ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle size={14} className="text-primary" />
+                <span className="text-sm font-semibold text-primary">Premium Active</span>
               </div>
-              <div>
-                <span className="text-muted-foreground">Renews</span>
-                <p className="font-medium">
-                  {subscription?.current_period_end
-                    ? format(new Date(subscription.current_period_end), 'MMM d, yyyy')
-                    : '—'}
-                </p>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-muted-foreground">Status</span>
+                  <p className="font-medium capitalize">{subscription?.subscription_status || '—'}</p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Renews</span>
+                  <p className="font-medium">
+                    {subscription?.current_period_end
+                      ? format(new Date(subscription.current_period_end), 'MMM d, yyyy')
+                      : '—'}
+                  </p>
+                </div>
               </div>
+              {hasStripeCustomer && (
+                <button onClick={handleManageSubscription} disabled={portalLoading}
+                  className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
+                  <Crown size={12} /> {portalLoading ? 'Loading...' : 'Manage Subscription'}
+                </button>
+              )}
             </div>
-            {hasStripeCustomer && (
-              <button onClick={handleManageSubscription} disabled={portalLoading}
-                className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
-                <Crown size={12} /> {portalLoading ? 'Loading...' : 'Manage Subscription'}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <AlertCircle size={14} className="text-muted-foreground" />
-              <span className="text-sm font-medium">Free Plan</span>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle size={14} className="text-muted-foreground" />
+                <span className="text-sm font-medium">Free Plan</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Upgrade to Premium for advanced features, unlimited history, and priority support.</p>
+              <Link to="/premium" className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+                <Crown size={12} /> Upgrade to Premium
+              </Link>
             </div>
-            <p className="text-[10px] text-muted-foreground">Upgrade to Premium for advanced features, unlimited history, and priority support.</p>
-            <Link to="/premium" className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
-              <Crown size={12} /> Upgrade to Premium
-            </Link>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
