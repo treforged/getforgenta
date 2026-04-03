@@ -3,7 +3,7 @@
 //
 // The schema includes these tables:
 // account_reconciliations, accounts, assets, budget_items, car_funds, debts, liabilities,
-// net_worth_snapshots, profiles, recurring_rules, savings_goals, subscription_tiers,
+// profiles, recurring_rules, savings_goals, subscription_tiers,
 // subscriptions, transactions, user_subscriptions
 
 export type Json =
@@ -132,36 +132,6 @@ export type Database = {
         Row: { apr: number | null; balance: number; created_at: string; id: string; name: string; notes: string | null; type: string; updated_at: string; user_id: string }
         Insert: { apr?: number | null; balance?: number; created_at?: string; id?: string; name: string; notes?: string | null; type?: string; updated_at?: string; user_id: string }
         Update: { apr?: number | null; balance?: number; created_at?: string; id?: string; name?: string; notes?: string | null; type?: string; updated_at?: string; user_id?: string }
-        Relationships: []
-      }
-      net_worth_snapshots: {
-        Row: {
-          id: string
-          user_id: string
-          snapshot_date: string
-          total_assets: number
-          total_liabilities: number
-          net_worth: number
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          snapshot_date: string
-          total_assets?: number
-          total_liabilities?: number
-          net_worth?: number
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          snapshot_date?: string
-          total_assets?: number
-          total_liabilities?: number
-          net_worth?: number
-          created_at?: string
-        }
         Relationships: []
       }
       profiles: {

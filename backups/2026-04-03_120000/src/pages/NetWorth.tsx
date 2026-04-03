@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
-import { useAccounts, useAssets, useLiabilities, useAccountReconciliations, useNetWorthSnapshots } from '@/hooks/useSupabaseData';
+import { useAccounts, useAssets, useLiabilities, useAccountReconciliations } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import MetricCard from '@/components/shared/MetricCard';
@@ -43,13 +43,12 @@ const emptyAssetForm = { name: '', type: 'Checking', value: '', notes: '' };
 const emptyLiabilityForm = { name: '', type: 'Credit Card', balance: '', apr: '', notes: '' };
 
 export default function NetWorth() {
-  const { isDemo, user } = useAuth();
+  const { isDemo } = useAuth();
   const { isPremium } = useSubscription();
   const { data: accounts } = useAccounts();
   const { data: manualAssets, add: addAsset, update: updateAsset, remove: removeAsset } = useAssets();
   const { data: manualLiabilities, add: addLiability, update: updateLiability, remove: removeLiability } = useLiabilities();
   const { add: addReconciliation } = useAccountReconciliations();
-  const { data: snapshots, upsert: upsertSnapshot } = useNetWorthSnapshots();
 
   const [showAssetForm, setShowAssetForm] = useState(false);
   const [showLiabilityForm, setShowLiabilityForm] = useState(false);
@@ -118,55 +117,14 @@ export default function NetWorth() {
     return Object.entries(acc).map(([name, value]) => ({ name, value }));
   }, [allLiabilities]);
 
-  // Auto-save snapshot at most once per 7 days
-  const snapshotSaved = useRef(false);
-  useEffect(() => {
-    if (isDemo || snapshotSaved.current || !user) return;
-    if (totalAssets === 0 && totalLiabilities === 0) return; // no data yet
-
-    const today = new Date().toISOString().split('T')[0];
-    const lastSnapshot = snapshots.length > 0 ? snapshots[snapshots.length - 1] : null;
-
-    if (lastSnapshot) {
-      const lastDate = new Date(lastSnapshot.snapshot_date);
-      const daysSince = Math.floor((Date.now() - lastDate.getTime()) / 86400000);
-      if (daysSince < 7) return;
-    }
-
-    snapshotSaved.current = true;
-    upsertSnapshot.mutate({
-      snapshot_date: today,
-      total_assets: totalAssets,
-      total_liabilities: totalLiabilities,
-      net_worth: netWorth,
-    });
-  }, [snapshots, totalAssets, totalLiabilities, netWorth, isDemo, user, upsertSnapshot]);
-
-  // Build trend from historical snapshots; fall back to current value if none saved yet
+  // Only show current real data point — do not fabricate historical values
   const netWorthTrend = useMemo(() => {
-    if (snapshots.length === 0) {
-      const now = new Date();
-      return [{ month: now.toLocaleString('en', { month: 'short' }), value: netWorth }];
-    }
-    return snapshots.map((s: any) => ({
-      month: new Date(s.snapshot_date).toLocaleString('en', { month: 'short', day: 'numeric' }),
-      value: Number(s.net_worth),
-    }));
-  }, [snapshots, netWorth]);
+    const now = new Date();
+    return [{ month: now.toLocaleString('en', { month: 'short' }), value: netWorth }];
+  }, [netWorth]);
 
-  // Monthly change: compare the two most recent snapshots at least 25 days apart
-  const monthlyChange = useMemo((): number | null => {
-    if (snapshots.length < 2) return null;
-    const latest = snapshots[snapshots.length - 1];
-    for (let i = snapshots.length - 2; i >= 0; i--) {
-      const older = snapshots[i];
-      const daysBetween = Math.floor(
-        (new Date(latest.snapshot_date).getTime() - new Date(older.snapshot_date).getTime()) / 86400000,
-      );
-      if (daysBetween >= 25) return Number(latest.net_worth) - Number(older.net_worth);
-    }
-    return null;
-  }, [snapshots]);
+  // No historical snapshots yet — return null to show "No history" instead of misleading $0
+  const monthlyChange = null;
 
   const openAddAsset = () => { setAssetForm(emptyAssetForm); setEditAssetId(null); setShowAssetForm(true); };
   const openEditAsset = (a: any) => { setAssetForm({ name: a.name, type: a.type, value: String(a.value), notes: a.notes || '' }); setEditAssetId(a.id); setShowAssetForm(true); };
@@ -237,21 +195,16 @@ export default function NetWorth() {
         <MetricCard label="Total Assets" value={formatCurrency(totalAssets, false)} accent="success" icon={TrendingUp} />
         <MetricCard label="Total Liabilities" value={formatCurrency(totalLiabilities, false)} accent="crimson" icon={TrendingDown} />
         <MetricCard label="Net Worth" value={formatCurrency(netWorth, false)} accent="gold" icon={Wallet} />
-        <MetricCard
-          label="Monthly Change"
-          value={monthlyChange !== null ? formatCurrency(monthlyChange, false) : 'No history yet'}
-          accent={monthlyChange !== null ? (monthlyChange >= 0 ? 'success' : 'crimson') : 'gold'}
-          icon={ArrowUpRight}
-        />
+        <MetricCard label="Monthly Change" value="No history yet" accent="gold" icon={ArrowUpRight} />
       </div>
 
       <div className="card-forged p-5">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">{snapshots.length > 1 ? 'Net Worth History' : 'Current Net Worth'}</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Current Net Worth</h3>
         {netWorthTrend.length <= 1 ? (
           <div className="flex flex-col items-center justify-center h-[200px] text-center">
             <Wallet size={28} className="text-primary mb-3" />
             <p className="text-2xl font-display font-bold text-primary whitespace-nowrap">{formatCurrency(netWorth, false)}</p>
-            <p className="text-[10px] text-muted-foreground mt-2">{snapshots.length > 0 ? 'First snapshot saved — chart will populate over the coming weeks.' : 'Historical chart will appear once monthly snapshots are saved. Only real recorded data is shown — see Forecast for projected net worth trends.'}</p>
+            <p className="text-[10px] text-muted-foreground mt-2">Historical chart will appear once monthly snapshots are saved. Only real recorded data is shown — see Forecast for projected net worth trends.</p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
