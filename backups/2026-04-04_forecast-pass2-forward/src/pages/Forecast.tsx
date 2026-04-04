@@ -489,9 +489,8 @@ export default function Forecast() {
         const shortfall = baseData[i].monthMinSafe - simCash[i];
         let toRecover = shortfall;
 
-        // Reduce debt payments from the earliest adjustable month forward to the breached month
-        // so cash accumulates in prior months rather than only reducing the expense month itself
-        for (let j = minAdjustableMonthIndex; j <= i && toRecover > 0; j++) {
+        // Reduce debt payments from the breached month backward
+        for (let j = i; j >= minAdjustableMonthIndex && toRecover > 0; j--) {
           const canReduce = Math.min(debtPayments[j], toRecover);
           if (canReduce > 0) {
             debtPayments[j] -= canReduce;
