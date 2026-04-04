@@ -29,9 +29,9 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-background/80 z-50 flex items-end sm:items-center justify-center sm:p-4" style={{ touchAction: 'none' }} onClick={onClose}>
+    <div className="fixed inset-0 bg-background/80 z-[60] flex items-end sm:items-center justify-center sm:p-4" style={{ touchAction: 'none' }} onClick={onClose}>
       <div
-        className="card-forged w-full sm:max-w-md flex flex-col max-h-[92dvh] sm:max-h-[90dvh] rounded-b-none sm:rounded-b-[var(--radius)]"
+        className="card-forged w-full sm:max-w-md flex flex-col max-h-[78dvh] sm:max-h-[90dvh] rounded-b-none sm:rounded-b-[var(--radius)]"
         onClick={e => e.stopPropagation()}
       >
         {/* Sticky header */}

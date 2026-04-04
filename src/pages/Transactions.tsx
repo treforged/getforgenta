@@ -599,8 +599,8 @@ export default function Transactions() {
 
       {/* Edit Choice Dialog for Generated Transactions */}
       {editChoiceId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => { setEditChoiceId(null); setEditChoiceRule(null); }}>
-          <div className="bg-card border border-border p-6 max-w-sm w-full mx-4 space-y-4" style={{ borderRadius: 'var(--radius)' }} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4" onClick={() => { setEditChoiceId(null); setEditChoiceRule(null); }}>
+          <div className="bg-card border border-border p-4 sm:p-6 w-full sm:max-w-sm space-y-4 rounded-t-[var(--radius)] rounded-b-none sm:rounded-b-[var(--radius)]" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-display font-bold">Edit Recurring Transaction</h3>
             <p className="text-xs text-muted-foreground">This transaction was auto-generated from a recurring rule. How would you like to edit it?</p>
             <div className="space-y-2">
