@@ -266,6 +266,10 @@ export default function BudgetControl() {
   
   const transferRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'transfer' || r.rule_type === 'investment'), [rules]);
 
+  // Split fixedRules into Bills-only and Subscriptions-only for separate tabs
+  const billsRules = useMemo(() => fixedRules.filter((r: any) => !r.isSub && r.category !== 'Subscriptions'), [fixedRules]);
+  const subscriptionRules = useMemo(() => fixedRules.filter((r: any) => r.isSub || r.category === 'Subscriptions'), [fixedRules]);
+
   const toMonthly = (r: any) => {
     const amt = Number(r.amount);
     if (r.frequency === 'weekly') return amt * 4.33;
@@ -622,7 +626,8 @@ export default function BudgetControl() {
       <Tabs defaultValue="income" className="space-y-4">
         <TabsList className="bg-secondary border border-border w-full justify-start overflow-x-auto flex-nowrap sm:flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="income" className="text-[11px] data-[state=active]:bg-background">Income ({incomeRules.length})</TabsTrigger>
-          <TabsTrigger value="fixed" className="text-[11px] data-[state=active]:bg-background">Fixed ({fixedRules.length})</TabsTrigger>
+          <TabsTrigger value="fixed" className="text-[11px] data-[state=active]:bg-background">Fixed ({billsRules.length})</TabsTrigger>
+          <TabsTrigger value="subscriptions" className="text-[11px] data-[state=active]:bg-background">Subscriptions ({subscriptionRules.length})</TabsTrigger>
           <TabsTrigger value="variable" className="text-[11px] data-[state=active]:bg-background">Variable ({variableRules.length})</TabsTrigger>
           <TabsTrigger value="debt" className="text-[11px] data-[state=active]:bg-background">Debt ({debtRules.length})</TabsTrigger>
           <TabsTrigger value="transfers" className="text-[11px] data-[state=active]:bg-background">Transfers ({transferRules.length})</TabsTrigger>
@@ -645,14 +650,28 @@ export default function BudgetControl() {
         <TabsContent value="fixed">
           <div className="card-forged p-5 space-y-2">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses (incl. Subscriptions)</h3>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses</h3>
               <div className="flex items-center gap-3">
-                <span className="text-xs font-display font-bold text-destructive">{formatCurrency(totalFixedExpenses, false)}/mo</span>
+                <span className="text-xs font-display font-bold text-destructive">{formatCurrency(billsRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
                 <button onClick={() => openAdd('expense', 'Bills')} className="flex items-center gap-1 text-[10px] text-primary font-medium hover:underline"><Plus size={10} /> Add Fixed</button>
               </div>
             </div>
-            {fixedRules.length === 0 && <p className="text-[10px] text-muted-foreground">No fixed expenses.</p>}
-            {fixedRules.map((r: any) => <RuleRow key={r.id} r={r} />)}
+            {billsRules.length === 0 && <p className="text-[10px] text-muted-foreground">No fixed expenses.</p>}
+            {billsRules.map((r: any) => <RuleRow key={r.id} r={r} />)}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="subscriptions">
+          <div className="card-forged p-5 space-y-2">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subscriptions</h3>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-display font-bold text-destructive">{formatCurrency(subscriptionRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
+                <button onClick={() => openAdd('expense', 'Subscriptions')} className="flex items-center gap-1 text-[10px] text-primary font-medium hover:underline"><Plus size={10} /> Add Subscription</button>
+              </div>
+            </div>
+            {subscriptionRules.length === 0 && <p className="text-[10px] text-muted-foreground">No subscriptions. Rules with category "Subscriptions" appear here.</p>}
+            {subscriptionRules.map((r: any) => <RuleRow key={r.id} r={r} />)}
           </div>
         </TabsContent>
 
