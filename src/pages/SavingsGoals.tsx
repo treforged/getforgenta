@@ -15,8 +15,14 @@ import { toast } from 'sonner';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Car Fund', 'Retirement', 'Custom'];
-const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '' };
-const emptyCarForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Car Fund', target_price: '', tax_fees: '', monthly_insurance: '', expected_apr: '', loan_term_months: '', linked_account: '', contribution_start_date: '' };
+const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '', linked_rule_id: '' };
+const emptyCarForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Car Fund', target_price: '', tax_fees: '', monthly_insurance: '', expected_apr: '', loan_term_months: '', linked_account: '', contribution_start_date: '', linked_rule_id: '' };
+
+const toMonthly = (amount: number, freq: string) =>
+  freq === 'weekly' ? amount * 52 / 12
+  : freq === 'biweekly' ? amount * 26 / 12
+  : freq === 'yearly' ? amount / 12
+  : amount;
 
 // getAccountScheduledOutflows removed — replaced by transaction-based getAccountRemainingCashThisMonth from pay-schedule
 
@@ -117,16 +123,26 @@ export default function SavingsGoals() {
   const allGoals = useMemo(() => {
     const carNames = new Set(carGoals.map(c => c.name.toLowerCase()));
     const filtered = goals.filter(g => !carNames.has(g.name.toLowerCase()));
-    return [...filtered.map(g => ({
-      ...g,
-      goal_type: (g as any).goal_type || 'Custom',
-      current_amount: (g as any).linked_account && accountMap[(g as any).linked_account]
-        ? Number(accountMap[(g as any).linked_account].balance)
-        : Number(g.current_amount),
-      available_after_outflows: (g as any).linked_account && accountMap[(g as any).linked_account]
-        ? getLinkedAmount((g as any).linked_account)
-        : null,
-    })), ...carGoals];
+    return [...filtered.map(g => {
+      const linkedRule = (g as any).linked_rule_id
+        ? rules.find((r: any) => r.id === (g as any).linked_rule_id)
+        : null;
+      return {
+        ...g,
+        goal_type: (g as any).goal_type || 'Custom',
+        current_amount: (g as any).linked_account && accountMap[(g as any).linked_account]
+          ? Number(accountMap[(g as any).linked_account].balance)
+          : Number(g.current_amount),
+        available_after_outflows: (g as any).linked_account && accountMap[(g as any).linked_account]
+          ? getLinkedAmount((g as any).linked_account)
+          : null,
+        monthly_contribution: linkedRule
+          ? toMonthly(Number(linkedRule.amount), linkedRule.frequency)
+          : Number(g.monthly_contribution),
+        contribution_start_date: linkedRule?.start_date ?? (g as any).contribution_start_date ?? null,
+        linked_rule: linkedRule || null,
+      };
+    }), ...carGoals];
   }, [goals, carGoals, accountMap, rules, cashFloor]);
 
   const totalSaved = allGoals.reduce((s, g) => s + Number(g.current_amount), 0);
@@ -136,6 +152,13 @@ export default function SavingsGoals() {
     { value: '', label: 'None (Manual)' },
     ...accounts.filter((a: any) => a.active).map((a: any) => ({ value: a.id, label: `${a.name} (${a.account_type.replace(/_/g, ' ')})` })),
   ], [accounts]);
+
+  const transferRuleOptions = useMemo(() => [
+    { value: '', label: 'None (manual)' },
+    ...rules
+      .filter((r: any) => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
+      .map((r: any) => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
+  ], [rules]);
 
   const openAdd = (goalType = 'Custom') => {
     if (goalType === 'Car Fund') setForm({ ...emptyCarForm });
@@ -159,6 +182,7 @@ export default function SavingsGoals() {
         monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
         goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
         contribution_start_date: (g as any).contribution_start_date || '',
+        linked_rule_id: (g as any).linked_rule_id || '',
       });
     }
     setEditId(g.id); setShowForm(true);
@@ -180,6 +204,7 @@ export default function SavingsGoals() {
         monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
         goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
         contribution_start_date: (g as any).contribution_start_date || '',
+        linked_rule_id: (g as any).linked_rule_id || '',
       });
     }
     setEditId(null); setShowForm(true);
@@ -217,6 +242,7 @@ export default function SavingsGoals() {
       linked_account: form.linked_account || null,
       goal_type: form.goal_type || 'Custom',
       contribution_start_date: (form as any).contribution_start_date || null,
+      linked_rule_id: (form as any).linked_rule_id || null,
     };
     if (editId) update.mutate({ id: editId, ...payload });
     else add.mutate(payload);
@@ -255,17 +281,19 @@ export default function SavingsGoals() {
       { key: 'name', label: form.goal_type === 'Car Fund' ? 'Vehicle Name' : 'Goal Name', type: 'text', placeholder: form.goal_type === 'Car Fund' ? 'e.g., Porsche Cayman' : 'e.g., Emergency Fund' },
       { key: 'goal_type', label: 'Goal Type', type: 'select', options: GOAL_TYPES.map(t => ({ value: t, label: t })) },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
+      { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync amount & start date)', type: 'select', options: transferRuleOptions },
       { key: 'target_amount', label: form.goal_type === 'Car Fund' ? 'Down Payment Goal' : 'Target Amount', type: 'number', placeholder: '10000', step: '0.01' },
     ];
     // Only show manual current_amount if no linked account
     if (!form.linked_account) {
       fields.push({ key: 'current_amount', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' });
     }
-    fields.push(
-      { key: 'monthly_contribution', label: 'Monthly Contribution', type: 'number', placeholder: '500', step: '0.01' },
-      { key: 'contribution_start_date', label: 'Contributions Start (optional)', type: 'date' },
-      { key: 'target_date', label: 'Target Date', type: 'date' },
-    );
+    // Hide manual contribution/start when a rule is linked (auto-derived)
+    if (!(form as any).linked_rule_id) {
+      fields.push({ key: 'monthly_contribution', label: 'Monthly Contribution', type: 'number', placeholder: '500', step: '0.01' });
+      fields.push({ key: 'contribution_start_date', label: 'Contributions Start (optional)', type: 'date' });
+    }
+    fields.push({ key: 'target_date', label: 'Target Date', type: 'date' });
     if (form.goal_type === 'Car Fund') {
       fields.push(
         { key: 'target_price', label: 'Vehicle Target Price', type: 'number', placeholder: '50000', step: '0.01' },
@@ -335,7 +363,10 @@ export default function SavingsGoals() {
                     )}
                   </div>
                   <p className="text-[10px] text-muted-foreground">
-                    {formatCurrency(Number(g.monthly_contribution), false)}/mo contribution
+                    {(g as any).linked_rule
+                      ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {(g as any).linked_rule.name}</span>
+                      : `${formatCurrency(Number(g.monthly_contribution), false)}/mo contribution`
+                    }
                     {isLinked && ' · Auto-synced from account'}
                     {(g as any).available_after_outflows != null && (
                       <span className="ml-1 text-muted-foreground">· Available after bills: {formatCurrency((g as any).available_after_outflows, false)}</span>
