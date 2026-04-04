@@ -93,7 +93,7 @@ export default function BudgetControl() {
       setWeeklyGross(wg);
       setWeeklyGrossInput(String(wg));
       setTaxRate(Number((profile as any).tax_rate) || 22);
-      setPaycheckDay(Number((profile as any).paycheck_day) || 5);
+      setPaycheckDay((profile as any).paycheck_day != null ? Number((profile as any).paycheck_day) : 5);
       setPayFrequency(((profile as any).paycheck_frequency as PayFrequency) || 'weekly');
       profileLoaded.current = true;
     }

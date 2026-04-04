@@ -161,7 +161,7 @@ export default function SettingsPage() {
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase">{paycheckFrequency === 'monthly' ? 'Pay Day of Month' : `Paycheck Day (${getDayName(parseInt(paycheckDay) || 5)})`}</label>
+            <label className="text-[10px] text-muted-foreground uppercase">{paycheckFrequency === 'monthly' ? 'Pay Day of Month' : `Paycheck Day (${getDayName(paycheckDay !== '' ? parseInt(paycheckDay) : 5)})`}</label>
             {paycheckFrequency === 'monthly' ? (
               <input type="number" min={1} max={31} value={paycheckDay} onChange={e => { setPaycheckDay(e.target.value); markDirty(); }}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
@@ -229,7 +229,7 @@ export default function SettingsPage() {
         <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Cash Management</h2>
         <div>
           <label className="text-[10px] text-muted-foreground uppercase">Minimum Cash Floor / Reserve</label>
-          <input type="number" value={cashFloor} onChange={e => { setCashFloor(e.target.value); markDirty(); }} className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
+          <input type="number" value={cashFloor} onChange={e => { setCashFloor(e.target.value); markDirty(); }} onBlur={() => { if (dirty) handleSave(); }} className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
           <p className="text-[10px] text-muted-foreground mt-1">Cash-protected mode: extra card payments only when cash stays above this floor</p>
         </div>
       </div>
