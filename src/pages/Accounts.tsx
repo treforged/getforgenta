@@ -234,7 +234,9 @@ export default function Accounts() {
             { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES },
             { key: 'institution', label: 'Institution', type: 'text', placeholder: 'e.g., Chase, Fidelity' },
             { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true },
-            { key: 'credit_limit', label: 'Credit Limit (cards only)', type: 'number' as const, placeholder: '0', step: '0.01' },
+            ...(form.account_type === 'credit_card' ? [
+              { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01' },
+            ] : []),
             { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01' },
             ...(LIABILITY_TYPES.includes(form.account_type) ? [
               { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01' },

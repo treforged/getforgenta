@@ -29,19 +29,19 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center p-4" style={{ touchAction: 'none' }} onClick={onClose}>
+    <div className="fixed inset-0 bg-background/80 z-50 flex items-end sm:items-center justify-center sm:p-4" style={{ touchAction: 'none' }} onClick={onClose}>
       <div
-        className="card-forged w-full max-w-md flex flex-col max-h-[90dvh]"
+        className="card-forged w-full sm:max-w-md flex flex-col max-h-[92dvh] sm:max-h-[90dvh] rounded-b-none sm:rounded-b-[var(--radius)]"
         onClick={e => e.stopPropagation()}
       >
         {/* Sticky header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-3 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-6 pb-3 shrink-0">
           <h2 className="font-display font-semibold text-sm">{title}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
           {fields.map(f => (
             <div key={f.key}>
               <label className="text-[10px] text-muted-foreground uppercase">{f.label}</label>
