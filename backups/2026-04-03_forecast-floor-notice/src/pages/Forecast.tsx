@@ -546,13 +546,6 @@ export default function Forecast() {
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       const endingCash = Math.round(finalLiquid);
 
-      // Flag: floor breached AND the one-time expense alone caused it
-      const floorBreachedByOneTime =
-        endingCash < b.monthMinSafe &&
-        b.oneTimeNet < 0 &&
-        (endingCash - b.oneTimeNet) >= b.monthMinSafe;
-      const debtWasReduced = debtPayments[i] < b.rawDebtPayment;
-
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
       const netWorth = totalAssets - totalLiabilityBal;
 
@@ -565,9 +558,7 @@ export default function Forecast() {
           milestones.push({ month: b.monthLabel, event: `${g.name} Complete! 🎯` });
         }
       });
-      if (floorBreachedByOneTime) {
-        milestones.push({ month: b.monthLabel, event: '💸 One-time expense caused floor breach' });
-      } else if (endingCash < 0 && (i === 0 || data[data.length - 1]?.endingCash >= 0)) {
+      if (endingCash < 0 && (i === 0 || data[data.length - 1]?.endingCash >= 0)) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash goes negative!' });
       } else if (endingCash >= 0 && endingCash < b.monthMinSafe && (i === 0 || (data.length > 0 && data[data.length - 1]?.endingCash >= baseData[Math.max(0, i - 1)].monthMinSafe))) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash below safe minimum' });
@@ -588,8 +579,6 @@ export default function Forecast() {
         retireGrowth: Math.round(retireGrowthAmt),
         oneTimeNet: Math.round(b.oneTimeNet),
         monthMinSafe: Math.round(b.monthMinSafe),
-        floorBreachedByOneTime,
-        debtWasReduced,
       });
     }
 
@@ -794,15 +783,10 @@ export default function Forecast() {
                       <td className={`py-1.5 sm:py-2 px-1 sm:px-2 font-bold ${row.endingCash < (row.monthMinSafe || 0) ? 'text-destructive' : 'text-success'}`}>
                         {formatCurrency(row.endingCash, false)}
                         {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
-                        {row.floorBreachedByOneTime && (
-                          <div className="text-[8px] sm:text-[9px] text-amber-400 leading-tight mt-0.5 font-normal">
-                            {row.debtWasReduced ? '↓ debt reduced' : 'one-time expense'}
-                          </div>
-                        )}
                       </td>
                       <td className="py-1.5 sm:py-2 px-1 sm:px-2 hidden sm:table-cell">{formatCurrency(row.takeHome, false)}</td>
                       <td className="py-1.5 sm:py-2 px-1 sm:px-2">{formatCurrency(row.totalExpenses, false)}</td>
-                      <td className={`py-1.5 sm:py-2 px-1 sm:px-2 hidden sm:table-cell ${row.floorBreachedByOneTime ? 'text-amber-400' : (row.oneTimeNet || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{row.oneTimeNet ? formatCurrency(row.oneTimeNet, false) : '—'}</td>
+                      <td className={`py-1.5 sm:py-2 px-1 sm:px-2 hidden sm:table-cell ${(row.oneTimeNet || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{row.oneTimeNet ? formatCurrency(row.oneTimeNet, false) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
