@@ -40,8 +40,8 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-6 space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* Scrollable fields */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-2 sm:space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
           {fields.map(f => (
             <div key={f.key}>
               <label className="text-[10px] text-muted-foreground uppercase">{f.label}</label>
@@ -49,7 +49,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                 <select
                   value={values[f.key] || ''}
                   onChange={e => onChange(f.key, e.target.value)}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground"
+                  className="w-full mt-0.5 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -60,13 +60,17 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                   step={f.step}
                   value={values[f.key] || ''}
                   onChange={e => onChange(f.key, e.target.value)}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground"
+                  className="w-full mt-0.5 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground"
                   style={{ borderRadius: 'var(--radius)' }}
                   placeholder={f.placeholder}
                 />
               )}
             </div>
           ))}
+        </div>
+
+        {/* Sticky save button — always visible */}
+        <div className="px-4 sm:px-6 pt-3 pb-4 sm:pb-6 shrink-0 border-t border-border">
           <button
             onClick={onSave}
             disabled={saving}
