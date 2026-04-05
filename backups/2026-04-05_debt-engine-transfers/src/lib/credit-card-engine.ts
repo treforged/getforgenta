@@ -851,10 +851,7 @@ export function getCurrentMonthDebtRecommendations(
   const monthlyTakeHome = getMonthNetIncome(pc, new Date().getFullYear(), new Date().getMonth());
   const ccPaymentSources = new Set(cards.flatMap((c: CardData) => [c.id, `account:${c.id}`]));
   const monthlyExpenses = rules.filter((r: any) => {
-    if (!r.active) return false;
-    // Transfer/investment rules are liquid-cash outflows that reduce available debt surplus
-    if (r.rule_type === 'transfer' || r.rule_type === 'investment') return true;
-    if (r.rule_type !== 'expense') return false;
+    if (!r.active || r.rule_type !== 'expense') return false;
     if (ccPaymentSources.size === 0) return true; // safety: no CC data, include all
     if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
     if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
@@ -862,7 +859,6 @@ export function getCurrentMonthDebtRecommendations(
   }).reduce((s: number, r: any) => {
     const amt = Number(r.amount);
     if (r.frequency === 'weekly') return s + amt * 4.33;
-    if (r.frequency === 'biweekly') return s + amt * 2.167;
     if (r.frequency === 'yearly') return s + amt / 12;
     return s + amt;
   }, 0);

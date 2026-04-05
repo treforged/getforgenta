@@ -797,7 +797,7 @@ export default function Forecast() {
                         {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
                         {row.floorBreachedByOneTime && (
                           <div className="text-[8px] sm:text-[9px] text-amber-400 leading-tight mt-0.5 font-normal">
-                            one-time expense
+                            {row.debtWasReduced ? '↓ debt reduced' : 'one-time expense'}
                           </div>
                         )}
                       </td>

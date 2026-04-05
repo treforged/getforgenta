@@ -3,22 +3,17 @@
 
 import { buildCardData, projectCard, projectCardVariable, simulateVariablePayoff, CardData, CC_DEFAULT_CATEGORIES } from './credit-card-engine';
 
-/** Cash-only monthly expense scalar — excludes CC-tagged rules to avoid double-counting with Step 2.5.
- *  Includes transfer/investment rules since those are real liquid-cash outflows that reduce debt surplus. */
+/** Cash-only monthly expense scalar — excludes CC-tagged rules to avoid double-counting with Step 2.5. */
 function calcCashOnlyMonthlyExpenses(rules: any[], cards: CardData[]): number {
   const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
   return rules.filter((r: any) => {
-    if (!r.active) return false;
-    // Savings transfers and investment contributions come out of liquid cash every month
-    if (r.rule_type === 'transfer' || r.rule_type === 'investment') return true;
-    if (r.rule_type !== 'expense') return false;
+    if (!r.active || r.rule_type !== 'expense') return false;
     if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
     if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
     return true;
   }).reduce((s: number, r: any) => {
     const amt = Number(r.amount);
     if (r.frequency === 'weekly') return s + amt * 4.33;
-    if (r.frequency === 'biweekly') return s + amt * 2.167;
     if (r.frequency === 'yearly') return s + amt / 12;
     return s + amt;
   }, 0);
