@@ -263,10 +263,8 @@ export function getDebtPaymentsByMonth(
     return { income, expenses };
   });
 
-  // Do NOT pass one-time CC purchases to the payment sim — they just add to the CC balance
-  // and get paid off gradually. Passing them inflates that month's payment and triggers
-  // look-ahead save-up in Forecast for months with CC purchases, which is undesired.
-  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth);
+  const cardPurchasesPerMonth = buildCardPurchasesPerMonth(cards, transactions, months);
+  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth, cardPurchasesPerMonth);
   const byMonth: Record<string, number> = {};
 
   for (const proj of projections) {
@@ -339,7 +337,8 @@ export function getDebtBalancesByMonth(
     return { income, expenses };
   });
 
-  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth);
+  const cardPurchasesPerMonth = buildCardPurchasesPerMonth(cards, transactions, months);
+  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth, cardPurchasesPerMonth);
   const result: { monthKey: string; totalBalance: number; totalInterest: number }[] = [];
 
   for (let i = 0; i < months; i++) {
