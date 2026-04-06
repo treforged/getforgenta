@@ -838,7 +838,7 @@ export default function Forecast() {
                     })}>
                       <td className="py-1.5 sm:py-2 px-1 sm:px-2 font-medium">{row.month}</td>
                       <td className="py-1.5 sm:py-2 px-1 sm:px-2 hidden sm:table-cell">{formatCurrency(row.startingCash, false)}</td>
-                      <td className={`py-1.5 sm:py-2 px-1 sm:px-2 font-bold ${row.endingCash < (row.monthMinSafe || 0) ? 'text-destructive' : 'text-success'}`}>
+                      <td className={`py-1.5 sm:py-2 px-1 sm:px-2 font-bold ${row.endingCash < debtPayoffOptions.cashFloor ? 'text-destructive' : row.endingCash <= debtPayoffOptions.cashFloor + 50 ? 'text-amber-400' : 'text-success'}`}>
                         {formatCurrency(row.endingCash, false)}
                         {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
                         {row.floorBreachedByOneTime && (
