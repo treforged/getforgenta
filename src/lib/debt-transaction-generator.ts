@@ -246,7 +246,10 @@ export function getDebtPaymentsByMonth(
 
   // Build per-month one-time cash flows from non-generated transactions so the
   // debt engine knows to drop to minimum payments when a large expense is coming.
+  // CC-tagged transactions are excluded — they increase CC balance (handled by
+  // cardPurchasesPerMonth) and do NOT reduce checking account available cash.
   const now = new Date();
+  const ccSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
   const oneTimeByMonth: { income: number; expenses: number }[] = Array.from({ length: months }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -255,7 +258,7 @@ export function getDebtPaymentsByMonth(
       if ((t as any).isGenerated) continue;
       if (!t.date?.startsWith(key)) continue;
       if (t.type === 'income') income += Number(t.amount);
-      else expenses += Number(t.amount);
+      else if (!t.payment_source || !ccSources.has(t.payment_source)) expenses += Number(t.amount);
     }
     return { income, expenses };
   });
@@ -320,6 +323,7 @@ export function getDebtBalancesByMonth(
   const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards);
 
   const now = new Date();
+  const ccSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
   const oneTimeByMonth: { income: number; expenses: number }[] = Array.from({ length: months }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -328,7 +332,7 @@ export function getDebtBalancesByMonth(
       if ((t as any).isGenerated) continue;
       if (!t.date?.startsWith(key)) continue;
       if (t.type === 'income') income += Number(t.amount);
-      else expenses += Number(t.amount);
+      else if (!t.payment_source || !ccSources.has(t.payment_source)) expenses += Number(t.amount);
     }
     return { income, expenses };
   });
