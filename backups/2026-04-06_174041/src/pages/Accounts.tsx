@@ -2,8 +2,6 @@ import { useState, useMemo } from 'react';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useAccounts, useDebts, useAccountReconciliations } from '@/hooks/useSupabaseData';
-import { useAuth } from '@/contexts/AuthContext';
-import { Link } from 'react-router-dom';
 import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
 import {
@@ -47,7 +45,6 @@ const TYPE_ICONS: Record<string, any> = {
 const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '' };
 
 export default function Accounts() {
-  const { isDemo } = useAuth();
   const { data: accounts, add, update, remove, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
@@ -163,35 +160,6 @@ export default function Accounts() {
           <Plus size={14} /> Add Account
         </button>
       </div>
-
-      {isDemo && (
-        <div className="card-forged p-4 sm:p-5 border-primary/20">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-foreground">Your financial foundation</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Every account type in one place — balances here drive every number across the entire app.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {[
-              { label: 'Checking & Cash', desc: 'Liquid balance is the starting point for the debt payoff engine and the 36-month forecast.' },
-              { label: 'Credit Cards', desc: 'Balance + APR feed the avalanche engine. Payment due date determines when each card gets paid.' },
-              { label: 'Savings & HYS', desc: 'Tracked separately from cash so emergency funds are never counted as available for debt payments.' },
-              { label: 'Investments & Retirement', desc: '401k, Roth IRA, and brokerage grow over time and appear in Net Worth projections.' },
-            ].map((f, i) => (
-              <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>
-                <span className="text-primary font-bold shrink-0">→</span>
-                <div><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
-            <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
-          </div>
-        </div>
-      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

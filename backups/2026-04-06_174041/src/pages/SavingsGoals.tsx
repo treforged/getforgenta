@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts } from '@/hooks/useSupabaseData';
@@ -333,35 +332,6 @@ export default function SavingsGoals() {
           </div>
         </PremiumGate>
       </div>
-
-      {isDemo && (
-        <div className="card-forged p-4 sm:p-5 border-primary/20">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-foreground">Savings goals + Car Fund — track every target in one place</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Jordan is building an emergency fund while saving for a car. Goals link to real accounts and auto-sync balances.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {[
-              { label: 'Emergency Fund', desc: 'Linked to Marcus HYS — the $5,800 balance auto-syncs here. Monthly $300 contribution tracked against the $15,000 target.' },
-              { label: 'Car Fund', desc: 'Models the full purchase: $28,000 target, $5,600 down payment goal, 5.9% APR loan. Shows estimated monthly payment after purchase.' },
-              { label: 'Linked accounts', desc: 'When an account is linked, "current saved" always reflects the live balance — no manual updates needed.' },
-              { label: 'Connects to Forecast', desc: 'Monthly contributions here are deducted in the Forecast before sizing debt payments — goals don\'t compete with the debt engine.' },
-            ].map((f, i) => (
-              <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>
-                <span className="text-primary font-bold shrink-0">→</span>
-                <div><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
-            <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
-          </div>
-        </div>
-      )}
 
       <SavingsGrowthChart goals={allGoals} />
 

@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useAccounts, useAssets, useLiabilities, useAccountReconciliations, useNetWorthSnapshots } from '@/hooks/useSupabaseData';
@@ -233,35 +232,6 @@ export default function NetWorth() {
           { title: 'Manual entries', body: 'Use manual assets/liabilities for things like real estate, vehicles, or personal loans not tracked in Accounts.' },
         ]} />
       </div>
-
-      {isDemo && (
-        <div className="card-forged p-4 sm:p-5 border-primary/20">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-foreground">Tracking Jordan's wealth trajectory — from negative to positive</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Started at −$7,800 in January. Crossed zero in early March. Every debt payment and contribution moved this number.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {[
-              { label: 'Weekly snapshots', desc: 'The chart uses 14 saved snapshots from Jan–Apr showing the real progression. The Jan 10 dip was a $380 car repair that spiked the CC balance.' },
-              { label: 'Auto-calculated totals', desc: 'Assets and liabilities pull live from Accounts — no manual entry needed for anything tracked there.' },
-              { label: 'Student loan', desc: 'The $8,000 federal student loan is a manual liability. It reduces net worth but isn\'t part of the CC avalanche payoff plan.' },
-              { label: 'Connects to Forecast', desc: 'The Forecast page projects where net worth goes over 36 months as debt is eliminated and savings grow.' },
-            ].map((f, i) => (
-              <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>
-                <span className="text-primary font-bold shrink-0">→</span>
-                <div><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
-            <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard label="Total Assets" value={formatCurrency(totalAssets, false)} accent="success" icon={TrendingUp} />

@@ -1,6 +1,4 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { formatCurrency } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
@@ -59,7 +57,6 @@ function ForecastTooltip({ active, payload, label }: any) {
 }
 
 export default function Forecast() {
-  const { isDemo } = useAuth();
   const { data: debts } = useDebts();
   const { data: goals } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();
@@ -700,35 +697,6 @@ export default function Forecast() {
           </button>
         </div>
       </div>
-
-      {isDemo && (
-        <div className="card-forged p-4 sm:p-5 border-primary/20">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-foreground">36-month simulation — every data source feeding one projection</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">The Forecast is where everything converges: income rules, debt payments, savings transfers, and one-time transactions all play out month by month.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {[
-              { label: '3-pass engine', desc: 'PASS 1 builds base values. PASS 2 looks ahead and pre-saves cash for future one-time expenses. PASS 3 pushes all surplus above the cash floor to debt.' },
-              { label: 'End cash at floor', desc: 'While CC debt exists, end cash lands exactly at $1,000 each month — no idle cash. The June car purchase causes PASS 2 to pre-save in April and May.' },
-              { label: 'Debt payoff trajectory', desc: 'The debt chart shows each card\'s balance declining month by month. Sapphire goes first (22.99% APR), then Discover gets the full surplus.' },
-              { label: 'Assumptions panel', desc: 'Adjust income growth, expense inflation, investment return, and savings interest to model different scenarios over 3 years.' },
-            ].map((f, i) => (
-              <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>
-                <span className="text-primary font-bold shrink-0">→</span>
-                <div><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
-            <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
-          </div>
-        </div>
-      )}
 
       {showAssumptions && (
         <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">

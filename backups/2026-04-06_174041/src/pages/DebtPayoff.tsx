@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulateDebtPayoff } from '@/lib/calculations';
 import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations } from '@/hooks/useSupabaseData';
@@ -140,35 +139,6 @@ export default function DebtPayoff() {
           </PremiumGate>
         )}
       </div>
-
-      {isDemo && (
-        <div className="card-forged p-4 sm:p-5 border-primary/20">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-foreground">Avalanche engine — eliminate $12,700 using every spare dollar</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Jordan has two credit cards. The engine targets the highest APR first, pays minimums on the rest, and never drops below the $1,000 cash floor.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {[
-              { label: 'Avalanche order', desc: 'Chase Sapphire (22.99% APR) gets all extra payments first. Discover It (18.99%) only gets extra after Sapphire is paid off.' },
-              { label: 'Cash floor protection', desc: 'Each month the engine checks available cash after expenses and bills — extra payments only happen above the $1,000 floor.' },
-              { label: 'Monthly projection table', desc: 'Shows exact payment, interest, and remaining balance each month. Click any payment to override the recommended amount.' },
-              { label: 'Connects to Forecast', desc: 'These exact payment amounts feed the 36-month Forecast — debt payoff progress and end cash are synchronized.' },
-            ].map((f, i) => (
-              <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>
-                <span className="text-primary font-bold shrink-0">→</span>
-                <div><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
-            <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
-          </div>
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex gap-2">

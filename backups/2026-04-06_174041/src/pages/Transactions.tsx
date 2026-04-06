@@ -10,15 +10,12 @@ import { generateScheduledEvents } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
 import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES];
 
 const emptyForm = { date: new Date().toISOString().split('T')[0], type: 'expense', amount: '', category: 'Other', account: 'Checking', note: '', payment_source: '' };
 
 export default function Transactions() {
-  const { isDemo } = useAuth();
   const { data: transactions, add, update, remove } = useTransactions();
   const { data: accounts } = useAccounts();
   const { data: rules, update: updateRule } = useRecurringRules();
@@ -514,35 +511,6 @@ export default function Transactions() {
         </div>
         <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add</button>
       </div>
-
-      {isDemo && (
-        <div className="card-forged p-4 sm:p-5 border-primary/20">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-foreground">The live ledger — real entries + auto-generated ones</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Everything that has happened or is planned flows through here. One-time entries directly shape what the debt engine and forecast can do.</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {[
-              { label: 'Auto-generated entries', desc: 'Budget Control recurring rules create transactions automatically — weekly paychecks, rent, groceries, and more.' },
-              { label: 'One-time expenses', desc: 'The $6,000 car purchase in June reduces available cash that month — the forecast pre-saves in prior months to cover it.' },
-              { label: 'Income windfalls', desc: 'The $3,000 gift in June is a one-time income entry — the debt engine adds it to available surplus for that month.' },
-              { label: 'Debt payments', desc: 'Auto-generated from the Debt Payoff engine each month — click to see the recommended amount per card.' },
-            ].map((f, i) => (
-              <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>
-                <span className="text-primary font-bold shrink-0">→</span>
-                <div><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
-            <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-wrap gap-2">
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground font-medium" style={{ borderRadius: 'var(--radius)' }}>
