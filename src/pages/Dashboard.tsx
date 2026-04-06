@@ -438,6 +438,45 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* Demo feature guide — only shown in demo mode */}
+      {isDemo && (
+        <div className="card-forged p-4 sm:p-5 border-primary/20">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-foreground">Jordan's Story — How it all connects</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                26 y/o with $12,700 in CC debt, a steady paycheck, and a plan to be debt-free in under a year.
+                Every number here is live-calculated from the data below.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[
+              { label: 'Budget Control', desc: 'Recurring rules define income, bills, and transfers — this is the engine behind every projection.', path: '/budget' },
+              { label: 'Debt Payoff', desc: 'Avalanche engine computes how fast each card gets paid using every dollar above the cash floor.', path: '/debt' },
+              { label: 'Forecast', desc: '36-month sim. Debt payoff adjusts monthly so end cash never sits idle — it goes straight to debt.', path: '/forecast' },
+              { label: 'Transactions', desc: 'One-time income (tax refund, bonus) and expenses update cash flow and feed the debt engine.', path: '/transactions' },
+              { label: 'Savings & Car Fund', desc: 'Goals track toward specific targets. The car fund models the full purchase: down payment + loan.', path: '/savings' },
+              { label: 'Net Worth', desc: 'Weekly snapshots plot the trajectory — watches Jordan cross zero and start building real wealth.', path: '/net-worth' },
+            ].map(f => (
+              <Link key={f.path} to={f.path} className="group flex gap-2.5 p-3 bg-secondary/40 hover:bg-secondary/70 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold text-primary group-hover:underline">{f.label} →</p>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">{f.desc}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-[10px] text-muted-foreground">All data is fictional and resets when you close the tab.</p>
+            <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">
+              Set up your own profile →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Schedule Summary */}
       {rulesLoading ? <ScheduleSkeleton /> : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
