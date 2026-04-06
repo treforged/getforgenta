@@ -129,6 +129,40 @@ export function generateDebtPaymentTransactions(
   return result.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
 }
 
+/**
+ * Build a per-month, per-card purchase map from non-generated future CC transactions.
+ * Index m corresponds to simulation month m (0 = current month).
+ * Month 0 uses 0 purchases — the live card balance already includes today's spending.
+ */
+function buildCardPurchasesPerMonth(
+  cards: CardData[],
+  transactions: any[],
+  months: number,
+): { [cardId: string]: number }[] {
+  const now = new Date();
+  const ccSources = new Map<string, string>(); // payment_source key → card id
+  for (const c of cards) {
+    ccSources.set(c.id, c.id);
+    ccSources.set(`account:${c.id}`, c.id);
+  }
+
+  return Array.from({ length: months }, (_, i) => {
+    if (i === 0) return {}; // month 0: live balance is ground truth
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const result: { [cardId: string]: number } = {};
+    for (const t of transactions) {
+      if ((t as any).isGenerated) continue;
+      if (t.type !== 'expense') continue;
+      if (!t.date?.startsWith(key)) continue;
+      const cardId = t.payment_source ? ccSources.get(t.payment_source) : undefined;
+      if (!cardId) continue;
+      result[cardId] = (result[cardId] || 0) + Number(t.amount);
+    }
+    return result;
+  });
+}
+
 function getCardProjections(
   cards: CardData[],
   liquidCash: number,
@@ -142,12 +176,13 @@ function getCardProjections(
   monthlyExpenses: number,
   months: number,
   oneTimeByMonth?: { income: number; expenses: number }[],
+  cardPurchasesPerMonth?: { [cardId: string]: number }[],
 ) {
   if (options.paymentMode === 'variable') {
     const sim = simulateVariablePayoff(
       cards, liquidCash, options.cashFloor, options.strategy,
       monthlyTakeHome, monthlyExpenses, months,
-      undefined, undefined, undefined, undefined, undefined,
+      undefined, undefined, cardPurchasesPerMonth, undefined, undefined,
       oneTimeByMonth,
     );
     return cards.map(c => {
@@ -225,7 +260,8 @@ export function getDebtPaymentsByMonth(
     return { income, expenses };
   });
 
-  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth);
+  const cardPurchasesPerMonth = buildCardPurchasesPerMonth(cards, transactions, months);
+  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth, cardPurchasesPerMonth);
   const byMonth: Record<string, number> = {};
 
   for (const proj of projections) {
@@ -297,7 +333,8 @@ export function getDebtBalancesByMonth(
     return { income, expenses };
   });
 
-  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth);
+  const cardPurchasesPerMonth = buildCardPurchasesPerMonth(cards, transactions, months);
+  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth, cardPurchasesPerMonth);
   const result: { monthKey: string; totalBalance: number; totalInterest: number }[] = [];
 
   for (let i = 0; i < months; i++) {
