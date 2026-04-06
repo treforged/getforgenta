@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark, PiggyBank,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight, Wallet,
-  Sliders, TrendingUp, Building2, Home,
+  Sliders, TrendingUp, Building2,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState } from 'react';
@@ -72,37 +72,14 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-2 border-t border-sidebar-border space-y-1">
-        {isDemo ? (
-          <>
-            <Link
-              to="/auth"
-              className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-full btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              {!collapsed && <span>Sign Up Free</span>}
-              {collapsed && <Crown size={16} />}
-            </Link>
-            {!collapsed && (
-              <Link
-                to="/"
-                className="flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <Home size={16} />
-                <span>Main Page</span>
-              </Link>
-            )}
-          </>
-        ) : (
-          <button
-            onClick={signOut}
-            className="flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground hover:text-destructive transition-colors w-full btn-press"
-          >
-            <LogOut size={16} />
-            {!collapsed && <span>Sign Out</span>}
-          </button>
-        )}
+      <div className="p-2 border-t border-sidebar-border">
+        <button
+          onClick={signOut}
+          className="flex items-center gap-3 px-3 py-2 text-xs text-muted-foreground hover:text-destructive transition-colors w-full btn-press"
+        >
+          <LogOut size={16} />
+          {!collapsed && <span>Sign Out</span>}
+        </button>
       </div>
     </aside>
   );
