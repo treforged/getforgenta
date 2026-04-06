@@ -478,7 +478,9 @@ export default function Forecast() {
     const simCash: number[] = Array.from({ length: 36 });
     recomputeSimCash(simCash);
 
-    const minAdjustableMonthIndex = currentMonthRecommendedDebt !== null ? 1 : 0;
+    // All months are adjustable — when a future one-time expense will breach the floor,
+    // PASS 2 must be able to reduce the current month's debt payment too.
+    const minAdjustableMonthIndex = 0;
 
     // FIX #7: Improved cash floor enforcement — scan backward from breached month
     // to find months with reducible debt payments, and also recompute after EACH fix
