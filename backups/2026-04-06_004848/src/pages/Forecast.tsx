@@ -298,26 +298,19 @@ export default function Forecast() {
     } catch { return null; }
   }, [accounts, transactions, rules, debts, profile, debtPayoffOptions, payConfig, scheduledEvents, pauseSavings, forecastMonthEvents]);
 
-  // One-time manual transactions for forecast.
-  // CC-tagged expenses are excluded — they increase CC balance (tracked by the debt
-  // engine via cardPurchasesPerMonth) and do NOT reduce checking account cash.
+  // One-time manual transactions for forecast
   const oneTimeByMonth = useMemo(() => {
     const result: Record<string, { income: number; expense: number }> = {};
-    const ccSources = new Set(
-      accounts
-        .filter((a: any) => a.account_type === 'credit_card' && a.active)
-        .flatMap((a: any) => [a.id, `account:${a.id}`]),
-    );
     for (const t of transactions) {
       if ((t as any).isGenerated) continue;
       const monthKey = t.date?.substring(0, 7);
       if (!monthKey) continue;
       if (!result[monthKey]) result[monthKey] = { income: 0, expense: 0 };
       if (t.type === 'income') result[monthKey].income += Number(t.amount);
-      else if (!t.payment_source || !ccSources.has(t.payment_source)) result[monthKey].expense += Number(t.amount);
+      else result[monthKey].expense += Number(t.amount);
     }
     return result;
-  }, [transactions, accounts]);
+  }, [transactions]);
 
   const projections = useMemo(() => {
     const taxRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
