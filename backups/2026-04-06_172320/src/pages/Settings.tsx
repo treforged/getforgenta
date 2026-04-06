@@ -3,10 +3,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle } from 'lucide-react';
 import { getDayName } from '@/lib/scheduling';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 export default function SettingsPage() {
@@ -30,17 +29,6 @@ export default function SettingsPage() {
   const [defaultDepositAccount, setDefaultDepositAccount] = useState('');
   const [autoGenerateRecurring, setAutoGenerateRecurring] = useState(true);
   const [dirty, setDirty] = useState(false);
-
-  // Account security state
-  const [newEmail, setNewEmail] = useState('');
-  const [emailLoading, setEmailLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
-
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -98,58 +86,6 @@ export default function SettingsPage() {
 
   const depositAccounts = accounts.filter((a: any) => ['checking', 'savings', 'high_yield_savings', 'business_checking'].includes(a.account_type) && a.active);
 
-  const handleEmailChange = async () => {
-    if (!newEmail.trim() || !newEmail.includes('@')) {
-      toast.error('Enter a valid email address');
-      return;
-    }
-    if (newEmail.trim() === user?.email) {
-      toast.error('New email must be different from your current email');
-      return;
-    }
-    setEmailLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ email: newEmail.trim() });
-      if (error) throw error;
-      setEmailSent(true);
-      setNewEmail('');
-      toast.success('Verification sent — check your new email inbox to confirm the change');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update email');
-    } finally {
-      setEmailLoading(false);
-    }
-  };
-
-  const handlePasswordChange = async () => {
-    if (!currentPassword) { toast.error('Enter your current password'); return; }
-    if (newPassword.length < 6) { toast.error('New password must be at least 6 characters'); return; }
-    if (newPassword !== confirmNewPassword) { toast.error('Passwords do not match'); return; }
-    if (newPassword === currentPassword) { toast.error('New password must be different from current password'); return; }
-    setPasswordLoading(true);
-    try {
-      // Verify current password by re-authenticating
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: user?.email ?? '',
-        password: currentPassword,
-      });
-      if (authError) throw new Error('Current password is incorrect');
-      // Update to new password
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-      setPasswordSuccess(true);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      toast.success('Password updated successfully');
-      setTimeout(() => setPasswordSuccess(false), 4000);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update password');
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
-
   const handleManageSubscription = async () => {
     if (!hasStripeCustomer) return;
     setPortalLoading(true);
@@ -200,112 +136,6 @@ export default function SettingsPage() {
             className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" style={{ borderRadius: 'var(--radius)' }} placeholder="Your name" />
         </div>
       </div>
-
-      {/* Account Security — hidden in demo */}
-      {!isDemo && (
-        <div className="card-forged p-5 space-y-5">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Account Security</h2>
-
-          {/* Change Email */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Mail size={13} className="text-muted-foreground" />
-              <span className="text-xs font-medium">Change Email</span>
-            </div>
-            <p className="text-[10px] text-muted-foreground">
-              Current: <span className="text-foreground">{user?.email}</span>
-            </p>
-            {emailSent ? (
-              <div className="flex items-center gap-2 text-xs text-success">
-                <CheckCircle size={13} />
-                Verification sent to your new email. Click the link to confirm the change.
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={newEmail}
-                  onChange={e => setNewEmail(e.target.value)}
-                  placeholder="New email address"
-                  className="flex-1 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
-                <button
-                  onClick={handleEmailChange}
-                  disabled={emailLoading || !newEmail.trim()}
-                  className="px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  {emailLoading ? 'Sending…' : 'Send Verification'}
-                </button>
-              </div>
-            )}
-            {emailSent && (
-              <button onClick={() => setEmailSent(false)} className="text-[10px] text-muted-foreground hover:text-foreground underline">
-                Send again
-              </button>
-            )}
-          </div>
-
-          <div className="border-t border-border" />
-
-          {/* Change Password */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Lock size={13} className="text-muted-foreground" />
-              <span className="text-xs font-medium">Change Password</span>
-            </div>
-            {passwordSuccess ? (
-              <div className="flex items-center gap-2 text-xs text-success">
-                <CheckCircle size={13} />
-                Password updated successfully.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={e => setCurrentPassword(e.target.value)}
-                  placeholder="Current password"
-                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={e => setNewPassword(e.target.value)}
-                  placeholder="New password (min 6 characters)"
-                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
-                <input
-                  type="password"
-                  value={confirmNewPassword}
-                  onChange={e => setConfirmNewPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  className={`w-full bg-secondary border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
-                    confirmNewPassword && confirmNewPassword !== newPassword
-                      ? 'border-destructive focus:ring-destructive'
-                      : 'border-border'
-                  }`}
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
-                {confirmNewPassword && confirmNewPassword !== newPassword && (
-                  <p className="text-[10px] text-destructive">Passwords do not match</p>
-                )}
-                <button
-                  onClick={handlePasswordChange}
-                  disabled={passwordLoading || !currentPassword || !newPassword || newPassword !== confirmNewPassword}
-                  className="w-full py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  {passwordLoading ? 'Updating…' : 'Update Password'}
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Income & Paycheck */}
       <div className="card-forged p-5 space-y-4">

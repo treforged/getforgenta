@@ -7,23 +7,48 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const switchMode = (login: boolean) => {
+    setIsLogin(login);
+    setPassword('');
+    setConfirmPassword('');
+    setDisplayName('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isLogin) {
+      if (displayName.trim().length < 2) {
+        toast.error('Please enter your name (at least 2 characters)');
+        return;
+      }
+      if (password !== confirmPassword) {
+        toast.error('Passwords do not match');
+        return;
+      }
+      if (password.length < 6) {
+        toast.error('Password must be at least 6 characters');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success('Signed in successfully');
-        // AuthProvider will handle navigation
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { 
-            emailRedirectTo: `${window.location.origin}/auth`
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth`,
+            data: { display_name: displayName.trim() },
           },
         });
         if (error) throw error;
@@ -40,10 +65,7 @@ export default function Auth() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6">
-          <Link
-            to="/"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <Link to="/" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
             ← Back to home
           </Link>
         </div>
@@ -53,28 +75,92 @@ export default function Auth() {
             {isLogin ? 'Welcome back. Sign in to continue.' : 'Create your account to get started.'}
           </p>
         </div>
+
         <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
+          {!isLogin && (
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase">Display Name</label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                required={!isLogin}
+                placeholder="Your name"
+                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                style={{ borderRadius: 'var(--radius)' }}
+              />
+            </div>
+          )}
+
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground" style={{ borderRadius: 'var(--radius)' }} />
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              style={{ borderRadius: 'var(--radius)' }}
+            />
           </div>
+
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">Password</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={6}
-              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground" style={{ borderRadius: 'var(--radius)' }} />
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+              minLength={6}
+              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              style={{ borderRadius: 'var(--radius)' }}
+            />
           </div>
-          <button type="submit" disabled={loading}
-            className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
+
+          {!isLogin && (
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required={!isLogin}
+                minLength={6}
+                placeholder="Re-enter your password"
+                className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
+                  confirmPassword && confirmPassword !== password
+                    ? 'border-destructive focus:ring-destructive'
+                    : 'border-border'
+                }`}
+                style={{ borderRadius: 'var(--radius)' }}
+              />
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-[10px] text-destructive mt-1">Passwords do not match</p>
+              )}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || (!isLogin && !!confirmPassword && confirmPassword !== password)}
+            className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press disabled:opacity-50"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
             {loading ? 'Processing…' : isLogin ? 'Sign In' : 'Create Account'}
           </button>
+
           <div className="pt-1">
-            <button type="button" onClick={() => setIsLogin(!isLogin)}
-              className="w-full py-2 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
+            <button
+              type="button"
+              onClick={() => switchMode(!isLogin)}
+              className="w-full py-2 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
               {isLogin ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
             </button>
           </div>
         </form>
+
         <p className="text-[10px] text-muted-foreground text-center mt-4">
           <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</Link>
           {' · '}
