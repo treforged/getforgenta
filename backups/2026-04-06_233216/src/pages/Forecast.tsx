@@ -255,25 +255,13 @@ export default function Forecast() {
         );
 
         // Per-card purchases: month 0 = 0 (already in live card.balance), months 1+ compute
-        // Include BOTH recurring scheduled purchases AND one-time CC transactions so the
-        // CC balance simulation matches the Debt Payoff tab (which uses augmentedCCPurchases).
         const cardPurchases: { [cardId: string]: number } = {};
         if (i > 0) {
           for (const card of cards) {
             const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
-            const scheduledAmt = eventsInMonth
+            cardPurchases[card.id] = eventsInMonth
               .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
               .reduce((s, e) => s + e.amount, 0);
-            // One-time CC transactions for this card (not rule-generated)
-            const oneTimeCCAmt = (transactions as any[])
-              .filter((t: any) =>
-                !(t as any).isGenerated &&
-                t.date?.startsWith(monthKey) &&
-                t.type === 'expense' &&
-                (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
-              )
-              .reduce((s: number, t: any) => s + Number(t.amount), 0);
-            cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
           }
         }
         cardPurchasesPerMonth.push(cardPurchases);
