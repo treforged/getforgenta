@@ -585,7 +585,7 @@ export default function Forecast() {
           if (canReduce > 0) {
             debtPayments[j] -= canReduce;
             toRecover -= canReduce;
-            if (j < i && baseData[i].oneTimeNet < 0) saveUpMonths.add(j); // only save-up when breach is caused by a one-time cash expense
+            if (j < i) saveUpMonths.add(j); // prior months become save-up months
             anyFixed = true;
           }
         }
