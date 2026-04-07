@@ -366,27 +366,19 @@ export default function Forecast() {
         row.utilization = totalLimit > 0 ? Math.round((row.totalCCBalance / totalLimit) * 100) : 0;
         return row;
       });
-      // debtPaymentTotals: real debt-reducing payments only (startBalance > 0).
-      // Used as rawDebtPayment in PASS 1 so PASS 2 can reduce them for floor protection.
+      // Total CC payments per month — includes both debt-reducing payments AND post-payoff
+      // autopay (where startBalance = 0 but new purchases are being paid). Post-payoff autopay
+      // is a real cash outflow from checking and must appear in the Forecast cash flows.
+      // Indexed 0..35 matching the forecast month indices.
       const debtPaymentTotals = Array.from({ length: 36 }, (_, i) =>
         projs.reduce((total, proj) => {
           const m = proj.months[i];
-          if (!m || m.startBalance <= 0) return total;
-          return total + m.payment;
-        }, 0),
-      );
-
-      // allPaymentTotals: ALL card payments including post-payoff autopay.
-      // Used for popup display so "Debt Payment" matches the Debt Payoff tab's per-card totals.
-      const allPaymentTotals = Array.from({ length: 36 }, (_, i) =>
-        projs.reduce((total, proj) => {
-          const m = proj.months[i];
           if (!m) return total;
-          return total + m.payment;
+          return total + m.payment; // all card payments, including post-payoff autopay
         }, 0),
       );
 
-      return { data, cards: projs.map(p => ({ name: p.card.name, color: p.card.color })), debtPaymentTotals, allPaymentTotals };
+      return { data, cards: projs.map(p => ({ name: p.card.name, color: p.card.color })), debtPaymentTotals };
     } catch { return null; }
   }, [accounts, transactions, rules, debts, profile, debtPayoffOptions, payConfig, scheduledEvents, pauseSavings, forecastMonthEvents, goals, carFunds]);
 
@@ -516,12 +508,12 @@ export default function Forecast() {
         baseExpenses = budgetFallback * expenseMultiplier;
       }
 
-      // rawDebtPayment drives the cash-flow calculation (PASS 2 floor protection, PASS 3 surplus).
-      // Month 0 uses currentMonthRecommendedDebt (remaining-this-month based on actual transactions).
-      // Future months use cardProjectionData's real-debt-only totals (event-based, same sim as Debt Payoff tab).
-      let rawDebtPayment = (i === 0 && currentMonthRecommendedDebt !== null)
-        ? currentMonthRecommendedDebt
-        : (cardProjectionData?.debtPaymentTotals?.[i] ?? debtPaymentsByMonth[monthKey] ?? 0);
+      // Use cardProjectionData's payment totals for ALL months (including month 0).
+      // These include both debt-reducing payments and post-payoff autopay, matching
+      // what the Debt Payoff tab shows. Fall back to debtPaymentsByMonth if unavailable.
+      let rawDebtPayment = cardProjectionData?.debtPaymentTotals?.[i]
+        ?? debtPaymentsByMonth[monthKey]
+        ?? 0;
 
       // FIX #5: Only fall back to minimum payments if debt engine returned 0 but balance > 0
       if (rawDebtPayment <= 0) {
@@ -744,7 +736,6 @@ export default function Forecast() {
         startingCash,
         takeHome: Math.round(b.netIncome), totalExpenses: Math.round(totalMonthlyOut),
         debtPayment: Math.round(monthDebtPayment),
-        planDebtPayment: Math.round(cardProjectionData?.allPaymentTotals?.[i] ?? monthDebtPayment),
         brokerageContrib: Math.round(b.monthBrokerageContrib),
         retireContrib: Math.round(b.monthRetireContrib),
         investGrowth: Math.round(investGrowthAmt),
@@ -978,7 +969,7 @@ export default function Forecast() {
                         { label: 'CC Purchases (one-time)', value: row.ccOneTime ? formatCurrency(row.ccOneTime, false) : '—' },
                         { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
                         { label: '', value: '' },
-                        { label: 'Debt Payment', value: formatCurrency(row.planDebtPayment, false) },
+                        { label: 'Debt Payment', value: formatCurrency(row.debtPayment, false) },
                         { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
                         { label: 'Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
                         { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
