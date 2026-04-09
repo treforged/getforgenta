@@ -11,7 +11,7 @@ import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-trans
 import { buildPayConfig, getMonthNetIncome, getPaychecksInMonth, getMinSafeCash, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  Bar, ComposedChart, ReferenceLine, Area, AreaChart,
+  Bar, ComposedChart, ReferenceLine,
 } from 'recharts';
 import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X } from 'lucide-react';
 
@@ -767,6 +767,7 @@ export default function Forecast() {
         startingCash,
         takeHome: Math.round(b.netIncome), totalExpenses: Math.round(totalMonthlyOut),
         debtPayment: Math.round(monthDebtPayment),
+        plannedDebtPayment: cardProjectionData?.allPaymentTotals?.[i] ?? Math.round(monthDebtPayment),
 
         brokerageContrib: Math.round(b.monthBrokerageContrib),
         retireContrib: Math.round(b.monthRetireContrib),
@@ -959,16 +960,16 @@ export default function Forecast() {
             <div className="card-forged p-3 sm:p-5">
               <h3 className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4 flex items-center gap-2"><CreditCard size={12} /> Credit Card Debt Payoff Trajectory</h3>
               <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={cardProjectionData.data.slice(0, filterYear === 'all' ? 36 : parseInt(filterYear) * 12)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <LineChart data={cardProjectionData.data.slice(0, filterYear === 'all' ? 36 : parseInt(filterYear) * 12)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tick={tickStyle} interval={xInterval} />
                   <YAxis tick={tickStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip content={<ForecastTooltip />} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
                   {cardProjectionData.cards.map(c => (
-                    <Area key={c.name} type="monotone" dataKey={c.name} stackId="1" fill={c.color} stroke={c.color} fillOpacity={0.4} />
+                    <Line key={c.name} type="monotone" dataKey={c.name} stroke={c.color} strokeWidth={2} dot={false} />
                   ))}
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
             </div>
           )}
@@ -998,10 +999,10 @@ export default function Forecast() {
                         { label: 'Take-Home Income', value: formatCurrency(row.takeHome, false), op: '+' },
                         { label: 'Expenses + Debt + Transfers', value: formatCurrency(row.totalExpenses, false), op: '−' },
                         { label: 'One-Time Net (Cash)', value: formatCurrency(row.oneTimeNet || 0, false), op: row.oneTimeNet >= 0 ? '+' : '−' },
-                        { label: 'CC Purchases (one-time)', value: row.ccOneTime ? formatCurrency(row.ccOneTime, false) : '—' },
                         { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
                         { label: '', value: '' },
-                        { label: 'Debt Payment', value: formatCurrency(row.debtPayment, false) },
+                        { label: 'Debt Payment', value: formatCurrency(row.plannedDebtPayment ?? row.debtPayment, false) },
+                        { label: 'CC Purchases (one-time)', value: row.ccOneTime ? formatCurrency(row.ccOneTime, false) : '—' },
                         { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
                         { label: 'Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
                         { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
