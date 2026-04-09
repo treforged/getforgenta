@@ -4,8 +4,8 @@ import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES } from '@/lib/types';
-import { getCurrentMonthDebtRecommendations, buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
-import { createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions } from '@/lib/pay-schedule';
+import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
+import { mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
 import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal } from 'lucide-react';
@@ -101,8 +101,88 @@ export default function Transactions() {
   ), [rules]);
 
   const debtPaymentTransactions = useMemo(() => {
-    const recs = getCurrentMonthDebtRecommendations(accounts, baseTxns, rules, debts, profile);
-    return createDebtPaymentTransactions(recs, fundingAccountId || null);
+    // Use simulateVariablePayoff month 0 output so Transactions matches the Debt Payoff tab.
+    // generateRecommendations (old approach) only counted income up to the primary due day,
+    // missing any paycheck that arrives after that date but before month end.
+    const cards = buildCardData(accounts, baseTxns, rules, debts);
+    if (cards.length === 0) return [];
+
+    const liquidTypes = ['checking', 'business_checking', 'cash'];
+    const liquidCash = accounts
+      .filter((a: any) => a.active && liquidTypes.includes(a.account_type))
+      .reduce((s: number, a: any) => s + Number(a.balance), 0);
+    const cashFloor = Number(profile?.cash_floor) || 1000;
+
+    const ccIds = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
+    const nowDate = new Date();
+    const monthStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`;
+    const todayStr = nowDate.toISOString().split('T')[0];
+
+    // Full remaining month income (day 31) — same window as CreditCardEngine variableSim
+    const month0Income = getRemainingTransactionIncomeByDay(baseTxns, 31);
+    const month0Expenses = (baseTxns as any[])
+      .filter((t: any) => {
+        if (t.type !== 'expense') return false;
+        if (!t.date || !t.date.startsWith(monthStr)) return false;
+        if (t.date < todayStr) return false;
+        if (t.category === 'Debt Payments') return false;
+        if (t.category === 'Balance Adjustment') return false;
+        if (t.payment_source && ccIds.has(t.payment_source)) return false;
+        return true;
+      })
+      .reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+    // Scalar fallbacks for months 1+ (only month 0 matters here)
+    const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
+    const taxRate = Number(profile?.tax_rate) || 22;
+    const monthlyTakeHome = weeklyGross * (1 - taxRate / 100) * 4.33;
+    const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
+    const monthlyExpenses = rules.filter((r: any) => {
+      if (!r.active || r.rule_type !== 'expense') return false;
+      if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
+      if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
+      return true;
+    }).reduce((s: number, r: any) => {
+      const amt = Number(r.amount);
+      if (r.frequency === 'weekly') return s + amt * 4.33;
+      if (r.frequency === 'yearly') return s + amt / 12;
+      return s + amt;
+    }, 0);
+
+    const sim = simulateVariablePayoff(
+      cards, liquidCash, cashFloor, 'avalanche',
+      monthlyTakeHome, monthlyExpenses, 1,
+      undefined, undefined, undefined,
+      month0Income, month0Expenses,
+    );
+
+    const checkingAccount = fundingAccountId
+      ? accounts.find((a: any) => a.id === fundingAccountId && a.active)
+      : accounts.find((a: any) => a.account_type === 'checking' && a.active);
+    const paymentSource = checkingAccount ? `account:${checkingAccount.id}` : 'bank_account';
+
+    const results: any[] = [];
+    for (const card of cards) {
+      const pay = (sim.monthlyPayments.get(card.id) || [])[0] ?? 0;
+      if (pay <= 0) continue;
+      const dueDay = card.dueDay || 15;
+      const monthEnd = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0).getDate();
+      const effectiveDay = Math.min(dueDay, monthEnd);
+      const d = new Date(nowDate.getFullYear(), nowDate.getMonth(), effectiveDay);
+      const dateStr = d.toISOString().split('T')[0];
+      results.push({
+        id: `debtpay:${card.id}:${dateStr}`,
+        date: dateStr,
+        type: 'expense',
+        amount: Math.round(pay * 100) / 100,
+        category: 'Debt Payments',
+        note: `${card.name} Payment`,
+        payment_source: paymentSource,
+        isGenerated: true,
+        isDebtPayment: true,
+      });
+    }
+    return results;
   }, [accounts, baseTxns, rules, debts, profile, fundingAccountId]);
 
   // Map reconciliation records to transaction-like shape for rendering
