@@ -22,6 +22,7 @@ const PRICE_IDS = {
 const bodySchema = z.object({
   return_url: z.string().url('return_url must be a valid URL').max(2000).optional(),
   plan: z.enum(['monthly', 'yearly']).default('yearly'),
+  ui_mode: z.enum(['hosted', 'embedded']).default('embedded'),
 }).strict();
 
 Deno.serve(async (req) => {
@@ -98,7 +99,7 @@ Deno.serve(async (req) => {
     }
 
     // Reject malformed JSON and unexpected fields
-    let parsed: { return_url?: string; plan?: 'monthly' | 'yearly' } = {};
+    let parsed: { return_url?: string; plan?: 'monthly' | 'yearly'; ui_mode?: 'hosted' | 'embedded' } = {};
     if (rawBody.trim()) {
       let json: unknown;
       try {
@@ -198,23 +199,33 @@ Deno.serve(async (req) => {
         "checkout.mode": "subscription",
       },
     });
+    const isEmbedded = (parsed.ui_mode ?? 'embedded') === 'embedded';
+
+    const sessionParams = new URLSearchParams({
+      customer: customerId,
+      "line_items[0][price]": PRICE_IDS[parsed.plan ?? 'yearly'],
+      "line_items[0][quantity]": "1",
+      mode: "subscription",
+      allow_promotion_codes: "true",
+      payment_method_collection: "if_required",
+      "metadata[supabase_user_id]": userId,
+    });
+
+    if (isEmbedded) {
+      sessionParams.set("ui_mode", "embedded");
+      sessionParams.set("return_url", `${origin}/premium/success?session_id={CHECKOUT_SESSION_ID}`);
+    } else {
+      sessionParams.set("success_url", `${origin}/premium/success?session_id={CHECKOUT_SESSION_ID}`);
+      sessionParams.set("cancel_url", `${origin}/premium/cancel`);
+    }
+
     const sessionRes = await fetch("https://api.stripe.com/v1/checkout/sessions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({
-        customer: customerId,
-        "line_items[0][price]": PRICE_IDS[parsed.plan ?? 'yearly'],
-        "line_items[0][quantity]": "1",
-        mode: "subscription",
-        allow_promotion_codes: "true",
-        payment_method_collection: "if_required",
-        success_url: `${origin}/premium/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin}/premium/cancel`,
-        "metadata[supabase_user_id]": userId,
-      }),
+      body: sessionParams,
     });
     const session = await sessionRes.json();
     stripeSessionSpan.end(
@@ -224,7 +235,10 @@ Deno.serve(async (req) => {
     if (!sessionRes.ok) throw new Error(`Stripe session error: ${JSON.stringify(session)}`);
 
     rootSpan.end("OK");
-    return new Response(JSON.stringify({ url: session.url }), {
+    const responseBody = isEmbedded
+      ? { client_secret: session.client_secret }
+      : { url: session.url };
+    return new Response(JSON.stringify(responseBody), {
       status: 200,
       headers: {
         ...corsHeaders,
