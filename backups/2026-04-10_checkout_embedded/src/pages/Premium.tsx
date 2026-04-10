@@ -1,82 +1,43 @@
-import { useState, useCallback } from 'react';
-import { Check, Crown, Loader2, ExternalLink, ArrowLeft } from 'lucide-react';
-import {
-  EmbeddedCheckout,
-  EmbeddedCheckoutProvider,
-} from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
+import { useState } from 'react';
+import { Check, Crown, Loader2, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
 import { tracedInvoke } from '@/lib/tracer';
 import { toast } from 'sonner';
 
-// Initialise Stripe outside the component so the promise is stable across renders
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
-
 const free = ['1 budget', 'Basic dashboard', 'Transaction tracking', 'Up to 3 savings goals', '1 debt tracker'];
 const premium = ['Unlimited budgets', 'Advanced dashboard', 'Export to CSV/PDF', 'Unlimited goals & debts', 'Priority support', 'Car fund tracker pro', 'Custom categories'];
 
-type Phase = 'pricing' | 'loading' | 'checkout';
-
 export default function Premium() {
   const { isPremium, hasStripeCustomer, isLoading } = useSubscription();
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
-  const [phase, setPhase] = useState<Phase>('pricing');
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [checkoutPlan, setCheckoutPlan] = useState<'monthly' | 'yearly'>('yearly');
 
-  const fetchClientSecret = useCallback(async (plan: 'monthly' | 'yearly') => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      toast.error('Please sign in first');
-      return null;
-    }
-
-    const { data, error } = await tracedInvoke<{ client_secret: string }>(supabase, 'create-checkout', {
-      body: {
-        plan,
-        ui_mode: 'embedded',
-        return_url: `${window.location.origin}/premium/success?session_id={CHECKOUT_SESSION_ID}`,
-      },
-    });
-
-    if (error) throw error;
-    return data?.client_secret ?? null;
-  }, []);
-
-  const handleStartCheckout = async () => {
-    setPhase('loading');
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
     try {
-      const secret = await fetchClientSecret(selectedPlan);
-      if (!secret) {
-        setPhase('pricing');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error('Please sign in first');
         return;
       }
-      setClientSecret(secret);
-      setCheckoutPlan(selectedPlan);
-      setPhase('checkout');
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Failed to start checkout');
-      setPhase('pricing');
-    }
-  };
 
-  const handleSwitchPlan = async (newPlan: 'monthly' | 'yearly') => {
-    if (newPlan === checkoutPlan) return;
-    setPhase('loading');
-    try {
-      const secret = await fetchClientSecret(newPlan);
-      if (!secret) {
-        setPhase('checkout');
+      const { data, error } = await tracedInvoke<{ url: string }>(supabase, 'create-checkout', {
+        body: { return_url: window.location.origin, plan: selectedPlan },
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
         return;
       }
-      setClientSecret(secret);
-      setCheckoutPlan(newPlan);
-      setPhase('checkout');
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Failed to switch plan');
-      setPhase('checkout');
+
+      toast.error('Checkout URL was not returned');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to start checkout');
+    } finally {
+      setCheckoutLoading(false);
     }
   };
 
@@ -100,8 +61,8 @@ export default function Premium() {
       }
 
       toast.error('Billing portal URL was not returned');
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Failed to open billing portal');
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to open billing portal');
     } finally {
       setPortalLoading(false);
     }
@@ -122,72 +83,6 @@ export default function Premium() {
     );
   }
 
-  // ── Embedded checkout phase ──────────────────────────────────────────────────
-  if (phase === 'checkout' && clientSecret) {
-    return (
-      <div className="p-4 lg:p-6 max-w-2xl mx-auto space-y-4">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <button
-            onClick={() => setPhase('pricing')}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            <ArrowLeft size={12} /> Back to plans
-          </button>
-          <div className="flex items-center gap-1.5">
-            <Crown size={13} className="text-gold" />
-            <span className="text-xs font-semibold text-gold">Premium</span>
-          </div>
-        </div>
-
-        {/* Plan switcher */}
-        <div className="flex bg-secondary border border-border p-0.5" style={{ borderRadius: 'var(--radius)' }}>
-          <button
-            onClick={() => handleSwitchPlan('yearly')}
-            className={`flex-1 py-2 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${checkoutPlan === 'yearly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-            style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
-          >
-            Yearly — $89.99
-            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${checkoutPlan === 'yearly' ? 'bg-white/20 text-white' : 'bg-gold/15 text-gold'}`}>
-              SAVE 25%
-            </span>
-          </button>
-          <button
-            onClick={() => handleSwitchPlan('monthly')}
-            className={`flex-1 py-2 text-xs font-semibold transition-all ${checkoutPlan === 'monthly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-            style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
-          >
-            Monthly — $9.99/mo
-          </button>
-        </div>
-
-        {/* Stripe Embedded Checkout */}
-        <div className="rounded-lg overflow-hidden border border-border">
-          <EmbeddedCheckoutProvider
-            key={clientSecret}
-            stripe={stripePromise}
-            options={{ clientSecret }}
-          >
-            <EmbeddedCheckout />
-          </EmbeddedCheckoutProvider>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Loading spinner ──────────────────────────────────────────────────────────
-  if (phase === 'loading') {
-    return (
-      <div className="p-4 lg:p-6 max-w-4xl mx-auto flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-3">
-          <Loader2 className="mx-auto animate-spin text-primary" size={28} />
-          <p className="text-sm text-muted-foreground">Preparing checkout…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Pricing cards (default) ──────────────────────────────────────────────────
   return (
     <div className="p-4 lg:p-6 max-w-4xl mx-auto space-y-8">
       <div className="text-center">
@@ -200,7 +95,6 @@ export default function Premium() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {/* Free card */}
         <div className="card-forged p-6 space-y-4">
           <div>
             <h3 className="font-display font-semibold text-sm">Free</h3>
@@ -225,14 +119,13 @@ export default function Premium() {
           </button>
         </div>
 
-        {/* Premium card */}
         <div className="card-forged p-6 space-y-4 border-gold/30">
           <div className="flex items-center gap-2">
             <Crown size={16} className="text-gold" />
             <h3 className="font-display font-semibold text-sm text-gold">Premium</h3>
           </div>
 
-          {/* Billing toggle */}
+          {/* Billing toggle — inside card, full width */}
           {!isPremium && (
             <div className="flex bg-secondary border border-border p-0.5" style={{ borderRadius: 'var(--radius)' }}>
               <button
@@ -255,7 +148,7 @@ export default function Premium() {
             </div>
           )}
 
-          {/* Price display */}
+          {/* Price */}
           {!isPremium && selectedPlan === 'yearly' ? (
             <div className="space-y-2">
               <p className="font-display font-bold text-3xl tracking-tight text-gold">
@@ -298,11 +191,12 @@ export default function Premium() {
           ) : (
             <>
               <button
-                onClick={handleStartCheckout}
-                disabled={isLoading}
+                onClick={handleCheckout}
+                disabled={checkoutLoading || isLoading}
                 className="w-full bg-primary text-primary-foreground py-2.5 text-xs font-semibold btn-press flex items-center justify-center gap-2"
                 style={{ borderRadius: 'var(--radius)' }}
               >
+                {checkoutLoading ? <Loader2 size={14} className="animate-spin" /> : null}
                 {selectedPlan === 'yearly' ? 'Get Yearly — $89.99' : 'Get Monthly — $9.99/mo'}
               </button>
               <p className="text-[10px] text-muted-foreground text-center mt-1">
