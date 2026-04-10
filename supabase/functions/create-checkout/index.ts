@@ -1,10 +1,17 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { z } from "https://esm.sh/zod@3.25.76";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const PAYLOAD_SIZE_LIMIT = 2048; // 2 KB — more than enough for { return_url }
+
+const bodySchema = z.object({
+  return_url: z.string().url('return_url must be a valid URL').max(2000).optional(),
+}).strict(); // reject any unexpected fields
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -38,14 +45,47 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Read and size-limit the raw body before parsing
+    const rawBody = await req.text();
+    if (rawBody.length > PAYLOAD_SIZE_LIMIT) {
+      return new Response(JSON.stringify({ error: "Payload too large" }), {
+        status: 413,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Reject malformed JSON and unexpected fields
+    let parsed: { return_url?: string } = {};
+    if (rawBody.trim()) {
+      let json: unknown;
+      try {
+        json = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const result = bodySchema.safeParse(json);
+      if (!result.success) {
+        return new Response(
+          JSON.stringify({ error: result.error.issues[0].message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      parsed = result.data;
+    }
+
+    // Use the validated return_url's origin, or fall back to trusted header / default
+    const origin = parsed.return_url
+      ? new URL(parsed.return_url).origin
+      : req.headers.get("origin") || "https://app.treforged.com";
+
     // Use service role for all DB operations since we can't use anon client auth
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
-
-    const { return_url } = await req.json();
-    const origin = return_url || req.headers.get("origin") || "https://app.treforged.com";
 
     // Check if user already has a stripe customer
     const { data: existingSub } = await supabase
@@ -73,7 +113,6 @@ Deno.serve(async (req) => {
       if (!customerRes.ok) throw new Error(`Stripe customer error: ${JSON.stringify(customer)}`);
       customerId = customer.id;
 
-      // Use service role to upsert subscription record
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { loginSchema, signUpSchema } from '@/lib/schemas';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,17 +22,16 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isLogin) {
-      if (displayName.trim().length < 2) {
-        toast.error('Please enter your name (at least 2 characters)');
+    if (isLogin) {
+      const result = loginSchema.safeParse({ email, password });
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
         return;
       }
-      if (password !== confirmPassword) {
-        toast.error('Passwords do not match');
-        return;
-      }
-      if (password.length < 6) {
-        toast.error('Password must be at least 6 characters');
+    } else {
+      const result = signUpSchema.safeParse({ displayName, email, password, confirmPassword });
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
         return;
       }
     }
@@ -39,12 +39,12 @@ export default function Auth() {
     setLoading(true);
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
         toast.success('Signed in successfully');
       } else {
         const { error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth`,
@@ -54,8 +54,8 @@ export default function Auth() {
         if (error) throw error;
         toast.success('Account created! Check your email to confirm.');
       }
-    } catch (err: any) {
-      toast.error(err.message || 'Authentication failed');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -86,6 +86,7 @@ export default function Auth() {
                 onChange={e => setDisplayName(e.target.value)}
                 required={!isLogin}
                 placeholder="Your name"
+                maxLength={50}
                 className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 style={{ borderRadius: 'var(--radius)' }}
               />
@@ -99,6 +100,7 @@ export default function Auth() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
+              maxLength={254}
               className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               style={{ borderRadius: 'var(--radius)' }}
             />
@@ -112,6 +114,7 @@ export default function Auth() {
               onChange={e => setPassword(e.target.value)}
               required
               minLength={6}
+              maxLength={128}
               className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               style={{ borderRadius: 'var(--radius)' }}
             />
@@ -126,6 +129,7 @@ export default function Auth() {
                 onChange={e => setConfirmPassword(e.target.value)}
                 required={!isLogin}
                 minLength={6}
+                maxLength={128}
                 placeholder="Re-enter your password"
                 className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
                   confirmPassword && confirmPassword !== password
