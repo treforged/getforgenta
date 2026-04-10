@@ -19,9 +19,15 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Rate limit by IP before doing any work
+  // Service role client — only this key can access the rate_limits table
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  // Rate limit by IP before doing any auth or business logic
   const ip = getClientIp(req);
-  const rl = checkRateLimit(ip, RATE_LIMIT);
+  const rl = await checkRateLimit(supabase, `${ip}:create-portal-session`, RATE_LIMIT);
   if (!rl.allowed) {
     return rateLimitedResponse(corsHeaders, RATE_LIMIT, rl.resetAt);
   }
@@ -51,12 +57,6 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Use service role for all DB operations since we can't use anon client auth
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
 
     // Get customer ID
     const { data: userSub } = await supabase
