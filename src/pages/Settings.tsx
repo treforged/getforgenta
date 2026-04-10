@@ -8,6 +8,7 @@ import { getDayName } from '@/lib/scheduling';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { emailChangeSchema, passwordChangeSchema } from '@/lib/schemas';
 
 export default function SettingsPage() {
   const { user, isDemo } = useAuth();
@@ -99,11 +100,12 @@ export default function SettingsPage() {
   const depositAccounts = accounts.filter((a: any) => ['checking', 'savings', 'high_yield_savings', 'business_checking'].includes(a.account_type) && a.active);
 
   const handleEmailChange = async () => {
-    if (!newEmail.trim() || !newEmail.includes('@')) {
-      toast.error('Enter a valid email address');
+    const result = emailChangeSchema.safeParse({ newEmail });
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
       return;
     }
-    if (newEmail.trim() === user?.email) {
+    if (result.data.newEmail === user?.email) {
       toast.error('New email must be different from your current email');
       return;
     }
@@ -122,10 +124,11 @@ export default function SettingsPage() {
   };
 
   const handlePasswordChange = async () => {
-    if (!currentPassword) { toast.error('Enter your current password'); return; }
-    if (newPassword.length < 6) { toast.error('New password must be at least 6 characters'); return; }
-    if (newPassword !== confirmNewPassword) { toast.error('Passwords do not match'); return; }
-    if (newPassword === currentPassword) { toast.error('New password must be different from current password'); return; }
+    const result = passwordChangeSchema.safeParse({ currentPassword, newPassword, confirmNewPassword });
+    if (!result.success) {
+      toast.error(result.error.issues[0].message);
+      return;
+    }
     setPasswordLoading(true);
     try {
       // Verify current password by re-authenticating

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
+import { premiumSuccessParamsSchema } from '@/lib/schemas';
 
 export default function PremiumSuccess() {
   const { refetch } = useSubscription();
@@ -9,10 +10,12 @@ export default function PremiumSuccess() {
   const [polling, setPolling] = useState(true);
   const [verified, setVerified] = useState(false);
 
-  const sessionId = searchParams.get('session_id');
+  const rawSessionId = searchParams.get('session_id');
+  const sessionIdResult = premiumSuccessParamsSchema.safeParse({ session_id: rawSessionId });
+  const sessionId = sessionIdResult.success ? sessionIdResult.data.session_id : null;
 
   useEffect(() => {
-    // No session_id means the user navigated here directly — show confirmation without polling
+    // No valid session_id means the user navigated here directly — show confirmation without polling
     if (!sessionId) {
       setPolling(false);
       return;
