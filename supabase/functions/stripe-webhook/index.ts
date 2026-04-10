@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createTracer } from "../_shared/tracer.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +19,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Each webhook delivery gets its own trace. Stripe does not send a trace ID,
+  // so we generate one here; it is returned in the response header for debugging.
+  const tracer = createTracer("stripe-webhook");
+  const rootSpan = tracer.startSpan("fn.stripe-webhook", {
+    kind: "SERVER",
+    attributes: { "http.method": req.method },
+  });
+
   try {
     const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     if (!STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY not configured");
@@ -30,7 +39,22 @@ Deno.serve(async (req) => {
     const signature = req.headers.get("stripe-signature");
     if (!signature) throw new Error("Missing stripe-signature header");
 
-    const event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
+    // ── Stripe: verify webhook signature ─────────────────────────────────
+    const verifySpan = tracer.startSpan("stripe.webhook.verify", {
+      parentSpanId: rootSpan.spanId,
+      kind: "INTERNAL",
+      attributes: { "peer.service": "stripe" },
+    });
+    let event: Stripe.Event;
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, STRIPE_WEBHOOK_SECRET);
+      verifySpan.end("OK");
+    } catch (sigErr) {
+      verifySpan.end("ERROR", sigErr);
+      throw sigErr;
+    }
+
+    rootSpan.end; // keep rootSpan open — update attributes with event type below
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -48,13 +72,14 @@ Deno.serve(async (req) => {
     ];
 
     if (!relevantEvents.includes(event.type)) {
+      rootSpan.end("OK");
       return new Response(JSON.stringify({ received: true }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json", "x-trace-id": tracer.traceId },
       });
     }
 
-    // ── checkout.session.completed ────────────────────────────────────────────
+    // ── checkout.session.completed ────────────────────────────────────────
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const userId = session.metadata?.supabase_user_id;
@@ -63,16 +88,42 @@ Deno.serve(async (req) => {
 
       if (!userId) {
         console.error("checkout.session.completed: missing supabase_user_id in metadata");
+        rootSpan.end("ERROR", new Error("missing_supabase_user_id"));
         return new Response(JSON.stringify({ received: true }), {
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json", "x-trace-id": tracer.traceId },
         });
       }
 
       if (subscriptionId) {
-        // Retrieve subscription to get accurate status and period end
-        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        // ── Stripe: retrieve subscription ──────────────────────────────
+        const stripeRetrieveSpan = tracer.startSpan("stripe.subscriptions.retrieve", {
+          parentSpanId: rootSpan.spanId,
+          kind: "CLIENT",
+          attributes: {
+            "peer.service": "stripe",
+            "stripe.event_type": event.type,
+          },
+        });
+        let sub: Stripe.Subscription;
+        try {
+          sub = await stripe.subscriptions.retrieve(subscriptionId);
+          stripeRetrieveSpan.end("OK");
+        } catch (stripeErr) {
+          stripeRetrieveSpan.end("ERROR", stripeErr);
+          throw stripeErr;
+        }
 
+        // ── DB: upsert subscription ───────────────────────────────────
+        const dbUpsertSpan = tracer.startSpan("db.user_subscriptions.upsert", {
+          parentSpanId: rootSpan.spanId,
+          kind: "CLIENT",
+          attributes: {
+            "db.table": "user_subscriptions",
+            "db.operation": "upsert",
+            "stripe.event_type": event.type,
+          },
+        });
         const { error } = await supabase.from("user_subscriptions").upsert({
           user_id: userId,
           stripe_customer_id: customerId,
@@ -81,28 +132,35 @@ Deno.serve(async (req) => {
           subscription_status: sub.status,
           current_period_end: toISO((sub as any).current_period_end),
         }, { onConflict: "user_id" });
-
         if (error) {
+          dbUpsertSpan.end("ERROR", new Error(error.message));
           console.error("checkout upsert error:", error.message);
           throw new Error(error.message);
         }
+        dbUpsertSpan.end("OK");
       } else {
-        // No subscription ID on the session (e.g. setup mode) — mark premium with customer only
+        // No subscription ID on the session (e.g. setup mode)
+        const dbUpsertSpan = tracer.startSpan("db.user_subscriptions.upsert", {
+          parentSpanId: rootSpan.spanId,
+          kind: "CLIENT",
+          attributes: { "db.table": "user_subscriptions", "db.operation": "upsert", "stripe.event_type": event.type },
+        });
         const { error } = await supabase.from("user_subscriptions").upsert({
           user_id: userId,
           stripe_customer_id: customerId,
           plan: "premium",
           subscription_status: "active",
         }, { onConflict: "user_id" });
-
         if (error) {
+          dbUpsertSpan.end("ERROR", new Error(error.message));
           console.error("checkout upsert (no sub) error:", error.message);
           throw new Error(error.message);
         }
+        dbUpsertSpan.end("OK");
       }
     }
 
-    // ── customer.subscription.created / updated / deleted ────────────────────
+    // ── customer.subscription.created / updated / deleted ─────────────────
     if (
       event.type === "customer.subscription.created" ||
       event.type === "customer.subscription.updated" ||
@@ -111,92 +169,178 @@ Deno.serve(async (req) => {
       const sub = event.data.object;
       const customerId = sub.customer as string;
 
+      // ── DB: look up user by customer ID ──────────────────────────────
+      const dbLookupSpan = tracer.startSpan("db.user_subscriptions.select", {
+        parentSpanId: rootSpan.spanId,
+        kind: "CLIENT",
+        attributes: { "db.table": "user_subscriptions", "db.operation": "select", "stripe.event_type": event.type },
+      });
       const { data: userSub } = await supabase
         .from("user_subscriptions")
         .select("user_id")
         .eq("stripe_customer_id", customerId)
         .maybeSingle();
+      dbLookupSpan.end("OK");
 
       if (userSub) {
         const isActive = ["active", "trialing"].includes(sub.status);
 
+        // ── DB: update subscription status ────────────────────────────
+        const dbUpdateSpan = tracer.startSpan("db.user_subscriptions.update", {
+          parentSpanId: rootSpan.spanId,
+          kind: "CLIENT",
+          attributes: {
+            "db.table": "user_subscriptions",
+            "db.operation": "update",
+            "stripe.event_type": event.type,
+            "stripe.subscription_status": sub.status,
+          },
+        });
         const { error } = await supabase.from("user_subscriptions").update({
           subscription_status: sub.status,
           plan: isActive ? "premium" : "free",
           current_period_end: toISO((sub as any).current_period_end),
           stripe_subscription_id: sub.id,
         }).eq("user_id", userSub.user_id);
-
-        if (error) console.error("subscription updated error:", error.message);
+        if (error) {
+          dbUpdateSpan.end("ERROR", new Error(error.message));
+          console.error("subscription updated error:", error.message);
+        } else {
+          dbUpdateSpan.end("OK");
+        }
       }
     }
 
-    // ── invoice.paid / invoice.payment_succeeded ──────────────────────────────
-    // Both events fire on successful payment. invoice.paid is Stripe's preferred
-    // event for subscription lifecycle; payment_succeeded is also kept for safety.
-    // Re-activates past_due subscriptions and ensures plan stays "premium".
+    // ── invoice.paid / invoice.payment_succeeded ──────────────────────────
     if (event.type === "invoice.paid" || event.type === "invoice.payment_succeeded") {
       const invoice = event.data.object as any;
       const customerId = invoice.customer as string;
       const subscriptionId = invoice.subscription as string | null;
 
       if (!subscriptionId) {
+        rootSpan.end("OK");
         return new Response(JSON.stringify({ received: true }), {
           status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, "Content-Type": "application/json", "x-trace-id": tracer.traceId },
         });
       }
 
+      const dbLookupSpan = tracer.startSpan("db.user_subscriptions.select", {
+        parentSpanId: rootSpan.spanId,
+        kind: "CLIENT",
+        attributes: { "db.table": "user_subscriptions", "db.operation": "select", "stripe.event_type": event.type },
+      });
       const { data: userSub } = await supabase
         .from("user_subscriptions")
         .select("user_id")
         .eq("stripe_customer_id", customerId)
         .maybeSingle();
+      dbLookupSpan.end("OK");
 
       if (userSub) {
-        // Retrieve subscription to get accurate period end
-        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        // ── Stripe: retrieve subscription for period end ──────────────
+        const stripeRetrieveSpan = tracer.startSpan("stripe.subscriptions.retrieve", {
+          parentSpanId: rootSpan.spanId,
+          kind: "CLIENT",
+          attributes: { "peer.service": "stripe", "stripe.event_type": event.type },
+        });
+        let sub: Stripe.Subscription;
+        try {
+          sub = await stripe.subscriptions.retrieve(subscriptionId);
+          stripeRetrieveSpan.end("OK");
+        } catch (stripeErr) {
+          stripeRetrieveSpan.end("ERROR", stripeErr);
+          throw stripeErr;
+        }
 
+        // ── DB: update subscription to active ─────────────────────────
+        const dbUpdateSpan = tracer.startSpan("db.user_subscriptions.update", {
+          parentSpanId: rootSpan.spanId,
+          kind: "CLIENT",
+          attributes: {
+            "db.table": "user_subscriptions",
+            "db.operation": "update",
+            "stripe.event_type": event.type,
+            "stripe.subscription_status": "active",
+          },
+        });
         const { error } = await supabase.from("user_subscriptions").update({
           subscription_status: "active",
           plan: "premium",
           stripe_subscription_id: subscriptionId,
           current_period_end: toISO((sub as any).current_period_end),
         }).eq("user_id", userSub.user_id);
-
-        if (error) console.error("invoice.payment_succeeded update error:", error.message);
+        if (error) {
+          dbUpdateSpan.end("ERROR", new Error(error.message));
+          console.error("invoice.payment_succeeded update error:", error.message);
+        } else {
+          dbUpdateSpan.end("OK");
+        }
       }
     }
 
-    // ── invoice.payment_failed ────────────────────────────────────────────────
+    // ── invoice.payment_failed ────────────────────────────────────────────
     if (event.type === "invoice.payment_failed") {
       const invoice = event.data.object as any;
       const customerId = invoice.customer as string;
 
+      const dbLookupSpan = tracer.startSpan("db.user_subscriptions.select", {
+        parentSpanId: rootSpan.spanId,
+        kind: "CLIENT",
+        attributes: { "db.table": "user_subscriptions", "db.operation": "select", "stripe.event_type": event.type },
+      });
       const { data: userSub } = await supabase
         .from("user_subscriptions")
         .select("user_id")
         .eq("stripe_customer_id", customerId)
         .maybeSingle();
+      dbLookupSpan.end("OK");
 
       if (userSub) {
+        const dbUpdateSpan = tracer.startSpan("db.user_subscriptions.update", {
+          parentSpanId: rootSpan.spanId,
+          kind: "CLIENT",
+          attributes: {
+            "db.table": "user_subscriptions",
+            "db.operation": "update",
+            "stripe.event_type": event.type,
+            "stripe.subscription_status": "past_due",
+          },
+        });
         const { error } = await supabase.from("user_subscriptions").update({
           subscription_status: "past_due",
         }).eq("user_id", userSub.user_id);
-
-        if (error) console.error("invoice.payment_failed update error:", error.message);
+        if (error) {
+          dbUpdateSpan.end("ERROR", new Error(error.message));
+          console.error("invoice.payment_failed update error:", error.message);
+        } else {
+          dbUpdateSpan.end("OK");
+        }
       }
     }
 
+    rootSpan.end("OK");
     return new Response(JSON.stringify({ received: true }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "application/json",
+        "x-trace-id": tracer.traceId,
+      },
     });
   } catch (error) {
     console.error("Webhook error:", error);
+    rootSpan.end("ERROR", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+          "x-trace-id": tracer.traceId,
+        },
+      }
     );
   }
 });

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Check, Crown, Loader2, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
-import { tracedInvoke } from '@/lib/tracer';
 import { toast } from 'sonner';
 
 const free = ['1 budget', 'Basic dashboard', 'Transaction tracking', 'Up to 3 savings goals', '1 debt tracker'];
@@ -22,7 +21,7 @@ export default function Premium() {
         return;
       }
 
-      const { data, error } = await tracedInvoke<{ url: string }>(supabase, 'create-checkout', {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { return_url: window.location.origin },
       });
 
@@ -49,7 +48,7 @@ export default function Premium() {
         return;
       }
 
-      const { data, error } = await tracedInvoke<{ url: string }>(supabase, 'create-portal-session', {
+      const { data, error } = await supabase.functions.invoke('create-portal-session', {
         body: { return_url: window.location.origin },
       });
 

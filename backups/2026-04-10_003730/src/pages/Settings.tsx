@@ -6,7 +6,6 @@ import { Link } from 'react-router-dom';
 import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail } from 'lucide-react';
 import { getDayName } from '@/lib/scheduling';
 import { supabase } from '@/integrations/supabase/client';
-import { tracedInvoke } from '@/lib/tracer';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { emailChangeSchema, passwordChangeSchema } from '@/lib/schemas';
@@ -158,7 +157,7 @@ export default function SettingsPage() {
     if (!hasStripeCustomer) return;
     setPortalLoading(true);
     try {
-      const { data, error } = await tracedInvoke<{ url: string }>(supabase, 'create-portal-session', {
+      const { data, error } = await supabase.functions.invoke('create-portal-session', {
         body: { return_url: window.location.origin },
       });
       if (error) throw error;
