@@ -5,6 +5,7 @@ import {
   Sliders, TrendingUp, Building2, Home,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -24,6 +25,7 @@ const navItems = [
 export default function Sidebar() {
   const { pathname } = useLocation();
   const { signOut, isDemo } = useAuth();
+  const { isPremium } = useSubscription();
   const [collapsed, setCollapsed] = useState(false);
 
   // Brand link: dashboard if logged in, landing if demo/auth
@@ -51,7 +53,11 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-        {navItems.filter(item => !isDemo || item.to !== '/premium').map(item => {
+        {navItems.filter(item => {
+          if (isDemo && item.to === '/premium') return false;
+          if (isPremium && item.to === '/premium') return false;
+          return true;
+        }).map(item => {
           const active = pathname === item.to;
           return (
             <Link
