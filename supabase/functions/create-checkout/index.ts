@@ -76,9 +76,12 @@ Deno.serve(async (req) => {
       parsed = result.data;
     }
 
-    // Use the validated return_url's origin, or fall back to trusted header / default
-    const origin = parsed.return_url
-      ? new URL(parsed.return_url).origin
+    // Sanitize and extract origin from the validated return_url (strip any injected content)
+    const sanitizedReturnUrl = parsed.return_url
+      ? parsed.return_url.replace(/<[^>]*>/g, '').trim()
+      : null;
+    const origin = sanitizedReturnUrl
+      ? new URL(sanitizedReturnUrl).origin
       : req.headers.get("origin") || "https://app.treforged.com";
 
     // Use service role for all DB operations since we can't use anon client auth

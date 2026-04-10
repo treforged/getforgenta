@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { sanitizePayload } from '@/lib/sanitize';
 import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
   demoNetWorthSnapshots,
@@ -40,7 +41,7 @@ export function useAccounts() {
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('accounts' as any).insert({ ...item, user_id: user.id });
+      const { error } = await supabase.from('accounts' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); toast.success('Account added'); },
@@ -49,7 +50,7 @@ export function useAccounts() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('accounts' as any).update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('accounts' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); toast.success('Account updated'); },
@@ -114,7 +115,7 @@ export function useRecurringRules() {
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('recurring_rules' as any).insert({ ...item, user_id: user.id });
+      const { error } = await supabase.from('recurring_rules' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['recurring_rules'] }); toast.success('Recurring rule added'); },
@@ -123,7 +124,7 @@ export function useRecurringRules() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('recurring_rules' as any).update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('recurring_rules' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['recurring_rules'] }); toast.success('Recurring rule updated'); },
@@ -158,7 +159,7 @@ export function useAssets() {
   const add = useMutation({
     mutationFn: async (item: { name: string; type: string; value: number; notes?: string }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('assets').insert({ ...item, user_id: user.id, notes: item.notes || '' });
+      const { error } = await supabase.from('assets').insert(sanitizePayload({ ...item, user_id: user.id, notes: item.notes || '' }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['assets'] }); toast.success('Asset added'); },
@@ -167,7 +168,7 @@ export function useAssets() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; name?: string; type?: string; value?: number; notes?: string }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('assets').update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('assets').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['assets'] }); toast.success('Asset updated'); },
@@ -202,7 +203,7 @@ export function useLiabilities() {
   const add = useMutation({
     mutationFn: async (item: { name: string; type: string; balance: number; apr?: number; notes?: string }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('liabilities').insert({ ...item, user_id: user.id, notes: item.notes || '', apr: item.apr || 0 });
+      const { error } = await supabase.from('liabilities').insert(sanitizePayload({ ...item, user_id: user.id, notes: item.notes || '', apr: item.apr || 0 }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['liabilities'] }); toast.success('Liability added'); },
@@ -211,7 +212,7 @@ export function useLiabilities() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('liabilities').update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('liabilities').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['liabilities'] }); toast.success('Liability updated'); },
@@ -246,7 +247,7 @@ export function useDebts() {
   const add = useMutation({
     mutationFn: async (item: { name: string; balance: number; apr: number; min_payment: number; target_payment: number; credit_limit?: number }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('debts').insert({ ...item, user_id: user.id } as any);
+      const { error } = await supabase.from('debts').insert(sanitizePayload({ ...item, user_id: user.id }) as any);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['debts'] }); toast.success('Debt added'); },
@@ -255,7 +256,7 @@ export function useDebts() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('debts').update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('debts').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['debts'] }); toast.success('Debt updated'); },
@@ -323,7 +324,7 @@ export function useSavingsGoals() {
   const add = useMutation({
     mutationFn: async (item: { name: string; target_amount: number; current_amount: number; monthly_contribution: number; target_date?: string }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('savings_goals').insert({ ...item, user_id: user.id });
+      const { error } = await supabase.from('savings_goals').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['savings_goals'] }); toast.success('Goal added'); },
@@ -332,7 +333,7 @@ export function useSavingsGoals() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('savings_goals').update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('savings_goals').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['savings_goals'] }); toast.success('Goal updated'); },
@@ -367,7 +368,7 @@ export function useCarFunds() {
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('car_funds').insert({ ...item, user_id: user.id });
+      const { error } = await supabase.from('car_funds').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_funds'] }); toast.success('Vehicle added'); },
@@ -376,7 +377,7 @@ export function useCarFunds() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('car_funds').update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('car_funds').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_funds'] }); toast.success('Vehicle updated'); },
@@ -411,7 +412,7 @@ export function useTransactions() {
   const add = useMutation({
     mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('transactions').insert({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' } as any);
+      const { error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' }) as any);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transactions'] }); toast.success('Transaction added'); },
@@ -420,7 +421,7 @@ export function useTransactions() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('transactions').update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('transactions').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transactions'] }); toast.success('Transaction updated'); },
@@ -464,7 +465,7 @@ export function useSubscriptions() {
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('subscriptions' as any).insert({ ...item, user_id: user.id });
+      const { error } = await supabase.from('subscriptions' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['subscriptions'] }); toast.success('Subscription added'); },
@@ -473,7 +474,7 @@ export function useSubscriptions() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('subscriptions' as any).update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('subscriptions' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['subscriptions'] }); toast.success('Subscription updated'); },
@@ -521,7 +522,7 @@ export function useBudgetItems() {
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('budget_items' as any).insert({ ...item, user_id: user.id });
+      const { error } = await supabase.from('budget_items' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['budget_items'] }); toast.success('Budget item added'); },
@@ -530,7 +531,7 @@ export function useBudgetItems() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('budget_items' as any).update(item).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('budget_items' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['budget_items'] }); toast.success('Budget item updated'); },
@@ -601,7 +602,7 @@ export function useProfile() {
   const update = useMutation({
     mutationFn: async (item: Record<string, any>) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('profiles').update(item as any).eq('user_id', user.id);
+      const { error } = await supabase.from('profiles').update(sanitizePayload(item) as any).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); toast.success('Settings saved'); },
