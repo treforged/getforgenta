@@ -94,31 +94,6 @@ export default function Premium() {
         </p>
       </div>
 
-      {/* Billing toggle — only show when not yet premium */}
-      {!isPremium && (
-        <div className="flex items-center justify-center">
-          <div className="inline-flex items-center bg-secondary border border-border p-0.5" style={{ borderRadius: 'var(--radius)' }}>
-            <button
-              onClick={() => setSelectedPlan('yearly')}
-              className={`px-4 py-1.5 text-xs font-semibold transition-colors flex items-center gap-1.5 ${selectedPlan === 'yearly' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
-            >
-              Yearly
-              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${selectedPlan === 'yearly' ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-gold/20 text-gold'}`}>
-                SAVE 25%
-              </span>
-            </button>
-            <button
-              onClick={() => setSelectedPlan('monthly')}
-              className={`px-4 py-1.5 text-xs font-semibold transition-colors ${selectedPlan === 'monthly' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
-              style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
-            >
-              Monthly
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className="grid md:grid-cols-2 gap-4">
         <div className="card-forged p-6 space-y-4">
           <div>
@@ -149,24 +124,52 @@ export default function Premium() {
             <Crown size={16} className="text-gold" />
             <h3 className="font-display font-semibold text-sm text-gold">Premium</h3>
           </div>
-          <p className="text-[10px] text-muted-foreground">Full access. Total control.</p>
-          {isPremium ? null : selectedPlan === 'yearly' ? (
-            <div>
-              <p className="font-display font-bold text-3xl tracking-tight text-gold">
-                $89.99<span className="text-sm text-muted-foreground font-normal">/yr</span>
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">$7.50/mo — 2 months free</p>
+
+          {/* Billing toggle — inside card, full width */}
+          {!isPremium && (
+            <div className="flex bg-secondary border border-border p-0.5" style={{ borderRadius: 'var(--radius)' }}>
+              <button
+                onClick={() => setSelectedPlan('yearly')}
+                className={`flex-1 py-2 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${selectedPlan === 'yearly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
+              >
+                Yearly
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${selectedPlan === 'yearly' ? 'bg-white/20 text-white' : 'bg-gold/15 text-gold'}`}>
+                  SAVE 25%
+                </span>
+              </button>
+              <button
+                onClick={() => setSelectedPlan('monthly')}
+                className={`flex-1 py-2 text-xs font-semibold transition-all ${selectedPlan === 'monthly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
+              >
+                Monthly
+              </button>
             </div>
-          ) : (
+          )}
+
+          {/* Price */}
+          {!isPremium && selectedPlan === 'yearly' ? (
+            <div className="space-y-2">
+              <p className="font-display font-bold text-3xl tracking-tight text-gold">
+                $89.99<span className="text-base text-muted-foreground font-normal">/yr</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="font-display font-bold text-lg text-gold/90">$7.50<span className="text-sm font-normal text-muted-foreground">/mo</span></span>
+                <span className="bg-gold/15 border border-gold/40 text-gold text-[11px] font-bold tracking-wide px-2.5 py-1 rounded-full uppercase">
+                  2 months free
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Billed as $89.99 once per year</p>
+            </div>
+          ) : !isPremium ? (
             <p className="font-display font-bold text-3xl tracking-tight text-gold">
               $9.99<span className="text-sm text-muted-foreground font-normal">/mo</span>
             </p>
+          ) : (
+            <p className="font-display font-bold text-3xl tracking-tight text-gold">Active</p>
           )}
-          {isPremium && (
-            <p className="font-display font-bold text-3xl tracking-tight text-gold">
-              Active
-            </p>
-          )}
+
           <ul className="space-y-2">
             {premium.map((f) => (
               <li key={f} className="flex items-center gap-2 text-xs">
@@ -190,14 +193,14 @@ export default function Premium() {
               <button
                 onClick={handleCheckout}
                 disabled={checkoutLoading || isLoading}
-                className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press flex items-center justify-center gap-2"
+                className="w-full bg-primary text-primary-foreground py-2.5 text-xs font-semibold btn-press flex items-center justify-center gap-2"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 {checkoutLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-                Upgrade Now
+                {selectedPlan === 'yearly' ? 'Get Yearly — $89.99' : 'Get Monthly — $9.99/mo'}
               </button>
-              <p className="text-sm text-muted-foreground mt-2">
-                Your subscription will be processed and activated via a webhook. You will receive an email once your subscription is active.
+              <p className="text-[10px] text-muted-foreground text-center mt-1">
+                Activated instantly after checkout
               </p>
             </>
           )}
