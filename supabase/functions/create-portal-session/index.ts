@@ -53,19 +53,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const jwt = authHeader.replace("Bearer ", "");
-    // Decode payload without re-verifying — gateway already verified
-    const [, payloadB64] = jwt.split(".");
-    const payload = JSON.parse(atob(payloadB64));
-    const userId = payload.sub as string;
-
-    if (!userId) {
+    // Verify JWT via Supabase auth — validates the signature server-side
+    const userClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user: authUser }, error: jwtError } = await userClient.auth.getUser();
+    if (jwtError || !authUser) {
       rootSpan.end("ERROR", new Error("unauthorized"));
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const userId = authUser.id;
 
     // Hash user ID for safe log correlation (not reversible)
     const userHash = await hashId(userId);
