@@ -162,9 +162,13 @@ export default function SettingsPage() {
         body: { return_url: window.location.origin },
       });
       if (error) throw error;
-      if (data?.url) window.location.href = data.url;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        toast.error('Billing portal URL was not returned');
+      }
     } catch (err: any) {
-      console.error('Portal error:', err);
+      toast.error(err.message || 'Failed to open billing portal');
     } finally {
       setPortalLoading(false);
     }
