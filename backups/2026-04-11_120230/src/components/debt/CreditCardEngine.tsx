@@ -897,15 +897,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 {isExpanded && (
                   <PremiumGate
                     isPremium={isPremium || isDemo}
-                    title="Month-by-month payoff plan"
-                    features={[
-                      `Exact recommended payment each month for ${proj.card.name}`,
-                      proj.payoffMonth
-                        ? `Paid off in ${proj.payoffMonth} month${proj.payoffMonth === 1 ? '' : 's'} — see every step`
-                        : 'See your full projected payoff timeline',
-                      `Save ${formatCurrency(proj.totalInterest, false)} in total interest`,
-                      'Override any month\'s payment and watch balances update live',
-                    ]}
+                    message="Upgrade to unlock monthly payment projections"
                     className="border-t border-border"
                   >
                   <div className="px-3 sm:px-4 py-3">

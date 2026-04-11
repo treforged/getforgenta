@@ -8,7 +8,7 @@ import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/
 import { mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
-import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal, Crown } from 'lucide-react';
+import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -599,36 +599,6 @@ export default function Transactions() {
           <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add</button>
         </PremiumGate>
       </div>
-
-      {!isPremium && !isDemo && (
-        <div className="card-forged p-4 border-primary/20 flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex-1 space-y-2">
-            <p className="text-xs font-semibold text-foreground">One-time transactions — Premium</p>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
-              Record income windfalls and large one-time expenses that instantly update your Debt Payoff engine and 36-month Forecast.
-            </p>
-            <ul className="space-y-1">
-              {[
-                'Windfalls (bonuses, tax refunds) automatically boost payoff speed',
-                "Big expenses (car down payment, medical bill) reduce that month's payments",
-                'Adjustments flow instantly to Dashboard, Forecast, and Debt Payoff',
-              ].map((f, i) => (
-                <li key={i} className="flex items-start gap-2 text-[10px] text-muted-foreground">
-                  <span className="text-primary font-bold shrink-0 mt-px">→</span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <Link
-            to="/premium"
-            className="shrink-0 self-start sm:self-center flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            <Crown size={12} /> Upgrade Now
-          </Link>
-        </div>
-      )}
 
       {isDemo && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
