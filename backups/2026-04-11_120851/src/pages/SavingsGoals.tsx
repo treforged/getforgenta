@@ -322,33 +322,16 @@ export default function SavingsGoals() {
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Build your financial runway</p>
         </div>
-        <div className="flex gap-2 shrink-0">
-          {/* Regular goals — free up to 3 */}
-          <PremiumGate
-            isPremium={isPremium || isDemo || goals.length < 3}
-            title="Unlimited savings goals"
-            features={[
-              'Emergency fund, vacation, down payment, and more',
-              'Link to a real account for automatic balance sync',
-              'Growth chart projecting all goals over 12 months',
-            ]}
-          >
+        <PremiumGate
+          isPremium={isPremium || isDemo || (goals.length + carFunds.length) < 3}
+          message="Upgrade to add unlimited savings goals"
+          className="shrink-0 flex gap-2"
+        >
+          <div className="flex gap-2">
             <button onClick={() => openAdd('Custom')} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add Goal</button>
-          </PremiumGate>
-
-          {/* Car Fund — always premium */}
-          <PremiumGate
-            isPremium={isPremium || isDemo}
-            title="Car Fund Tracker Pro"
-            features={[
-              'Full affordability model: down payment + loan APR + insurance',
-              'Estimated monthly loan payment after purchase',
-              'Syncs with Forecast — savings don\'t compete with debt payoff',
-            ]}
-          >
             <button onClick={() => openAdd('Car Fund')} className="flex items-center gap-1.5 border border-border text-foreground px-3 py-1.5 text-xs font-medium btn-press hover:bg-muted/30" style={{ borderRadius: 'var(--radius)' }}><Car size={12} /> Car Fund</button>
-          </PremiumGate>
-        </div>
+          </div>
+        </PremiumGate>
       </div>
 
       {isDemo && (

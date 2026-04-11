@@ -698,16 +698,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Premium gated — Advanced Analytics */}
-      <PremiumGate
-        isPremium={isPremium || isDemo}
-        title="Advanced Analytics"
-        features={[
-          'Weekly take-home after taxes — see your real pay each cycle',
-          'Projected annual savings based on your live cash flow',
-          'Total debt at a glance — all accounts in one number',
-        ]}
-      >
+      {/* Premium gated */}
+      <PremiumGate isPremium={isPremium || isDemo} message="Unlock advanced analytics with Premium">
         <div className="card-forged p-5">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Advanced Analytics</h3>
           <div className="grid md:grid-cols-3 gap-4">

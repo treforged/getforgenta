@@ -7,7 +7,6 @@ import FormModal from '@/components/shared/FormModal';
 import { toast } from 'sonner';
 import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/hooks/useSubscription';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Wallet, TrendingDown, DollarSign, PiggyBank, Plus, Edit2, Trash2, Copy,
@@ -64,7 +63,6 @@ function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: (
 
 export default function BudgetControl() {
   const { user, isDemo } = useAuth();
-  const { isPremium } = useSubscription();
   const { data: profile, update: updateProfile } = useProfile();
   const { data: accounts } = useAccounts();
   const { data: rules, add: addRule, update: updateRule, remove: removeRule, loading: rulesLoading } = useRecurringRules();
@@ -413,11 +411,7 @@ export default function BudgetControl() {
     if (form.frequency === 'yearly') {
       fields.push({ key: 'due_month', label: 'Due Month (1-12)', type: 'number' });
     }
-    if (isPremium || isDemo) {
-      fields.push({ key: 'category', label: 'Category (custom)', type: 'text', placeholder: 'e.g., Bills, Groceries, Side Hustle…' });
-    } else {
-      fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
-    }
+    fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
     
     if (form.rule_type === 'transfer' || form.rule_type === 'investment') {
       fields.push({ key: 'start_date', label: 'Start Date', type: 'date' });

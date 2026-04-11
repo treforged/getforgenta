@@ -8,8 +8,7 @@ import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/
 import { mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
-import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal, Crown, Download } from 'lucide-react';
-import { exportTransactionsCsv } from '@/lib/exportCsv';
+import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -596,32 +595,9 @@ export default function Transactions() {
             { title: 'How it affects the rest', body: 'Transactions feed the Dashboard monthly totals, Forecast projections, and spending breakdowns.' },
           ]} />
         </div>
-        <div className="flex items-center gap-2">
-          <PremiumGate
-            isPremium={isPremium || isDemo}
-            title="Export to CSV"
-            features={[
-              'Download the current filtered view as a spreadsheet',
-              'Date, type, amount, category, note, and payment source',
-              'Import into Excel, Google Sheets, or your accountant\'s tool',
-            ]}
-          >
-            <button
-              onClick={() => {
-                const filename = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
-                exportTransactionsCsv(filtered, filename);
-              }}
-              className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <Download size={12} /> Export
-            </button>
-          </PremiumGate>
-
-          <PremiumGate isPremium={isPremium || isDemo} message="Upgrade to add one-time transactions">
-            <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add</button>
-          </PremiumGate>
-        </div>
+        <PremiumGate isPremium={isPremium || isDemo} message="Upgrade to add one-time transactions">
+          <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add</button>
+        </PremiumGate>
       </div>
 
       {!isPremium && !isDemo && (

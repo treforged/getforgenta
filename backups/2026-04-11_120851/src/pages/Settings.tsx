@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2 } from 'lucide-react';
 import { getDayName } from '@/lib/scheduling';
 import { supabase } from '@/integrations/supabase/client';
 import { tracedInvoke } from '@/lib/tracer';
@@ -519,53 +519,6 @@ export default function SettingsPage() {
           <p className="text-[10px] text-muted-foreground mt-1">Cash-protected mode: extra card payments only when cash stays above this floor</p>
         </div>
       </div>
-
-      {/* Support */}
-      {!isDemo && (
-        <div className="card-forged p-5 space-y-3">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Support</h2>
-          {isPremium ? (
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <MessageCircle size={13} className="text-primary" />
-                  <span className="text-xs font-medium">Priority Support</span>
-                  <span className="text-[9px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>Premium</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Your message goes to the front of the queue. Email us with your account issue and we'll respond within 24 hours.
-                </p>
-              </div>
-              <a
-                href="mailto:contact@treforged.com?subject=Premium%20Support%20Request"
-                className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <Mail size={12} /> Email Support
-              </a>
-            </div>
-          ) : (
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <MessageCircle size={13} className="text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">Priority Support</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  Premium subscribers get front-of-queue email support with a 24-hour response guarantee.
-                </p>
-              </div>
-              <Link
-                to="/premium"
-                className="shrink-0 flex items-center gap-1.5 bg-secondary border border-primary/30 text-primary px-3 py-1.5 text-xs font-medium hover:bg-primary/10 transition-colors btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <Crown size={12} /> Upgrade
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Danger Zone — hidden in demo mode */}
       {!isDemo && (

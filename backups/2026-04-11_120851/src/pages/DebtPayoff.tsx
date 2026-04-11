@@ -131,13 +131,8 @@ export default function DebtPayoff() {
         </div>
         {activeTab === 'other' && (
           <PremiumGate
-            isPremium={isPremium || isDemo || otherDebts.length < 3}
-            title="Unlimited debt tracking"
-            features={[
-              'Track every loan — student, auto, medical, personal',
-              'Snowball & avalanche simulations across all debts',
-              'Exact payoff dates and total interest per debt',
-            ]}
+            isPremium={isPremium || isDemo || otherDebts.length < 1}
+            message="Upgrade to track unlimited debts"
           >
             <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0" style={{ borderRadius: 'var(--radius)' }}>
               <Plus size={12} /> Add Debt
