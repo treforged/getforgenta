@@ -79,12 +79,6 @@ export default function BudgetControl() {
   const [payFrequency, setPayFrequency] = useState<PayFrequency>('weekly');
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Pre-tax deductions
-  const [deduction401kPct, setDeduction401kPct] = useState(0);
-  const [deductionHsa, setDeductionHsa] = useState(0);
-  const [deductionFsa, setDeductionFsa] = useState(0);
-  const [deductionMedical, setDeductionMedical] = useState(0);
-
   // Calc drawer
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
 
@@ -104,10 +98,6 @@ export default function BudgetControl() {
       setTaxRate(Number((profile as any).tax_rate) || 22);
       setPaycheckDay((profile as any).paycheck_day != null ? Number((profile as any).paycheck_day) : 5);
       setPayFrequency(((profile as any).paycheck_frequency as PayFrequency) || 'weekly');
-      setDeduction401kPct(Number((profile as any).deduction_401k_pct) || 0);
-      setDeductionHsa(Number((profile as any).deduction_hsa) || 0);
-      setDeductionFsa(Number((profile as any).deduction_fsa) || 0);
-      setDeductionMedical(Number((profile as any).deduction_medical) || 0);
       profileLoaded.current = true;
     }
   }, [profile]);
@@ -123,30 +113,18 @@ export default function BudgetControl() {
 
   // Auto-save income/tax with debounce + auto-sync income rule
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const doAutoSave = useCallback((
-    wg: number, tr: number, pd: number, pf: PayFrequency,
-    d401k: number, dHsa: number, dFsa: number, dMedical: number,
-  ) => {
+  const doAutoSave = useCallback((wg: number, tr: number, pd: number, pf: PayFrequency) => {
     if (!profileLoaded.current || isDemo) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       setAutoSaveStatus('saving');
-      const paycheckGross = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
-      const preTaxPerPaycheck = paycheckGross * (d401k / 100) + dHsa + dFsa + dMedical;
-      const netPerPaycheck = (paycheckGross - preTaxPerPaycheck) * (1 - tr / 100);
-      const paychecksPerYear = pf === 'biweekly' ? 26 : pf === 'monthly' ? 12 : 52;
-      const annualNet = netPerPaycheck * paychecksPerYear;
       updateProfile.mutate({
         weekly_gross_income: wg,
         tax_rate: tr,
         paycheck_day: pd,
         paycheck_frequency: pf,
         gross_income: wg * 52 / 12,
-        monthly_income_default: annualNet / 12,
-        deduction_401k_pct: d401k,
-        deduction_hsa: dHsa,
-        deduction_fsa: dFsa,
-        deduction_medical: dMedical,
+        monthly_income_default: (wg * 52 / 12) * (1 - tr / 100),
       } as any, {
         onSuccess: () => {
           setAutoSaveStatus('saved');
@@ -154,7 +132,8 @@ export default function BudgetControl() {
           // Auto-sync income rule to match top settings
           const incomeRule = rules.find((r: any) => r.rule_type === 'income' && r.active);
           if (incomeRule) {
-            const needsUpdate = Math.round(Number(incomeRule.amount) * 100) !== Math.round(netPerPaycheck * 100) ||
+            const netPerPaycheck = pf === 'biweekly' ? wg * 2 * (1 - tr / 100) : pf === 'monthly' ? wg * 52 / 12 * (1 - tr / 100) : wg * (1 - tr / 100);
+            const needsUpdate = Number(incomeRule.amount) !== netPerPaycheck ||
               incomeRule.frequency !== pf ||
               incomeRule.due_day !== pd;
             if (needsUpdate) {
@@ -176,36 +155,19 @@ export default function BudgetControl() {
     const parsed = parseFloat(weeklyGrossInput);
     if (!isNaN(parsed) && parsed > 0) {
       setWeeklyGross(parsed);
-      doAutoSave(parsed, taxRate, paycheckDay, payFrequency, deduction401kPct, deductionHsa, deductionFsa, deductionMedical);
+      doAutoSave(parsed, taxRate, paycheckDay, payFrequency);
     } else {
       setWeeklyGrossInput(String(weeklyGross));
     }
   };
-  const setTaxRateAuto = (v: number) => { setTaxRate(v); doAutoSave(weeklyGross, v, paycheckDay, payFrequency, deduction401kPct, deductionHsa, deductionFsa, deductionMedical); };
-  const setPaycheckDayAuto = (v: number) => { setPaycheckDay(v); doAutoSave(weeklyGross, taxRate, v, payFrequency, deduction401kPct, deductionHsa, deductionFsa, deductionMedical); };
-  const setPayFrequencyAuto = (v: PayFrequency) => { setPayFrequency(v); doAutoSave(weeklyGross, taxRate, paycheckDay, v, deduction401kPct, deductionHsa, deductionFsa, deductionMedical); };
-
-  // Deduction change handlers
-  const setDeduction401kAuto = (v: number) => { setDeduction401kPct(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, v, deductionHsa, deductionFsa, deductionMedical); };
-  const setDeductionHsaAuto = (v: number) => { setDeductionHsa(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, deduction401kPct, v, deductionFsa, deductionMedical); };
-  const setDeductionFsaAuto = (v: number) => { setDeductionFsa(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, deduction401kPct, deductionHsa, v, deductionMedical); };
-  const setDeductionMedicalAuto = (v: number) => { setDeductionMedical(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, deduction401kPct, deductionHsa, deductionFsa, v); };
+  const setTaxRateAuto = (v: number) => { setTaxRate(v); doAutoSave(weeklyGross, v, paycheckDay, payFrequency); };
+  const setPaycheckDayAuto = (v: number) => { setPaycheckDay(v); doAutoSave(weeklyGross, taxRate, v, payFrequency); };
+  const setPayFrequencyAuto = (v: PayFrequency) => { setPayFrequency(v); doAutoSave(weeklyGross, taxRate, paycheckDay, v); };
 
   // Unified pay schedule
-  const paycheckGross = useMemo(() => {
-    if (payFrequency === 'biweekly') return weeklyGross * 2;
-    if (payFrequency === 'monthly') return weeklyGross * 52 / 12;
-    return weeklyGross;
-  }, [weeklyGross, payFrequency]);
-
-  const preTaxDeductionsFlat = useMemo(() =>
-    paycheckGross * (deduction401kPct / 100) + deductionHsa + deductionFsa + deductionMedical,
-    [paycheckGross, deduction401kPct, deductionHsa, deductionFsa, deductionMedical]);
-
   const payConfig = useMemo(() => ({
     weeklyGross, taxRate, paycheckDay, frequency: payFrequency,
-    preTaxDeductions: preTaxDeductionsFlat,
-  }), [weeklyGross, taxRate, paycheckDay, payFrequency, preTaxDeductionsFlat]);
+  }), [weeklyGross, taxRate, paycheckDay, payFrequency]);
 
   const paycheckNet = useMemo(() => getPaycheckNet(payConfig), [payConfig]);
   const now = new Date();
@@ -222,8 +184,7 @@ export default function BudgetControl() {
     return paychecks.reduce((s, p) => s + p.gross, 0);
   }, [payConfig]);
   const annualGross = weeklyGross * 52;
-  const paychecksPerYear = payFrequency === 'biweekly' ? 26 : payFrequency === 'monthly' ? 12 : 52;
-  const annualTakeHome = paycheckNet * paychecksPerYear;
+  const annualTakeHome = weeklyGross * (1 - taxRate / 100) * 52;
 
   // Merge subscriptions into fixed rules view
   const subsAsRules = useMemo(() => subs.filter((s: any) => s.active).map((s: any) => ({
@@ -632,45 +593,6 @@ export default function BudgetControl() {
             <p className="text-sm font-display font-bold text-primary mt-1">{nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
           </div>
         </div>
-        {/* Pre-Tax Deductions */}
-        <div className="pt-3 border-t border-border space-y-2">
-          <div className="flex items-center gap-2">
-            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Pre-Tax Deductions (per paycheck)</h4>
-            {preTaxDeductionsFlat > 0 && (
-              <span className="text-[10px] text-primary font-medium">
-                −{formatCurrency(preTaxDeductionsFlat, false)}/check · saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100), false)} in tax
-              </span>
-            )}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase">401k Contribution (%)</label>
-              <input type="number" min={0} max={100} step={0.5} value={deduction401kPct}
-                onChange={e => setDeduction401kAuto(parseFloat(e.target.value) || 0)}
-                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
-              {deduction401kPct > 0 && <p className="text-[9px] text-muted-foreground mt-0.5">{formatCurrency(paycheckGross * (deduction401kPct / 100), false)}/check</p>}
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase">HSA ($/check)</label>
-              <input type="number" min={0} step={1} value={deductionHsa}
-                onChange={e => setDeductionHsaAuto(parseFloat(e.target.value) || 0)}
-                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase">FSA ($/check)</label>
-              <input type="number" min={0} step={1} value={deductionFsa}
-                onChange={e => setDeductionFsaAuto(parseFloat(e.target.value) || 0)}
-                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase">Medical Ins. ($/check)</label>
-              <input type="number" min={0} step={1} value={deductionMedical}
-                onChange={e => setDeductionMedicalAuto(parseFloat(e.target.value) || 0)}
-                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
-            </div>
-          </div>
-        </div>
-
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 pt-2 border-t border-border">
           <div className="text-center"><p className="text-[10px] text-muted-foreground">Per Paycheck (Net)</p><p className="text-xs font-display font-bold text-success">{formatCurrency(paycheckNet, false)}</p></div>
           <div className="text-center"><p className="text-[10px] text-muted-foreground">Monthly Gross</p><p className="text-xs font-display font-bold text-foreground">{formatCurrency(monthlyGross, false)}</p></div>

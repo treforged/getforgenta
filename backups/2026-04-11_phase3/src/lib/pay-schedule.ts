@@ -9,8 +9,6 @@ export type PayScheduleConfig = {
   paycheckDay: number; // 0=Sun..6=Sat for weekly/biweekly, 1-31 for monthly
   frequency: PayFrequency;
   paycheckStartDate?: string; // 'YYYY-MM-DD' — biweekly phase anchor (any known paycheck date)
-  /** Flat pre-tax deductions per paycheck (401k + HSA + FSA + medical). Applied before income tax. */
-  preTaxDeductions?: number;
 };
 
 export type PaycheckInfo = {
@@ -22,8 +20,7 @@ export type PaycheckInfo = {
 /** Get net (post-tax) amount per paycheck */
 export function getPaycheckNet(config: PayScheduleConfig): number {
   const gross = getPaycheckGross(config);
-  const pretax = config.preTaxDeductions ?? 0;
-  return (gross - pretax) * (1 - config.taxRate / 100);
+  return gross * (1 - config.taxRate / 100);
 }
 
 /** Get gross amount per paycheck based on frequency */
@@ -40,8 +37,7 @@ export function getPaychecksInMonth(config: PayScheduleConfig, year: number, mon
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 0);
   const gross = getPaycheckGross(config);
-  const pretax = config.preTaxDeductions ?? 0;
-  const net = (gross - pretax) * (1 - config.taxRate / 100);
+  const net = gross * (1 - config.taxRate / 100);
 
   if (config.frequency === 'monthly') {
     const day = Math.min(config.paycheckDay || 1, monthEnd.getDate());
@@ -104,21 +100,12 @@ export function getMonthNetIncome(config: PayScheduleConfig, year: number, month
 
 /** Build config from profile data */
 export function buildPayConfig(profile: any): PayScheduleConfig {
-  const wg = Number(profile?.weekly_gross_income) || 1875;
-  const pf = (profile?.paycheck_frequency as PayFrequency) || 'weekly';
-  const paycheckGross = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
-  const d401k = Number(profile?.deduction_401k_pct) || 0;
-  const hsa = Number(profile?.deduction_hsa) || 0;
-  const fsa = Number(profile?.deduction_fsa) || 0;
-  const medical = Number(profile?.deduction_medical) || 0;
-  const preTaxDeductions = paycheckGross * (d401k / 100) + hsa + fsa + medical;
   return {
-    weeklyGross: wg,
+    weeklyGross: Number(profile?.weekly_gross_income) || 1875,
     taxRate: Number(profile?.tax_rate) || 22,
     paycheckDay: Number(profile?.paycheck_day) ?? 5,
-    frequency: pf,
+    frequency: (profile?.paycheck_frequency as PayFrequency) || 'weekly',
     paycheckStartDate: profile?.paycheck_start_date || undefined,
-    preTaxDeductions,
   };
 }
 
