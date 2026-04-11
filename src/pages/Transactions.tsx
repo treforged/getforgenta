@@ -12,6 +12,8 @@ import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertT
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/hooks/useSubscription';
+import PremiumGate from '@/components/shared/PremiumGate';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES];
 
@@ -19,6 +21,7 @@ const emptyForm = { date: new Date().toISOString().split('T')[0], type: 'expense
 
 export default function Transactions() {
   const { isDemo } = useAuth();
+  const { isPremium } = useSubscription();
   const { data: transactions, add, update, remove } = useTransactions();
   const { data: accounts } = useAccounts();
   const { data: rules, update: updateRule } = useRecurringRules();
@@ -592,7 +595,9 @@ export default function Transactions() {
             { title: 'How it affects the rest', body: 'Transactions feed the Dashboard monthly totals, Forecast projections, and spending breakdowns.' },
           ]} />
         </div>
-        <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add</button>
+        <PremiumGate isPremium={isPremium || isDemo} message="Upgrade to add one-time transactions">
+          <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add</button>
+        </PremiumGate>
       </div>
 
       {isDemo && (
