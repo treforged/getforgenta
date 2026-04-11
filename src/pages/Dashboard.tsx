@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { use401kAutoUpdate } from '@/hooks/use401kAutoUpdate';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import MetricCard from '@/components/shared/MetricCard';
 import ProgressBar from '@/components/shared/ProgressBar';
@@ -103,6 +104,9 @@ export default function Dashboard() {
   const { data: transactions, loading: txnLoading } = useTransactions();
   const { data: accounts, loading: acctLoading } = useAccounts();
   const { data: profile, loading: profileLoading } = useProfile();
+
+  // Phase 3.2 — auto-apply 401k contributions + APY growth on login
+  use401kAutoUpdate(profile, accounts, isDemo);
   const { data: debts, loading: debtsLoading } = useDebts();
   const { data: goals, loading: goalsLoading } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();

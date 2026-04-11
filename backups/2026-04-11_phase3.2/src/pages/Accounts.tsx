@@ -44,8 +44,7 @@ const TYPE_ICONS: Record<string, any> = {
   other_asset: Wallet,
 };
 
-const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '' };
-const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
+const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '' };
 
 export default function Accounts() {
   const { isDemo } = useAuth();
@@ -85,7 +84,6 @@ export default function Accounts() {
       name: a.name, account_type: a.account_type, institution: a.institution || '',
       balance: String(a.balance), credit_limit: String(a.credit_limit || ''), apr: String(a.apr || ''), notes: a.notes || '',
       min_payment: matchDebt ? String(matchDebt.min_payment) : '',
-      apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
     });
     setEditId(a.id); setShowForm(true);
   };
@@ -97,7 +95,6 @@ export default function Accounts() {
       name: form.name, account_type: form.account_type, institution: form.institution,
       balance, credit_limit: parseFloat(form.credit_limit) || null, apr: parseFloat(form.apr) || null,
       notes: form.notes, active: true,
-      apy_rate: APY_TYPES.includes(form.account_type) && form.apy_rate !== '' ? parseFloat(form.apy_rate) : null,
     };
     if (editId) {
       const existingAccount = accounts.find((a: any) => a.id === editId);
@@ -240,7 +237,6 @@ export default function Accounts() {
                       {TYPE_LABELS[a.account_type] || a.account_type}
                       {a.institution ? ` · ${a.institution}` : ''}
                       {a.apr ? ` · ${a.apr}% APR` : ''}
-                      {a.apy_rate != null ? ` · ${a.apy_rate}% APY` : ''}
                       {a.credit_limit ? ` · Limit ${formatCurrency(Number(a.credit_limit), false)}` : ''}
                     </p>
                   </div>
@@ -274,9 +270,6 @@ export default function Accounts() {
               { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01' },
             ] : []),
             { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01' },
-            ...(APY_TYPES.includes(form.account_type) ? [
-              { key: 'apy_rate', label: 'APY % (annual growth rate)', type: 'number' as const, placeholder: '7.0', step: '0.1' },
-            ] : []),
             ...(LIABILITY_TYPES.includes(form.account_type) ? [
               { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01' },
             ] : []),

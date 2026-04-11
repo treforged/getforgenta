@@ -485,28 +485,6 @@ export default function Forecast() {
     // FIX #1: Apply expense growth multiplier — was completely missing before
     const monthlyExpenseGrowth = Math.pow(1 + assumptions.expenseGrowth / 100, 1 / 12) - 1;
 
-    // Per-account weighted APY for retirement growth — falls back to global investmentGrowth
-    const retireAccounts = active.filter((a: any) => retireTypes.includes(a.account_type));
-    const totalRetireBal = retireAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const weightedRetireApy = totalRetireBal > 0
-      ? retireAccounts.reduce((s: number, a: any) => {
-          const apy = a.apy_rate != null ? Number(a.apy_rate) : assumptions.investmentGrowth;
-          return s + apy * (Number(a.balance) / totalRetireBal);
-        }, 0)
-      : assumptions.investmentGrowth;
-    const monthlyRetireGrowth = Math.pow(1 + weightedRetireApy / 100, 1 / 12) - 1;
-
-    // Monthly 401k paycheck contribution (from deduction settings, not just transfer rules)
-    const prof = profile as any;
-    const d401kVal = Number(prof?.deduction_401k_value) || 0;
-    const d401kMode = prof?.deduction_401k_mode || 'pct';
-    const paycheckGrossForForecast = payConfig
-      ? (payConfig.frequency === 'biweekly' ? payConfig.weeklyGross * 2 : payConfig.frequency === 'monthly' ? payConfig.weeklyGross * 52 / 12 : payConfig.weeklyGross)
-      : 0;
-    const contribPerCheck = d401kMode === 'pct' ? paycheckGrossForForecast * (d401kVal / 100) : d401kVal;
-    const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
-    const monthly401kContrib = contribPerCheck * (paychecksPerYear / 12);
-
     const monthlySavingsContrib = goals.reduce((s: number, g: any) => s + Number(g.monthly_contribution), 0);
     const monthlyCarContrib = carFunds.reduce((s: number, c: any) => {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
@@ -600,9 +578,6 @@ export default function Forecast() {
           monthBrokerageContrib += monthAmt;
         }
       }
-
-      // Add paycheck 401k deduction contribution (not double-count if also has a transfer rule to 401k)
-      monthRetireContrib += monthly401kContrib;
 
       const oneTime = oneTimeByMonth[monthKey] || { income: 0, expense: 0 };
       const oneTimeNet = oneTime.income - oneTime.expense;
@@ -727,7 +702,7 @@ export default function Forecast() {
       investBal += b.monthBrokerageContrib;
       investBal *= (1 + monthlyInvestGrowth);
       retireBal += b.monthRetireContrib;
-      retireBal *= (1 + monthlyRetireGrowth);
+      retireBal *= (1 + monthlyInvestGrowth);
 
       let totalMonthlyOut = b.baseExpenses + monthDebtPayment + monthlySavingsContrib + monthlyCarContrib + b.monthTransfers;
 
