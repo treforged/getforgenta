@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 
-type Mode = 'login' | 'signup' | 'reset';
+type Mode = 'login' | 'signup' | 'reset' | 'set-password';
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,8 +17,18 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
-  // Honour ?reset=true from security notification emails
   useEffect(() => {
+    // Supabase appends #access_token=...&type=recovery to the redirectTo URL
+    // when the user clicks the reset link in their email.
+    const hash = window.location.hash;
+    if (hash.includes('type=recovery')) {
+      setMode('set-password');
+      // Clean the hash from the URL so a refresh doesn't re-trigger this
+      window.history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
+    // ?reset=true from security notification emails → show the request-reset form
     if (searchParams.get('reset') === 'true') {
       setMode('reset');
     }
@@ -34,6 +45,31 @@ export default function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // ── Set new password (came from reset email link) ──────────────────────
+    if (mode === 'set-password') {
+      if (password.length < 6) {
+        toast.error('Password must be at least 6 characters');
+        return;
+      }
+      if (password !== confirmPassword) {
+        toast.error('Passwords do not match');
+        return;
+      }
+      setLoading(true);
+      try {
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        toast.success('Password updated. You are now signed in.');
+        navigate('/dashboard');
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : 'Failed to update password');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ── Request reset email ─────────────────────────────────────────────────
     if (mode === 'reset') {
       if (!email.trim()) {
         toast.error('Enter your email address');
@@ -54,6 +90,7 @@ export default function Auth() {
       return;
     }
 
+    // ── Sign in / Sign up ───────────────────────────────────────────────────
     if (mode === 'login') {
       const result = loginSchema.safeParse({ email, password });
       if (!result.success) {
@@ -93,6 +130,97 @@ export default function Auth() {
     }
   };
 
+  // ── Set new password UI (after clicking reset email link) ─────────────────
+  if (mode === 'set-password') {
+    const mismatch = !!confirmPassword && confirmPassword !== password;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">TRE FORGED</h1>
+            <p className="text-xs text-muted-foreground mt-1">Choose a new password for your account.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase">New Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                minLength={6}
+                maxLength={128}
+                placeholder="At least 6 characters"
+                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                style={{ borderRadius: 'var(--radius)' }}
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase">Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+                maxLength={128}
+                placeholder="Re-enter your new password"
+                className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
+                  mismatch ? 'border-destructive focus:ring-destructive' : 'border-border'
+                }`}
+                style={{ borderRadius: 'var(--radius)' }}
+              />
+              {mismatch && (
+                <p className="text-[10px] text-destructive mt-1">Passwords do not match</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || mismatch}
+              className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press disabled:opacity-50"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {loading ? 'Updating…' : 'Set New Password'}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Reset sent confirmation ───────────────────────────────────────────────
+  if (mode === 'reset' && resetSent) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <div className="text-center mb-8">
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">TRE FORGED</h1>
+          </div>
+          <div className="card-forged p-6 space-y-4 text-center">
+            <p className="text-sm font-semibold text-foreground">Check your inbox</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              We sent a password reset link to{' '}
+              <span className="text-foreground font-medium">{email}</span>.
+              The link expires in 1 hour.
+            </p>
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className="w-full py-2 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground transition-colors btn-press"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Back to Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Sign in / Sign up / Request reset ────────────────────────────────────
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
@@ -111,144 +239,125 @@ export default function Auth() {
           </p>
         </div>
 
-        {/* Reset sent confirmation */}
-        {mode === 'reset' && resetSent ? (
-          <div className="card-forged p-6 space-y-4 text-center">
-            <p className="text-sm font-semibold text-foreground">Check your inbox</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              We sent a password reset link to <span className="text-foreground font-medium">{email}</span>.
-              The link expires in 1 hour.
-            </p>
-            <button
-              type="button"
-              onClick={() => switchMode('login')}
-              className="w-full py-2 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground transition-colors btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Back to Sign In
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
-            {mode === 'signup' && (
-              <div>
-                <label className="text-[10px] text-muted-foreground uppercase">Display Name</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={e => setDisplayName(e.target.value)}
-                  required
-                  placeholder="Your name"
-                  maxLength={50}
-                  className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
-              </div>
-            )}
-
+        <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
+          {mode === 'signup' && (
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase">Email</label>
+              <label className="text-[10px] text-muted-foreground uppercase">Display Name</label>
               <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                type="text"
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
                 required
-                maxLength={254}
+                placeholder="Your name"
+                maxLength={50}
                 className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 style={{ borderRadius: 'var(--radius)' }}
               />
             </div>
+          )}
 
-            {mode !== 'reset' && (
-              <div>
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-muted-foreground uppercase">Password</label>
-                  {mode === 'login' && (
-                    <button
-                      type="button"
-                      onClick={() => switchMode('reset')}
-                      className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  maxLength={128}
-                  className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
-              </div>
-            )}
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              maxLength={254}
+              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              style={{ borderRadius: 'var(--radius)' }}
+            />
+          </div>
 
-            {mode === 'signup' && (
-              <div>
-                <label className="text-[10px] text-muted-foreground uppercase">Confirm Password</label>
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={e => setConfirmPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  maxLength={128}
-                  placeholder="Re-enter your password"
-                  className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
-                    confirmPassword && confirmPassword !== password
-                      ? 'border-destructive focus:ring-destructive'
-                      : 'border-border'
-                  }`}
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
-                {confirmPassword && confirmPassword !== password && (
-                  <p className="text-[10px] text-destructive mt-1">Passwords do not match</p>
+          {mode !== 'reset' && (
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-muted-foreground uppercase">Password</label>
+                {mode === 'login' && (
+                  <button
+                    type="button"
+                    onClick={() => switchMode('reset')}
+                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Forgot password?
+                  </button>
                 )}
               </div>
-            )}
+              <input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                minLength={6}
+                maxLength={128}
+                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                style={{ borderRadius: 'var(--radius)' }}
+              />
+            </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={loading || (mode === 'signup' && !!confirmPassword && confirmPassword !== password)}
-              className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press disabled:opacity-50"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              {loading
-                ? 'Processing…'
-                : mode === 'login'
-                ? 'Sign In'
-                : mode === 'signup'
-                ? 'Create Account'
-                : 'Send Reset Link'}
-            </button>
+          {mode === 'signup' && (
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase">Confirm Password</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+                maxLength={128}
+                placeholder="Re-enter your password"
+                className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
+                  confirmPassword && confirmPassword !== password
+                    ? 'border-destructive focus:ring-destructive'
+                    : 'border-border'
+                }`}
+                style={{ borderRadius: 'var(--radius)' }}
+              />
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-[10px] text-destructive mt-1">Passwords do not match</p>
+              )}
+            </div>
+          )}
 
-            {mode !== 'reset' && (
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
-                  className="w-full py-2 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  {mode === 'login' ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
-                </button>
-              </div>
-            )}
+          <button
+            type="submit"
+            disabled={loading || (mode === 'signup' && !!confirmPassword && confirmPassword !== password)}
+            className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press disabled:opacity-50"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            {loading
+              ? 'Processing…'
+              : mode === 'login'
+              ? 'Sign In'
+              : mode === 'signup'
+              ? 'Create Account'
+              : 'Send Reset Link'}
+          </button>
 
-            {mode === 'reset' && (
+          {mode !== 'reset' && (
+            <div className="pt-1">
               <button
                 type="button"
-                onClick={() => switchMode('login')}
-                className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
+                className="w-full py-2 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press"
+                style={{ borderRadius: 'var(--radius)' }}
               >
-                ← Back to Sign In
+                {mode === 'login' ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
               </button>
-            )}
-          </form>
-        )}
+            </div>
+          )}
+
+          {mode === 'reset' && (
+            <button
+              type="button"
+              onClick={() => switchMode('login')}
+              className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Back to Sign In
+            </button>
+          )}
+        </form>
 
         <p className="text-[10px] text-muted-foreground text-center mt-4">
           <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</Link>
