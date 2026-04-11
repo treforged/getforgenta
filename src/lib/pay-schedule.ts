@@ -106,23 +106,42 @@ export function getMonthNetIncome(config: PayScheduleConfig, year: number, month
   return getPaychecksInMonth(config, year, month).reduce((s, p) => s + p.net, 0);
 }
 
+/** Resolve a deduction value to a flat dollar amount per paycheck */
+function resolveDeductionAmt(value: number, mode: string, gross: number): number {
+  return mode === 'pct' ? gross * (value / 100) : value;
+}
+
 /** Build config from profile data */
 export function buildPayConfig(profile: any): PayScheduleConfig {
   const wg = Number(profile?.weekly_gross_income) || 1875;
   const pf = (profile?.paycheck_frequency as PayFrequency) || 'weekly';
   const paycheckGross = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
-  const d401k = Number(profile?.deduction_401k_pct) || 0;
-  const hsa = Number(profile?.deduction_hsa) || 0;
-  const fsa = Number(profile?.deduction_fsa) || 0;
-  const medical = Number(profile?.deduction_medical) || 0;
-  // Default: 401k, HSA, FSA are pre-tax; medical defaults pre-tax too
-  const pre401k = profile?.deduction_401k_pretax !== false;
-  const preHsa = profile?.deduction_hsa_pretax !== false;
-  const preFsa = profile?.deduction_fsa_pretax !== false;
+
+  const val401k   = Number(profile?.deduction_401k_value) || 0;
+  const valHsa    = Number(profile?.deduction_hsa) || 0;
+  const valFsa    = Number(profile?.deduction_fsa) || 0;
+  const valMedical = Number(profile?.deduction_medical) || 0;
+
+  const mode401k   = profile?.deduction_401k_mode   || 'pct';
+  const modeHsa    = profile?.deduction_hsa_mode    || 'flat';
+  const modeFsa    = profile?.deduction_fsa_mode    || 'flat';
+  const modeMedical = profile?.deduction_medical_mode || 'flat';
+
+  const amt401k   = resolveDeductionAmt(val401k,   mode401k,   paycheckGross);
+  const amtHsa    = resolveDeductionAmt(valHsa,    modeHsa,    paycheckGross);
+  const amtFsa    = resolveDeductionAmt(valFsa,    modeFsa,    paycheckGross);
+  const amtMedical = resolveDeductionAmt(valMedical, modeMedical, paycheckGross);
+
+  const pre401k   = profile?.deduction_401k_pretax   !== false;
+  const preHsa    = profile?.deduction_hsa_pretax    !== false;
+  const preFsa    = profile?.deduction_fsa_pretax    !== false;
   const preMedical = profile?.deduction_medical_pretax !== false;
-  const amt401k = paycheckGross * (d401k / 100);
-  const preTaxDeductions = (pre401k ? amt401k : 0) + (preHsa ? hsa : 0) + (preFsa ? fsa : 0) + (preMedical ? medical : 0);
-  const postTaxDeductions = (!pre401k ? amt401k : 0) + (!preHsa ? hsa : 0) + (!preFsa ? fsa : 0) + (!preMedical ? medical : 0);
+
+  const preTaxDeductions =
+    (pre401k ? amt401k : 0) + (preHsa ? amtHsa : 0) + (preFsa ? amtFsa : 0) + (preMedical ? amtMedical : 0);
+  const postTaxDeductions =
+    (!pre401k ? amt401k : 0) + (!preHsa ? amtHsa : 0) + (!preFsa ? amtFsa : 0) + (!preMedical ? amtMedical : 0);
+
   return {
     weeklyGross: wg,
     taxRate: Number(profile?.tax_rate) || 22,
