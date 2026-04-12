@@ -8,20 +8,15 @@ import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { Link } from 'react-router-dom';
 import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
-import PlaidLinkButton, { PlaidSyncedAccount } from '@/components/shared/PlaidLinkButton';
+import PlaidLinkButton from '@/components/shared/PlaidLinkButton';
 import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
-  Link2, Unlink, Loader2,
+  Link2, RefreshCw, Unlink, Loader2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-interface MatchEntry {
-  plaidAccount: PlaidSyncedAccount & { plaid_account_id?: string };
-  matchedAccountId: string | null; // null = keep as new
-}
 
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
@@ -73,56 +68,32 @@ export default function Accounts() {
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'assets' | 'liabilities'>('all');
-  const [matchEntries, setMatchEntries] = useState<MatchEntry[]>([]);
-  const [showMatchModal, setShowMatchModal] = useState(false);
-  const [matchSaving, setMatchSaving] = useState(false);
+  const [syncingAll, setSyncingAll] = useState(false);
 
-  const handlePlaidSuccess = useCallback((syncedAccounts: PlaidSyncedAccount[]) => {
+  const handlePlaidSuccess = useCallback(() => {
     invalidatePlaid();
-    // Only prompt matching if there are manual (non-Plaid) accounts to match against
-    const manualAccounts = accounts.filter((a: any) => !a.plaid_account_id && a.active);
-    if (syncedAccounts.length > 0 && manualAccounts.length > 0) {
-      setMatchEntries(syncedAccounts.map(a => ({ plaidAccount: a, matchedAccountId: null })));
-      setShowMatchModal(true);
-    }
-  }, [invalidatePlaid, accounts]);
+  }, [invalidatePlaid]);
 
-  const handleConfirmMatch = useCallback(async () => {
-    const toMatch = matchEntries.filter(e => e.matchedAccountId !== null);
-    if (toMatch.length === 0) { setShowMatchModal(false); return; }
-    setMatchSaving(true);
+  const handleSync = useCallback(async () => {
+    setSyncingAll(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
       if (!token) throw new Error('Not authenticated');
-
-      // For each matched pair: find the newly-created Plaid account by name, copy plaid_account_id to the existing account, delete the Plaid-created one
-      const { data: allAccounts } = await supabase.from('accounts').select('id, name, plaid_account_id').eq('user_id', (await supabase.auth.getUser()).data.user?.id ?? '');
-
-      for (const entry of toMatch) {
-        const existingAccount = accounts.find((a: any) => a.id === entry.matchedAccountId);
-        const plaidCreated = (allAccounts ?? []).find((a: any) => a.name === entry.plaidAccount.name && a.plaid_account_id);
-        if (!existingAccount || !plaidCreated) continue;
-
-        // Copy plaid_account_id + balance onto existing account
-        await supabase.from('accounts').update({
-          plaid_account_id: plaidCreated.plaid_account_id,
-          balance: entry.plaidAccount.balance,
-        }).eq('id', existingAccount.id);
-
-        // Delete the duplicate Plaid-created account
-        await supabase.from('accounts').delete().eq('id', plaidCreated.id);
-      }
-
-      toast.success(`Matched ${toMatch.length} account${toMatch.length !== 1 ? 's' : ''}`);
+      const res = await fetch(`${FN_BASE}/plaid-sync`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error ?? 'Sync failed');
+      toast.success(`Synced ${body.synced} account${body.synced !== 1 ? 's' : ''}`);
       invalidatePlaid();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Match failed');
+      toast.error(err instanceof Error ? err.message : 'Sync failed');
     } finally {
-      setMatchSaving(false);
-      setShowMatchModal(false);
+      setSyncingAll(false);
     }
-  }, [matchEntries, accounts, invalidatePlaid]);
+  }, [invalidatePlaid]);
 
   const activeAccounts = useMemo(() => accounts.filter((a: any) => a.active), [accounts]);
 
@@ -336,8 +307,23 @@ export default function Accounts() {
               <h3 className="text-sm font-semibold flex items-center gap-1.5"><Link2 size={14} className="text-primary" /> Linked Banks</h3>
               <p className="text-[10px] text-muted-foreground mt-0.5">Auto-sync balances from your bank accounts (premium)</p>
             </div>
-            {isPremium && plaidItems.length < 3 && (
-              <PlaidLinkButton onSuccess={handlePlaidSuccess} />
+            {isPremium && (
+              <div className="flex items-center gap-2">
+                {plaidItems.length > 0 && (
+                  <button
+                    onClick={handleSync}
+                    disabled={syncingAll}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground btn-press disabled:opacity-50"
+                    title="Sync all linked banks"
+                  >
+                    {syncingAll ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+                    Sync all
+                  </button>
+                )}
+                {plaidItems.length < 3 && (
+                  <PlaidLinkButton onSuccess={handlePlaidSuccess} disabled={syncingAll} />
+                )}
+              </div>
             )}
           </div>
 
@@ -383,50 +369,6 @@ export default function Accounts() {
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── Account Match Modal ─────────────────────────────────────────── */}
-      {showMatchModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
-          <div className="card-forged w-full max-w-md p-5 space-y-4">
-            <div>
-              <h3 className="text-sm font-semibold">Match Linked Accounts</h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                Do any of these Plaid accounts match accounts you already added manually? We'll merge the balance and enable auto-sync on the existing one.
-              </p>
-            </div>
-            <div className="space-y-3">
-              {matchEntries.map((entry, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium truncate">{entry.plaidAccount.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{formatCurrency(entry.plaidAccount.balance, false)}</p>
-                  </div>
-                  <select
-                    className="bg-secondary border border-border text-xs px-2 py-1 rounded flex-1 min-w-0"
-                    value={entry.matchedAccountId ?? ''}
-                    onChange={e => setMatchEntries(prev => prev.map((en, j) => j === i ? { ...en, matchedAccountId: e.target.value || null } : en))}
-                  >
-                    <option value="">Keep as new account</option>
-                    {accounts.filter((a: any) => !a.plaid_account_id && a.active).map((a: any) => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowMatchModal(false)} className="text-xs px-3 py-1.5 border border-border rounded hover:bg-secondary">Skip</button>
-              <button
-                onClick={handleConfirmMatch}
-                disabled={matchSaving || matchEntries.every(e => !e.matchedAccountId)}
-                className="text-xs px-3 py-1.5 bg-primary text-primary-foreground rounded disabled:opacity-50"
-              >
-                {matchSaving ? 'Saving…' : 'Confirm Matches'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

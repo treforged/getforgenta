@@ -37,14 +37,8 @@ async function getAuthHeader(): Promise<string> {
   return `Bearer ${token}`;
 }
 
-export interface PlaidSyncedAccount {
-  name: string;
-  balance: number;
-  type: string;
-}
-
 interface PlaidLinkButtonProps {
-  onSuccess: (accounts: PlaidSyncedAccount[]) => void;
+  onSuccess: () => void;
   disabled?: boolean;
 }
 
@@ -91,13 +85,12 @@ export default function PlaidLinkButton({ onSuccess, disabled }: PlaidLinkButton
             toast.success(`${name} linked successfully`);
 
             // Immediately sync balances
-            const syncRes = await fetch(`${FN_BASE}/plaid-sync`, {
+            await fetch(`${FN_BASE}/plaid-sync`, {
               method: 'POST',
               headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
             });
-            const syncBody = syncRes.ok ? await syncRes.json() : { accounts: [] };
 
-            onSuccess(syncBody.accounts ?? []);
+            onSuccess();
           } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Link failed');
           }
