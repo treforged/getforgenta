@@ -32,7 +32,10 @@
       "mcp__claude_ai_Stripe__stripe_api_execute",
       "mcp__claude_ai_Supabase__list_tables",
       "Bash(mkdir -p \"C:/Users/tvonh/Desktop/webappredesign/backups/$\\(date +%Y-%m-%d_%H%M%S\\)/supabase/migrations\")",
-      "Bash(mkdir -p \"C:/Users/tvonh/Desktop/webappredesign/backups/$\\(date +%Y-%m-%d_%H%M%S\\)/src/pages\")"
+      "Bash(mkdir -p \"C:/Users/tvonh/Desktop/webappredesign/backups/$\\(date +%Y-%m-%d_%H%M%S\\)/src/pages\")",
+      "Bash(git commit -m 'fix\\(edge-fns\\): set verify_jwt=false, inline shared deps for Plaid functions:*)",
+      "Bash(git push:*)",
+      "Bash(git commit -m 'fix\\(plaid-sync\\): replace upsert with select-then-update/insert:*)"
     ]
   }
 }

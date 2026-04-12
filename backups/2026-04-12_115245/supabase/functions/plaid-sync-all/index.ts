@@ -10,12 +10,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 function mapPlaidType(type: string, subtype: string | null): string {
   if (type === "depository") {
-    if (subtype === "hsa")                             return "hsa";
     if (subtype === "savings" || subtype === "money market") return "savings";
-    if (subtype === "cd")                              return "savings";
+    if (subtype === "cd") return "savings";
     return "checking";
   }
-  if (type === "credit")     return "credit_card";
+  if (type === "credit")    return "credit_card";
   if (type === "investment") return "brokerage";
   if (type === "loan") {
     if (subtype === "auto" || subtype === "auto loan") return "auto_loan";
@@ -23,17 +22,6 @@ function mapPlaidType(type: string, subtype: string | null): string {
     return "other_liability";
   }
   return "other_asset";
-}
-
-function parseAprFromName(name: string): number | null {
-  const m = name.match(/(\d+(?:\.\d+)?)\s*%\s*APR/i);
-  return m ? parseFloat(m[1]) : null;
-}
-
-function calcMinPayment(balance: number, apr: number): number {
-  if (balance <= 0) return 0;
-  const interest = (balance * (apr / 100)) / 12;
-  return Math.max(25, Math.ceil(balance * 0.01 + interest));
 }
 
 Deno.serve(async (req) => {
@@ -95,24 +83,21 @@ Deno.serve(async (req) => {
         const creditLimit = acct.balances?.limit != null ? Number(acct.balances.limit) : null;
         const accountType = mapPlaidType(acct.type, acct.subtype);
         const name = acct.official_name || acct.name;
-        const apr = accountType === "credit_card" ? parseAprFromName(name) : null;
 
         const { data: existing } = await supabase
           .from("accounts")
-          .select("id, apr")
+          .select("id")
           .eq("user_id", item.user_id)
           .eq("plaid_account_id", acct.account_id)
           .maybeSingle();
 
         if (existing) {
-          const effectiveApr = apr ?? (existing as any).apr ?? null;
           await supabase.from("accounts").update({
             balance,
             credit_limit: creditLimit,
             name,
             institution: item.institution_name ?? "",
             account_type: accountType,
-            apr: effectiveApr,
             active: true,
             plaid_item_id: item.plaid_item_id,
             updated_at: now,
@@ -125,7 +110,7 @@ Deno.serve(async (req) => {
             account_type: accountType,
             balance,
             credit_limit: creditLimit,
-            apr,
+            apr: null,
             active: true,
             plaid_account_id: acct.account_id,
             plaid_item_id: item.plaid_item_id,

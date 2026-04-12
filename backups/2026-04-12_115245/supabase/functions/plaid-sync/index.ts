@@ -22,12 +22,11 @@ function getCorsHeaders(req: Request): Record<string, string> {
 
 function mapPlaidType(type: string, subtype: string | null): string {
   if (type === "depository") {
-    if (subtype === "hsa")                             return "hsa";
     if (subtype === "savings" || subtype === "money market") return "savings";
-    if (subtype === "cd")                              return "savings";
+    if (subtype === "cd") return "savings";
     return "checking";
   }
-  if (type === "credit")     return "credit_card";
+  if (type === "credit")    return "credit_card";
   if (type === "investment") return "brokerage";
   if (type === "loan") {
     if (subtype === "auto" || subtype === "auto loan") return "auto_loan";
@@ -35,19 +34,6 @@ function mapPlaidType(type: string, subtype: string | null): string {
     return "other_liability";
   }
   return "other_asset";
-}
-
-/** Parse APR % from Plaid account names like "12.5% APR Interest Credit Card" */
-function parseAprFromName(name: string): number | null {
-  const m = name.match(/(\d+(?:\.\d+)?)\s*%\s*APR/i);
-  return m ? parseFloat(m[1]) : null;
-}
-
-/** Minimum payment: max($25, ceil(1% of balance + monthly interest)) */
-function calcMinPayment(balance: number, apr: number): number {
-  if (balance <= 0) return 0;
-  const interest = (balance * (apr / 100)) / 12;
-  return Math.max(25, Math.ceil(balance * 0.01 + interest));
 }
 
 Deno.serve(async (req) => {
@@ -139,21 +125,17 @@ Deno.serve(async (req) => {
         const creditLimit = acct.balances?.limit != null ? Number(acct.balances.limit) : null;
         const accountType = mapPlaidType(acct.type, acct.subtype);
         const name = acct.official_name || acct.name;
-        // APR: parse from name (Plaid embeds it in sandbox; real accounts: null until user corrects)
-        const apr = accountType === "credit_card" ? parseAprFromName(name) : null;
 
         // Select-then-update-or-insert to avoid partial index conflict issue with PostgREST
         const { data: existing } = await supabase
           .from("accounts")
-          .select("id, apr")
+          .select("id")
           .eq("user_id", userId)
           .eq("plaid_account_id", acct.account_id)
           .maybeSingle();
 
         let opErr;
         if (existing) {
-          // Preserve user-set APR if Plaid name doesn't contain one
-          const effectiveApr = apr ?? (existing as any).apr ?? null;
           const { error } = await supabase
             .from("accounts")
             .update({
@@ -162,7 +144,6 @@ Deno.serve(async (req) => {
               name,
               institution: item.institution_name ?? "",
               account_type: accountType,
-              apr: effectiveApr,
               active: true,
               plaid_item_id: item.plaid_item_id,
               updated_at: now,
@@ -179,7 +160,7 @@ Deno.serve(async (req) => {
               account_type: accountType,
               balance,
               credit_limit: creditLimit,
-              apr,
+              apr: null,
               active: true,
               plaid_account_id: acct.account_id,
               plaid_item_id: item.plaid_item_id,

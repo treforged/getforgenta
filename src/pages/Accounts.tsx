@@ -29,6 +29,7 @@ const ACCOUNT_TYPES = [
   { value: 'checking', label: 'Checking' },
   { value: 'savings', label: 'Savings' },
   { value: 'high_yield_savings', label: 'High-Yield Savings' },
+  { value: 'hsa', label: 'HSA (Health Savings)' },
   { value: 'business_checking', label: 'Business Checking' },
   { value: 'brokerage', label: 'Brokerage' },
   { value: 'roth_ira', label: 'Roth IRA' },
@@ -41,7 +42,7 @@ const ACCOUNT_TYPES = [
   { value: 'other_asset', label: 'Other Asset' },
 ];
 
-const ASSET_TYPES = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'brokerage', 'roth_ira', '401k', 'cash', 'other_asset'];
+const ASSET_TYPES = ['checking', 'savings', 'high_yield_savings', 'hsa', 'business_checking', 'brokerage', 'roth_ira', '401k', 'cash', 'other_asset'];
 const LIABILITY_TYPES = ['credit_card', 'student_loan', 'auto_loan', 'other_liability'];
 const LIQUID_TYPES = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'];
 const INVESTMENT_TYPES = ['brokerage'];
@@ -52,10 +53,10 @@ ACCOUNT_TYPES.forEach(t => { TYPE_LABELS[t.value] = t.label; });
 
 const TYPE_ICONS: Record<string, any> = {
   checking: Building2, savings: PiggyBank, high_yield_savings: PiggyBank,
-  business_checking: Building2, brokerage: TrendingUp, roth_ira: TrendingUp,
-  '401k': TrendingUp, cash: DollarSign, credit_card: CreditCard,
-  student_loan: Landmark, auto_loan: Landmark, other_liability: TrendingDown,
-  other_asset: Wallet,
+  hsa: PiggyBank, business_checking: Building2, brokerage: TrendingUp,
+  roth_ira: TrendingUp, '401k': TrendingUp, cash: DollarSign,
+  credit_card: CreditCard, student_loan: Landmark, auto_loan: Landmark,
+  other_liability: TrendingDown, other_asset: Wallet,
 };
 
 const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '' };
@@ -467,8 +468,8 @@ export default function Accounts() {
           title={editId ? 'Edit Account' : 'Add Account'}
           fields={[
             { key: 'name', label: 'Account Name', type: 'text', placeholder: 'e.g., Chase Checking', required: true },
-            { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES },
-            { key: 'institution', label: 'Institution', type: 'text', placeholder: 'e.g., Chase, Fidelity' },
+            { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES, disabled: editingPlaidLinked },
+            { key: 'institution', label: 'Institution', type: 'text', placeholder: 'e.g., Chase, Fidelity', disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Managed by Plaid' : undefined },
             { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true, disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Balance is managed by Plaid auto-sync' : undefined },
             ...(form.account_type === 'credit_card' ? [
               { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01' },
