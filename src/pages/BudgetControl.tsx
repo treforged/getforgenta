@@ -36,7 +36,62 @@ const DEFAULT_STARTER_RULES = [
   { name: 'Miscellaneous', amount: 100, rule_type: 'expense', frequency: 'monthly', due_day: 1, category: 'Other' },
 ];
 
-// Calc detail drawer
+// ── Paycheck Deduction types + catalog ───────────────────────────────────────
+export type PaycheckDeduction = {
+  id: string;
+  label: string;
+  value: number;
+  mode: 'flat' | 'pct';
+  preTax: boolean;
+};
+
+export const DEDUCTION_CATALOG: { label: string; mode: 'flat' | 'pct'; preTax: boolean }[] = [
+  // Benefits
+  { label: 'Medical Insurance',          mode: 'flat', preTax: true  },
+  { label: 'Dental Insurance',           mode: 'flat', preTax: true  },
+  { label: 'Vision Insurance',           mode: 'flat', preTax: true  },
+  { label: 'Accident Insurance',         mode: 'flat', preTax: false },
+  { label: 'Life Insurance',             mode: 'flat', preTax: false },
+  { label: 'Short/Long-Term Disability', mode: 'flat', preTax: false },
+  { label: 'Critical Illness Insurance', mode: 'flat', preTax: false },
+  // Retirement & Savings
+  { label: '401(k) Traditional',         mode: 'pct',  preTax: true  },
+  { label: '401(k) Roth',                mode: 'pct',  preTax: false },
+  { label: '403(b)',                      mode: 'pct',  preTax: true  },
+  { label: 'HSA',                         mode: 'flat', preTax: true  },
+  { label: 'FSA (Medical)',               mode: 'flat', preTax: true  },
+  { label: 'FSA (Dependent Care)',        mode: 'flat', preTax: true  },
+  // Taxes
+  { label: 'Fed FICA Medicare (1.45%)',          mode: 'pct', preTax: false },
+  { label: 'Fed OASDI / Social Security (6.2%)', mode: 'pct', preTax: false },
+  { label: 'State Income Tax',                   mode: 'flat', preTax: false },
+  // Other
+  { label: 'Commuter Benefits', mode: 'flat', preTax: true  },
+  { label: 'Parking Benefits',  mode: 'flat', preTax: true  },
+  { label: 'Union Dues',        mode: 'flat', preTax: false },
+  { label: 'Wage Garnishment',  mode: 'flat', preTax: false },
+];
+
+const DEFAULT_DEDUCTIONS: PaycheckDeduction[] = [
+  { id: 'medical', label: 'Medical Insurance', value: 0, mode: 'flat', preTax: true },
+  { id: 'dental',  label: 'Dental Insurance',  value: 0, mode: 'flat', preTax: true },
+  { id: 'vision',  label: 'Vision Insurance',  value: 0, mode: 'flat', preTax: true },
+  { id: '401k',    label: '401(k) Traditional', value: 0, mode: 'pct',  preTax: true },
+  { id: 'hsa',     label: 'HSA',               value: 0, mode: 'flat', preTax: true },
+];
+
+function migrateOldDeductions(profile: any): PaycheckDeduction[] | null {
+  const vals = [
+    { id: '401k',    label: '401(k) Traditional', val: Number(profile?.deduction_401k_value), mode: profile?.deduction_401k_mode || 'pct',  preTax: profile?.deduction_401k_pretax  !== false },
+    { id: 'hsa',     label: 'HSA',                val: Number(profile?.deduction_hsa),        mode: profile?.deduction_hsa_mode    || 'flat', preTax: profile?.deduction_hsa_pretax   !== false },
+    { id: 'fsa',     label: 'FSA (Medical)',       val: Number(profile?.deduction_fsa),        mode: profile?.deduction_fsa_mode    || 'flat', preTax: profile?.deduction_fsa_pretax   !== false },
+    { id: 'medical', label: 'Medical Insurance',   val: Number(profile?.deduction_medical),    mode: profile?.deduction_medical_mode || 'flat', preTax: profile?.deduction_medical_pretax !== false },
+  ].filter(d => d.val > 0);
+  if (vals.length === 0) return null;
+  return vals.map(d => ({ id: d.id, label: d.label, value: d.val, mode: d.mode as 'flat' | 'pct', preTax: d.preTax }));
+}
+
+// ── Calc detail drawer ────────────────────────────────────────────────────────
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
   return (
@@ -79,23 +134,10 @@ export default function BudgetControl() {
   const [payFrequency, setPayFrequency] = useState<PayFrequency>('weekly');
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Deduction values (interpreted as flat $ or % depending on mode)
-  const [deduction401kValue, setDeduction401kValue] = useState(0);
-  const [deductionHsa, setDeductionHsa] = useState(0);
-  const [deductionFsa, setDeductionFsa] = useState(0);
-  const [deductionMedical, setDeductionMedical] = useState(0);
-
-  // Deduction modes: 'flat' = $/paycheck, 'pct' = % of gross
-  const [deduction401kMode, setDeduction401kMode] = useState<'flat' | 'pct'>('pct');
-  const [deductionHsaMode, setDeductionHsaMode] = useState<'flat' | 'pct'>('flat');
-  const [deductionFsaMode, setDeductionFsaMode] = useState<'flat' | 'pct'>('flat');
-  const [deductionMedicalMode, setDeductionMedicalMode] = useState<'flat' | 'pct'>('flat');
-
-  // Pre vs post-tax toggles (true = pre-tax, false = post-tax)
-  const [deduction401kPreTax, setDeduction401kPreTax] = useState(true);
-  const [deductionHsaPreTax, setDeductionHsaPreTax] = useState(true);
-  const [deductionFsaPreTax, setDeductionFsaPreTax] = useState(true);
-  const [deductionMedicalPreTax, setDeductionMedicalPreTax] = useState(true);
+  // Dynamic paycheck deductions
+  const [deductions, setDeductions] = useState<PaycheckDeduction[]>(DEFAULT_DEDUCTIONS);
+  const [showCatalog, setShowCatalog] = useState(false);
+  const [customLabel, setCustomLabel] = useState('');
 
   // Calc drawer
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
@@ -116,18 +158,15 @@ export default function BudgetControl() {
       setTaxRate(Number((profile as any).tax_rate) || 22);
       setPaycheckDay((profile as any).paycheck_day != null ? Number((profile as any).paycheck_day) : 5);
       setPayFrequency(((profile as any).paycheck_frequency as PayFrequency) || 'weekly');
-      setDeduction401kValue(Number((profile as any).deduction_401k_value) || 0);
-      setDeductionHsa(Number((profile as any).deduction_hsa) || 0);
-      setDeductionFsa(Number((profile as any).deduction_fsa) || 0);
-      setDeductionMedical(Number((profile as any).deduction_medical) || 0);
-      setDeduction401kMode(((profile as any).deduction_401k_mode as 'flat' | 'pct') || 'pct');
-      setDeductionHsaMode(((profile as any).deduction_hsa_mode as 'flat' | 'pct') || 'flat');
-      setDeductionFsaMode(((profile as any).deduction_fsa_mode as 'flat' | 'pct') || 'flat');
-      setDeductionMedicalMode(((profile as any).deduction_medical_mode as 'flat' | 'pct') || 'flat');
-      setDeduction401kPreTax((profile as any).deduction_401k_pretax !== false);
-      setDeductionHsaPreTax((profile as any).deduction_hsa_pretax !== false);
-      setDeductionFsaPreTax((profile as any).deduction_fsa_pretax !== false);
-      setDeductionMedicalPreTax((profile as any).deduction_medical_pretax !== false);
+      // Load deductions: prefer new JSONB column, migrate from legacy columns if needed
+      const jsonDeds = (profile as any).paycheck_deductions as PaycheckDeduction[] | null;
+      if (jsonDeds && jsonDeds.length > 0) {
+        setDeductions(jsonDeds);
+      } else {
+        const migrated = migrateOldDeductions(profile);
+        if (migrated) setDeductions(migrated);
+        // else keep DEFAULT_DEDUCTIONS
+      }
       profileLoaded.current = true;
     }
   }, [profile]);
@@ -142,34 +181,24 @@ export default function BudgetControl() {
   }, [rulesLoading, isDemo, user, rules.length, starterSeeded]);
 
   // Auto-save income/tax with debounce + auto-sync income rule
-  type DeductionMode = 'flat' | 'pct';
-  type DeductionConfig = {
-    val401k: number; mode401k: DeductionMode; preTax401k: boolean;
-    hsa: number; modeHsa: DeductionMode; preTaxHsa: boolean;
-    fsa: number; modeFsa: DeductionMode; preTaxFsa: boolean;
-    medical: number; modeMedical: DeductionMode; preTaxMedical: boolean;
-  };
-
-  const resolveAmt = (val: number, mode: DeductionMode, gross: number) =>
-    mode === 'pct' ? gross * (val / 100) : val;
+  const resolveAmt = (d: PaycheckDeduction, gross: number) =>
+    d.mode === 'pct' ? gross * (d.value / 100) : d.value;
 
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doAutoSave = useCallback((
-    wg: number, tr: number, pd: number, pf: PayFrequency, ded: DeductionConfig,
+    wg: number, tr: number, pd: number, pf: PayFrequency, deds: PaycheckDeduction[],
   ) => {
     if (!profileLoaded.current || isDemo) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       setAutoSaveStatus('saving');
       const gross = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
-      const amt401k  = resolveAmt(ded.val401k, ded.mode401k, gross);
-      const amtHsa   = resolveAmt(ded.hsa, ded.modeHsa, gross);
-      const amtFsa   = resolveAmt(ded.fsa, ded.modeFsa, gross);
-      const amtMed   = resolveAmt(ded.medical, ded.modeMedical, gross);
-      const preTax   = (ded.preTax401k ? amt401k : 0) + (ded.preTaxHsa ? amtHsa : 0) + (ded.preTaxFsa ? amtFsa : 0) + (ded.preTaxMedical ? amtMed : 0);
-      const postTax  = (!ded.preTax401k ? amt401k : 0) + (!ded.preTaxHsa ? amtHsa : 0) + (!ded.preTaxFsa ? amtFsa : 0) + (!ded.preTaxMedical ? amtMed : 0);
+      const preTax  = deds.filter(d => d.preTax).reduce((s, d) => s + resolveAmt(d, gross), 0);
+      const postTax = deds.filter(d => !d.preTax).reduce((s, d) => s + resolveAmt(d, gross), 0);
       const netPerPaycheck = (gross - preTax) * (1 - tr / 100) - postTax;
       const paychecksPerYear = pf === 'biweekly' ? 26 : pf === 'monthly' ? 12 : 52;
+      // Backward-compat: keep legacy 401k columns so Forecast + use401kAutoUpdate still work
+      const k401 = deds.find(d => d.id === '401k' || d.label.toLowerCase().includes('401(k) traditional') || d.label.toLowerCase().includes('401k'));
       updateProfile.mutate({
         weekly_gross_income: wg,
         tax_rate: tr,
@@ -177,18 +206,10 @@ export default function BudgetControl() {
         paycheck_frequency: pf,
         gross_income: wg * 52 / 12,
         monthly_income_default: (netPerPaycheck * paychecksPerYear) / 12,
-        deduction_401k_value: ded.val401k,
-        deduction_401k_mode: ded.mode401k,
-        deduction_hsa: ded.hsa,
-        deduction_hsa_mode: ded.modeHsa,
-        deduction_fsa: ded.fsa,
-        deduction_fsa_mode: ded.modeFsa,
-        deduction_medical: ded.medical,
-        deduction_medical_mode: ded.modeMedical,
-        deduction_401k_pretax: ded.preTax401k,
-        deduction_hsa_pretax: ded.preTaxHsa,
-        deduction_fsa_pretax: ded.preTaxFsa,
-        deduction_medical_pretax: ded.preTaxMedical,
+        paycheck_deductions: deds,
+        deduction_401k_value: k401?.value ?? 0,
+        deduction_401k_mode: k401?.mode ?? 'pct',
+        deduction_401k_pretax: k401?.preTax ?? true,
       } as any, {
         onSuccess: () => {
           setAutoSaveStatus('saved');
@@ -213,44 +234,38 @@ export default function BudgetControl() {
     }, 800);
   }, [isDemo, updateProfile, rules, updateRule]);
 
-  // Helper — current deduction config snapshot
-  const dedSnapshot = (): DeductionConfig => ({
-    val401k: deduction401kValue, mode401k: deduction401kMode, preTax401k: deduction401kPreTax,
-    hsa: deductionHsa, modeHsa: deductionHsaMode, preTaxHsa: deductionHsaPreTax,
-    fsa: deductionFsa, modeFsa: deductionFsaMode, preTaxFsa: deductionFsaPreTax,
-    medical: deductionMedical, modeMedical: deductionMedicalMode, preTaxMedical: deductionMedicalPreTax,
-  });
-
   const handleWeeklyGrossBlur = () => {
     const parsed = parseFloat(weeklyGrossInput);
     if (!isNaN(parsed) && parsed > 0) {
       setWeeklyGross(parsed);
-      doAutoSave(parsed, taxRate, paycheckDay, payFrequency, dedSnapshot());
+      doAutoSave(parsed, taxRate, paycheckDay, payFrequency, deductions);
     } else {
       setWeeklyGrossInput(String(weeklyGross));
     }
   };
-  const setTaxRateAuto = (v: number) => { setTaxRate(v); doAutoSave(weeklyGross, v, paycheckDay, payFrequency, dedSnapshot()); };
-  const setPaycheckDayAuto = (v: number) => { setPaycheckDay(v); doAutoSave(weeklyGross, taxRate, v, payFrequency, dedSnapshot()); };
-  const setPayFrequencyAuto = (v: PayFrequency) => { setPayFrequency(v); doAutoSave(weeklyGross, taxRate, paycheckDay, v, dedSnapshot()); };
+  const setTaxRateAuto = (v: number) => { setTaxRate(v); doAutoSave(weeklyGross, v, paycheckDay, payFrequency, deductions); };
+  const setPaycheckDayAuto = (v: number) => { setPaycheckDay(v); doAutoSave(weeklyGross, taxRate, v, payFrequency, deductions); };
+  const setPayFrequencyAuto = (v: PayFrequency) => { setPayFrequency(v); doAutoSave(weeklyGross, taxRate, paycheckDay, v, deductions); };
 
-  // Deduction value handlers
-  const setDeduction401kAuto = (v: number) => { setDeduction401kValue(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), val401k: v }); };
-  const setDeductionHsaAuto = (v: number) => { setDeductionHsa(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), hsa: v }); };
-  const setDeductionFsaAuto = (v: number) => { setDeductionFsa(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), fsa: v }); };
-  const setDeductionMedicalAuto = (v: number) => { setDeductionMedical(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), medical: v }); };
-
-  // Deduction mode handlers
-  const setMode401kAuto = (v: DeductionMode) => { setDeduction401kMode(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), mode401k: v }); };
-  const setModeHsaAuto = (v: DeductionMode) => { setDeductionHsaMode(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), modeHsa: v }); };
-  const setModeFsaAuto = (v: DeductionMode) => { setDeductionFsaMode(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), modeFsa: v }); };
-  const setModeMedicalAuto = (v: DeductionMode) => { setDeductionMedicalMode(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), modeMedical: v }); };
-
-  // Pre/post-tax toggle handlers
-  const togglePreTax401k = (v: boolean) => { setDeduction401kPreTax(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), preTax401k: v }); };
-  const togglePreTaxHsa = (v: boolean) => { setDeductionHsaPreTax(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), preTaxHsa: v }); };
-  const togglePreTaxFsa = (v: boolean) => { setDeductionFsaPreTax(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), preTaxFsa: v }); };
-  const togglePreTaxMedical = (v: boolean) => { setDeductionMedicalPreTax(v); doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, { ...dedSnapshot(), preTaxMedical: v }); };
+  // Deduction CRUD — each mutates and auto-saves
+  const updateDeduction = (id: string, patch: Partial<PaycheckDeduction>) => {
+    const next = deductions.map(d => d.id === id ? { ...d, ...patch } : d);
+    setDeductions(next);
+    doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, next);
+  };
+  const removeDeduction = (id: string) => {
+    const next = deductions.filter(d => d.id !== id);
+    setDeductions(next);
+    doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, next);
+  };
+  const addDeductionFromCatalog = (item: { label: string; mode: 'flat' | 'pct'; preTax: boolean }) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const next = [...deductions, { id, label: item.label, value: 0, mode: item.mode, preTax: item.preTax }];
+    setDeductions(next);
+    doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, next);
+    setShowCatalog(false);
+    setCustomLabel('');
+  };
 
   // Unified pay schedule
   const paycheckGross = useMemo(() => {
@@ -259,33 +274,16 @@ export default function BudgetControl() {
     return weeklyGross;
   }, [weeklyGross, payFrequency]);
 
-  // Resolved flat $ amounts per paycheck for each deduction
-  const amt401kFlat = useMemo(() =>
-    deduction401kMode === 'pct' ? paycheckGross * (deduction401kValue / 100) : deduction401kValue,
-    [paycheckGross, deduction401kValue, deduction401kMode]);
-  const amtHsaFlat = useMemo(() =>
-    deductionHsaMode === 'pct' ? paycheckGross * (deductionHsa / 100) : deductionHsa,
-    [paycheckGross, deductionHsa, deductionHsaMode]);
-  const amtFsaFlat = useMemo(() =>
-    deductionFsaMode === 'pct' ? paycheckGross * (deductionFsa / 100) : deductionFsa,
-    [paycheckGross, deductionFsa, deductionFsaMode]);
-  const amtMedicalFlat = useMemo(() =>
-    deductionMedicalMode === 'pct' ? paycheckGross * (deductionMedical / 100) : deductionMedical,
-    [paycheckGross, deductionMedical, deductionMedicalMode]);
+  // Resolve each deduction to flat $ per paycheck
+  const deductionAmounts = useMemo(() =>
+    deductions.map(d => ({
+      ...d,
+      flatAmt: d.mode === 'pct' ? paycheckGross * (d.value / 100) : d.value,
+    })),
+    [deductions, paycheckGross]);
 
-  const preTaxDeductionsFlat = useMemo(() =>
-    (deduction401kPreTax ? amt401kFlat : 0) +
-    (deductionHsaPreTax ? amtHsaFlat : 0) +
-    (deductionFsaPreTax ? amtFsaFlat : 0) +
-    (deductionMedicalPreTax ? amtMedicalFlat : 0),
-    [amt401kFlat, deduction401kPreTax, amtHsaFlat, deductionHsaPreTax, amtFsaFlat, deductionFsaPreTax, amtMedicalFlat, deductionMedicalPreTax]);
-
-  const postTaxDeductionsFlat = useMemo(() =>
-    (!deduction401kPreTax ? amt401kFlat : 0) +
-    (!deductionHsaPreTax ? amtHsaFlat : 0) +
-    (!deductionFsaPreTax ? amtFsaFlat : 0) +
-    (!deductionMedicalPreTax ? amtMedicalFlat : 0),
-    [amt401kFlat, deduction401kPreTax, amtHsaFlat, deductionHsaPreTax, amtFsaFlat, deductionFsaPreTax, amtMedicalFlat, deductionMedicalPreTax]);
+  const preTaxDeductionsFlat  = useMemo(() => deductionAmounts.filter(d => d.preTax).reduce((s, d) => s + d.flatAmt, 0), [deductionAmounts]);
+  const postTaxDeductionsFlat = useMemo(() => deductionAmounts.filter(d => !d.preTax).reduce((s, d) => s + d.flatAmt, 0), [deductionAmounts]);
 
   const payConfig = useMemo(() => ({
     weeklyGross, taxRate, paycheckDay, frequency: payFrequency,
@@ -738,54 +736,63 @@ export default function BudgetControl() {
         <div className="pt-3 border-t border-border space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Paycheck Deductions</h4>
-            {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
-              <span className="text-[10px] text-muted-foreground">
-                {preTaxDeductionsFlat > 0 && <span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax <span className="text-success">(saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100), false)} tax)</span></span>}
-                {preTaxDeductionsFlat > 0 && postTaxDeductionsFlat > 0 && <span className="mx-1">·</span>}
-                {postTaxDeductionsFlat > 0 && <span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span>}
-              </span>
-            )}
+            <button
+              onClick={() => setShowCatalog(true)}
+              className="flex items-center gap-1 text-[10px] text-primary border border-primary/30 px-2 py-1 hover:bg-primary/5 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <Plus size={10} /> Add Deduction
+            </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Reusable inline helper for each deduction card */}
-            {([
-              { label: '401k', value: deduction401kValue, onChange: setDeduction401kAuto, mode: deduction401kMode, onMode: setMode401kAuto, flatAmt: amt401kFlat, preTax: deduction401kPreTax, onPreTax: togglePreTax401k, preTaxLabel: 'Traditional', postTaxLabel: 'Roth' },
-              { label: 'HSA', value: deductionHsa, onChange: setDeductionHsaAuto, mode: deductionHsaMode, onMode: setModeHsaAuto, flatAmt: amtHsaFlat, preTax: deductionHsaPreTax, onPreTax: togglePreTaxHsa, preTaxLabel: 'Pre-Tax', postTaxLabel: 'Post-Tax' },
-              { label: 'FSA', value: deductionFsa, onChange: setDeductionFsaAuto, mode: deductionFsaMode, onMode: setModeFsaAuto, flatAmt: amtFsaFlat, preTax: deductionFsaPreTax, onPreTax: togglePreTaxFsa, preTaxLabel: 'Pre-Tax', postTaxLabel: 'Post-Tax' },
-              { label: 'Medical Ins.', value: deductionMedical, onChange: setDeductionMedicalAuto, mode: deductionMedicalMode, onMode: setModeMedicalAuto, flatAmt: amtMedicalFlat, preTax: deductionMedicalPreTax, onPreTax: togglePreTaxMedical, preTaxLabel: 'Pre-Tax', postTaxLabel: 'Post-Tax' },
-            ] as const).map(d => (
-              <div key={d.label} className="space-y-1.5">
-                {/* Label + $/% mode toggle */}
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] text-muted-foreground uppercase">{d.label}</label>
-                  <div className="flex gap-0.5">
-                    <button onClick={() => d.onMode('flat')} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:border-primary/50'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
-                    <button onClick={() => d.onMode('pct')} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:border-primary/50'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
-                  </div>
-                </div>
+
+          {/* Deduction rows */}
+          <div className="space-y-1.5">
+            {deductionAmounts.map(d => (
+              <div key={d.id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0 flex-wrap sm:flex-nowrap">
+                {/* Editable label */}
                 <input
-                  type="number" min={0} max={d.mode === 'pct' ? 100 : undefined}
-                  step={d.mode === 'pct' ? 0.5 : 1}
-                  value={d.value}
-                  onChange={e => d.onChange(parseFloat(e.target.value) || 0)}
-                  className="w-full bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}
+                  type="text"
+                  value={d.label}
+                  onChange={e => updateDeduction(d.id, { label: e.target.value })}
+                  className="flex-1 min-w-[120px] bg-transparent border-b border-transparent hover:border-border focus:border-primary text-[11px] font-medium text-foreground px-0.5 py-0.5 outline-none transition-colors"
                 />
-                {/* Show resolved flat if in pct mode, or % of gross if flat */}
-                {d.value > 0 && (
-                  <p className="text-[9px] text-muted-foreground">
-                    {d.mode === 'pct'
-                      ? `${formatCurrency(d.flatAmt, false)}/check`
-                      : `${paycheckGross > 0 ? ((d.value / paycheckGross) * 100).toFixed(1) : '0'}% of gross`}
-                  </p>
-                )}
-                {/* Pre/post-tax toggle */}
-                <div className="flex gap-1">
-                  <button onClick={() => d.onPreTax(true)} className={`flex-1 text-[9px] px-2 py-1 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:border-primary/50'}`} style={{ borderRadius: 'var(--radius)' }}>{d.preTaxLabel}</button>
-                  <button onClick={() => d.onPreTax(false)} className={`flex-1 text-[9px] px-2 py-1 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:border-primary/50'}`} style={{ borderRadius: 'var(--radius)' }}>{d.postTaxLabel}</button>
+                {/* Value input */}
+                <input
+                  type="number" min={0} max={d.mode === 'pct' ? 100 : undefined} step={d.mode === 'pct' ? 0.5 : 1}
+                  value={d.value}
+                  onChange={e => updateDeduction(d.id, { value: parseFloat(e.target.value) || 0 })}
+                  className="w-20 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold text-right"
+                  style={{ borderRadius: 'var(--radius)' }}
+                />
+                {/* $/% toggle */}
+                <div className="flex gap-0.5 shrink-0">
+                  <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
+                  <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
                 </div>
+                {/* Pre/post-tax toggle */}
+                <div className="flex gap-0.5 shrink-0">
+                  <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
+                  <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
+                </div>
+                {/* Resolved amount hint */}
+                {d.value > 0 && (
+                  <span className="text-[9px] text-muted-foreground shrink-0 w-16 text-right">
+                    {d.mode === 'pct' ? formatCurrency(d.flatAmt, false) : `${paycheckGross > 0 ? ((d.value / paycheckGross) * 100).toFixed(1) : '0'}%`}
+                  </span>
+                )}
+                {/* Remove */}
+                <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 ml-auto sm:ml-0"><X size={12} /></button>
               </div>
             ))}
           </div>
+
+          {/* Totals summary */}
+          {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] pt-1">
+              {preTaxDeductionsFlat > 0 && <span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax <span className="text-success">(saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100), false)} tax)</span></span>}
+              {postTaxDeductionsFlat > 0 && <span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span>}
+            </div>
+          )}
           {/* Gross → Net breakdown */}
           {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
             <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground pt-1">
@@ -976,6 +983,103 @@ export default function BudgetControl() {
           saving={addRule.isPending || updateRule.isPending}
           saveLabel={editId ? 'Update Rule' : 'Add Rule'}
         />
+      )}
+
+      {/* Catalog picker modal */}
+      {showCatalog && (
+        <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center p-4" onClick={() => { setShowCatalog(false); setCustomLabel(''); }}>
+          <div className="card-forged p-5 w-full max-w-md space-y-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-display font-semibold text-sm">Add Deduction</h2>
+              <button onClick={() => { setShowCatalog(false); setCustomLabel(''); }} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
+            </div>
+
+            {/* Benefits */}
+            <div className="space-y-1.5">
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Benefits</p>
+              <div className="flex flex-wrap gap-1.5">
+                {DEDUCTION_CATALOG.slice(0, 7).map(item => (
+                  <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
+                    className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
+                    style={{ borderRadius: 'var(--radius)' }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Retirement & Savings */}
+            <div className="space-y-1.5">
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Retirement & Savings</p>
+              <div className="flex flex-wrap gap-1.5">
+                {DEDUCTION_CATALOG.slice(7, 14).map(item => (
+                  <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
+                    className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
+                    style={{ borderRadius: 'var(--radius)' }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Taxes */}
+            <div className="space-y-1.5">
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Taxes</p>
+              <div className="flex flex-wrap gap-1.5">
+                {DEDUCTION_CATALOG.slice(14, 17).map(item => (
+                  <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
+                    className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
+                    style={{ borderRadius: 'var(--radius)' }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Other */}
+            <div className="space-y-1.5">
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Other</p>
+              <div className="flex flex-wrap gap-1.5">
+                {DEDUCTION_CATALOG.slice(17).map(item => (
+                  <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
+                    className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
+                    style={{ borderRadius: 'var(--radius)' }}>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom */}
+            <div className="space-y-1.5 pt-2 border-t border-border">
+              <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Custom</p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Deduction name…"
+                  value={customLabel}
+                  onChange={e => setCustomLabel(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && customLabel.trim()) {
+                      addDeductionFromCatalog({ label: customLabel.trim(), mode: 'flat', preTax: false });
+                    }
+                  }}
+                  className="flex-1 bg-secondary border border-border px-3 py-1.5 text-xs text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                />
+                <button
+                  onClick={() => { if (customLabel.trim()) addDeductionFromCatalog({ label: customLabel.trim(), mode: 'flat', preTax: false }); }}
+                  disabled={!customLabel.trim()}
+                  className="text-[10px] px-3 py-1.5 bg-primary text-primary-foreground disabled:opacity-40 transition-opacity"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  Add
+                </button>
+              </div>
+              <p className="text-[9px] text-muted-foreground">Custom deductions default to flat $ post-tax — adjust after adding.</p>
+            </div>
+          </div>
+        </div>
       )}
 
       <CalcDrawer

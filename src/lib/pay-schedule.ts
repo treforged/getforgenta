@@ -117,30 +117,31 @@ export function buildPayConfig(profile: any): PayScheduleConfig {
   const pf = (profile?.paycheck_frequency as PayFrequency) || 'weekly';
   const paycheckGross = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
 
-  const val401k   = Number(profile?.deduction_401k_value) || 0;
-  const valHsa    = Number(profile?.deduction_hsa) || 0;
-  const valFsa    = Number(profile?.deduction_fsa) || 0;
-  const valMedical = Number(profile?.deduction_medical) || 0;
+  let preTaxDeductions: number;
+  let postTaxDeductions: number;
 
-  const mode401k   = profile?.deduction_401k_mode   || 'pct';
-  const modeHsa    = profile?.deduction_hsa_mode    || 'flat';
-  const modeFsa    = profile?.deduction_fsa_mode    || 'flat';
-  const modeMedical = profile?.deduction_medical_mode || 'flat';
-
-  const amt401k   = resolveDeductionAmt(val401k,   mode401k,   paycheckGross);
-  const amtHsa    = resolveDeductionAmt(valHsa,    modeHsa,    paycheckGross);
-  const amtFsa    = resolveDeductionAmt(valFsa,    modeFsa,    paycheckGross);
-  const amtMedical = resolveDeductionAmt(valMedical, modeMedical, paycheckGross);
-
-  const pre401k   = profile?.deduction_401k_pretax   !== false;
-  const preHsa    = profile?.deduction_hsa_pretax    !== false;
-  const preFsa    = profile?.deduction_fsa_pretax    !== false;
-  const preMedical = profile?.deduction_medical_pretax !== false;
-
-  const preTaxDeductions =
-    (pre401k ? amt401k : 0) + (preHsa ? amtHsa : 0) + (preFsa ? amtFsa : 0) + (preMedical ? amtMedical : 0);
-  const postTaxDeductions =
-    (!pre401k ? amt401k : 0) + (!preHsa ? amtHsa : 0) + (!preFsa ? amtFsa : 0) + (!preMedical ? amtMedical : 0);
+  // Use new JSONB deductions array if present; fall back to legacy columns
+  const jsonDeds = profile?.paycheck_deductions as { value: number; mode: string; preTax: boolean }[] | null;
+  if (jsonDeds && jsonDeds.length > 0) {
+    preTaxDeductions  = jsonDeds.filter(d => d.preTax).reduce((s, d) => s + resolveDeductionAmt(d.value, d.mode, paycheckGross), 0);
+    postTaxDeductions = jsonDeds.filter(d => !d.preTax).reduce((s, d) => s + resolveDeductionAmt(d.value, d.mode, paycheckGross), 0);
+  } else {
+    // Legacy columns fallback
+    const val401k    = Number(profile?.deduction_401k_value) || 0;
+    const valHsa     = Number(profile?.deduction_hsa) || 0;
+    const valFsa     = Number(profile?.deduction_fsa) || 0;
+    const valMedical = Number(profile?.deduction_medical) || 0;
+    const amt401k    = resolveDeductionAmt(val401k,    profile?.deduction_401k_mode    || 'pct',  paycheckGross);
+    const amtHsa     = resolveDeductionAmt(valHsa,     profile?.deduction_hsa_mode     || 'flat', paycheckGross);
+    const amtFsa     = resolveDeductionAmt(valFsa,     profile?.deduction_fsa_mode     || 'flat', paycheckGross);
+    const amtMedical = resolveDeductionAmt(valMedical, profile?.deduction_medical_mode || 'flat', paycheckGross);
+    const pre401k    = profile?.deduction_401k_pretax    !== false;
+    const preHsa     = profile?.deduction_hsa_pretax     !== false;
+    const preFsa     = profile?.deduction_fsa_pretax     !== false;
+    const preMedical = profile?.deduction_medical_pretax !== false;
+    preTaxDeductions  = (pre401k ? amt401k : 0) + (preHsa ? amtHsa : 0) + (preFsa ? amtFsa : 0) + (preMedical ? amtMedical : 0);
+    postTaxDeductions = (!pre401k ? amt401k : 0) + (!preHsa ? amtHsa : 0) + (!preFsa ? amtFsa : 0) + (!preMedical ? amtMedical : 0);
+  }
 
   return {
     weeklyGross: wg,
