@@ -101,7 +101,7 @@ Deno.serve(async (req) => {
         country_codes: ["US"],
         language: "en",
         user: { client_user_id: userId },
-        products: ["transactions", "balance"],
+        products: ["transactions"],
       }),
     });
     const body = await res.json();
