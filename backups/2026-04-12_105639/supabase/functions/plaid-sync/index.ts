@@ -1,33 +1,30 @@
+/**
+ * plaid-sync
+ *
+ * Phase 4.4 — triggered manually (button) or on login; cron every 12hr is a
+ * separate Supabase scheduled task (not implemented here).
+ *
+ * For each of the user's linked Plaid items:
+ *   1. Calls /accounts/balance/get to get current balances
+ *   2. Upserts into the accounts table (keyed on user_id + plaid_account_id)
+ *   3. Updates last_synced_at on the plaid_items row
+ */
+
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
 
-const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
-  "https://app.treforged.com",
-  "https://treforged.com",
-  "http://localhost:8080",
-  "http://localhost:3000",
-  "http://localhost:5173",
-]);
+const RATE_LIMIT = { windowMs: 60_000, max: 20 };
 
-function getCorsHeaders(req: Request): Record<string, string> {
-  const requestOrigin = req.headers.get("origin") ?? "";
-  const allowedOrigin = ALLOWED_ORIGINS.has(requestOrigin) ? requestOrigin : "https://app.treforged.com";
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-trace-id",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Max-Age": "86400",
-    "Vary": "Origin",
-  };
-}
-
+// Map Plaid account type/subtype → our account_type enum
 function mapPlaidType(type: string, subtype: string | null): string {
   if (type === "depository") {
     if (subtype === "savings" || subtype === "money market") return "savings";
-    if (subtype === "cd") return "savings";
+    if (subtype === "cd")           return "savings";
     return "checking";
   }
-  if (type === "credit")    return "credit_card";
-  if (type === "investment") return "brokerage";
+  if (type === "credit")     return "credit_card";
+  if (type === "investment")  return "brokerage";
   if (type === "loan") {
     if (subtype === "auto" || subtype === "auto loan") return "auto_loan";
     if (subtype === "student")                         return "student_loan";
@@ -45,6 +42,10 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
+  const ip = getClientIp(req);
+  const rl = await checkRateLimit(supabase, `${ip}:plaid-sync`, RATE_LIMIT);
+  if (!rl.allowed) return rateLimitedResponse(corsHeaders, RATE_LIMIT, rl.resetAt);
+
   try {
     const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID");
     const PLAID_SECRET    = Deno.env.get("PLAID_SECRET");
@@ -56,6 +57,7 @@ Deno.serve(async (req) => {
     const plaidEnv  = Deno.env.get("PLAID_ENV") || "sandbox";
     const plaidBase = `https://${plaidEnv}.plaid.com`;
 
+    // Verify JWT
     const authHeader = req.headers.get("Authorization") ?? "";
     if (!authHeader.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -69,13 +71,13 @@ Deno.serve(async (req) => {
     );
     const { data: { user }, error: jwtErr } = await userClient.auth.getUser();
     if (jwtErr || !user) {
-      console.error("getUser failed:", jwtErr?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const userId = user.id;
 
+    // Premium gate
     const { data: sub } = await supabase
       .from("user_subscriptions")
       .select("plan, subscription_status")
@@ -89,6 +91,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Fetch all plaid items for user (service role reads access_token)
     const { data: plaidItems, error: itemsErr } = await supabase
       .from("plaid_items")
       .select("id, plaid_item_id, access_token, institution_name")
@@ -105,77 +108,57 @@ Deno.serve(async (req) => {
     const syncedAccounts: any[] = [];
 
     for (const item of plaidItems) {
+      // Get current balances from Plaid
       const balRes = await fetch(`${plaidBase}/accounts/balance/get`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: PLAID_CLIENT_ID, secret: PLAID_SECRET, access_token: item.access_token }),
+        body: JSON.stringify({
+          client_id: PLAID_CLIENT_ID,
+          secret:    PLAID_SECRET,
+          access_token: item.access_token,
+        }),
       });
       const balBody = await balRes.json();
 
       if (!balRes.ok) {
         console.error(`Balance fetch failed for item ${item.plaid_item_id}:`, JSON.stringify(balBody));
-        continue;
+        continue; // skip this item, sync others
       }
 
       const plaidAccounts: any[] = balBody.accounts ?? [];
-      console.log(`Got ${plaidAccounts.length} accounts for item ${item.plaid_item_id}`);
 
       for (const acct of plaidAccounts) {
+        // Plaid credit card balance: current = amount owed (positive), we store as positive
+        // Plaid depository: current = available cash balance
         const balance = Math.abs(Number(acct.balances?.current ?? 0));
         const creditLimit = acct.balances?.limit != null ? Number(acct.balances.limit) : null;
-        const accountType = mapPlaidType(acct.type, acct.subtype);
-        const name = acct.official_name || acct.name;
 
-        // Select-then-update-or-insert to avoid partial index conflict issue with PostgREST
-        const { data: existing } = await supabase
+        const payload = {
+          user_id:          userId,
+          name:             acct.official_name || acct.name,
+          institution:      item.institution_name ?? "",
+          account_type:     mapPlaidType(acct.type, acct.subtype),
+          balance,
+          credit_limit:     creditLimit,
+          apr:              null,
+          active:           true,
+          plaid_account_id: acct.account_id,
+          plaid_item_id:    item.plaid_item_id,
+          updated_at:       now,
+        };
+
+        const { error: upsertErr } = await supabase
           .from("accounts")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("plaid_account_id", acct.account_id)
-          .maybeSingle();
+          .upsert(payload, { onConflict: "user_id,plaid_account_id" });
 
-        let opErr;
-        if (existing) {
-          const { error } = await supabase
-            .from("accounts")
-            .update({
-              balance,
-              credit_limit: creditLimit,
-              name,
-              institution: item.institution_name ?? "",
-              account_type: accountType,
-              active: true,
-              plaid_item_id: item.plaid_item_id,
-              updated_at: now,
-            })
-            .eq("id", existing.id);
-          opErr = error;
+        if (upsertErr) {
+          console.error("Account upsert error:", upsertErr.message);
         } else {
-          const { error } = await supabase
-            .from("accounts")
-            .insert({
-              user_id: userId,
-              name,
-              institution: item.institution_name ?? "",
-              account_type: accountType,
-              balance,
-              credit_limit: creditLimit,
-              apr: null,
-              active: true,
-              plaid_account_id: acct.account_id,
-              plaid_item_id: item.plaid_item_id,
-              updated_at: now,
-            });
-          opErr = error;
-        }
-
-        if (opErr) {
-          console.error("Account sync error for", acct.account_id, ":", opErr.message);
-        } else {
-          syncedAccounts.push({ name, balance, type: accountType });
+          syncedAccounts.push({ name: payload.name, balance, type: payload.account_type });
         }
       }
 
+      // Update last_synced_at on the plaid_items row
       await supabase
         .from("plaid_items")
         .update({ last_synced_at: now, updated_at: now })
