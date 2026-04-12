@@ -97,21 +97,22 @@ export default function Accounts() {
       if (!token) throw new Error('Not authenticated');
 
       // For each matched pair: find the newly-created Plaid account by name, copy plaid_account_id to the existing account, delete the Plaid-created one
-      const { data: allAccounts } = await supabase.from('accounts').select('id, name, plaid_account_id').eq('user_id', (await supabase.auth.getUser()).data.user?.id ?? '');
+      const { data: allAccountsRaw } = await supabase.from('accounts').select('id, name, plaid_account_id').eq('user_id', (await supabase.auth.getUser()).data.user?.id ?? '');
+      const allAccounts = (allAccountsRaw ?? []) as any[];
 
       for (const entry of toMatch) {
         const existingAccount = accounts.find((a: any) => a.id === entry.matchedAccountId);
-        const plaidCreated = (allAccounts ?? []).find((a: any) => a.name === entry.plaidAccount.name && a.plaid_account_id);
+        const plaidCreated = allAccounts.find((a: any) => a.name === entry.plaidAccount.name && a.plaid_account_id);
         if (!existingAccount || !plaidCreated) continue;
 
         // Copy plaid_account_id + balance onto existing account
         await supabase.from('accounts').update({
           plaid_account_id: plaidCreated.plaid_account_id,
           balance: entry.plaidAccount.balance,
-        }).eq('id', existingAccount.id);
+        } as any).eq('id', existingAccount.id);
 
         // Delete the duplicate Plaid-created account
-        await supabase.from('accounts').delete().eq('id', plaidCreated.id);
+        await supabase.from('accounts').delete().eq('id', plaidCreated.id as string);
       }
 
       toast.success(`Matched ${toMatch.length} account${toMatch.length !== 1 ? 's' : ''}`);
@@ -144,7 +145,9 @@ export default function Accounts() {
     return accounts;
   }, [accounts, filterType]);
 
-  const openAdd = () => { setForm(emptyForm); setEditId(null); setShowForm(true); };
+  const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setShowForm(true); };
+  const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
+
   const openEdit = (a: any) => {
     const matchDebt = debts.find((d: any) => d.name.toLowerCase() === a.name.toLowerCase());
     setForm({
@@ -153,6 +156,7 @@ export default function Accounts() {
       min_payment: matchDebt ? String(matchDebt.min_payment) : '',
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
     });
+    setEditingPlaidLinked(!!a.plaid_account_id);
     setEditId(a.id); setShowForm(true);
   };
 
@@ -161,27 +165,28 @@ export default function Accounts() {
     if (!form.name || isNaN(balance)) return;
     const payload: any = {
       name: form.name, account_type: form.account_type, institution: form.institution,
-      balance, credit_limit: parseFloat(form.credit_limit) || null, apr: parseFloat(form.apr) || null,
+      credit_limit: parseFloat(form.credit_limit) || null, apr: parseFloat(form.apr) || null,
       notes: form.notes, active: true,
       apy_rate: APY_TYPES.includes(form.account_type) && form.apy_rate !== '' ? parseFloat(form.apy_rate) : null,
     };
+    // Never overwrite Plaid-managed balance — it is owned by the sync job
+    if (!editingPlaidLinked) payload.balance = balance;
     if (editId) {
       const existingAccount = accounts.find((a: any) => a.id === editId);
       const projectedBalance = existingAccount ? Number(existingAccount.balance) : balance;
-      const delta = balance - projectedBalance;
       update.mutate({ id: editId, ...payload });
-      if (delta !== 0) {
+      if (!editingPlaidLinked && balance !== projectedBalance) {
         addReconciliation.mutate({
           account_id: editId,
           source_table: 'accounts',
           effective_date: new Date().toISOString().split('T')[0],
-          delta,
+          delta: balance - projectedBalance,
           actual_balance: balance,
           projected_balance: projectedBalance,
         });
       }
     } else {
-      add.mutate(payload);
+      add.mutate({ ...payload, balance });
     }
     
     // Sync min_payment to debts table for credit card / debt accounts
@@ -212,6 +217,17 @@ export default function Accounts() {
   };
 
   const isLiability = (type: string) => LIABILITY_TYPES.includes(type);
+
+  const handleUnlinkAccount = async (accountId: string) => {
+    try {
+      const { error } = await supabase.from('accounts').update({ plaid_account_id: null, plaid_item_id: null } as any).eq('id', accountId);
+      if (error) throw error;
+      update.mutate({ id: accountId, plaid_account_id: null, plaid_item_id: null } as any);
+      toast.success('Account unlinked from Plaid. Balance will no longer auto-sync.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Unlink failed');
+    }
+  };
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
@@ -301,7 +317,14 @@ export default function Accounts() {
                     <Icon size={16} className={liability ? 'text-destructive' : 'text-primary'} />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold">{a.name}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-semibold">{a.name}</p>
+                      {a.plaid_account_id && (
+                        <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium leading-none" style={{ borderRadius: 'var(--radius)' }}>
+                          Auto-sync
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-muted-foreground">
                       {TYPE_LABELS[a.account_type] || a.account_type}
                       {a.institution ? ` · ${a.institution}` : ''}
@@ -315,6 +338,15 @@ export default function Accounts() {
                   <span className={`text-lg font-display font-bold ${liability ? 'text-destructive' : 'text-success'}`}>
                     {liability ? '-' : ''}{formatCurrency(Number(a.balance), false)}
                   </span>
+                  {a.plaid_account_id && (
+                    <button
+                      onClick={() => handleUnlinkAccount(a.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                      title="Unlink from Plaid auto-sync"
+                    >
+                      <Unlink size={14} />
+                    </button>
+                  )}
                   <button onClick={() => toggleActive(a)} className="text-muted-foreground hover:text-foreground" title={a.active ? 'Deactivate' : 'Activate'}>
                     {a.active ? <Eye size={14} /> : <EyeOff size={14} />}
                   </button>
@@ -437,7 +469,7 @@ export default function Accounts() {
             { key: 'name', label: 'Account Name', type: 'text', placeholder: 'e.g., Chase Checking', required: true },
             { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES },
             { key: 'institution', label: 'Institution', type: 'text', placeholder: 'e.g., Chase, Fidelity' },
-            { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true },
+            { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true, disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Balance is managed by Plaid auto-sync' : undefined },
             ...(form.account_type === 'credit_card' ? [
               { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01' },
             ] : []),
@@ -453,7 +485,7 @@ export default function Accounts() {
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
-          onClose={() => { setShowForm(false); setEditId(null); }}
+          onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}
         />
