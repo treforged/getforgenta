@@ -276,7 +276,13 @@ export default function BudgetControl() {
 
   // Deduction CRUD — each mutates and auto-saves
   const updateDeduction = (id: string, patch: Partial<PaycheckDeduction>) => {
-    const next = deductions.map(d => d.id === id ? { ...d, ...patch } : d);
+    const next = deductions.map(d => {
+      if (d.id !== id) return d;
+      const merged = { ...d, ...patch };
+      // Tax withholding items are always post-tax — prevent toggle from changing it
+      if (/withholding|fica|oasdi/i.test(merged.label)) merged.preTax = false;
+      return merged;
+    });
     setDeductions(next);
     doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, next);
   };
@@ -779,6 +785,7 @@ export default function BudgetControl() {
           <div className="space-y-1.5">
             {deductionAmounts.map(d => {
               const isRetirement = /401|403|roth|ira/i.test(d.label);
+              const isTaxItem = /withholding|fica|oasdi/i.test(d.label);
               const retirementAccounts = accounts.filter((a: any) => a.active && ['brokerage', 'roth_ira', '401k'].includes(a.account_type));
               return (
                 <div key={d.id} className="border-b border-border/30 last:border-0 pb-1.5">
@@ -803,11 +810,13 @@ export default function BudgetControl() {
                       <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
                       <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
                     </div>
-                    {/* Pre/post-tax toggle */}
-                    <div className="flex gap-0.5 shrink-0">
-                      <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
-                      <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
-                    </div>
+                    {/* Pre/post-tax toggle — hidden for tax withholding items (always post-tax) */}
+                    {!isTaxItem && (
+                      <div className="flex gap-0.5 shrink-0">
+                        <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
+                        <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
+                      </div>
+                    )}
                     {/* Resolved amount hint */}
                     {d.value > 0 && (
                       <span className="text-[9px] text-muted-foreground shrink-0 w-16 text-right">
