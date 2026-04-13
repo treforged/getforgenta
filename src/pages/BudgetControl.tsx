@@ -742,7 +742,14 @@ export default function BudgetControl() {
           </div>
         </div>
 
-        {/* Paycheck Deductions — shown first */}
+        {/* Gross Income — prominent at top */}
+        <div className="pb-3 border-b border-border">
+          <label className="text-[10px] text-muted-foreground uppercase">Gross Income (per paycheck)</label>
+          <input type="number" value={weeklyGrossInput} onChange={e => setWeeklyGrossInput(e.target.value)} onBlur={handleWeeklyGrossBlur}
+            className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
+        </div>
+
+        {/* Paycheck Deductions */}
         <div className="space-y-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Paycheck Deductions</h4>
@@ -864,13 +871,8 @@ export default function BudgetControl() {
           )}
         </div>
 
-        {/* Income inputs */}
-        <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <div>
-            <label className="text-[10px] text-muted-foreground uppercase">Gross Income</label>
-            <input type="number" value={weeklyGrossInput} onChange={e => setWeeklyGrossInput(e.target.value)} onBlur={handleWeeklyGrossBlur}
-              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
-          </div>
+        {/* Income inputs — frequency, tax rate, payday */}
+        <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">Pay Frequency</label>
             <select value={payFrequency} onChange={e => setPayFrequencyAuto(e.target.value as PayFrequency)}
