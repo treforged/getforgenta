@@ -204,7 +204,10 @@ export default function BudgetControl() {
       const gross = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
       const preTax  = deds.filter(d => d.preTax).reduce((s, d) => s + resolveAmt(d, gross), 0);
       const postTax = deds.filter(d => !d.preTax).reduce((s, d) => s + resolveAmt(d, gross), 0);
-      const netPerPaycheck = (gross - preTax) * (1 - tr / 100) - postTax;
+      // Federal Withholding / FICA / OASDI deductions replace the tax rate when active
+      const taxDedActive = deds.some(d => /withholding|fica|oasdi/i.test(d.label) && d.value > 0);
+      const effectiveTr = taxDedActive ? 0 : tr;
+      const netPerPaycheck = (gross - preTax) * (1 - effectiveTr / 100) - postTax;
       const paychecksPerYear = pf === 'biweekly' ? 26 : pf === 'monthly' ? 12 : 52;
       // Backward-compat: keep legacy 401k columns so Forecast + use401kAutoUpdate still work
       const k401 = deds.find(d => d.id === '401k' || d.label.toLowerCase().includes('401(k) traditional') || d.label.toLowerCase().includes('401k'));
@@ -309,11 +312,17 @@ export default function BudgetControl() {
   const preTaxDeductionsFlat  = useMemo(() => deductionAmounts.filter(d => d.preTax).reduce((s, d) => s + d.flatAmt, 0), [deductionAmounts]);
   const postTaxDeductionsFlat = useMemo(() => deductionAmounts.filter(d => !d.preTax).reduce((s, d) => s + d.flatAmt, 0), [deductionAmounts]);
 
+  // When Federal Withholding / FICA / OASDI deductions are active, they replace the Tax Rate %
+  const hasTaxDeductions = useMemo(() =>
+    deductions.some(d => /withholding|fica|oasdi/i.test(d.label) && d.value > 0),
+    [deductions]);
+  const effectiveTaxRate = hasTaxDeductions ? 0 : taxRate;
+
   const payConfig = useMemo(() => ({
-    weeklyGross, taxRate, paycheckDay, frequency: payFrequency,
+    weeklyGross, taxRate: effectiveTaxRate, paycheckDay, frequency: payFrequency,
     preTaxDeductions: preTaxDeductionsFlat,
     postTaxDeductions: postTaxDeductionsFlat,
-  }), [weeklyGross, taxRate, paycheckDay, payFrequency, preTaxDeductionsFlat, postTaxDeductionsFlat]);
+  }), [weeklyGross, effectiveTaxRate, paycheckDay, payFrequency, preTaxDeductionsFlat, postTaxDeductionsFlat]);
 
   const paycheckNet = useMemo(() => getPaycheckNet(payConfig), [payConfig]);
   const now = new Date();
@@ -615,15 +624,19 @@ export default function BudgetControl() {
     if (preTaxDeductionsFlat > 0) {
       lines.push({ label: `Pre-tax deductions (reduces taxable income)`, value: formatCurrency(preTaxDeductionsFlat, false), op: '−' });
       lines.push({ label: 'Taxable gross per paycheck', value: formatCurrency(paycheckGross - preTaxDeductionsFlat, false), op: '=' });
+    }
+    if (!hasTaxDeductions) {
       lines.push({ label: `Income tax (${taxRate}%)`, value: formatCurrency((paycheckGross - preTaxDeductionsFlat) * taxRate / 100, false), op: '−' });
+      if (preTaxDeductionsFlat > 0) {
+        lines.push({ label: `Tax saved by pre-tax deductions`, value: formatCurrency(preTaxDeductionsFlat * taxRate / 100, false) });
+      }
     } else {
-      lines.push({ label: `Income tax (${taxRate}%)`, value: formatCurrency(paycheckGross * taxRate / 100, false), op: '−' });
+      lines.push({ label: 'Tax withheld via deductions (Fed Withholding / FICA / OASDI)', value: formatCurrency(postTaxDeductionsFlat, false), op: '−' });
     }
-    if (postTaxDeductionsFlat > 0) {
-      lines.push({ label: 'Post-tax deductions', value: formatCurrency(postTaxDeductionsFlat, false), op: '−' });
-    }
-    if (preTaxDeductionsFlat > 0) {
-      lines.push({ label: `Tax saved by pre-tax deductions`, value: formatCurrency(preTaxDeductionsFlat * taxRate / 100, false) });
+    if (postTaxDeductionsFlat > 0 && !hasTaxDeductions) {
+      lines.push({ label: 'Other post-tax deductions', value: formatCurrency(postTaxDeductionsFlat, false), op: '−' });
+    } else if (postTaxDeductionsFlat > 0 && hasTaxDeductions) {
+      // already shown above as a single line
     }
     lines.push({ label: 'Net per paycheck', value: formatCurrency(paycheckNet, false), op: '=' });
     lines.push({ label: 'Paychecks this month', value: String(getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth()).length) });
@@ -863,7 +876,7 @@ export default function BudgetControl() {
             <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground pt-1">
               <span className="font-medium text-foreground">{formatCurrency(paycheckGross, false)}</span>
               {preTaxDeductionsFlat > 0 && <><span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax</span><span>→</span><span className="font-medium text-foreground">{formatCurrency(paycheckGross - preTaxDeductionsFlat, false)} taxable</span></>}
-              <span>× {(100 - taxRate).toFixed(0)}%</span>
+              {!hasTaxDeductions && <span>× {(100 - taxRate).toFixed(0)}%</span>}
               {postTaxDeductionsFlat > 0 && <><span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span></>}
               <span>→</span>
               <span className="font-display font-bold text-success">{formatCurrency(paycheckNet, false)} net</span>
@@ -882,11 +895,17 @@ export default function BudgetControl() {
               <option value="monthly">Monthly</option>
             </select>
           </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground uppercase">Tax Rate (%)</label>
-            <input type="number" value={taxRate} onChange={e => setTaxRateAuto(parseFloat(e.target.value) || 0)}
-              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
-          </div>
+          {hasTaxDeductions ? (
+            <div className="flex flex-col justify-end">
+              <p className="text-[9px] text-muted-foreground italic">Tax Rate hidden — using withholding deductions above</p>
+            </div>
+          ) : (
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase">Tax Rate (%)</label>
+              <input type="number" value={taxRate} onChange={e => setTaxRateAuto(parseFloat(e.target.value) || 0)}
+                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
+            </div>
+          )}
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">{payFrequency === 'monthly' ? 'Pay Day of Month' : 'Paycheck Day'}</label>
             {payFrequency === 'monthly' ? (
