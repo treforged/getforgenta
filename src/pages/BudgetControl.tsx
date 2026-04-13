@@ -5,7 +5,7 @@ import { formatCurrency } from '@/lib/calculations';
 import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
 import { toast } from 'sonner';
-import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts } from '@/hooks/useSupabaseData';
+import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -43,6 +43,8 @@ export type PaycheckDeduction = {
   value: number;
   mode: 'flat' | 'pct';
   preTax: boolean;
+  accountId?: string; // linked investment/retirement account
+  goalId?: string;    // linked savings goal (monthly_contribution auto-synced)
 };
 
 export const DEDUCTION_CATALOG: { label: string; mode: 'flat' | 'pct'; preTax: boolean }[] = [
@@ -62,8 +64,9 @@ export const DEDUCTION_CATALOG: { label: string; mode: 'flat' | 'pct'; preTax: b
   { label: 'FSA (Medical)',               mode: 'flat', preTax: true  },
   { label: 'FSA (Dependent Care)',        mode: 'flat', preTax: true  },
   // Taxes
-  { label: 'Fed FICA Medicare (1.45%)',          mode: 'pct', preTax: false },
-  { label: 'Fed OASDI / Social Security (6.2%)', mode: 'pct', preTax: false },
+  { label: 'Federal Withholding',                mode: 'flat', preTax: false },
+  { label: 'Fed FICA Medicare (1.45%)',          mode: 'pct',  preTax: false },
+  { label: 'Fed OASDI / Social Security (6.2%)', mode: 'pct',  preTax: false },
   { label: 'State Income Tax',                   mode: 'flat', preTax: false },
   // Other
   { label: 'Commuter Benefits', mode: 'flat', preTax: true  },
@@ -123,6 +126,7 @@ export default function BudgetControl() {
   const { data: profile, update: updateProfile } = useProfile();
   const { data: accounts } = useAccounts();
   const { data: rules, add: addRule, update: updateRule, remove: removeRule, loading: rulesLoading } = useRecurringRules();
+  const { data: savingsGoals, update: updateGoal } = useSavingsGoals();
   const { data: subs } = useSubscriptions();
   const { data: debts } = useDebts();
 
@@ -138,6 +142,9 @@ export default function BudgetControl() {
   const [deductions, setDeductions] = useState<PaycheckDeduction[]>(DEFAULT_DEDUCTIONS);
   const [showCatalog, setShowCatalog] = useState(false);
   const [customLabel, setCustomLabel] = useState('');
+
+  // Paycheck rule lock — ID of the single income rule auto-synced by income settings
+  const [paycheckRuleId, setPaycheckRuleId] = useState<string | null>(null);
 
   // Calc drawer
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
@@ -167,6 +174,8 @@ export default function BudgetControl() {
         if (migrated) setDeductions(migrated);
         // else keep DEFAULT_DEDUCTIONS
       }
+      // Load the designated paycheck rule ID
+      setPaycheckRuleId((profile as any).paycheck_rule_id ?? null);
       profileLoaded.current = true;
     }
   }, [profile]);
@@ -199,6 +208,10 @@ export default function BudgetControl() {
       const paychecksPerYear = pf === 'biweekly' ? 26 : pf === 'monthly' ? 12 : 52;
       // Backward-compat: keep legacy 401k columns so Forecast + use401kAutoUpdate still work
       const k401 = deds.find(d => d.id === '401k' || d.label.toLowerCase().includes('401(k) traditional') || d.label.toLowerCase().includes('401k'));
+      // Resolve which rule is the designated paycheck rule (only that one gets synced)
+      const targetRule = paycheckRuleId
+        ? rules.find((r: any) => r.id === paycheckRuleId)
+        : rules.find((r: any) => r.rule_type === 'income' && r.active);
       updateProfile.mutate({
         weekly_gross_income: wg,
         tax_rate: tr,
@@ -207,6 +220,7 @@ export default function BudgetControl() {
         gross_income: wg * 52 / 12,
         monthly_income_default: (netPerPaycheck * paychecksPerYear) / 12,
         paycheck_deductions: deds,
+        paycheck_rule_id: targetRule?.id ?? paycheckRuleId,
         deduction_401k_value: k401?.value ?? 0,
         deduction_401k_mode: k401?.mode ?? 'pct',
         deduction_401k_pretax: k401?.preTax ?? true,
@@ -214,25 +228,35 @@ export default function BudgetControl() {
         onSuccess: () => {
           setAutoSaveStatus('saved');
           setTimeout(() => setAutoSaveStatus('idle'), 2000);
-          const incomeRule = rules.find((r: any) => r.rule_type === 'income' && r.active);
-          if (incomeRule) {
-            const needsUpdate = Math.round(Number(incomeRule.amount) * 100) !== Math.round(netPerPaycheck * 100) ||
-              incomeRule.frequency !== pf ||
-              incomeRule.due_day !== pd;
+          // Sync ONLY the designated paycheck rule — never touch other income rules
+          if (targetRule) {
+            if (!paycheckRuleId) setPaycheckRuleId(targetRule.id);
+            const needsUpdate = Math.round(Number(targetRule.amount) * 100) !== Math.round(netPerPaycheck * 100) ||
+              targetRule.frequency !== pf ||
+              targetRule.due_day !== pd;
             if (needsUpdate) {
               updateRule.mutate({
-                id: incomeRule.id,
+                id: targetRule.id,
                 amount: Math.round(netPerPaycheck * 100) / 100,
                 frequency: pf,
                 due_day: pd,
               });
             }
           }
+          // Sync savings goal monthly_contribution for any linked deduction
+          deds.forEach(d => {
+            if (d.goalId && d.value > 0) {
+              const flatAmt = d.mode === 'pct' ? gross * (d.value / 100) : d.value;
+              const paychecksPerYr = pf === 'biweekly' ? 26 : pf === 'monthly' ? 12 : 52;
+              const monthlyContrib = Math.round((flatAmt * paychecksPerYr / 12) * 100) / 100;
+              updateGoal.mutate({ id: d.goalId, monthly_contribution: monthlyContrib });
+            }
+          });
         },
         onError: () => setAutoSaveStatus('idle'),
       });
     }, 800);
-  }, [isDemo, updateProfile, rules, updateRule]);
+  }, [isDemo, updateProfile, rules, updateRule, paycheckRuleId, setPaycheckRuleId, updateGoal]);
 
   const handleWeeklyGrossBlur = () => {
     const parsed = parseFloat(weeklyGrossInput);
@@ -692,10 +716,156 @@ export default function BudgetControl() {
       <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Income & Taxes</h3>
-          {autoSaveStatus === 'saving' && <span className="text-[10px] text-muted-foreground animate-pulse">Saving…</span>}
-          {autoSaveStatus === 'saved' && <span className="text-[10px] text-success">✓ Saved</span>}
+          <div className="flex items-center gap-3 flex-wrap">
+            {incomeRules.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] text-muted-foreground uppercase">Paycheck rule:</span>
+                <select
+                  value={paycheckRuleId ?? ''}
+                  onChange={e => {
+                    const id = e.target.value || null;
+                    setPaycheckRuleId(id);
+                    updateProfile.mutate({ paycheck_rule_id: id } as any);
+                  }}
+                  className="bg-secondary border border-border px-2 py-0.5 text-[10px] text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  <option value="">— none —</option>
+                  {incomeRules.map((r: any) => (
+                    <option key={r.id} value={r.id}>{r.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {autoSaveStatus === 'saving' && <span className="text-[10px] text-muted-foreground animate-pulse">Saving…</span>}
+            {autoSaveStatus === 'saved' && <span className="text-[10px] text-success">✓ Saved</span>}
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+
+        {/* Paycheck Deductions — shown first */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Paycheck Deductions</h4>
+            <button
+              onClick={() => setShowCatalog(true)}
+              className="flex items-center gap-1 text-[10px] text-primary border border-primary/30 px-2 py-1 hover:bg-primary/5 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <Plus size={10} /> Add Deduction
+            </button>
+          </div>
+
+          {/* Deduction rows */}
+          <div className="space-y-1.5">
+            {deductionAmounts.map(d => {
+              const isRetirement = /401|403|roth|ira/i.test(d.label);
+              const retirementAccounts = accounts.filter((a: any) => a.active && ['brokerage', 'roth_ira', '401k'].includes(a.account_type));
+              return (
+                <div key={d.id} className="border-b border-border/30 last:border-0 pb-1.5">
+                  <div className="flex items-center gap-2 py-1 flex-wrap sm:flex-nowrap">
+                    {/* Editable label */}
+                    <input
+                      type="text"
+                      value={d.label}
+                      onChange={e => updateDeduction(d.id, { label: e.target.value })}
+                      className="flex-1 min-w-[120px] bg-transparent border-b border-transparent hover:border-border focus:border-primary text-[11px] font-medium text-foreground px-0.5 py-0.5 outline-none transition-colors"
+                    />
+                    {/* Value input */}
+                    <input
+                      type="number" min={0} max={d.mode === 'pct' ? 100 : undefined} step={d.mode === 'pct' ? 0.5 : 1}
+                      value={d.value}
+                      onChange={e => updateDeduction(d.id, { value: parseFloat(e.target.value) || 0 })}
+                      className="w-20 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold text-right"
+                      style={{ borderRadius: 'var(--radius)' }}
+                    />
+                    {/* $/% toggle */}
+                    <div className="flex gap-0.5 shrink-0">
+                      <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
+                      <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
+                    </div>
+                    {/* Pre/post-tax toggle */}
+                    <div className="flex gap-0.5 shrink-0">
+                      <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
+                      <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
+                    </div>
+                    {/* Resolved amount hint */}
+                    {d.value > 0 && (
+                      <span className="text-[9px] text-muted-foreground shrink-0 w-16 text-right">
+                        {d.mode === 'pct' ? formatCurrency(d.flatAmt, false) : `${paycheckGross > 0 ? ((d.value / paycheckGross) * 100).toFixed(1) : '0'}%`}
+                      </span>
+                    )}
+                    {/* Remove */}
+                    <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 ml-auto sm:ml-0"><X size={12} /></button>
+                  </div>
+                  {/* Retirement account + goal link */}
+                  {isRetirement && (
+                    <div className="flex flex-wrap items-center gap-2 pl-1 mt-0.5">
+                      {retirementAccounts.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-muted-foreground">Account:</span>
+                          <select
+                            value={d.accountId ?? ''}
+                            onChange={e => updateDeduction(d.id, { accountId: e.target.value || undefined })}
+                            className="bg-secondary border border-border px-1.5 py-0.5 text-[9px] text-foreground"
+                            style={{ borderRadius: 'var(--radius)' }}
+                          >
+                            <option value="">— none —</option>
+                            {retirementAccounts.map((a: any) => (
+                              <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {savingsGoals.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[9px] text-muted-foreground">Goal:</span>
+                          <select
+                            value={d.goalId ?? ''}
+                            onChange={e => updateDeduction(d.id, { goalId: e.target.value || undefined })}
+                            className="bg-secondary border border-border px-1.5 py-0.5 text-[9px] text-foreground"
+                            style={{ borderRadius: 'var(--radius)' }}
+                          >
+                            <option value="">— none —</option>
+                            {savingsGoals.map((g: any) => (
+                              <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {d.goalId && d.value > 0 && (
+                        <span className="text-[9px] text-success">
+                          syncs {formatCurrency(Math.round(d.flatAmt * (payFrequency === 'biweekly' ? 26 : payFrequency === 'monthly' ? 12 : 52) / 12 * 100) / 100, false)}/mo → goal
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Totals summary */}
+          {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] pt-1">
+              {preTaxDeductionsFlat > 0 && <span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax <span className="text-success">(saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100), false)} tax)</span></span>}
+              {postTaxDeductionsFlat > 0 && <span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span>}
+            </div>
+          )}
+          {/* Gross → Net breakdown */}
+          {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
+            <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground pt-1">
+              <span className="font-medium text-foreground">{formatCurrency(paycheckGross, false)}</span>
+              {preTaxDeductionsFlat > 0 && <><span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax</span><span>→</span><span className="font-medium text-foreground">{formatCurrency(paycheckGross - preTaxDeductionsFlat, false)} taxable</span></>}
+              <span>× {(100 - taxRate).toFixed(0)}%</span>
+              {postTaxDeductionsFlat > 0 && <><span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span></>}
+              <span>→</span>
+              <span className="font-display font-bold text-success">{formatCurrency(paycheckNet, false)} net</span>
+            </div>
+          )}
+        </div>
+
+        {/* Income inputs */}
+        <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">Gross Income</label>
             <input type="number" value={weeklyGrossInput} onChange={e => setWeeklyGrossInput(e.target.value)} onBlur={handleWeeklyGrossBlur}
@@ -731,79 +901,6 @@ export default function BudgetControl() {
             <p className="text-[10px] text-muted-foreground uppercase flex items-center gap-1"><CalendarDays size={10} /> Next Paycheck</p>
             <p className="text-sm font-display font-bold text-primary mt-1">{nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
           </div>
-        </div>
-        {/* Paycheck Deductions */}
-        <div className="pt-3 border-t border-border space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Paycheck Deductions</h4>
-            <button
-              onClick={() => setShowCatalog(true)}
-              className="flex items-center gap-1 text-[10px] text-primary border border-primary/30 px-2 py-1 hover:bg-primary/5 transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <Plus size={10} /> Add Deduction
-            </button>
-          </div>
-
-          {/* Deduction rows */}
-          <div className="space-y-1.5">
-            {deductionAmounts.map(d => (
-              <div key={d.id} className="flex items-center gap-2 py-1.5 border-b border-border/30 last:border-0 flex-wrap sm:flex-nowrap">
-                {/* Editable label */}
-                <input
-                  type="text"
-                  value={d.label}
-                  onChange={e => updateDeduction(d.id, { label: e.target.value })}
-                  className="flex-1 min-w-[120px] bg-transparent border-b border-transparent hover:border-border focus:border-primary text-[11px] font-medium text-foreground px-0.5 py-0.5 outline-none transition-colors"
-                />
-                {/* Value input */}
-                <input
-                  type="number" min={0} max={d.mode === 'pct' ? 100 : undefined} step={d.mode === 'pct' ? 0.5 : 1}
-                  value={d.value}
-                  onChange={e => updateDeduction(d.id, { value: parseFloat(e.target.value) || 0 })}
-                  className="w-20 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold text-right"
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
-                {/* $/% toggle */}
-                <div className="flex gap-0.5 shrink-0">
-                  <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
-                  <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
-                </div>
-                {/* Pre/post-tax toggle */}
-                <div className="flex gap-0.5 shrink-0">
-                  <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
-                  <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
-                </div>
-                {/* Resolved amount hint */}
-                {d.value > 0 && (
-                  <span className="text-[9px] text-muted-foreground shrink-0 w-16 text-right">
-                    {d.mode === 'pct' ? formatCurrency(d.flatAmt, false) : `${paycheckGross > 0 ? ((d.value / paycheckGross) * 100).toFixed(1) : '0'}%`}
-                  </span>
-                )}
-                {/* Remove */}
-                <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 ml-auto sm:ml-0"><X size={12} /></button>
-              </div>
-            ))}
-          </div>
-
-          {/* Totals summary */}
-          {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] pt-1">
-              {preTaxDeductionsFlat > 0 && <span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax <span className="text-success">(saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100), false)} tax)</span></span>}
-              {postTaxDeductionsFlat > 0 && <span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span>}
-            </div>
-          )}
-          {/* Gross → Net breakdown */}
-          {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
-            <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground pt-1">
-              <span className="font-medium text-foreground">{formatCurrency(paycheckGross, false)}</span>
-              {preTaxDeductionsFlat > 0 && <><span className="text-primary">−{formatCurrency(preTaxDeductionsFlat, false)} pre-tax</span><span>→</span><span className="font-medium text-foreground">{formatCurrency(paycheckGross - preTaxDeductionsFlat, false)} taxable</span></>}
-              <span>× {(100 - taxRate).toFixed(0)}%</span>
-              {postTaxDeductionsFlat > 0 && <><span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span></>}
-              <span>→</span>
-              <span className="font-display font-bold text-success">{formatCurrency(paycheckNet, false)} net</span>
-            </div>
-          )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 pt-2 border-t border-border">
@@ -1026,7 +1123,7 @@ export default function BudgetControl() {
             <div className="space-y-1.5">
               <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Taxes</p>
               <div className="flex flex-wrap gap-1.5">
-                {DEDUCTION_CATALOG.slice(14, 17).map(item => (
+                {DEDUCTION_CATALOG.slice(14, 18).map(item => (
                   <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
                     className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
                     style={{ borderRadius: 'var(--radius)' }}>
@@ -1040,7 +1137,7 @@ export default function BudgetControl() {
             <div className="space-y-1.5">
               <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Other</p>
               <div className="flex flex-wrap gap-1.5">
-                {DEDUCTION_CATALOG.slice(17).map(item => (
+                {DEDUCTION_CATALOG.slice(18).map(item => (
                   <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
                     className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
                     style={{ borderRadius: 'var(--radius)' }}>
