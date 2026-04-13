@@ -166,9 +166,15 @@ export function TwoFactorAuth() {
       </div>
 
       {verifiedFactors.length === 0 && view === 'none' && (
-        <p className="text-[10px] text-muted-foreground">
-          Add a second factor to protect your account. Works with Microsoft Authenticator, Google Authenticator, Apple Passwords, Bitwarden, Authy, and any TOTP app.
-        </p>
+        <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/30 px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
+          <Shield size={13} className="text-amber-500 mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-amber-500">Your account has no two-factor protection</p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Adding a second factor significantly reduces the risk of unauthorized access. Works with Microsoft Authenticator, Google Authenticator, Apple Passwords, Bitwarden, Authy, and any TOTP app — takes under a minute to set up.
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Active factors */}
