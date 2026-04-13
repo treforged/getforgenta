@@ -169,7 +169,7 @@ export default function Transactions() {
     for (const card of cards) {
       const pay = (sim.monthlyPayments.get(card.id) || [])[0] ?? 0;
       if (pay <= 0) continue;
-      const dueDay = card.dueDay || 31;
+      const dueDay = card.dueDay || 15;
       const monthEnd = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0).getDate();
       const effectiveDay = Math.min(dueDay, monthEnd);
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth(), effectiveDay);

@@ -155,7 +155,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
     if (revolving.length === 0) return 31;
     // Use the earliest due day among revolving cards
-    const dueDays = revolving.map(c => c.dueDay || 31);
+    const dueDays = revolving.map(c => c.dueDay || 15);
     return Math.min(...dueDays);
   }, [cards]);
 
@@ -176,7 +176,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const cardEstimatedCash = useMemo(() => {
     const result: Record<string, number> = {};
     for (const card of cards) {
-      const dueDay = card.dueDay || 31;
+      const dueDay = card.dueDay || 15;
       const incByDue = getRemainingTransactionIncomeByDay(allTransactions, dueDay);
       const expByDue = getRemainingTransactionExpensesByDay(allTransactions, dueDay, true);
       result[card.id] = fundingBalance + incByDue - expByDue;
@@ -719,7 +719,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   <p className="text-muted-foreground mt-2">Uses only the funding balance plus income transactions already scheduled/recorded in Transactions between today and the card due date. Income is not counted from Budget Control separately.</p>
                   {cards.filter(c => !c.autopayFullBalance && c.balance > 0).map(c => (
                     <div key={c.id} className="flex justify-between gap-2 mt-1">
-                      <span>{c.name} (due {c.dueDay || 31}th)</span>
+                      <span>{c.name} (due {c.dueDay || 15}th)</span>
                       <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
                     </div>
                   ))}
@@ -878,7 +878,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     ) : (
                       <div className="flex items-center gap-1 justify-center">
                         <p className="text-xs font-semibold">{proj.card.dueDay ? `${proj.card.dueDay}th` : '—'}</p>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingDueDay(proj.card.id); setDueDayInput(String(proj.card.dueDay || 31)); }} className="text-muted-foreground hover:text-primary"><Edit2 size={10} /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingDueDay(proj.card.id); setDueDayInput(String(proj.card.dueDay || 15)); }} className="text-muted-foreground hover:text-primary"><Edit2 size={10} /></button>
                       </div>
                     )}
                   </div>

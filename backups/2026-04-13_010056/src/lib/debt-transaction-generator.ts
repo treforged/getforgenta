@@ -101,8 +101,8 @@ export function generateDebtPaymentTransactions(
       const row = proj.months[i];
       if (row.payment <= 0) continue;
 
-      // Use the card's actual due day, falling back to end of month
-      const cardDueDay = proj.card.dueDay || 31;
+      // Use the card's actual due day, falling back to 15
+      const cardDueDay = proj.card.dueDay || 15;
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + i + 1, 0).getDate();
       const effectiveDay = Math.min(cardDueDay, monthEnd);
       const d = new Date(now.getFullYear(), now.getMonth() + i, effectiveDay);
