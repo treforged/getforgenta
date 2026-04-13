@@ -75,9 +75,6 @@ export const DEDUCTION_CATALOG: { label: string; mode: 'flat' | 'pct'; preTax: b
   { label: 'Wage Garnishment',  mode: 'flat', preTax: false },
 ];
 
-// All catalog items in the Taxes group (indices 13-16) — used to enforce post-tax and suppress Tax Rate field
-const TAX_CATALOG_LABELS = new Set(DEDUCTION_CATALOG.slice(13, 17).map(c => c.label.toLowerCase()));
-
 const DEFAULT_DEDUCTIONS: PaycheckDeduction[] = [
   { id: 'medical', label: 'Medical Insurance', value: 0, mode: 'flat', preTax: true },
   { id: 'dental',  label: 'Dental Insurance',  value: 0, mode: 'flat', preTax: true },
@@ -282,8 +279,8 @@ export default function BudgetControl() {
     const next = deductions.map(d => {
       if (d.id !== id) return d;
       const merged = { ...d, ...patch };
-      // Catalog Taxes-group items are always post-tax — prevent toggle from changing it
-      if (TAX_CATALOG_LABELS.has(merged.label.toLowerCase())) merged.preTax = false;
+      // Tax withholding items are always post-tax — prevent toggle from changing it
+      if (/withholding|fica|oasdi/i.test(merged.label)) merged.preTax = false;
       return merged;
     });
     setDeductions(next);
@@ -321,9 +318,9 @@ export default function BudgetControl() {
   const preTaxDeductionsFlat  = useMemo(() => deductionAmounts.filter(d => d.preTax).reduce((s, d) => s + d.flatAmt, 0), [deductionAmounts]);
   const postTaxDeductionsFlat = useMemo(() => deductionAmounts.filter(d => !d.preTax).reduce((s, d) => s + d.flatAmt, 0), [deductionAmounts]);
 
-  // When any catalog Taxes-group deduction is active, they replace the Tax Rate %
+  // When Federal Withholding / FICA / OASDI deductions are active, they replace the Tax Rate %
   const hasTaxDeductions = useMemo(() =>
-    deductions.some(d => TAX_CATALOG_LABELS.has(d.label.toLowerCase()) && d.value > 0),
+    deductions.some(d => /withholding|fica|oasdi/i.test(d.label) && d.value > 0),
     [deductions]);
   const effectiveTaxRate = hasTaxDeductions ? 0 : taxRate;
 
@@ -809,7 +806,7 @@ export default function BudgetControl() {
                 <div className="space-y-1.5">
                   {grouped[group].map(d => {
               const isRetirement = /401|403|roth|ira/i.test(d.label);
-              const isTaxItem = TAX_CATALOG_LABELS.has(d.label.toLowerCase());
+              const isTaxItem = /withholding|fica|oasdi/i.test(d.label);
               const fromCatalog = isCatalogItem(d.label);
               return (
                 <div key={d.id} className="border-b border-border/30 last:border-0 pb-1.5">
