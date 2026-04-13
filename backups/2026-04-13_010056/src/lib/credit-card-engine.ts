@@ -670,7 +670,7 @@ export function generateRecommendations(
   const effectivePrimaryDueDay = primaryDueDay ?? (() => {
     const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
     if (revolving.length === 0) return 31;
-    const dueDays = revolving.map(c => c.dueDay || 31);
+    const dueDays = revolving.map(c => c.dueDay || 15);
     return Math.min(...dueDays);
   })();
 
@@ -706,7 +706,7 @@ export function generateRecommendations(
 
   const cardEstimatedCash = new Map<string, number>();
   for (const card of revolvingCards) {
-    const dueDay = card.dueDay || 31;
+    const dueDay = card.dueDay || 15;
     if (transactions && transactions.length > 0) {
       const incByDue = getRemainingTransactionIncomeByDay(transactions, dueDay);
       const expByDue = getRemainingTransactionExpensesByDay(transactions, dueDay, true);
@@ -886,7 +886,7 @@ export function getCurrentMonthDebtRecommendations(
 
   const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
   const primaryDueDay = revolving.length > 0
-    ? Math.min(...revolving.map(c => c.dueDay || 31))
+    ? Math.min(...revolving.map(c => c.dueDay || 15))
     : 31;
 
   const recs = generateRecommendations(

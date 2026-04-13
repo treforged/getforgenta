@@ -831,7 +831,7 @@ export function createDebtPaymentTransactions(
   const results: any[] = [];
   for (const rec of recommendations) {
     if (rec.payment <= 0) continue;
-    const dueDay = rec.dueDay || 31;
+    const dueDay = rec.dueDay || 15;
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const effectiveDay = Math.min(dueDay, monthEnd);
     const d = new Date(now.getFullYear(), now.getMonth(), effectiveDay);
