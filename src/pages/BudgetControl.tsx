@@ -1113,7 +1113,24 @@ export default function BudgetControl() {
       )}
 
       {/* Catalog picker modal */}
-      {showCatalog && (
+      {showCatalog && (() => {
+        const usedLabels = new Set(deductions.map(d => d.label.toLowerCase()));
+        const CatalogBtn = ({ item }: { item: typeof DEDUCTION_CATALOG[number] }) => {
+          const used = usedLabels.has(item.label.toLowerCase());
+          return (
+            <button
+              key={item.label}
+              onClick={() => !used && addDeductionFromCatalog(item)}
+              disabled={used}
+              className={`text-[10px] px-2 py-1 border transition-colors ${used ? 'border-border bg-secondary text-muted-foreground opacity-40 cursor-not-allowed' : 'border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground'}`}
+              style={{ borderRadius: 'var(--radius)' }}
+              title={used ? 'Already added' : undefined}
+            >
+              {item.label}
+            </button>
+          );
+        };
+        return (
         <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center p-4" onClick={() => { setShowCatalog(false); setCustomLabel(''); }}>
           <div className="card-forged p-5 w-full max-w-md space-y-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
@@ -1125,13 +1142,7 @@ export default function BudgetControl() {
             <div className="space-y-1.5">
               <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Benefits</p>
               <div className="flex flex-wrap gap-1.5">
-                {DEDUCTION_CATALOG.slice(0, 7).map(item => (
-                  <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
-                    className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
-                    style={{ borderRadius: 'var(--radius)' }}>
-                    {item.label}
-                  </button>
-                ))}
+                {DEDUCTION_CATALOG.slice(0, 7).map(item => <CatalogBtn key={item.label} item={item} />)}
               </div>
             </div>
 
@@ -1139,13 +1150,7 @@ export default function BudgetControl() {
             <div className="space-y-1.5">
               <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Retirement & Savings</p>
               <div className="flex flex-wrap gap-1.5">
-                {DEDUCTION_CATALOG.slice(7, 14).map(item => (
-                  <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
-                    className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
-                    style={{ borderRadius: 'var(--radius)' }}>
-                    {item.label}
-                  </button>
-                ))}
+                {DEDUCTION_CATALOG.slice(7, 14).map(item => <CatalogBtn key={item.label} item={item} />)}
               </div>
             </div>
 
@@ -1153,13 +1158,7 @@ export default function BudgetControl() {
             <div className="space-y-1.5">
               <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Taxes</p>
               <div className="flex flex-wrap gap-1.5">
-                {DEDUCTION_CATALOG.slice(14, 18).map(item => (
-                  <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
-                    className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
-                    style={{ borderRadius: 'var(--radius)' }}>
-                    {item.label}
-                  </button>
-                ))}
+                {DEDUCTION_CATALOG.slice(14, 18).map(item => <CatalogBtn key={item.label} item={item} />)}
               </div>
             </div>
 
@@ -1167,13 +1166,7 @@ export default function BudgetControl() {
             <div className="space-y-1.5">
               <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Other</p>
               <div className="flex flex-wrap gap-1.5">
-                {DEDUCTION_CATALOG.slice(18).map(item => (
-                  <button key={item.label} onClick={() => addDeductionFromCatalog(item)}
-                    className="text-[10px] px-2 py-1 border border-border bg-secondary hover:bg-primary/10 hover:border-primary/40 text-foreground transition-colors"
-                    style={{ borderRadius: 'var(--radius)' }}>
-                    {item.label}
-                  </button>
-                ))}
+                {DEDUCTION_CATALOG.slice(18).map(item => <CatalogBtn key={item.label} item={item} />)}
               </div>
             </div>
 
@@ -1207,7 +1200,8 @@ export default function BudgetControl() {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <CalcDrawer
         open={!!calcDrawer}
