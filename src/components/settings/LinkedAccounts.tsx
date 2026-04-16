@@ -51,17 +51,20 @@ export function LinkedAccounts() {
 
   useEffect(() => { loadIdentities(); }, [loadIdentities]);
 
+  const getProviderLabel = (providerId: string) =>
+    OAUTH_PROVIDERS.find(p => p.id === providerId)?.label ?? providerId;
+
   const handleLink = async (provider: 'google' | 'apple') => {
+    const label = getProviderLabel(provider);
     setActionLoading(provider);
     const { error } = await supabase.auth.linkIdentity({
       provider,
       options: { redirectTo: `${window.location.origin}/settings` },
     });
     if (error) {
-      // Provide context-specific error messages for common failure modes
       const msg = error.message.toLowerCase();
       if (msg.includes('already linked') || msg.includes('already associated')) {
-        toast.error(`This ${provider} account is already linked to a different Forged account. Each ${provider} account can only be connected to one account.`);
+        toast.error(`This ${label} account is already linked to a different Forged account. Each ${label} account can only be connected to one Forged account.`);
       } else if (msg.includes('manual linking') || msg.includes('disabled')) {
         toast.error('Account linking is currently disabled. Contact support if this persists.');
       } else {
@@ -86,7 +89,7 @@ export function LinkedAccounts() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success(`${identity.provider} account unlinked`);
+      toast.success(`${getProviderLabel(identity.provider)} account removed`);
       await loadIdentities();
     }
     setActionLoading(null);
