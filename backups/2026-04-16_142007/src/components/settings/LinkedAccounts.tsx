@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Link2, Unlink, Loader2, CheckCircle, Info } from 'lucide-react';
+import { Link2, Unlink, Loader2, CheckCircle } from 'lucide-react';
 
 type UserIdentity = {
   identity_id: string;
@@ -37,7 +37,6 @@ const OAUTH_PROVIDERS = [
 export function LinkedAccounts() {
   const [identities, setIdentities] = useState<UserIdentity[]>([]);
   const [hasPassword, setHasPassword] = useState(false);
-  const [primaryEmail, setPrimaryEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -46,7 +45,6 @@ export function LinkedAccounts() {
     if (user) {
       setIdentities((user.identities as UserIdentity[]) ?? []);
       setHasPassword(user.identities?.some(i => i.provider === 'email') ?? false);
-      setPrimaryEmail(user.email ?? '');
     }
     setLoading(false);
   }, []);
@@ -60,15 +58,7 @@ export function LinkedAccounts() {
       options: { redirectTo: `${window.location.origin}/settings` },
     });
     if (error) {
-      // Provide context-specific error messages for common failure modes
-      const msg = error.message.toLowerCase();
-      if (msg.includes('already linked') || msg.includes('already associated')) {
-        toast.error(`This ${provider} account is already linked to a different Forged account. Each ${provider} account can only be connected to one account.`);
-      } else if (msg.includes('manual linking') || msg.includes('disabled')) {
-        toast.error('Account linking is currently disabled. Contact support if this persists.');
-      } else {
-        toast.error(error.message);
-      }
+      toast.error(error.message);
       setActionLoading(null);
     }
     // success → browser redirects away; loading state clears on return
@@ -98,11 +88,6 @@ export function LinkedAccounts() {
     return <div className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 size={12} className="animate-spin" /> Loading…</div>;
   }
 
-  // Detect OAuth identities whose email differs from the primary account email
-  const mismatchedIdentities = identities.filter(
-    i => i.provider !== 'email' && i.identity_data?.email && i.identity_data.email !== primaryEmail
-  );
-
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
@@ -110,23 +95,8 @@ export function LinkedAccounts() {
         <span className="text-xs font-medium">Linked Accounts</span>
       </div>
       <p className="text-[10px] text-muted-foreground">
-        Link a social account so you can sign in with either method. Each social account can only be connected to one Forged account.
+        Link a social account so you can sign in with either method. Safe to have both.
       </p>
-
-      {mismatchedIdentities.length > 0 && (
-        <div className="flex items-start gap-2 bg-blue-500/10 border border-blue-500/20 px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
-          <Info size={12} className="text-blue-400 mt-0.5 shrink-0" />
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            {mismatchedIdentities.map(i => (
-              <span key={i.provider}>
-                Your <span className="text-foreground capitalize">{i.provider}</span> account uses{' '}
-                <span className="text-foreground">{i.identity_data?.email}</span>, which differs from your
-                primary email <span className="text-foreground">{primaryEmail}</span>. Both are valid sign-in paths.
-              </span>
-            ))}
-          </p>
-        </div>
-      )}
 
       <div className="space-y-2">
         {OAUTH_PROVIDERS.map(provider => {

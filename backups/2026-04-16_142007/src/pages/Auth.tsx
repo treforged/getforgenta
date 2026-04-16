@@ -55,14 +55,7 @@ export default function Auth() {
         provider,
         options: { redirectTo: `${window.location.origin}/dashboard` },
       });
-      if (error) {
-        const msg = error.message.toLowerCase();
-        if (msg.includes('already registered') || msg.includes('email already in use')) {
-          toast.error('An account already exists with this email. Sign in with your password or reset it using "Forgot password?".');
-        } else {
-          toast.error(error.message);
-        }
-      }
+      if (error) toast.error(error.message);
     } catch {
       toast.error('OAuth sign-in failed. Please try again.');
     } finally {
