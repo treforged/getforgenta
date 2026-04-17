@@ -406,9 +406,9 @@ export default function SavingsGoals() {
                   </p>
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => handleDuplicate(g)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
-                  <button onClick={() => openEdit(g)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDelete(g.id)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                  <button onClick={() => handleDuplicate(g)} className="text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
+                  <button onClick={() => openEdit(g)} className="text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+                  <button onClick={() => handleDelete(g.id)} className={`${deleteConfirm === g.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
                 </div>
               </div>
               <div className="flex items-end justify-between">

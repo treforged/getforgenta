@@ -754,10 +754,10 @@ export default function Transactions() {
                 <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success' : 'text-destructive') : t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
                   {isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? '+' : '') : (t.type === 'income' ? '+' : '-')}{isRecon && reconDelta !== undefined ? formatCurrency(reconDelta, false) : formatCurrency(Number(t.amount), false)}
                 </span>
-                {!isRecon && !isProjected && <button onClick={() => duplicateTransaction(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Duplicate"><Copy size={12} /></button>}
-                {!isRecon && !isProjected && <button onClick={() => handleEditClick(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>}
+                {!isRecon && !isProjected && <button onClick={() => duplicateTransaction(t)} className="text-muted-foreground hover:text-foreground" title="Duplicate"><Copy size={12} /></button>}
+                {!isRecon && !isProjected && <button onClick={() => handleEditClick(t)} className="text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>}
                 {!isRecon && !isProjected && !t.isGenerated && (
-                  <button onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
+                  <button onClick={() => handleDelete(t.id)} className={`${deleteConfirm === t.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
                 )}
               </div>
             </div>

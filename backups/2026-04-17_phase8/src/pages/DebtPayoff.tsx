@@ -226,8 +226,8 @@ export default function DebtPayoff() {
                     </div>
                     <div className="flex items-center gap-2">
                       <p className="text-lg font-display font-bold text-destructive">{formatCurrency(bal, false)}</p>
-                      <button onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                      <button onClick={() => openEdit(d)} className="text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+                      <button onClick={() => handleDelete(d.id)} className={`${deleteConfirm === d.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 gap-3 text-center">
