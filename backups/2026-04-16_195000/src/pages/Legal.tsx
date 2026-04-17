@@ -103,9 +103,9 @@ function PrivacyContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Introduction</h2>
         <p className="text-muted-foreground leading-relaxed">
-          TRE Forged LLC ("we", "us", "our") operates Forged, a personal finance management
+          TRE Forged LLC ("we", "us", "our") operates TRE Forged Budget OS, a personal finance management
           application accessible at app.treforged.com. This Privacy Policy explains how we collect, use, store,
-          and protect your information when you use our service. By using Forged you agree to the practices
+          and protect your information when you use our service. By using Budget OS you agree to the practices
           described in this policy.
         </p>
       </section>
@@ -129,7 +129,7 @@ function PrivacyContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">3. How We Use Your Information</h2>
         <ul className="list-disc list-inside space-y-1 text-muted-foreground leading-relaxed">
-          <li>To provide, operate, and maintain the Forged service</li>
+          <li>To provide, operate, and maintain the Budget OS service</li>
           <li>To authenticate your identity and protect your account</li>
           <li>To process payments and manage your subscription status</li>
           <li>To send transactional emails (account confirmation, billing receipts)</li>
@@ -204,7 +204,7 @@ function PrivacyContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">8. Security</h2>
         <p className="text-muted-foreground leading-relaxed">
-          All connections to Forged are encrypted via HTTPS. Authentication uses industry-standard JWT tokens
+          All connections to Budget OS are encrypted via HTTPS. Authentication uses industry-standard JWT tokens
           with expiration. We apply Row-Level Security at the database layer so each user's data is isolated.
           Sensitive operations (payments, subscription management) are handled by edge functions that validate
           authentication before processing any request. We do not log sensitive financial data or authentication
@@ -215,7 +215,7 @@ function PrivacyContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">9. Children's Privacy</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Forged is not intended for users under the age of 13. We do not knowingly collect
+          TRE Forged Budget OS is not intended for users under the age of 13. We do not knowingly collect
           personal information from children. If we become aware that a child under 13 has provided personal
           data, we will delete it promptly.
         </p>
@@ -252,7 +252,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Acceptance of Terms</h2>
         <p className="text-muted-foreground leading-relaxed">
-          By accessing or using Forged ("the Service"), provided by TRE Forged LLC
+          By accessing or using TRE Forged Budget OS ("Budget OS", "the Service"), provided by TRE Forged LLC
           ("Company", "we", "us"), you agree to be bound by these Terms of Service. If you do not agree to
           these terms, do not use the Service. We reserve the right to update these terms at any time with
           reasonable notice.
@@ -262,7 +262,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">2. Description of Service</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Forged is a personal finance management Software-as-a-Service (SaaS) application. It
+          TRE Forged Budget OS is a personal finance management Software-as-a-Service (SaaS) application. It
           provides tools for budget planning, transaction tracking, debt payoff planning, savings goal tracking,
           net worth monitoring, and cash flow forecasting. The Service is intended for personal, non-commercial
           use.
@@ -272,7 +272,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">3. Account Registration</h2>
         <p className="text-muted-foreground leading-relaxed">
-          To use Forged you must register with a valid email address and a password of at least 6 characters.
+          To use Budget OS you must register with a valid email address and a password of at least 6 characters.
           You are responsible for maintaining the confidentiality of your account credentials and for all
           activity that occurs under your account. You must provide accurate and complete information and keep
           your account information up to date. One account per person; creating multiple accounts to circumvent
@@ -314,7 +314,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">6. User Data and Privacy</h2>
         <p className="text-muted-foreground leading-relaxed">
-          You retain full ownership of all financial data you enter into Forged. TRE Forged LLC does not
+          You retain full ownership of all financial data you enter into Budget OS. TRE Forged LLC does not
           sell, rent, or share your personal or financial data with third parties for marketing purposes. Our
           data practices are described in full in our{' '}
           <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
@@ -339,7 +339,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">8. Disclaimer of Warranties</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Forged is a planning and tracking tool — it is <strong>not financial advice</strong>.
+          TRE Forged Budget OS is a planning and tracking tool — it is <strong>not financial advice</strong>.
           TRE Forged LLC is not a licensed financial advisor, broker, or investment manager. The projections,
           recommendations, and calculations provided are for informational purposes only. You are solely
           responsible for any financial decisions you make using the Service.
@@ -409,7 +409,7 @@ export default function Legal() {
         >
           <ArrowLeft size={12} /> Back
         </button>
-        <span className="font-display font-bold text-xs text-gold ml-auto tracking-tight">FORGED</span>
+        <span className="font-display font-bold text-xs text-gold ml-auto tracking-tight">TRE FORGED BUDGET OS</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row gap-8">
