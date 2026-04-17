@@ -16,7 +16,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
 
 const RATE_LIMIT = { windowMs: 60_000, max: 5 };
-const GEMINI_MODEL = "gemini-2.0-flash";  // Gemma 4-family via Gemini API
+const GEMINI_MODEL = "gemini-1.5-flash";  // Better free-tier quota than 2.0-flash
 
 interface FinancialSnapshot {
   monthlyIncome: number;
@@ -118,7 +118,6 @@ Return only valid JSON. No markdown. No preamble.`;
           generationConfig: {
             temperature: 0.4,
             maxOutputTokens: 1024,
-            responseMimeType: "application/json",
           },
         }),
       },
@@ -127,20 +126,22 @@ Return only valid JSON. No markdown. No preamble.`;
     if (!geminiRes.ok) {
       const errBody = await geminiRes.text();
       console.error("Gemini error:", errBody);
-      return new Response(JSON.stringify({ error: "AI service error" }), {
+      return new Response(JSON.stringify({ error: `Gemini ${geminiRes.status}: ${errBody.slice(0, 300)}` }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const geminiData = await geminiRes.json();
-    const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+    // Strip markdown fences if present (text mode can wrap in ```json ... ```)
+    const rawFull = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+    const rawText = rawFull.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
 
     let advice: Record<string, unknown>;
     try {
       advice = JSON.parse(rawText);
     } catch {
       console.error("Failed to parse Gemini JSON:", rawText);
-      return new Response(JSON.stringify({ error: "AI returned invalid response" }), {
+      return new Response(JSON.stringify({ error: `Parse failed: ${rawText.slice(0, 300)}` }), {
         status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
