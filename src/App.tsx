@@ -25,6 +25,7 @@ const Accounts = lazy(() => import("@/pages/Accounts"));
 const Legal = lazy(() => import("@/pages/Legal"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const AiAdvisor = lazy(() => import("@/pages/AiAdvisor"));
+const PlaidOAuth = lazy(() => import("@/pages/PlaidOAuth"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -78,6 +79,11 @@ function AppRoutes() {
       <Route path="/onboarding" element={
         <ProtectedRoute skipOnboardingCheck>
           <Suspense fallback={<PageLoader />}><Onboarding /></Suspense>
+        </ProtectedRoute>
+      } />
+      <Route path="/oauth" element={
+        <ProtectedRoute skipOnboardingCheck>
+          <Suspense fallback={<PageLoader />}><PlaidOAuth /></Suspense>
         </ProtectedRoute>
       } />
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
