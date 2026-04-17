@@ -21,7 +21,7 @@ import {
 import {
   Plus, ArrowUpRight, DollarSign, CreditCard,
   TrendingUp, PiggyBank, Landmark, Percent, Wallet, Repeat,
-  CalendarDays, AlertTriangle, Info, X, Car, Shield, Check,
+  CalendarDays, AlertTriangle, Info, X, Car, Shield,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -461,39 +461,6 @@ export default function Dashboard() {
             >
               <X size={13} />
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Setup checklist — shown only to new real users who haven't set things up yet */}
-      {!isDemo && accounts.length === 0 && debts.length === 0 && goals.length === 0 && (
-        <div className="card-forged p-4 border-primary/20 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-1.5 h-5 bg-primary rounded-full shrink-0" />
-            <p className="text-xs font-semibold">Get started — set up your financial profile</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {[
-              { label: 'Add your accounts', desc: 'Checking, savings, credit cards, and more', path: '/accounts', done: accounts.length > 0 },
-              { label: 'Set income in Budget Control', desc: 'Gross pay, deductions, and recurring expenses', path: '/budget', done: Boolean((profile as any)?.gross_income > 0) },
-              { label: 'Add savings goals', desc: 'Emergency fund, vacation, down payment', path: '/savings', done: goals.length > 0 },
-              { label: 'Track your debts', desc: 'Credit cards and loans for the payoff engine', path: '/debt', done: debts.length > 0 },
-            ].map(item => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-start gap-3 p-3 border transition-colors btn-press ${item.done ? 'border-success/30 bg-success/5 opacity-60' : 'border-border hover:border-primary/30 hover:bg-primary/5'}`}
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${item.done ? 'bg-success border-success' : 'border-muted-foreground'}`}>
-                  {item.done && <Check size={9} className="text-white" />}
-                </div>
-                <div>
-                  <p className="text-xs font-medium">{item.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{item.desc}</p>
-                </div>
-              </Link>
-            ))}
           </div>
         </div>
       )}
