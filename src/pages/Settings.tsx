@@ -200,7 +200,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE' || deleteOtp.length < 6) return;
+    if (deleteConfirmText !== 'DELETE' || deleteOtp.length < 6 || deleteOtp.length > 8) return;
     setDeleteLoading(true);
     try {
       // Verify the reauthentication OTP before deletion
@@ -703,10 +703,10 @@ export default function SettingsPage() {
               <input
                 type="text"
                 inputMode="numeric"
-                maxLength={6}
+                maxLength={8}
                 value={deleteOtp}
                 onChange={e => setDeleteOtp(e.target.value.replace(/\D/g, ''))}
-                placeholder="6-digit code from your email"
+                placeholder="Code from your email"
                 className="w-full bg-secondary border border-destructive/30 px-3 py-2 text-xs text-foreground text-center tracking-widest focus:outline-none focus:ring-1 focus:ring-destructive"
                 style={{ borderRadius: 'var(--radius)' }}
                 autoFocus
@@ -715,7 +715,7 @@ export default function SettingsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={handleDeleteAccount}
-                  disabled={deleteOtp.length < 6 || deleteLoading}
+                  disabled={deleteOtp.length < 6 || deleteLoading || deleteOtp.length > 8}
                   className="flex items-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
