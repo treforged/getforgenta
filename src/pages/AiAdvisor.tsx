@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTransactions, useDebts, useSavingsGoals, useAccounts, useRecurringRules } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions } from '@/lib/pay-schedule';
@@ -10,7 +10,7 @@ import { categorizeExpenses } from '@/lib/expense-filtering';
 import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Loader2,
-  Send, RefreshCw, ChevronRight,
+  Send, RefreshCw, ChevronRight, Clock,
 } from 'lucide-react';
 
 interface Insight {
@@ -25,6 +25,15 @@ interface AdviceResult {
   scoreLabel: string;
   insights: Insight[];
   nextMove: string;
+  usedToday?: number;
+  limitPerDay?: number;
+}
+
+interface HistoryItem {
+  id: string;
+  question: string | null;
+  result: AdviceResult;
+  created_at: string;
 }
 
 const QUICK_QUESTIONS = [
@@ -85,6 +94,38 @@ function InsightCard({ insight }: { insight: Insight }) {
   );
 }
 
+function HistoryCard({ item }: { item: HistoryItem }) {
+  const [open, setOpen] = useState(false);
+  const label = item.question || 'General analysis';
+  const ts = new Date(item.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+  return (
+    <div className="border border-border/50 bg-secondary/30" style={{ borderRadius: 'var(--radius)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-3 py-2.5 text-left"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <Clock size={11} className="text-muted-foreground shrink-0" />
+          <span className="text-[11px] text-foreground truncate">{label}</span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          <span className="text-[10px] text-muted-foreground">{ts}</span>
+          <ChevronRight size={12} className={`text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
+        </div>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-2 border-t border-border/30 pt-2">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">{item.result.summary}</p>
+          {item.result.nextMove && (
+            <p className="text-[11px] font-medium text-primary">{item.result.nextMove}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AiAdvisor() {
   const { user, isDemo } = useAuth();
   const { isPremium } = useSubscription();
@@ -94,7 +135,6 @@ export default function AiAdvisor() {
   const { data: goals = [] } = useSavingsGoals();
   const { data: accounts = [] } = useAccounts();
 
-  // Mirror Transactions.tsx: merge actual + generated transactions from recurring rules
   const allTxns = useMemo(
     () => mergeWithGeneratedTransactions(rawTxns, rules, accounts),
     [rawTxns, rules, accounts],
@@ -104,14 +144,32 @@ export default function AiAdvisor() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AdviceResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [usedToday, setUsedToday] = useState(0);
+  const DAILY_LIMIT = 10;
 
-  // Build financial snapshot from live data
+  // Load history on mount
+  useEffect(() => {
+    if (!user || isDemo) return;
+    (supabase as any)
+      .from('ai_advisor_history')
+      .select('id, question, result, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+      .then(({ data }: { data: HistoryItem[] | null }) => {
+        if (!data) return;
+        setHistory(data);
+        const todayStr = new Date().toDateString();
+        setUsedToday(data.filter(h => new Date(h.created_at).toDateString() === todayStr).length);
+      });
+  }, [user, isDemo]);
+
   const snapshot = useMemo(() => {
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const thisMonth = allTxns.filter((t: any) => t.date?.startsWith(currentMonthStr));
 
-    // Mirror Transactions.tsx totals exactly: exclude Balance Adjustment, no category filter on expenses
     const monthlyIncome = thisMonth
       .filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment')
       .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
@@ -121,7 +179,6 @@ export default function AiAdvisor() {
       .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
     const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance ?? 0), 0);
-
     const savingsBalance = goals.reduce((s: number, g: any) => s + Number(g.current_amount ?? 0), 0);
 
     const active = accounts.filter((a: any) => a.active);
@@ -152,25 +209,37 @@ export default function AiAdvisor() {
   }, [allTxns, debts, goals, accounts]);
 
   const hasData = snapshot.monthlyIncome > 0 || snapshot.cashOnHand > 0 || snapshot.totalDebt > 0;
+  const atLimit = usedToday >= DAILY_LIMIT;
 
   const handleAsk = async (q?: string) => {
     const finalQ = q ?? question.trim();
+    if (atLimit) {
+      setError(`You've used all ${DAILY_LIMIT} questions for today. Resets at midnight.`);
+      return;
+    }
     setLoading(true);
     setError(null);
     setResult(null);
 
     try {
-      const { data, error: fnErr } = await tracedInvoke<any>(supabase, 'ai-advisor', {
+      const { data, error: fnErr } = await tracedInvoke<AdviceResult>(supabase, 'ai-advisor', {
         body: { ...snapshot, question: finalQ || undefined },
       });
       if (fnErr) throw new Error(fnErr.message);
-      // Diagnostic mode: surface raw Gemini response
-      if ((data as any)?.__diag) {
-        setError(`DIAG gemini_status=${(data as any).gemini_status} body=${JSON.stringify((data as any).gemini_body)}`);
-        return;
-      }
-      setResult(data as AdviceResult);
+      const advice = data as AdviceResult;
+      setResult(advice);
       if (!q) setQuestion('');
+
+      // Update local state from server counts
+      if (typeof advice.usedToday === 'number') setUsedToday(advice.usedToday);
+
+      // Optimistically prepend to history
+      setHistory(prev => [{
+        id: crypto.randomUUID(),
+        question: finalQ || null,
+        result: advice,
+        created_at: new Date().toISOString(),
+      }, ...prev].slice(0, 10));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong. Try again.');
     } finally {
@@ -198,13 +267,27 @@ export default function AiAdvisor() {
 
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-2">
-        <Sparkles size={18} className="text-primary" />
-        <h1 className="font-display font-bold text-2xl tracking-tight">AI Advisor</h1>
-        <span className="text-[10px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium ml-1" style={{ borderRadius: 'var(--radius)' }}>
-          Powered by Gemini
-        </span>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Sparkles size={18} className="text-primary" />
+          <h1 className="font-display font-bold text-2xl tracking-tight">AI Advisor</h1>
+          <span className="text-[10px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium ml-1" style={{ borderRadius: 'var(--radius)' }}>
+            Powered by Gemini
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="flex gap-0.5">
+            {Array.from({ length: DAILY_LIMIT }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 w-3 rounded-full transition-colors ${i < usedToday ? 'bg-primary' : 'bg-border'}`}
+              />
+            ))}
+          </div>
+          <span className="text-[10px] text-muted-foreground">{usedToday}/{DAILY_LIMIT} today</span>
+        </div>
       </div>
+
       <p className="text-sm text-muted-foreground -mt-2">
         Personalized advice based on your live financial data &bull; {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
       </p>
@@ -241,7 +324,8 @@ export default function AiAdvisor() {
               <button
                 key={q}
                 onClick={() => handleAsk(q)}
-                className="text-[11px] px-3 py-1.5 bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press"
+                disabled={atLimit}
+                className="text-[11px] px-3 py-1.5 bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 {q}
@@ -257,15 +341,15 @@ export default function AiAdvisor() {
           type="text"
           value={question}
           onChange={e => setQuestion(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && question.trim()) handleAsk(); }}
-          placeholder="Ask anything about your finances…"
-          className="flex-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors"
+          onKeyDown={e => { if (e.key === 'Enter' && question.trim() && !atLimit) handleAsk(); }}
+          placeholder={atLimit ? 'Daily limit reached — resets at midnight' : 'Ask anything about your finances…'}
+          className="flex-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50"
           style={{ borderRadius: 'var(--radius)' }}
-          disabled={loading}
+          disabled={loading || atLimit}
         />
         <button
           onClick={() => question.trim() ? handleAsk() : handleAsk('')}
-          disabled={loading}
+          disabled={loading || atLimit}
           className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors disabled:opacity-50"
           style={{ borderRadius: 'var(--radius)' }}
         >
@@ -287,7 +371,6 @@ export default function AiAdvisor() {
       {/* Results */}
       {result && (
         <div className="space-y-4">
-          {/* Score + summary */}
           <div className="card-forged p-5 flex flex-col sm:flex-row items-center gap-5">
             <div className="relative flex flex-col items-center">
               <ScoreRing score={result.score} label={result.scoreLabel} />
@@ -298,7 +381,6 @@ export default function AiAdvisor() {
             </div>
           </div>
 
-          {/* Next move */}
           <div className="flex gap-3 p-4 bg-primary/8 border border-primary/20" style={{ borderRadius: 'var(--radius)' }}>
             <TrendingUp size={16} className="text-primary shrink-0 mt-0.5" />
             <div>
@@ -307,7 +389,6 @@ export default function AiAdvisor() {
             </div>
           </div>
 
-          {/* Insights */}
           {result.insights?.length > 0 && (
             <div className="space-y-2">
               {result.insights.map((ins, i) => (
@@ -316,13 +397,24 @@ export default function AiAdvisor() {
             </div>
           )}
 
-          {/* Re-ask */}
           <button
             onClick={() => { setResult(null); setQuestion(''); }}
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors btn-press"
           >
             <RefreshCw size={12} /> Ask another question
           </button>
+        </div>
+      )}
+
+      {/* History */}
+      {history.length > 0 && (
+        <div>
+          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">Recent Questions</p>
+          <div className="space-y-1.5">
+            {history.map(item => (
+              <HistoryCard key={item.id} item={item} />
+            ))}
+          </div>
         </div>
       )}
     </div>
