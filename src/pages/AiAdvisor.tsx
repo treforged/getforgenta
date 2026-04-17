@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTransactions, useDebts, useSavingsGoals, useAccounts } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useAccounts, useRecurringRules } from '@/hooks/useSupabaseData';
+import { mergeWithGeneratedTransactions } from '@/lib/pay-schedule';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/lib/supabase';
 import { tracedInvoke } from '@/lib/tracer';
@@ -87,10 +88,17 @@ function InsightCard({ insight }: { insight: Insight }) {
 export default function AiAdvisor() {
   const { user, isDemo } = useAuth();
   const { isPremium } = useSubscription();
-  const { data: allTxns = [] } = useTransactions();
+  const { data: rawTxns = [] } = useTransactions();
+  const { data: rules = [] } = useRecurringRules();
   const { data: debts = [] } = useDebts();
   const { data: goals = [] } = useSavingsGoals();
   const { data: accounts = [] } = useAccounts();
+
+  // Mirror Transactions.tsx: merge actual + generated transactions from recurring rules
+  const allTxns = useMemo(
+    () => mergeWithGeneratedTransactions(rawTxns, rules, accounts),
+    [rawTxns, rules, accounts],
+  );
 
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
