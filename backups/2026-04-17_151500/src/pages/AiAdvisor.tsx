@@ -331,45 +331,7 @@ export default function AiAdvisor() {
     }
   };
 
-  if (isDemo) {
-    return (
-      <div className="p-4 lg:p-8 max-w-3xl mx-auto">
-        <div className="flex items-center gap-2 mb-6">
-          <Sparkles size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-2xl tracking-tight">AI Advisor</h1>
-        </div>
-        <div className="border border-border/60 bg-secondary/30 p-8 text-center space-y-4" style={{ borderRadius: 'var(--radius)' }}>
-          <div className="w-12 h-12 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto">
-            <Sparkles size={22} className="text-primary" />
-          </div>
-          <div className="space-y-1.5">
-            <h2 className="font-display font-bold text-lg tracking-tight">AI Advisor is a Premium Feature</h2>
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-              Create a free account and upgrade to Forged Premium to get your personalized financial health score and ask unlimited money questions.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-            <a
-              href="/auth"
-              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-2.5 text-sm font-semibold transition-colors hover:bg-primary/90"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Create Free Account
-            </a>
-            <a
-              href="/auth"
-              className="inline-flex items-center justify-center gap-2 border border-border px-6 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Sign In
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isPremium) {
+  if (!isPremium && !isDemo) {
     return (
       <div className="p-4 lg:p-8 max-w-3xl mx-auto">
         <div className="flex items-center gap-2 mb-6">
