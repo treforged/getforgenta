@@ -90,27 +90,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Accept optional redirect_uri from client (required for OAuth banks in production)
-    let bodyJson: Record<string, unknown> = {};
-    try { bodyJson = await req.clone().json(); } catch { /* no body */ }
-    const redirectUri = typeof bodyJson.redirect_uri === "string" ? bodyJson.redirect_uri : undefined;
-
     // 4.5 — Create link token with only transactions + balance products
-    const linkTokenBody: Record<string, unknown> = {
-      client_id: PLAID_CLIENT_ID,
-      secret:    PLAID_SECRET,
-      client_name: "Forged",
-      country_codes: ["US"],
-      language: "en",
-      user: { client_user_id: userId },
-      products: ["transactions"],
-    };
-    if (redirectUri) linkTokenBody.redirect_uri = redirectUri;
-
     const res = await fetch(`${plaidBase}/link/token/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(linkTokenBody),
+      body: JSON.stringify({
+        client_id: PLAID_CLIENT_ID,
+        secret:    PLAID_SECRET,
+        client_name: "TRE Forged Budget OS",
+        country_codes: ["US"],
+        language: "en",
+        user: { client_user_id: userId },
+        products: ["transactions"],
+      }),
     });
     const body = await res.json();
     if (!res.ok) {
