@@ -16,8 +16,6 @@ import { toast } from 'sonner';
 
 const PLAID_SCRIPT_SRC = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-const LINK_TOKEN_KEY = 'forged:plaid_link_token';
-const OAUTH_REDIRECT_URI = `${window.location.origin}/oauth`;
 
 async function loadPlaidScript(): Promise<void> {
   if (typeof window !== 'undefined' && (window as any).Plaid) return;
@@ -65,22 +63,17 @@ export default function PlaidLinkButton({ onSuccess, disabled }: PlaidLinkButton
       const tokenRes = await fetch(`${FN_BASE}/plaid-create-link-token`, {
         method: 'POST',
         headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ redirect_uri: OAUTH_REDIRECT_URI }),
       });
       const tokenBody = await tokenRes.json();
       if (!tokenRes.ok) throw new Error(tokenBody.error ?? 'Failed to create link token');
 
       const { link_token } = tokenBody;
 
-      // Store link token for OAuth redirect flow
-      localStorage.setItem(LINK_TOKEN_KEY, link_token);
-
       // Open Plaid Link
       const handler = (window as any).Plaid.create({
         token: link_token,
         onSuccess: async (public_token: string, metadata: any) => {
           try {
-            localStorage.removeItem(LINK_TOKEN_KEY);
             const institution = metadata?.institution ?? {};
             const exchangeRes = await fetch(`${FN_BASE}/plaid-exchange-token`, {
               method: 'POST',
@@ -110,7 +103,6 @@ export default function PlaidLinkButton({ onSuccess, disabled }: PlaidLinkButton
           }
         },
         onExit: (err: any) => {
-          localStorage.removeItem(LINK_TOKEN_KEY);
           if (err) console.warn('Plaid Link exited with error:', err);
           setLoading(false);
         },
