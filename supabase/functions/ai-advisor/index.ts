@@ -16,7 +16,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
 
 const RATE_LIMIT = { windowMs: 60_000, max: 5 };
-const GEMINI_MODEL = "gemini-1.5-flash";  // Better free-tier quota than 2.0-flash
+const GEMINI_MODEL = "gemini-2.5-flash";  // Stable free-tier model with quota
 
 interface FinancialSnapshot {
   monthlyIncome: number;
@@ -109,7 +109,7 @@ Respond in this exact JSON structure:
 Return only valid JSON. No markdown. No preamble.`;
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -123,30 +123,14 @@ Return only valid JSON. No markdown. No preamble.`;
       },
     );
 
-    if (!geminiRes.ok) {
-      const errBody = await geminiRes.text();
-      console.error("Gemini error:", errBody);
-      return new Response(JSON.stringify({ error: `Gemini ${geminiRes.status}: ${errBody.slice(0, 300)}` }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const geminiData = await geminiRes.json();
-    // Strip markdown fences if present (text mode can wrap in ```json ... ```)
-    const rawFull = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
-    const rawText = rawFull.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/, "").trim();
-
-    let advice: Record<string, unknown>;
-    try {
-      advice = JSON.parse(rawText);
-    } catch {
-      console.error("Failed to parse Gemini JSON:", rawText);
-      return new Response(JSON.stringify({ error: `Parse failed: ${rawText.slice(0, 300)}` }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify(advice), {
+    // DIAGNOSTIC: return raw Gemini response regardless of status
+    const geminiRawText = await geminiRes.text();
+    return new Response(JSON.stringify({
+      __diag: true,
+      gemini_status: geminiRes.status,
+      gemini_ok: geminiRes.ok,
+      gemini_body: geminiRawText.slice(0, 1000),
+    }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
