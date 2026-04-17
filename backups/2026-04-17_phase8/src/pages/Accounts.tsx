@@ -348,11 +348,11 @@ export default function Accounts() {
                       <Unlink size={14} />
                     </button>
                   )}
-                  <button onClick={() => toggleActive(a)} className="icon-btn text-muted-foreground hover:text-foreground" title={a.active ? 'Deactivate' : 'Activate'}>
+                  <button onClick={() => toggleActive(a)} className="text-muted-foreground hover:text-foreground" title={a.active ? 'Deactivate' : 'Activate'}>
                     {a.active ? <Eye size={14} /> : <EyeOff size={14} />}
                   </button>
-                  <button onClick={() => openEdit(a)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDelete(a.id)} className={`icon-btn ${deleteConfirm === a.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                  <button onClick={() => openEdit(a)} className="text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+                  <button onClick={() => handleDelete(a.id)} className={`${deleteConfirm === a.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
                 </div>
               </div>
               {a.notes && <p className="text-[10px] text-muted-foreground mt-2 ml-12">{a.notes}</p>}

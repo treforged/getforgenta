@@ -678,10 +678,10 @@ export default function BudgetControl() {
         <span className="text-[10px] text-muted-foreground">/mo {formatCurrency(toMonthly(r), false)}</span>
         {!r.isSub && !r.isDebtSync && (
           <>
-            <button onClick={() => handleDuplicate(r)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={11} /></button>
-            <button onClick={() => toggleActive(r)} className="icon-btn text-muted-foreground hover:text-foreground">{r.active ? <Pause size={11} /> : <Play size={11} />}</button>
-            <button onClick={() => openEdit(r)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
-            <button onClick={() => handleDelete(r.id)} className={`icon-btn ${deleteConfirm === r.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={11} /></button>
+            <button onClick={() => handleDuplicate(r)} className="p-1 text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={11} /></button>
+            <button onClick={() => toggleActive(r)} className="p-1 text-muted-foreground hover:text-foreground">{r.active ? <Pause size={11} /> : <Play size={11} />}</button>
+            <button onClick={() => openEdit(r)} className="p-1 text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
+            <button onClick={() => handleDelete(r.id)} className={`p-1 ${deleteConfirm === r.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={11} /></button>
           </>
         )}
       </div>

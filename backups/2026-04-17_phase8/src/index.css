@@ -89,10 +89,6 @@
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
-  /* Eliminate 300ms tap delay on all interactive elements */
-  button, a, select, input, textarea, [role="button"], [role="tab"], [role="switch"] {
-    touch-action: manipulation;
-  }
 }
 
 @layer utilities {
@@ -114,9 +110,5 @@
   }
   .safe-area-pb {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-  }
-  /* 44px minimum tap target for icon-only buttons */
-  .icon-btn {
-    @apply flex items-center justify-center min-h-[44px] min-w-[44px];
   }
 }

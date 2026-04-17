@@ -376,8 +376,8 @@ export default function NetWorth() {
                     <span className="font-bold font-display text-success">{formatCurrency(Number(a.value), false)}</span>
                     {!(a as any).isLive && (
                       <>
-                        <button onClick={() => openEditAsset(a)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={12} /></button>
-                        <button onClick={() => handleDelete(a.id, 'asset')} className={`icon-btn ${deleteConfirm === a.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
+                        <button onClick={() => openEditAsset(a)} className="p-1 text-muted-foreground hover:text-foreground"><Edit2 size={12} /></button>
+                        <button onClick={() => handleDelete(a.id, 'asset')} className={`p-1 ${deleteConfirm === a.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
                       </>
                     )}
                   </div>
@@ -420,8 +420,8 @@ export default function NetWorth() {
                     <span className="font-bold font-display text-destructive">{formatCurrency(Number(l.balance), false)}</span>
                     {!(l as any).isLive && (
                       <>
-                        <button onClick={() => openEditLiability(l)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={12} /></button>
-                        <button onClick={() => handleDelete(l.id, 'liability')} className={`icon-btn ${deleteConfirm === l.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
+                        <button onClick={() => openEditLiability(l)} className="p-1 text-muted-foreground hover:text-foreground"><Edit2 size={12} /></button>
+                        <button onClick={() => handleDelete(l.id, 'liability')} className={`p-1 ${deleteConfirm === l.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
                       </>
                     )}
                   </div>
