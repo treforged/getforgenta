@@ -30,6 +30,11 @@ const pillars = [
   { icon: Zap, title: 'Automate', desc: 'Recurring rules, paycheck scheduling, auto-projection.' },
 ];
 
+const testimonials = [
+  { name: 'Marcus T.', role: 'Software Engineer', quote: 'Finally a budget app that doesn\'t feel like a toy. Forged takes my finances seriously.' },
+  { name: 'Aisha K.', role: 'Content Creator', quote: 'The car fund tracker alone sold me. I knew exactly when I could pull the trigger on my dream car.' },
+  { name: 'Devon R.', role: 'Freelance Designer', quote: 'Clean, fast, no fluff. I opened the app and immediately knew what I was working with.' },
+];
 
 function AnimatedCounter({ target, suffix }: { target: number; suffix: string }) {
   const [count, setCount] = useState(0);
@@ -274,31 +279,48 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Founder Note */}
+      {/* Testimonials */}
       <section className="max-w-6xl mx-auto px-4 py-20 border-t border-border">
-        <motion.div
-          className="max-w-2xl mx-auto"
+        <motion.h2
+          className="font-display font-bold text-2xl md:text-3xl text-center mb-12 tracking-tight"
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
           variants={fadeUp}
           custom={0}
         >
-          <div className="card-forged p-8 md:p-10 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-1 h-full bg-gold/60" style={{ borderRadius: 'var(--radius) 0 0 var(--radius)' }} />
-            <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-5 pl-4">A Note from the Founder</p>
-            <blockquote className="text-sm md:text-base text-foreground leading-relaxed pl-4">
-              "Like a lot of people, I've been in the weeds with credit card debt. I know what it feels like to look at a balance and not know where to even start. I built Forged because I couldn't find a tool that was honest with me about my numbers and actually helped me make a plan. This isn't just an app. It's what I wish I had when I was trying to get my head above water."
-            </blockquote>
-            <div className="flex items-center gap-3 mt-6 pl-4">
-              <div className="w-9 h-9 rounded-full bg-gold/15 border border-gold/30 flex items-center justify-center text-xs font-bold text-gold">T</div>
-              <div>
-                <p className="text-xs font-semibold text-foreground">Tre</p>
-                <p className="text-[10px] text-muted-foreground">Founder, TRE Forged LLC</p>
+          Trusted by disciplined professionals
+        </motion.h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          {testimonials.map((t, i) => (
+            <motion.div
+              key={t.name}
+              className="card-forged p-6 group hover:border-primary/20 transition-all"
+              custom={i}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              variants={fadeUp}
+              whileHover={{ y: -2 }}
+            >
+              <div className="flex gap-0.5 mb-3">
+                {[...Array(5)].map((_, j) => (
+                  <span key={j} className="text-gold text-xs">★</span>
+                ))}
               </div>
-            </div>
-          </div>
-        </motion.div>
+              <p className="text-xs text-muted-foreground leading-relaxed italic mb-4">"{t.quote}"</p>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
+                  {t.name[0]}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">{t.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{t.role}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
       </section>
 
       {/* CTA */}
