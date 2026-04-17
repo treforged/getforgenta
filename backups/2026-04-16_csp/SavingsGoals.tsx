@@ -5,9 +5,10 @@ import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts } from '@/hooks/useSupabaseData';
 import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal from '@/components/shared/FormModal';
+import PremiumGate from '@/components/shared/PremiumGate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Copy, Link2, Info, X } from 'lucide-react';
 import { getCurrentMonthDebtRecommendations } from '@/lib/credit-card-engine';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -322,17 +323,31 @@ export default function SavingsGoals() {
           <p className="text-xs text-muted-foreground mt-0.5">Build your financial runway</p>
         </div>
         <div className="flex gap-2 shrink-0">
-          {(isPremium || isDemo || goals.length < 3) ? (
+          {/* Regular goals — free up to 3 */}
+          <PremiumGate
+            isPremium={isPremium || isDemo || goals.length < 3}
+            title="Unlimited savings goals"
+            features={[
+              'Emergency fund, vacation, down payment, and more',
+              'Link to a real account for automatic balance sync',
+              'Growth chart projecting all goals over 12 months',
+            ]}
+          >
             <button onClick={() => openAdd('Custom')} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add Goal</button>
-          ) : (
-            <Link to="/premium" className="flex items-center gap-1.5 bg-primary/20 text-primary px-3 py-1.5 text-xs font-medium btn-press hover:bg-primary/30 transition-colors" style={{ borderRadius: 'var(--radius)' }}><Crown size={12} /> Add Goal</Link>
-          )}
+          </PremiumGate>
 
-          {(isPremium || isDemo) ? (
+          {/* Car Fund — always premium */}
+          <PremiumGate
+            isPremium={isPremium || isDemo}
+            title="Car Fund Tracker Pro"
+            features={[
+              'Full affordability model: down payment + loan APR + insurance',
+              'Estimated monthly loan payment after purchase',
+              'Syncs with Forecast — savings don\'t compete with debt payoff',
+            ]}
+          >
             <button onClick={() => openAdd('Car Fund')} className="flex items-center gap-1.5 border border-border text-foreground px-3 py-1.5 text-xs font-medium btn-press hover:bg-muted/30" style={{ borderRadius: 'var(--radius)' }}><Car size={12} /> Car Fund</button>
-          ) : (
-            <Link to="/premium" className="flex items-center gap-1.5 border border-primary/30 text-primary/70 px-3 py-1.5 text-xs font-medium btn-press hover:bg-primary/5 transition-colors" style={{ borderRadius: 'var(--radius)' }}><Crown size={12} /> Car Fund</Link>
-          )}
+          </PremiumGate>
         </div>
       </div>
 
