@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import PremiumGate from '@/components/shared/PremiumGate';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES];
 
@@ -596,7 +597,15 @@ export default function Transactions() {
           ]} />
         </div>
         <div className="flex items-center gap-2">
-          {(isPremium || isDemo) ? (
+          <PremiumGate
+            isPremium={isPremium || isDemo}
+            title="Export to CSV"
+            features={[
+              'Download the current filtered view as a spreadsheet',
+              'Date, type, amount, category, note, and payment source',
+              'Import into Excel, Google Sheets, or your accountant\'s tool',
+            ]}
+          >
             <button
               onClick={() => {
                 const filename = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -607,17 +616,11 @@ export default function Transactions() {
             >
               <Download size={12} /> Export
             </button>
-          ) : (
-            <Link to="/premium" className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium text-primary/70 hover:text-primary hover:border-primary/40 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
-              <Crown size={12} /> Export
-            </Link>
-          )}
+          </PremiumGate>
 
-          {(isPremium || isDemo) ? (
+          <PremiumGate isPremium={isPremium || isDemo} message="Upgrade to add one-time transactions">
             <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}><Plus size={12} /> Add</button>
-          ) : (
-            <Link to="/premium" className="flex items-center gap-1.5 bg-primary/20 text-primary px-3 py-1.5 text-xs font-medium btn-press hover:bg-primary/30 transition-colors" style={{ borderRadius: 'var(--radius)' }}><Crown size={12} /> Add</Link>
-          )}
+          </PremiumGate>
         </div>
       </div>
 

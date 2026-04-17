@@ -6,9 +6,10 @@ import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, 
 import FormModal from '@/components/shared/FormModal';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
+import PremiumGate from '@/components/shared/PremiumGate';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/contexts/AuthContext';
-import { Plus, Edit2, Trash2, CreditCard, Landmark, Crown } from 'lucide-react';
+import { Plus, Edit2, Trash2, CreditCard, Landmark } from 'lucide-react';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -129,15 +130,19 @@ export default function DebtPayoff() {
           ]} />
         </div>
         {activeTab === 'other' && (
-          (isPremium || isDemo || otherDebts.length < 3) ? (
+          <PremiumGate
+            isPremium={isPremium || isDemo || otherDebts.length < 3}
+            title="Unlimited debt tracking"
+            features={[
+              'Track every loan — student, auto, medical, personal',
+              'Snowball & avalanche simulations across all debts',
+              'Exact payoff dates and total interest per debt',
+            ]}
+          >
             <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0" style={{ borderRadius: 'var(--radius)' }}>
               <Plus size={12} /> Add Debt
             </button>
-          ) : (
-            <Link to="/premium" className="flex items-center gap-1.5 bg-primary/20 text-primary px-3 py-1.5 text-xs font-medium btn-press hover:bg-primary/30 transition-colors shrink-0" style={{ borderRadius: 'var(--radius)' }}>
-              <Crown size={12} /> Add Debt
-            </Link>
-          )
+          </PremiumGate>
         )}
       </div>
 
