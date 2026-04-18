@@ -437,55 +437,17 @@ export default function AiAdvisor() {
 
   if (!isPremium) {
     return (
-      <div className="flex flex-col h-[calc(100dvh-56px)] lg:h-screen">
-        {/* header */}
-        <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
+      <div className="p-4 lg:p-8 max-w-3xl mx-auto">
+        <div className="flex items-center gap-2 mb-6">
           <Sparkles size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-xl tracking-tight">AI Advisor</h1>
+          <h1 className="font-display font-bold text-2xl tracking-tight">AI Advisor</h1>
         </div>
         <PremiumGate
           title="AI Budget Advisor"
           features={['Financial health score (1–100)', 'Spending pattern analysis', 'Ask any money question']}
           isPremium={false}
-          className="flex-1 min-h-0"
         >
-          {/* mock chat — blurred as preview */}
-          <div className="flex flex-col h-full p-4 gap-3 overflow-hidden">
-            {/* mock AI message */}
-            <div className="flex gap-2 items-start">
-              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <Sparkles size={12} className="text-primary" />
-              </div>
-              <div className="card-forged p-3 max-w-[80%] text-xs text-foreground leading-relaxed">
-                Your financial health score is <span className="text-primary font-bold">74/100</span>. You're covering essentials well, but your discretionary spend is 12% above your 3-month average.
-              </div>
-            </div>
-            {/* mock user message */}
-            <div className="flex gap-2 items-start justify-end">
-              <div className="bg-primary/10 border border-primary/20 p-3 max-w-[75%] text-xs text-foreground leading-relaxed" style={{ borderRadius: 'var(--radius)' }}>
-                How can I improve my score?
-              </div>
-              <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
-                <User size={12} className="text-muted-foreground" />
-              </div>
-            </div>
-            {/* mock AI follow-up */}
-            <div className="flex gap-2 items-start">
-              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <Sparkles size={12} className="text-primary" />
-              </div>
-              <div className="card-forged p-3 max-w-[80%] text-xs text-foreground leading-relaxed">
-                Three quick wins: <span className="text-primary font-semibold">reduce dining out by $120</span>, redirect that to your emergency fund, and set your Chase card to auto-pay minimum to avoid late fees.
-              </div>
-            </div>
-            {/* mock input bar */}
-            <div className="mt-auto flex gap-2 items-center border border-border bg-card px-3 py-2" style={{ borderRadius: 'var(--radius)' }}>
-              <span className="flex-1 text-xs text-muted-foreground">Ask about your finances…</span>
-              <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                <Send size={10} className="text-primary" />
-              </div>
-            </div>
-          </div>
+          <div />
         </PremiumGate>
       </div>
     );
