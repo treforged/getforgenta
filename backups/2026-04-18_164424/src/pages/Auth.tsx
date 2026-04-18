@@ -4,14 +4,6 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 
-const PASSKEY_CRED_KEY   = 'forged:signin_passkey';
-const PASSKEY_TOKENS_KEY = 'forged:signin_passkey_tokens';
-
-function b64urlToBytes(b64url: string): Uint8Array {
-  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
-  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-}
-
 type Mode = 'login' | 'signup' | 'reset' | 'set-password' | 'mfa';
 
 export default function Auth() {
@@ -24,10 +16,6 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const [hasSigninPasskey, setHasSigninPasskey] = useState(() => {
-    try { return !!(window.PublicKeyCredential && localStorage.getItem(PASSKEY_CRED_KEY)); }
-    catch { return false; }
-  });
 
   // MFA challenge state
   const [mfaFactorId, setMfaFactorId] = useState('');
@@ -79,53 +67,6 @@ export default function Auth() {
       }
     } catch {
       toast.error('OAuth sign-in failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePasskeySignIn = async () => {
-    setLoading(true);
-    try {
-      const raw = localStorage.getItem(PASSKEY_CRED_KEY);
-      if (!raw) throw new Error('No passkey registered');
-      const { credId } = JSON.parse(raw) as { credId: string; email: string };
-      const credIdBytes = b64urlToBytes(credId).buffer as ArrayBuffer;
-
-      const challenge = crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer;
-      await navigator.credentials.get({
-        publicKey: {
-          challenge,
-          rpId: window.location.hostname,
-          allowCredentials: [{ type: 'public-key', id: credIdBytes }],
-          userVerification: 'required',
-          timeout: 60000,
-        },
-      });
-
-      const tokensRaw = localStorage.getItem(PASSKEY_TOKENS_KEY);
-      if (!tokensRaw) throw new Error('Session tokens missing. Sign in with your password once to re-link your passkey.');
-      const { refresh_token } = JSON.parse(tokensRaw) as { access_token: string; refresh_token: string };
-
-      const { data, error } = await supabase.auth.refreshSession({ refresh_token });
-      if (error || !data.session) {
-        localStorage.removeItem(PASSKEY_TOKENS_KEY);
-        throw new Error('Session expired. Sign in with your password once to refresh your passkey.');
-      }
-
-      localStorage.setItem(PASSKEY_TOKENS_KEY, JSON.stringify({
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-      }));
-
-      toast.success('Signed in with passkey');
-      navigate('/dashboard');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      const lower = msg.toLowerCase();
-      if (!lower.includes('cancel') && !lower.includes('abort') && !lower.includes('not allowed')) {
-        toast.error(msg || 'Passkey sign-in failed');
-      }
     } finally {
       setLoading(false);
     }
@@ -225,19 +166,6 @@ export default function Auth() {
         }
 
         toast.success('Signed in successfully');
-
-        // Keep sign-in passkey tokens fresh after any normal login
-        try {
-          if (localStorage.getItem(PASSKEY_CRED_KEY)) {
-            const { data: sess } = await supabase.auth.getSession();
-            if (sess.session) {
-              localStorage.setItem(PASSKEY_TOKENS_KEY, JSON.stringify({
-                access_token: sess.session.access_token,
-                refresh_token: sess.session.refresh_token,
-              }));
-            }
-          }
-        } catch { /* non-critical */ }
       } else {
         const { error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -618,35 +546,6 @@ export default function Auth() {
             </button>
           )}
         </form>
-
-        {mode === 'login' && hasSigninPasskey && (
-          <div className="mt-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">or</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handlePasskeySignIn}
-              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press disabled:opacity-50"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-              </svg>
-              Sign in with passkey
-            </button>
-            <button
-              type="button"
-              onClick={() => { localStorage.removeItem(PASSKEY_CRED_KEY); localStorage.removeItem(PASSKEY_TOKENS_KEY); setHasSigninPasskey(false); }}
-              className="w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors py-1"
-            >
-              Remove saved passkey
-            </button>
-          </div>
-        )}
 
         {mode !== 'reset' && (
           <div className="mt-4 space-y-3">
