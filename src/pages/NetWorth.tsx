@@ -267,7 +267,7 @@ export default function NetWorth() {
   };
 
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-3 sm:p-4 lg:p-8 max-w-7xl mx-auto space-y-5 sm:space-y-8">
       <div className="flex items-center gap-3">
         <div>
           <h1 className="font-display font-bold text-2xl lg:text-3xl tracking-tight">Net Worth</h1>
@@ -352,28 +352,30 @@ export default function NetWorth() {
               <Plus size={12} /> Add Manual Asset
             </button>
           </div>
-          <div className="flex gap-6">
+          <div className="flex gap-4">
             {assetsByType.length > 0 && (
-              <ResponsiveContainer width={140} height={140}>
-                <PieChart>
-                  <Pie data={assetsByType} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="value" strokeWidth={0}>
-                    {assetsByType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="hidden sm:block shrink-0">
+                <ResponsiveContainer width={120} height={120}>
+                  <PieChart>
+                    <Pie data={assetsByType} cx="50%" cy="50%" innerRadius={28} outerRadius={50} dataKey="value" strokeWidth={0}>
+                      {assetsByType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             )}
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 min-w-0 space-y-1.5">
               {allAssets.map((a) => (
-                <div key={a.id} className="flex items-center justify-between py-1.5 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: COLORS[assetsByType.findIndex(t => t.name === a.type) % COLORS.length] }} />
-                    <span className="font-medium">{a.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{a.type}</span>
-                    {(a as any).isLive && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>live</span>}
+                <div key={a.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: COLORS[assetsByType.findIndex(t => t.name === a.type) % COLORS.length] }} />
+                    <span className="font-medium truncate">{a.name}</span>
+                    <span className="text-[10px] text-muted-foreground hidden sm:inline shrink-0">{a.type}</span>
+                    {(a as any).isLive && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5 shrink-0" style={{ borderRadius: 'var(--radius)' }}>live</span>}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold font-display text-success">{formatCurrency(Number(a.value), false)}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="font-bold font-display text-success whitespace-nowrap">{formatCurrency(Number(a.value), false)}</span>
                     {!(a as any).isLive && (
                       <>
                         <button onClick={() => openEditAsset(a)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={12} /></button>
@@ -396,28 +398,30 @@ export default function NetWorth() {
               <Plus size={12} /> Add Manual Liability
             </button>
           </div>
-          <div className="flex gap-6">
+          <div className="flex gap-4">
             {liabilitiesByType.length > 0 && (
-              <ResponsiveContainer width={140} height={140}>
-                <PieChart>
-                  <Pie data={liabilitiesByType} cx="50%" cy="50%" innerRadius={35} outerRadius={60} dataKey="value" strokeWidth={0}>
-                    {liabilitiesByType.map((_, i) => <Cell key={i} fill={['hsl(0, 73%, 35%)', 'hsl(30, 80%, 55%)', 'hsl(0, 50%, 50%)'][i % 3]} />)}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="hidden sm:block shrink-0">
+                <ResponsiveContainer width={120} height={120}>
+                  <PieChart>
+                    <Pie data={liabilitiesByType} cx="50%" cy="50%" innerRadius={28} outerRadius={50} dataKey="value" strokeWidth={0}>
+                      {liabilitiesByType.map((_, i) => <Cell key={i} fill={['hsl(0, 73%, 35%)', 'hsl(30, 80%, 55%)', 'hsl(0, 50%, 50%)'][i % 3]} />)}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             )}
-            <div className="flex-1 space-y-2">
+            <div className="flex-1 min-w-0 space-y-1.5">
               {allLiabilities.map((l) => (
-                <div key={l.id} className="flex items-center justify-between py-1.5 text-xs">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: ['hsl(0, 73%, 35%)', 'hsl(30, 80%, 55%)', 'hsl(0, 50%, 50%)'][liabilitiesByType.findIndex(t => t.name === l.type) % 3] }} />
-                    <span className="font-medium">{l.name}</span>
-                    <span className="text-[10px] text-muted-foreground">{l.type}</span>
-                    {(l as any).isLive && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>live</span>}
+                <div key={l.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: ['hsl(0, 73%, 35%)', 'hsl(30, 80%, 55%)', 'hsl(0, 50%, 50%)'][liabilitiesByType.findIndex(t => t.name === l.type) % 3] }} />
+                    <span className="font-medium truncate">{l.name}</span>
+                    <span className="text-[10px] text-muted-foreground hidden sm:inline shrink-0">{l.type}</span>
+                    {(l as any).isLive && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5 shrink-0" style={{ borderRadius: 'var(--radius)' }}>live</span>}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold font-display text-destructive">{formatCurrency(Number(l.balance), false)}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="font-bold font-display text-destructive whitespace-nowrap">{formatCurrency(Number(l.balance), false)}</span>
                     {!(l as any).isLive && (
                       <>
                         <button onClick={() => openEditLiability(l)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={12} /></button>
@@ -453,7 +457,7 @@ export default function NetWorth() {
                   </div>
                   <span className="text-xs font-bold font-display text-foreground">{formatCurrency(Number(account.balance), false)}</span>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {([['1yr', milestones.year1], ['5yr', milestones.year5], ['10yr', milestones.year10], ['20yr', milestones.year20]] as [string, number][]).map(([label, val]) => (
                     <div key={label} className="bg-muted/30 border border-border/30 px-2 py-1.5 text-center rounded-sm">
                       <p className="text-[9px] text-muted-foreground uppercase">{label}</p>
