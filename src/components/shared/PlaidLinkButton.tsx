@@ -53,11 +53,12 @@ export interface PlaidSyncedAccount {
 }
 
 interface PlaidLinkButtonProps {
-  onSuccess: (accounts: PlaidSyncedAccount[]) => void;
+  onSuccess: (accounts: PlaidSyncedAccount[], institutionName?: string) => void;
+  onProcessing?: (processing: boolean) => void;
   disabled?: boolean;
 }
 
-export default function PlaidLinkButton({ onSuccess, disabled }: PlaidLinkButtonProps) {
+export default function PlaidLinkButton({ onSuccess, onProcessing, disabled }: PlaidLinkButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = useCallback(async () => {
@@ -86,6 +87,7 @@ export default function PlaidLinkButton({ onSuccess, disabled }: PlaidLinkButton
       const handler = (window as any).Plaid.create({
         token: link_token,
         onSuccess: async (public_token: string, metadata: any) => {
+          onProcessing?.(true);
           try {
             localStorage.removeItem(LINK_TOKEN_KEY);
             const institution = metadata?.institution ?? {};
@@ -103,8 +105,7 @@ export default function PlaidLinkButton({ onSuccess, disabled }: PlaidLinkButton
             const exchangeBody = await exchangeRes.json();
             if (!exchangeRes.ok) throw new Error(exchangeBody.error ?? exchangeBody.message ?? 'Exchange failed');
 
-            const name = exchangeBody.institution_name ?? 'Your bank';
-            toast.success(`${name} linked successfully`);
+            const institutionName = exchangeBody.institution_name ?? 'Your bank';
 
             // Immediately sync balances
             const syncRes = await fetch(`${FN_BASE}/plaid-sync`, {
@@ -113,9 +114,11 @@ export default function PlaidLinkButton({ onSuccess, disabled }: PlaidLinkButton
             });
             const syncBody = syncRes.ok ? await syncRes.json() : { accounts: [] };
 
-            onSuccess(syncBody.accounts ?? []);
+            onSuccess(syncBody.accounts ?? [], institutionName);
           } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Link failed');
+          } finally {
+            onProcessing?.(false);
           }
         },
         onExit: (err: any) => {
