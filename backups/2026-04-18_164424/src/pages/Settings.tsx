@@ -128,13 +128,6 @@ export default function SettingsPage() {
   const [pinConfirm, setPinConfirm] = useState('');
   const [lockBusy, setLockBusy] = useState(false);
 
-  // Sign-in passkey state
-  const [hasSigninPasskey, setHasSigninPasskey] = useState(() => {
-    try { return !!(window.PublicKeyCredential && localStorage.getItem('forged:signin_passkey')); }
-    catch { return false; }
-  });
-  const [signinPasskeyBusy, setSigninPasskeyBusy] = useState(false);
-
   // Account security state
   const [newEmail, setNewEmail] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
@@ -303,67 +296,6 @@ export default function SettingsPage() {
     } finally {
       setPasswordLoading(false);
     }
-  };
-
-  const handleRegisterSigninPasskey = async () => {
-    if (!user) return;
-    setSigninPasskeyBusy(true);
-    try {
-      const userIdBytes = new TextEncoder().encode(user.id).buffer as ArrayBuffer;
-      const challenge = crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer;
-
-      const credential = await navigator.credentials.create({
-        publicKey: {
-          challenge,
-          rp: { name: 'Forged Budget OS', id: window.location.hostname },
-          user: { id: userIdBytes, name: user.email ?? user.id, displayName: (profile as any)?.display_name || user.email || 'User' },
-          pubKeyCredParams: [
-            { type: 'public-key', alg: -7 },   // ES256
-            { type: 'public-key', alg: -257 },  // RS256
-          ],
-          authenticatorSelection: {
-            authenticatorAttachment: 'platform',
-            userVerification: 'required',
-            residentKey: 'preferred',
-          },
-          timeout: 60000,
-        },
-      }) as PublicKeyCredential | null;
-
-      if (!credential) throw new Error('Passkey registration cancelled');
-
-      const rawId = new Uint8Array(((credential as any).rawId) as ArrayBuffer);
-      const credId = btoa(String.fromCharCode(...rawId)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-
-      localStorage.setItem('forged:signin_passkey', JSON.stringify({ credId, email: user.email }));
-
-      // Store current session tokens so the passkey can restore the session
-      const { data: sess } = await supabase.auth.getSession();
-      if (sess.session) {
-        localStorage.setItem('forged:signin_passkey_tokens', JSON.stringify({
-          access_token: sess.session.access_token,
-          refresh_token: sess.session.refresh_token,
-        }));
-      }
-
-      setHasSigninPasskey(true);
-      toast.success('Sign-in passkey registered — use it on the login page');
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      const lower = msg.toLowerCase();
-      if (!lower.includes('cancel') && !lower.includes('abort') && !lower.includes('not allowed')) {
-        toast.error(msg || 'Passkey registration failed');
-      }
-    } finally {
-      setSigninPasskeyBusy(false);
-    }
-  };
-
-  const handleRemoveSigninPasskey = () => {
-    localStorage.removeItem('forged:signin_passkey');
-    localStorage.removeItem('forged:signin_passkey_tokens');
-    setHasSigninPasskey(false);
-    toast.success('Sign-in passkey removed');
   };
 
   const handleCancelOrResume = async (action: 'cancel' | 'resume') => {
@@ -717,47 +649,6 @@ export default function SettingsPage() {
               </button>
             )}
           </div>
-
-          {/* Sign-In Passkey — separate from app lock, lets you skip password on login */}
-          {typeof window !== 'undefined' && window.PublicKeyCredential && (
-            <div className="pt-2 border-t border-border space-y-2">
-              <p className="text-[10px] text-muted-foreground">
-                <span className="text-foreground font-medium">Sign-in passkey</span> — skip the password field on the login page entirely.
-              </p>
-              {hasSigninPasskey ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={13} className="text-primary" />
-                    <span className="text-xs font-medium text-primary">Sign-in passkey active</span>
-                  </div>
-                  <button
-                    onClick={handleRemoveSigninPasskey}
-                    className="text-[10px] text-destructive hover:underline"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={handleRegisterSigninPasskey}
-                  disabled={signinPasskeyBusy}
-                  className="w-full flex items-center justify-between bg-secondary border border-border px-3 py-2.5 hover:border-primary/40 transition-colors btn-press disabled:opacity-50"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground" aria-hidden="true">
-                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                    </svg>
-                    <div className="text-left">
-                      <p className="text-xs font-medium">Register sign-in passkey</p>
-                      <p className="text-[9px] text-muted-foreground">Use Face ID / fingerprint to sign in next time</p>
-                    </div>
-                  </div>
-                  {signinPasskeyBusy && <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
-                </button>
-              )}
-            </div>
-          )}
         </div>
       )}
 
