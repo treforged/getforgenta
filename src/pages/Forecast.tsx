@@ -14,7 +14,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
 } from 'recharts';
-import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown } from 'lucide-react';
+import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
@@ -852,6 +852,9 @@ export default function Forecast() {
   // Helper to check visibility — a series is visible if NOT in hiddenSeries
   const isVisible = (key: string) => !hiddenSeries.includes(key);
 
+  const freePreview = !isPremium && !isDemo;
+  const displayData = freePreview ? filteredData.slice(0, 3) : filteredData;
+
   return (
     <div className="p-3 sm:p-4 lg:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
       <div className="flex items-start sm:items-center justify-between flex-wrap gap-2 sm:gap-3">
@@ -967,14 +970,16 @@ export default function Forecast() {
         </div>
       )}
 
-      {/* Year Filter */}
-      <div className="flex gap-1.5 sm:gap-2 overflow-x-auto">
-        {(['all', '1', '2', '3'] as const).map(yr => (
-          <button key={yr} onClick={() => setFilterYear(yr)} className={`px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border btn-press whitespace-nowrap ${filterYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
-            {yr === 'all' ? 'All 36 Months' : `Year ${yr}`}
-          </button>
-        ))}
-      </div>
+      {/* Year Filter — premium only */}
+      {!freePreview && (
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto">
+          {(['all', '1', '2', '3'] as const).map(yr => (
+            <button key={yr} onClick={() => setFilterYear(yr)} className={`px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border btn-press whitespace-nowrap ${filterYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
+              {yr === 'all' ? 'All 36 Months' : `Year ${yr}`}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Milestones */}
       {projections.milestones.length > 0 && (
@@ -994,10 +999,13 @@ export default function Forecast() {
         <>
           {/* Net Worth Chart */}
           <div className="card-forged p-3 sm:p-5">
-            <h3 className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4">Net Worth & Assets Projection</h3>
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth & Assets Projection</h3>
+              {freePreview && <span className="text-[9px] text-muted-foreground">Showing 3 of 36 months</span>}
+            </div>
             <ResponsiveContainer width="100%" height={280}>
               {chartMode === 'combo' ? (
-                <ComposedChart data={filteredData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <ComposedChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tick={tickStyle} interval={xInterval} />
                   <YAxis tick={tickStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
@@ -1012,7 +1020,7 @@ export default function Forecast() {
                   <Line type="monotone" dataKey="endingCash" name="Ending Cash" stroke="hsl(199, 89%, 48%)" strokeWidth={1.5} dot={false} strokeDasharray="5 5" strokeOpacity={isVisible('endingCash') ? 1 : 0} />
                 </ComposedChart>
               ) : (
-                <LineChart data={filteredData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <LineChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tick={tickStyle} interval={xInterval} />
                   <YAxis tick={tickStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
@@ -1030,8 +1038,28 @@ export default function Forecast() {
             </ResponsiveContainer>
           </div>
 
-          {/* Debt Projection Chart */}
-          {cardProjectionData && (
+          {/* Premium upgrade CTA — free users only */}
+          {freePreview && (
+            <div className="card-forged p-5 sm:p-6 flex flex-col items-center text-center gap-3 border border-primary/20">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Crown size={18} className="text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">See your full 36-month forecast</p>
+                <p className="text-[11px] text-muted-foreground mt-1 max-w-xs">Upgrade to Premium to unlock all 36 months, the CC debt payoff trajectory chart, the monthly breakdown table, and PDF export.</p>
+              </div>
+              <Link
+                to="/premium"
+                className="bg-primary text-primary-foreground px-5 py-2 text-xs font-semibold btn-press"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Unlock Full Forecast
+              </Link>
+            </div>
+          )}
+
+          {/* Debt Projection Chart — premium only */}
+          {!freePreview && cardProjectionData && (
             <div className="card-forged p-3 sm:p-5">
               <h3 className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4 flex items-center gap-2"><CreditCard size={12} /> Credit Card Debt Payoff Trajectory</h3>
               <ResponsiveContainer width="100%" height={220}>
@@ -1049,8 +1077,8 @@ export default function Forecast() {
             </div>
           )}
 
-          {/* Monthly Cash Flow Table */}
-          <div className="card-forged p-3 sm:p-5 overflow-x-auto">
+          {/* Monthly Cash Flow Table — premium only */}
+          {!freePreview && <div className="card-forged p-3 sm:p-5 overflow-x-auto">
             <h3 className="text-[10px] sm:text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4">Monthly Breakdown</h3>
             <div className="min-w-0">
               <table className="w-full text-[10px] sm:text-xs">
@@ -1066,7 +1094,7 @@ export default function Forecast() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.map((row: any, i: number) => (
+                  {displayData.map((row: any, i: number) => (
                     <tr key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={() => setCalcDrawer({
                       title: `${row.month} Breakdown`,
                       lines: [
@@ -1104,7 +1132,7 @@ export default function Forecast() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </div>}
         </>
       ) : (
         <div className="card-forged p-3 sm:p-5">

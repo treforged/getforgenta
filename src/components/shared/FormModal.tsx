@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Info } from 'lucide-react';
 
 type Field = {
   key: string;
@@ -22,9 +22,10 @@ type Props = {
   onClose: () => void;
   saving?: boolean;
   saveLabel?: string;
+  notice?: string;
 };
 
-export default function FormModal({ title, fields, values, onChange, onSave, onClose, saving, saveLabel = 'Save' }: Props) {
+export default function FormModal({ title, fields, values, onChange, onSave, onClose, saving, saveLabel = 'Save', notice }: Props) {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
@@ -43,7 +44,13 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
         </div>
 
         {/* Scrollable fields */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-2 sm:space-y-3" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-2 sm:space-y-3 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {notice && (
+            <div className="flex items-start gap-2 bg-primary/8 border border-primary/20 px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
+              <Info size={12} className="text-primary mt-0.5 shrink-0" />
+              <p className="text-[10px] text-muted-foreground leading-relaxed">{notice}</p>
+            </div>
+          )}
           {fields.map(f => (
             <div key={f.key}>
               <label className="text-[10px] text-muted-foreground uppercase">{f.label}</label>
