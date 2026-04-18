@@ -90,6 +90,65 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
+    // ── Delink action — revoke access token on Plaid then clean up locally ──────
+    // No premium check: users must always be able to revoke bank access.
+    const body = await req.json().catch(() => ({}));
+    if (body?.action === "delink") {
+      const plaidItemId = body?.plaid_item_id as string | undefined;
+      if (!plaidItemId) {
+        return new Response(JSON.stringify({ error: "plaid_item_id required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { data: item } = await supabase
+        .from("plaid_items")
+        .select("id, access_token")
+        .eq("user_id", userId)
+        .eq("plaid_item_id", plaidItemId)
+        .maybeSingle();
+
+      if (!item) {
+        return new Response(JSON.stringify({ error: "Item not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Call Plaid /item/remove — best-effort, don't fail the delink if Plaid errors
+      try {
+        const removeRes = await fetch(`${plaidBase}/item/remove`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id: PLAID_CLIENT_ID,
+            secret: PLAID_SECRET,
+            access_token: item.access_token,
+          }),
+        });
+        if (!removeRes.ok) {
+          const errBody = await removeRes.json().catch(() => ({}));
+          console.error("Plaid /item/remove non-OK:", JSON.stringify(errBody));
+        }
+      } catch (err) {
+        console.error("Plaid /item/remove fetch failed:", err);
+      }
+
+      // Delete the item row — access_token no longer valid
+      await supabase.from("plaid_items").delete().eq("id", item.id);
+
+      // Deactivate + unlink all accounts tied to this Plaid item
+      await supabase
+        .from("accounts")
+        .update({ active: false, plaid_account_id: null, plaid_item_id: null } as any)
+        .eq("user_id", userId)
+        .eq("plaid_item_id", plaidItemId);
+
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── Sync action (default) — requires active premium subscription ─────────
     const { data: sub } = await supabase
       .from("user_subscriptions")
       .select("plan, subscription_status")
@@ -116,9 +175,28 @@ Deno.serve(async (req) => {
     }
 
     const now = new Date().toISOString();
+    const SYNC_COOLDOWN_MS = 23.5 * 60 * 60 * 1000; // 23.5 hours — prevents reconnect abuse
     const syncedAccounts: any[] = [];
 
     for (const item of plaidItems) {
+      // Rate-limit: if synced within the cooldown window, return existing DB balances instead
+      // of calling Plaid. This survives disconnect-reconnect because the check is per-item
+      // and last_synced_at persists as long as the item row exists.
+      if (item.last_synced_at) {
+        const lastSync = new Date(item.last_synced_at).getTime();
+        if (Date.now() - lastSync < SYNC_COOLDOWN_MS) {
+          const { data: cachedAccounts } = await supabase
+            .from("accounts")
+            .select("name, balance, account_type, plaid_account_id")
+            .eq("user_id", userId)
+            .eq("plaid_item_id", item.plaid_item_id);
+          for (const acct of (cachedAccounts ?? [])) {
+            syncedAccounts.push({ name: acct.name, balance: acct.balance, type: acct.account_type, plaid_account_id: acct.plaid_account_id });
+          }
+          continue; // skip Plaid API call for this item
+        }
+      }
+
       const balRes = await fetch(`${plaidBase}/accounts/balance/get`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -191,7 +269,7 @@ Deno.serve(async (req) => {
         if (opErr) {
           console.error("Account sync error for", acct.account_id, ":", opErr.message);
         } else {
-          syncedAccounts.push({ name, balance, type: accountType });
+          syncedAccounts.push({ name, balance, type: accountType, plaid_account_id: acct.account_id });
         }
       }
 
