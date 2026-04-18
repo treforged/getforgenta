@@ -368,11 +368,6 @@ export function simulateVariablePayoff(
    * oneTimeByMonth[0] is unused (month 0 is handled by month0Remaining*).
    */
   oneTimeByMonth?: { income: number; expenses: number }[],
-  /**
-   * Optional effective safe floor for month 0 only — overrides cashFloor for the current month.
-   * Should be max(cashFloor, prePaycheckBills) so month 0 payments match recommendations.
-   */
-  month0SafeFloor?: number,
 ): {
   monthlyPayments: Map<string, number[]>;
   projectedPayoffMonths: number;
@@ -507,9 +502,7 @@ export function simulateVariablePayoff(
 
     // availableCash = what's left above the floor after income, expenses, paid-off costs,
     // and one-time items for this month.
-    // Month 0 uses month0SafeFloor (= max(cashFloor, ppBills)) so the projection matches recommendations.
-    const effectiveFloor = (m === 0 && month0SafeFloor !== undefined) ? month0SafeFloor : cashFloor;
-    let availableCash = currentCash + monthIncome - monthExpenses - effectiveFloor - paidOffCashCost + oneTimeNet;
+    let availableCash = currentCash + monthIncome - monthExpenses - cashFloor - paidOffCashCost + oneTimeNet;
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });
       availableCash = 0;
