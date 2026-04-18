@@ -61,6 +61,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       initialized.current = true;
 
       if (event === 'SIGNED_IN') {
+        if (session?.user?.email === 'reviewer@treforged.com') {
+          localStorage.removeItem(`forged:onboarding_done_${session.user.id}`);
+        }
         if (locationRef.current === '/auth') {
           supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data: aal }) => {
             if (aal && aal.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
