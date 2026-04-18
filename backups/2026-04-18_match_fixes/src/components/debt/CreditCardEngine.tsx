@@ -366,7 +366,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       monthEvents, undefined, augmentedCCPurchases,
       month0Income, month0Expenses,
       oneTimeByMonth,
-      Math.max(cashFloor, prePaycheckBills.total), // month0SafeFloor — match recommendations
     );
     // Return augmentedCCPurchases alongside the sim so projections can use it
     // to pass per-month purchase amounts to projectCardVariable.
