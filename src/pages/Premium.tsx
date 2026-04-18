@@ -13,8 +13,8 @@ import { toast } from 'sonner';
 // Initialise Stripe outside the component so the promise is stable across renders
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
 
-const free = ['1 budget', 'Basic dashboard', 'Transaction tracking', 'Up to 3 savings goals', '1 debt tracker'];
-const premium = ['Unlimited budgets', 'Advanced dashboard', 'Export to CSV/PDF', 'Unlimited goals & debts', 'Priority support', 'Car fund tracker pro', 'Custom categories'];
+const free = ['Budget control', 'Basic dashboard', 'Transaction tracking', 'Up to 3 savings goals', 'Up to 3 debt trackers'];
+const premium = ['Advanced dashboard', 'Export to CSV/PDF', 'Unlimited savings goals & debts', 'Car Fund Tracker', 'Custom rule categories', 'AI Advisor', 'Priority support'];
 
 type Phase = 'pricing' | 'loading' | 'checkout';
 
