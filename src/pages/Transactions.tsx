@@ -115,6 +115,8 @@ export default function Transactions() {
     const liquidCash = accounts
       .filter((a: any) => a.active && liquidTypes.includes(a.account_type))
       .reduce((s: number, a: any) => s + Number(a.balance), 0);
+    const fundingAcct = accounts.find((a: any) => a.id === fundingAccountId && a.active);
+    const fundingBalance = fundingAcct ? Number(fundingAcct.balance) : liquidCash;
     const cashFloor = Number(profile?.cash_floor) || 1000;
 
     const ccIds = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
@@ -154,7 +156,7 @@ export default function Transactions() {
     }, 0);
 
     const sim = simulateVariablePayoff(
-      cards, liquidCash, cashFloor, 'avalanche',
+      cards, fundingBalance, cashFloor, 'avalanche',
       monthlyTakeHome, monthlyExpenses, 1,
       undefined, undefined, undefined,
       month0Income, month0Expenses,

@@ -287,30 +287,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // filter to txDay >= today, giving the correct month 0 remaining values without
     // double-counting income already reflected in the live account balance.
     const now = new Date();
-    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const todayStr = now.toISOString().split('T')[0];
 
     const month0Income = getRemainingTransactionIncomeByDay(allTransactions, 31);
 
-    // Exclude CC-charged expenses from month0 — they're already in card.balance (monthlyNewPurchases).
-    // Also exclude Debt Payments (what we're computing), Balance Adjustments, and any
-    // future-month transactions (current month ONLY, today forward).
+    // Use the same expense calculation as the recommendations panel so month 0 payments
+    // are consistent. getRemainingTransactionExpensesByDay excludes Debt Payments and
+    // Balance Adjustments but INCLUDES CC-tagged expenses — this matches estLiquidCash
+    // and keeps the simulation conservative (those CC charges will need paying next month).
+    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true);
+
+    // CC account IDs used to exclude CC-charged one-time expenses from future cash-flow months.
     const ccIds = new Set(
       accounts
         .filter((a: any) => a.account_type === 'credit_card' && a.active)
         .flatMap((a: any) => [a.id, `account:${a.id}`])
     );
-    const month0Expenses = allTransactions
-      .filter((t: any) => {
-        if (t.type !== 'expense') return false;
-        if (!t.date || !t.date.startsWith(monthStr)) return false; // current month only
-        if (t.date < todayStr) return false; // today forward only
-        if (t.category === 'Debt Payments') return false;
-        if (t.category === 'Balance Adjustment') return false;
-        if (t.payment_source && ccIds.has(t.payment_source)) return false;
-        return true;
-      })
-      .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
     // One-time (non-generated) transactions per future month — applied AFTER debt allocation
     // in simulateVariablePayoff so they don't cause look-ahead cash hoarding in prior months.
@@ -361,7 +352,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     }
 
     const sim = simulateVariablePayoff(
-      cards, liquidCash, cashFloor, strategy,
+      cards, fundingBalance, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, 36,
       monthEvents, undefined, augmentedCCPurchases,
       month0Income, month0Expenses,
@@ -371,7 +362,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Return augmentedCCPurchases alongside the sim so projections can use it
     // to pass per-month purchase amounts to projectCardVariable.
     return { ...sim, augmentedCCPurchases };
-  }, [cards, liquidCash, cashFloor, strategy, monthlyTakeHome,
+  }, [cards, fundingBalance, cashFloor, strategy, monthlyTakeHome,
       monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents]);
 
   const recommendations: RecommendationSummary = useMemo(
