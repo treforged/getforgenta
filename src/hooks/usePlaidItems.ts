@@ -11,6 +11,20 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+
+async function getAuthHeader(): Promise<string> {
+  const { data: refreshData } = await supabase.auth.refreshSession();
+  const token = refreshData.session?.access_token;
+  if (!token) {
+    const { data } = await supabase.auth.getSession();
+    const fallback = data.session?.access_token;
+    if (!fallback) throw new Error('Not authenticated');
+    return `Bearer ${fallback}`;
+  }
+  return `Bearer ${token}`;
+}
+
 export interface PlaidItem {
   id: string;
   plaid_item_id: string;
@@ -43,18 +57,23 @@ export function usePlaidItems() {
 
   const remove = async (plaidItemId: string) => {
     if (!user) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    const { error } = await supabase.functions.invoke('plaid-sync', {
-      body: { action: 'delink', plaid_item_id: plaidItemId },
-      headers: session?.access_token
-        ? { Authorization: `Bearer ${session.access_token}` }
-        : undefined,
-    });
-    if (error) {
-      console.error('Plaid delink failed:', error);
+    try {
+      const authHeader = await getAuthHeader();
+      const res = await fetch(`${FN_BASE}/plaid-sync`, {
+        method: 'POST',
+        headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delink', plaid_item_id: plaidItemId }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error('Plaid delink failed:', body);
+        toast.error('Failed to remove bank connection. Please try again.');
+      } else {
+        toast.success('Bank connection removed. Accounts kept with last known balance.');
+      }
+    } catch (err) {
+      console.error('Plaid delink error:', err);
       toast.error('Failed to remove bank connection. Please try again.');
-    } else {
-      toast.success('Bank connection removed. Accounts kept with last known balance.');
     }
     qc.invalidateQueries({ queryKey: ['plaid_items'] });
     qc.invalidateQueries({ queryKey: ['accounts'] });
