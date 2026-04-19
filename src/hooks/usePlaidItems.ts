@@ -43,10 +43,12 @@ export function usePlaidItems() {
 
   const remove = async (plaidItemId: string) => {
     if (!user) return;
-    // Refresh session so the JWT is never stale when calling the edge function
-    await supabase.auth.getSession();
+    const { data: { session } } = await supabase.auth.getSession();
     const { error } = await supabase.functions.invoke('plaid-sync', {
       body: { action: 'delink', plaid_item_id: plaidItemId },
+      headers: session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : undefined,
     });
     if (error) {
       console.error('Plaid delink failed:', error);
