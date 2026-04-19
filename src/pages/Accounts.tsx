@@ -106,19 +106,22 @@ export default function Accounts() {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error('Not authenticated');
 
-      // Fetch all Plaid-created accounts (have plaid_account_id set) including fields to merge
-      const { data: allAccountsRaw } = await supabase
+      // Fresh fetch of ALL user accounts from DB (bypasses stale React state)
+      const { data: allAccountsRaw, error: fetchErr } = await (supabase as any)
         .from('accounts')
-        .select('id, name, institution, plaid_account_id, plaid_item_id')
+        .select('id, name, institution, plaid_account_id, plaid_item_id, balance, active')
         .eq('user_id', currentUser.id);
+      if (fetchErr) throw new Error(fetchErr.message);
+
       const allAccounts = (allAccountsRaw ?? []) as any[];
       const plaidCreatedAccounts = allAccounts.filter((a: any) => a.plaid_account_id);
 
+      let matched = 0;
       for (const entry of toMatch) {
-        const existingAccount = accounts.find((a: any) => a.id === entry.matchedAccountId);
+        // Use fresh DB data to find existing account (not stale React state)
+        const existingAccount = allAccounts.find((a: any) => a.id === entry.matchedAccountId);
         if (!existingAccount) continue;
 
-        // Match by plaid_account_id (if sync returned it) first, then fall back to name
         const plaidAccountId = (entry.plaidAccount as any).plaid_account_id;
         const plaidCreated = plaidAccountId
           ? plaidCreatedAccounts.find((a: any) => a.plaid_account_id === plaidAccountId)
@@ -126,21 +129,38 @@ export default function Accounts() {
 
         if (!plaidCreated) continue;
 
-        // Merge Plaid data onto existing account: update name, institution, balance, and sync IDs.
-        // All other user-defined fields (notes, APR, credit_limit, etc.) are preserved.
-        await supabase.from('accounts').update({
-          name: plaidCreated.name,
-          institution: plaidCreated.institution,
-          plaid_account_id: plaidCreated.plaid_account_id,
-          plaid_item_id: plaidCreated.plaid_item_id,
-          balance: entry.plaidAccount.balance,
-        } as any).eq('id', existingAccount.id);
+        // Stamp Plaid link fields onto the existing manual account
+        const { error: updateErr } = await (supabase as any)
+          .from('accounts')
+          .update({
+            plaid_account_id: plaidCreated.plaid_account_id,
+            plaid_item_id: plaidCreated.plaid_item_id,
+            name: plaidCreated.name,
+            institution: plaidCreated.institution,
+            balance: plaidCreated.balance,
+            active: true,
+          })
+          .eq('id', existingAccount.id)
+          .eq('user_id', currentUser.id);
 
-        // Delete the duplicate Plaid-created account
-        await supabase.from('accounts').delete().eq('id', plaidCreated.id as string);
+        if (updateErr) {
+          console.error('Match update failed:', updateErr);
+          toast.error(`Failed to match "${existingAccount.name}": ${updateErr.message}`);
+          continue;
+        }
+
+        // Remove the Plaid-created duplicate
+        const { error: deleteErr } = await (supabase as any)
+          .from('accounts')
+          .delete()
+          .eq('id', plaidCreated.id)
+          .eq('user_id', currentUser.id);
+
+        if (deleteErr) console.error('Match delete failed:', deleteErr);
+        matched++;
       }
 
-      toast.success(`Matched ${toMatch.length} account${toMatch.length !== 1 ? 's' : ''}`);
+      if (matched > 0) toast.success(`Matched ${matched} account${matched !== 1 ? 's' : ''}`);
       invalidatePlaid();
       qc.invalidateQueries({ queryKey: ['accounts'] });
     } catch (err) {
@@ -149,7 +169,7 @@ export default function Accounts() {
       setMatchSaving(false);
       setShowMatchModal(false);
     }
-  }, [matchEntries, accounts, invalidatePlaid, qc]);
+  }, [matchEntries, invalidatePlaid, qc]);
 
   const activeAccounts = useMemo(() => accounts.filter((a: any) => a.active), [accounts]);
 
