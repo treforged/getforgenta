@@ -104,10 +104,10 @@ export default function Accounts() {
       const { data: { user: currentUser } } = await supabase.auth.getUser();
       if (!currentUser) throw new Error('Not authenticated');
 
-      // Fetch all Plaid-created accounts (have plaid_account_id set) including plaid_item_id
+      // Fetch all Plaid-created accounts (have plaid_account_id set) including fields to merge
       const { data: allAccountsRaw } = await supabase
         .from('accounts')
-        .select('id, name, plaid_account_id, plaid_item_id')
+        .select('id, name, institution, plaid_account_id, plaid_item_id')
         .eq('user_id', currentUser.id);
       const allAccounts = (allAccountsRaw ?? []) as any[];
       const plaidCreatedAccounts = allAccounts.filter((a: any) => a.plaid_account_id);
@@ -124,8 +124,11 @@ export default function Accounts() {
 
         if (!plaidCreated) continue;
 
-        // Copy plaid_account_id + plaid_item_id + balance onto existing account
+        // Merge Plaid data onto existing account: update name, institution, balance, and sync IDs.
+        // All other user-defined fields (notes, APR, credit_limit, etc.) are preserved.
         await supabase.from('accounts').update({
+          name: plaidCreated.name,
+          institution: plaidCreated.institution,
           plaid_account_id: plaidCreated.plaid_account_id,
           plaid_item_id: plaidCreated.plaid_item_id,
           balance: entry.plaidAccount.balance,
