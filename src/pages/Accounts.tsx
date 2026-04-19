@@ -81,6 +81,8 @@ export default function Accounts() {
   const [matchSaving, setMatchSaving] = useState(false);
   const [plaidSyncing, setPlaidSyncing] = useState(false);
   const [unlinkConfirm, setUnlinkConfirm] = useState<string | null>(null);
+  const [delinkConfirm, setDelinkConfirm] = useState<string | null>(null);
+  const [delinking, setDelinking] = useState(false);
   const [plaidLinkedName, setPlaidLinkedName] = useState<string | null>(null);
 
   const handlePlaidSuccess = useCallback((syncedAccounts: PlaidSyncedAccount[], institutionName?: string) => {
@@ -481,11 +483,32 @@ export default function Accounts() {
                     </div>
                   </div>
                   <button
-                    onClick={() => removePlaidItem(item.plaid_item_id)}
-                    className="text-muted-foreground hover:text-destructive shrink-0"
-                    title="Unlink this bank"
+                    disabled={delinking}
+                    onClick={async () => {
+                      if (delinkConfirm !== item.plaid_item_id) {
+                        setDelinkConfirm(item.plaid_item_id);
+                        return;
+                      }
+                      setDelinking(true);
+                      setDelinkConfirm(null);
+                      await removePlaidItem(item.plaid_item_id);
+                      setDelinking(false);
+                    }}
+                    onBlur={() => setDelinkConfirm(null)}
+                    className={`text-[10px] font-medium px-2 py-1 rounded border transition-colors shrink-0 ${
+                      delinkConfirm === item.plaid_item_id
+                        ? 'text-destructive border-destructive/40 bg-destructive/10'
+                        : 'text-muted-foreground border-transparent hover:text-destructive'
+                    }`}
+                    title={delinkConfirm === item.plaid_item_id ? 'Click again to confirm' : 'Remove bank connection'}
                   >
-                    <Unlink size={13} />
+                    {delinking && delinkConfirm === null ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : delinkConfirm === item.plaid_item_id ? (
+                      'Confirm remove?'
+                    ) : (
+                      <Unlink size={13} />
+                    )}
                   </button>
                 </div>
               ))}
