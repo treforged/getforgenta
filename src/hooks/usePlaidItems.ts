@@ -7,6 +7,7 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -42,13 +43,14 @@ export function usePlaidItems() {
 
   const remove = async (plaidItemId: string) => {
     if (!user) return;
-    // Call edge function to revoke access token on Plaid before cleaning up locally
     const { error } = await supabase.functions.invoke('plaid-sync', {
       body: { action: 'delink', plaid_item_id: plaidItemId },
     });
     if (error) {
       console.error('Plaid delink failed:', error);
-      // Fall through — still invalidate queries so UI reflects any partial cleanup
+      toast.error('Failed to remove bank connection. Please try again.');
+    } else {
+      toast.success('Bank connection removed. Accounts kept with last known balance.');
     }
     qc.invalidateQueries({ queryKey: ['plaid_items'] });
     qc.invalidateQueries({ queryKey: ['accounts'] });

@@ -136,10 +136,10 @@ Deno.serve(async (req) => {
       // Delete the item row — access_token no longer valid
       await supabase.from("plaid_items").delete().eq("id", item.id);
 
-      // Deactivate + unlink all accounts tied to this Plaid item
+      // Remove Plaid link from accounts — keep them active with last known balance
       await supabase
         .from("accounts")
-        .update({ active: false, plaid_account_id: null, plaid_item_id: null } as any)
+        .update({ plaid_account_id: null, plaid_item_id: null } as any)
         .eq("user_id", userId)
         .eq("plaid_item_id", plaidItemId);
 
