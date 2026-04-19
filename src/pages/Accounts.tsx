@@ -86,17 +86,33 @@ export default function Accounts() {
   const [plaidLinkedName, setPlaidLinkedName] = useState<string | null>(null);
 
   const handlePlaidSuccess = useCallback((syncedAccounts: PlaidSyncedAccount[], institutionName?: string) => {
-    invalidatePlaid();
-    qc.invalidateQueries({ queryKey: ['accounts'] });
-    const name = institutionName ?? 'Your bank';
-    setPlaidLinkedName(name);
-    // Only prompt matching if there are manual (non-Plaid) accounts to match against
-    const manualAccounts = accounts.filter((a: any) => !a.plaid_account_id && a.active);
-    if (syncedAccounts.length > 0 && manualAccounts.length > 0) {
-      setMatchEntries(syncedAccounts.map(a => ({ plaidAccount: a, matchedAccountId: null })));
-      // Match modal appears when user dismisses the success overlay
-    }
-  }, [invalidatePlaid, qc, accounts]);
+  invalidatePlaid();
+  qc.invalidateQueries({ queryKey: ['accounts'] });
+
+  const name = institutionName ?? 'Your bank';
+  setPlaidLinkedName(name);
+
+  const manualAccounts = accounts.filter((a: any) => !a.plaid_account_id && a.active);
+
+  const matchableAccounts = syncedAccounts.filter((synced) =>
+    manualAccounts.some((manual: any) => {
+      const syncedName = synced.name.trim().toLowerCase();
+      const manualName = manual.name.trim().toLowerCase();
+      return syncedName === manualName;
+    })
+  );
+
+  if (matchableAccounts.length > 0) {
+    setMatchEntries(
+      matchableAccounts.map((a) => ({
+        plaidAccount: a,
+        matchedAccountId: null,
+      }))
+    );
+  } else {
+    setMatchEntries([]);
+  }
+}, [invalidatePlaid, qc, accounts]);
 
   const handleConfirmMatch = useCallback(async () => {
     const toMatch = matchEntries.filter(e => e.matchedAccountId !== null);
@@ -564,9 +580,18 @@ export default function Accounts() {
                     onChange={e => setMatchEntries(prev => prev.map((en, j) => j === i ? { ...en, matchedAccountId: e.target.value || null } : en))}
                   >
                     <option value="">Keep as new account</option>
-                    {accounts.filter((a: any) => !a.plaid_account_id && a.active).map((a: any) => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
+                    {accounts
+  .filter((a: any) => {
+    if (a.plaid_account_id || !a.active) return false;
+    const plaidName = entry.plaidAccount.name.trim().toLowerCase();
+    const accountName = a.name.trim().toLowerCase();
+    return plaidName === accountName;
+  })
+  .map((a: any) => (
+    <option key={a.id} value={a.id}>
+      {a.name}
+    </option>
+  ))}
                   </select>
                 </div>
               ))}

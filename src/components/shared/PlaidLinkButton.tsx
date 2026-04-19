@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { Link2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -17,7 +18,9 @@ import { toast } from 'sonner';
 const PLAID_SCRIPT_SRC = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const LINK_TOKEN_KEY = 'forged:plaid_link_token';
-const OAUTH_REDIRECT_URI = `${window.location.origin}/oauth`;
+const OAUTH_REDIRECT_URI = Capacitor.isNativePlatform()
+  ? 'com.treforged.forged://oauth'
+  : `${window.location.origin}/oauth`;
 
 async function loadPlaidScript(): Promise<void> {
   if (typeof window !== 'undefined' && (window as any).Plaid) return;
