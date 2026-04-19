@@ -3,6 +3,9 @@ name: iOS Build & Upload to App Store
 on:
   workflow_dispatch: # manual trigger only — auto-build disabled until App Store publishing is ready
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-ios:
     runs-on: macos-latest
@@ -11,6 +14,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Select Xcode 26
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
 
       - name: Setup Node
         uses: actions/setup-node@v4
