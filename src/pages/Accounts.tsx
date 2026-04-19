@@ -129,7 +129,20 @@ export default function Accounts() {
 
         if (!plaidCreated) continue;
 
-        // Stamp Plaid link fields onto the existing manual account
+        // Delete the Plaid-created duplicate FIRST — frees the unique constraint on plaid_account_id
+        const { error: deleteErr } = await (supabase as any)
+          .from('accounts')
+          .delete()
+          .eq('id', plaidCreated.id)
+          .eq('user_id', currentUser.id);
+
+        if (deleteErr) {
+          console.error('Match delete failed:', deleteErr);
+          toast.error(`Failed to match "${existingAccount.name}": ${deleteErr.message}`);
+          continue;
+        }
+
+        // Now stamp Plaid link fields onto the existing manual account
         const { error: updateErr } = await (supabase as any)
           .from('accounts')
           .update({
@@ -148,15 +161,6 @@ export default function Accounts() {
           toast.error(`Failed to match "${existingAccount.name}": ${updateErr.message}`);
           continue;
         }
-
-        // Remove the Plaid-created duplicate
-        const { error: deleteErr } = await (supabase as any)
-          .from('accounts')
-          .delete()
-          .eq('id', plaidCreated.id)
-          .eq('user_id', currentUser.id);
-
-        if (deleteErr) console.error('Match delete failed:', deleteErr);
         matched++;
       }
 
