@@ -6,23 +6,30 @@ import SessionReplay from '@launchdarkly/session-replay';
 import App from './App.tsx';
 import './index.css';
 
-createClient(
-  import.meta.env.VITE_LD_CLIENT_ID,
-  { kind: 'user', anonymous: true },
-  {
-    plugins: [
-      new Observability({
-        networkRecording: { enabled: true, recordHeadersAndBody: true },
-        serviceName: 'forged-web',
-      }),
-      new SessionReplay({
-        privacySetting: 'strict',
-        serviceName: 'forged-web',
-      }),
-    ],
+const ldClientId = import.meta.env.VITE_LD_CLIENT_ID;
+if (ldClientId) {
+  try {
+    createClient(
+      ldClientId,
+      { kind: 'user', anonymous: true },
+      {
+        plugins: [
+          new Observability({
+            networkRecording: { enabled: true, recordHeadersAndBody: true },
+            serviceName: 'forged-web',
+          }),
+          new SessionReplay({
+            privacySetting: 'strict',
+            serviceName: 'forged-web',
+          }),
+        ],
+      }
+    );
+  } catch (_e) {
+    // non-critical — app renders without observability
   }
-);
+}
 
-injectSpeedInsights();
+try { injectSpeedInsights(); } catch (_e) { /* no-op outside Vercel */ }
 
 createRoot(document.getElementById('root')!).render(<App />);
