@@ -51,9 +51,7 @@ export default function PlaidOAuth() {
         if (!token) throw new Error('Not authenticated');
         const authHeader = `Bearer ${token}`;
 
-        const receivedRedirectUri = Capacitor.isNativePlatform()
-  ? 'com.treforged.forged://oauth'
-  : window.location.href;
+        const receivedRedirectUri = window.location.href;
 
         const handler = (window as any).Plaid.create({
           token: linkToken,
