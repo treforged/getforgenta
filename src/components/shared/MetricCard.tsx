@@ -10,7 +10,14 @@ type MetricCardProps = {
   icon?: LucideIcon;
 };
 
-export default function MetricCard({ label, value, sub, accent = 'silver', className, icon: Icon }: MetricCardProps) {
+export default function MetricCard({
+  label,
+  value,
+  sub,
+  accent = 'silver',
+  className,
+  icon: Icon,
+}: MetricCardProps) {
   const colorMap = {
     gold: 'text-primary',
     silver: 'text-foreground',
@@ -36,16 +43,43 @@ export default function MetricCard({ label, value, sub, accent = 'silver', class
   };
 
   return (
-    <div className={cn("card-forged p-3 sm:p-5 hover:border-primary/20 transition-all duration-300 overflow-hidden", glowMap[accent], className)}>
-      <div className="flex items-start justify-between gap-1">
+    <div
+      className={cn(
+        'card-forged p-4 sm:p-5 hover:border-primary/20 transition-all duration-300',
+        glowMap[accent],
+        className
+      )}
+    >
+      <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wider truncate">{label}</p>
-          <p className={cn("text-lg sm:text-2xl font-display font-bold mt-1.5 sm:mt-2 tracking-tight whitespace-nowrap", colorMap[accent])}>{value}</p>
-          {sub && <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1 truncate">{sub}</p>}
+          <p className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider leading-snug">
+            {label}
+          </p>
+
+          <p
+            className={cn(
+              'text-xl sm:text-2xl font-display font-bold mt-2 tracking-tight break-words',
+              colorMap[accent]
+            )}
+          >
+            {value}
+          </p>
+
+          {sub && (
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-snug">
+              {sub}
+            </p>
+          )}
         </div>
+
         {Icon && (
-          <div className={cn("w-7 h-7 sm:w-9 sm:h-9 rounded-md flex items-center justify-center shrink-0", iconBgMap[accent])}>
-            <Icon size={15} />
+          <div
+            className={cn(
+              'w-9 h-9 sm:w-10 sm:h-10 rounded-md flex items-center justify-center shrink-0',
+              iconBgMap[accent]
+            )}
+          >
+            <Icon size={18} />
           </div>
         )}
       </div>
