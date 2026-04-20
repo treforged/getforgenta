@@ -84,10 +84,11 @@ export default function Landing() {
     <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Nav */}
       <motion.header
-        className="border-b border-border sticky top-0 z-40 bg-background/90 backdrop-blur-sm"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
+  className="border-b border-border sticky top-0 z-40 bg-background/90 backdrop-blur-sm"
+  style={{ paddingTop: 'env(safe-area-inset-top)' }}
+  initial={{ opacity: 0, y: -10 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.35 }}
       >
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <motion.span
@@ -115,7 +116,7 @@ export default function Landing() {
 
       {/* Hero */}
       <section
-        className="max-w-6xl mx-auto px-4 py-24 lg:py-36 text-center relative"
+        className="max-w-6xl mx-auto px-4 pt-16 pb-24 lg:pt-24 lg:pb-36 text-center relative"
         onMouseMove={handleMouseMove}
       >
         {/* Ambient glow */}
