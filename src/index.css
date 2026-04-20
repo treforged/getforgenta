@@ -118,6 +118,12 @@
   .safe-area-pb {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 80px);
+  }
   /* 44px minimum tap target for icon-only buttons */
   .icon-btn {
     @apply flex items-center justify-center min-h-[44px] min-w-[44px];
