@@ -302,7 +302,7 @@ export default function Accounts() {
   };
 
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8 overflow-x-hidden">
       {/* Plaid link success overlay */}
       {plaidLinkedName && !plaidSyncing && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
@@ -310,7 +310,7 @@ export default function Accounts() {
             <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center">
               <Link2 size={24} className="text-success" />
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-sm font-semibold">{plaidLinkedName} linked!</p>
               <p className="text-[11px] text-muted-foreground mt-1">Balances synced successfully. Your accounts are ready.</p>
             </div>
@@ -337,7 +337,7 @@ export default function Accounts() {
         </div>
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="font-display font-bold text-2xl lg:text-3xl tracking-tight">Accounts</h1>
             <InstructionsModal pageTitle="Accounts Guide" sections={[
@@ -358,7 +358,7 @@ export default function Accounts() {
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
-            <div>
+            <div className="min-w-0">
               <p className="text-xs font-semibold text-foreground">Your financial foundation</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Every account type in one place — balances here drive every number across the entire app.</p>
             </div>
@@ -377,7 +377,7 @@ export default function Accounts() {
             ))}
           </div>
           <div className="mt-3 flex items-center justify-between">
-            <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
+            <p className="text-[10px] text-muted-foreground truncate">All data is fictional.</p>
             <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
           </div>
         </div>
@@ -390,7 +390,7 @@ export default function Accounts() {
         <MetricCard label="Retirement" value={formatCurrency(summary.retirement, false)} accent="gold" icon={TrendingUp} />
         <MetricCard label="Credit Card Debt" value={formatCurrency(summary.ccDebt, false)} accent="crimson" icon={CreditCard} />
       </div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <MetricCard label="Total Assets" value={formatCurrency(summary.totalAssets, false)} accent="success" icon={Wallet} />
         <MetricCard label="Total Liabilities" value={formatCurrency(summary.totalLiabilities, false)} accent="crimson" icon={TrendingDown} />
         <MetricCard label="Net Worth" value={formatCurrency(summary.netWorth, false)} accent={summary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} />
@@ -416,21 +416,21 @@ export default function Accounts() {
           const liability = isLiability(a.account_type);
           return (
             <div key={a.id} className={`card-forged p-4 transition-opacity ${!a.active ? 'opacity-40' : ''}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className={`w-9 h-9 rounded-md flex items-center justify-center ${liability ? 'bg-destructive/10' : 'bg-primary/10'}`}>
                     <Icon size={16} className={liability ? 'text-destructive' : 'text-primary'} />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-semibold">{a.name}</p>
+                      <p className="text-sm font-semibold truncate">{a.name}</p>
                       {a.plaid_account_id && (
                         <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium leading-none" style={{ borderRadius: 'var(--radius)' }}>
                           Auto-sync
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[10px] text-muted-foreground truncate">
                       {TYPE_LABELS[a.account_type] || a.account_type}
                       {a.institution ? ` · ${a.institution}` : ''}
                       {a.apr ? ` · ${a.apr}% APR` : ''}
@@ -439,8 +439,8 @@ export default function Accounts() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-lg font-display font-bold ${liability ? 'text-destructive' : 'text-success'}`}>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-lg font-display font-bold truncate ${liability ? 'text-destructive' : 'text-success'}`}>
                     {liability ? '-' : ''}{formatCurrency(Number(a.balance), false)}
                   </span>
                   {a.plaid_account_id && (
@@ -460,7 +460,7 @@ export default function Accounts() {
                   <button onClick={() => handleDelete(a.id)} className={`icon-btn ${deleteConfirm === a.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
                 </div>
               </div>
-              {a.notes && <p className="text-[10px] text-muted-foreground mt-2 ml-12">{a.notes}</p>}
+              {a.notes && <p className="text-[10px] text-muted-foreground mt-2 ml-12 break-words">{a.notes}</p>}
             </div>
           );
         })}
@@ -470,7 +470,7 @@ export default function Accounts() {
       {!isDemo && (
         <div className="card-forged p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between gap-2">
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-semibold flex items-center gap-1.5"><Link2 size={14} className="text-primary" /> Linked Banks</h3>
               <p className="text-[10px] text-muted-foreground mt-0.5">Auto-sync balances from your bank accounts (premium)</p>
             </div>
@@ -508,14 +508,14 @@ export default function Accounts() {
           ) : (
             <div className="space-y-2">
               {plaidItems.map(item => (
-                <div key={item.id} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0 gap-2">
+                <div key={item.id} className="flex items-center justify-between py-2 gap-2 min-w-0 border-b border-border/30 last:border-0">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <Building2 size={13} className="text-primary" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-xs font-semibold truncate">{item.institution_name ?? 'Bank'}</p>
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground truncate">
                         {item.last_synced_at
                           ? `Last synced ${new Date(item.last_synced_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`
                           : 'Not yet synced'}
@@ -561,7 +561,7 @@ export default function Accounts() {
       {showMatchModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
           <div className="card-forged w-full max-w-md p-5 space-y-4">
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-semibold">Match Linked Accounts</h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 Do any of these Plaid accounts match accounts you already added manually? We'll merge the balance and enable auto-sync on the existing one.
@@ -572,10 +572,10 @@ export default function Accounts() {
                 <div key={i} className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{entry.plaidAccount.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{formatCurrency(entry.plaidAccount.balance, false)}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">{formatCurrency(entry.plaidAccount.balance, false)}</p>
                   </div>
                   <select
-                    className="bg-secondary border border-border text-xs px-2 py-1 rounded flex-1 min-w-0"
+                    className="bg-secondary border border-border text-xs px-2 py-1 rounded flex-1 min-w-0 truncate"
                     value={entry.matchedAccountId ?? ''}
                     onChange={e => setMatchEntries(prev => prev.map((en, j) => j === i ? { ...en, matchedAccountId: e.target.value || null } : en))}
                   >

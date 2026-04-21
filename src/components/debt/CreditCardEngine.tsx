@@ -798,10 +798,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             const hasOverrides = Object.keys(cardOverrides).length > 0;
 
             return (
-              <div key={proj.card.id} className="card-forged overflow-hidden">
+              <div key={proj.card.id} className="card-forged overflow-hidden w-full max-w-full">
                 <button onClick={() => setExpandedCard(isExpanded ? null : proj.card.id)}
-                  className="w-full p-3 sm:p-4 flex items-start justify-between text-left hover:bg-muted/10 transition-colors">
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                  className="w-full p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between text-left hover:bg-muted/10 transition-colors">
+                  <div className="flex items-start gap-2 sm:gap-3 min-w-0">
                     <span className="w-3 sm:w-4 h-3 sm:h-4 rounded-sm shrink-0" style={{ backgroundColor: proj.card.color }} />
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
@@ -917,8 +917,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         </button>
                       )}
                     </div>
-                    <div className="overflow-x-auto -mx-3 sm:mx-0">
-                      <table className="w-full text-[10px] sm:text-[11px] min-w-[500px]">
+                    <div className="w-full overflow-x-auto">
+                      <table className="w-full text-[10px] sm:text-[11px] min-w-[600px] sm:min-w-0">
                         <thead>
                           <tr className="border-b border-border">
                             {['Month', 'Start', 'Purch.', 'Interest', 'Payment', 'End Bal', 'Util', ''].map(h => (

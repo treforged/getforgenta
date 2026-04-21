@@ -869,9 +869,9 @@ export default function Forecast() {
   const displayData = freePreview ? filteredData.slice(0, 3) : filteredData;
 
   return (
-    <div className="p-3 sm:p-4 lg:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
-      <div className="flex items-start sm:items-center justify-between flex-wrap gap-2 sm:gap-3">
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+    <div className="p-3 sm:p-4 lg:p-8 max-w-7xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
             <h1 className="font-display font-bold text-lg sm:text-2xl lg:text-3xl tracking-tight">Forecast</h1>
             <p className="text-[10px] sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">36-month projections driven by live data</p>
@@ -886,16 +886,16 @@ export default function Forecast() {
             { title: 'Cash Safety', body: 'Ending Cash enforces the Recommended Safe Minimum = max(your cash floor, pre-paycheck next-month bills). Debt payments automatically decrease to maintain the safety reserve. Minimums are always prioritized.' },
           ]} />
         </div>
-        <div className="flex gap-1.5 sm:gap-2 flex-wrap">
+        <div className="grid grid-cols-1 sm:flex gap-2 w-full sm:w-auto">
           <button onClick={() => setChartMode(chartMode === 'combo' ? 'line' : 'combo')}
-            className="w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+            className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
             <TrendingUp size={12} /> {chartMode === 'combo' ? 'Line' : 'Bars'}
           </button>
           <button onClick={() => setViewMode(viewMode === 'monthly' ? 'detailed' : 'monthly')}
-            className="w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+            className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
             {viewMode === 'monthly' ? <List size={12} /> : <BarChart3 size={12} />} {viewMode === 'monthly' ? 'Detail' : 'Summary'}
           </button>
-          <button onClick={() => setShowAssumptions(!showAssumptions)} className="w-full sm:w-auto flex items-center justify-center gap-1 sm:gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+          <button onClick={() => setShowAssumptions(!showAssumptions)} className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
             <Settings2 size={12} /> Assumptions
           </button>
           {(isPremium || isDemo) ? (
@@ -914,7 +914,7 @@ export default function Forecast() {
                   savingsBalance: r.savingsBalance ?? 0,
                 } as ForecastRow)), label);
               }}
-              className="flex items-center gap-1 sm:gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press"
+              className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press"
               style={{ borderRadius: 'var(--radius)' }}
             >
               <FileDown size={12} /> PDF
@@ -922,7 +922,7 @@ export default function Forecast() {
           ) : (
             <Link
               to="/premium"
-              className="flex items-center gap-1 sm:gap-1.5 border border-primary/30 text-primary/70 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press hover:bg-primary/5 transition-colors"
+              className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 border border-primary/30 text-primary/70 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium btn-press hover:bg-primary/5 transition-colors"
               style={{ borderRadius: 'var(--radius)' }}
             >
               <FileDown size={12} /> PDF
@@ -949,11 +949,11 @@ export default function Forecast() {
             ].map((f, i) => (
               <div key={i} className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row p-2.5 bg-secondary/40 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>
                 <span className="text-primary font-bold shrink-0">→</span>
-                <div><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
+                <div className="min-w-0"><span className="font-medium text-foreground">{f.label}: </span><span className="text-muted-foreground">{f.desc}</span></div>
               </div>
             ))}
           </div>
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
             <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
           </div>
@@ -985,7 +985,7 @@ export default function Forecast() {
 
       {/* Year Filter — premium only */}
       {!freePreview && (
-        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto">
+        <div className="flex gap-1.5 sm:gap-2 overflow-x-auto w-full pb-1">
           {(['all', '1', '2', '3'] as const).map(yr => (
             <button key={yr} onClick={() => setFilterYear(yr)} className={`px-3 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium border btn-press whitespace-nowrap ${filterYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
               {yr === 'all' ? 'All 36 Months' : `Year ${yr}`}
