@@ -689,8 +689,8 @@ export default function BudgetControl() {
     </p>
   </div>
 
-  <div className="flex flex-col gap-2 sm:items-end">
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+  <div className="flex flex-col gap-2 sm:items-end shrink-0">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
       <span className={`text-sm sm:text-base font-display font-bold ${color}`}>
         {formatCurrency(Number(r.amount), false)}
       </span>
@@ -723,7 +723,7 @@ export default function BudgetControl() {
   );
 
   return (
-    <div className="w-full max-w-none space-y-6 sm:space-y-8">
+    <div className="w-full max-w-none space-y-6 sm:space-y-8 overflow-x-hidden">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0">
           <h1 className="font-display font-bold text-xl sm:text-2xl lg:text-3xl tracking-tight">Budget Control</h1>
@@ -761,7 +761,7 @@ export default function BudgetControl() {
               </div>
             ))}
           </div>
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">All data is fictional.</p>
             <Link to="/auth" className="text-sm font-semibold text-primary hover:underline">Use with your own data →</Link>
           </div>
@@ -772,7 +772,7 @@ export default function BudgetControl() {
       <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Income & Taxes</h3>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end min-w-0">
             {incomeRules.length > 0 && (
               <div className="flex w-full items-center gap-1 sm:w-auto">
                 <span className="text-[9px] text-muted-foreground uppercase shrink-0">Rule:</span>
@@ -783,7 +783,7 @@ export default function BudgetControl() {
                     setPaycheckRuleId(id);
                     updateProfile.mutate({ paycheck_rule_id: id } as any);
                   }}
-                  className="bg-secondary border border-border px-2 py-1 text-sm text-foreground w-full sm:w-auto max-w-full sm:max-w-[130px]"
+                  className="bg-secondary border border-border px-2 py-2 text-sm text-foreground w-full sm:w-auto min-w-0 sm:max-w-[130px]"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   <option value="">— none —</option>
@@ -862,23 +862,23 @@ export default function BudgetControl() {
                     <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0"><X size={12} /></button>
                   </div>
                   {/* Row 2: controls */}
-                  <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                  <div className="flex flex-col gap-2 pb-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 min-w-0">
                     {/* Value input */}
                     <input
                       type="number" min={0} max={d.mode === 'pct' ? 100 : undefined} step={d.mode === 'pct' ? 0.5 : 1}
                       value={d.value}
                       onChange={e => updateDeduction(d.id, { value: parseFloat(e.target.value) || 0 })}
-                      className="w-full sm:w-20 bg-secondary border border-border px-3 py-2 text-base text-foreground font-display font-bold text-left sm:text-right"
+                      className="w-full sm:w-24 bg-secondary border border-border px-3 py-2 text-base text-foreground font-display font-bold text-left sm:text-right min-w-0"
                       style={{ borderRadius: 'var(--radius)' }}
                     />
                     {/* $/% toggle */}
-                    <div className="flex gap-1 w-full sm:w-auto">
+                    <div className="flex gap-1 w-full sm:w-auto shrink-0">
                       <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
                       <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
                     </div>
                     {/* Pre/post-tax toggle */}
                     {!isTaxItem && (
-                      <div className="flex gap-1 w-full sm:w-auto">
+                      <div className="flex gap-1 w-full sm:w-auto shrink-0">
                         <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
                         <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`text-[9px] px-1.5 py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
                       </div>
@@ -892,14 +892,14 @@ export default function BudgetControl() {
                   </div>
                   {/* Retirement account + goal link */}
                   {isRetirement && (
-                    <div className="flex flex-wrap items-center gap-2 pl-1 mt-0.5">
+                    <div className="flex flex-col gap-2 pl-1 mt-0.5 sm:flex-row sm:flex-wrap sm:items-center min-w-0">
                       {retirementAccounts.length > 0 && (
                         <div className="flex items-center gap-1">
                           <span className="text-[9px] text-muted-foreground">Account:</span>
                           <select
                             value={d.accountId ?? ''}
                             onChange={e => updateDeduction(d.id, { accountId: e.target.value || undefined })}
-                            className="bg-secondary border border-border px-1.5 py-0.5 text-[9px] text-foreground"
+                            className="bg-secondary border border-border px-1.5 py-1 text-[9px] text-foreground min-w-0 max-w-full"
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             <option value="">— none —</option>
@@ -915,7 +915,7 @@ export default function BudgetControl() {
                           <select
                             value={d.goalId ?? ''}
                             onChange={e => updateDeduction(d.id, { goalId: e.target.value || undefined })}
-                            className="bg-secondary border border-border px-1.5 py-0.5 text-[9px] text-foreground"
+                            className="bg-secondary border border-border px-1.5 py-1 text-[9px] text-foreground min-w-0 max-w-full"
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             <option value="">— none —</option>
@@ -961,7 +961,7 @@ export default function BudgetControl() {
         </div>
 
         {/* Income inputs — frequency, tax rate, payday */}
-        <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="pt-3 border-t border-border grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="text-xs sm:text-sm text-muted-foreground uppercase">Pay Frequency</label>
             <select value={payFrequency} onChange={e => setPayFrequencyAuto(e.target.value as PayFrequency)}
@@ -1000,7 +1000,7 @@ export default function BudgetControl() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 pt-2 border-t border-border sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 border-t border-border">
           <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
   <p className="mt-1 text-base sm:text-lg font-display font-bold text-success break-words">
@@ -1039,7 +1039,7 @@ export default function BudgetControl() {
       </div>
 
       {/* KPI Summary + Remaining Cash On Hand */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="cursor-pointer" onClick={openIncomeCalc}>
           <MetricCard label="Monthly Take-Home" value={formatCurrency(monthlyTakeHome, false)} accent="success" icon={DollarSign} />
         </div>
@@ -1096,8 +1096,8 @@ export default function BudgetControl() {
 
       {/* Tabbed Rule Management */}
       <Tabs defaultValue="income" className="space-y-4">
-        <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
-        <TabsList className="bg-secondary border border-border w-max sm:w-full justify-start flex-nowrap h-auto gap-1 p-1">
+        <div className="overflow-x-auto w-full">
+        <TabsList className="bg-secondary border border-border w-max sm:w-full justify-start flex-nowrap h-auto gap-1 p-1 min-w-full sm:min-w-0">
           <TabsTrigger value="income" className="text-sm data-[state=active]:bg-background">Income ({incomeRules.length})</TabsTrigger>
           <TabsTrigger value="fixed" className="text-sm data-[state=active]:bg-background">Fixed ({billsRules.length})</TabsTrigger>
           <TabsTrigger value="subscriptions" className="text-sm data-[state=active]:bg-background">Subscriptions ({subscriptionRules.length})</TabsTrigger>

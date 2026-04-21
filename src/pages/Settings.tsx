@@ -64,7 +64,7 @@ function PaymentUpdateForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <PaymentElement options={{ layout: 'tabs' }} />
-      <div className="flex gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row">
         <button
           type="submit"
           disabled={!stripe || loading}
@@ -78,7 +78,7 @@ function PaymentUpdateForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
           type="button"
           onClick={onCancel}
           disabled={loading}
-          className="px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 transition-colors btn-press disabled:opacity-50"
+          className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 transition-colors btn-press disabled:opacity-50"
           style={{ borderRadius: 'var(--radius)' }}
         >
           Cancel
@@ -399,14 +399,14 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="p-4 lg:p-6 max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="p-4 lg:p-6 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 min-w-0">
           <SettingsIcon size={18} className="text-primary" />
           <h1 className="font-display font-bold text-xl tracking-tight">Settings</h1>
         </div>
         {dirty && !isDemo && (
-          <button onClick={handleSave} disabled={update.isPending} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
+          <button onClick={handleSave} disabled={update.isPending} className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
             <Save size={12} /> {update.isPending ? 'Saving...' : 'Save Changes'}
           </button>
         )}
@@ -453,19 +453,19 @@ export default function SettingsPage() {
                 Verification sent to your new email. Click the link to confirm the change.
               </div>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   type="email"
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
                   placeholder="New email address"
-                  className="flex-1 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                   style={{ borderRadius: 'var(--radius)' }}
                 />
                 <button
                   onClick={handleEmailChange}
                   disabled={emailLoading || !newEmail.trim()}
-                  className="px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
+                  className="w-full sm:w-auto px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {emailLoading ? 'Sending…' : 'Send Verification'}
@@ -562,7 +562,7 @@ export default function SettingsPage() {
 
           {/* Current status */}
           {appLock.lockEnabled ? (
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2">
                 <CheckCircle size={13} className="text-primary" />
                 <span className="text-xs font-medium text-primary capitalize">
@@ -725,7 +725,7 @@ export default function SettingsPage() {
                 <span className="text-foreground font-medium">Sign-in passkey</span> — skip the password field on the login page entirely.
               </p>
               {hasSigninPasskey ? (
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2">
                     <CheckCircle size={13} className="text-primary" />
                     <span className="text-xs font-medium text-primary">Sign-in passkey active</span>
@@ -764,7 +764,7 @@ export default function SettingsPage() {
       {/* Income & Paycheck */}
       <div className="card-forged p-5 space-y-4">
         <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Income & Paycheck</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">Weekly Gross Income</label>
             <input type="number" value={weeklyGrossIncome} onChange={e => { setWeeklyGrossIncome(e.target.value); markDirty(); }}
@@ -818,7 +818,7 @@ export default function SettingsPage() {
       {/* Display Preferences */}
       <div className="card-forged p-5 space-y-4">
         <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="text-[10px] text-muted-foreground uppercase">Currency</label>
             <select value={currency} onChange={e => { setCurrency(e.target.value); markDirty(); }}
@@ -864,7 +864,7 @@ export default function SettingsPage() {
           <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Share2 size={12} /> Invite a Friend
           </h2>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[10px] text-muted-foreground">
               Share Forged with someone who wants to take control of their finances.
             </p>
@@ -874,8 +874,8 @@ export default function SettingsPage() {
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-[10px] text-muted-foreground font-mono truncate" style={{ borderRadius: 'var(--radius)' }}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <code className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-[10px] text-muted-foreground font-mono truncate" style={{ borderRadius: 'var(--radius)' }}>
               {`https://app.treforged.com?ref=${user.id.slice(0, 8)}`}
             </code>
             <button
@@ -884,7 +884,7 @@ export default function SettingsPage() {
                 setInviteCopied(true);
                 setTimeout(() => setInviteCopied(false), 2000);
               }}
-              className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
+              className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-2 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
               style={{ borderRadius: 'var(--radius)' }}
             >
               {inviteCopied
@@ -900,7 +900,7 @@ export default function SettingsPage() {
         <div className="card-forged p-5 space-y-3">
           <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Support</h2>
           {isPremium ? (
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <MessageCircle size={13} className="text-primary" />
@@ -920,7 +920,7 @@ export default function SettingsPage() {
               </a>
             </div>
           ) : (
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <MessageCircle size={13} className="text-muted-foreground" />
@@ -948,7 +948,7 @@ export default function SettingsPage() {
           <h2 className="text-[11px] font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
 
           {deleteStep === 'hidden' && (
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-medium">Delete Account</p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -997,11 +997,11 @@ export default function SettingsPage() {
                 className="w-full bg-secondary border border-destructive/30 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
                 style={{ borderRadius: 'var(--radius)' }}
               />
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={handleSendDeleteConfirmation}
                   disabled={deleteConfirmText !== 'DELETE' || deleteLoading}
-                  className="flex items-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {deleteLoading ? <Loader2 size={12} className="animate-spin" /> : <SendHorizonal size={12} />}
@@ -1046,11 +1046,11 @@ export default function SettingsPage() {
                 autoFocus
               />
 
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={handleDeleteAccount}
                   disabled={deleteOtp.length < 6 || deleteLoading || deleteOtp.length > 8}
-                  className="flex items-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {deleteLoading ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
@@ -1092,7 +1092,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Plan details */}
-              <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
                   <span className="text-muted-foreground">Status</span>
                   <p className="font-medium capitalize">{subscription?.subscription_status || '—'}</p>
@@ -1127,12 +1127,12 @@ export default function SettingsPage() {
 
               {/* Actions — only shown when payment update is not open */}
               {!setupClientSecret && hasStripeCustomer && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   {/* Update payment method */}
                   <button
                     onClick={handleShowPaymentUpdate}
                     disabled={setupLoading}
-                    className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
+                    className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-50"
                     style={{ borderRadius: 'var(--radius)' }}
                   >
                     {setupLoading ? <Loader2 size={12} className="animate-spin" /> : <CreditCard size={12} />}
@@ -1144,7 +1144,7 @@ export default function SettingsPage() {
                     <button
                       onClick={() => handleCancelOrResume('resume')}
                       disabled={cancelLoading}
-                      className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
+                      className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
                       style={{ borderRadius: 'var(--radius)' }}
                     >
                       {cancelLoading ? <Loader2 size={12} className="animate-spin" /> : <Crown size={12} />}
@@ -1153,7 +1153,7 @@ export default function SettingsPage() {
                   ) : (
                     <>
                       {confirmCancel ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                           <span className="text-xs text-muted-foreground">Cancel at period end?</span>
                           <button
                             onClick={() => handleCancelOrResume('cancel')}
@@ -1173,7 +1173,7 @@ export default function SettingsPage() {
                       ) : (
                         <button
                           onClick={() => setConfirmCancel(true)}
-                          className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-destructive/40 hover:text-destructive transition-colors btn-press"
+                          className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-destructive/40 hover:text-destructive transition-colors btn-press"
                           style={{ borderRadius: 'var(--radius)' }}
                         >
                           Cancel subscription
