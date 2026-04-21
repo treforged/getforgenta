@@ -132,7 +132,7 @@ function EntryView({ entry }: { entry: ChatEntry }) {
       {/* Question bubble */}
       {question && (
         <div className="flex justify-end">
-          <div className="flex items-center gap-2 max-w-[85%]">
+          <div className="flex items-center gap-2 max-w-[90%] sm:max-w-[85%]">
             <div
               className="text-[12px] px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug"
               style={{ borderRadius: 'var(--radius)' }}
@@ -456,7 +456,7 @@ export default function AiAdvisor() {
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                 <Sparkles size={12} className="text-primary" />
               </div>
-              <div className="card-forged p-3 max-w-[80%] text-xs text-foreground leading-relaxed">
+              <div className="card-forged p-3 max-w-[92%] sm:max-w-[80%] text-xs text-foreground leading-relaxed">
                 Your financial health score is <span className="text-primary font-bold">74/100</span>. You're covering essentials well, but your discretionary spend is 12% above your 3-month average.
               </div>
             </div>
@@ -474,7 +474,7 @@ export default function AiAdvisor() {
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                 <Sparkles size={12} className="text-primary" />
               </div>
-              <div className="card-forged p-3 max-w-[80%] text-xs text-foreground leading-relaxed">
+              <div className="card-forged p-3 max-w-[92%] sm:max-w-[80%] text-xs text-foreground leading-relaxed">
                 Three quick wins: <span className="text-primary font-semibold">reduce dining out by $120</span>, redirect that to your emergency fund, and set your Chase card to auto-pay minimum to avoid late fees.
               </div>
             </div>
@@ -541,7 +541,7 @@ export default function AiAdvisor() {
   // ── Snapshot bar (shown in new-chat and chat views) ──────────────────────────
 
   const SnapshotBar = () => (
-    <div className="px-4 py-2 lg:px-6 border-b border-border/30 shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+    <div className="px-4 py-2 lg:px-6 border-b border-border/30 shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2">
       {[
         { label: 'Income',       value: formatCurrency(snapshot.monthlyIncome, false) },
         { label: 'Expenses',     value: formatCurrency(snapshot.monthlyExpenses, false) },
@@ -574,7 +574,7 @@ export default function AiAdvisor() {
         <button
           onClick={() => handleAsk()}
           disabled={blocked || !question.trim()}
-          className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-2.5 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors disabled:opacity-50"
+          className="flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-4 py-2.5 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors disabled:opacity-50"
           style={{ borderRadius: 'var(--radius)' }}
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
@@ -597,7 +597,7 @@ export default function AiAdvisor() {
       <div className="flex flex-col h-[calc(100dvh-4rem)] lg:h-screen max-w-3xl mx-auto w-full">
         <SharedHeader />
 
-        <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-1.5">
+        <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-1.5 overflow-x-hidden">
           {conversations.map(convo => {
             const ts = new Date(convo.created_at);
             const isToday = ts.toDateString() === new Date().toDateString();

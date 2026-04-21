@@ -50,8 +50,8 @@ function SavingsGrowthChart({ goals }: { goals: any[] }) {
 
   if (goals.length === 0) return null;
   return (
-    <div className="card-forged p-4 sm:p-5 overflow-hidden">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Savings Growth Projection</h3>
+    <div className="card-forged p-4 sm:p-5 overflow-hidden w-full">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-5">Savings Growth Projection</h3>
       <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : 260}>
         <LineChart data={chartData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
@@ -320,7 +320,7 @@ export default function SavingsGoals() {
   }, [form.goal_type, form.linked_account, accountOptions]);
 
   return (
-    <div className="p-4 lg:p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 lg:p-6 max-w-5xl mx-auto space-y-6 overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -371,7 +371,7 @@ export default function SavingsGoals() {
               </div>
             ))}
           </div>
-          <div className="mt-3 flex items-center justify-between">
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[10px] text-muted-foreground">All data is fictional.</p>
             <Link to="/auth" className="text-[11px] font-semibold text-primary hover:underline">Use with your own data →</Link>
           </div>
@@ -380,12 +380,12 @@ export default function SavingsGoals() {
 
       <SavingsGrowthChart goals={allGoals} />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="card-forged p-4 text-center"><p className="text-[10px] text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success">{formatCurrency(totalSaved, false)}</p></div>
         <div className="card-forged p-4 text-center"><p className="text-[10px] text-muted-foreground uppercase">Total Target</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalTarget, false)}</p></div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {allGoals.map(g => {
           const pct = Number(g.target_amount) > 0 ? (Number(g.current_amount) / Number(g.target_amount)) * 100 : 0;
           const isCar = g.goal_type === 'Car Fund';
@@ -395,11 +395,11 @@ export default function SavingsGoals() {
 
           return (
             <div key={g.id} className="card-forged p-4 space-y-3 hover:border-primary/20 transition-colors">
-              <div className="flex items-start justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
                     {isCar && <Car size={14} className="text-primary" />}
-                    <h3 className="text-sm font-semibold">{g.name}</h3>
+                    <h3 className="text-sm font-semibold break-words">{g.name}</h3>
                     <span className="text-[9px] px-1.5 py-0.5 bg-muted/50 border border-border text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>{g.goal_type || 'Custom'}</span>
                     {isLinked && (
                       <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
@@ -407,7 +407,7 @@ export default function SavingsGoals() {
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[10px] text-muted-foreground break-words leading-relaxed">
                     {(g as any).linked_rule
                       ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {(g as any).linked_rule.name}</span>
                       : `${formatCurrency(Number(g.monthly_contribution), false)}/mo contribution`
@@ -418,23 +418,23 @@ export default function SavingsGoals() {
                     )}
                   </p>
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 shrink-0 self-end sm:self-auto">
                   <button onClick={() => handleDuplicate(g)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
                   <button onClick={() => openEdit(g)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
                   <button onClick={() => handleDelete(g.id)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
                 </div>
               </div>
-              <div className="flex items-end justify-between">
-                <span className="text-lg font-display font-bold text-primary">{formatCurrency(Number(g.current_amount), false)}</span>
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <span className="text-lg font-display font-bold text-primary break-words">{formatCurrency(Number(g.current_amount), false)}</span>
                 <span className="text-xs text-muted-foreground">of {formatCurrency(Number(g.target_amount), false)}</span>
               </div>
               <ProgressBar value={Number(g.current_amount)} max={Number(g.target_amount)} color={pct >= 100 ? 'success' : 'gold'} />
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-[10px] text-muted-foreground">
                 <span>{pct.toFixed(0)}% complete</span>
                 <span>Est. completion: {estimateCompletion(g)}</span>
               </div>
               {isCar && car && (
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-border">
                   <div className="text-center"><p className="text-[9px] text-muted-foreground uppercase">Vehicle Price</p><p className="text-xs font-display font-bold">{formatCurrency(Number(car.target_price), false)}</p></div>
                   <div className="text-center"><p className="text-[9px] text-muted-foreground uppercase">Est. Monthly</p><p className="text-xs font-display font-bold text-primary">{formatCurrency(calculateMonthlyPayment(Number(car.target_price) + Number(car.tax_fees) - Number(car.down_payment_goal), Number(car.expected_apr), Number(car.loan_term_months)), true)}</p></div>
                   <div className="text-center"><p className="text-[9px] text-muted-foreground uppercase">Insurance/mo</p><p className="text-xs font-display font-bold">{formatCurrency(Number(car.monthly_insurance), false)}</p></div>
