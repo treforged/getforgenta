@@ -1111,6 +1111,7 @@ export default function BudgetControl() {
             <span className="truncate">Remaining ({monthlyTakeHome > 0 ? ((remaining / monthlyTakeHome) * 100).toFixed(0) : 0}%)</span>
           </div>
         </div>
+      </div>
 
       {/* Tabbed Rule Management */}
       <Tabs defaultValue="income" className="space-y-4">
