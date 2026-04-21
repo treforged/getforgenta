@@ -5,10 +5,10 @@ import DemoBanner from '@/components/shared/DemoBanner';
 
 export default function DashboardLayout() {
   return (
-    <div className="flex min-h-screen bg-background text-foreground">
+    <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 flex min-h-screen flex-col">
+      <div className="flex-1 flex min-h-0 flex-col">
         <div className="sticky top-0 z-40 bg-background">
           <DemoBanner />
         </div>
@@ -16,6 +16,9 @@ export default function DashboardLayout() {
         <main
           className="
             flex-1
+            min-h-0
+            overflow-y-auto
+            overflow-x-hidden
             px-3
             pb-[calc(5.5rem+env(safe-area-inset-bottom))]
             pt-[max(0.75rem,env(safe-area-inset-top))]
@@ -24,6 +27,7 @@ export default function DashboardLayout() {
             lg:pb-8
             lg:pt-4
           "
+          style={{ WebkitOverflowScrolling: 'touch' }}
         >
           <Outlet />
         </main>
