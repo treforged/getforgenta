@@ -84,16 +84,16 @@ function CalcDrawer({
   lines: { label: string; value: string; op?: string }[];
 }) {
   if (!open) return null;
+
   return (
     <div
-  className={`fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 ${
-    open ? 'bg-background/80 pointer-events-auto' : 'pointer-events-none'
-  }`}
-  onClick={onClose}
->
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-background/80"
+      style={{ touchAction: 'none' }}
+      onClick={onClose}
+    >
       <div
         className="card-forged p-4 sm:p-6 w-full sm:max-w-md space-y-3 max-h-[65vh] sm:max-h-[80vh] overflow-y-auto rounded-b-none sm:rounded-b-[var(--radius)]"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
           <h2 className="font-display font-semibold text-sm flex items-center gap-2">
@@ -103,15 +103,24 @@ function CalcDrawer({
             <X size={16} />
           </button>
         </div>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Calculation Breakdown</p>
+
+        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+          Calculation Breakdown
+        </p>
+
         <div className="space-y-2 pt-2">
           {lines.map((l, i) => (
-            <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+            <div
+              key={i}
+              className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0"
+            >
               <span className="text-xs text-muted-foreground flex items-center gap-1.5">
                 {l.op && <span className="text-primary font-bold">{l.op}</span>}
                 {l.label}
               </span>
-              <span className="text-xs font-display font-bold text-foreground">{l.value}</span>
+              <span className="text-xs font-display font-bold text-foreground">
+                {l.value}
+              </span>
             </div>
           ))}
         </div>
@@ -1012,12 +1021,14 @@ export default function Dashboard() {
         </div>
       </PremiumGate>
 
-      <CalcDrawer
-        open={!!calcDrawer}
-        onClose={() => setCalcDrawer(null)}
-        title={calcDrawer?.title || ''}
-        lines={calcDrawer?.lines || []}
-      />
+      {calcDrawer && (
+  <CalcDrawer
+    open={true}
+    onClose={() => setCalcDrawer(null)}
+    title={calcDrawer.title}
+    lines={calcDrawer.lines}
+  />
+)}
     </div>
   );
 }
