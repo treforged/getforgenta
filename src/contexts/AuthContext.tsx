@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
+import { initRevenueCat, logOutRevenueCat } from '@/lib/purchases';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;    // 10 minutes
 const IDLE_WARNING_MS =  8 * 60 * 1000;    // warn at 8 minutes
@@ -62,6 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (event === 'SIGNED_IN') {
         setIsDemo(false);
+        if (session?.user?.id) {
+          initRevenueCat(session.user.id).catch(() => {/* native no-op on web */});
+        }
         if (session?.user?.email === 'reviewer@treforged.com') {
           localStorage.removeItem(`forged:onboarding_done_${session.user.id}`);
         }
@@ -74,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         }
       } else if (event === 'SIGNED_OUT') {
+        logOutRevenueCat().catch(() => {/* native no-op on web */});
         navigate('/auth');
       } else if (event === 'TOKEN_REFRESHED') {
         // Session refreshed silently — no action needed
