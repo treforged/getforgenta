@@ -6,7 +6,6 @@
  * using the service role key access it.
  */
 
-import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,13 +37,13 @@ export interface PlaidItem {
 export function usePlaidItems() {
   const { user, isDemo } = useAuth();
   const qc = useQueryClient();
-  const [syncing, setSyncing] = useState(false);
 
   const query = useQuery({
     queryKey: ['plaid_items', user?.id],
     enabled: !isDemo && !!user,
     queryFn: async (): Promise<PlaidItem[]> => {
       if (!user) return [];
+      // Explicitly omit access_token — never select it on the client
       const { data, error } = await (supabase as any)
         .from('plaid_items')
         .select('id, plaid_item_id, institution_id, institution_name, last_synced_at, created_at')
@@ -53,7 +52,7 @@ export function usePlaidItems() {
       if (error) throw error;
       return (data ?? []) as PlaidItem[];
     },
-    staleTime: 60_000,
+    staleTime: 60_000, // 1 min — sync button drives freshness
   });
 
   const remove = async (plaidItemId: string) => {
@@ -80,36 +79,6 @@ export function usePlaidItems() {
     qc.invalidateQueries({ queryKey: ['accounts'] });
   };
 
-  /**
-   * Trigger a fresh Plaid balance sync for the current user.
-   * force=true bypasses the 23.5h per-item cooldown — use for explicit user-initiated refreshes.
-   */
-  const syncNow = async (force = false) => {
-    if (!user || syncing) return;
-    setSyncing(true);
-    try {
-      const authHeader = await getAuthHeader();
-      const res = await fetch(`${FN_BASE}/plaid-sync`, {
-        method: 'POST',
-        headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ force }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Sync failed');
-      }
-      const body = await res.json();
-      toast.success(`Balances updated — ${body.synced ?? 0} account${body.synced === 1 ? '' : 's'} synced.`);
-      qc.invalidateQueries({ queryKey: ['plaid_items'] });
-      qc.invalidateQueries({ queryKey: ['accounts'] });
-    } catch (err) {
-      console.error('Plaid syncNow error:', err);
-      toast.error(err instanceof Error ? err.message : 'Sync failed. Please try again.');
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['plaid_items'] });
     qc.invalidateQueries({ queryKey: ['accounts'] });
@@ -118,10 +87,8 @@ export function usePlaidItems() {
   return {
     items: query.data ?? [],
     loading: query.isLoading,
-    syncing,
     error: query.error,
     remove,
-    syncNow,
     invalidate,
   };
 }

@@ -14,7 +14,7 @@ import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
-  Link2, Unlink, Loader2, RefreshCw,
+  Link2, Unlink, Loader2,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -69,7 +69,7 @@ export default function Accounts() {
   const { data: accounts, add, update, remove, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
-  const { items: plaidItems, loading: plaidLoading, syncing: plaidSyncingNow, remove: removePlaidItem, syncNow: syncPlaidNow, invalidate: invalidatePlaid } = usePlaidItems();
+  const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -474,43 +474,13 @@ export default function Accounts() {
               <h3 className="text-sm font-semibold flex items-center gap-1.5"><Link2 size={14} className="text-primary" /> Linked Banks</h3>
               <p className="text-[10px] text-muted-foreground mt-0.5">Auto-sync balances from your bank accounts (premium)</p>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {isPremium && plaidItems.length > 0 && (
-                <button
-                  onClick={() => syncPlaidNow(true)}
-                  disabled={plaidSyncingNow}
-                  className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground hover:text-foreground border border-border/50 px-2 py-1 transition-colors disabled:opacity-50"
-                  style={{ borderRadius: 'var(--radius)' }}
-                  title="Force a fresh sync from Plaid now"
-                >
-                  {plaidSyncingNow ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
-                  {plaidSyncingNow ? 'Syncing…' : 'Sync now'}
-                </button>
-              )}
-              {isPremium && plaidItems.length < 10 && (
-                <PlaidLinkButton
-                  onSuccess={handlePlaidSuccess}
-                  onProcessing={setPlaidSyncing}
-                />
-              )}
-            </div>
+            {isPremium && plaidItems.length < 3 && (
+              <PlaidLinkButton
+                onSuccess={handlePlaidSuccess}
+                onProcessing={setPlaidSyncing}
+              />
+            )}
           </div>
-
-          {isPremium && plaidItems.length > 0 && (() => {
-            const mostRecent = plaidItems
-              .map(i => i.last_synced_at)
-              .filter(Boolean)
-              .sort()
-              .at(-1);
-            return (
-              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-yellow-500'}`} />
-                {mostRecent
-                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Updates daily at 8 AM`
-                  : 'Not yet synced · Will sync daily at 8 AM'}
-              </div>
-            );
-          })()}
 
           <p className="text-[10px] text-muted-foreground leading-relaxed">
             Bank connections are powered by{' '}
@@ -525,7 +495,7 @@ export default function Accounts() {
             <PremiumGate
               isPremium={false}
               title="Auto-Sync Bank Balances"
-              features={['Connect up to 10 institutions', 'Balances sync daily and on demand', 'Flows into Forecast & Net Worth automatically']}
+              features={['Connect up to 3 institutions', 'Balances sync on login and on demand', 'Flows into Forecast & Net Worth automatically']}
             >
               <div className="h-16" />
             </PremiumGate>

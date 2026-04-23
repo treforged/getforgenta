@@ -162,12 +162,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // force=true bypasses the 23.5h cooldown — user explicitly requested fresh data
-    const forceSync = body?.force === true;
-
     const { data: plaidItems, error: itemsErr } = await supabase
       .from("plaid_items")
-      .select("id, plaid_item_id, access_token, institution_name, last_synced_at")
+      .select("id, plaid_item_id, access_token, institution_name")
       .eq("user_id", userId);
 
     if (itemsErr) throw new Error(itemsErr.message);
@@ -178,12 +175,14 @@ Deno.serve(async (req) => {
     }
 
     const now = new Date().toISOString();
-    const SYNC_COOLDOWN_MS = 23.5 * 60 * 60 * 1000;
+    const SYNC_COOLDOWN_MS = 23.5 * 60 * 60 * 1000; // 23.5 hours — prevents reconnect abuse
     const syncedAccounts: any[] = [];
 
     for (const item of plaidItems) {
-      // Cooldown: skip Plaid API call if synced within 23.5h, unless user forced a refresh.
-      if (!forceSync && item.last_synced_at) {
+      // Rate-limit: if synced within the cooldown window, return existing DB balances instead
+      // of calling Plaid. This survives disconnect-reconnect because the check is per-item
+      // and last_synced_at persists as long as the item row exists.
+      if (item.last_synced_at) {
         const lastSync = new Date(item.last_synced_at).getTime();
         if (Date.now() - lastSync < SYNC_COOLDOWN_MS) {
           const { data: cachedAccounts } = await supabase
@@ -280,7 +279,7 @@ Deno.serve(async (req) => {
         .eq("id", item.id);
     }
 
-    return new Response(JSON.stringify({ synced: syncedAccounts.length, accounts: syncedAccounts, last_synced_at: now }), {
+    return new Response(JSON.stringify({ synced: syncedAccounts.length, accounts: syncedAccounts }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
