@@ -407,7 +407,7 @@ export default function AiAdvisor() {
 
   if (isDemo) {
     return (
-      <div className="p-4 lg:p-8 max-w-3xl mx-auto overflow-x-hidden">
+      <div className="p-4 lg:p-8 max-w-3xl mx-auto">
         <div className="flex items-center gap-2 mb-6">
           <Sparkles size={18} className="text-primary" />
           <h1 className="font-display font-bold text-2xl tracking-tight">AI Advisor</h1>
@@ -437,7 +437,7 @@ export default function AiAdvisor() {
 
   if (!isPremium) {
     return (
-      <div className="flex flex-col h-[calc(100dvh-56px)] lg:h-screen overflow-x-hidden">
+      <div className="flex flex-col h-[calc(100dvh-56px)] lg:h-screen">
         {/* header */}
         <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
           <Sparkles size={18} className="text-primary" />
