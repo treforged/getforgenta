@@ -9,9 +9,6 @@ export type UserSubscription = {
   subscription_status: string;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
-  purchase_provider: 'stripe' | 'apple' | 'google' | null;
-  revenuecat_app_user_id: string | null;
-  apple_original_transaction_id: string | null;
 };
 
 export function useSubscription() {

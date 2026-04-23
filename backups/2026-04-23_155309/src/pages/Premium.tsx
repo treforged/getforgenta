@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { Check, Crown, Loader2, ExternalLink, ArrowLeft } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
 import {
   EmbeddedCheckout,
   EmbeddedCheckoutProvider,
@@ -10,7 +9,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSubscription } from '@/hooks/useSubscription';
 import { tracedInvoke } from '@/lib/tracer';
 import { toast } from 'sonner';
-import IosPaywall from '@/components/premium/IosPaywall';
 
 // Initialise Stripe outside the component so the promise is stable across renders
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
@@ -20,12 +18,7 @@ const premium = ['Advanced dashboard', 'Export to CSV/PDF', 'Unlimited savings g
 
 type Phase = 'pricing' | 'loading' | 'checkout';
 
-const isNativeIos =
-  Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'ios';
-
 export default function Premium() {
-  if (isNativeIos) return <IosPaywall />;
-
   const { isPremium, hasStripeCustomer, isLoading } = useSubscription();
   const [portalLoading, setPortalLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
