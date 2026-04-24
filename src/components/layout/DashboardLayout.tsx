@@ -18,7 +18,6 @@ export default function DashboardLayout() {
             flex-1
             min-h-0
             overflow-y-auto
-            overflow-x-hidden
             px-3
             pb-[calc(5.5rem+env(safe-area-inset-bottom))]
             pt-[max(0.75rem,env(safe-area-inset-top))]
@@ -27,7 +26,7 @@ export default function DashboardLayout() {
             lg:pb-8
             lg:pt-4
           "
-          style={{ WebkitOverflowScrolling: 'touch' }}
+          style={{ overflowX: 'clip' }}
         >
           <Outlet />
         </main>
