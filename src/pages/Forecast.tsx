@@ -869,7 +869,7 @@ export default function Forecast() {
   const displayData = freePreview ? filteredData.slice(0, 3) : filteredData;
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
@@ -1011,7 +1011,7 @@ export default function Forecast() {
       {viewMode === 'monthly' ? (
         <>
           {/* Net Worth Chart */}
-          <div className="card-forged p-3 sm:p-5">
+          <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth & Assets Projection</h3>
               {freePreview && <span className="text-[9px] text-muted-foreground">Showing 3 of 36 months</span>}
@@ -1073,7 +1073,7 @@ export default function Forecast() {
 
           {/* Debt Projection Chart — premium only */}
           {!freePreview && cardProjectionData && (
-            <div className="card-forged p-3 sm:p-5">
+            <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4 flex items-center gap-2"><CreditCard size={12} /> Credit Card Debt Payoff Trajectory</h3>
               <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={cardProjectionData.data.slice(0, filterYear === 'all' ? 36 : parseInt(filterYear) * 12)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
