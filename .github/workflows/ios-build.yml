@@ -81,7 +81,6 @@ jobs:
             -configuration Release \
             -archivePath $RUNNER_TEMP/Forged.xcarchive \
             archive \
-            CODE_SIGN_IDENTITY="iPhone Distribution" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
 
       - name: Export IPA
