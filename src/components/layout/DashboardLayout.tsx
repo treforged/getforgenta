@@ -8,7 +8,7 @@ export default function DashboardLayout() {
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 flex min-h-0 flex-col">
+      <div className="flex-1 flex min-h-0 flex-col min-w-0">
         <div className="sticky top-0 z-40 bg-background">
           <DemoBanner />
         </div>
@@ -17,6 +17,7 @@ export default function DashboardLayout() {
           className="
             flex-1
             min-h-0
+            min-w-0
             overflow-y-auto
             px-3
             pb-[calc(5.5rem+env(safe-area-inset-bottom))]
@@ -28,7 +29,7 @@ export default function DashboardLayout() {
           "
           style={{ touchAction: 'pan-y', overflowX: 'hidden' }}
         >
-          <div style={{ overflow: 'hidden' }}>
+          <div style={{ overflow: 'hidden', minWidth: '0', width: '100%' }}>
             <Outlet />
           </div>
         </main>

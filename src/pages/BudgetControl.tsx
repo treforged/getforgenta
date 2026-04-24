@@ -723,7 +723,7 @@ export default function BudgetControl() {
   );
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 sm:space-y-8">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-x-hidden">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-3">
         <div className="min-w-0">
           <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Budget Control</h1>
@@ -1124,7 +1124,7 @@ export default function BudgetControl() {
 
       {/* Tabbed Rule Management */}
       <Tabs defaultValue="income" className="space-y-4">
-        <div className="w-full overflow-x-auto pb-1">
+        <div className="w-full overflow-x-auto pb-1 min-w-0">
           <TabsList className="bg-secondary border border-border w-max min-w-full sm:min-w-0 sm:w-full justify-start flex-nowrap h-auto gap-1 p-1">
             <TabsTrigger value="income" className="shrink-0 text-xs sm:text-sm data-[state=active]:bg-background">
               Income ({incomeRules.length})
