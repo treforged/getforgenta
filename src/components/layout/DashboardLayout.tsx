@@ -26,7 +26,7 @@ export default function DashboardLayout() {
             lg:pb-8
             lg:pt-4
           "
-          style={{ touchAction: 'pan-y' }}
+          style={{ touchAction: 'pan-y', overflowX: 'hidden' }}
         >
           <div style={{ overflow: 'hidden' }}>
             <Outlet />
