@@ -610,10 +610,11 @@ export default function AiAdvisor() {
 
   if (view === 'list') {
     return (
-      <div className="flex flex-col h-[calc(100dvh-4rem)] lg:h-screen max-w-3xl mx-auto w-full overflow-x-hidden">
+      <div className="flex flex-col h-[calc(100dvh-4rem)] lg:h-screen max-w-3xl mx-auto w-full">
         <SharedHeader />
 
-        <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-1.5">
+        <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
+          <div className="space-y-1.5" style={{ overflowX: 'clip' }}>
           {conversations.map(convo => {
             const ts = new Date(convo.created_at);
             const isToday = ts.toDateString() === new Date().toDateString();
@@ -643,6 +644,7 @@ export default function AiAdvisor() {
               </button>
             );
           })}
+          </div>
         </div>
       </div>
     );
@@ -654,13 +656,14 @@ export default function AiAdvisor() {
   const showBackInChat = conversations.length > 0;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-4rem)] lg:h-screen max-w-3xl mx-auto w-full overflow-x-hidden">
+    <div className="flex flex-col h-[calc(100dvh-4rem)] lg:h-screen max-w-3xl mx-auto w-full">
 
       <SharedHeader showBack={showBackInChat} title={activeTitle ?? undefined} />
       {isNewChat && <SnapshotBar />}
 
       {/* Thread */}
-      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4">
+        <div className="space-y-6" style={{ overflowX: 'clip' }}>
 
         {/* Empty state */}
         {activeEntries.length === 0 && !loading && (
@@ -707,6 +710,7 @@ export default function AiAdvisor() {
         )}
 
         <div ref={bottomRef} />
+        </div>
       </div>
 
       {/* Quick chips — only when there are already entries */}

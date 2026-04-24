@@ -26,9 +26,10 @@ export default function DashboardLayout() {
             lg:pb-8
             lg:pt-4
           "
-          style={{ overflowX: 'clip' }}
         >
-          <Outlet />
+          <div style={{ overflowX: 'clip' }}>
+            <Outlet />
+          </div>
         </main>
 
         <footer className="hidden lg:block border-t border-border py-4 px-6">
