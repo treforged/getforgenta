@@ -113,7 +113,7 @@ function InsightCard({ insight }: { insight: Insight }) {
       <cfg.Icon size={14} className={`shrink-0 mt-0.5 ${cfg.label}`} />
       <div className="min-w-0">
         <p className={`text-xs font-semibold ${cfg.label}`}>{insight.title}</p>
-        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{insight.body}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{insight.body}</p>
       </div>
     </div>
   );
@@ -134,7 +134,7 @@ function EntryView({ entry }: { entry: ChatEntry }) {
         <div className="flex justify-end">
           <div className="flex items-center gap-2 max-w-[90%] sm:max-w-[85%] min-w-0">
             <div
-              className="text-xs px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug break-words"
+              className="text-[12px] px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug break-words"
               style={{ borderRadius: 'var(--radius)' }}
             >
               {question}
@@ -157,7 +157,7 @@ function EntryView({ entry }: { entry: ChatEntry }) {
           <div className="flex gap-4 p-4 bg-secondary/50 border border-border/40 min-w-0 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
             <ScoreRing score={result.score ?? 0} size={88} />
             <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financial Health</p>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Financial Health</p>
               <p className="text-sm font-bold" style={{ color }}>{label}</p>
               <p className="text-xs text-muted-foreground leading-relaxed">{result.summary}</p>
             </div>
@@ -181,7 +181,7 @@ function EntryView({ entry }: { entry: ChatEntry }) {
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground/50 pl-1">
+          <p className="text-[10px] text-muted-foreground/50 pl-1">
             {new Date(entry.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
           </p>
         </div>
@@ -197,7 +197,7 @@ function ScoreBadge({ score }: { score: number }) {
   const label = scoreLabel(score);
   return (
     <div
-      className="flex items-center gap-1 px-2 py-0.5 text-xs font-bold border shrink-0"
+      className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold border shrink-0"
       style={{ borderRadius: 'var(--radius)', color, borderColor: `${color}40`, background: `${color}12` }}
     >
       {score} <span className="font-normal opacity-70">{label}</span>
@@ -407,10 +407,10 @@ export default function AiAdvisor() {
 
   if (isDemo) {
     return (
-      <div className="py-4 lg:py-6 max-w-3xl mx-auto overflow-x-hidden">
+      <div className="p-4 lg:p-8 max-w-3xl mx-auto overflow-x-hidden">
         <div className="flex items-center gap-2 mb-6">
           <Sparkles size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">AI Advisor</h1>
+          <h1 className="font-display font-bold text-2xl tracking-tight">AI Advisor</h1>
         </div>
         <div className="border border-border/60 bg-secondary/30 p-8 text-center space-y-4" style={{ borderRadius: 'var(--radius)' }}>
           <div className="w-12 h-12 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto">
@@ -441,7 +441,7 @@ export default function AiAdvisor() {
         {/* header */}
         <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
           <Sparkles size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">AI Advisor</h1>
+          <h1 className="font-display font-bold text-xl tracking-tight">AI Advisor</h1>
         </div>
         <PremiumGate
           title="AI Budget Advisor"
@@ -506,7 +506,7 @@ export default function AiAdvisor() {
         <div className="flex items-center gap-2 shrink-0">
           <Sparkles size={16} className="text-primary" />
           <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
-          <span className="text-xs px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium hidden sm:inline" style={{ borderRadius: 'var(--radius)' }}>
+          <span className="text-[10px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium hidden sm:inline" style={{ borderRadius: 'var(--radius)' }}>
             Gemini 2.5
           </span>
         </div>
@@ -524,11 +524,11 @@ export default function AiAdvisor() {
             <div key={i} className={`h-1.5 w-2 rounded-full transition-colors ${i < usedToday ? 'bg-primary' : 'bg-border'}`} />
           ))}
         </div>
-        <span className="text-xs text-muted-foreground tabular-nums">{usedToday}/{DAILY_LIMIT}</span>
+        <span className="text-[10px] text-muted-foreground tabular-nums">{usedToday}/{DAILY_LIMIT}</span>
         {!showBack && (
           <button
             onClick={startNew}
-            className="ml-1 flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition-colors btn-press"
+            className="ml-1 flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-[11px] font-semibold transition-colors btn-press"
             style={{ borderRadius: 'var(--radius)' }}
           >
             <Plus size={11} /> New
@@ -620,7 +620,7 @@ export default function AiAdvisor() {
                   <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
                     {convo.title || 'General Analysis'}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{timeStr}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{timeStr}</p>
                 </div>
                 {score !== undefined && <ScoreBadge score={score} />}
                 <ChevronRight size={14} className="text-muted-foreground/40 group-hover:text-muted-foreground shrink-0 transition-colors" />
@@ -662,7 +662,7 @@ export default function AiAdvisor() {
                   key={q}
                   onClick={() => handleAsk(q)}
                   disabled={blocked}
-                  className="text-xs px-3 py-2 bg-secondary border border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-colors btn-press disabled:opacity-40"
+                  className="text-[11px] px-3 py-2 bg-secondary border border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-colors btn-press disabled:opacity-40"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {q}
@@ -701,7 +701,7 @@ export default function AiAdvisor() {
               key={q}
               onClick={() => handleAsk(q)}
               disabled={blocked}
-              className="text-xs px-2.5 py-1 bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-40"
+              className="text-[10px] px-2.5 py-1 bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-40"
               style={{ borderRadius: 'var(--radius)' }}
             >
               {q}
