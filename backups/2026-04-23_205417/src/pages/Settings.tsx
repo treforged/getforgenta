@@ -399,11 +399,11 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="py-4 lg:py-6 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
+    <div className="p-4 lg:p-6 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <SettingsIcon size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Settings</h1>
+          <h1 className="font-display font-bold text-xl tracking-tight">Settings</h1>
         </div>
         {dirty && !isDemo && (
           <button onClick={handleSave} disabled={update.isPending} className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
