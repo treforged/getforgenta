@@ -56,22 +56,35 @@ export default function Auth() {
   }, [searchParams]);
 
   useEffect(() => {
-    let mounted = true;
+  let mounted = true;
 
-    // Check if session already exists (OAuth redirect case).
-    // Navigation on SIGNED_IN is handled exclusively by AuthContext which
-    // includes the MFA assurance-level check before redirecting.
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      if (data.session) {
-        navigate('/dashboard', { replace: true });
-      }
-    });
+  // Check if session already exists (OAuth redirect case)
+  supabase.auth.getSession().then(({ data }) => {
+    if (!mounted) return;
+    if (data.session) {
+      navigate('/dashboard', { replace: true });
+    }
+  });
 
-    return () => {
-      mounted = false;
-    };
-  }, [navigate]);
+  // Listen for auth changes (Google/Apple login finishing)
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((event, session) => {
+    if (!mounted) return;
+
+    if (
+      session &&
+      (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED')
+    ) {
+      navigate('/dashboard', { replace: true });
+    }
+  });
+
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+  };
+}, [navigate]);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -669,7 +682,7 @@ const { error } = await supabase.auth.signInWithOAuth({
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
               </svg>
-              Quick sign-in
+              Sign in with passkey
             </button>
             <button
               type="button"
