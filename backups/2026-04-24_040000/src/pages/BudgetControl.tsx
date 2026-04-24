@@ -1074,52 +1074,43 @@ export default function BudgetControl() {
       <div className="card-forged p-5">
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider mb-1">Budget Allocation</h3>
         <p className="text-sm text-muted-foreground mb-4">{now.toLocaleString('en-US', { month: 'long', year: 'numeric' })} — current month only</p>
-        {(() => {
-          const t = monthlyTakeHome;
-          const fixedPct    = t > 0 ? Math.max(0, (totalFixedExpenses    / t) * 100) : 0;
-          const variablePct = t > 0 ? Math.max(0, (totalVariableExpenses / t) * 100) : 0;
-          const debtPct     = t > 0 ? Math.max(0, (totalDebtPayments     / t) * 100) : 0;
-          const xferPct     = t > 0 ? Math.max(0, (totalTransfers        / t) * 100) : 0;
-          const remPct      = t > 0 ? Math.max(0, (remaining             / t) * 100) : 0;
-          const R = 15.91549430918954;
-          const seg = (pct: number, offset: number, color: string) =>
-            pct > 0 ? (
-              <circle
-                cx="18" cy="18" r={R}
-                fill="transparent"
-                stroke={color}
-                strokeWidth="3.5"
-                strokeDasharray={`${pct} ${100 - pct}`}
-                strokeDashoffset={-offset}
-              />
-            ) : null;
-          return (
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              <svg viewBox="0 0 36 36" className="w-32 h-32 shrink-0 -rotate-90">
-                <circle cx="18" cy="18" r={R} fill="transparent" stroke="hsl(var(--secondary))" strokeWidth="3.5" />
-                {seg(fixedPct,    0,                                          'hsl(0, 65%, 45%)'  )}
-                {seg(variablePct, fixedPct,                                   'hsl(35, 85%, 50%)' )}
-                {seg(debtPct,     fixedPct + variablePct,                     'hsl(210, 70%, 50%)')}
-                {seg(xferPct,     fixedPct + variablePct + debtPct,           'hsl(280, 60%, 55%)')}
-                {seg(remPct,      fixedPct + variablePct + debtPct + xferPct, 'hsl(142, 50%, 40%)')}
-              </svg>
-              <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-muted-foreground">
-                {[
-                  { label: 'Fixed',     pct: fixedPct,    color: 'hsl(0, 65%, 45%)'   },
-                  { label: 'Variable',  pct: variablePct, color: 'hsl(35, 85%, 50%)'  },
-                  { label: 'Debt',      pct: debtPct,     color: 'hsl(210, 70%, 50%)' },
-                  { label: 'Transfers', pct: xferPct,     color: 'hsl(280, 60%, 55%)' },
-                  { label: 'Remaining', pct: remPct,      color: 'hsl(142, 50%, 40%)' },
-                ].map(({ label, pct, color }) => (
-                  <div key={label} className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: color }} />
-                    <span className="truncate">{label} ({pct.toFixed(0)}%)</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+        <div className="w-full h-6 bg-secondary overflow-hidden flex" style={{ borderRadius: 'var(--radius)' }}>
+          {monthlyTakeHome > 0 && (
+            <>
+              <div className="h-full transition-all" style={{ width: `${Math.min((totalFixedExpenses / monthlyTakeHome) * 100, 100)}%`, background: 'hsl(0, 65%, 45%)' }} title="Fixed" />
+              <div className="h-full transition-all" style={{ width: `${Math.min((totalVariableExpenses / monthlyTakeHome) * 100, 100)}%`, background: 'hsl(35, 85%, 50%)' }} title="Variable" />
+              <div className="h-full transition-all" style={{ width: `${Math.min((totalDebtPayments / monthlyTakeHome) * 100, 100)}%`, background: 'hsl(210, 70%, 50%)' }} title="Debt" />
+              <div className="h-full transition-all" style={{ width: `${Math.min((totalTransfers / monthlyTakeHome) * 100, 100)}%`, background: 'hsl(280, 60%, 55%)' }} title="Transfers" />
+              {remaining > 0 && <div className="h-full transition-all" style={{ width: `${Math.min((remaining / monthlyTakeHome) * 100, 100)}%`, background: 'hsl(142, 50%, 40%)' }} title="Remaining" />}
+            </>
+          )}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-muted-foreground">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: 'hsl(0, 65%, 45%)' }} />
+            <span className="truncate">Fixed ({monthlyTakeHome > 0 ? ((totalFixedExpenses / monthlyTakeHome) * 100).toFixed(0) : 0}%)</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: 'hsl(35, 85%, 50%)' }} />
+            <span className="truncate">Variable ({monthlyTakeHome > 0 ? ((totalVariableExpenses / monthlyTakeHome) * 100).toFixed(0) : 0}%)</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: 'hsl(210, 70%, 50%)' }} />
+            <span className="truncate">Debt ({monthlyTakeHome > 0 ? ((totalDebtPayments / monthlyTakeHome) * 100).toFixed(0) : 0}%)</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: 'hsl(280, 60%, 55%)' }} />
+            <span className="truncate">Transfers ({monthlyTakeHome > 0 ? ((totalTransfers / monthlyTakeHome) * 100).toFixed(0) : 0}%)</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: 'hsl(142, 50%, 40%)' }} />
+            <span className="truncate">Remaining ({monthlyTakeHome > 0 ? ((remaining / monthlyTakeHome) * 100).toFixed(0) : 0}%)</span>
+          </div>
+        </div>
       </div>
 
       {/* Tabbed Rule Management */}
