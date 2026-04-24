@@ -399,11 +399,11 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="p-4 lg:p-6 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <SettingsIcon size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-xl tracking-tight">Settings</h1>
+          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Settings</h1>
         </div>
         {dirty && !isDemo && (
           <button onClick={handleSave} disabled={update.isPending} className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
@@ -415,19 +415,19 @@ export default function SettingsPage() {
       {isDemo && (
         <div className="card-forged p-4 border-primary/30">
           <p className="text-xs text-primary font-medium">Demo Mode</p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Settings won't persist. Sign up to save your preferences.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Settings won't persist. Sign up to save your preferences.</p>
         </div>
       )}
 
       {/* Profile */}
       <div className="card-forged p-5 space-y-4">
-        <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Profile</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Profile</h2>
         <div>
-          <label className="text-[10px] text-muted-foreground uppercase">Email</label>
+          <label className="text-xs text-muted-foreground uppercase">Email</label>
           <p className="text-sm mt-0.5">{isDemo ? 'demo@treforged.com' : user?.email || '—'}</p>
         </div>
         <div>
-          <label className="text-[10px] text-muted-foreground uppercase">Display Name</label>
+          <label className="text-xs text-muted-foreground uppercase">Display Name</label>
           <input value={displayName} onChange={e => { setDisplayName(e.target.value); markDirty(); }}
             className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" style={{ borderRadius: 'var(--radius)' }} placeholder="Your name" />
         </div>
@@ -436,7 +436,7 @@ export default function SettingsPage() {
       {/* Account Security — hidden in demo */}
       {!isDemo && (
         <div id="security" className="card-forged p-5 space-y-5">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Account Security</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Account Security</h2>
 
           {/* Change Email */}
           <div className="space-y-3">
@@ -444,7 +444,7 @@ export default function SettingsPage() {
               <Mail size={13} className="text-muted-foreground" />
               <span className="text-xs font-medium">Change Email</span>
             </div>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Current: <span className="text-foreground">{user?.email}</span>
             </p>
             {emailSent ? (
@@ -473,7 +473,7 @@ export default function SettingsPage() {
               </div>
             )}
             {emailSent && (
-              <button onClick={() => setEmailSent(false)} className="text-[10px] text-muted-foreground hover:text-foreground underline">
+              <button onClick={() => setEmailSent(false)} className="text-xs text-muted-foreground hover:text-foreground underline">
                 Send again
               </button>
             )}
@@ -533,7 +533,7 @@ export default function SettingsPage() {
                   style={{ borderRadius: 'var(--radius)' }}
                 />
                 {confirmNewPassword && confirmNewPassword !== newPassword && (
-                  <p className="text-[10px] text-destructive">Passwords do not match</p>
+                  <p className="text-xs text-destructive">Passwords do not match</p>
                 )}
                 <button
                   onClick={handlePasswordChange}
@@ -552,10 +552,10 @@ export default function SettingsPage() {
       {/* Quick Access — mobile PIN / biometric / passkey */}
       {!isDemo && (
         <div className="card-forged p-5 space-y-4">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Shield size={12} /> Quick Access
           </h2>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Lock the app and require a PIN, biometric, or passkey to re-open.
             {appLock.isNative ? '' : ' PIN and biometric are mobile-only; passkeys work everywhere.'}
           </p>
@@ -571,13 +571,13 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => { appLock.disableLock(); setPinSetupStep('idle'); }}
-                className="text-[10px] text-destructive hover:underline"
+                className="text-xs text-destructive hover:underline"
               >
                 Disable
               </button>
             </div>
           ) : (
-            <p className="text-[10px] text-muted-foreground">No lock set — select one below to enable.</p>
+            <p className="text-xs text-muted-foreground">No lock set — select one below to enable.</p>
           )}
 
           {/* Options */}
@@ -721,7 +721,7 @@ export default function SettingsPage() {
           {/* Sign-In Passkey — separate from app lock, lets you skip password on login */}
           {typeof window !== 'undefined' && window.PublicKeyCredential && (
             <div className="pt-2 border-t border-border space-y-2">
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 <span className="text-foreground font-medium">Sign-in passkey</span> — skip the password field on the login page entirely.
               </p>
               {hasSigninPasskey ? (
@@ -732,7 +732,7 @@ export default function SettingsPage() {
                   </div>
                   <button
                     onClick={handleRemoveSigninPasskey}
-                    className="text-[10px] text-destructive hover:underline"
+                    className="text-xs text-destructive hover:underline"
                   >
                     Remove
                   </button>
@@ -763,20 +763,20 @@ export default function SettingsPage() {
 
       {/* Income & Paycheck */}
       <div className="card-forged p-5 space-y-4">
-        <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Income & Paycheck</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Income & Paycheck</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase">Weekly Gross Income</label>
+            <label className="text-xs text-muted-foreground uppercase">Weekly Gross Income</label>
             <input type="number" value={weeklyGrossIncome} onChange={e => { setWeeklyGrossIncome(e.target.value); markDirty(); }}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase">Tax Rate %</label>
+            <label className="text-xs text-muted-foreground uppercase">Tax Rate %</label>
             <input type="number" value={taxRate} onChange={e => { setTaxRate(e.target.value); markDirty(); }}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase">Pay Frequency</label>
+            <label className="text-xs text-muted-foreground uppercase">Pay Frequency</label>
             <select value={paycheckFrequency} onChange={e => { setPaycheckFrequency(e.target.value); markDirty(); }}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
               <option value="weekly">Weekly</option>
@@ -785,7 +785,7 @@ export default function SettingsPage() {
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase">{paycheckFrequency === 'monthly' ? 'Pay Day of Month' : `Paycheck Day (${getDayName(paycheckDay !== '' ? parseInt(paycheckDay) : 5)})`}</label>
+            <label className="text-xs text-muted-foreground uppercase">{paycheckFrequency === 'monthly' ? 'Pay Day of Month' : `Paycheck Day (${getDayName(paycheckDay !== '' ? parseInt(paycheckDay) : 5)})`}</label>
             {paycheckFrequency === 'monthly' ? (
               <input type="number" min={1} max={31} value={paycheckDay} onChange={e => { setPaycheckDay(e.target.value); markDirty(); }}
                 className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
@@ -798,7 +798,7 @@ export default function SettingsPage() {
           </div>
           {paycheckFrequency === 'biweekly' && (
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase">Pay Cycle Anchor Date</label>
+              <label className="text-xs text-muted-foreground uppercase">Pay Cycle Anchor Date</label>
               <p className="text-[9px] text-muted-foreground mt-0.5 mb-1">Any past paycheck date — used to determine which biweekly Fridays are pay days.</p>
               <input type="date" value={paycheckStartDate} onChange={e => { setPaycheckStartDate(e.target.value); markDirty(); }}
                 className="w-full bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
@@ -806,7 +806,7 @@ export default function SettingsPage() {
           )}
         </div>
         <div>
-          <label className="text-[10px] text-muted-foreground uppercase">Default Deposit Account</label>
+          <label className="text-xs text-muted-foreground uppercase">Default Deposit Account</label>
           <select value={defaultDepositAccount} onChange={e => { setDefaultDepositAccount(e.target.value); markDirty(); }}
             className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
             <option value="">Auto-detect (first checking)</option>
@@ -817,10 +817,10 @@ export default function SettingsPage() {
 
       {/* Display Preferences */}
       <div className="card-forged p-5 space-y-4">
-        <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase">Currency</label>
+            <label className="text-xs text-muted-foreground uppercase">Currency</label>
             <select value={currency} onChange={e => { setCurrency(e.target.value); markDirty(); }}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
               <option value="USD">USD ($)</option>
@@ -829,7 +829,7 @@ export default function SettingsPage() {
             </select>
           </div>
           <div>
-            <label className="text-[10px] text-muted-foreground uppercase">Budget Start Day</label>
+            <label className="text-xs text-muted-foreground uppercase">Budget Start Day</label>
             <input type="number" min={1} max={28} value={startDay} onChange={e => { setStartDay(e.target.value); markDirty(); }}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
           </div>
@@ -850,32 +850,32 @@ export default function SettingsPage() {
 
       {/* Financial Defaults */}
       <div className="card-forged p-5 space-y-4">
-        <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Cash Management</h2>
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cash Management</h2>
         <div>
-          <label className="text-[10px] text-muted-foreground uppercase">Minimum Cash Floor / Reserve</label>
+          <label className="text-xs text-muted-foreground uppercase">Minimum Cash Floor / Reserve</label>
           <input type="number" value={cashFloor} onChange={e => { setCashFloor(e.target.value); markDirty(); }} onBlur={() => { if (dirty) handleSave(); }} className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
-          <p className="text-[10px] text-muted-foreground mt-1">Cash-protected mode: extra card payments only when cash stays above this floor</p>
+          <p className="text-xs text-muted-foreground mt-1">Cash-protected mode: extra card payments only when cash stays above this floor</p>
         </div>
       </div>
 
       {/* Invite a Friend */}
       {!isDemo && user && (
         <div className="card-forged p-5 space-y-3">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Share2 size={12} /> Invite a Friend
           </h2>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Share Forged with someone who wants to take control of their finances.
             </p>
             {referralCount !== null && referralCount > 0 && (
-              <span className="text-[10px] font-medium text-primary shrink-0">
+              <span className="text-xs font-medium text-primary shrink-0">
                 {referralCount} joined via your link
               </span>
             )}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <code className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-[10px] text-muted-foreground font-mono truncate" style={{ borderRadius: 'var(--radius)' }}>
+            <code className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-muted-foreground font-mono truncate" style={{ borderRadius: 'var(--radius)' }}>
               {`https://app.treforged.com?ref=${user.id.slice(0, 8)}`}
             </code>
             <button
@@ -898,7 +898,7 @@ export default function SettingsPage() {
       {/* Support */}
       {!isDemo && (
         <div className="card-forged p-5 space-y-3">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Support</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Support</h2>
           {isPremium ? (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
@@ -907,7 +907,7 @@ export default function SettingsPage() {
                   <span className="text-xs font-medium">Priority Support</span>
                   <span className="text-[9px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>Premium</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Your message goes to the front of the queue. Email us with your account issue and we'll respond within 24 hours.
                 </p>
               </div>
@@ -926,7 +926,7 @@ export default function SettingsPage() {
                   <MessageCircle size={13} className="text-muted-foreground" />
                   <span className="text-xs font-medium text-muted-foreground">Priority Support</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Premium subscribers get front-of-queue email support with a 24-hour response guarantee.
                 </p>
               </div>
@@ -945,13 +945,13 @@ export default function SettingsPage() {
       {/* Danger Zone — hidden in demo mode */}
       {!isDemo && (
         <div className="card-forged p-5 space-y-4 border border-destructive/20">
-          <h2 className="text-[11px] font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
+          <h2 className="text-xs font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
 
           {deleteStep === 'hidden' && (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <p className="text-xs font-medium">Delete Account</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Permanently deletes your account and all data. Active subscriptions are cancelled immediately. Billing records are retained per IRS requirements.
                 </p>
               </div>
@@ -986,7 +986,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Type <strong className="text-foreground">DELETE</strong> to confirm, then we'll send a verification code to your email:
               </p>
               <input
@@ -1067,7 +1067,7 @@ export default function SettingsPage() {
               <button
                 onClick={handleSendDeleteConfirmation}
                 disabled={deleteLoading}
-                className="text-[10px] text-muted-foreground hover:text-foreground underline"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
               >
                 Resend code
               </button>
@@ -1079,7 +1079,7 @@ export default function SettingsPage() {
       {/* Subscription Management — hidden in demo mode */}
       {!isDemo && (
         <div className="card-forged p-5 space-y-4">
-          <h2 className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Subscription</h2>
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subscription</h2>
 
           {subLoading ? (
             <p className="text-xs text-muted-foreground">Loading subscription info…</p>
@@ -1211,7 +1211,7 @@ export default function SettingsPage() {
                 <AlertCircle size={14} className="text-muted-foreground" />
                 <span className="text-sm font-medium">Free Plan</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">Upgrade to Premium for advanced features, unlimited history, and priority support.</p>
+              <p className="text-xs text-muted-foreground">Upgrade to Premium for advanced features, unlimited history, and priority support.</p>
               <Link to="/premium" className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
                 <Crown size={12} /> Upgrade to Premium
               </Link>
