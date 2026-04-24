@@ -278,9 +278,25 @@ export default function AiAdvisor() {
     const topCategories = Object.entries(breakdown)
       .map(([category, amount]) => ({ category, amount: amount as number }))
       .sort((a, b) => b.amount - a.amount)
-      .slice(0, 5);
+      .slice(0, 6);
 
-    return { monthlyIncome, monthlyExpenses, totalDebt, savingsBalance, cashOnHand, netWorth, savingsRate, topCategories };
+    const debtDetails = debts.map((d: any) => ({
+      name: String(d.name ?? 'Unknown'),
+      balance: Number(d.balance ?? 0),
+      apr: Number(d.apr ?? 0),
+      minPayment: Number(d.min_payment ?? 0),
+      targetPayment: Number(d.target_payment ?? 0),
+    }));
+
+    const savingsGoals = goals.map((g: any) => ({
+      name: String(g.name ?? 'Unnamed Goal'),
+      targetAmount: Number(g.target_amount ?? 0),
+      currentAmount: Number(g.current_amount ?? 0),
+      monthlyContribution: Number(g.monthly_contribution ?? 0),
+      targetDate: g.target_date ?? null,
+    }));
+
+    return { monthlyIncome, monthlyExpenses, totalDebt, savingsBalance, cashOnHand, netWorth, savingsRate, topCategories, debtDetails, savingsGoals };
   }, [allTxns, debts, goals, accounts]);
 
   // Load history on mount
