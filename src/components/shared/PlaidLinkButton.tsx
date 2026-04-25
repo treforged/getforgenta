@@ -108,10 +108,11 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled }: P
 
             const institutionName = exchangeBody.institution_name ?? 'Your bank';
 
-            // Immediately sync balances
+            // Immediately sync balances for this institution only
             const syncRes = await fetch(`${FN_BASE}/plaid-sync`, {
               method: 'POST',
               headers: { Authorization: freshAuth, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ item_id: exchangeBody.plaid_item_id }),
             });
             const syncBody = syncRes.ok ? await syncRes.json() : { accounts: [] };
 

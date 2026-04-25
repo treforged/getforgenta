@@ -75,10 +75,11 @@ export default function PlaidOAuth() {
               const name = exchangeBody.institution_name ?? 'Your bank';
               toast.success(`${name} linked successfully`);
 
-              // Sync balances
+              // Sync balances for this institution only
               await fetch(`${FN_BASE}/plaid-sync`, {
                 method: 'POST',
                 headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_id: exchangeBody.plaid_item_id }),
               });
 
               navigate('/accounts');
