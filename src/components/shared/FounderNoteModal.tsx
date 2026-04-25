@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -9,6 +10,7 @@ interface Props {
 
 export default function FounderNoteModal({ onDismiss }: Props) {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [dismissing, setDismissing] = useState(false);
 
   const handleDismiss = async () => {
@@ -19,6 +21,8 @@ export default function FounderNoteModal({ onDismiss }: Props) {
         .from('profiles')
         .update({ founder_note_seen: true } as any)
         .eq('user_id', user.id);
+      // Invalidate cached profile so future Dashboard mounts read the updated value.
+      qc.invalidateQueries({ queryKey: ['profile'] });
     }
     onDismiss();
   };
