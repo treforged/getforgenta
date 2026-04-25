@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import MetricCard from '@/components/shared/MetricCard';
@@ -7,14 +7,10 @@ import ProgressBar from '@/components/shared/ProgressBar';
 import CategoryIcon from '@/components/shared/CategoryIcon';
 import PremiumGate from '@/components/shared/PremiumGate';
 import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
-import FounderNoteModal from '@/components/shared/FounderNoteModal';
-import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
-import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import { formatCurrency } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
-import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
 import { useSubscription } from '@/hooks/useSubscription';
 import {
@@ -177,13 +173,9 @@ export default function Dashboard() {
   const { data: carFunds } = useCarFunds();
   const { data: subs } = useSubscriptions();
   const { data: rules, loading: rulesLoading } = useRecurringRules();
-  const { items: plaidItems } = usePlaidItems();
 
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
-  const [founderNoteVisible, setFounderNoteVisible] = useState(false);
-  const [wizardVisible, setWizardVisible] = useState(false);
-  const onboardingInitRef = useRef(false);
 
   useEffect(() => {
     if (isDemo) return;
@@ -195,34 +187,6 @@ export default function Dashboard() {
       setShowSecurityBanner(!hasVerified);
     });
   }, [isDemo]);
-
-  // Phase 3: initialize founder note + onboarding wizard once all data loads.
-  useEffect(() => {
-    if (isDemo || profileLoading || debtsLoading || goalsLoading || acctLoading || onboardingInitRef.current) return;
-    onboardingInitRef.current = true;
-    const p = profile as any;
-    if (p?.founder_note_seen === false) {
-      setFounderNoteVisible(true);
-    } else if (
-      p?.onboarding_completed === false &&
-      !sessionStorage.getItem('forged:onboarding_wizard_dismissed') &&
-      accounts.length === 0 && debts.length === 0 && goals.length === 0
-    ) {
-      setWizardVisible(true);
-    }
-  }, [isDemo, profileLoading, debtsLoading, goalsLoading, acctLoading, profile, accounts, debts, goals]);
-
-  const handleFounderNoteDismiss = () => {
-    setFounderNoteVisible(false);
-    const p = profile as any;
-    if (
-      p?.onboarding_completed === false &&
-      !sessionStorage.getItem('forged:onboarding_wizard_dismissed') &&
-      accounts.length === 0 && debts.length === 0 && goals.length === 0
-    ) {
-      setWizardVisible(true);
-    }
-  };
 
   const essentialLoading = txnLoading || acctLoading || profileLoading;
 
@@ -633,17 +597,6 @@ export default function Dashboard() {
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
-      {/* Phase 3A: Founder's note — first login only */}
-      {founderNoteVisible && (
-        <FounderNoteModal onDismiss={handleFounderNoteDismiss} />
-      )}
-      {/* Phase 3B/C: Onboarding wizard — new users with no data */}
-      {wizardVisible && (
-        <OnboardingWizard
-          onComplete={() => setWizardVisible(false)}
-          onDismiss={() => setWizardVisible(false)}
-        />
-      )}
       {!isDemo && <AppTour variant="new-user" />}
       <AccountUpdateReminder />
 
@@ -676,15 +629,36 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Phase 3D: Onboarding checklist — shown until all 4 items complete */}
-      {!isDemo && !(profile as any)?.onboarding_completed && !profileLoading && (
-        <OnboardingChecklist
-          profile={profile}
-          accounts={accounts}
-          debts={debts}
-          goals={goals}
-          plaidItems={plaidItems}
-        />
+      {!isDemo && accounts.length === 0 && debts.length === 0 && goals.length === 0 && (
+        <div className="card-forged p-4 border-primary/20 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-5 bg-primary rounded-full shrink-0" />
+            <p className="text-xs font-semibold">Get started — set up your financial profile</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { label: 'Add your accounts', desc: 'Checking, savings, credit cards, and more', path: '/accounts', done: accounts.length > 0 },
+              { label: 'Set income in Budget Control', desc: 'Gross pay, deductions, and recurring expenses', path: '/budget', done: Boolean((profile as any)?.gross_income > 0) },
+              { label: 'Add savings goals', desc: 'Emergency fund, vacation, down payment', path: '/savings', done: goals.length > 0 },
+              { label: 'Track your debts', desc: 'Credit cards and loans for the payoff engine', path: '/debt', done: debts.length > 0 },
+            ].map(item => (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex items-start gap-3 p-3 border transition-colors btn-press ${item.done ? 'border-success/30 bg-success/5 opacity-60' : 'border-border hover:border-primary/30 hover:bg-primary/5'}`}
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${item.done ? 'bg-success border-success' : 'border-muted-foreground'}`}>
+                  {item.done && <Check size={9} className="text-white" />}
+                </div>
+                <div>
+                  <p className="text-xs font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Updated mobile-friendly header */}
