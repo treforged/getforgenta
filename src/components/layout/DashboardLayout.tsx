@@ -2,8 +2,10 @@ import { Outlet, Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import DemoBanner from '@/components/shared/DemoBanner';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function DashboardLayout() {
+  const { isDemo } = useAuth();
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
@@ -14,19 +16,19 @@ export default function DashboardLayout() {
         </div>
 
         <main
-          className="
+          className={`
             flex-1
             min-h-0
             min-w-0
             overflow-y-auto
             px-3
             pb-[calc(5.5rem+env(safe-area-inset-bottom))]
-            pt-[max(0.75rem,env(safe-area-inset-top))]
+            ${isDemo ? 'pt-3' : 'pt-[max(0.75rem,env(safe-area-inset-top))]'}
             sm:px-4
             lg:px-6
             lg:pb-8
             lg:pt-4
-          "
+          `}
           style={{ touchAction: 'pan-y', overflowX: 'hidden' }}
         >
           <div style={{ overflow: 'hidden', minWidth: '0', width: '100%' }}>
