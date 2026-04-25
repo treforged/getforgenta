@@ -79,16 +79,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user?.id) {
           initRevenueCat(session.user.id).catch(() => {/* native no-op on web */});
         }
-        if (session?.user?.email === REVIEWER_EMAIL) {
-          resetReviewerAccount(session.user.id);
-        }
+        // Await reviewer reset before navigating so Dashboard's profile SELECT
+        // always reads the updated founder_note_seen / onboarding_completed values.
+        const reviewerResetPromise = session?.user?.email === REVIEWER_EMAIL && session?.user?.id
+          ? resetReviewerAccount(session.user.id)
+          : Promise.resolve();
         if (locationRef.current === '/auth') {
-          supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data: aal }) => {
-            if (aal && aal.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
-              return; // MFA pending — Auth.tsx handles challenge
-            }
-            navigate('/dashboard');
-          });
+          reviewerResetPromise
+            .then(() => supabase.auth.mfa.getAuthenticatorAssuranceLevel())
+            .then(({ data: aal }) => {
+              if (aal && aal.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
+                return; // MFA pending — Auth.tsx handles challenge
+              }
+              navigate('/dashboard');
+            });
         }
       } else if (event === 'SIGNED_OUT') {
         logOutRevenueCat().catch(() => {/* native no-op on web */});

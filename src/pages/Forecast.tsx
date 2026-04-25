@@ -570,13 +570,15 @@ export default function Forecast() {
       const fallbackTakeHome = getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth());
 
       // FIX #3: Income calculation - use scheduledIncome only for current month (i===0),
-      // for future months always use fallback with growth applied since scheduled events
-      // use the base amount without growth
+      // for future months use fallback (growth-adjusted paycheck net) + non-paycheck income.
+      // Non-paycheck income (e.g. roommate rent) = forecastMonthEvents income minus the
+      // paycheck portion already captured in fallbackTakeHome.
       let netIncome: number;
       if (i === 0 && scheduledIncome > 0) {
         netIncome = scheduledIncome + assumptions.bonusIncome / 12;
       } else {
-        netIncome = fallbackTakeHome + assumptions.bonusIncome / 12;
+        const otherIncome = Math.max(0, (forecastMonthEvents[i]?.income ?? 0) - fallbackTakeHome);
+        netIncome = fallbackTakeHome + otherIncome + assumptions.bonusIncome / 12;
       }
 
       // FIX #4: Expenses — use CC-filtered forecastMonthEvents to avoid double-counting
