@@ -12,6 +12,8 @@
 - **Backup all modified files** to `./backups/YYYY-MM-DD_HHMMSS/` before editing.
 - Mobile and web are SEPARATE environments — never mix native-only features into web paths.
 - This is a financial app — data integrity is highest priority.
+- **Phase tracking:** When a phase/step is finished, move it to COMPLETED with a one-line summary and DELETE its detail section from the plan. Never leave stale instructions for completed work.
+- **Supabase migrations:** Never tell the user to run `supabase db push`. Always provide the raw SQL to paste into the Supabase SQL Editor (Dashboard → SQL Editor, project mdtosrbfkextcaezuclh).
 
 ### COMPLETED — DO NOT TOUCH
 - Horizontal overflow (AiAdvisor, BudgetControl, Forecast)
@@ -30,36 +32,6 @@
   - 2B: No biometric UI found on web — passkey is WebAuthn (correct); no changes needed
   - 2C: Passkey expired UX — auto-switch to login mode + amber banner on token expiry/missing
   - 2D: Trusted devices — migration (trusted_devices jsonb on profiles), MFA skip for trusted device, trust prompt after MFA verify, Settings revoke list
-
----
-
-
-### 2C. Passkey sign-in: fix broken UX
-
-**Current issues to fix (UX only — defer full server-side WebAuthn for a later session):**
-1. Registration flow — verify `credId` and tokens correctly stored in localStorage
-2. Post-auth routing — confirm `navigate('/dashboard', { replace: true })` fires after token refresh
-3. Expired token handling — "Sign in with password to re-link passkey" message must surface clearly
-   when `refreshSession` fails
-
-**Deferred:** Full server-side challenge verification via a `webauthn-verify` edge function.
-
----
-
-### 2D. Remembered-device logic
-
-**DB migration:** `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS trusted_devices jsonb DEFAULT '[]'::jsonb;`
-
-**Structure per device entry:**
-```json
-{ "device_id": "<uuid>", "name": "iPhone 15 Pro", "trusted_at": "2026-04-24T00:00:00Z", "last_seen": "2026-04-24T00:00:00Z" }
-```
-
-**Behavior:**
-- On successful login → offer "Trust this device for 30 days"
-- If trusted: store `device_id` UUID in localStorage + append to `trusted_devices` in profile
-- On next login: if device_id matches unexpired entry → skip TOTP 2FA
-- Settings page: list trusted devices with individual revoke
 
 ---
 
