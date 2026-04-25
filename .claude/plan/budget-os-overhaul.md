@@ -32,105 +32,10 @@
   - 2B: No biometric UI found on web — passkey is WebAuthn (correct); no changes needed
   - 2C: Passkey expired UX — auto-switch to login mode + amber banner on token expiry/missing
   - 2D: Trusted devices — migration (trusted_devices jsonb on profiles), MFA skip for trusted device, trust prompt after MFA verify, Settings revoke list
-
----
-
-## PHASE 3 — ONBOARDING + FOUNDER'S NOTE
-
-### 3A. Founder's note modal
-
-**Trigger:** First login only. Never shown again after dismissed.
-
-**DB migration:** `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS founder_note_seen boolean DEFAULT false;`
-
-**New file:** `src/components/shared/FounderNoteModal.tsx`
-- Full-screen modal, dismiss button
-- On dismiss: `UPDATE profiles SET founder_note_seen = true WHERE id = user.id`
-- Mount in Dashboard.tsx: check `profile.founder_note_seen === false && !isDemo`
-
-**Draft copy:**
-```
-Hey — I'm Tre.
-
-I built Forged because I got tired of paying $15/month for apps that showed me ads,
-sold my data, and still couldn't explain why I felt broke despite making decent money.
-
-Forged is different. No ads. No data selling. No dark patterns. Just a real tool
-built to help you see exactly where your money goes and what to do about it.
-
-This is version 1. It's not perfect yet — but it's real, it's honest, and it's yours.
-
-If you ever want to share feedback, hit me at contact@treforged.com.
-
-Now let's build something solid.
-
-— Tre, founder of TRE Forged LLC
-```
-
----
-
-### 3B. Guided onboarding flow
-
-**DB migration:** Add `onboarding_completed boolean DEFAULT false` and `onboarding_step int DEFAULT 0` to `profiles`.
-
-**New file:** `src/components/onboarding/OnboardingWizard.tsx`
-- Multi-step overlay rendered over the dashboard (not a separate route)
-- Step indicator (1/4, 2/4, etc.)
-- Each step: explanation + action + "Skip for now" link
-
-**Steps:**
-1. Connect a bank account → PlaidLinkButton (premium) or manual form (free) + subscription upsell (see 3C)
-2. Set monthly income → navigate to Budget Control income section
-3. Add a debt → navigate to Debt Payoff
-4. Create a savings goal → navigate to Savings Goals
-
-On completion: `UPDATE profiles SET onboarding_completed = true`
-
----
-
-### 3C. Subscription upsell (2 chances) inside onboarding
-
-**First upsell** (inline in Step 1, shown to free users):
-```
-Connect up to 10 bank accounts automatically with Forged Premium.
-Premium also includes: AI Advisor (unlimited), daily auto-sync,
-advanced forecasting, and priority support.
-
-[Yes, upgrade]   [No, I'll stick to free]
-```
-
-**Second upsell** (triggered if user clicks "No" on first):
-```
-Are you sure? Here's what you'd be missing:
-
-✓ Auto-sync every morning — wake up to fresh balances
-✓ AI Advisor — ask your money anything, get real answers
-✓ Up to 10 linked accounts vs. manual-only on free
-✓ Advanced 36-month forecast with Plaid data
-✓ Cancel anytime
-
-[Upgrade now]   [I'll stay on free — let's keep going]
-```
-
-After second "no": respect the decision, move to Step 2, no more upsells this session.
-
----
-
-### 3D. Dashboard onboarding checklist widget
-
-**New file:** `src/components/dashboard/OnboardingChecklist.tsx`
-- Visible only when `profile.onboarding_completed === false`
-- Auto-hides (fade + slide animation) once all items checked
-
-**Checklist items (dynamically checked):**
-- [ ] Connect a bank account — checked if `plaid_items.length > 0` OR any account exists
-- [ ] Set your income — checked if monthly income > 0
-- [ ] Add a debt — checked if `debts.length > 0`
-- [ ] Create a savings goal — checked if `savings_goals.length > 0`
-
-Each item has a "→ Go do it" link. When all 4 checked: set `onboarding_completed = true`.
-
-Mount in `Dashboard.tsx` above KPI cards.
+- **Phase 3 — Onboarding + Founder's Note** (commit ff640e3)
+  - 3A: FounderNoteModal — first-login-only full-screen modal with Tre's founder note; writes founder_note_seen=true on dismiss
+  - 3B/C: OnboardingWizard — 4-step dashboard overlay for new users; step 1 has 2-stage premium upsell (Plaid for premium, skip for free); steps 2–4 navigate to /budget, /debt, /savings; sessionStorage dismissal
+  - 3D: OnboardingChecklist — replaces old inline widget; dynamic check of plaid_items/accounts/income/debts/goals; auto-fades + writes onboarding_completed=true when all done
 
 ---
 
@@ -283,8 +188,8 @@ Phase 1A → 1B → 1C   ✓ DONE
 Phase 4B              ✓ DONE (no cursor-pointer found — already clean)
 Phase 2A → 2B         ✓ DONE
 Phase 2C → 2D         ✓ DONE
-Phase 3A              (Founder's note — quick migration + modal)
-Phase 3B → 3C → 3D   (Onboarding — do together, they're coupled)
+Phase 3A              ✓ DONE
+Phase 3B → 3C → 3D   ✓ DONE
 Phase 4A              (Anvil logo — needs favicon reference)
 Phase 5               (Export fix — check @capacitor/share first)
 Phase 6               (Account limit — audit then change)
