@@ -18,8 +18,7 @@ import { toast } from 'sonner';
 const PLAID_SCRIPT_SRC = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const LINK_TOKEN_KEY = 'forged:plaid_link_token';
-// Plaid only accepts HTTPS redirect_uri — omit entirely on localhost/HTTP
-const OAUTH_REDIRECT_URI = window.location.protocol === 'https:' ? `${window.location.origin}/oauth` : null;
+const OAUTH_REDIRECT_URI = `${window.location.origin}/oauth`;
 
 async function loadPlaidScript(): Promise<void> {
   if (typeof window !== 'undefined' && (window as any).Plaid) return;
@@ -75,7 +74,7 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled }: P
       const tokenRes = await fetch(`${FN_BASE}/plaid-create-link-token`, {
         method: 'POST',
         headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...(OAUTH_REDIRECT_URI ? { redirect_uri: OAUTH_REDIRECT_URI } : {}) }),
+        body: JSON.stringify({ redirect_uri: OAUTH_REDIRECT_URI }),
       });
       const tokenBody = await tokenRes.json();
       if (!tokenRes.ok) throw new Error(tokenBody.error ?? tokenBody.message ?? 'Failed to create link token');
