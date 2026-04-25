@@ -502,36 +502,13 @@ const { error } = await supabase.auth.signInWithOAuth({
             >
               Start Free
             </button>
-            {hasSigninPasskey ? (
-              <>
-                <button
-                  onClick={handlePasskeySignIn}
-                  disabled={loading}
-                  className="auth-cta auth-cta-2 w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3.5 text-sm font-semibold btn-press disabled:opacity-50"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                  </svg>
-                  Quick Sign In
-                </button>
-                <button
-                  onClick={() => switchMode('login')}
-                  className="auth-cta auth-cta-3 w-full border border-border text-foreground py-3 text-sm hover:bg-secondary/60 transition-colors btn-press"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  Use password instead
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => switchMode('login')}
-                className="auth-cta auth-cta-2 w-full border border-border text-foreground py-3.5 text-sm font-semibold hover:bg-secondary/60 transition-colors btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                Sign In
-              </button>
-            )}
+            <button
+              onClick={() => switchMode('login')}
+              className="auth-cta auth-cta-2 w-full border border-border text-foreground py-3.5 text-sm font-semibold hover:bg-secondary/60 transition-colors btn-press"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Sign In
+            </button>
             <button
               onClick={handleDemoLogin}
               className="auth-cta auth-cta-3 w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -762,28 +739,6 @@ const { error } = await supabase.auth.signInWithOAuth({
           </p>
         </div>
 
-        {mode === 'login' && hasSigninPasskey && (
-          <div className="mb-4 space-y-3">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handlePasskeySignIn}
-              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold bg-primary text-primary-foreground btn-press disabled:opacity-50"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-              </svg>
-              Quick Sign In
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">or use password</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
           {mode === 'login' && passkeyExpiredBanner && (
             <div
@@ -795,15 +750,6 @@ const { error } = await supabase.auth.signInWithOAuth({
               </svg>
               <span>Your saved sign-in expired. Sign in with your password to re-link it.</span>
             </div>
-          )}
-          {mode === 'login' && hasSigninPasskey && !passkeyExpiredBanner && (
-            <button
-              type="button"
-              onClick={() => { localStorage.removeItem(PASSKEY_CRED_KEY); localStorage.removeItem(PASSKEY_TOKENS_KEY); setHasSigninPasskey(false); }}
-              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Remove saved passkey
-            </button>
           )}
 
           {mode === 'signup' && (
@@ -928,6 +874,35 @@ const { error } = await supabase.auth.signInWithOAuth({
             </button>
           )}
         </form>
+
+        {mode === 'login' && hasSigninPasskey && (
+          <div className="mt-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handlePasskeySignIn}
+              className="w-full flex items-center justify-center gap-2 py-3 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press disabled:opacity-50"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+              </svg>
+              Quick sign-in
+            </button>
+            <button
+              type="button"
+              onClick={() => { localStorage.removeItem(PASSKEY_CRED_KEY); localStorage.removeItem(PASSKEY_TOKENS_KEY); setHasSigninPasskey(false); }}
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+            >
+              Remove saved passkey
+            </button>
+          </div>
+        )}
 
         {mode !== 'reset' && (
           <div className="mt-4 space-y-3">
