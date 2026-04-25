@@ -94,12 +94,6 @@
     overflow-x: hidden;
   }
 
-  /* Capacitor native: allow the OS accessibility font-size preference to scale text */
-  html.native {
-    -webkit-text-size-adjust: none;
-    text-size-adjust: none;
-  }
-
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
