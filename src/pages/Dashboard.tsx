@@ -163,7 +163,8 @@ function ClickableMetric({
 }
 
 export default function Dashboard() {
-  const { isDemo } = useAuth();
+  const { isDemo, user } = useAuth();
+  const isReviewer = user?.email === 'reviewer@treforged.com';
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
 
@@ -211,7 +212,7 @@ export default function Dashboard() {
     } else if (
       p?.onboarding_completed === false &&
       !sessionStorage.getItem('forged:onboarding_wizard_dismissed') &&
-      accounts.length === 0 && debts.length === 0 && goals.length === 0
+      (isReviewer || (accounts.length === 0 && debts.length === 0 && goals.length === 0))
     ) {
       setWizardVisible(true);
     }
@@ -224,7 +225,7 @@ export default function Dashboard() {
     if (
       p?.onboarding_completed === false &&
       !sessionStorage.getItem('forged:onboarding_wizard_dismissed') &&
-      accounts.length === 0 && debts.length === 0 && goals.length === 0
+      (isReviewer || (accounts.length === 0 && debts.length === 0 && goals.length === 0))
     ) {
       setWizardVisible(true);
     }
