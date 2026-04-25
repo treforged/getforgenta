@@ -740,34 +740,30 @@ export default function SettingsPage() {
               </div>
             )}
 
-            {/* Biometric — active on mobile, visible-but-disabled on desktop */}
-            <button
-              onClick={async () => {
-                if (!appLock.isNative) return;
-                setLockBusy(true);
-                const ok = await appLock.setupBiometric();
-                setLockBusy(false);
-                if (ok) toast.success('Biometric lock enabled');
-                else toast.error('Biometric not available on this device');
-              }}
-              disabled={!appLock.isNative || lockBusy}
-              className={`w-full flex items-center justify-between bg-secondary border border-border px-3 py-2.5 transition-colors ${appLock.isNative ? 'hover:border-primary/40 btn-press' : 'opacity-40 cursor-not-allowed'}`}
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <div className="flex items-center gap-2.5">
-                <Fingerprint size={14} className="text-muted-foreground" />
-                <div className="text-left">
-                  <p className="text-xs font-medium">Face ID / Touch ID</p>
-                  <p className="text-[9px] text-muted-foreground">
-                    {appLock.isNative ? 'Use your device biometrics' : 'Mobile only'}
-                  </p>
+            {/* Biometric — mobile only */}
+            {appLock.isNative && (
+              <button
+                onClick={async () => {
+                  setLockBusy(true);
+                  const ok = await appLock.setupBiometric();
+                  setLockBusy(false);
+                  if (ok) toast.success('Biometric lock enabled');
+                  else toast.error('Biometric not available on this device');
+                }}
+                disabled={lockBusy}
+                className="w-full flex items-center justify-between bg-secondary border border-border px-3 py-2.5 hover:border-primary/40 transition-colors btn-press disabled:opacity-50"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Fingerprint size={14} className="text-muted-foreground" />
+                  <div className="text-left">
+                    <p className="text-xs font-medium">Face ID / Touch ID</p>
+                    <p className="text-[9px] text-muted-foreground">Use your device biometrics</p>
+                  </div>
                 </div>
-              </div>
-              {appLock.lockEnabled && appLock.lockType === 'biometric'
-                ? <CheckCircle size={13} className="text-primary" />
-                : !appLock.isNative && <Monitor size={12} className="text-muted-foreground/50" />
-              }
-            </button>
+                {appLock.lockEnabled && appLock.lockType === 'biometric' && <CheckCircle size={13} className="text-primary" />}
+              </button>
+            )}
 
             {/* Passkey */}
             {typeof window !== 'undefined' && window.PublicKeyCredential && (
