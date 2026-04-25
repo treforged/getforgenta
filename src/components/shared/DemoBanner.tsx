@@ -21,8 +21,9 @@ export default function DemoBanner() {
   const description = routeDescriptions[pathname] ?? 'Explore any page to see how it all connects';
 
   return (
-    <div className="sticky z-50 bg-card border-b border-border/80 px-3 sm:px-5 py-2.5 flex items-center justify-between gap-3"
-       style={{ top: 'env(safe-area-inset-top)' }}
+    <div
+      className="bg-card border-b border-border/80 px-3 sm:px-5 pb-2.5 flex items-center justify-between gap-3"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.625rem)' }}
 >
       <div className="flex items-center gap-2.5 min-w-0">
         <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/15 px-2 py-0.5" style={{ borderRadius: 'var(--radius)' }}>

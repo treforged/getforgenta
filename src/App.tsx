@@ -185,7 +185,7 @@ const App = () => (
     <TooltipProvider>
       <Sonner />
       {Capacitor.isNativePlatform() ? (
-        <MemoryRouter initialEntries={[window.location.pathname || '/']}>
+        <MemoryRouter initialEntries={['/auth']}>
           <AuthProvider>
             <AppLockScreen />
             <DeepLinkHandler />

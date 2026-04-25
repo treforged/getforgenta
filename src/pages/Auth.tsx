@@ -624,7 +624,10 @@ const { error } = await supabase.auth.signInWithOAuth({
   if (mode === 'set-password') {
     const mismatch = !!confirmPassword && confirmPassword !== password;
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div
+        className="min-h-screen bg-background flex items-center justify-center px-4"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+      >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
@@ -684,7 +687,10 @@ const { error } = await supabase.auth.signInWithOAuth({
   // ── Reset sent confirmation ───────────────────────────────────────────────
   if (mode === 'reset' && resetSent) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+      <div
+        className="min-h-screen bg-background flex items-center justify-center px-4"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
+      >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
