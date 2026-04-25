@@ -42,6 +42,12 @@ const queryClient = new QueryClient({
   },
 });
 
+// Enable OS font-size accessibility scaling on native (Capacitor) platforms.
+// index.css html.native overrides -webkit-text-size-adjust to none.
+if (Capacitor.isNativePlatform()) {
+  document.documentElement.classList.add('native');
+}
+
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-[50vh]">
