@@ -196,12 +196,17 @@ export default function Dashboard() {
     });
   }, [isDemo]);
 
+  const FOUNDER_NOTE_KEY = 'forged:founder_note_seen';
+
   // Phase 3: initialize founder note + onboarding wizard once all data loads.
   useEffect(() => {
     if (isDemo || profileLoading || debtsLoading || goalsLoading || acctLoading || onboardingInitRef.current) return;
     onboardingInitRef.current = true;
     const p = profile as any;
-    if (p?.founder_note_seen === false) {
+    // sessionStorage guard: never re-show in the same browser session even if
+    // the React Query cache hasn't propagated the updated founder_note_seen yet.
+    const alreadySeenThisSession = sessionStorage.getItem(FOUNDER_NOTE_KEY) === '1';
+    if (p?.founder_note_seen === false && !alreadySeenThisSession) {
       setFounderNoteVisible(true);
     } else if (
       p?.onboarding_completed === false &&
@@ -213,6 +218,7 @@ export default function Dashboard() {
   }, [isDemo, profileLoading, debtsLoading, goalsLoading, acctLoading, profile, accounts, debts, goals]);
 
   const handleFounderNoteDismiss = () => {
+    sessionStorage.setItem(FOUNDER_NOTE_KEY, '1');
     setFounderNoteVisible(false);
     const p = profile as any;
     if (
