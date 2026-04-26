@@ -1,14 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAppLock } from '@/hooks/useAppLock';
 
+const PASSKEY_CRED_KEY   = 'forged:signin_passkey';
+const PASSKEY_TOKENS_KEY = 'forged:signin_passkey_tokens';
 const TRUSTED_DEVICE_KEY = 'forged:trusted_device_id';
-const BIO_PROMPT_KEY = 'forged:bio_prompt_shown';
+
+function b64urlToBytes(b64url: string): Uint8Array {
+  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
 
 interface TrustedDevice {
   device_id: string;
@@ -67,11 +72,13 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const { isNative, lockEnabled, unlockWithBiometric, checkBiometricAvailable, setupBiometric } = useAppLock();
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [showBiometricSetup, setShowBiometricSetup] = useState(false);
+  const [hasSigninPasskey, setHasSigninPasskey] = useState(() => {
+    try { return !!(window.PublicKeyCredential && localStorage.getItem(PASSKEY_CRED_KEY)); }
+    catch { return false; }
+  });
   const [trustPromptVisible, setTrustPromptVisible] = useState(false);
   const [pendingUserId, setPendingUserId] = useState('');
+  const [passkeyExpiredBanner, setPasskeyExpiredBanner] = useState(false);
 
   // MFA challenge state
   const [mfaFactorId, setMfaFactorId] = useState('');
@@ -100,23 +107,21 @@ export default function Auth() {
 
   useEffect(() => {
     let mounted = true;
+
+    // Check if session already exists (OAuth redirect case).
+    // Navigation on SIGNED_IN is handled exclusively by AuthContext which
+    // includes the MFA assurance-level check before redirecting.
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
-      if (data.session) navigate('/dashboard', { replace: true });
+      if (data.session) {
+        navigate('/dashboard', { replace: true });
+      }
     });
-    return () => { mounted = false; };
+
+    return () => {
+      mounted = false;
+    };
   }, [navigate]);
-
-  // Clean up legacy passkey localStorage keys from prior implementation
-  useEffect(() => {
-    localStorage.removeItem('forged:signin_passkey');
-    localStorage.removeItem('forged:signin_passkey_tokens');
-  }, []);
-
-  useEffect(() => {
-    if (!isNative) return;
-    checkBiometricAvailable().then(setBiometricAvailable);
-  }, [isNative, checkBiometricAvailable]);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -124,6 +129,7 @@ export default function Auth() {
     setConfirmPassword('');
     setDisplayName('');
     setResetSent(false);
+    setPasskeyExpiredBanner(false);
     if (next === 'landing') setEmail('');
   };
 
@@ -176,19 +182,53 @@ const { error } = await supabase.auth.signInWithOAuth({
   }
 };
 
-  const handleBiometricSignIn = async () => {
+  const handlePasskeySignIn = async () => {
     setLoading(true);
     try {
-      const ok = await unlockWithBiometric();
-      if (!ok) { toast.error('Biometric authentication failed'); return; }
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        navigate('/dashboard', { replace: true });
-      } else {
-        toast.error('Session expired — please sign in with your password.');
+      const raw = localStorage.getItem(PASSKEY_CRED_KEY);
+      if (!raw) throw new Error('No passkey registered');
+      const { credId } = JSON.parse(raw) as { credId: string; email: string };
+      const credIdBytes = b64urlToBytes(credId).buffer as ArrayBuffer;
+
+      const challenge = crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer;
+      await navigator.credentials.get({
+        publicKey: {
+          challenge,
+          rpId: window.location.hostname,
+          allowCredentials: [{ type: 'public-key', id: credIdBytes }],
+          userVerification: 'required',
+          timeout: 60000,
+        },
+      });
+
+      const tokensRaw = localStorage.getItem(PASSKEY_TOKENS_KEY);
+      if (!tokensRaw) throw new Error('Session tokens missing. Sign in with your password once to re-link your passkey.');
+      const { refresh_token } = JSON.parse(tokensRaw) as { access_token: string; refresh_token: string };
+
+      const { data, error } = await supabase.auth.refreshSession({ refresh_token });
+      if (error || !data.session) {
+        localStorage.removeItem(PASSKEY_TOKENS_KEY);
+        throw new Error('Session expired. Sign in with your password once to refresh your passkey.');
       }
-    } catch {
-      toast.error('Biometric sign-in failed');
+
+      localStorage.setItem(PASSKEY_TOKENS_KEY, JSON.stringify({
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token,
+      }));
+
+      toast.success('Signed in with passkey');
+      navigate('/dashboard', { replace: true });
+      return; // stop here → prevents any further auth/MFA logic
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      const lower = msg.toLowerCase();
+      if (!lower.includes('cancel') && !lower.includes('abort') && !lower.includes('not allowed')) {
+        toast.error(msg || 'Passkey sign-in failed');
+        if (msg.includes('re-link') || msg.includes('expired') || msg.includes('missing')) {
+          setPasskeyExpiredBanner(true);
+          setMode('login');
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -300,12 +340,18 @@ const { error } = await supabase.auth.signInWithOAuth({
 
         toast.success('Signed in successfully');
 
-        // On first mobile sign-in, offer to enable biometric lock
-        if (isNative && biometricAvailable && !lockEnabled && !localStorage.getItem(BIO_PROMPT_KEY)) {
-          setShowBiometricSetup(true);
-          setLoading(false);
-          return;
-        }
+        // Keep sign-in passkey tokens fresh after any normal login
+        try {
+          if (localStorage.getItem(PASSKEY_CRED_KEY)) {
+            const { data: sess } = await supabase.auth.getSession();
+            if (sess.session) {
+              localStorage.setItem(PASSKEY_TOKENS_KEY, JSON.stringify({
+                access_token: sess.session.access_token,
+                refresh_token: sess.session.refresh_token,
+              }));
+            }
+          }
+        } catch { /* non-critical */ }
       } else {
         const { error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -377,62 +423,6 @@ const { error } = await supabase.auth.signInWithOAuth({
       handleMfaVerify();
     }
   }, [mfaCode, mfaFactorType, loading, handleMfaVerify]);
-
-  // ── Biometric setup prompt (first mobile sign-in) ────────────────────────
-  if (showBiometricSetup) {
-    const label = /iPhone|iPad/.test(navigator.userAgent) ? 'Face ID / Touch ID' : 'Fingerprint / Biometric';
-    return (
-      <div
-        className="min-h-screen bg-background flex items-center justify-center px-4"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
-      >
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
-            <p className="text-xs text-muted-foreground mt-1">You're in.</p>
-          </div>
-          <div className="card-forged p-6 space-y-4">
-            <div className="flex flex-col items-center gap-3 py-2">
-              <div className="w-14 h-14 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-primary" aria-hidden="true">
-                  <path d="M12 10a2 2 0 0 0-2 2v1a2 2 0 0 0 4 0v-1a2 2 0 0 0-2-2z"/>
-                  <path d="M12 2C9.38 2 7 3.78 7 6v1M12 2c2.62 0 5 1.78 5 4v1"/>
-                  <path d="M7 7c-1.5.8-2 2-2 4 0 3.5 2 6 4 7.4"/>
-                  <path d="M17 7c1.5.8 2 2 2 4 0 3.5-2 6-4 7.4"/>
-                  <path d="M10 17.5c.6.3 1.3.5 2 .5s1.4-.2 2-.5"/>
-                </svg>
-              </div>
-              <div className="text-center space-y-1">
-                <p className="text-sm font-medium">Enable {label}?</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Skip the password next time — just use {label} to get back in.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={async () => {
-                localStorage.setItem(BIO_PROMPT_KEY, '1');
-                const ok = await setupBiometric();
-                if (!ok) toast.error('Could not enable biometric lock');
-                navigate('/dashboard', { replace: true });
-              }}
-              className="w-full bg-primary text-primary-foreground py-3 text-xs font-semibold btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Enable {label}
-            </button>
-            <button
-              type="button"
-              onClick={() => { localStorage.setItem(BIO_PROMPT_KEY, '1'); navigate('/dashboard', { replace: true }); }}
-              className="w-full py-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Not now
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ── Trust device prompt (post-MFA) ───────────────────────────────────────
   if (trustPromptVisible) {
@@ -512,13 +502,36 @@ const { error } = await supabase.auth.signInWithOAuth({
             >
               Start Free
             </button>
-            <button
-              onClick={() => switchMode('login')}
-              className="auth-cta auth-cta-2 w-full border border-border text-foreground py-3.5 text-sm font-semibold hover:bg-secondary/60 transition-colors btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Sign In
-            </button>
+            {hasSigninPasskey ? (
+              <>
+                <button
+                  onClick={handlePasskeySignIn}
+                  disabled={loading}
+                  className="auth-cta auth-cta-2 w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3.5 text-sm font-semibold btn-press disabled:opacity-50"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+                  </svg>
+                  Quick Sign In
+                </button>
+                <button
+                  onClick={() => switchMode('login')}
+                  className="auth-cta auth-cta-3 w-full border border-border text-foreground py-3 text-sm hover:bg-secondary/60 transition-colors btn-press"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  Use password instead
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => switchMode('login')}
+                className="auth-cta auth-cta-2 w-full border border-border text-foreground py-3.5 text-sm font-semibold hover:bg-secondary/60 transition-colors btn-press"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Sign In
+              </button>
+            )}
             <button
               onClick={handleDemoLogin}
               className="auth-cta auth-cta-3 w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -749,33 +762,49 @@ const { error } = await supabase.auth.signInWithOAuth({
           </p>
         </div>
 
-        {mode === 'login' && isNative && lockEnabled && biometricAvailable && (
+        {mode === 'login' && hasSigninPasskey && (
           <div className="mb-4 space-y-3">
             <button
               type="button"
               disabled={loading}
-              onClick={handleBiometricSignIn}
-              className="w-full flex items-center justify-center gap-2 py-3.5 text-sm font-semibold bg-primary text-primary-foreground btn-press disabled:opacity-50"
+              onClick={handlePasskeySignIn}
+              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold bg-primary text-primary-foreground btn-press disabled:opacity-50"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 10a2 2 0 0 0-2 2v1a2 2 0 0 0 4 0v-1a2 2 0 0 0-2-2z"/>
-                <path d="M12 2C9.38 2 7 3.78 7 6v1M12 2c2.62 0 5 1.78 5 4v1"/>
-                <path d="M7 7c-1.5.8-2 2-2 4 0 3.5 2 6 4 7.4"/>
-                <path d="M17 7c1.5.8 2 2 2 4 0 3.5-2 6-4 7.4"/>
-                <path d="M10 17.5c.6.3 1.3.5 2 .5s1.4-.2 2-.5"/>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
               </svg>
-              {/iPhone|iPad/.test(navigator.userAgent) ? 'Face ID / Touch ID' : 'Fingerprint Sign In'}
+              Quick Sign In
             </button>
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">or sign in with password</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">or use password</span>
               <div className="flex-1 h-px bg-border" />
             </div>
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
+          {mode === 'login' && passkeyExpiredBanner && (
+            <div
+              className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-600"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span>Your saved sign-in expired. Sign in with your password to re-link it.</span>
+            </div>
+          )}
+          {mode === 'login' && hasSigninPasskey && !passkeyExpiredBanner && (
+            <button
+              type="button"
+              onClick={() => { localStorage.removeItem(PASSKEY_CRED_KEY); localStorage.removeItem(PASSKEY_TOKENS_KEY); setHasSigninPasskey(false); }}
+              className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Remove saved passkey
+            </button>
+          )}
 
           {mode === 'signup' && (
             <div>
