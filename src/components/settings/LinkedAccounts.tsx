@@ -64,7 +64,7 @@ export function LinkedAccounts() {
     if (error) {
       const msg = error.message.toLowerCase();
       if (msg.includes('already linked') || msg.includes('already associated')) {
-        toast.error(`This ${label} account is already linked to a different Forged account. Each ${label} account can only be connected to one Forged account.`);
+        toast.error(`This ${label} account is already linked to a different Forgenta account. Each ${label} account can only be connected to one Forgenta account.`);
       } else if (msg.includes('manual linking') || msg.includes('disabled')) {
         toast.error('Account linking is currently disabled. Contact support if this persists.');
       } else {
@@ -106,7 +106,7 @@ export function LinkedAccounts() {
         <span className="text-xs font-medium">Linked Accounts</span>
       </div>
       <p className="text-[10px] text-muted-foreground">
-        Link a social account so you can sign in with either method. Each social account can only be connected to one Forged account.
+        Link a social account so you can sign in with either method. Each social account can only be connected to one Forgenta account.
       </p>
 
       <div className="space-y-2">

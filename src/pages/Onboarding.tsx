@@ -322,7 +322,7 @@ export default function Onboarding() {
       <div className="w-full max-w-md space-y-5">
         {/* Header */}
         <div className="text-center">
-          <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
+          <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
           <p className="text-xs text-muted-foreground mt-1">
             {step === 'finish' ? 'Your financial plan is ready.' : "Let's set up your financial profile."}
           </p>
@@ -339,7 +339,7 @@ export default function Onboarding() {
                 <div className="w-12 h-12 bg-primary/15 border border-primary/30 rounded-full flex items-center justify-center mx-auto">
                   <Zap size={22} className="text-primary" />
                 </div>
-                <h2 className="font-display font-bold text-lg">Welcome to Forged</h2>
+                <h2 className="font-display font-bold text-lg">Welcome to Forgenta</h2>
                 <p className="text-xs text-muted-foreground leading-relaxed max-w-xs mx-auto">
                   Takes 2 minutes. We'll build your personalized financial picture so your dashboard is ready from day one.
                 </p>

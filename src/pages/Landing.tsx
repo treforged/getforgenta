@@ -69,7 +69,7 @@ export default function Landing() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
-    if (ref) sessionStorage.setItem('forged:ref', ref);
+    if (ref) sessionStorage.setItem('forgenta:ref', ref);;
   }, []);
   const springX = useSpring(mouseX, { stiffness: 60, damping: 20 });
   const springY = useSpring(mouseY, { stiffness: 60, damping: 20 });
@@ -95,7 +95,7 @@ export default function Landing() {
             className="font-display font-bold text-sm tracking-tight text-gold"
             whileHover={{ scale: 1.04 }}
           >
-            FORGED
+            FORGENTA
           </motion.span>
           <div className="flex items-center gap-4">
             <Link to="/auth" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -154,7 +154,7 @@ export default function Landing() {
           transition={{ delay: 0.2, duration: 0.5 }}
         >
           Budget with precision. Eliminate debt. Stack savings. Track every goal.
-          Forged is the financial cockpit for people who take their money seriously.
+          Forgenta is the financial cockpit for people who take their money seriously.
         </motion.p>
 
         <motion.div
@@ -289,13 +289,13 @@ export default function Landing() {
             <div className="absolute top-0 left-0 w-1 h-full bg-gold/60" style={{ borderRadius: 'var(--radius) 0 0 var(--radius)' }} />
             <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-5 pl-4">A Note from the Founder</p>
             <blockquote className="text-sm md:text-base text-foreground leading-relaxed pl-4">
-              "Like a lot of people, I've been in the weeds with credit card debt. I know what it feels like to look at a balance and not know where to even start. I built Forged because I couldn't find a tool that was honest with me about my numbers and actually helped me make a plan. This isn't just an app. It's what I wish I had when I was trying to get my head above water."
+              "Like a lot of people, I've been in the weeds with credit card debt. I know what it feels like to look at a balance and not know where to even start. I built Forgenta because I couldn't find a tool that was honest with me about my numbers and actually helped me make a plan. This isn't just an app. It's what I wish I had when I was trying to get my head above water."
             </blockquote>
             <div className="flex items-center gap-3 mt-6 pl-4">
               <div className="w-9 h-9 rounded-full bg-gold/15 border border-gold/30 flex items-center justify-center text-xs font-bold text-gold">T</div>
               <div>
                 <p className="text-xs font-semibold text-foreground">Tre</p>
-                <p className="text-[10px] text-muted-foreground">Founder, TRE Forged LLC</p>
+                <p className="text-[10px] text-muted-foreground">Founder, Forgenta</p>
               </div>
             </div>
           </div>
@@ -333,9 +333,9 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-border py-8">
         <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <span className="font-display font-bold text-xs tracking-tight text-gold">FORGED</span>
+          <span className="font-display font-bold text-xs tracking-tight text-gold">FORGENTA</span>
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span>&copy; {new Date().getFullYear()} TRE Forged LLC. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Forgenta. All rights reserved.</span>
             <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</Link>
             <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Terms of Service</Link>
           </div>

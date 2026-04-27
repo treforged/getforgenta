@@ -10,7 +10,7 @@ const IDLE_TIMEOUT_MS = 10 * 60 * 1000;    // 10 minutes
 const IDLE_WARNING_MS =  8 * 60 * 1000;    // warn at 8 minutes
 const IDLE_CHECK_INTERVAL_MS = 30 * 1000;  // check every 30 seconds
 const LAST_ACTIVITY_KEY = 'forged:last_activity';
-const REVIEWER_EMAIL = 'reviewer@treforged.com';
+const REVIEWER_EMAIL = 'reviewer@getforgenta.com';
 
 type AuthContextType = {
   user: User | null;

@@ -42,7 +42,7 @@ export const COOKIE_CATEGORIES: CookieCategoryDef[] = [
     id: 'marketing',
     label: 'Marketing',
     description:
-      'TRE Forged Budget OS does not currently use marketing cookies. This category is listed for transparency.',
+      'TRE Forgenta Budget OS does not currently use marketing cookies. This category is listed for transparency.',
     required: false,
     examples: ['(none currently active)'],
   },

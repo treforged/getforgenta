@@ -3,12 +3,12 @@
  *
  * Only returns the requesting origin in Access-Control-Allow-Origin when it
  * matches the explicit allowlist. Unknown origins receive the first allowed
- * origin (app.treforged.com), which browsers will reject — no wildcard ever
+ * origin (getforgenta.com), which browsers will reject — no wildcard ever
  * reaches production traffic.
  */
 
 const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
-  "https://app.treforged.com",
+  "https://getforgenta.com",
   "https://treforged.com",
   // Local dev — never matches in production (Vercel strips these)
   "http://localhost:8080",
@@ -16,7 +16,7 @@ const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
   "http://localhost:5173",
 ]);
 
-const PRODUCTION_ORIGIN = "https://app.treforged.com";
+const PRODUCTION_ORIGIN = "https://getforgenta.com";
 
 /**
  * Returns CORS headers scoped to the requesting origin if it is allowed,

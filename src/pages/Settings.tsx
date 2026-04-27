@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, SendHorizonal, Copy, Share2, Fingerprint, KeyRound, Hash, Monitor } from 'lucide-react';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, SendHorizonal, Copy, Share2} from 'lucide-react';
 
 interface TrustedDevice {
   device_id: string;
@@ -11,7 +11,6 @@ interface TrustedDevice {
   trusted_at: string;
   last_seen: string;
 }
-import { useAppLock, type LockType } from '@/hooks/useAppLock';
 import { LinkedAccounts } from '@/components/settings/LinkedAccounts';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import { getDayName } from '@/lib/scheduling';
@@ -128,18 +127,6 @@ export default function SettingsPage() {
   const [autoGenerateRecurring, setAutoGenerateRecurring] = useState(true);
   const [dirty, setDirty] = useState(false);
 
-  // Quick Access (lock) state
-  const appLock = useAppLock();
-  const [pinSetupStep, setPinSetupStep] = useState<'idle' | 'entry' | 'confirm'>('idle');
-  const [pinEntry, setPinEntry] = useState('');
-  const [pinConfirm, setPinConfirm] = useState('');
-  const [lockBusy, setLockBusy] = useState(false);
-
-  // Sign-in passkey state
-  const [hasSigninPasskey, setHasSigninPasskey] = useState(() => {
-    try { return !!(window.PublicKeyCredential && localStorage.getItem('forged:signin_passkey')); }
-    catch { return false; }
-  });
   const [signinPasskeyBusy, setSigninPasskeyBusy] = useState(false);
   const [trustedDevices, setTrustedDevices] = useState<TrustedDevice[]>([]);
 
@@ -233,14 +220,14 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE' || deleteOtp.length < 6 || deleteOtp.length > 8) return;
+    if (deleteConfirmText !== 'DELETE' || deleteOtp.length !== 6) return;
     setDeleteLoading(true);
     try {
       // Verify the reauthentication OTP before deletion
       const { error: otpErr } = await supabase.auth.verifyOtp({
         email: user?.email ?? '',
         token: deleteOtp.trim(),
-        type: 'reauthentication' as any,
+        type: 'email' as any,
       });
       if (otpErr) throw new Error('Invalid confirmation code — check your email and try again');
 
@@ -324,7 +311,7 @@ export default function SettingsPage() {
       const credential = await navigator.credentials.create({
         publicKey: {
           challenge,
-          rp: { name: 'Forged Budget OS', id: window.location.hostname },
+          rp: { name: 'Forgenta Budget OS', id: window.location.hostname },
           user: { id: userIdBytes, name: user.email ?? user.id, displayName: (profile as any)?.display_name || user.email || 'User' },
           pubKeyCredParams: [
             { type: 'public-key', alg: -7 },   // ES256
@@ -366,13 +353,6 @@ export default function SettingsPage() {
     } finally {
       setSigninPasskeyBusy(false);
     }
-  };
-
-  const handleRemoveSigninPasskey = () => {
-    localStorage.removeItem('forged:signin_passkey');
-    localStorage.removeItem('forged:signin_passkey_tokens');
-    setHasSigninPasskey(false);
-    toast.success('Sign-in passkey removed');
   };
 
   const handleRevokeDevice = async (deviceId: string) => {
@@ -447,7 +427,7 @@ export default function SettingsPage() {
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Profile</h2>
         <div>
           <label className="text-xs text-muted-foreground uppercase">Email</label>
-          <p className="text-sm mt-0.5">{isDemo ? 'demo@treforged.com' : user?.email || '—'}</p>
+          <p className="text-sm mt-0.5">{isDemo ? 'demo@forgenta.com' : user?.email || '—'}</p>
         </div>
         <div>
           <label className="text-xs text-muted-foreground uppercase">Display Name</label>
@@ -623,221 +603,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Quick Access — mobile PIN / biometric / passkey */}
-      {!isDemo && (
-        <div className="card-forged p-5 space-y-4">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <Shield size={12} /> Quick Access
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            Lock the app and require a PIN, biometric, or passkey to re-open.
-            {appLock.isNative ? '' : ' PIN and biometric are mobile-only; passkeys work everywhere.'}
-          </p>
-
-          {/* Current status */}
-          {appLock.lockEnabled ? (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2">
-                <CheckCircle size={13} className="text-primary" />
-                <span className="text-xs font-medium text-primary capitalize">
-                  {appLock.lockType === 'pin' ? 'PIN' : appLock.lockType === 'biometric' ? 'Face ID / Touch ID' : 'Passkey'} enabled
-                </span>
-              </div>
-              <button
-                onClick={() => { appLock.disableLock(); setPinSetupStep('idle'); }}
-                className="text-xs text-destructive hover:underline"
-              >
-                Disable
-              </button>
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">No lock set — select one below to enable.</p>
-          )}
-
-          {/* Options */}
-          <div className="space-y-2">
-
-            {/* PIN — mobile only */}
-            {(appLock.isNative || appLock.lockType === 'pin') && (
-              <div className="space-y-2">
-                <button
-                  onClick={() => setPinSetupStep(s => s === 'idle' ? 'entry' : 'idle')}
-                  className="w-full flex items-center justify-between bg-secondary border border-border px-3 py-2.5 hover:border-primary/40 transition-colors btn-press"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Hash size={14} className="text-muted-foreground" />
-                    <div className="text-left">
-                      <p className="text-xs font-medium">PIN</p>
-                      <p className="text-[9px] text-muted-foreground">4–6 digit quick access code</p>
-                    </div>
-                  </div>
-                  {appLock.lockEnabled && appLock.lockType === 'pin' && <CheckCircle size={13} className="text-primary" />}
-                </button>
-
-                {pinSetupStep !== 'idle' && (
-                  <div className="space-y-2 pl-1">
-                    <input
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={pinEntry}
-                      onChange={e => setPinEntry(e.target.value.replace(/\D/g, ''))}
-                      placeholder={pinSetupStep === 'entry' ? 'Enter new PIN (4–6 digits)' : 'Confirm PIN'}
-                      className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground text-center tracking-widest focus:outline-none focus:ring-1 focus:ring-ring"
-                      style={{ borderRadius: 'var(--radius)' }}
-                      autoFocus
-                    />
-                    {pinSetupStep === 'confirm' && (
-                      <input
-                        type="password"
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={pinConfirm}
-                        onChange={e => setPinConfirm(e.target.value.replace(/\D/g, ''))}
-                        placeholder="Confirm PIN"
-                        className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground text-center tracking-widest focus:outline-none focus:ring-1 focus:ring-ring"
-                        style={{ borderRadius: 'var(--radius)' }}
-                      />
-                    )}
-                    <div className="flex gap-2">
-                      {pinSetupStep === 'entry' ? (
-                        <button
-                          disabled={pinEntry.length < 4}
-                          onClick={() => { setPinConfirm(''); setPinSetupStep('confirm'); }}
-                          className="flex-1 py-1.5 text-xs font-medium bg-primary text-primary-foreground btn-press disabled:opacity-50"
-                          style={{ borderRadius: 'var(--radius)' }}
-                        >
-                          Next
-                        </button>
-                      ) : (
-                        <button
-                          disabled={lockBusy || pinConfirm.length < 4 || pinEntry !== pinConfirm}
-                          onClick={async () => {
-                            setLockBusy(true);
-                            await appLock.setupPin(pinEntry);
-                            setLockBusy(false);
-                            setPinSetupStep('idle');
-                            setPinEntry('');
-                            setPinConfirm('');
-                            toast.success('PIN set — app will lock on next launch');
-                          }}
-                          className="flex-1 py-1.5 text-xs font-medium bg-primary text-primary-foreground btn-press disabled:opacity-50"
-                          style={{ borderRadius: 'var(--radius)' }}
-                        >
-                          {lockBusy ? 'Saving…' : pinEntry !== pinConfirm && pinConfirm.length >= 4 ? "PINs don't match" : 'Save PIN'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => { setPinSetupStep('idle'); setPinEntry(''); setPinConfirm(''); }}
-                        className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Biometric — active on mobile, visible-but-disabled on desktop */}
-            <button
-              onClick={async () => {
-                if (!appLock.isNative) return;
-                setLockBusy(true);
-                const ok = await appLock.setupBiometric();
-                setLockBusy(false);
-                if (ok) toast.success('Biometric lock enabled');
-                else toast.error('Biometric not available on this device');
-              }}
-              disabled={!appLock.isNative || lockBusy}
-              className={`w-full flex items-center justify-between bg-secondary border border-border px-3 py-2.5 transition-colors ${appLock.isNative ? 'hover:border-primary/40 btn-press' : 'opacity-40 cursor-not-allowed'}`}
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <div className="flex items-center gap-2.5">
-                <Fingerprint size={14} className="text-muted-foreground" />
-                <div className="text-left">
-                  <p className="text-xs font-medium">Face ID / Touch ID</p>
-                  <p className="text-[9px] text-muted-foreground">
-                    {appLock.isNative ? 'Use your device biometrics' : 'Mobile only'}
-                  </p>
-                </div>
-              </div>
-              {appLock.lockEnabled && appLock.lockType === 'biometric'
-                ? <CheckCircle size={13} className="text-primary" />
-                : !appLock.isNative && <Monitor size={12} className="text-muted-foreground/50" />
-              }
-            </button>
-
-            {/* Passkey */}
-            {typeof window !== 'undefined' && window.PublicKeyCredential && (
-              <button
-                onClick={async () => {
-                  if (!user) return;
-                  setLockBusy(true);
-                  const ok = await appLock.registerPasskey(user.id, user.email ?? '');
-                  setLockBusy(false);
-                  if (ok) toast.success('Passkey registered — use it to unlock next time');
-                  else toast.error('Passkey registration failed or was cancelled');
-                }}
-                disabled={lockBusy}
-                className="w-full flex items-center justify-between bg-secondary border border-border px-3 py-2.5 hover:border-primary/40 transition-colors btn-press disabled:opacity-50"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <KeyRound size={14} className="text-muted-foreground" />
-                  <div className="text-left">
-                    <p className="text-xs font-medium">Device passkey</p>
-                    <p className="text-[9px] text-muted-foreground">Unlock with your device's built-in authenticator</p>
-                  </div>
-                </div>
-                {appLock.lockEnabled && appLock.lockType === 'passkey' && <CheckCircle size={13} className="text-primary" />}
-              </button>
-            )}
-          </div>
-
-          {/* Sign-In Passkey — separate from app lock, lets you skip password on login */}
-          {typeof window !== 'undefined' && window.PublicKeyCredential && (
-            <div className="pt-2 border-t border-border space-y-2">
-              <p className="text-xs text-muted-foreground">
-                <span className="text-foreground font-medium">Sign-in passkey</span> — skip the password field on the login page entirely.
-              </p>
-              {hasSigninPasskey ? (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle size={13} className="text-primary" />
-                    <span className="text-xs font-medium text-primary">Sign-in passkey active</span>
-                  </div>
-                  <button
-                    onClick={handleRemoveSigninPasskey}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={handleRegisterSigninPasskey}
-                  disabled={signinPasskeyBusy}
-                  className="w-full flex items-center justify-between bg-secondary border border-border px-3 py-2.5 hover:border-primary/40 transition-colors btn-press disabled:opacity-50"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground" aria-hidden="true">
-                      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-                    </svg>
-                    <div className="text-left">
-                      <p className="text-xs font-medium">Register sign-in passkey</p>
-                      <p className="text-[9px] text-muted-foreground">Face ID, fingerprint, Windows Hello, or security key</p>
-                    </div>
-                  </div>
-                  {signinPasskeyBusy && <span className="inline-block w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Income & Paycheck */}
       <div className="card-forged p-5 space-y-4">
@@ -944,7 +709,7 @@ export default function SettingsPage() {
           </h2>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-muted-foreground">
-              Share Forged with someone who wants to take control of their finances.
+              Share Forgenta with someone who wants to take control of their finances.
             </p>
             {referralCount !== null && referralCount > 0 && (
               <span className="text-xs font-medium text-primary shrink-0">
@@ -954,11 +719,11 @@ export default function SettingsPage() {
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <code className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-muted-foreground font-mono truncate" style={{ borderRadius: 'var(--radius)' }}>
-              {`https://app.treforged.com?ref=${user.id.slice(0, 8)}`}
+              {`https://getforgenta.com?ref=${user.id.slice(0, 8)}`}
             </code>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(`https://app.treforged.com?ref=${user.id.slice(0, 8)}`);
+                navigator.clipboard.writeText(`https://getforgenta.com?ref=${user.id.slice(0, 8)}`);
                 setInviteCopied(true);
                 setTimeout(() => setInviteCopied(false), 2000);
               }}
@@ -990,7 +755,7 @@ export default function SettingsPage() {
                 </p>
               </div>
               <a
-                href="mailto:contact@treforged.com?subject=Premium%20Support%20Request"
+                href="mailto:contact@getforgenta.com?subject=Premium%20Support%20Request"
                 className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
                 style={{ borderRadius: 'var(--radius)' }}
               >
@@ -1115,7 +880,7 @@ export default function SettingsPage() {
               <input
                 type="text"
                 inputMode="numeric"
-                maxLength={8}
+                maxLength={6}
                 value={deleteOtp}
                 onChange={e => setDeleteOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="Code from your email"
@@ -1127,7 +892,7 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={handleDeleteAccount}
-                  disabled={deleteOtp.length < 6 || deleteLoading || deleteOtp.length > 8}
+                  disabled={deleteOtp.length !== 6 || deleteLoading}
                   className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >

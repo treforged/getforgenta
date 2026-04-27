@@ -168,7 +168,7 @@ function ClickableMetric({
 
 export default function Dashboard() {
   const { isDemo, user } = useAuth();
-  const isReviewer = user?.email === 'reviewer@treforged.com';
+  const isReviewer = user?.email === 'reviewer@getforgenta.com';
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
   const { isNative, lockEnabled, checkBiometricAvailable, setupBiometric } = useAppLock();

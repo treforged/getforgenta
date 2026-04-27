@@ -118,7 +118,7 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
           <NavStep
             icon={<DollarSign size={16} className="text-primary" />}
             title="Set your monthly income"
-            body="Head to Budget Control to enter your gross pay, deductions, and paycheck frequency. This powers every projection in Forged."
+            body="Head to Budget Control to enter your gross pay, deductions, and paycheck frequency. This powers every projection in Forgenta."
             ctaLabel="Open Budget Control"
             onNavigate={() => navigateTo('/budget')}
             onSkip={nextStep}
@@ -142,7 +142,7 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
           <NavStep
             icon={<PiggyBank size={16} className="text-primary" />}
             title="Create a savings goal"
-            body="Add your first savings goal — emergency fund, vacation, down payment, or anything else. Forged tracks progress automatically."
+            body="Add your first savings goal — emergency fund, vacation, down payment, or anything else. Forgenta tracks progress automatically."
             ctaLabel="Open Savings Goals"
             onNavigate={() => navigateTo('/savings')}
             onSkip={markComplete}
@@ -212,7 +212,7 @@ function FirstUpsell({
         </div>
         <div>
           <p className="text-sm font-semibold leading-snug">
-            Connect up to 10 bank accounts automatically with Forged Premium.
+            Connect up to 10 bank accounts automatically with Forgenta Premium.
           </p>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
             Premium also includes: AI Advisor (unlimited), daily auto-sync,

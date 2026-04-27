@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
       : null;
     const origin = sanitizedReturnUrl
       ? new URL(sanitizedReturnUrl).origin
-      : req.headers.get("origin") || "https://app.treforged.com";
+      : req.headers.get("origin") || "https://getforgenta.com";
 
     // ── DB: check for existing Stripe customer ─────────────────────────────
     const dbSelectSpan = tracer.startSpan("db.user_subscriptions.select", {

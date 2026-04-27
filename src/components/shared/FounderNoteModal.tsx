@@ -34,7 +34,7 @@ export default function FounderNoteModal({ onDismiss }: Props) {
       <div className="flex items-start justify-between px-6 pt-6 pb-0">
         <div className="space-y-0.5">
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest">A note from the founder</p>
-          <h2 className="font-display font-bold text-xl text-gold">FORGED</h2>
+          <h2 className="font-display font-bold text-xl text-gold">FORGENTA</h2>
         </div>
         <button
           onClick={handleDismiss}
@@ -49,11 +49,11 @@ export default function FounderNoteModal({ onDismiss }: Props) {
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3 text-sm text-foreground leading-relaxed">
         <p>Hey — I'm Tre.</p>
         <p>
-          I built Forged because I got tired of paying $15/month for apps that showed me ads,
+          I built Forgenta because I got tired of paying $15/month for apps that showed me ads,
           sold my data, and still couldn't explain why I felt broke despite making decent money.
         </p>
         <p>
-          Forged is different. No ads. No data selling. No dark patterns. Just a real tool
+          Forgenta is different. No ads. No data selling. No dark patterns. Just a real tool
           built to help you see exactly where your money goes and what to do about it.
         </p>
         <p>
@@ -61,8 +61,8 @@ export default function FounderNoteModal({ onDismiss }: Props) {
         </p>
         <p>
           If you ever want to share feedback, hit me at{' '}
-          <a href="mailto:contact@treforged.com" className="text-primary underline underline-offset-2">
-            contact@treforged.com
+          <a href="mailto:contact@getforgenta.com" className="text-primary underline underline-offset-2">
+            contact@getforgenta.com
           </a>.
         </p>
         <p>Now let's build something solid.</p>
@@ -70,7 +70,7 @@ export default function FounderNoteModal({ onDismiss }: Props) {
 
       {/* Footer */}
       <div className="px-6 pb-6 pt-4 border-t border-border/40 space-y-3">
-        <p className="text-xs text-muted-foreground">— Tre, founder of TRE Forged LLC</p>
+        <p className="text-xs text-muted-foreground">— Tre, founder of TRE Forgenta LLC</p>
         <button
           onClick={handleDismiss}
           disabled={dismissing}

@@ -39,7 +39,7 @@ const NEW_USER_STEPS: TourStep[] = [
   {
     emoji: '💡',
     title: "You're set",
-    body: 'Tap any section to explore. The more data you add, the sharper your plan gets. Welcome to Forged.',
+    body: 'Tap any section to explore. The more data you add, the sharper your plan gets. Welcome to Forgenta.',
   },
 ];
 
@@ -47,7 +47,7 @@ const PREMIUM_STEPS: TourStep[] = [
   {
     emoji: '✨',
     title: 'Premium unlocked',
-    body: 'You now have access to every feature in Forged. Here\'s what\'s new for you.',
+    body: 'You now have access to every feature in Forgenta. Here\'s what\'s new for you.',
   },
   {
     emoji: '🤖',

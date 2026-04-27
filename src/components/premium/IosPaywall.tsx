@@ -57,7 +57,7 @@ export default function IosPaywall() {
       const info = await purchasePackage(selectedPkg);
       if (info) {
         await refetch();
-        toast.success('Welcome to Forged Premium!');
+        toast.success('Welcome to Forgenta Premium!');
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);

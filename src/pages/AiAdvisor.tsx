@@ -435,7 +435,7 @@ export default function AiAdvisor() {
           <div className="space-y-1.5">
             <h2 className="font-display font-bold text-lg tracking-tight">AI Advisor is a Premium Feature</h2>
             <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
-              Create a free account and upgrade to Forged Premium to get your personalized financial health score and ask unlimited money questions.
+              Create a free account and upgrade to Forgenta Premium to get your personalized financial health score and ask unlimited money questions.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">

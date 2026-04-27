@@ -16,7 +16,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
 
 const RATE_LIMIT = { windowMs: 60_000, max: 5 };
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 interface DebtDetail {
   name: string;
@@ -91,7 +91,7 @@ function buildPrompt(body: FinancialSnapshot): string {
     ? `The user is asking: "${body.question!.trim()}"\n\nAnswer this question directly and specifically using their actual numbers, debt names, and goal names. Then add 1-2 additional high-priority insights if the data warrants it.`
     : `Give a personalized analysis of this person's financial picture. Identify the 2-5 most impactful actions they should take right now, ordered by financial impact. Reference their specific debt names, goal names, and actual dollar amounts — not generic advice.`;
 
-  return `You are Forge, a direct and specific personal finance advisor inside the Forged budgeting app. You have full access to this user's live financial data. Your job is to give advice that is specific to THIS person — reference their exact numbers, their debt names, their goal names. Never give advice so generic it could apply to anyone.
+  return `You are Forge, a direct and specific personal finance advisor inside the Forgenta app. You have full access to this user's live financial data. Your job is to give advice that is specific to THIS person — reference their exact numbers, their debt names, their goal names. Never give advice so generic it could apply to anyone.
 
 THEIR FINANCIAL PICTURE
 
@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
     const prompt = buildPrompt(body);
 
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
