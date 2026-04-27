@@ -220,14 +220,14 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE' || deleteOtp.length !== 6) return;
+    if (deleteConfirmText !== 'DELETE' || deleteOtp.length !== 8) return;
     setDeleteLoading(true);
     try {
       // Verify the reauthentication OTP before deletion
       const { error: otpErr } = await supabase.auth.verifyOtp({
         email: user?.email ?? '',
         token: deleteOtp.trim(),
-        type: 'email' as any,
+        type: 'reauthentication' as any,
       });
       if (otpErr) throw new Error('Invalid confirmation code — check your email and try again');
 
@@ -866,7 +866,7 @@ export default function SettingsPage() {
               <div className="flex items-start gap-2 bg-primary/10 border border-primary/20 px-3 py-2.5 text-xs text-primary" style={{ borderRadius: 'var(--radius)' }}>
                 <Mail size={13} className="mt-0.5 shrink-0" />
                 <span>
-                  A 6-digit confirmation code was sent to <strong>{user?.email}</strong>. Enter it below to permanently delete your account.
+                  An 8-digit confirmation code was sent to <strong>{user?.email}</strong>. Enter it below to permanently delete your account.
                 </span>
               </div>
 
@@ -880,7 +880,7 @@ export default function SettingsPage() {
               <input
                 type="text"
                 inputMode="numeric"
-                maxLength={6}
+                maxLength={8}
                 value={deleteOtp}
                 onChange={e => setDeleteOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="Code from your email"
@@ -892,7 +892,7 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={handleDeleteAccount}
-                  disabled={deleteOtp.length !== 6 || deleteLoading}
+                  disabled={deleteOtp.length !== 8 || deleteLoading}
                   className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
