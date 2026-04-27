@@ -10,7 +10,6 @@ import { App as CapApp } from '@capacitor/app';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import CookieBanner from "@/components/shared/CookieBanner";
-import AppLockScreen from "@/components/shared/AppLockScreen";
 import Landing from "@/pages/Landing";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
@@ -61,7 +60,7 @@ function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.Rea
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-sm text-muted-foreground animate-pulse">Authenticating…</span></div>;
   if (!user && !isDemo) return <Navigate to="/auth" replace />;
   if (!skipOnboardingCheck && user && !isDemo) {
-    const done = localStorage.getItem(`forged:onboarding_done_${user.id}`);
+    const done = localStorage.getItem(`forgenta:onboarding_done_${user.id}`);
     if (!done) return <Navigate to="/onboarding" replace />;
   }
   return <>{children}</>;
@@ -193,7 +192,6 @@ const App = () => (
       {Capacitor.isNativePlatform() ? (
         <MemoryRouter initialEntries={['/auth']}>
           <AuthProvider>
-            <AppLockScreen />
             <DeepLinkHandler />
             <AppRoutes />
             <CookieBanner />
@@ -202,7 +200,6 @@ const App = () => (
       ) : (
         <BrowserRouter>
           <AuthProvider>
-            <AppLockScreen />
             <DeepLinkHandler />
             <AppRoutes />
             <CookieBanner />

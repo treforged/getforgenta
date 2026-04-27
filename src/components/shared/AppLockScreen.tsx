@@ -71,7 +71,7 @@ export default function AppLockScreen() {
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-8 px-8">
       {/* Logo / branding */}
       <div className="text-center space-y-1">
-        <p className="font-display font-bold text-xl tracking-tight">Forged</p>
+        <p className="font-display font-bold text-xl tracking-tight">Forgenta</p>
         <p className="text-xs text-muted-foreground">Verify it's you to continue</p>
       </div>
 

@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
     }
 
     // Use trusted Origin header only — never trust client-provided return_url
-    const origin = req.headers.get("origin") || "https://app.treforged.com";
+    const origin = req.headers.get("origin") || "https://getforgenta.com";
 
     // ── Stripe: create billing portal session ────────────────────────────
     const stripePortalSpan = tracer.startSpan("stripe.billing_portal.sessions.create", {

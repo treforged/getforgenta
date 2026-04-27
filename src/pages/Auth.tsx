@@ -5,10 +5,8 @@ import { toast } from 'sonner';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAppLock } from '@/hooks/useAppLock';
 
-const TRUSTED_DEVICE_KEY = 'forged:trusted_device_id';
-const BIO_PROMPT_KEY = 'forged:bio_prompt_shown';
+const TRUSTED_DEVICE_KEY = 'forgenta:trusted_device_id';
 
 interface TrustedDevice {
   device_id: string;
@@ -67,9 +65,6 @@ export default function Auth() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
-  const { isNative, lockEnabled, unlockWithBiometric, checkBiometricAvailable, setupBiometric } = useAppLock();
-  const [biometricAvailable, setBiometricAvailable] = useState(false);
-  const [showBiometricSetup, setShowBiometricSetup] = useState(false);
   const [trustPromptVisible, setTrustPromptVisible] = useState(false);
   const [pendingUserId, setPendingUserId] = useState('');
 
@@ -82,17 +77,12 @@ export default function Auth() {
   const [mfaError, setMfaError] = useState('');
 
   useEffect(() => {
-    // Supabase appends #access_token=...&type=recovery to the redirectTo URL
-    // when the user clicks the reset link in their email.
     const hash = window.location.hash;
     if (hash.includes('type=recovery')) {
       setMode('set-password');
-      // Clean the hash from the URL so a refresh doesn't re-trigger this
       window.history.replaceState(null, '', window.location.pathname);
       return;
     }
-
-    // ?reset=true from security notification emails → show the request-reset form
     if (searchParams.get('reset') === 'true') {
       setMode('reset');
     }
@@ -107,16 +97,11 @@ export default function Auth() {
     return () => { mounted = false; };
   }, [navigate]);
 
-  // Clean up legacy passkey localStorage keys from prior implementation
+  // Clean up legacy auth localStorage keys
   useEffect(() => {
-    localStorage.removeItem('forged:signin_passkey');
-    localStorage.removeItem('forged:signin_passkey_tokens');
+    localStorage.removeItem('forgenta:signin_passkey');
+    localStorage.removeItem('forgenta:signin_passkey_tokens');
   }, []);
-
-  useEffect(() => {
-    if (!isNative) return;
-    checkBiometricAvailable().then(setBiometricAvailable);
-  }, [isNative, checkBiometricAvailable]);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -150,45 +135,27 @@ export default function Auth() {
   };
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
-  setLoading(true);
-  try {
-    const redirectTo = Capacitor.isNativePlatform()
-  ? 'com.treforged.forged://auth-callback'
-  : `${window.location.origin}/auth`;
-
-const { error } = await supabase.auth.signInWithOAuth({
-  provider,
-  options: { redirectTo },
-});
-
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes('already registered') || msg.includes('email already in use')) {
-        toast.error('An account already exists with this email. Sign in with your password or reset it using "Forgot password?".');
-      } else {
-        toast.error(error.message);
-      }
-    }
-  } catch {
-    toast.error('OAuth sign-in failed. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const handleBiometricSignIn = async () => {
     setLoading(true);
     try {
-      const ok = await unlockWithBiometric();
-      if (!ok) { toast.error('Biometric authentication failed'); return; }
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        navigate('/dashboard', { replace: true });
-      } else {
-        toast.error('Session expired — please sign in with your password.');
+      const redirectTo = Capacitor.isNativePlatform()
+        ? 'com.treforged.forged://auth-callback'
+        : `${window.location.origin}/auth`;
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo },
+      });
+
+      if (error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('already registered') || msg.includes('email already in use')) {
+          toast.error('An account already exists with this email. Sign in with your password or reset it using "Forgot password?".');
+        } else {
+          toast.error(error.message);
+        }
       }
     } catch {
-      toast.error('Biometric sign-in failed');
+      toast.error('OAuth sign-in failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -197,16 +164,9 @@ const { error } = await supabase.auth.signInWithOAuth({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // ── Set new password (came from reset email link) ──────────────────────
     if (mode === 'set-password') {
-      if (password.length < 6) {
-        toast.error('Password must be at least 6 characters');
-        return;
-      }
-      if (password !== confirmPassword) {
-        toast.error('Passwords do not match');
-        return;
-      }
+      if (password.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+      if (password !== confirmPassword) { toast.error('Passwords do not match'); return; }
       setLoading(true);
       try {
         const { error } = await supabase.auth.updateUser({ password });
@@ -221,12 +181,8 @@ const { error } = await supabase.auth.signInWithOAuth({
       return;
     }
 
-    // ── Request reset email ─────────────────────────────────────────────────
     if (mode === 'reset') {
-      if (!email.trim()) {
-        toast.error('Enter your email address');
-        return;
-      }
+      if (!email.trim()) { toast.error('Enter your email address'); return; }
       setLoading(true);
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
@@ -242,19 +198,12 @@ const { error } = await supabase.auth.signInWithOAuth({
       return;
     }
 
-    // ── Sign in / Sign up ───────────────────────────────────────────────────
     if (mode === 'login') {
       const result = loginSchema.safeParse({ email, password });
-      if (!result.success) {
-        toast.error(result.error.issues[0].message);
-        return;
-      }
+      if (!result.success) { toast.error(result.error.issues[0].message); return; }
     } else {
       const result = signUpSchema.safeParse({ displayName, email, password, confirmPassword });
-      if (!result.success) {
-        toast.error(result.error.issues[0].message);
-        return;
-      }
+      if (!result.success) { toast.error(result.error.issues[0].message); return; }
     }
 
     setLoading(true);
@@ -263,10 +212,8 @@ const { error } = await supabase.auth.signInWithOAuth({
         const { data: authData, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
 
-        // Check if MFA is required before granting access
         const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
         if (aal && aal.nextLevel === 'aal2' && aal.nextLevel !== aal.currentLevel) {
-          // Trusted device skips MFA challenge
           if (authData.user?.id) {
             const trusted = await checkDeviceTrusted(authData.user.id);
             if (trusted) {
@@ -277,7 +224,6 @@ const { error } = await supabase.auth.signInWithOAuth({
               return;
             }
           }
-          // User has MFA enrolled — find first verified factor and challenge it
           const { data: factorsData } = await supabase.auth.mfa.listFactors();
           const rawFactors = factorsData as any;
           const allFactors = [
@@ -299,13 +245,7 @@ const { error } = await supabase.auth.signInWithOAuth({
         }
 
         toast.success('Signed in successfully');
-
-        // On first mobile sign-in, offer to enable biometric lock
-        if (isNative && biometricAvailable && !lockEnabled && !localStorage.getItem(BIO_PROMPT_KEY)) {
-          setShowBiometricSetup(true);
-          setLoading(false);
-          return;
-        }
+        navigate('/dashboard', { replace: true });
       } else {
         const { error } = await supabase.auth.signUp({
           email: email.trim(),
@@ -325,7 +265,7 @@ const { error } = await supabase.auth.signInWithOAuth({
     }
   };
 
-  // TOTP countdown — shows seconds remaining in 30s window
+  // TOTP countdown
   useEffect(() => {
     if (mode !== 'mfa' || mfaFactorType !== 'totp') return;
     const tick = () => {
@@ -378,62 +318,6 @@ const { error } = await supabase.auth.signInWithOAuth({
     }
   }, [mfaCode, mfaFactorType, loading, handleMfaVerify]);
 
-  // ── Biometric setup prompt (first mobile sign-in) ────────────────────────
-  if (showBiometricSetup) {
-    const label = /iPhone|iPad/.test(navigator.userAgent) ? 'Face ID / Touch ID' : 'Fingerprint / Biometric';
-    return (
-      <div
-        className="min-h-screen bg-background flex items-center justify-center px-4"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 16px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)' }}
-      >
-        <div className="w-full max-w-sm">
-          <div className="text-center mb-8">
-            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
-            <p className="text-xs text-muted-foreground mt-1">You're in.</p>
-          </div>
-          <div className="card-forged p-6 space-y-4">
-            <div className="flex flex-col items-center gap-3 py-2">
-              <div className="w-14 h-14 rounded-full bg-primary/10 border-2 border-primary/30 flex items-center justify-center">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-primary" aria-hidden="true">
-                  <path d="M12 10a2 2 0 0 0-2 2v1a2 2 0 0 0 4 0v-1a2 2 0 0 0-2-2z"/>
-                  <path d="M12 2C9.38 2 7 3.78 7 6v1M12 2c2.62 0 5 1.78 5 4v1"/>
-                  <path d="M7 7c-1.5.8-2 2-2 4 0 3.5 2 6 4 7.4"/>
-                  <path d="M17 7c1.5.8 2 2 2 4 0 3.5-2 6-4 7.4"/>
-                  <path d="M10 17.5c.6.3 1.3.5 2 .5s1.4-.2 2-.5"/>
-                </svg>
-              </div>
-              <div className="text-center space-y-1">
-                <p className="text-sm font-medium">Enable {label}?</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Skip the password next time — just use {label} to get back in.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={async () => {
-                localStorage.setItem(BIO_PROMPT_KEY, '1');
-                const ok = await setupBiometric();
-                if (!ok) toast.error('Could not enable biometric lock');
-                navigate('/dashboard', { replace: true });
-              }}
-              className="w-full bg-primary text-primary-foreground py-3 text-xs font-semibold btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Enable {label}
-            </button>
-            <button
-              type="button"
-              onClick={() => { localStorage.setItem(BIO_PROMPT_KEY, '1'); navigate('/dashboard', { replace: true }); }}
-              className="w-full py-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Not now
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   // ── Trust device prompt (post-MFA) ───────────────────────────────────────
   if (trustPromptVisible) {
     return (
@@ -446,7 +330,7 @@ const { error } = await supabase.auth.signInWithOAuth({
       >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
             <p className="text-xs text-muted-foreground mt-1">You're signed in.</p>
           </div>
           <div className="card-forged p-6 space-y-4">
@@ -501,7 +385,7 @@ const { error } = await supabase.auth.signInWithOAuth({
         `}</style>
         <div className="w-full max-w-xs space-y-10">
           <div className="text-center auth-logo">
-            <h1 className="font-display font-bold text-4xl tracking-tight text-gold">FORGED</h1>
+            <h1 className="font-display font-bold text-4xl tracking-tight text-gold">FORGENTA</h1>
             <p className="text-xs text-muted-foreground mt-2">Your money. Clear and honest.</p>
           </div>
           <div className="space-y-3">
@@ -526,6 +410,23 @@ const { error } = await supabase.auth.signInWithOAuth({
               Try Demo
             </button>
           </div>
+          {!Capacitor.isNativePlatform() && (
+            <div className="auth-trust text-center">
+              <a
+                href="https://testflight.apple.com/join/P8AvKXr4"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 border border-border/60 text-[10px] text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <svg width="11" height="11" viewBox="0 0 814 1000" fill="currentColor" aria-hidden="true">
+                  <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 382.9 40.7 262.6 40.7 242.1c0-131.4 90.7-200.3 179.4-200.3 87 0 142.7 57.6 168.2 57.6 24.4 0 88.1-60.9 172.3-60.9 13.8 0 133.4 1.3 204.3 104.6z"/>
+                  <path d="M530.4 40.3c-29.6 34.7-76.6 60.4-123.5 56.8-5.8-45.5 16.7-93.8 44.3-124 29.6-32.8 80-60.9 122.5-62.9 4.5 47.4-13.4 94-43.3 130.1z"/>
+                </svg>
+                Test on iPhone — TestFlight
+              </a>
+            </div>
+          )}
           <p className="auth-trust text-xs text-muted-foreground text-center">
             0 ads. Ever. No selling your data.
           </p>
@@ -546,15 +447,15 @@ const { error } = await supabase.auth.signInWithOAuth({
 
     return (
       <div
-  className="min-h-screen bg-background flex items-center justify-center px-4"
-  style={{
-    paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
-    paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)'
-  }}
->
+        className="min-h-screen bg-background flex items-center justify-center px-4"
+        style={{
+          paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
+        }}
+      >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
             <p className="text-xs text-muted-foreground mt-1">Two-factor verification required.</p>
           </div>
           <div className="card-forged p-6 space-y-4">
@@ -562,7 +463,6 @@ const { error } = await supabase.auth.signInWithOAuth({
               {FACTOR_HINTS[mfaFactorType] ?? 'Enter your verification code.'}
             </p>
 
-            {/* TOTP countdown bar */}
             {mfaFactorType === 'totp' && (
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
@@ -581,16 +481,16 @@ const { error } = await supabase.auth.signInWithOAuth({
             )}
 
             <input
-  type="text"
-  inputMode="numeric"
-  pattern="[0-9]*"
-  name="one-time-code"
-  autoComplete="one-time-code"
-  maxLength={mfaFactorType === 'totp' ? 6 : 8}
-  value={mfaCode}
-  onChange={e => { setMfaError(''); setMfaCode(e.target.value.replace(/\D/g, '')); }}
-  placeholder={mfaFactorType === 'totp' ? '000000' : 'Verification code'}
-  autoFocus
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              name="one-time-code"
+              autoComplete="one-time-code"
+              maxLength={mfaFactorType === 'totp' ? 6 : 8}
+              value={mfaCode}
+              onChange={e => { setMfaError(''); setMfaCode(e.target.value.replace(/\D/g, '')); }}
+              placeholder={mfaFactorType === 'totp' ? '000000' : 'Verification code'}
+              autoFocus
               className={`w-full bg-secondary border px-3 py-3 text-lg text-foreground text-center tracking-[0.4em] focus:outline-none focus:ring-1 ${mfaError ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-ring'}`}
               style={{ borderRadius: 'var(--radius)' }}
             />
@@ -630,7 +530,7 @@ const { error } = await supabase.auth.signInWithOAuth({
     );
   }
 
-  // ── Set new password UI (after clicking reset email link) ─────────────────
+  // ── Set new password UI ───────────────────────────────────────────────────
   if (mode === 'set-password') {
     const mismatch = !!confirmPassword && confirmPassword !== password;
     return (
@@ -640,10 +540,9 @@ const { error } = await supabase.auth.signInWithOAuth({
       >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
             <p className="text-xs text-muted-foreground mt-1">Choose a new password for your account.</p>
           </div>
-
           <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
             <div>
               <label className="text-xs text-muted-foreground uppercase">New Password</label>
@@ -659,7 +558,6 @@ const { error } = await supabase.auth.signInWithOAuth({
                 style={{ borderRadius: 'var(--radius)' }}
               />
             </div>
-
             <div>
               <label className="text-xs text-muted-foreground uppercase">Confirm New Password</label>
               <input
@@ -675,11 +573,8 @@ const { error } = await supabase.auth.signInWithOAuth({
                 }`}
                 style={{ borderRadius: 'var(--radius)' }}
               />
-              {mismatch && (
-                <p className="text-xs text-destructive mt-1">Passwords do not match</p>
-              )}
+              {mismatch && <p className="text-xs text-destructive mt-1">Passwords do not match</p>}
             </div>
-
             <button
               type="submit"
               disabled={loading || mismatch}
@@ -703,7 +598,7 @@ const { error } = await supabase.auth.signInWithOAuth({
       >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
           </div>
           <div className="card-forged p-6 space-y-4 text-center">
             <p className="text-base font-semibold text-foreground">Check your inbox</p>
@@ -741,39 +636,13 @@ const { error } = await supabase.auth.signInWithOAuth({
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGED</h1>
+          <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
           <p className="text-xs text-muted-foreground mt-1">
             {mode === 'login' && 'Welcome back. Sign in to continue.'}
             {mode === 'signup' && 'Create your account to get started.'}
             {mode === 'reset' && 'Enter your email to receive a reset link.'}
           </p>
         </div>
-
-        {mode === 'login' && isNative && lockEnabled && biometricAvailable && (
-          <div className="mb-4 space-y-3">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleBiometricSignIn}
-              className="w-full flex items-center justify-center gap-2 py-3.5 text-sm font-semibold bg-primary text-primary-foreground btn-press disabled:opacity-50"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M12 10a2 2 0 0 0-2 2v1a2 2 0 0 0 4 0v-1a2 2 0 0 0-2-2z"/>
-                <path d="M12 2C9.38 2 7 3.78 7 6v1M12 2c2.62 0 5 1.78 5 4v1"/>
-                <path d="M7 7c-1.5.8-2 2-2 4 0 3.5 2 6 4 7.4"/>
-                <path d="M17 7c1.5.8 2 2 2 4 0 3.5-2 6-4 7.4"/>
-                <path d="M10 17.5c.6.3 1.3.5 2 .5s1.4-.2 2-.5"/>
-              </svg>
-              {/iPhone|iPad/.test(navigator.userAgent) ? 'Face ID / Touch ID' : 'Fingerprint Sign In'}
-            </button>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">or sign in with password</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
 
