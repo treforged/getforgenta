@@ -49,8 +49,11 @@ import {
 import { exportDashboardPdf } from '@/lib/exportPdf';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppLock } from '@/hooks/useAppLock';
 import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
+
+const BIO_PROMPT_KEY = 'forged:bio_prompt_shown';
 
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -168,6 +171,31 @@ export default function Dashboard() {
   const isReviewer = user?.email === 'reviewer@getforgenta.com';
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
+  const { isNative, lockEnabled, checkBiometricAvailable, setupBiometric } = useAppLock();
+
+  // One-time prompt to enable biometric lock after first mobile sign-in
+  useEffect(() => {
+    if (!isNative || isDemo || lockEnabled || localStorage.getItem(BIO_PROMPT_KEY)) return;
+    checkBiometricAvailable().then(available => {
+      if (!available) return;
+      const label = /iPhone|iPad/.test(navigator.userAgent) ? 'Face ID / Touch ID' : 'Fingerprint';
+      toast(`Enable ${label} for quick access?`, {
+        duration: 10000,
+        action: {
+          label: 'Enable',
+          onClick: () => {
+            localStorage.setItem(BIO_PROMPT_KEY, '1');
+            setupBiometric();
+          },
+        },
+        cancel: {
+          label: 'Not now',
+          onClick: () => localStorage.setItem(BIO_PROMPT_KEY, '1'),
+        },
+      });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: transactions, loading: txnLoading } = useTransactions();
   const { data: accounts, loading: acctLoading } = useAccounts();
@@ -622,7 +650,7 @@ export default function Dashboard() {
 
   if (essentialLoading) {
     return (
-      <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden min-h-[calc(100vh-8rem)]">
+      <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
         <div className="flex items-center justify-between">
           <div>
             <div className="h-8 w-48 bg-muted/50 rounded animate-pulse" />

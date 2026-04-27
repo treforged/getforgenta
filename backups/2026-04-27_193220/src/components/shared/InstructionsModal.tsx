@@ -15,11 +15,10 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-2 py-1 text-[10px] font-semibold text-primary border border-primary/30 hover:border-primary hover:bg-primary/8 transition-colors shrink-0 cursor-pointer"
-        style={{ borderRadius: 'var(--radius)' }}
+        className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-primary font-medium transition-colors shrink-0"
         title={`How to use ${pageTitle}`}
       >
-        <BookOpen size={11} /> Guide
+        <BookOpen size={12} /> Guide
       </button>
 
       {open && (
