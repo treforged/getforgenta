@@ -5,6 +5,14 @@
       "destination": "/index.html"
     }
   ],
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "app.treforged.com" }],
+      "destination": "https://getforgenta.com/$1",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -24,6 +32,10 @@
         {
           "key": "Upgrade-Insecure-Requests",
           "value": "1"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
         },
         {
           "key": "Referrer-Policy",
