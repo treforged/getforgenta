@@ -6,8 +6,6 @@ import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/contexts/AuthContext';
 
-import ForgentaLogo from '@/components/shared/ForgentaLogo';
-
 const TRUSTED_DEVICE_KEY = 'forgenta:trusted_device_id';
 
 interface TrustedDevice {
@@ -138,54 +136,27 @@ export default function Auth() {
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     setLoading(true);
-    const redirectTo = Capacitor.isNativePlatform()
-      ? 'com.treforged.forged://auth-callback'
-      : `${window.location.origin}/auth`;
-
     try {
-      if (Capacitor.isNativePlatform()) {
-        // Native: SFSafariViewController on iOS (already in-app sheet)
-        const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
-        if (error) throw error;
-        setLoading(false);
-      } else {
-        // Web: open in centered popup so user stays on the page
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: { redirectTo, skipBrowserRedirect: true },
-        });
-        if (error) throw error;
-        if (!data.url) throw new Error('No OAuth URL returned');
+      const redirectTo = Capacitor.isNativePlatform()
+        ? 'com.treforged.forged://auth-callback'
+        : `${window.location.origin}/auth`;
 
-        const w = 480, h = 600;
-        const left = Math.round(window.screenX + (window.outerWidth - w) / 2);
-        const top = Math.round(window.screenY + (window.outerHeight - h) / 2);
-        const popup = window.open(data.url, 'forgenta-oauth', `width=${w},height=${h},left=${left},top=${top},scrollbars=yes`);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo },
+      });
 
-        if (!popup) {
-          // Popup blocked — fall back to full redirect
-          window.location.href = data.url;
-          return;
+      if (error) {
+        const msg = error.message.toLowerCase();
+        if (msg.includes('already registered') || msg.includes('email already in use')) {
+          toast.error('An account already exists with this email. Sign in with your password or reset it using "Forgot password?".');
+        } else {
+          toast.error(error.message);
         }
-
-        // Poll until popup closes then check session
-        const poll = setInterval(() => {
-          if (!popup || popup.closed) {
-            clearInterval(poll);
-            setLoading(false);
-            supabase.auth.getSession().then(({ data: s }) => {
-              if (s.session) navigate('/dashboard', { replace: true });
-            });
-          }
-        }, 600);
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('email already in use')) {
-        toast.error('An account already exists with this email. Sign in with your password or reset it using "Forgot password?".');
-      } else {
-        toast.error(msg || 'OAuth sign-in failed. Please try again.');
-      }
+    } catch {
+      toast.error('OAuth sign-in failed. Please try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -359,7 +330,7 @@ export default function Auth() {
       >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <ForgentaLogo size="sm" className="text-gold" />
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
             <p className="text-xs text-muted-foreground mt-1">You're signed in.</p>
           </div>
           <div className="card-forged p-6 space-y-4">
@@ -414,7 +385,7 @@ export default function Auth() {
         `}</style>
         <div className="w-full max-w-xs space-y-10">
           <div className="text-center auth-logo">
-            <ForgentaLogo size="lg" className="text-gold" />
+            <h1 className="font-display font-bold text-4xl tracking-tight text-gold">FORGENTA</h1>
             <p className="text-xs text-muted-foreground mt-2">Your money. Clear and honest.</p>
           </div>
           <div className="space-y-3">
@@ -484,7 +455,7 @@ export default function Auth() {
       >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <ForgentaLogo size="sm" className="text-gold" />
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
             <p className="text-xs text-muted-foreground mt-1">Two-factor verification required.</p>
           </div>
           <div className="card-forged p-6 space-y-4">
@@ -569,7 +540,7 @@ export default function Auth() {
       >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <ForgentaLogo size="sm" className="text-gold" />
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
             <p className="text-xs text-muted-foreground mt-1">Choose a new password for your account.</p>
           </div>
           <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
@@ -627,7 +598,7 @@ export default function Auth() {
       >
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <ForgentaLogo size="sm" className="text-gold" />
+            <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
           </div>
           <div className="card-forged p-6 space-y-4 text-center">
             <p className="text-base font-semibold text-foreground">Check your inbox</p>

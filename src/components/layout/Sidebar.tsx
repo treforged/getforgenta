@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import ForgentaLogo from '@/components/shared/ForgentaLogo';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -41,8 +42,8 @@ export default function Sidebar() {
     >
       <div className="flex items-center justify-between px-4 h-14 border-b border-sidebar-border">
         {!collapsed && (
-          <Link to={brandTo} className="font-display font-bold text-sm tracking-tight text-primary hover:opacity-80 transition-opacity">
-            FORGENTA
+          <Link to={brandTo} className="text-primary hover:opacity-80 transition-opacity">
+            <ForgentaLogo size="sm" />
           </Link>
         )}
         <button
