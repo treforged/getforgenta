@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
-  "https://app.treforged.com",
+  "https://getforgenta.com",
   "https://treforged.com",
   "http://localhost:8080",
   "http://localhost:3000",
@@ -10,7 +10,7 @@ const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
 
 function getCorsHeaders(req: Request): Record<string, string> {
   const requestOrigin = req.headers.get("origin") ?? "";
-  const allowedOrigin = ALLOWED_ORIGINS.has(requestOrigin) ? requestOrigin : "https://app.treforged.com";
+  const allowedOrigin = ALLOWED_ORIGINS.has(requestOrigin) ? requestOrigin : "https://getforgenta.com";
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-trace-id",

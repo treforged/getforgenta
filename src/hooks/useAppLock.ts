@@ -12,8 +12,8 @@ const K = {
 } as const;
 
 const UNLOCK_GRACE_MS = 5 * 60 * 1000; // 5 minutes
-const RP_ID = 'app.treforged.com';
-const RP_NAME = 'Forged';
+const RP_ID = 'getforgenta.com';
+const RP_NAME = 'Forgenta';
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -61,7 +61,7 @@ export function useAppLock() {
     if (!isNative) return false;
     try {
       const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
-      await BiometricAuth.authenticate({ reason: 'Unlock Forged' });
+      await BiometricAuth.authenticate({ reason: 'Unlock Forgenta' });
       // authenticate() resolves on success, throws BiometryError on failure
       markUnlocked();
       setIsLocked(false);

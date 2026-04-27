@@ -38,7 +38,7 @@ export default function DashboardLayout() {
 
         <footer className="hidden lg:block border-t border-border py-4 px-6">
           <div className="flex items-center justify-center gap-4 text-[10px] text-muted-foreground">
-            <span>&copy; {new Date().getFullYear()} Forged by TRE Forged LLC. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Forgenta by TRE Forgenta LLC. All rights reserved.</span>
             <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
               Privacy Policy
             </Link>

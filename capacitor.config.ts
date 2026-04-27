@@ -2,10 +2,10 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.treforged.forged',
-  appName: 'Forged',
+  appName: 'Forgenta',
   webDir: 'dist',
   server: {
-    url: 'https://app.treforged.com',
+    url: 'https://getforgenta.com',
     cleartext: true,
     androidScheme: 'https',
   },

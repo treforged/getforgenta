@@ -103,9 +103,9 @@ function PrivacyContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Introduction</h2>
         <p className="text-muted-foreground leading-relaxed">
-          TRE Forged LLC ("we", "us", "our") operates Forged, a personal finance management
-          application accessible at app.treforged.com. This Privacy Policy explains how we collect, use, store,
-          and protect your information when you use our service. By using Forged you agree to the practices
+          TRE Forgenta LLC ("we", "us", "our") operates Forgenta, a personal finance management
+          application accessible at getforgenta.com. This Privacy Policy explains how we collect, use, store,
+          and protect your information when you use our service. By using Forgenta you agree to the practices
           described in this policy.
         </p>
       </section>
@@ -122,14 +122,14 @@ function PrivacyContent() {
           navigation, feature usage) used to improve the service. We do not use third-party analytics trackers.</p>
           <p><span className="text-foreground font-medium">Payment data:</span> Billing is processed entirely by
           Stripe. We store only your Stripe customer ID and subscription status — no card numbers, CVVs, or bank
-          account details are ever stored by TRE Forged LLC.</p>
+          account details are ever stored by TRE Forgenta LLC.</p>
         </div>
       </section>
 
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">3. How We Use Your Information</h2>
         <ul className="list-disc list-inside space-y-1 text-muted-foreground leading-relaxed">
-          <li>To provide, operate, and maintain the Forged service</li>
+          <li>To provide, operate, and maintain the Forgenta service</li>
           <li>To authenticate your identity and protect your account</li>
           <li>To process payments and manage your subscription status</li>
           <li>To send transactional emails (account confirmation, billing receipts)</li>
@@ -164,7 +164,7 @@ function PrivacyContent() {
         <h2 className="font-display font-semibold text-base">5. Payment Processing — Stripe</h2>
         <p className="text-muted-foreground leading-relaxed">
           Premium subscription payments are processed by Stripe, Inc. When you subscribe, you are redirected to
-          a Stripe-hosted checkout page. TRE Forged LLC never receives, transmits, or stores your payment card
+          a Stripe-hosted checkout page. TRE Forgenta LLC never receives, transmits, or stores your payment card
           details. Stripe is PCI-DSS Level 1 certified. We store only your Stripe customer ID and subscription
           status (active, trialing, past_due, canceled) for the purpose of determining which features you have
           access to.
@@ -204,7 +204,7 @@ function PrivacyContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">8. Security</h2>
         <p className="text-muted-foreground leading-relaxed">
-          All connections to Forged are encrypted via HTTPS. Authentication uses industry-standard JWT tokens
+          All connections to Forgenta are encrypted via HTTPS. Authentication uses industry-standard JWT tokens
           with expiration. We apply Row-Level Security at the database layer so each user's data is isolated.
           Sensitive operations (payments, subscription management) are handled by edge functions that validate
           authentication before processing any request. We do not log sensitive financial data or authentication
@@ -215,7 +215,7 @@ function PrivacyContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">9. Children's Privacy</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Forged is not intended for users under the age of 13. We do not knowingly collect
+          Forgenta is not intended for users under the age of 13. We do not knowingly collect
           personal information from children. If we become aware that a child under 13 has provided personal
           data, we will delete it promptly.
         </p>
@@ -233,9 +233,9 @@ function PrivacyContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">11. Contact Us</h2>
         <p className="text-muted-foreground leading-relaxed">
-          For privacy-related questions, data requests, or to exercise your rights, contact TRE Forged LLC at:
+          For privacy-related questions, data requests, or to exercise your rights, contact TRE Forgenta LLC at:
           <br />
-          <a href="mailto:support@treforged.com" className="text-primary hover:underline">support@treforged.com</a>
+          <a href="mailto:support@getforgenta.com" className="text-primary hover:underline">support@getforgenta.com</a>
         </p>
       </section>
 
@@ -252,7 +252,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Acceptance of Terms</h2>
         <p className="text-muted-foreground leading-relaxed">
-          By accessing or using Forged ("the Service"), provided by TRE Forged LLC
+          By accessing or using Forgenta ("the Service"), provided by TRE Forgenta LLC
           ("Company", "we", "us"), you agree to be bound by these Terms of Service. If you do not agree to
           these terms, do not use the Service. We reserve the right to update these terms at any time with
           reasonable notice.
@@ -262,7 +262,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">2. Description of Service</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Forged is a personal finance management Software-as-a-Service (SaaS) application. It
+          Forgenta is a personal finance management Software-as-a-Service (SaaS) application. It
           provides tools for budget planning, transaction tracking, debt payoff planning, savings goal tracking,
           net worth monitoring, and cash flow forecasting. The Service is intended for personal, non-commercial
           use.
@@ -272,7 +272,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">3. Account Registration</h2>
         <p className="text-muted-foreground leading-relaxed">
-          To use Forged you must register with a valid email address and a password of at least 6 characters.
+          To use Forgenta you must register with a valid email address and a password of at least 6 characters.
           You are responsible for maintaining the confidentiality of your account credentials and for all
           activity that occurs under your account. You must provide accurate and complete information and keep
           your account information up to date. One account per person; creating multiple accounts to circumvent
@@ -297,7 +297,7 @@ function TermsContent() {
         <h2 className="font-display font-semibold text-base">5. Payment and Billing</h2>
         <p className="text-muted-foreground leading-relaxed">
           All payments are processed securely by Stripe, Inc. By subscribing to Premium, you authorize
-          TRE Forged LLC to charge your payment method on a recurring monthly basis. Subscriptions renew
+          TRE Forgenta LLC to charge your payment method on a recurring monthly basis. Subscriptions renew
           automatically on the same date each month.
         </p>
         <p className="text-muted-foreground leading-relaxed">
@@ -306,7 +306,7 @@ function TermsContent() {
           access until that date. We do not provide prorated refunds for partial months.
         </p>
         <p className="text-muted-foreground leading-relaxed">
-          TRE Forged LLC reserves the right to change pricing with at least 30 days' notice. Continued use
+          TRE Forgenta LLC reserves the right to change pricing with at least 30 days' notice. Continued use
           after a price change constitutes acceptance of the new price.
         </p>
       </section>
@@ -314,7 +314,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">6. User Data and Privacy</h2>
         <p className="text-muted-foreground leading-relaxed">
-          You retain full ownership of all financial data you enter into Forged. TRE Forged LLC does not
+          You retain full ownership of all financial data you enter into Forgenta. TRE Forgenta LLC does not
           sell, rent, or share your personal or financial data with third parties for marketing purposes. Our
           data practices are described in full in our{' '}
           <Link to="/privacy" className="text-primary hover:underline">Privacy Policy</Link>.
@@ -339,8 +339,8 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">8. Disclaimer of Warranties</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Forged is a planning and tracking tool — it is <strong>not financial advice</strong>.
-          TRE Forged LLC is not a licensed financial advisor, broker, or investment manager. The projections,
+          Forgenta is a planning and tracking tool — it is <strong>not financial advice</strong>.
+          TRE Forgenta LLC is not a licensed financial advisor, broker, or investment manager. The projections,
           recommendations, and calculations provided are for informational purposes only. You are solely
           responsible for any financial decisions you make using the Service.
         </p>
@@ -354,10 +354,10 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">9. Limitation of Liability</h2>
         <p className="text-muted-foreground leading-relaxed">
-          To the maximum extent permitted by law, TRE Forged LLC and its officers, employees, and affiliates
+          To the maximum extent permitted by law, TRE Forgenta LLC and its officers, employees, and affiliates
           shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising
           from your use of the Service. Our total liability to you for any claims arising from use of the
-          Service shall not exceed the total fees you paid to TRE Forged LLC in the three months preceding the
+          Service shall not exceed the total fees you paid to TRE Forgenta LLC in the three months preceding the
           claim.
         </p>
       </section>
@@ -365,7 +365,7 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">10. Termination</h2>
         <p className="text-muted-foreground leading-relaxed">
-          You may terminate your account at any time via the Settings page. TRE Forged LLC may suspend or
+          You may terminate your account at any time via the Settings page. TRE Forgenta LLC may suspend or
           terminate your account for violation of these Terms, non-payment, or for any reason with reasonable
           notice. Upon termination, your data will be retained for 30 days during which you may request an
           export, then permanently deleted.
@@ -376,7 +376,7 @@ function TermsContent() {
         <h2 className="font-display font-semibold text-base">11. Governing Law</h2>
         <p className="text-muted-foreground leading-relaxed">
           These Terms are governed by the laws of the United States. Any disputes arising from these Terms or
-          your use of the Service shall be resolved in the jurisdiction of TRE Forged LLC's principal place of
+          your use of the Service shall be resolved in the jurisdiction of TRE Forgenta LLC's principal place of
           business. If any provision of these Terms is found unenforceable, the remaining provisions remain in
           full effect.
         </p>
@@ -385,9 +385,9 @@ function TermsContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">12. Contact Us</h2>
         <p className="text-muted-foreground leading-relaxed">
-          For questions about these Terms, contact TRE Forged LLC at:
+          For questions about these Terms, contact TRE Forgenta LLC at:
           <br />
-          <a href="mailto:support@treforged.com" className="text-primary hover:underline">support@treforged.com</a>
+          <a href="mailto:support@getforgenta.com" className="text-primary hover:underline">support@getforgenta.com</a>
         </p>
       </section>
     </div>
@@ -402,8 +402,8 @@ function RefundContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. All Sales Are Final</h2>
         <p className="text-muted-foreground leading-relaxed">
-          All purchases of Forged Premium subscriptions are <strong className="text-foreground">final and non-refundable</strong>.
-          By subscribing, you acknowledge and agree that TRE Forged LLC does not offer refunds or credits for any
+          All purchases of Forgenta Premium subscriptions are <strong className="text-foreground">final and non-refundable</strong>.
+          By subscribing, you acknowledge and agree that TRE Forgenta LLC does not offer refunds or credits for any
           subscription fees, partial billing periods, unused time, or any other amounts paid.
         </p>
       </section>
@@ -420,7 +420,7 @@ function RefundContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">3. Exceptions Required by Law</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Notwithstanding the above, TRE Forged LLC will issue refunds where required by applicable law. If you
+          Notwithstanding the above, TRE Forgenta LLC will issue refunds where required by applicable law. If you
           believe you are entitled to a refund under your local consumer protection laws, please contact us with
           details of your request and we will evaluate it in accordance with our legal obligations.
         </p>
@@ -438,9 +438,9 @@ function RefundContent() {
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">5. Contact Us</h2>
         <p className="text-muted-foreground leading-relaxed">
-          For billing questions or to submit a refund request under applicable law, contact TRE Forged LLC at:
+          For billing questions or to submit a refund request under applicable law, contact TRE Forgenta LLC at:
           <br />
-          <a href="mailto:support@treforged.com" className="text-primary hover:underline">support@treforged.com</a>
+          <a href="mailto:support@getforgenta.com" className="text-primary hover:underline">support@getforgenta.com</a>
         </p>
       </section>
     </div>
@@ -463,7 +463,7 @@ export default function Legal() {
         >
           <ArrowLeft size={12} /> Back
         </button>
-        <span className="font-display font-bold text-xs text-gold ml-auto tracking-tight">FORGED</span>
+        <span className="font-display font-bold text-xs text-gold ml-auto tracking-tight">FORGENTA</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row gap-8">

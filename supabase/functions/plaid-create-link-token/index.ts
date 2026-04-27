@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     const linkTokenBody: Record<string, unknown> = {
       client_id: PLAID_CLIENT_ID,
       secret:    PLAID_SECRET,
-      client_name: "Forged",
+      client_name: "Forgenta",
       country_codes: ["US"],
       language: "en",
       user: { client_user_id: userId },
