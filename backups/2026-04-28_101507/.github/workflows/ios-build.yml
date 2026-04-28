@@ -47,24 +47,8 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync ios && echo "=== public/ contents ===" && ls ios/App/App/public/ && echo "=== index.html check ===" && head -5 ios/App/App/public/index.html
 
-      - name: Compute version
-        run: |
-          BASE_RUN=4
-          DELTA=$(( ${{ github.run_number }} - BASE_RUN ))
-          RAW=$(( 75 + DELTA ))
-          MAJOR=$(( 1 + RAW / 100 ))
-          MINOR=$(( RAW % 100 ))
-          VERSION_NAME="${MAJOR}.${MINOR}"
-          VERSION_CODE=$(( ${{ github.run_number }} + 100 ))
-          echo "VERSION_NAME=${VERSION_NAME}" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=${VERSION_CODE}" >> "$GITHUB_ENV"
-          echo "  → versionName=${VERSION_NAME}, versionCode=${VERSION_CODE}"
-
-      - name: Set build number and version
-        run: |
-          cd ios/App
-          xcrun agvtool new-version -all ${{ env.VERSION_CODE }}
-          xcrun agvtool new-marketing-version ${{ env.VERSION_NAME }}
+      - name: Set build number
+        run: cd ios/App && xcrun agvtool new-version -all ${{ github.run_number }}
 
       - name: Import distribution certificate
         env:

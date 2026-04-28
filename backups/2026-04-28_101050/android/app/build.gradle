@@ -7,8 +7,8 @@ android {
         applicationId "com.treforged.forged"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode project.hasProperty('versionCode') ? project.versionCode.toInteger() : 104
-        versionName project.hasProperty('versionName') ? project.versionName : "1.75"
+        versionCode 2
+        versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
