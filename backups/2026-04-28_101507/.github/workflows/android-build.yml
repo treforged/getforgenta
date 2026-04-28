@@ -66,19 +66,6 @@ jobs:
         run: |
           echo -n "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/forged.jks
 
-      - name: Compute version
-        run: |
-          BASE_RUN=4
-          DELTA=$(( ${{ github.run_number }} - BASE_RUN ))
-          RAW=$(( 75 + DELTA ))
-          MAJOR=$(( 1 + RAW / 100 ))
-          MINOR=$(( RAW % 100 ))
-          VERSION_NAME="${MAJOR}.${MINOR}"
-          VERSION_CODE=$(( ${{ github.run_number }} + 100 ))
-          echo "VERSION_NAME=${VERSION_NAME}" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=${VERSION_CODE}" >> "$GITHUB_ENV"
-          echo "  → versionName=${VERSION_NAME}, versionCode=${VERSION_CODE}"
-
       - name: Build release AAB
         env:
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -87,8 +74,7 @@ jobs:
         run: |
           cd android
           ./gradlew bundleRelease \
-            -PversionCode=${{ env.VERSION_CODE }} \
-            -PversionName="${{ env.VERSION_NAME }}" \
+            -PversionCode=${{ github.run_number }} \
             -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/android/app/forged.jks \
             -Pandroid.injected.signing.store.password="$ANDROID_STORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
