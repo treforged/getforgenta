@@ -8,7 +8,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
-import ForgentaLogo from '@/components/shared/ForgentaLogo';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -37,13 +36,22 @@ export default function Sidebar() {
     <aside
       className={cn(
         "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border h-screen sticky top-0 transition-all duration-200",
-        collapsed ? "w-16" : "w-56"
+        collapsed ? "w-16" : "w-48"
       )}
     >
-      <div className="flex items-center justify-between px-4 h-14 border-b border-sidebar-border">
+      <div className="flex items-center justify-between px-3 h-14 border-b border-sidebar-border">
         {!collapsed && (
-          <Link to={brandTo} className="text-primary hover:opacity-80 transition-opacity">
-            <ForgentaLogo size="sm" />
+          <Link to={brandTo} className="flex items-center gap-2 hover:opacity-80 transition-opacity min-w-0">
+            <img
+              src="/logo-transparent.png"
+              alt="Forgenta"
+              style={{ height: 28, width: 28, objectFit: 'contain', flexShrink: 0 }}
+              draggable={false}
+            />
+            <span className="font-display font-bold text-sm tracking-tight text-primary truncate">FORGENTA</span>
+            {isDemo && (
+              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1 py-0.5 rounded shrink-0">Demo</span>
+            )}
           </Link>
         )}
         <button
