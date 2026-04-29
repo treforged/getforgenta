@@ -451,10 +451,10 @@ export default function Auth() {
             <img
               src="/logo-transparent.png"
               alt="Forgenta"
-              style={{ height: 200, width: 'auto', display: 'block', margin: '0 auto' }}
+              style={{ height: 300, width: 300, objectFit: 'contain', display: 'block', margin: '0 auto' }}
               draggable={false}
             />
-            <p className="text-xs text-muted-foreground mt-2">Your money. Clear and honest.</p>
+            <p className="text-sm font-medium text-foreground/80 -mt-2">Your money. Clear and honest.</p>
           </div>
           <div className="space-y-3">
             <button
@@ -473,7 +473,8 @@ export default function Auth() {
             </button>
             <button
               onClick={handleDemoLogin}
-              className="auth-cta auth-cta-3 w-full py-3 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="auth-cta auth-cta-3 w-full py-3 text-sm font-semibold text-foreground/70 hover:text-foreground border border-border/50 hover:border-border transition-all"
+              style={{ borderRadius: 'var(--radius)' }}
             >
               Try Demo
             </button>
@@ -492,7 +493,7 @@ export default function Auth() {
               </a>
             </div>
           )}
-          <p className="auth-trust text-xs text-muted-foreground text-center">
+          <p className="auth-trust text-sm font-medium text-foreground/70 text-center">
             0 ads. Ever. No selling your data.
           </p>
         </div>
@@ -701,8 +702,13 @@ export default function Auth() {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
-          <p className="text-xs text-muted-foreground mt-1">
+          <img
+            src="/logo-transparent.png"
+            alt="Forgenta"
+            style={{ height: 80, width: 80, objectFit: 'contain', display: 'block', margin: '0 auto 8px' }}
+            draggable={false}
+          />
+          <p className="text-xs text-muted-foreground">
             {mode === 'login' && 'Welcome back. Sign in to continue.'}
             {mode === 'signup' && 'Create your account to get started.'}
             {mode === 'reset' && 'Enter your email to receive a reset link.'}
