@@ -363,12 +363,12 @@ export default function NetWorth() {
             </button>
           </div>
           <div className="flex gap-4">
-            {assetsByType.length > 0 && (
+            {allAssets.length > 0 && (
               <div className="hidden sm:block shrink-0">
                 <ResponsiveContainer width={120} height={120}>
                   <PieChart>
-                    <Pie data={assetsByType} cx="50%" cy="50%" innerRadius={28} outerRadius={50} dataKey="value" strokeWidth={0}>
-                      {assetsByType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    <Pie data={allAssets.map(a => ({ name: a.name, value: Number(a.value) }))} cx="50%" cy="50%" innerRadius={28} outerRadius={50} dataKey="value" strokeWidth={0}>
+                      {allAssets.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
                   </PieChart>
@@ -409,12 +409,12 @@ export default function NetWorth() {
             </button>
           </div>
           <div className="flex gap-4">
-            {liabilitiesByType.length > 0 && (
+            {allLiabilities.length > 0 && (
               <div className="hidden sm:block shrink-0">
                 <ResponsiveContainer width={120} height={120}>
                   <PieChart>
-                    <Pie data={liabilitiesByType} cx="50%" cy="50%" innerRadius={28} outerRadius={50} dataKey="value" strokeWidth={0}>
-                      {liabilitiesByType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                    <Pie data={allLiabilities.map(l => ({ name: l.name, value: Number(l.balance) }))} cx="50%" cy="50%" innerRadius={28} outerRadius={50} dataKey="value" strokeWidth={0}>
+                      {allLiabilities.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                     </Pie>
                     <Tooltip content={<CustomTooltip />} />
                   </PieChart>
