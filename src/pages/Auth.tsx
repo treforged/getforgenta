@@ -479,14 +479,14 @@ export default function Auth() {
                 href="https://testflight.apple.com/join/P8AvKXr4"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 border border-border/60 text-[10px] text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                className="inline-flex items-center gap-3 px-5 py-3 border border-border text-foreground hover:bg-secondary/60 hover:border-foreground/40 transition-all"
                 style={{ borderRadius: 'var(--radius)' }}
               >
-                <svg width="11" height="11" viewBox="0 0 814 1000" fill="currentColor" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 814 1000" fill="currentColor" aria-hidden="true">
                   <path d="M788.1 340.9c-5.8 4.5-108.2 62.2-108.2 190.5 0 148.4 130.3 200.9 134.2 202.2-.6 3.2-20.7 71.9-68.7 141.9-42.8 61.6-87.5 123.1-155.5 123.1s-85.5-39.5-164-39.5c-76 0-103.7 40.8-165.9 40.8s-105-57.8-155.5-127.4C46 382.9 40.7 262.6 40.7 242.1c0-131.4 90.7-200.3 179.4-200.3 87 0 142.7 57.6 168.2 57.6 24.4 0 88.1-60.9 172.3-60.9 13.8 0 133.4 1.3 204.3 104.6z"/>
                   <path d="M530.4 40.3c-29.6 34.7-76.6 60.4-123.5 56.8-5.8-45.5 16.7-93.8 44.3-124 29.6-32.8 80-60.9 122.5-62.9 4.5 47.4-13.4 94-43.3 130.1z"/>
                 </svg>
-                Test on iPhone — TestFlight
+                <span className="text-xs font-semibold tracking-wide">Test on iPhone — TestFlight</span>
               </a>
             </div>
           )}
