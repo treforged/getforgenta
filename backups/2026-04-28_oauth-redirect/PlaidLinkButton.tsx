@@ -18,9 +18,8 @@ import { toast } from 'sonner';
 const PLAID_SCRIPT_SRC = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const LINK_TOKEN_KEY = 'forged:plaid_link_token';
-// Only set once the URI is whitelisted in the Plaid dashboard (Team Settings → API → Allowed redirect URIs).
-// Set VITE_PLAID_OAUTH_REDIRECT_URI in Vercel env vars to enable OAuth banks (Chase, BoA, etc.).
-const OAUTH_REDIRECT_URI: string | null = import.meta.env.VITE_PLAID_OAUTH_REDIRECT_URI ?? null;
+// Plaid only accepts HTTPS redirect_uri — omit entirely on localhost/HTTP
+const OAUTH_REDIRECT_URI = window.location.protocol === 'https:' ? `${window.location.origin}/oauth` : null;
 
 async function loadPlaidScript(): Promise<void> {
   if (typeof window !== 'undefined' && (window as any).Plaid) return;
