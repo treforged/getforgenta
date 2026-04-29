@@ -9,7 +9,9 @@
 
 const ALLOWED_ORIGINS: ReadonlySet<string> = new Set([
   "https://getforgenta.com",
+  "https://www.getforgenta.com",
   "https://treforged.com",
+  "https://www.treforged.com",
   // Local dev — never matches in production (Vercel strips these)
   "http://localhost:8080",
   "http://localhost:3000",
