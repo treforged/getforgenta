@@ -451,7 +451,7 @@ export default function Auth() {
             <img
               src="/logo-transparent.png"
               alt="Forgenta"
-              style={{ height: 140, width: 'auto', display: 'block', margin: '0 auto' }}
+              style={{ height: 200, width: 'auto', display: 'block', margin: '0 auto' }}
               draggable={false}
             />
             <p className="text-xs text-muted-foreground mt-2">Your money. Clear and honest.</p>
