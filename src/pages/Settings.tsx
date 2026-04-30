@@ -280,20 +280,20 @@ export default function SettingsPage() {
     }
     setPasswordLoading(true);
     try {
-      // Verify current password by re-authenticating
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: user?.email ?? '',
-        password: currentPassword,
-      });
-      if (authError) throw new Error('Current password is incorrect');
-      // Update to new password
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        if (error.message.toLowerCase().includes('aal2')) {
-          throw new Error('MFA is enabled on your account. To change your password, use "Forgot Password" from the login screen — this bypasses the MFA requirement.');
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-password`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ new_password: newPassword, current_password: currentPassword }),
         }
-        throw error;
-      }
+      );
+      const pwBody = await res.json();
+      if (!res.ok) throw new Error(pwBody.error ?? 'Failed to update password');
       setPasswordSuccess(true);
       setCurrentPassword('');
       setNewPassword('');

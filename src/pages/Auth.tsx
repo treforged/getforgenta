@@ -225,8 +225,20 @@ export default function Auth() {
       if (password !== confirmPassword) { toast.error('Passwords do not match'); return; }
       setLoading(true);
       try {
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) throw error;
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-password`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session?.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ new_password: password }),
+          }
+        );
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error ?? 'Failed to update password');
         toast.success('Password updated. You are now signed in.');
         navigate('/dashboard');
       } catch (err: unknown) {
