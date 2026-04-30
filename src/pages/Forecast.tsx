@@ -1135,7 +1135,7 @@ export default function Forecast() {
                           { label: 'One-Time Net (Cash)', value: formatCurrency(row.oneTimeNet || 0, false), op: row.oneTimeNet >= 0 ? '+' : '−' },
                           { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
                           { label: '', value: '' },
-                          { label: 'Debt Payment', value: formatCurrency(row.plannedDebtPayment ?? row.debtPayment, false) },
+                          { label: 'Debt Payment', value: formatCurrency(row.debtPayment, false) },
                           { label: 'CC Purchases (one-time)', value: row.ccOneTime ? formatCurrency(row.ccOneTime, false) : '—' },
                           { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
                           { label: 'Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
