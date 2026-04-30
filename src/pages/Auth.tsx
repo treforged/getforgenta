@@ -80,24 +80,44 @@ export default function Auth() {
 
   useEffect(() => {
     const hash = window.location.hash;
+
+    // Password reset: stay on set-password form — skip session redirect
     if (hash.includes('type=recovery')) {
       setMode('set-password');
       window.history.replaceState(null, '', window.location.pathname);
       return;
     }
+
     if (searchParams.get('reset') === 'true') {
       setMode('reset');
+      return;
     }
-  }, [searchParams]);
 
-  useEffect(() => {
+    // OAuth callback: Supabase processes hash tokens asynchronously, so
+    // getSession() races. Use onAuthStateChange to reliably detect SIGNED_IN,
+    // then close the popup (parent poll detects it) or navigate directly.
+    if (hash.includes('access_token')) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          subscription.unsubscribe();
+          if (window.opener) {
+            window.close();
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        }
+      });
+      return () => subscription.unsubscribe();
+    }
+
+    // Normal load: redirect if already signed in
     let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       if (data.session) navigate('/dashboard', { replace: true });
     });
     return () => { mounted = false; };
-  }, [navigate]);
+  }, [navigate, searchParams]);
 
   // Clean up legacy auth localStorage keys
   useEffect(() => {
