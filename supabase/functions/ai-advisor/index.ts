@@ -16,7 +16,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rate-limit.ts";
 
 const RATE_LIMIT = { windowMs: 60_000, max: 5 };
-const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
+const GEMINI_MODEL = "gemini-1.5-flash";
 
 interface DebtDetail {
   name: string;
