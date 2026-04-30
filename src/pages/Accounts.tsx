@@ -534,7 +534,7 @@ export default function Accounts() {
               title="Auto-Sync Bank Balances"
               features={['Connect up to 10 institutions', 'Balances sync daily and on demand', 'Flows into Forecast & Net Worth automatically']}
             >
-              <div className="h-16" />
+              <div className="h-44" />
             </PremiumGate>
           ) : plaidLoading ? (
             <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
