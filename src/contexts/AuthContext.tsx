@@ -83,6 +83,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       initialized.current = true;
 
       if (event === 'SIGNED_IN') {
+        // Password recovery: Supabase fires SIGNED_IN when it establishes the
+        // recovery session from the hash tokens, before the user sets a new
+        // password. Skip the auto-navigate so Auth.tsx can show the form.
+        if (sessionStorage.getItem('forgenta:recovery_pending')) {
+          sessionStorage.removeItem('forgenta:recovery_pending');
+          return;
+        }
         setIsDemo(false);
         if (session?.user?.id) {
           initRevenueCat(session.user.id).catch(() => {/* native no-op on web */});
@@ -102,6 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               navigate('/dashboard');
             });
         }
+      } else if (event === 'PASSWORD_RECOVERY') {
+        // Belt-and-suspenders: set flag here too in case Auth.tsx hasn't read
+        // the hash yet when this event fires.
+        sessionStorage.setItem('forgenta:recovery_pending', '1');
       } else if (event === 'SIGNED_OUT') {
         logOutRevenueCat().catch(() => {/* native no-op on web */});
         navigate('/auth');

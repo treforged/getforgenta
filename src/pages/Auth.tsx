@@ -81,8 +81,11 @@ export default function Auth() {
   useEffect(() => {
     const hash = window.location.hash;
 
-    // Password reset: stay on set-password form — skip session redirect
+    // Password reset: stay on set-password form — skip session redirect.
+    // Flag suppresses AuthContext's SIGNED_IN→navigate that fires when
+    // Supabase establishes the recovery session from the hash tokens.
     if (hash.includes('type=recovery')) {
+      sessionStorage.setItem('forgenta:recovery_pending', '1');
       setMode('set-password');
       window.history.replaceState(null, '', window.location.pathname);
       return;
@@ -165,14 +168,17 @@ export default function Auth() {
     try {
       if (Capacitor.isNativePlatform()) {
         // Native: SFSafariViewController on iOS (already in-app sheet)
-        const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } });
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: { redirectTo, queryParams: { prompt: 'select_account' } },
+        });
         if (error) throw error;
         setLoading(false);
       } else {
         // Web: open in centered popup so user stays on the page
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
-          options: { redirectTo, skipBrowserRedirect: true },
+          options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
         });
         if (error) throw error;
         if (!data.url) throw new Error('No OAuth URL returned');
