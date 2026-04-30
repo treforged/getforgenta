@@ -883,7 +883,7 @@ export default function BudgetControl() {
             const retirementAccounts = accounts.filter((a: any) => a.active && ['brokerage', 'roth_ira', '401k'].includes(a.account_type));
             return groupOrder.filter(g => grouped[g]?.length).map(group => (
               <div key={group} className="space-y-0">
-                <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 pt-2 pb-0.5">{group}</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 pt-2 pb-0.5">{group}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {grouped[group].map(d => {
               const isRetirement = /401|403|roth|ira/i.test(d.label);
@@ -894,16 +894,16 @@ export default function BudgetControl() {
                   {/* Label + remove */}
                   <div className="flex items-start justify-between gap-1">
                     {fromCatalog ? (
-                      <span className="flex-1 min-w-0 text-[10px] font-semibold text-foreground leading-tight">{d.label}</span>
+                      <span className="flex-1 min-w-0 text-xs font-semibold text-foreground leading-tight">{d.label}</span>
                     ) : (
                       <input
                         type="text"
                         value={d.label}
                         onChange={e => updateDeduction(d.id, { label: e.target.value })}
-                        className="flex-1 min-w-0 bg-transparent text-[10px] font-semibold text-foreground outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors"
+                        className="flex-1 min-w-0 bg-transparent text-xs font-semibold text-foreground outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors"
                       />
                     )}
-                    <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 mt-0.5"><X size={10} /></button>
+                    <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 mt-0.5"><X size={11} /></button>
                   </div>
                   {/* Value input */}
                   <input
@@ -915,19 +915,19 @@ export default function BudgetControl() {
                   />
                   {/* $/% toggle */}
                   <div className="flex gap-1">
-                    <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`flex-1 text-[9px] py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
-                    <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`flex-1 text-[9px] py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
+                    <button onClick={() => updateDeduction(d.id, { mode: 'flat' })} className={`flex-1 text-[10px] py-0.5 border transition-colors ${d.mode === 'flat' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>$</button>
+                    <button onClick={() => updateDeduction(d.id, { mode: 'pct' })} className={`flex-1 text-[10px] py-0.5 border transition-colors ${d.mode === 'pct' ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>%</button>
                   </div>
                   {/* Pre/post-tax toggle */}
                   {!isTaxItem && (
                     <div className="flex gap-1">
-                      <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`flex-1 text-[9px] py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
-                      <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`flex-1 text-[9px] py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
+                      <button onClick={() => updateDeduction(d.id, { preTax: true })} className={`flex-1 text-[10px] py-0.5 border transition-colors ${d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Pre</button>
+                      <button onClick={() => updateDeduction(d.id, { preTax: false })} className={`flex-1 text-[10px] py-0.5 border transition-colors ${!d.preTax ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'}`} style={{ borderRadius: 'var(--radius)' }}>Post</button>
                     </div>
                   )}
                   {/* Resolved amount hint */}
                   {d.value > 0 && (
-                    <p className="text-[9px] text-muted-foreground text-right">
+                    <p className="text-[10px] text-muted-foreground text-right">
                       {d.mode === 'pct' ? formatCurrency(d.flatAmt, false) : `${paycheckGross > 0 ? ((d.value / paycheckGross) * 100).toFixed(1) : '0'}%`}
                     </p>
                   )}
@@ -936,11 +936,11 @@ export default function BudgetControl() {
                     <div className="space-y-1 pt-0.5 min-w-0">
                       {retirementAccounts.length > 0 && (
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="text-[8px] text-muted-foreground shrink-0">Acct:</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">Acct:</span>
                           <select
                             value={d.accountId ?? ''}
                             onChange={e => updateDeduction(d.id, { accountId: e.target.value || undefined })}
-                            className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-[8px] text-foreground"
+                            className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-[10px] text-foreground"
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             <option value="">— none —</option>
@@ -952,11 +952,11 @@ export default function BudgetControl() {
                       )}
                       {savingsGoals.length > 0 && (
                         <div className="flex items-center gap-1 min-w-0">
-                          <span className="text-[8px] text-muted-foreground shrink-0">Goal:</span>
+                          <span className="text-[10px] text-muted-foreground shrink-0">Goal:</span>
                           <select
                             value={d.goalId ?? ''}
                             onChange={e => updateDeduction(d.id, { goalId: e.target.value || undefined })}
-                            className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-[8px] text-foreground"
+                            className="flex-1 min-w-0 bg-secondary border border-border px-1 py-0.5 text-[10px] text-foreground"
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             <option value="">— none —</option>
@@ -967,7 +967,7 @@ export default function BudgetControl() {
                         </div>
                       )}
                       {d.goalId && d.value > 0 && (
-                        <p className="text-[8px] text-success">
+                        <p className="text-[10px] text-success">
                           {formatCurrency(Math.round(d.flatAmt * (payFrequency === 'biweekly' ? 26 : payFrequency === 'monthly' ? 12 : 52) / 12 * 100) / 100, false)}/mo → goal
                         </p>
                       )}

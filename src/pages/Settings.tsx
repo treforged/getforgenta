@@ -221,7 +221,7 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE' || deleteOtp.length !== 8) return;
+    if (deleteConfirmText !== 'DELETE' || deleteOtp.length !== 6) return;
     setDeleteLoading(true);
     try {
       // Verify the reauthentication OTP before deletion
@@ -288,7 +288,12 @@ export default function SettingsPage() {
       if (authError) throw new Error('Current password is incorrect');
       // Update to new password
       const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      if (error) {
+        if (error.message.toLowerCase().includes('aal2')) {
+          throw new Error('MFA is enabled on your account. To change your password, use "Forgot Password" from the login screen — this bypasses the MFA requirement.');
+        }
+        throw error;
+      }
       setPasswordSuccess(true);
       setCurrentPassword('');
       setNewPassword('');
@@ -867,7 +872,7 @@ export default function SettingsPage() {
               <div className="flex items-start gap-2 bg-primary/10 border border-primary/20 px-3 py-2.5 text-xs text-primary" style={{ borderRadius: 'var(--radius)' }}>
                 <Mail size={13} className="mt-0.5 shrink-0" />
                 <span>
-                  An 8-digit confirmation code was sent to <strong>{user?.email}</strong>. Enter it below to permanently delete your account.
+                  A 6-digit confirmation code was sent to <strong>{user?.email}</strong>. Enter it below to permanently delete your account.
                 </span>
               </div>
 
@@ -881,7 +886,7 @@ export default function SettingsPage() {
               <input
                 type="text"
                 inputMode="numeric"
-                maxLength={8}
+                maxLength={6}
                 value={deleteOtp}
                 onChange={e => setDeleteOtp(e.target.value.replace(/\D/g, ''))}
                 placeholder="Code from your email"
@@ -893,7 +898,7 @@ export default function SettingsPage() {
               <div className="flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={handleDeleteAccount}
-                  disabled={deleteOtp.length !== 8 || deleteLoading}
+                  disabled={deleteOtp.length !== 6 || deleteLoading}
                   className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
                   style={{ borderRadius: 'var(--radius)' }}
                 >
