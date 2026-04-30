@@ -209,7 +209,10 @@ export default function SettingsPage() {
   const handleSendDeleteConfirmation = async () => {
     setDeleteLoading(true);
     try {
-      const { error } = await supabase.auth.reauthenticate();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: user?.email ?? '',
+        options: { shouldCreateUser: false },
+      });
       if (error) throw error;
       setDeleteStep('email-sent');
       toast.success('Confirmation code sent — check your email inbox');
@@ -224,11 +227,10 @@ export default function SettingsPage() {
     if (deleteConfirmText !== 'DELETE' || deleteOtp.length !== 8) return;
     setDeleteLoading(true);
     try {
-      // Verify the reauthentication OTP before deletion
       const { error: otpErr } = await supabase.auth.verifyOtp({
         email: user?.email ?? '',
         token: deleteOtp.trim(),
-        type: 'reauthentication' as any,
+        type: 'email',
       });
       if (otpErr) throw new Error('Invalid confirmation code — check your email and try again');
 
