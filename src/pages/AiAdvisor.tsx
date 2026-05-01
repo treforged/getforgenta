@@ -392,6 +392,17 @@ export default function AiAdvisor() {
     return { monthlyIncome, monthlyExpenses, totalDebt, savingsBalance, cashOnHand, netWorth, savingsRate, topCategories, debtDetails, savingsGoals };
   }, [allTxns, debts, goals, accounts]);
 
+  // Make this page fill the layout's content area exactly so only the
+  // chat thread scrolls — not the outer main element.
+  useEffect(() => {
+    const main = document.querySelector('main');
+    const wrapper = main?.firstElementChild as HTMLElement | null;
+    if (!wrapper) return;
+    const orig = wrapper.style.height;
+    wrapper.style.height = '100%';
+    return () => { wrapper.style.height = orig; };
+  }, []);
+
   // Load history and today's authoritative usage count on mount
   useEffect(() => {
     if (!user || isDemo) { setHistoryLoaded(true); return; }
@@ -638,7 +649,7 @@ export default function AiAdvisor() {
         onNew={startNew}
       />
 
-      <div className="flex flex-col h-[calc(100svh-6.25rem)] lg:h-[calc(100vh-3rem)] max-w-3xl mx-auto w-full overflow-hidden">
+      <div className="flex flex-col h-full max-w-3xl mx-auto w-full overflow-hidden">
 
         {/* ── Header ── */}
         <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-3">
