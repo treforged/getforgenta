@@ -10,7 +10,7 @@ import { categorizeExpenses } from '@/lib/expense-filtering';
 import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Loader2,
-  Send, ChevronRight, User, ArrowLeft, Plus, MessageSquare, History,
+  Send, ChevronRight, User, ArrowLeft, Plus, MessageSquare, History, X,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -27,7 +27,6 @@ interface AdviceResult {
   scoreLabel: string;
   insights: Insight[];
   nextMove: string;
-  // Server-returned fields from edge function v2
   _history_id?: string;
   _history_created_at?: string;
   usage?: {
@@ -135,12 +134,11 @@ function EntryView({ entry }: { entry: ChatEntry }) {
 
   return (
     <div className="space-y-3">
-      {/* Question bubble */}
       {question && (
         <div className="flex justify-end">
-          <div className="flex items-center gap-2 max-w-[90%] sm:max-w-[85%] min-w-0">
+          <div className="flex items-center gap-2 max-w-[88%] min-w-0">
             <div
-              className="text-xs px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug break-words"
+              className="text-xs px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug break-words min-w-0"
               style={{ borderRadius: 'var(--radius)' }}
             >
               {question}
@@ -152,35 +150,31 @@ function EntryView({ entry }: { entry: ChatEntry }) {
         </div>
       )}
 
-      {/* AI response */}
       <div className="flex gap-3">
         <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
           <Sparkles size={13} className="text-primary" />
         </div>
         <div className="flex-1 min-w-0 space-y-3">
 
-          {/* Score + summary */}
-          <div className="flex gap-4 p-4 bg-secondary/50 border border-border/40 min-w-0 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
-            <ScoreRing score={result.score ?? 0} size={88} />
+          <div className="flex gap-3 p-3.5 bg-secondary/50 border border-border/40 min-w-0 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
+            <ScoreRing score={result.score ?? 0} size={80} />
             <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Financial Health</p>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Financial Health</p>
               <p className="text-sm font-bold" style={{ color }}>{label}</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">{result.summary}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{result.summary}</p>
             </div>
           </div>
 
-          {/* Next move */}
           {result.nextMove && (
             <div className="flex gap-3 p-3 bg-primary/8 border border-primary/25" style={{ borderRadius: 'var(--radius)' }}>
               <TrendingUp size={14} className="text-primary shrink-0 mt-0.5" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-[9px] font-bold text-primary uppercase tracking-wider mb-0.5">Your Move This Month</p>
                 <p className="text-xs font-medium text-foreground leading-relaxed">{result.nextMove}</p>
               </div>
             </div>
           )}
 
-          {/* Insights */}
           {(result.insights?.length ?? 0) > 0 && (
             <div className="space-y-2">
               {result.insights.map((ins, i) => <InsightCard key={i} insight={ins} />)}
@@ -196,7 +190,7 @@ function EntryView({ entry }: { entry: ChatEntry }) {
   );
 }
 
-// ── Score badge (used in conversation list) ───────────────────────────────────
+// ── ScoreBadge ────────────────────────────────────────────────────────────────
 
 function ScoreBadge({ score }: { score: number }) {
   const color = scoreColor(score);
@@ -208,6 +202,97 @@ function ScoreBadge({ score }: { score: number }) {
     >
       {score} <span className="font-normal opacity-70">{label}</span>
     </div>
+  );
+}
+
+// ── HistoryDrawer — slide-in overlay from left ────────────────────────────────
+
+function HistoryDrawer({
+  open,
+  onClose,
+  conversations,
+  onSelect,
+  onNew,
+}: {
+  open: boolean;
+  onClose: () => void;
+  conversations: Conversation[];
+  onSelect: (c: Conversation) => void;
+  onNew: () => void;
+}) {
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-30 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+      />
+      {/* Drawer panel */}
+      <div
+        className={`fixed left-0 top-0 bottom-0 z-40 w-72 max-w-[85vw] bg-background border-r border-border/60 flex flex-col transition-transform duration-200 ease-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        {/* Drawer header */}
+        <div className="px-4 py-3.5 border-b border-border/40 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <History size={14} className="text-primary" />
+            <span className="text-sm font-semibold">Chat History</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-secondary transition-colors"
+          >
+            <X size={14} />
+          </button>
+        </div>
+
+        {/* New chat button */}
+        <div className="px-3 pt-3 pb-2 shrink-0">
+          <button
+            onClick={() => { onNew(); onClose(); }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition-colors btn-press"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            <Plus size={12} /> New Chat
+          </button>
+        </div>
+
+        {/* Conversation list */}
+        <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-1">
+          {conversations.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8">No past chats yet</p>
+          ) : (
+            conversations.map(convo => {
+              const ts = new Date(convo.created_at);
+              const isToday = ts.toDateString() === new Date().toDateString();
+              const timeStr = isToday
+                ? ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                : ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              const score = convo.entries[0]?.result?.score;
+
+              return (
+                <button
+                  key={convo.id}
+                  onClick={() => { onSelect(convo); onClose(); }}
+                  className="w-full flex items-center gap-2.5 p-3 text-left bg-secondary/30 hover:bg-secondary/70 border border-border/30 hover:border-border/60 transition-all group"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <MessageSquare size={11} className="text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                      {convo.title || 'General Analysis'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{timeStr}</p>
+                  </div>
+                  {score !== undefined && <ScoreBadge score={score} />}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -227,18 +312,16 @@ export default function AiAdvisor() {
     [rawTxns, rules, accounts],
   );
 
-  // ── Views: 'list' | 'new' | 'chat' ──────────────────────────────────────────
-  const [view, setView] = useState<'list' | 'new' | 'chat'>('new');
+  // View: 'new' = fresh chat, 'chat' = active conversation
+  const [view, setView] = useState<'new' | 'chat'>('new');
+  const [historyOpen, setHistoryOpen] = useState(false);
 
-  // Past conversations loaded from DB (newest first)
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  // Active conversation entries (the one currently open)
   const [activeEntries, setActiveEntries] = useState<ChatEntry[]>([]);
   const [activeTitle, setActiveTitle] = useState<string | null>(null);
 
-  // Chat input state
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -248,6 +331,7 @@ export default function AiAdvisor() {
   const [limitWeek, setLimitWeek] = useState(() => isPremium ? 750 : 75);
   const [cooldown, setCooldown] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const lastAskTime = useRef(0);
 
   // Financial snapshot
@@ -334,14 +418,14 @@ export default function AiAdvisor() {
           created_at: entry.created_at,
         }));
         setConversations(convos);
-        // Always open on a fresh new chat — history accessible via History button
+        // Always open on a fresh new chat — history accessible via drawer
       }
       setUsedToday(count ?? 0);
       setHistoryLoaded(true);
     });
   }, [user, isDemo]);
 
-  // Auto-scroll to bottom inside a chat
+  // Scroll to bottom on new entries
   useEffect(() => {
     if (view === 'chat' && activeEntries.length > 0) {
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
@@ -364,12 +448,7 @@ export default function AiAdvisor() {
     setQuestion('');
     setError(null);
     setView('new');
-  };
-
-  const goBack = () => {
-    setView(conversations.length > 0 ? 'list' : 'new');
-    setActiveEntries([]);
-    setActiveTitle(null);
+    setTimeout(() => inputRef.current?.focus(), 150);
   };
 
   const handleAsk = async (q?: string) => {
@@ -389,33 +468,29 @@ export default function AiAdvisor() {
     setLoading(true);
     setError(null);
     setQuestion('');
-
-    // Transition to chat view if in new view
     if (view === 'new') setView('chat');
 
     try {
       const { data, error: fnErr } = await tracedInvoke<AdviceResult>(supabase, 'ai-advisor', {
         body: { ...snapshot, question: finalQ || undefined },
       });
+
       if (fnErr) {
-        // Try to extract the server's error message from the response body
         let errMsg = 'AI request failed. Please try again.';
         try {
           const ctx = await (fnErr as any)?.context?.json?.();
           if (ctx?.error) errMsg = ctx.error;
-          // Sync usage from 429 response so the UI reflects the real count
           if (ctx?.usage) {
             setUsedToday(ctx.usage.used_today);
             setLimitDay(ctx.usage.limit_day);
             setUsedWeek(ctx.usage.used_week);
             setLimitWeek(ctx.usage.limit_week);
           }
-        } catch { /* ignore — fall back to generic message */ }
+        } catch { /* fall back to generic message */ }
         throw new Error(errMsg);
       }
 
       const advice = data as AdviceResult;
-      // Use DB-generated ID so history view stays consistent after reload
       const entry: ChatEntry = {
         id: advice._history_id ?? crypto.randomUUID(),
         question: finalQ || null,
@@ -424,18 +499,14 @@ export default function AiAdvisor() {
       };
 
       setActiveEntries(prev => [...prev, entry]);
-
-      // Prepend to conversation list
-      const newConvo: Conversation = {
+      setConversations(prev => [{
         id: entry.id,
         title: entry.question,
         entries: [entry],
         created_at: entry.created_at,
-      };
-      setConversations(prev => [newConvo, ...prev]);
+      }, ...prev]);
 
       if (!activeTitle && finalQ) setActiveTitle(finalQ);
-      // Sync usage state from authoritative server response
       if (advice.usage) {
         setUsedToday(advice.usage.used_today);
         setLimitDay(advice.usage.limit_day);
@@ -447,13 +518,12 @@ export default function AiAdvisor() {
       setTimeout(() => setCooldown(false), COOLDOWN_MS);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong.');
-      if (view === 'new') setView('new');
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Gates ────────────────────────────────────────────────────────────────────
+  // ── Demo gate ─────────────────────────────────────────────────────────────────
 
   if (isDemo) {
     return (
@@ -485,10 +555,11 @@ export default function AiAdvisor() {
     );
   }
 
+  // ── Premium gate ──────────────────────────────────────────────────────────────
+
   if (!isPremium) {
     return (
       <div className="flex flex-col h-[calc(100dvh-56px)] lg:h-screen overflow-x-hidden">
-        {/* header */}
         <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
           <Sparkles size={18} className="text-primary" />
           <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">AI Advisor</h1>
@@ -499,9 +570,7 @@ export default function AiAdvisor() {
           isPremium={false}
           className="flex-1 min-h-0"
         >
-          {/* mock chat — blurred as preview */}
           <div className="flex flex-col h-full p-4 gap-3 overflow-hidden">
-            {/* mock AI message */}
             <div className="flex gap-2 items-start">
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                 <Sparkles size={12} className="text-primary" />
@@ -510,7 +579,6 @@ export default function AiAdvisor() {
                 Your financial health score is <span className="text-primary font-bold">74/100</span>. You're covering essentials well, but your discretionary spend is 12% above your 3-month average.
               </div>
             </div>
-            {/* mock user message */}
             <div className="flex gap-2 items-start justify-end">
               <div className="bg-primary/10 border border-primary/20 p-3 max-w-[75%] text-xs text-foreground leading-relaxed" style={{ borderRadius: 'var(--radius)' }}>
                 How can I improve my score?
@@ -519,7 +587,6 @@ export default function AiAdvisor() {
                 <User size={12} className="text-muted-foreground" />
               </div>
             </div>
-            {/* mock AI follow-up */}
             <div className="flex gap-2 items-start">
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                 <Sparkles size={12} className="text-primary" />
@@ -528,7 +595,6 @@ export default function AiAdvisor() {
                 Three quick wins: <span className="text-primary font-semibold">reduce dining out by $120</span>, redirect that to your emergency fund, and set your Chase card to auto-pay minimum to avoid late fees.
               </div>
             </div>
-            {/* mock input bar */}
             <div className="mt-auto flex gap-2 items-center border border-border bg-card px-3 py-2" style={{ borderRadius: 'var(--radius)' }}>
               <span className="flex-1 text-xs text-muted-foreground">Ask about your finances…</span>
               <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
@@ -541,71 +607,7 @@ export default function AiAdvisor() {
     );
   }
 
-  // ── Shared header bar ────────────────────────────────────────────────────────
-
-  const SharedHeader = ({ showBack = false, title }: { showBack?: boolean; title?: string }) => (
-    <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-3">
-      {showBack ? (
-        <button
-          onClick={goBack}
-          className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors shrink-0"
-        >
-          <ArrowLeft size={15} />
-        </button>
-      ) : (
-        <div className="flex items-center gap-2 shrink-0">
-          <Sparkles size={16} className="text-primary" />
-          <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
-          <span className="text-xs px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium hidden sm:inline" style={{ borderRadius: 'var(--radius)' }}>
-            Gemini 2.5
-          </span>
-        </div>
-      )}
-
-      <div className="flex-1 min-w-0">
-        {showBack && title && (
-          <p className="text-sm font-semibold truncate">{title}</p>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 shrink-0">
-        {/* Daily quota display */}
-        <div className="flex flex-col items-end gap-0.5">
-          <span className="text-xs text-muted-foreground tabular-nums">{usedToday}/{limitDay} today</span>
-          <div className="w-16 h-1 bg-border rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${Math.min(100, (usedToday / limitDay) * 100)}%`,
-                background: usedToday >= limitDay ? 'hsl(var(--destructive))' : 'hsl(var(--primary))',
-              }}
-            />
-          </div>
-        </div>
-        {/* History button */}
-        {conversations.length > 0 && (
-          <button
-            onClick={() => setView('list')}
-            title="Chat history"
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
-          >
-            <History size={14} />
-          </button>
-        )}
-        {!showBack && (
-          <button
-            onClick={startNew}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition-colors btn-press"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            <Plus size={11} /> New
-          </button>
-        )}
-      </div>
-    </div>
-  );
-
-  // ── Snapshot bar (shown in new-chat and chat views) ──────────────────────────
+  // ── Snapshot bar ──────────────────────────────────────────────────────────────
 
   const SnapshotBar = () => (
     <div className="px-4 py-2 lg:px-6 border-b border-border/30 shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -623,161 +625,200 @@ export default function AiAdvisor() {
     </div>
   );
 
-  // ── Input bar ────────────────────────────────────────────────────────────────
-
-  const InputBar = ({ placeholder = 'Ask anything about your finances…' }: { placeholder?: string }) => (
-    <div className="px-4 pt-3 border-t border-border/40 shrink-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={question}
-          onChange={e => setQuestion(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter' && !blocked) handleAsk(); }}
-          placeholder={atLimit ? `Daily limit reached (${limitDay}/day) — resets at midnight UTC` : placeholder}
-          className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50"
-          style={{ borderRadius: 'var(--radius)' }}
-          disabled={blocked}
-        />
-        <button
-          onClick={() => handleAsk()}
-          disabled={blocked || !question.trim()}
-          className="flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-4 py-2.5 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors disabled:opacity-50"
-          style={{ borderRadius: 'var(--radius)' }}
-        >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-          {loading ? '' : 'Ask'}
-        </button>
-      </div>
-      {error && (
-        <div className="flex items-center gap-2 mt-2 text-xs text-destructive">
-          <AlertTriangle size={12} className="shrink-0" />
-          {error}
-        </div>
-      )}
-    </div>
-  );
-
-  // ── VIEW: Conversation list ──────────────────────────────────────────────────
-
-  if (view === 'list') {
-    return (
-      <div className="flex flex-col h-[calc(100svh-6.25rem)] lg:h-[calc(100vh-3rem)] max-w-3xl mx-auto w-full overflow-hidden">
-        <SharedHeader />
-
-        <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-1.5" style={{ overflowX: 'hidden', touchAction: 'pan-y' }}>
-          {conversations.map(convo => {
-            const ts = new Date(convo.created_at);
-            const isToday = ts.toDateString() === new Date().toDateString();
-            const timeStr = isToday
-              ? ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-              : ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const score = convo.entries[0]?.result?.score;
-
-            return (
-              <button
-                key={convo.id}
-                onClick={() => openConversation(convo)}
-                className="w-full flex items-center gap-3 p-3.5 overflow-hidden text-left bg-secondary/30 hover:bg-secondary/70 border border-border/30 hover:border-border/60 transition-all group"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                  <MessageSquare size={13} className="text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                    {convo.title || 'General Analysis'}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{timeStr}</p>
-                </div>
-                {score !== undefined && <ScoreBadge score={score} />}
-                <ChevronRight size={14} className="text-muted-foreground/40 group-hover:text-muted-foreground shrink-0 transition-colors" />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // ── VIEW: Active chat (new or open conversation) ─────────────────────────────
-
-  const isNewChat = view === 'new';
-  const showBackInChat = conversations.length > 0;
+  // ── Main chat layout ──────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col h-[calc(100svh-6.25rem)] lg:h-[calc(100vh-3rem)] max-w-3xl mx-auto w-full overflow-hidden">
+    <>
+      {/* History drawer — overlays everything */}
+      <HistoryDrawer
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        conversations={conversations}
+        onSelect={openConversation}
+        onNew={startNew}
+      />
 
-      <SharedHeader showBack={showBackInChat} title={activeTitle ?? undefined} />
-      {isNewChat && <SnapshotBar />}
+      <div className="flex flex-col h-[calc(100svh-6.25rem)] lg:h-[calc(100vh-3rem)] max-w-3xl mx-auto w-full overflow-hidden">
 
-      {/* Thread */}
-      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-6" style={{ overflowX: 'hidden', touchAction: 'pan-y' }}>
-
-        {/* Empty state */}
-        {activeEntries.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center h-full gap-5 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <Sparkles size={24} className="text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Ask Forge anything about your finances</p>
-              <p className="text-xs text-muted-foreground mt-1">Personalized advice based on your live data</p>
-            </div>
-            <div className="flex flex-wrap justify-center gap-2 max-w-sm w-full">
-              {QUICK_QUESTIONS.map(q => (
-                <button
-                  key={q}
-                  onClick={() => handleAsk(q)}
-                  disabled={blocked}
-                  className="text-xs px-3 py-2 bg-secondary border border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-colors btn-press disabled:opacity-40"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Entries */}
-        {activeEntries.map(entry => (
-          <EntryView key={entry.id} entry={entry} />
-        ))}
-
-        {/* Loading bubble */}
-        {loading && (
-          <div className="flex gap-3">
-            <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
-              <Sparkles size={12} className="text-primary" />
-            </div>
-            <div className="flex items-center gap-2 px-4 py-3 bg-secondary/60 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
-              <Loader2 size={13} className="animate-spin text-primary" />
-              <span className="text-xs text-muted-foreground">Analyzing your finances…</span>
-            </div>
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Quick chips — only when there are already entries */}
-      {activeEntries.length > 0 && !loading && (
-        <div className="px-4 lg:px-6 pt-2 flex flex-wrap gap-1.5 border-t border-border/20 shrink-0">
-          {QUICK_QUESTIONS.map(q => (
+        {/* ── Header ── */}
+        <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-3">
+          {view === 'chat' && activeEntries.length > 0 ? (
             <button
-              key={q}
-              onClick={() => handleAsk(q)}
-              disabled={blocked}
-              className="text-xs px-2.5 py-1 bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-40"
+              onClick={startNew}
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors shrink-0"
+            >
+              <ArrowLeft size={15} />
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 shrink-0">
+              <Sparkles size={16} className="text-primary" />
+              <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
+              <span className="text-xs px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium hidden sm:inline" style={{ borderRadius: 'var(--radius)' }}>
+                Gemini 2.5
+              </span>
+            </div>
+          )}
+
+          {/* Active chat title */}
+          <div className="flex-1 min-w-0">
+            {view === 'chat' && activeTitle && (
+              <p className="text-sm font-semibold truncate">{activeTitle}</p>
+            )}
+          </div>
+
+          {/* Right controls */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Quota */}
+            <div className="flex flex-col items-end gap-0.5">
+              <span className="text-xs text-muted-foreground tabular-nums leading-none">{usedToday}/{limitDay}</span>
+              <div className="w-14 h-1 bg-border rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${Math.min(100, (usedToday / limitDay) * 100)}%`,
+                    background: usedToday >= limitDay ? 'hsl(var(--destructive))' : 'hsl(var(--primary))',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* History */}
+            <button
+              onClick={() => setHistoryOpen(true)}
+              title="Chat history"
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors relative"
+            >
+              <History size={14} />
+              {conversations.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary" />
+              )}
+            </button>
+
+            {/* New chat */}
+            <button
+              onClick={startNew}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition-colors btn-press"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              {q}
+              <Plus size={11} /> New
             </button>
-          ))}
+          </div>
         </div>
-      )}
 
-      <InputBar placeholder={activeEntries.length > 0 ? 'Ask a follow-up…' : 'Ask anything about your finances…'} />
-    </div>
+        {/* Snapshot bar — only on fresh chat */}
+        {view === 'new' && <SnapshotBar />}
+
+        {/* ── Chat thread ── */}
+        <div
+          className="flex-1 overflow-y-auto overflow-x-hidden px-4 lg:px-6 py-4 space-y-6"
+          style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+        >
+          {/* Empty state */}
+          {activeEntries.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center h-full gap-5 text-center px-4">
+              <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Sparkles size={24} className="text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Ask Forge anything about your finances</p>
+                <p className="text-xs text-muted-foreground mt-1">Personalized advice based on your live data</p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-2 w-full max-w-sm">
+                {QUICK_QUESTIONS.map(q => (
+                  <button
+                    key={q}
+                    onClick={() => handleAsk(q)}
+                    disabled={blocked}
+                    className="text-xs px-3 py-2 bg-secondary border border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-colors btn-press disabled:opacity-40"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Entries */}
+          {activeEntries.map(entry => (
+            <EntryView key={entry.id} entry={entry} />
+          ))}
+
+          {/* Loading bubble */}
+          {loading && (
+            <div className="flex gap-3">
+              <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
+                <Sparkles size={12} className="text-primary" />
+              </div>
+              <div className="flex items-center gap-2 px-4 py-3 bg-secondary/60 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
+                <Loader2 size={13} className="animate-spin text-primary" />
+                <span className="text-xs text-muted-foreground">Analyzing your finances…</span>
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
+
+        {/* Quick chips — shown after first response */}
+        {activeEntries.length > 0 && !loading && (
+          <div className="px-4 lg:px-6 pt-2 pb-1 flex flex-wrap gap-1.5 border-t border-border/20 shrink-0 overflow-x-hidden">
+            {QUICK_QUESTIONS.map(q => (
+              <button
+                key={q}
+                onClick={() => handleAsk(q)}
+                disabled={blocked}
+                className="text-xs px-2.5 py-1 bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-40 whitespace-nowrap"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Input bar ── */}
+        <div
+          className="px-4 pt-3 border-t border-border/40 shrink-0"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={question}
+              onChange={e => setQuestion(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !blocked && question.trim()) handleAsk(); }}
+              placeholder={atLimit ? `Daily limit reached (${limitDay}/day) — resets midnight UTC` : (activeEntries.length > 0 ? 'Ask a follow-up…' : 'Ask anything about your finances…')}
+              maxLength={500}
+              className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50 min-w-0"
+              style={{ borderRadius: 'var(--radius)' }}
+              disabled={blocked}
+            />
+            <button
+              onClick={() => handleAsk()}
+              disabled={blocked || !question.trim()}
+              className="flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-4 py-2.5 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors disabled:opacity-50 shrink-0"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            </button>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 mt-2 text-xs text-destructive">
+              <AlertTriangle size={12} className="shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {atLimit && !error && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              {usedWeek}/{limitWeek} used this week
+            </p>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
