@@ -10,7 +10,7 @@ import { categorizeExpenses } from '@/lib/expense-filtering';
 import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Loader2,
-  Send, ChevronRight, User, ArrowLeft, Plus, MessageSquare,
+  Send, ChevronRight, User, ArrowLeft, Plus, MessageSquare, History,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -27,8 +27,15 @@ interface AdviceResult {
   scoreLabel: string;
   insights: Insight[];
   nextMove: string;
-  usedToday?: number;
-  limitPerDay?: number;
+  // Server-returned fields from edge function v2
+  _history_id?: string;
+  _history_created_at?: string;
+  usage?: {
+    used_today: number;
+    limit_day: number;
+    used_week: number;
+    limit_week: number;
+  };
 }
 
 interface ChatEntry {
@@ -52,7 +59,6 @@ const QUICK_QUESTIONS = [
   'Is my savings rate good for my income?',
 ];
 
-const DAILY_LIMIT = 10;
 const COOLDOWN_MS = 3000;
 
 // ── Score helpers ─────────────────────────────────────────────────────────────
@@ -237,6 +243,9 @@ export default function AiAdvisor() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usedToday, setUsedToday] = useState(0);
+  const [limitDay, setLimitDay] = useState(() => isPremium ? 150 : 20);
+  const [usedWeek, setUsedWeek] = useState(0);
+  const [limitWeek, setLimitWeek] = useState(() => isPremium ? 750 : 75);
   const [cooldown, setCooldown] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastAskTime = useRef(0);
@@ -299,31 +308,37 @@ export default function AiAdvisor() {
     return { monthlyIncome, monthlyExpenses, totalDebt, savingsBalance, cashOnHand, netWorth, savingsRate, topCategories, debtDetails, savingsGoals };
   }, [allTxns, debts, goals, accounts]);
 
-  // Load history on mount
+  // Load history and today's authoritative usage count on mount
   useEffect(() => {
     if (!user || isDemo) { setHistoryLoaded(true); return; }
-    (supabase as any)
-      .from('ai_advisor_history')
-      .select('id, question, result, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }: { data: ChatEntry[] | null }) => {
-        if (data && data.length > 0) {
-          // Each DB entry is its own conversation
-          const convos: Conversation[] = data.map(entry => ({
-            id: entry.id,
-            title: entry.question,
-            entries: [entry],
-            created_at: entry.created_at,
-          }));
-          setConversations(convos);
-          setView('list');
-          const todayStr = new Date().toDateString();
-          setUsedToday(data.filter(h => new Date(h.created_at).toDateString() === todayStr).length);
-        }
-        setHistoryLoaded(true);
-      });
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+    Promise.all([
+      (supabase as any)
+        .from('ai_advisor_history')
+        .select('id, question, result, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50),
+      (supabase as any)
+        .from('ai_usage_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('created_at', todayStart.toISOString()),
+    ]).then(([{ data }, { count }]) => {
+      if (data && data.length > 0) {
+        const convos: Conversation[] = data.map((entry: ChatEntry) => ({
+          id: entry.id,
+          title: entry.question,
+          entries: [entry],
+          created_at: entry.created_at,
+        }));
+        setConversations(convos);
+        // Always open on a fresh new chat — history accessible via History button
+      }
+      setUsedToday(count ?? 0);
+      setHistoryLoaded(true);
+    });
   }, [user, isDemo]);
 
   // Auto-scroll to bottom inside a chat
@@ -333,7 +348,7 @@ export default function AiAdvisor() {
     }
   }, [activeEntries.length, view]);
 
-  const atLimit = usedToday >= DAILY_LIMIT;
+  const atLimit = usedToday >= limitDay;
   const blocked = loading || cooldown || atLimit;
 
   const openConversation = (convo: Conversation) => {
@@ -366,7 +381,7 @@ export default function AiAdvisor() {
       return;
     }
     if (atLimit) {
-      setError(`You've reached your ${DAILY_LIMIT} daily questions. Resets at midnight.`);
+      setError(`You've reached your ${limitDay} daily questions. Resets at midnight UTC.`);
       return;
     }
 
@@ -383,21 +398,34 @@ export default function AiAdvisor() {
         body: { ...snapshot, question: finalQ || undefined },
       });
       if (fnErr) {
-        const msg = (fnErr as any)?.message ?? 'Something went wrong.';
-        throw new Error(msg.includes('non-2xx') ? 'AI request failed. Please try again.' : msg);
+        // Try to extract the server's error message from the response body
+        let errMsg = 'AI request failed. Please try again.';
+        try {
+          const ctx = await (fnErr as any)?.context?.json?.();
+          if (ctx?.error) errMsg = ctx.error;
+          // Sync usage from 429 response so the UI reflects the real count
+          if (ctx?.usage) {
+            setUsedToday(ctx.usage.used_today);
+            setLimitDay(ctx.usage.limit_day);
+            setUsedWeek(ctx.usage.used_week);
+            setLimitWeek(ctx.usage.limit_week);
+          }
+        } catch { /* ignore — fall back to generic message */ }
+        throw new Error(errMsg);
       }
 
       const advice = data as AdviceResult;
+      // Use DB-generated ID so history view stays consistent after reload
       const entry: ChatEntry = {
-        id: crypto.randomUUID(),
+        id: advice._history_id ?? crypto.randomUUID(),
         question: finalQ || null,
         result: advice,
-        created_at: new Date().toISOString(),
+        created_at: advice._history_created_at ?? new Date().toISOString(),
       };
 
       setActiveEntries(prev => [...prev, entry]);
 
-      // Add to conversation list (prepend new conversation)
+      // Prepend to conversation list
       const newConvo: Conversation = {
         id: entry.id,
         title: entry.question,
@@ -407,7 +435,13 @@ export default function AiAdvisor() {
       setConversations(prev => [newConvo, ...prev]);
 
       if (!activeTitle && finalQ) setActiveTitle(finalQ);
-      if (typeof advice.usedToday === 'number') setUsedToday(advice.usedToday);
+      // Sync usage state from authoritative server response
+      if (advice.usage) {
+        setUsedToday(advice.usage.used_today);
+        setLimitDay(advice.usage.limit_day);
+        setUsedWeek(advice.usage.used_week);
+        setLimitWeek(advice.usage.limit_week);
+      }
 
       setCooldown(true);
       setTimeout(() => setCooldown(false), COOLDOWN_MS);
@@ -535,16 +569,33 @@ export default function AiAdvisor() {
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        <div className="hidden sm:flex gap-0.5">
-          {Array.from({ length: DAILY_LIMIT }).map((_, i) => (
-            <div key={i} className={`h-1.5 w-2 rounded-full transition-colors ${i < usedToday ? 'bg-primary' : 'bg-border'}`} />
-          ))}
+        {/* Daily quota display */}
+        <div className="flex flex-col items-end gap-0.5">
+          <span className="text-xs text-muted-foreground tabular-nums">{usedToday}/{limitDay} today</span>
+          <div className="w-16 h-1 bg-border rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${Math.min(100, (usedToday / limitDay) * 100)}%`,
+                background: usedToday >= limitDay ? 'hsl(var(--destructive))' : 'hsl(var(--primary))',
+              }}
+            />
+          </div>
         </div>
-        <span className="text-xs text-muted-foreground tabular-nums">{usedToday}/{DAILY_LIMIT}</span>
+        {/* History button */}
+        {conversations.length > 0 && (
+          <button
+            onClick={() => setView('list')}
+            title="Chat history"
+            className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary hover:bg-secondary/80 border border-border/60 transition-colors"
+          >
+            <History size={14} />
+          </button>
+        )}
         {!showBack && (
           <button
             onClick={startNew}
-            className="ml-1 flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition-colors btn-press"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition-colors btn-press"
             style={{ borderRadius: 'var(--radius)' }}
           >
             <Plus size={11} /> New
@@ -575,14 +626,14 @@ export default function AiAdvisor() {
   // ── Input bar ────────────────────────────────────────────────────────────────
 
   const InputBar = ({ placeholder = 'Ask anything about your finances…' }: { placeholder?: string }) => (
-    <div className="px-4 pb-4 lg:px-6 lg:pb-5 pt-3 border-t border-border/40 shrink-0">
+    <div className="px-4 pt-3 border-t border-border/40 shrink-0" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
       <div className="flex gap-2">
         <input
           type="text"
           value={question}
           onChange={e => setQuestion(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter' && !blocked) handleAsk(); }}
-          placeholder={atLimit ? 'Daily limit reached — resets at midnight' : placeholder}
+          placeholder={atLimit ? `Daily limit reached (${limitDay}/day) — resets at midnight UTC` : placeholder}
           className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50"
           style={{ borderRadius: 'var(--radius)' }}
           disabled={blocked}
