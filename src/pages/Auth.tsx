@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
-import { Browser } from '@capacitor/browser';
+import { AuthSession } from '@/lib/auth-session';
 import { useDemo } from '@/contexts/DemoContext';
 
 import ForgentaLogo from '@/components/shared/ForgentaLogo';
@@ -163,22 +163,46 @@ export default function Auth() {
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     setLoading(true);
     const redirectTo = Capacitor.isNativePlatform()
-      ? 'https://getforgenta.com/auth-callback'
+      ? 'com.treforged.forged://auth-callback'
       : `${window.location.origin}/auth`;
 
     try {
       if (Capacitor.isNativePlatform()) {
-        // Native: open in SFSafariViewController (in-app sheet) so the user never
-        // leaves the app. skipBrowserRedirect lets us get the URL without Capacitor
-        // intercepting the navigation and opening Safari externally.
-        // Auth completion is handled by DeepLinkHandler in App.tsx via appUrlOpen.
+        // Native: use ASWebAuthenticationSession (via AuthSessionPlugin).
+        // Unlike SFSafariViewController, ASWebAuthenticationSession properly
+        // intercepts the custom URL scheme callback and auto-dismisses.
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
           options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
         });
         if (error) throw error;
         if (!data.url) throw new Error('No OAuth URL returned');
-        await Browser.open({ url: data.url });
+
+        const { url: callbackUrl } = await AuthSession.start({
+          url: data.url,
+          callbackURLScheme: 'com.treforged.forged',
+        });
+
+        const incoming = new URL(callbackUrl);
+        const code = incoming.searchParams.get('code');
+
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+        } else {
+          const hash = incoming.hash.startsWith('#') ? incoming.hash.slice(1) : incoming.hash;
+          const hashParams = new URLSearchParams(hash);
+          const access_token = hashParams.get('access_token');
+          const refresh_token = hashParams.get('refresh_token');
+          if (access_token && refresh_token) {
+            const { error: sessionError } = await supabase.auth.setSession({ access_token, refresh_token });
+            if (sessionError) throw sessionError;
+          } else {
+            throw new Error('No auth tokens in callback URL');
+          }
+        }
+
+        navigate('/dashboard', { replace: true });
         setLoading(false);
       } else {
         // Web: open in centered popup so user stays on the page
