@@ -357,10 +357,10 @@ export default function NetWorth() {
 
       <div className="grid lg:grid-cols-2 gap-5">
         {/* Assets */}
-        <div className="card-forged p-5">
-          <div className="flex items-center justify-between mb-5">
+        <div className="card-forged p-5 min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Assets Breakdown</h3>
-            <button onClick={openAddAsset} className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+            <button onClick={openAddAsset} className="flex items-center gap-1 text-xs text-primary font-medium hover:underline shrink-0">
               <Plus size={12} /> Add Manual Asset
             </button>
           </div>
@@ -379,7 +379,7 @@ export default function NetWorth() {
             )}
             <div className="flex-1 min-w-0 space-y-1.5">
               {allAssets.map((a, idx) => (
-                <div key={a.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
+                <div key={a.id} className="flex items-center justify-between gap-2 py-1.5 text-xs min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                     <span className="font-medium truncate">{a.name}</span>
@@ -403,10 +403,10 @@ export default function NetWorth() {
         </div>
 
         {/* Liabilities */}
-        <div className="card-forged p-5">
-          <div className="flex items-center justify-between mb-5">
+        <div className="card-forged p-5 min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between gap-2 flex-wrap mb-5">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Liabilities Breakdown</h3>
-            <button onClick={openAddLiability} className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
+            <button onClick={openAddLiability} className="flex items-center gap-1 text-xs text-primary font-medium hover:underline shrink-0">
               <Plus size={12} /> Add Manual Liability
             </button>
           </div>
@@ -425,7 +425,7 @@ export default function NetWorth() {
             )}
             <div className="flex-1 min-w-0 space-y-1.5">
               {allLiabilities.map((l, idx) => (
-                <div key={l.id} className="flex items-center justify-between gap-2 py-1.5 text-xs">
+                <div key={l.id} className="flex items-center justify-between gap-2 py-1.5 text-xs min-w-0">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                     <span className="font-medium truncate">{l.name}</span>
