@@ -23,11 +23,18 @@ interface Insight {
   body: string;
 }
 
+type ResponseSection =
+  | { type: 'paragraph'; text: string }
+  | { type: 'bullets'; items: string[] }
+  | { type: 'table'; headers: string[]; rows: string[][] }
+  | { type: 'pie'; title: string; data: { label: string; value: number }[] };
+
 interface AdviceResult {
   summary: string;
   score: number;
   scoreLabel: string;
-  insights: Insight[];
+  sections?: ResponseSection[];
+  insights?: Insight[];
   nextMove: string;
   _history_id?: string;
   _history_created_at?: string;
@@ -126,6 +133,93 @@ function InsightCard({ insight }: { insight: Insight }) {
   );
 }
 
+// ── MiniPieChart ──────────────────────────────────────────────────────────────
+
+const PIE_COLORS = ['#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
+
+function MiniPieChart({ title, data }: { title: string; data: { label: string; value: number }[] }) {
+  const total = data.reduce((s, d) => s + d.value, 0);
+  if (total === 0) return null;
+  const size = 80; const r = 30; const cx = 40; const cy = 40;
+  let angle = -Math.PI / 2;
+  const slices = data.map((d, i) => {
+    const sweep = (d.value / total) * 2 * Math.PI;
+    const x1 = cx + r * Math.cos(angle);
+    const y1 = cy + r * Math.sin(angle);
+    angle += sweep;
+    const x2 = cx + r * Math.cos(angle);
+    const y2 = cy + r * Math.sin(angle);
+    return { path: `M${cx},${cy}L${x1},${y1}A${r},${r},0,${sweep > Math.PI ? 1 : 0},1,${x2},${y2}Z`, color: PIE_COLORS[i % PIE_COLORS.length], ...d };
+  });
+  return (
+    <div className="space-y-2">
+      {title && <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{title}</p>}
+      <div className="flex gap-4 items-center">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0">
+          {slices.map((s, i) => <path key={i} d={s.path} fill={s.color} />)}
+        </svg>
+        <div className="space-y-1 min-w-0">
+          {slices.map((s, i) => (
+            <div key={i} className="flex items-center gap-1.5 text-xs min-w-0">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+              <span className="text-muted-foreground truncate">{s.label}</span>
+              <span className="text-foreground font-medium ml-auto pl-2 tabular-nums">${s.value.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SectionView — renders a single flexible AI response section ───────────────
+
+function SectionView({ section }: { section: ResponseSection }) {
+  if (section.type === 'paragraph') {
+    return <p className="text-xs text-foreground leading-relaxed">{section.text}</p>;
+  }
+  if (section.type === 'bullets') {
+    return (
+      <ul className="space-y-1.5">
+        {section.items.map((item, i) => (
+          <li key={i} className="flex gap-2 text-xs">
+            <span className="text-primary shrink-0 mt-0.5">•</span>
+            <span className="text-foreground leading-relaxed">{item}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (section.type === 'table') {
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr className="border-b border-border/50">
+              {section.headers.map((h, i) => (
+                <th key={i} className="text-left py-1.5 pr-4 text-muted-foreground font-medium">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {section.rows.map((row, i) => (
+              <tr key={i} className="border-b border-border/20 last:border-0">
+                {row.map((cell, j) => (
+                  <td key={j} className="py-1.5 pr-4 text-foreground">{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+  if (section.type === 'pie') {
+    return <MiniPieChart title={section.title} data={section.data} />;
+  }
+  return null;
+}
+
 // ── EntryView — full AI response card ─────────────────────────────────────────
 
 function EntryView({ entry, isFirst }: { entry: ChatEntry; isFirst: boolean }) {
@@ -183,9 +277,17 @@ function EntryView({ entry, isFirst }: { entry: ChatEntry; isFirst: boolean }) {
             </div>
           )}
 
-          {(result.insights?.length ?? 0) > 0 && (
+          {/* Flexible sections — new responses */}
+          {(result.sections?.length ?? 0) > 0 && (
+            <div className="space-y-3">
+              {result.sections!.map((s, i) => <SectionView key={i} section={s} />)}
+            </div>
+          )}
+
+          {/* Insight cards — old history entries without sections */}
+          {!(result.sections?.length) && (result.insights?.length ?? 0) > 0 && (
             <div className="space-y-2">
-              {result.insights.map((ins, i) => <InsightCard key={i} insight={ins} />)}
+              {result.insights!.map((ins, i) => <InsightCard key={i} insight={ins} />)}
             </div>
           )}
 
@@ -490,13 +592,27 @@ export default function AiAdvisor() {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 6);
 
-    const debtDetails = debts.map((d: any) => ({
-      name: String(d.name ?? 'Unknown'),
-      balance: Number(d.balance ?? 0),
-      apr: Number(d.apr ?? 0),
-      minPayment: Number(d.min_payment ?? 0),
-      targetPayment: Number(d.target_payment ?? 0),
-    }));
+    const debtDetails = debts.map((d: any) => {
+      const balance = Number(d.balance ?? 0);
+      const apr = Number(d.apr ?? 0);
+      const targetPayment = Number(d.target_payment ?? 0);
+      const monthlyRate = apr / 100 / 12;
+      let projectedPayoffMonths: number | null = null;
+      if (balance > 0 && targetPayment > balance * monthlyRate) {
+        const n = monthlyRate === 0
+          ? balance / targetPayment
+          : -Math.log(1 - (monthlyRate * balance) / targetPayment) / Math.log(1 + monthlyRate);
+        projectedPayoffMonths = isFinite(n) && n > 0 ? Math.ceil(n) : null;
+      }
+      return {
+        name: String(d.name ?? 'Unknown'),
+        balance,
+        apr,
+        minPayment: Number(d.min_payment ?? 0),
+        targetPayment,
+        projectedPayoffMonths,
+      };
+    });
 
     const savingsGoals = goals.map((g: any) => ({
       name: String(g.name ?? 'Unnamed Goal'),
@@ -629,8 +745,11 @@ export default function AiAdvisor() {
     if (view === 'new') setView('chat');
 
     try {
+      const debtStrategy = (localStorage.getItem('tre:debt:strategy') || 'avalanche') as 'avalanche' | 'snowball';
+      const paymentMode = (localStorage.getItem('tre:debt:paymentMode') || 'variable') as 'variable' | 'consistent';
+
       const { data, error: fnErr } = await tracedInvoke<AdviceResult>(supabase, 'ai-advisor', {
-        body: { ...snapshot, question: finalQ || undefined },
+        body: { ...snapshot, debtStrategy, paymentMode, question: finalQ || undefined },
       });
 
       if (fnErr) {

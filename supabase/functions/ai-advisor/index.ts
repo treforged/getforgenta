@@ -33,6 +33,7 @@ interface DebtDetail {
   apr: number;
   minPayment: number;
   targetPayment: number;
+  projectedPayoffMonths: number | null;
 }
 
 interface SavingsGoalDetail {
@@ -54,6 +55,8 @@ interface FinancialSnapshot {
   topCategories: { category: string; amount: number }[];
   debtDetails: DebtDetail[];
   savingsGoals: SavingsGoalDetail[];
+  debtStrategy?: 'avalanche' | 'snowball';
+  paymentMode?: 'variable' | 'consistent';
   question?: string;
 }
 
@@ -62,6 +65,9 @@ function buildPrompt(body: FinancialSnapshot): string {
   const hasGoals = body.savingsGoals.length > 0;
   const hasQuestion = !!body.question?.trim();
 
+  const strategyLabel = body.debtStrategy === 'snowball' ? 'Snowball (lowest balance first)' : 'Avalanche (highest APR first)';
+  const modeLabel = body.paymentMode === 'consistent' ? 'Consistent fixed payments each month' : 'Variable — payments adjust dynamically based on available cash each month';
+
   const debtSection = hasDebts
     ? body.debtDetails
         .sort((a, b) => b.balance - a.balance)
@@ -69,7 +75,13 @@ function buildPrompt(body: FinancialSnapshot): string {
           let line = `  - ${d.name}: $${d.balance.toFixed(0)} balance`;
           if (d.apr > 0) line += `, ${d.apr.toFixed(1)}% APR`;
           if (d.minPayment > 0) line += `, $${d.minPayment.toFixed(0)}/mo minimum`;
-          if (d.targetPayment > d.minPayment) line += ` ($${d.targetPayment.toFixed(0)}/mo targeted)`;
+          if (d.targetPayment > d.minPayment) line += `, $${d.targetPayment.toFixed(0)}/mo targeted`;
+          if (d.projectedPayoffMonths !== null && d.projectedPayoffMonths !== undefined) {
+            const months = d.projectedPayoffMonths;
+            const payoffDate = new Date();
+            payoffDate.setMonth(payoffDate.getMonth() + months);
+            line += ` → payoff in ~${months} months (${payoffDate.toLocaleString('en', { month: 'short', year: 'numeric' })})`;
+          }
           return line;
         })
         .join("\n")
@@ -104,7 +116,7 @@ function buildPrompt(body: FinancialSnapshot): string {
     ? "Directly and fully answer the user's question using their actual numbers, names, and dates from their data. Be complete — 3-6 sentences. Do not use this field for a general financial health overview."
     : "2-3 sentences summarizing their overall financial situation with specific numbers.";
 
-  return `You are Forge, a direct and specific personal finance advisor inside the Forgenta app. You have full access to this user's live financial data. Your job is to give advice that is specific to THIS person — reference their exact numbers, their debt names, their goal names. Never give advice so generic it could apply to anyone.\n\nTHEIR FINANCIAL PICTURE\n\nIncome & Cash Flow\n- Monthly take-home income: $${body.monthlyIncome.toFixed(0)}\n- Monthly expenses: $${body.monthlyExpenses.toFixed(0)}\n- Monthly surplus/deficit: $${surplus >= 0 ? '+' : ''}${surplus.toFixed(0)}\n- Savings rate: ${body.savingsRate.toFixed(1)}%\n\nDebts (total owed: $${body.totalDebt.toFixed(0)})\n${debtSection}\n\nSavings Goals\n${goalSection}\n\nCash Position\n- Checking / liquid cash: $${body.cashOnHand.toFixed(0)}\n- Savings account balance: $${body.savingsBalance.toFixed(0)}\n- Net worth: $${body.netWorth.toFixed(0)}\n\nTop Spending Categories This Month\n${categorySection}\n\n---\n${directive}\n\nFormatting rules:\n- Use each debt's actual name (e.g. "your Auto Loan" not "your loan")\n- Use each goal's actual name (e.g. "your Emergency Fund" not "your savings goal")\n- Cite specific dollar amounts and percentages whenever making a recommendation\n- If a debt has a high APR, name it and quantify how much interest it's costing monthly\n- If a savings goal is behind pace, calculate the monthly shortfall and name it\n- If cash on hand is less than one month of expenses ($${body.monthlyExpenses.toFixed(0)}), call that out\n- Vary insight count (2–6) based on what actually warrants attention — do not pad\n- Do not be preachy. Do not add disclaimers. Do not suggest consulting a financial advisor.\n\nRespond ONLY in this exact JSON (no markdown, no code fences, no preamble):\n{\n  "summary": "${summaryInstruction}",\n  "score": <integer 1-100 representing overall financial health>,\n  "scoreLabel": "<Poor|Fair|Good|Strong|Excellent>",\n  "insights": [\n    { "type": "<positive|warning|action>", "title": "Short specific title", "body": "1-3 sentences with specific numbers and names from their data" }\n  ],\n  "nextMove": "The single highest-impact action this month with a specific dollar amount or target."\n}`;
+  return `You are Forge, a direct and specific personal finance advisor inside the Forgenta app. You have full access to this user's live financial data. Give advice specific to THIS person — use their exact account names, balances, dates, and numbers. Never give generic advice.\n\nTHEIR FINANCIAL PICTURE\n\nIncome & Cash Flow\n- Monthly take-home income: $${body.monthlyIncome.toFixed(0)}\n- Monthly expenses: $${body.monthlyExpenses.toFixed(0)}\n- Monthly surplus/deficit: $${surplus >= 0 ? '+' : ''}${surplus.toFixed(0)}\n- Savings rate: ${body.savingsRate.toFixed(1)}%\n\nDebt Payoff Settings\n- Strategy: ${strategyLabel}\n- Payment mode: ${modeLabel}\n\nDebts (total owed: $${body.totalDebt.toFixed(0)})\n${debtSection}\n\nSavings Goals\n${goalSection}\n\nCash Position\n- Checking / liquid cash: $${body.cashOnHand.toFixed(0)}\n- Savings account balance: $${body.savingsBalance.toFixed(0)}\n- Net worth: $${body.netWorth.toFixed(0)}\n\nTop Spending Categories This Month\n${categorySection}\n\n---\n${directive}\n\nRules:\n- Always use the actual debt names, goal names, and dollar amounts from the data above\n- Payoff projections above assume consistent payments — note this when payment mode is Variable\n- Do not add disclaimers or suggest consulting a financial advisor\n- Do not pad sections — only include what's relevant to the question\n\nRespond ONLY in this exact JSON (no markdown, no code fences, no preamble):\n{\n  "summary": "${summaryInstruction}",\n  "score": <integer 1-100 representing overall financial health>,\n  "scoreLabel": "<Poor|Fair|Good|Strong|Excellent>",\n  "sections": [\n    /* Choose the format that best fits each piece of information. Options:\n       { "type": "paragraph", "text": "..." }\n       { "type": "bullets", "items": ["...", "..."] }\n       { "type": "table", "headers": ["Col1", "Col2"], "rows": [["val1", "val2"]] }\n       { "type": "pie", "title": "...", "data": [{ "label": "Category", "value": 450 }] }\n    Use table for multi-column debt/payoff data. Use pie ONLY for spending breakdowns.\n    Use paragraph or bullets for advice. Include only sections that add value. */\n  ],\n  "nextMove": "The single highest-impact action this month with a specific dollar amount or target."\n}`;
 }
 
 function extractJson(raw: string): string {
