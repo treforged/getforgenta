@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { useEffect } from 'react';
 import { App as CapApp } from '@capacitor/app';
 import { supabase } from '@/lib/supabase';
@@ -192,17 +193,21 @@ const App = () => (
       {Capacitor.isNativePlatform() ? (
         <MemoryRouter initialEntries={['/auth']}>
           <AuthProvider>
-            <DeepLinkHandler />
-            <AppRoutes />
-            <CookieBanner />
+            <SubscriptionProvider>
+              <DeepLinkHandler />
+              <AppRoutes />
+              <CookieBanner />
+            </SubscriptionProvider>
           </AuthProvider>
         </MemoryRouter>
       ) : (
         <BrowserRouter>
           <AuthProvider>
-            <DeepLinkHandler />
-            <AppRoutes />
-            <CookieBanner />
+            <SubscriptionProvider>
+              <DeepLinkHandler />
+              <AppRoutes />
+              <CookieBanner />
+            </SubscriptionProvider>
           </AuthProvider>
         </BrowserRouter>
       )}
