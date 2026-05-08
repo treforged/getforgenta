@@ -364,9 +364,9 @@ export default function NetWorth() {
               <Plus size={12} /> Add Manual Asset
             </button>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             {allAssets.length > 0 && (
-              <div className="hidden sm:block shrink-0">
+              <div className="flex justify-center sm:block shrink-0">
                 <ResponsiveContainer width={160} height={160}>
                   <PieChart>
                     <Pie data={allAssets.map(a => ({ name: a.name, value: Number(a.value) }))} cx="50%" cy="50%" innerRadius={42} outerRadius={72} dataKey="value" strokeWidth={0}>
@@ -410,9 +410,9 @@ export default function NetWorth() {
               <Plus size={12} /> Add Manual Liability
             </button>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             {allLiabilities.length > 0 && (
-              <div className="hidden sm:block shrink-0">
+              <div className="flex justify-center sm:block shrink-0">
                 <ResponsiveContainer width={160} height={160}>
                   <PieChart>
                     <Pie data={allLiabilities.map(l => ({ name: l.name, value: Number(l.balance) }))} cx="50%" cy="50%" innerRadius={42} outerRadius={72} dataKey="value" strokeWidth={0}>
