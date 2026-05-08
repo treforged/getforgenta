@@ -163,7 +163,7 @@ export default function Auth() {
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     setLoading(true);
     const redirectTo = Capacitor.isNativePlatform()
-      ? 'https://getforgenta.com/auth-callback'
+      ? 'com.treforged.forged://auth-callback'
       : `${window.location.origin}/auth`;
 
     try {
