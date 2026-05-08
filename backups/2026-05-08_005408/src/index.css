@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { scrollbar-width: none; -ms-overflow-style: none; }
+*::-webkit-scrollbar { display: none; }
+
+@layer base {
+  :root {
+    --background: 0 0% 2%;
+    --foreground: 214 32% 91%;
+    --card: 0 0% 7%;
+    --card-foreground: 214 32% 91%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 214 32% 91%;
+    --primary: 43 56% 52%;
+    --primary-foreground: 0 0% 2%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 214 32% 91%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 214 32% 91%;
+    --destructive: 0 73% 35%;
+    --destructive-foreground: 214 32% 91%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 43 56% 52%;
+    --radius: 2px;
+    --sidebar-background: 0 0% 5%;
+    --sidebar-foreground: 214 32% 91%;
+    --sidebar-primary: 43 56% 52%;
+    --sidebar-primary-foreground: 0 0% 2%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 214 32% 91%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 43 56% 52%;
+
+    --gold: 43 56% 52%;
+    --gold-foreground: 0 0% 2%;
+    --silver: 214 32% 91%;
+    --graphite: 240 4% 46%;
+    --gunmetal: 0 0% 7%;
+    --obsidian: 0 0% 2%;
+    --crimson: 0 73% 35%;
+    --success: 142 50% 40%;
+
+    --font-display: 'Outfit', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  .dark {
+    --background: 0 0% 2%;
+    --foreground: 214 32% 91%;
+    --card: 0 0% 7%;
+    --card-foreground: 214 32% 91%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 214 32% 91%;
+    --primary: 43 56% 52%;
+    --primary-foreground: 0 0% 2%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 214 32% 91%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 214 32% 91%;
+    --destructive: 0 73% 35%;
+    --destructive-foreground: 214 32% 91%;
+    --border: 0 0% 15%;
+    --input: 0 0% 15%;
+    --ring: 43 56% 52%;
+    --sidebar-background: 0 0% 5%;
+    --sidebar-foreground: 214 32% 91%;
+    --sidebar-primary: 43 56% 52%;
+    --sidebar-primary-foreground: 0 0% 2%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 214 32% 91%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 43 56% 52%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    background: hsl(var(--background));
+    overflow-x: hidden;
+  }
+
+  /* Capacitor native: allow the OS accessibility font-size preference to scale text */
+  html.native {
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    min-height: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-y: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+}
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  button, a, select, input, textarea, [role="button"], [role="tab"], [role="switch"] {
+    touch-action: manipulation;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-body {
+    font-family: var(--font-body);
+  }
+
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+
+  .card-forged {
+    @apply bg-card border border-border;
+    border-radius: var(--radius);
+  }
+
+  .btn-press {
+    @apply active:scale-[0.98] transition-transform duration-75;
+  }
+
+  .safe-area-pb {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  .pb-safe {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 80px);
+  }
+
+  .min-h-screen-safe {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .mobile-page-gutter {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .mobile-page-gutter {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+
+  /* 44px minimum tap target for icon-only buttons */
+  .icon-btn {
+    @apply flex items-center justify-center min-h-[44px] min-w-[44px];
+  }
+}
