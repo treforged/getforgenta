@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Crown, Check, RotateCcw, Loader2, AlertCircle, Tag } from 'lucide-react';
+import { Crown, Check, RotateCcw, Loader2, AlertCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import type { PurchasesOfferings, PurchasesPackage } from '@revenuecat/purchases-capacitor';
@@ -7,7 +7,6 @@ import {
   getOfferings,
   purchasePackage,
   restorePurchases,
-  presentCodeRedemptionSheet,
 } from '@/lib/purchases';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -85,15 +84,6 @@ export default function NativePaywall() {
       toast.error(e instanceof Error ? e.message : 'Restore failed. Please try again.');
     } finally {
       setRestoring(false);
-    }
-  };
-
-  const handleRedeemCode = async () => {
-    try {
-      await presentCodeRedemptionSheet();
-      await refetch();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Could not open code redemption.');
     }
   };
 
@@ -261,19 +251,6 @@ export default function NativePaywall() {
           Restore purchases
         </button>
       </div>
-
-      {/* Redeem code — iOS only (Android promo codes are redeemed in the Play Store) */}
-      {!isAndroid && (
-        <div className="text-center">
-          <button
-            onClick={handleRedeemCode}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
-          >
-            <Tag size={12} />
-            Redeem code
-          </button>
-        </div>
-      )}
     </div>
   );
 }
