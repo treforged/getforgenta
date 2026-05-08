@@ -1,0 +1,338 @@
+{
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\App.tsx": {
+    "mtime": 1777384268.0611846,
+    "hash": "83937821054de812c3f2528054d50250"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\main.tsx": {
+    "mtime": 1777327755.2583704,
+    "hash": "9390c4773a7a6684242b75a1dd8f2441"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\vite-env.d.ts": {
+    "mtime": 1777327755.2824707,
+    "hash": "0352474ba2918efe13895edbc3780d94"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\dashboard\\DashboardSkeleton.tsx": {
+    "mtime": 1777327755.195809,
+    "hash": "4db97f71abfa9256f7318970229c201c"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\dashboard\\OnboardingChecklist.tsx": {
+    "mtime": 1777327755.1968064,
+    "hash": "e268a65fe8fbc311352b4bdb9a30094f"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\debt\\CreditCardEngine.tsx": {
+    "mtime": 1777327755.197807,
+    "hash": "698a0d05957d19d6ea670ec61691edfb"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\layout\\DashboardLayout.tsx": {
+    "mtime": 1777327755.1988072,
+    "hash": "cafd3bb0b4759931bca130ce5e186d93"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\layout\\MobileNav.tsx": {
+    "mtime": 1777327755.1998088,
+    "hash": "99e4f46fed7a312ebfdfce7039181fdc"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\layout\\Sidebar.tsx": {
+    "mtime": 1777470855.9257307,
+    "hash": "e116755bc32b8b5bf4c861c377a7dcbc"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\onboarding\\OnboardingWizard.tsx": {
+    "mtime": 1777327755.2018087,
+    "hash": "0d184bed87e06a5729a9c0a1f80dfd40"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\premium\\IosPaywall.tsx": {
+    "mtime": 1777327755.2028072,
+    "hash": "672714dc1727c0438e25028056db72de"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\settings\\LinkedAccounts.tsx": {
+    "mtime": 1777469628.986067,
+    "hash": "c8b4c5f3d4f59bb59464cbe88175a80e"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\settings\\PhoneAuth.tsx": {
+    "mtime": 1777327755.2068062,
+    "hash": "12806504cba522b830cf35e5a3598e9d"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\settings\\TwoFactorAuth.tsx": {
+    "mtime": 1777327755.207808,
+    "hash": "0c63fcc2c26a13f1c765571ed9d23e3d"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\AccountUpdateReminder.tsx": {
+    "mtime": 1777327755.2088082,
+    "hash": "428d4daea14f506fc320e7adb305ab47"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\AppLockScreen.tsx": {
+    "mtime": 1777327755.209808,
+    "hash": "4b402b7bc272586eca8b6c7a096c1a34"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\AppTour.tsx": {
+    "mtime": 1777327755.2108085,
+    "hash": "eead7a9e1a8b13c67c9a6da93650d044"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\CategoryIcon.tsx": {
+    "mtime": 1777327755.2118096,
+    "hash": "e28312e72d342c15c12844fd3c25919b"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\CookieBanner.tsx": {
+    "mtime": 1777327755.2128088,
+    "hash": "c6a4cd4705e8d016e8fc93271b2dd2ab"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\DemoBanner.tsx": {
+    "mtime": 1777327755.2138066,
+    "hash": "c7ffa13bfb73c6965cb7167357fd1580"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\ErrorBoundary.tsx": {
+    "mtime": 1777327755.2148511,
+    "hash": "289b8e346bfc4bbe337e15498f91a704"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\ForgentaLogo.tsx": {
+    "mtime": 1777425602.8272107,
+    "hash": "87408d0fc2a29d0023a03cb50435fef8"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\FormModal.tsx": {
+    "mtime": 1777327755.215855,
+    "hash": "7c2bc57b580227a7ba018a83857e017c"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\FounderNoteModal.tsx": {
+    "mtime": 1777327755.2168567,
+    "hash": "1229dae4c5f191018a04ca8a1d4290a7"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\InstructionsModal.tsx": {
+    "mtime": 1777332820.7170198,
+    "hash": "d9873370959b51021f201e2be57a202e"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\MetricCard.tsx": {
+    "mtime": 1777327755.218856,
+    "hash": "083ef7792cdd4902f80e9485a799d406"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\ModalShell.tsx": {
+    "mtime": 1777327755.2198546,
+    "hash": "6bf40d17441b6ab963485e98908d0c27"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\PlaidLinkButton.tsx": {
+    "mtime": 1777431940.5164745,
+    "hash": "51bac468880a45d9fc50414b84e22fa7"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\PremiumGate.tsx": {
+    "mtime": 1777327755.221856,
+    "hash": "75fbbea958089d4d89871ddbc639447c"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\ProgressBar.tsx": {
+    "mtime": 1777327755.2228541,
+    "hash": "714130acaf8df730a59ddf57d85fbe5b"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\shared\\TurnstileWidget.tsx": {
+    "mtime": 1777384322.523805,
+    "hash": "50cc322d58bd86035e1a4a92c3ea4158"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\ui\\skeleton.tsx": {
+    "mtime": 1777327755.2238543,
+    "hash": "c55f76f4faa1d6e888dbc51d41eaa586"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\ui\\sonner.tsx": {
+    "mtime": 1777327755.2248545,
+    "hash": "016e182ac26d768a32128d001081bbde"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\ui\\tabs.tsx": {
+    "mtime": 1777327755.2259,
+    "hash": "edad06f905be7a7e3634fdbe1b6ad61a"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\components\\ui\\tooltip.tsx": {
+    "mtime": 1777327755.2268562,
+    "hash": "336ca01a98037c9a1dfe936bde3ee549"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\contexts\\AuthContext.tsx": {
+    "mtime": 1777553605.2100666,
+    "hash": "e384aa934e8b1b69052fed2e761643c6"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\use-mobile.tsx": {
+    "mtime": 1777327755.228856,
+    "hash": "8093731975f02b40c11fb6de742e5c7e"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\use401kAutoUpdate.ts": {
+    "mtime": 1777327755.228856,
+    "hash": "34d9de02984fe1f210f1e0dda8411083"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\useAppLock.ts": {
+    "mtime": 1777327755.2303622,
+    "hash": "9a72d40ca425d17464b9921ad3600442"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\useCookieConsent.ts": {
+    "mtime": 1777327755.231367,
+    "hash": "4c2752fc486c56adbf0b5323f6492c00"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\usePersistedState.ts": {
+    "mtime": 1777327755.2323694,
+    "hash": "b9364e44f4500e1f91eafdc9d8db37f1"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\usePlaidItems.ts": {
+    "mtime": 1777327755.2333667,
+    "hash": "9e7d6bd542d65d2ce8e675f81f60a232"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\useRetirementAutoUpdate.ts": {
+    "mtime": 1777327755.2343714,
+    "hash": "c81155831ef2eafc2a7941f103296012"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\useSubscription.ts": {
+    "mtime": 1777327755.235367,
+    "hash": "725f6c55dbc70591c8567b3ca0c44363"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\hooks\\useSupabaseData.ts": {
+    "mtime": 1777327755.2373657,
+    "hash": "fa305fa193f3b115bff554452456d191"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\integrations\\supabase\\client.ts": {
+    "mtime": 1777327755.238366,
+    "hash": "9e56aa1318523ef4f2e6711ba79eeba2"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\integrations\\supabase\\types.ts": {
+    "mtime": 1777327755.2393763,
+    "hash": "d9d9df51671b1fcac4a985c90c1100fd"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\calculations.ts": {
+    "mtime": 1777327755.2403665,
+    "hash": "6bfa0b08f90ab6e90375d0cabf82e266"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\cookie-consent.ts": {
+    "mtime": 1777327755.2413661,
+    "hash": "34c2ce37fa8fe9104bd374fb6ab58ff5"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\credit-card-engine.ts": {
+    "mtime": 1777327755.242368,
+    "hash": "7fb1f86fc5bef86baef751fae00e6376"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\debt-transaction-generator.ts": {
+    "mtime": 1777327755.243368,
+    "hash": "4487f47a9bc3ce6b28fade57808bcc9c"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\demo-data.ts": {
+    "mtime": 1777327755.2443812,
+    "hash": "ba2e6174074243b0551cf0b99dcb5111"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\expense-filtering.ts": {
+    "mtime": 1777327755.2453685,
+    "hash": "25c97f680c9c5a256ed17f9e1c4864e3"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\exportCsv.ts": {
+    "mtime": 1777327755.2463663,
+    "hash": "a23fe38b383275b02b5b9463ec4bf9b8"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\exportPdf.ts": {
+    "mtime": 1777327755.387635,
+    "hash": "9776611df9e17657cf75e55c7417d5fa"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\pay-schedule.ts": {
+    "mtime": 1777327755.249375,
+    "hash": "6e3db157cd7a620c76596633d67d0d17"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\purchases.ts": {
+    "mtime": 1777327755.2503715,
+    "hash": "74b505a09e3bd2d85220bba4357a6b23"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\retirement-projection.ts": {
+    "mtime": 1777327755.2513711,
+    "hash": "5e4b9feb84f09f6b2eaabbe30d5472f2"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\sanitize.ts": {
+    "mtime": 1777327755.2523706,
+    "hash": "6171795a981a65930372a9325da5a584"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\scheduling.ts": {
+    "mtime": 1777327755.253372,
+    "hash": "3092e22c3c440ac3a5524afb796716b8"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\schemas.ts": {
+    "mtime": 1777327755.2543728,
+    "hash": "42d3574c20df09d4fd9e6535dcd200d1"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\supabase.ts": {
+    "mtime": 1777327755.255371,
+    "hash": "fffb1805f2a0129620f59046e16fdf6b"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\tracer.ts": {
+    "mtime": 1777327755.255371,
+    "hash": "f269b923d9dd8717ddd3300348926281"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\types.ts": {
+    "mtime": 1777327755.257375,
+    "hash": "541c2dc4e4b0c604f31d3be881f2a43d"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\lib\\utils.ts": {
+    "mtime": 1777327755.2583704,
+    "hash": "d9837f38cc05303254571985e3164050"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Accounts.tsx": {
+    "mtime": 1777511682.0352912,
+    "hash": "f61df9f226aa0d37a1e8b82220ae3233"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\AiAdvisor.tsx": {
+    "mtime": 1778213717.6998792,
+    "hash": "42cb296d79a73f5e3c6dc1d35cf81372"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Auth.tsx": {
+    "mtime": 1777554517.7453227,
+    "hash": "a9449b8bb8db37eac8f3a8fe2e2ba756"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\BudgetControl.tsx": {
+    "mtime": 1777511916.7464366,
+    "hash": "65052f4897880b0b827dd45b54045502"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Dashboard.tsx": {
+    "mtime": 1777332835.843101,
+    "hash": "490228d1d65fd4c0a08608ff2a3bdaad"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\DebtPayoff.tsx": {
+    "mtime": 1777327755.2664664,
+    "hash": "1fc89aba34e6875cc0e6325290bf3778"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Forecast.tsx": {
+    "mtime": 1778214253.2259278,
+    "hash": "367e00712d8e4a41820ca93edeaabbed"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Landing.tsx": {
+    "mtime": 1777328126.1509335,
+    "hash": "718c208c7ca56fd8ff83f67cbe7a17a4"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Legal.tsx": {
+    "mtime": 1777601686.365665,
+    "hash": "8ec9793782ef118f572a04456b7e5154"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\NetWorth.tsx": {
+    "mtime": 1777511717.0153964,
+    "hash": "7864c390b3c50bdf2049576ef2c7327c"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\NotFound.tsx": {
+    "mtime": 1777327755.272472,
+    "hash": "233617e24ded7876ea905f003f0f2889"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Onboarding.tsx": {
+    "mtime": 1777327755.2734706,
+    "hash": "e389952c012098add23c13e56a369f4a"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\PlaidOAuth.tsx": {
+    "mtime": 1777327755.27447,
+    "hash": "241e167e3797475fa3c436df8275976c"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Premium.tsx": {
+    "mtime": 1777327755.2754726,
+    "hash": "412e4d24ebdf34a9182759d68a6981fe"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\PremiumCancel.tsx": {
+    "mtime": 1777327755.2764723,
+    "hash": "4e0d48e323f83de204b43d4f0e8fc794"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\PremiumSuccess.tsx": {
+    "mtime": 1777327755.277474,
+    "hash": "066cc28f77b682e07c3a73d3f62bee2e"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\SavingsGoals.tsx": {
+    "mtime": 1777327755.2784717,
+    "hash": "4d0177b50fd4e2bb40fd1f18161598dc"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Settings.tsx": {
+    "mtime": 1777572482.2977653,
+    "hash": "fec14b06a236096abc08da994dcf2930"
+  },
+  "C:\\Users\\tvonh\\Desktop\\webappredesign\\src\\pages\\Transactions.tsx": {
+    "mtime": 1777327755.2814708,
+    "hash": "34f86d11a2f4ff888dae88fbf46103f0"
+  }
+}
