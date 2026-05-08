@@ -128,7 +128,7 @@ function InsightCard({ insight }: { insight: Insight }) {
 
 // ── EntryView — full AI response card ─────────────────────────────────────────
 
-function EntryView({ entry, isFirst }: { entry: ChatEntry; isFirst: boolean }) {
+function EntryView({ entry }: { entry: ChatEntry }) {
   const { result, question } = entry;
   const pct = Math.min(100, Math.max(0, result.score ?? 0));
   const color = scoreColor(pct);
@@ -158,20 +158,14 @@ function EntryView({ entry, isFirst }: { entry: ChatEntry; isFirst: boolean }) {
         </div>
         <div className="flex-1 min-w-0 space-y-3">
 
-          {isFirst ? (
-            <div className="flex gap-3 p-3.5 bg-secondary/50 border border-border/40 min-w-0 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
-              <ScoreRing score={result.score ?? 0} size={80} />
-              <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
-                <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Financial Health</p>
-                <p className="text-sm font-bold" style={{ color }}>{label}</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">{result.summary}</p>
-              </div>
+          <div className="flex gap-3 p-3.5 bg-secondary/50 border border-border/40 min-w-0 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
+            <ScoreRing score={result.score ?? 0} size={80} />
+            <div className="flex-1 min-w-0 flex flex-col justify-center gap-1">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Financial Health</p>
+              <p className="text-sm font-bold" style={{ color }}>{label}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">{result.summary}</p>
             </div>
-          ) : (
-            result.summary && (
-              <p className="text-xs text-foreground leading-relaxed">{result.summary}</p>
-            )
-          )}
+          </div>
 
           {result.nextMove && (
             <div className="flex gap-3 p-3 bg-primary/8 border border-primary/25" style={{ borderRadius: 'var(--radius)' }}>
@@ -958,8 +952,8 @@ export default function AiAdvisor() {
           )}
 
           {/* Entries */}
-          {activeEntries.map((entry, index) => (
-            <EntryView key={entry.id} entry={entry} isFirst={index === 0} />
+          {activeEntries.map(entry => (
+            <EntryView key={entry.id} entry={entry} />
           ))}
 
           {/* Loading bubble */}
