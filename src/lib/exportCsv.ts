@@ -1,7 +1,6 @@
-/**
- * CSV export utility for Budget OS transaction data.
- * Escapes values that contain commas, quotes, or newlines per RFC 4180.
- */
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 function escapeCell(value: string): string {
   if (/[,"\n\r]/.test(value)) {
@@ -19,7 +18,7 @@ export interface ExportRow {
   payment_source?: string;
 }
 
-export function exportTransactionsCsv(rows: ExportRow[], filename = 'transactions.csv'): void {
+export async function exportTransactionsCsv(rows: ExportRow[], filename = 'transactions.csv'): Promise<void> {
   const headers = ['Date', 'Type', 'Amount', 'Category', 'Note', 'Payment Source'];
 
   const body = rows.map(r => [
@@ -32,6 +31,22 @@ export function exportTransactionsCsv(rows: ExportRow[], filename = 'transaction
   ].map(escapeCell).join(','));
 
   const csv = [headers.join(','), ...body].join('\r\n');
+
+  if (Capacitor.isNativePlatform()) {
+    const base64 = btoa(unescape(encodeURIComponent(csv)));
+    const result = await Filesystem.writeFile({
+      path: filename,
+      data: base64,
+      directory: Directory.Cache,
+    });
+    await Share.share({
+      title: filename,
+      url: result.uri,
+      dialogTitle: 'Export Transactions CSV',
+    });
+    return;
+  }
+
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
