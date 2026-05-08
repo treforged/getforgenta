@@ -9,6 +9,7 @@ import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { useEffect } from 'react';
 import { App as CapApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import CookieBanner from "@/components/shared/CookieBanner";
@@ -125,6 +126,9 @@ function DeepLinkHandler() {
 
         // OAuth callback from Google / Apple
         if (host === 'auth-callback' || path.includes('auth-callback')) {
+          // Dismiss the SFSafariViewController / in-app browser sheet
+          Browser.close().catch(() => {});
+
           const code = incoming.searchParams.get('code');
 
           // PKCE flow

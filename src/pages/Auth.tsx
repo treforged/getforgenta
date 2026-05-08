@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { useDemo } from '@/contexts/DemoContext';
 
 import ForgentaLogo from '@/components/shared/ForgentaLogo';
@@ -167,12 +168,17 @@ export default function Auth() {
 
     try {
       if (Capacitor.isNativePlatform()) {
-        // Native: SFSafariViewController on iOS (already in-app sheet)
-        const { error } = await supabase.auth.signInWithOAuth({
+        // Native: open in SFSafariViewController (in-app sheet) so the user never
+        // leaves the app. skipBrowserRedirect lets us get the URL without Capacitor
+        // intercepting the navigation and opening Safari externally.
+        // Auth completion is handled by DeepLinkHandler in App.tsx via appUrlOpen.
+        const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
-          options: { redirectTo, queryParams: { prompt: 'select_account' } },
+          options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
         });
         if (error) throw error;
+        if (!data.url) throw new Error('No OAuth URL returned');
+        await Browser.open({ url: data.url });
         setLoading(false);
       } else {
         // Web: open in centered popup so user stays on the page
