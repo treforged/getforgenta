@@ -887,9 +887,9 @@ export default function Forecast() {
           </button>
           {(isPremium || isDemo) ? (
             <button
-              onClick={() => {
+              onClick={async () => {
                 const label = filterYear === 'all' ? 'All 36 Months' : `Year ${filterYear}`;
-                exportForecastPdf(filteredData.map((r: any) => ({
+                await exportForecastPdf(filteredData.map((r: any) => ({
                   month: r.month,
                   takeHome: r.takeHome ?? 0,
                   totalExpenses: r.totalExpenses ?? 0,

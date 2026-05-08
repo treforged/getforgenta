@@ -725,8 +725,8 @@ export default function Dashboard() {
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
             {(isPremium || isDemo) && (
               <button
-                onClick={() =>
-                  exportDashboardPdf({
+                onClick={async () =>
+                  await exportDashboardPdf({
                     month: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
                     liquidCash: accountSummary.liquidCash,
                     netWorth: accountSummary.netWorth,
