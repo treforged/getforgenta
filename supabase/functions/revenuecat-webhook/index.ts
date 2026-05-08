@@ -34,6 +34,7 @@ interface RcEvent {
   original_transaction_id?: string;
   store?: "APP_STORE" | "PLAY_STORE" | "STRIPE" | "PROMOTIONAL";
   period_type?: "NORMAL" | "TRIAL" | "INTRO";
+  environment?: "SANDBOX" | "PRODUCTION";
 }
 
 interface RcWebhookBody {
@@ -102,6 +103,15 @@ Deno.serve(async (req) => {
   if (!event?.type || !event?.app_user_id) {
     return new Response(JSON.stringify({ error: "Missing event fields" }), {
       status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  // Ignore sandbox events — TestFlight purchases must not grant production premium
+  if (event.environment === "SANDBOX") {
+    console.log(`[rc-webhook] sandbox event ignored: ${event.type}`);
+    return new Response(JSON.stringify({ received: true, action: "sandbox_ignored" }), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
