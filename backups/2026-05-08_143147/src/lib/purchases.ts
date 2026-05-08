@@ -64,10 +64,4 @@ export async function logOutRevenueCat(): Promise<void> {
   configured = false;
 }
 
-export async function presentCodeRedemptionSheet(): Promise<void> {
-  if (!isNative() || !configured) return;
-  const { Purchases } = await import('@revenuecat/purchases-capacitor');
-  await Purchases.presentCodeRedemptionSheet();
-}
-
 export type { CustomerInfo, PurchasesOfferings, PurchasesPackage };
