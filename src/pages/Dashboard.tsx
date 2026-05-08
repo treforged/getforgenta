@@ -93,12 +93,11 @@ function CalcDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-background/80"
-      style={{ touchAction: 'none' }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80"
       onClick={onClose}
     >
       <div
-        className="card-forged p-4 sm:p-6 w-full sm:max-w-md space-y-3 max-h-[65vh] sm:max-h-[80vh] overflow-y-auto rounded-b-none sm:rounded-b-[var(--radius)]"
+        className="card-forged p-4 sm:p-6 w-full max-w-sm sm:max-w-md space-y-3 max-h-[75vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
