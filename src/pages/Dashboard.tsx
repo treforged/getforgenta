@@ -148,7 +148,8 @@ function ClickableMetric({
   const navigate = useNavigate();
   return (
     <div
-      className="relative group cursor-pointer"
+      className="relative group cursor-pointer transition-all duration-200 hover:ring-1 hover:ring-primary/40 active:scale-[0.99]"
+      style={{ borderRadius: 'var(--radius)' }}
       onClick={() => {
         if (onClick) onClick();
         else if (to) navigate(to);
@@ -156,8 +157,8 @@ function ClickableMetric({
       title={tooltip}
     >
       {children}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Info size={12} className="text-muted-foreground" />
+      <div className="absolute top-2 right-2 opacity-30 group-hover:opacity-100 transition-opacity">
+        <Info size={12} className="text-primary" />
       </div>
     </div>
   );
@@ -795,26 +796,26 @@ export default function Dashboard() {
         <ScheduleSkeleton />
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="card-forged p-4 cursor-pointer hover:border-primary/20 transition-colors" onClick={() => navigate('/budget')}>
+          <div className="card-forged p-4 card-clickable" onClick={() => navigate('/budget')}>
             <div className="flex items-center gap-2 mb-1"><CalendarDays size={12} className="text-primary" /><p className="text-xs text-muted-foreground uppercase">Next Paycheck</p></div>
             <p className="text-sm font-display font-bold text-success">{formatCurrency(paycheckNet, false)}</p>
             <p className="text-xs text-muted-foreground">{nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
           </div>
-          <div className="card-forged p-4 cursor-pointer hover:border-primary/20 transition-colors" onClick={() => navigate('/transactions')}>
+          <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
             <div className="flex items-center gap-2 mb-1"><AlertTriangle size={12} className="text-destructive" /><p className="text-xs text-muted-foreground uppercase">Bills This Week</p></div>
             <p className="text-sm font-display font-bold text-destructive">{formatCurrency(upcomingBillsWeek.reduce((s, e) => s + e.amount, 0), false)}</p>
             <p className="text-xs text-muted-foreground">{upcomingBillsWeek.length} upcoming</p>
           </div>
-          <div className="card-forged p-4 cursor-pointer hover:border-primary/20 transition-colors" onClick={() => navigate('/transactions')}>
+          <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
             <div className="flex items-center gap-2 mb-1"><Repeat size={12} className="text-primary" /><p className="text-xs text-muted-foreground uppercase">Bills This Month</p></div>
             <p className="text-sm font-display font-bold text-foreground">{formatCurrency(upcomingBillsMonth.reduce((s, e) => s + e.amount, 0), false)}</p>
             <p className="text-xs text-muted-foreground">{upcomingBillsMonth.length} scheduled</p>
           </div>
-          <div className="card-forged p-4 cursor-pointer hover:border-primary/20 transition-colors group" onClick={openMonthEndCalc}>
+          <div className="card-forged p-4 card-clickable group" onClick={openMonthEndCalc}>
             <div className="flex items-center gap-2 mb-1">
               <Wallet size={12} className="text-primary" />
               <p className="text-xs text-muted-foreground uppercase">Projected Month-End Cash</p>
-              <Info size={10} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Info size={10} className="text-primary opacity-30 group-hover:opacity-100 transition-opacity" />
             </div>
             <p className={`text-sm font-display font-bold ${monthEndCash >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(monthEndCash, false)}</p>
             <p className="text-xs text-muted-foreground">After all scheduled items</p>
@@ -866,7 +867,7 @@ export default function Dashboard() {
       </div>
 
       {carGoalData && (
-        <div className="card-forged p-5 cursor-pointer hover:border-primary/20 transition-colors" onClick={() => navigate('/savings')}>
+        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/savings')}>
           <div className="flex items-center gap-2 mb-4">
             <Car size={14} className="text-primary" />
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
@@ -898,7 +899,7 @@ export default function Dashboard() {
       )}
 
       {!rulesLoading && upcomingBillsWeek.length > 0 && (
-        <div className="card-forged p-4 cursor-pointer hover:border-primary/20 transition-colors" onClick={() => navigate('/transactions')}>
+        <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Upcoming This Week</h3>
           <div className="space-y-1">
             {upcomingBillsWeek.slice(0, 5).map((e, i) => (
@@ -992,7 +993,7 @@ export default function Dashboard() {
       {goalsLoading ? (
         <ChartSkeleton height={120} />
       ) : (
-        <div className="card-forged p-5 cursor-pointer hover:border-primary/20 transition-colors" onClick={() => navigate('/savings')}>
+        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/savings')}>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
           <div className="grid md:grid-cols-3 gap-5">
             {[

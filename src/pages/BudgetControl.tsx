@@ -1175,28 +1175,26 @@ export default function BudgetControl() {
 
       {/* Tabbed Rule Management */}
       <Tabs defaultValue="income" className="space-y-4">
-        <div className="w-full overflow-x-auto pb-1 min-w-0">
-          <TabsList className="bg-secondary border border-border w-max min-w-full sm:min-w-0 sm:w-full justify-start flex-nowrap h-auto gap-1 p-1">
-            <TabsTrigger value="income" className="shrink-0 text-xs sm:text-sm data-[state=active]:bg-background">
-              Income ({incomeRules.length})
-            </TabsTrigger>
-            <TabsTrigger value="fixed" className="shrink-0 text-xs sm:text-sm data-[state=active]:bg-background">
-              Fixed ({billsRules.length})
-            </TabsTrigger>
-            <TabsTrigger value="subscriptions" className="shrink-0 text-xs sm:text-sm data-[state=active]:bg-background">
-              Subscriptions ({subscriptionRules.length})
-            </TabsTrigger>
-            <TabsTrigger value="variable" className="shrink-0 text-xs sm:text-sm data-[state=active]:bg-background">
-              Variable ({variableRules.length})
-            </TabsTrigger>
-            <TabsTrigger value="debt" className="shrink-0 text-xs sm:text-sm data-[state=active]:bg-background">
-              Debt ({debtRules.length})
-            </TabsTrigger>
-            <TabsTrigger value="transfers" className="shrink-0 text-xs sm:text-sm data-[state=active]:bg-background">
-              Transfers ({transferRules.length})
-            </TabsTrigger>
-          </TabsList>
-        </div>
+        <TabsList className="grid grid-cols-3 sm:flex sm:flex-wrap bg-secondary border border-border h-auto gap-1 p-1 w-full">
+          <TabsTrigger value="income" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
+            Income ({incomeRules.length})
+          </TabsTrigger>
+          <TabsTrigger value="fixed" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
+            Fixed ({billsRules.length})
+          </TabsTrigger>
+          <TabsTrigger value="subscriptions" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
+            Subs ({subscriptionRules.length})
+          </TabsTrigger>
+          <TabsTrigger value="variable" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
+            Variable ({variableRules.length})
+          </TabsTrigger>
+          <TabsTrigger value="debt" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
+            Debt ({debtRules.length})
+          </TabsTrigger>
+          <TabsTrigger value="transfers" className="text-xs sm:text-sm data-[state=active]:bg-background whitespace-normal text-center leading-tight py-2">
+            Transfers ({transferRules.length})
+          </TabsTrigger>
+        </TabsList>
 
         <TabsContent value="income">
           <div className="card-forged p-5 space-y-2">
