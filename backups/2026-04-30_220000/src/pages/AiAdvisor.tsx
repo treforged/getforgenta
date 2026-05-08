@@ -13,8 +13,6 @@ import {
   Send, ChevronRight, User, ArrowLeft, Plus, MessageSquare, History, X,
 } from 'lucide-react';
 
-const AI_CONSENT_VERSION = '2026-04-30-gemini-2.5-flash';
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Insight {
@@ -207,110 +205,6 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-// ── ConsentGate — shown before first AI use ───────────────────────────────────
-
-function ConsentGate({
-  onAccept,
-  onDecline,
-  saving,
-  error,
-}: {
-  onAccept: () => void;
-  onDecline: () => void;
-  saving: boolean;
-  error: string | null;
-}) {
-  return (
-    <div className="flex flex-col h-full max-w-3xl mx-auto w-full overflow-hidden">
-      <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
-        <Sparkles size={16} className="text-primary" />
-        <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
-        <span className="text-xs px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium hidden sm:inline" style={{ borderRadius: 'var(--radius)' }}>
-          Gemini 2.5
-        </span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-6" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-        <div className="max-w-lg mx-auto space-y-5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-              <Sparkles size={20} className="text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold tracking-tight">Before You Continue</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Review how AI Advisor uses your data</p>
-            </div>
-          </div>
-
-          <div className="bg-secondary/40 border border-border/50 p-4 space-y-3 text-xs text-muted-foreground leading-relaxed" style={{ borderRadius: 'var(--radius)' }}>
-            <p className="text-foreground font-medium text-sm">
-              AI Advisor uses Gemini 2.5 Flash by Google to generate personalized financial insights.
-            </p>
-            <ul className="space-y-2.5">
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0 mt-0.5">•</span>
-                <span>Your prompts, chat messages, and relevant financial context (income, expenses, debts, savings goals) are sent to Gemini to generate responses.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-amber-400 shrink-0 mt-0.5">•</span>
-                <span><strong className="text-foreground">AI responses may be inaccurate, incomplete, or outdated.</strong> They are not financial, legal, tax, or investment advice. You are responsible for all financial decisions you make.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0 mt-0.5">•</span>
-                <span>AI chat history may be saved to your account for continuity across sessions.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0 mt-0.5">•</span>
-                <span>TRE Forgenta LLC does not sell your personal data.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0 mt-0.5">•</span>
-                <span>You may delete your AI chat history from your account at any time.</span>
-              </li>
-              <li className="flex gap-2">
-                <span className="text-primary shrink-0 mt-0.5">•</span>
-                <span>AI Advisor is subject to daily and weekly usage limits to manage service costs.</span>
-              </li>
-            </ul>
-            <p className="pt-1 border-t border-border/30">
-              By clicking <strong className="text-foreground">I Agree</strong>, you confirm you have read and accept how AI Advisor processes your data as described in our{' '}
-              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>
-              {' '}and{' '}
-              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>.
-            </p>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 text-xs text-destructive">
-              <AlertTriangle size={12} className="shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div className="flex gap-3 pb-4">
-            <button
-              onClick={onDecline}
-              disabled={saving}
-              className="flex-1 px-4 py-2.5 text-xs font-medium border border-border text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors btn-press disabled:opacity-50"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Decline
-            </button>
-            <button
-              onClick={onAccept}
-              disabled={saving}
-              className="flex-1 px-4 py-2.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              {saving ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : 'I Agree'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ── HistoryDrawer — slide-in overlay from left ────────────────────────────────
 
 function HistoryDrawer({
@@ -418,11 +312,6 @@ export default function AiAdvisor() {
     [rawTxns, rules, accounts],
   );
 
-  // Consent gate state — checked against profiles on mount
-  const [consentStatus, setConsentStatus] = useState<'loading' | 'accepted' | 'pending' | 'declined'>('loading');
-  const [consentSaving, setConsentSaving] = useState(false);
-  const [consentError, setConsentError] = useState<string | null>(null);
-
   // View: 'new' = fresh chat, 'chat' = active conversation
   const [view, setView] = useState<'new' | 'chat'>('new');
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -514,9 +403,9 @@ export default function AiAdvisor() {
     return () => { wrapper.style.height = orig; };
   }, []);
 
-  // Load consent status, history, and today's usage count on mount
+  // Load history and today's authoritative usage count on mount
   useEffect(() => {
-    if (!user || isDemo) { setConsentStatus('accepted'); setHistoryLoaded(true); return; }
+    if (!user || isDemo) { setHistoryLoaded(true); return; }
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
     Promise.all([
@@ -531,12 +420,7 @@ export default function AiAdvisor() {
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .gte('created_at', todayStart.toISOString()),
-      (supabase as any)
-        .from('profiles')
-        .select('ai_consent_accepted, ai_consent_version')
-        .eq('user_id', user.id)
-        .maybeSingle(),
-    ]).then(([{ data }, { count }, { data: profile }]) => {
+    ]).then(([{ data }, { count }]) => {
       if (data && data.length > 0) {
         const convos: Conversation[] = data.map((entry: ChatEntry) => ({
           id: entry.id,
@@ -545,13 +429,9 @@ export default function AiAdvisor() {
           created_at: entry.created_at,
         }));
         setConversations(convos);
+        // Always open on a fresh new chat — history accessible via drawer
       }
       setUsedToday(count ?? 0);
-
-      const hasValidConsent =
-        profile?.ai_consent_accepted === true &&
-        profile?.ai_consent_version === AI_CONSENT_VERSION;
-      setConsentStatus(hasValidConsent ? 'accepted' : 'pending');
       setHistoryLoaded(true);
     });
   }, [user, isDemo]);
@@ -582,27 +462,6 @@ export default function AiAdvisor() {
     setTimeout(() => inputRef.current?.focus(), 150);
   };
 
-  const handleConsentAccept = async () => {
-    setConsentSaving(true);
-    setConsentError(null);
-    const { error } = await (supabase as any)
-      .from('profiles')
-      .update({
-        ai_consent_accepted: true,
-        ai_consent_accepted_at: new Date().toISOString(),
-        ai_consent_version: AI_CONSENT_VERSION,
-      })
-      .eq('user_id', user!.id);
-    if (error) {
-      setConsentError('Failed to save consent. Please try again.');
-    } else {
-      setConsentStatus('accepted');
-    }
-    setConsentSaving(false);
-  };
-
-  const handleConsentDecline = () => setConsentStatus('declined');
-
   const handleAsk = async (q?: string) => {
     const finalQ = (q ?? question).trim();
 
@@ -631,10 +490,6 @@ export default function AiAdvisor() {
         let errMsg = 'AI request failed. Please try again.';
         try {
           const ctx = await (fnErr as any)?.context?.json?.();
-          if (ctx?.error === 'ai_consent_required') {
-            setConsentStatus('pending');
-            return;
-          }
           if (ctx?.error) errMsg = ctx.error;
           if (ctx?.usage) {
             setUsedToday(ctx.usage.used_today);
@@ -759,62 +614,6 @@ export default function AiAdvisor() {
             </div>
           </div>
         </PremiumGate>
-      </div>
-    );
-  }
-
-  // ── Consent gate ─────────────────────────────────────────────────────────────
-
-  if (consentStatus === 'loading') {
-    return (
-      <div className="flex flex-col h-full max-w-3xl mx-auto w-full overflow-hidden">
-        <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
-          <Sparkles size={16} className="text-primary" />
-          <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
-        </div>
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 size={20} className="animate-spin text-muted-foreground" />
-        </div>
-      </div>
-    );
-  }
-
-  if (consentStatus === 'pending') {
-    return (
-      <ConsentGate
-        onAccept={handleConsentAccept}
-        onDecline={handleConsentDecline}
-        saving={consentSaving}
-        error={consentError}
-      />
-    );
-  }
-
-  if (consentStatus === 'declined') {
-    return (
-      <div className="flex flex-col h-full max-w-3xl mx-auto w-full overflow-hidden">
-        <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
-          <Sparkles size={16} className="text-primary" />
-          <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
-        </div>
-        <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center px-6">
-          <div className="w-12 h-12 rounded-xl bg-border/40 border border-border/60 flex items-center justify-center">
-            <Sparkles size={22} className="text-muted-foreground" />
-          </div>
-          <div className="space-y-2 max-w-xs">
-            <p className="text-sm font-semibold">AI Advisor Requires Your Consent</p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              No financial data is sent to AI services until you accept the AI data terms.
-            </p>
-          </div>
-          <button
-            onClick={() => { setConsentError(null); setConsentStatus('pending'); }}
-            className="px-5 py-2.5 bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors btn-press"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            Review &amp; Accept
-          </button>
-        </div>
       </div>
     );
   }
