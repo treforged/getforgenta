@@ -20,9 +20,9 @@ import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 bg-background/80 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-background/80 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
   <div
-    className="card-forged p-4 sm:p-6 w-full max-w-sm sm:max-w-md space-y-3 max-h-[75vh] overflow-y-auto"
+    className="card-forged p-4 sm:p-6 w-full sm:max-w-md mx-2 sm:mx-0 space-y-3 max-h-[65vh] sm:max-h-[85vh] overflow-y-auto rounded-b-none sm:rounded-b-[var(--radius)]"
     onClick={e => e.stopPropagation()}
   >
         <div className="flex items-center justify-between gap-2">
@@ -283,6 +283,32 @@ export default function Forecast() {
       cardPurchasesPerMonth.push(cardPurchases);
     }
 
+    const monthlySavingsContribCC = goals.reduce((s: number, g: any) => s + Number(g.monthly_contribution), 0);
+    const monthlyCarContribCC = carFunds.reduce((s: number, c: any) => {
+      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
+      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
+    }, 0);
+
+    const transferRulesCC = rules.filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
+    const nowCC = new Date();
+    const adjustedMonthEvents = forecastMonthEvents.map((me, i) => {
+      const d = new Date(nowCC.getFullYear(), nowCC.getMonth() + i, 1);
+      let monthTransfersCC = 0;
+      for (const tr of transferRulesCC) {
+        if (tr.start_date && new Date(tr.start_date) > d) continue;
+        if (tr.end_date && new Date(tr.end_date) < d) continue;
+        const amt = Number(tr.amount);
+        let monthAmt = amt;
+        if (tr.frequency === 'weekly') monthAmt = amt * 4.33;
+        else if (tr.frequency === 'yearly') monthAmt = amt / 12;
+        monthTransfersCC += monthAmt;
+      }
+      return {
+        income: me.income,
+        expenses: me.expenses + monthlySavingsContribCC + monthlyCarContribCC + monthTransfersCC,
+      };
+    });
+
     const ccSourceIds = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
     const oneTimeArr: { income: number; expenses: number }[] = [{ income: 0, expenses: 0 }];
 
@@ -322,7 +348,7 @@ export default function Forecast() {
         monthlyTakeHome,
         monthlyExpenses,
         36,
-        forecastMonthEvents,
+        adjustedMonthEvents,
         undefined,
         cardPurchasesPerMonth,
         m0Income,
@@ -399,6 +425,8 @@ export default function Forecast() {
   scheduledEvents,
   pauseSavings,
   forecastMonthEvents,
+  goals,
+  carFunds,
 ]);
 
   // One-time manual transactions for forecast.
