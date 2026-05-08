@@ -5,11 +5,9 @@ import { Capacitor } from '@capacitor/core';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { useEffect } from 'react';
 import { App as CapApp } from '@capacitor/app';
-import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import CookieBanner from "@/components/shared/CookieBanner";
@@ -33,7 +31,6 @@ const Legal = lazy(() => import("@/pages/Legal"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const AiAdvisor = lazy(() => import("@/pages/AiAdvisor"));
 const PlaidOAuth = lazy(() => import("@/pages/PlaidOAuth"));
-const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,8 +57,7 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.ReactNode; skipOnboardingCheck?: boolean }) {
-  const { user, loading } = useAuth();
-  const { isDemo } = useDemo();
+  const { user, loading, isDemo } = useAuth();
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-sm text-muted-foreground animate-pulse">Authenticating…</span></div>;
   if (!user && !isDemo) return <Navigate to="/auth" replace />;
   if (!skipOnboardingCheck && user && !isDemo) {
@@ -101,7 +97,6 @@ function AppRoutes() {
           <Suspense fallback={<PageLoader />}><PlaidOAuth /></Suspense>
         </ProtectedRoute>
       } />
-      <Route path="/auth-callback" element={<Suspense fallback={<PageLoader />}><AuthCallback /></Suspense>} />
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/refund" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
@@ -128,9 +123,6 @@ function DeepLinkHandler() {
 
         // OAuth callback from Google / Apple
         if (host === 'auth-callback' || path.includes('auth-callback')) {
-          // Dismiss the SFSafariViewController / in-app browser sheet
-          Browser.close().catch(() => {});
-
           const code = incoming.searchParams.get('code');
 
           // PKCE flow
@@ -200,7 +192,6 @@ const App = () => (
       <Sonner />
       {Capacitor.isNativePlatform() ? (
         <MemoryRouter initialEntries={['/auth']}>
-          <DemoProvider>
           <AuthProvider>
             <SubscriptionProvider>
               <DeepLinkHandler />
@@ -208,11 +199,9 @@ const App = () => (
               <CookieBanner />
             </SubscriptionProvider>
           </AuthProvider>
-          </DemoProvider>
         </MemoryRouter>
       ) : (
         <BrowserRouter>
-          <DemoProvider>
           <AuthProvider>
             <SubscriptionProvider>
               <DeepLinkHandler />
@@ -220,7 +209,6 @@ const App = () => (
               <CookieBanner />
             </SubscriptionProvider>
           </AuthProvider>
-          </DemoProvider>
         </BrowserRouter>
       )}
     </TooltipProvider>

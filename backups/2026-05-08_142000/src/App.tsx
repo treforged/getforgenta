@@ -33,7 +33,6 @@ const Legal = lazy(() => import("@/pages/Legal"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const AiAdvisor = lazy(() => import("@/pages/AiAdvisor"));
 const PlaidOAuth = lazy(() => import("@/pages/PlaidOAuth"));
-const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -101,7 +100,6 @@ function AppRoutes() {
           <Suspense fallback={<PageLoader />}><PlaidOAuth /></Suspense>
         </ProtectedRoute>
       } />
-      <Route path="/auth-callback" element={<Suspense fallback={<PageLoader />}><AuthCallback /></Suspense>} />
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/refund" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
