@@ -2,10 +2,10 @@ import { Outlet, Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import DemoBanner from '@/components/shared/DemoBanner';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 
 export default function DashboardLayout() {
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />

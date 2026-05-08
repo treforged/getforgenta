@@ -7,7 +7,7 @@ import FormModal from '@/components/shared/FormModal';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Crown } from 'lucide-react';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
@@ -20,7 +20,7 @@ export default function DebtPayoff() {
   const { data: rules } = useRecurringRules();
   const { data: profile } = useProfile();
   const { isPremium } = useSubscription();
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
 
   const [pauseSavings, setPauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const [showForm, setShowForm] = useState(false);

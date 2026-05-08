@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 
@@ -27,7 +28,8 @@ const SECONDARY = [
 
 export default function MobileNav() {
   const { pathname } = useLocation();
-  const { signOut, isDemo } = useAuth();
+  const { signOut } = useAuth();
+  const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const [showMore, setShowMore] = useState(false);
 

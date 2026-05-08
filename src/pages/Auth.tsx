@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 
 import ForgentaLogo from '@/components/shared/ForgentaLogo';
 
@@ -60,7 +60,7 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('landing');
-  const { setIsDemo } = useAuth();
+  const { setIsDemo } = useDemo();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 
 /**
  * Shows a prominent reminder at the start of each month (1st-7th) 
  * to update account balances for accurate budgeting.
  */
 export default function AccountUpdateReminder() {
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
   const [dismissed, setDismissed] = useState(false);
   const [shouldShow, setShouldShow] = useState(false);
 

@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useAccounts, useDebts, useAccountReconciliations } from '@/hooks/useSupabaseData';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { Link } from 'react-router-dom';
@@ -83,7 +83,7 @@ const emptyForm = { name: '', account_type: 'checking', institution: '', balance
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 export default function Accounts() {
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: accounts, add, update, remove, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();

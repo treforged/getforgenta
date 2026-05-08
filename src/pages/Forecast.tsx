@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -64,7 +64,7 @@ function ForecastTooltip({ active, payload, label }: any) {
 }
 
 export default function Forecast() {
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: debts } = useDebts();
   const { data: goals } = useSavingsGoals();

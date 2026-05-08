@@ -16,7 +16,7 @@ import { useDebts, useAccounts, useProfile, useRecurringRules } from '@/hooks/us
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import PremiumGate from '@/components/shared/PremiumGate';
 
 type Props = {
@@ -43,7 +43,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const { update: updateProfile } = useProfile();
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const { isPremium } = useSubscription();
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
   const [strategy, setStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
   const [paymentMode, setPaymentMode] = usePersistedState<'variable' | 'consistent'>('tre:debt:paymentMode', 'variable');
   const [cashFloor, setCashFloorLocal] = useState(() => Number(profile?.cash_floor) ?? 500);

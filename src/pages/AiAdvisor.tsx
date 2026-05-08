@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useTransactions, useDebts, useSavingsGoals, useAccounts, useRecurringRules } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions } from '@/lib/pay-schedule';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -513,7 +514,8 @@ function HistoryDrawer({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AiAdvisor() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: rawTxns = [] } = useTransactions();
   const { data: rules = [] }   = useRecurringRules();

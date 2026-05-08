@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { initRevenueCat, logOutRevenueCat } from '@/lib/purchases';
+import { useDemo } from '@/contexts/DemoContext';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;    // 10 minutes
 const IDLE_WARNING_MS =  8 * 60 * 1000;    // warn at 8 minutes
@@ -15,16 +16,12 @@ const REVIEWER_EMAIL = 'reviewer@getforgenta.com';
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  isDemo: boolean;
-  setIsDemo: (v: boolean) => void;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
-  isDemo: false,
-  setIsDemo: () => {},
   signOut: async () => {},
 });
 
@@ -33,7 +30,7 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDemo, setIsDemo] = useState(false);
+  const { isDemo, setIsDemo } = useDemo();
   const initialized = useRef(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -230,7 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user, isDemo, resetActivity, getIdleMs, signOutWithBroadcast]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, isDemo, setIsDemo, signOut: signOutWithBroadcast }}>
+    <AuthContext.Provider value={{ user, loading, signOut: signOutWithBroadcast }}>
       {children}
     </AuthContext.Provider>
   );

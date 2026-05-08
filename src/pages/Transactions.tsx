@@ -13,7 +13,7 @@ import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES];
@@ -21,7 +21,7 @@ const ALL_CATEGORIES = ['Income', ...CATEGORIES];
 const emptyForm = { date: new Date().toISOString().split('T')[0], type: 'expense', amount: '', category: 'Other', account: 'Checking', note: '', payment_source: '' };
 
 export default function Transactions() {
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: transactions, add, update, remove } = useTransactions();
   const { data: accounts } = useAccounts();

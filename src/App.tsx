@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { useEffect } from 'react';
 import { App as CapApp } from '@capacitor/app';
@@ -57,7 +58,8 @@ function PageLoader() {
 }
 
 function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.ReactNode; skipOnboardingCheck?: boolean }) {
-  const { user, loading, isDemo } = useAuth();
+  const { user, loading } = useAuth();
+  const { isDemo } = useDemo();
   if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-sm text-muted-foreground animate-pulse">Authenticating…</span></div>;
   if (!user && !isDemo) return <Navigate to="/auth" replace />;
   if (!skipOnboardingCheck && user && !isDemo) {
@@ -192,6 +194,7 @@ const App = () => (
       <Sonner />
       {Capacitor.isNativePlatform() ? (
         <MemoryRouter initialEntries={['/auth']}>
+          <DemoProvider>
           <AuthProvider>
             <SubscriptionProvider>
               <DeepLinkHandler />
@@ -199,9 +202,11 @@ const App = () => (
               <CookieBanner />
             </SubscriptionProvider>
           </AuthProvider>
+          </DemoProvider>
         </MemoryRouter>
       ) : (
         <BrowserRouter>
+          <DemoProvider>
           <AuthProvider>
             <SubscriptionProvider>
               <DeepLinkHandler />
@@ -209,6 +214,7 @@ const App = () => (
               <CookieBanner />
             </SubscriptionProvider>
           </AuthProvider>
+          </DemoProvider>
         </BrowserRouter>
       )}
     </TooltipProvider>

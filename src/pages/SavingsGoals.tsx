@@ -6,7 +6,7 @@ import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfil
 import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown } from 'lucide-react';
 import * as DebtEngine from '@/lib/credit-card-engine';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
@@ -75,7 +75,7 @@ export default function SavingsGoals() {
   const { data: txns } = useTransactions();
   const { data: debts } = useDebts();
   const { isPremium } = useSubscription();
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);

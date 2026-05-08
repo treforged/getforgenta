@@ -2,6 +2,7 @@ import React, { createContext, useContext } from 'react';
 import { useQuery, type QueryObserverResult } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 
 export type UserSubscription = {
   stripe_customer_id: string | null;
@@ -32,7 +33,8 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
 });
 
 export function SubscriptionProvider({ children }: { children: React.ReactNode }) {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
 
   const query = useQuery({
     queryKey: ['user_subscription', isDemo ? 'demo' : user?.id],

@@ -7,6 +7,7 @@ import FormModal from '@/components/shared/FormModal';
 import { toast } from 'sonner';
 import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
@@ -124,7 +125,8 @@ function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: (
 }
 
 export default function BudgetControl() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: profile, update: updateProfile } = useProfile();
   const { data: accounts } = useAccounts();

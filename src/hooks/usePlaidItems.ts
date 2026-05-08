@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 
@@ -36,7 +37,8 @@ export interface PlaidItem {
 }
 
 export function usePlaidItems() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const [syncing, setSyncing] = useState(false);
 

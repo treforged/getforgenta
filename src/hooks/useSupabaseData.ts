@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { toast } from 'sonner';
 import { sanitizePayload } from '@/lib/sanitize';
 import {
@@ -26,7 +27,8 @@ const demoAccounts = [
 
 
 export function useAccounts() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['accounts', isDemo ? 'demo' : user?.id],
@@ -100,7 +102,8 @@ const demoRecurringRules = [
 ];
 
 export function useRecurringRules() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['recurring_rules', isDemo ? 'demo' : user?.id],
@@ -144,7 +147,8 @@ export function useRecurringRules() {
 
 // ─── Assets ───────────────────────────────────────────────
 export function useAssets() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['assets', isDemo ? 'demo' : user?.id],
@@ -188,7 +192,8 @@ export function useAssets() {
 
 // ─── Liabilities ──────────────────────────────────────────
 export function useLiabilities() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['liabilities', isDemo ? 'demo' : user?.id],
@@ -232,7 +237,8 @@ export function useLiabilities() {
 
 // ─── Debts ────────────────────────────────────────────────
 export function useDebts() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['debts', isDemo ? 'demo' : user?.id],
@@ -276,7 +282,8 @@ export function useDebts() {
 
 // ─── Account Reconciliations ──────────────────────────────
 export function useAccountReconciliations() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['account_reconciliations', isDemo ? 'demo' : user?.id],
@@ -309,7 +316,8 @@ export function useAccountReconciliations() {
 
 // ─── Savings Goals ────────────────────────────────────────
 export function useSavingsGoals() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['savings_goals', isDemo ? 'demo' : user?.id],
@@ -353,7 +361,8 @@ export function useSavingsGoals() {
 
 // ─── Car Funds ────────────────────────────────────────────
 export function useCarFunds() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['car_funds', isDemo ? 'demo' : user?.id],
@@ -397,7 +406,8 @@ export function useCarFunds() {
 
 // ─── Transactions ─────────────────────────────────────────
 export function useTransactions() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['transactions', isDemo ? 'demo' : user?.id],
@@ -450,7 +460,8 @@ const demoSubs = [
 ];
 
 export function useSubscriptions() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['subscriptions', isDemo ? 'demo' : user?.id],
@@ -507,7 +518,8 @@ const demoBudgetItems = [
 ];
 
 export function useBudgetItems() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['budget_items', isDemo ? 'demo' : user?.id],
@@ -569,7 +581,8 @@ const DEFAULT_PROFILE = {
 };
 
 export function useProfile() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
   const query = useQuery({
     queryKey: ['profile', isDemo ? 'demo' : user?.id],
@@ -614,7 +627,8 @@ export function useProfile() {
 
 // ─── Net Worth Snapshots ──────────────────────────────────
 export function useNetWorthSnapshots() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const qc = useQueryClient();
 
   const query = useQuery({

@@ -4,6 +4,7 @@ import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useAccounts, useAssets, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import MetricCard from '@/components/shared/MetricCard';
 import PremiumGate from '@/components/shared/PremiumGate';
@@ -56,7 +57,8 @@ const emptyAssetForm = { name: '', type: 'Checking', value: '', notes: '' };
 const emptyLiabilityForm = { name: '', type: 'Credit Card', balance: '', apr: '', notes: '' };
 
 export default function NetWorth() {
-  const { isDemo, user } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: accounts } = useAccounts();
   const { data: profile } = useProfile();

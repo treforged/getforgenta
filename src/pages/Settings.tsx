@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Link } from 'react-router-dom';
@@ -95,7 +96,8 @@ function PaymentUpdateForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
 }
 
 export default function SettingsPage() {
-  const { user, isDemo } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const { data: profile, loading, update } = useProfile();
   const { data: accounts } = useAccounts();
   const { subscription, isPremium, hasStripeCustomer, isLoading: subLoading, refetch: refetchSub } = useSubscription();

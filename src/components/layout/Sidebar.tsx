@@ -5,6 +5,7 @@ import {
   Sliders, TrendingUp, Building2, Home, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -25,7 +26,8 @@ const navItems = [
 
 export default function Sidebar() {
   const { pathname } = useLocation();
-  const { signOut, isDemo } = useAuth();
+  const { signOut } = useAuth();
+  const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const [collapsed, setCollapsed] = useState(false);
 

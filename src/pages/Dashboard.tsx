@@ -49,6 +49,7 @@ import {
 import { exportDashboardPdf } from '@/lib/exportPdf';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -165,7 +166,8 @@ function ClickableMetric({
 }
 
 export default function Dashboard() {
-  const { isDemo, user } = useAuth();
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
   const isReviewer = user?.email === 'reviewer@getforgenta.com';
   const { isPremium } = useSubscription();
   const navigate = useNavigate();

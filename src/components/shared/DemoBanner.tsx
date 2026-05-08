@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 
 const routeDescriptions: Record<string, string> = {
   '/dashboard':    'Overview of all accounts, cash flow, and net worth in one place',
@@ -14,7 +14,7 @@ const routeDescriptions: Record<string, string> = {
 };
 
 export default function DemoBanner() {
-  const { isDemo } = useAuth();
+  const { isDemo } = useDemo();
   const { pathname } = useLocation();
   if (!isDemo) return null;
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, useMotionValue, useSpring, type Variants } from 'framer-motion';
-import { useAuth } from '@/contexts/AuthContext';
+import { useDemo } from '@/contexts/DemoContext';
 import { ArrowRight, BarChart3, Shield, Target, Wallet, Car, Crown, TrendingUp, Lock, Zap } from 'lucide-react';
 
 const fadeUp: Variants = {
@@ -62,7 +62,7 @@ function AnimatedCounter({ target, suffix }: { target: number; suffix: string })
 }
 
 export default function Landing() {
-  const { setIsDemo } = useAuth();
+  const { setIsDemo } = useDemo();
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
