@@ -1,8 +1,19 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { useQuery, type QueryObserverResult } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
+
+function readCachedPremium(userId: string): boolean | null {
+  try {
+    const v = sessionStorage.getItem(`forge_prem_${userId}`);
+    return v === null ? null : v === '1';
+  } catch { return null; }
+}
+
+function writeCachedPremium(userId: string, v: boolean) {
+  try { sessionStorage.setItem(`forge_prem_${userId}`, v ? '1' : '0'); } catch {}
+}
 
 export type UserSubscription = {
   stripe_customer_id: string | null;
@@ -51,10 +62,24 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     },
   });
 
+  const resolvedIsPremium =
+    !isDemo &&
+    query.data?.plan === 'premium' &&
+    ['active', 'trialing'].includes(query.data?.subscription_status || '');
+
+  // Use sessionStorage cached value during initial load to prevent flash
+  const cachedIsPremium = user ? readCachedPremium(user.id) : null;
   const isPremium = isDemo
     ? false
-    : query.data?.plan === 'premium' &&
-      ['active', 'trialing'].includes(query.data?.subscription_status || '');
+    : query.isLoading && cachedIsPremium !== null
+      ? cachedIsPremium
+      : resolvedIsPremium;
+
+  useEffect(() => {
+    if (!isDemo && !query.isLoading && user) {
+      writeCachedPremium(user.id, resolvedIsPremium);
+    }
+  }, [resolvedIsPremium, query.isLoading, isDemo, user]);
 
   return (
     <SubscriptionContext.Provider value={{

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { X, Info } from 'lucide-react';
+import { X, Info, Check, Loader2 } from 'lucide-react';
 
 type Field = {
   key: string;
@@ -86,9 +86,10 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
           <button
             onClick={onSave}
             disabled={saving}
-            className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press disabled:opacity-50"
+            className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
             style={{ borderRadius: 'var(--radius)' }}
           >
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
             {saving ? 'Saving...' : saveLabel}
           </button>
         </div>
