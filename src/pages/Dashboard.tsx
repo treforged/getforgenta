@@ -367,7 +367,7 @@ export default function Dashboard() {
     }, 0);
 
     const cashFlow = income - expenses - totalDebtPayments;
-    const savingsRate = income > 0 ? ((income - expenses) / income) * 100 : 0;
+    const savingsRate = income > 0 ? (cashFlow / income) * 100 : 0;
     const carSaved = carFunds[0] ? Number(carFunds[0].current_saved || 0) : 0;
     const carGoal = carFunds[0] ? Number(carFunds[0].down_payment_goal || 1) : 1;
 
@@ -847,7 +847,7 @@ export default function Dashboard() {
           <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} sub={`${formatCurrency(accountSummary.totalAssets, false)} assets`} />
         </ClickableMetric>
         <ClickableMetric to="/budget" tooltip="Savings rate = (income - expenses) / income">
-          <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent="gold" icon={Percent} sub={summary.income > 0 ? `${formatCurrency(summary.income - summary.expenses, false)} / mo` : '—'} />
+          <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent={summary.savingsRate >= 0 ? 'gold' : 'crimson'} icon={Percent} sub={summary.income > 0 ? `${formatCurrency(summary.cashFlow, false)} net / mo` : '—'} />
         </ClickableMetric>
         <ClickableMetric to="/debt" tooltip="Credit card balances / total limits">
           <MetricCard
