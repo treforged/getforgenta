@@ -544,7 +544,7 @@ export default function Legal() {
   const isRefund = pathname === '/refund';
 
   return (
-    <div className="h-screen overflow-y-auto bg-background">
+    <div id="scroll-legal" className="h-screen overflow-y-auto bg-background">
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4 flex items-center gap-6">
         <button
