@@ -230,21 +230,20 @@ Deno.serve(async (req) => {
         // Select-then-update-or-insert to avoid partial index conflict issue with PostgREST
         const { data: existing } = await supabase
           .from("accounts")
-          .select("id, apr, credit_limit")
+          .select("id, apr")
           .eq("user_id", userId)
           .eq("plaid_account_id", acct.account_id)
           .maybeSingle();
 
         let opErr;
         if (existing) {
-          // Preserve user-set APR and credit_limit if Plaid doesn't return them
+          // Preserve user-set APR if Plaid name doesn't contain one
           const effectiveApr = apr ?? (existing as any).apr ?? null;
-          const effectiveCreditLimit = creditLimit ?? (existing as any).credit_limit ?? null;
           const { error } = await supabase
             .from("accounts")
             .update({
               balance,
-              credit_limit: effectiveCreditLimit,
+              credit_limit: creditLimit,
               name,
               institution: item.institution_name ?? "",
               account_type: accountType,

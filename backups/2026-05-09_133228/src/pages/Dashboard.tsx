@@ -844,10 +844,10 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <ClickableMetric onClick={openNetWorthCalc} tooltip="How net worth is calculated">
-          <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} sub={`${formatCurrency(accountSummary.totalAssets, false)} assets`} />
+          <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} />
         </ClickableMetric>
         <ClickableMetric to="/budget" tooltip="Savings rate = (income - expenses) / income">
-          <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent="gold" icon={Percent} sub={summary.income > 0 ? `${formatCurrency(summary.income - summary.expenses, false)} / mo` : '—'} />
+          <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent="gold" icon={Percent} />
         </ClickableMetric>
         <ClickableMetric to="/debt" tooltip="Credit card balances / total limits">
           <MetricCard

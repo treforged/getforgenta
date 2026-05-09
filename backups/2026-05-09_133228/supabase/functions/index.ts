@@ -118,17 +118,16 @@ Deno.serve(async (req) => {
 
         const { data: existing } = await supabase
           .from("accounts")
-          .select("id, apr, credit_limit")
+          .select("id, apr")
           .eq("user_id", item.user_id)
           .eq("plaid_account_id", acct.account_id)
           .maybeSingle();
 
         if (existing) {
           const effectiveApr = apr ?? (existing as any).apr ?? null;
-          const effectiveCreditLimit = creditLimit ?? (existing as any).credit_limit ?? null;
           await supabase.from("accounts").update({
             balance,
-            credit_limit: effectiveCreditLimit,
+            credit_limit: creditLimit,
             name,
             institution: item.institution_name ?? "",
             account_type: accountType,
