@@ -743,10 +743,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-3 sm:mb-4">
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase flex items-center justify-center gap-1">Est. Liquid Cash <Info size={9} className="shrink-0" /></p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Est. Liquid Cash</p>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <p className="text-xs sm:text-sm font-display font-bold text-foreground cursor-help underline decoration-dotted underline-offset-2 decoration-muted-foreground/40">{formatCurrency(estLiquidCash, false)}</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-foreground cursor-help">{formatCurrency(estLiquidCash, false)}</p>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[360px] text-xs">
                   {(() => {
@@ -800,24 +800,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           <span>= Est. Liquid Cash</span>
                           <span>{formatCurrency(estLiquidCash, false)}</span>
                         </div>
-                        {(() => {
-                          const activeCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
-                          const uniqueDueDays = new Set(activeCards.map(c => c.dueDay || 31));
-                          if (activeCards.length > 1 && uniqueDueDays.size > 1) {
-                            return (
-                              <div className="mb-2 space-y-0.5">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Cash available by each card's due date</p>
-                                {activeCards.map(c => (
-                                  <div key={c.id} className="flex justify-between gap-2">
-                                    <span className="text-muted-foreground">{c.name} (due {c.dueDay || 31}th)</span>
-                                    <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
-                                  </div>
-                                ))}
+                        {cards.filter(c => !c.autopayFullBalance && c.balance > 0).length > 1 && (
+                          <div className="mb-2 space-y-0.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Per card (by due date)</p>
+                            {cards.filter(c => !c.autopayFullBalance && c.balance > 0).map(c => (
+                              <div key={c.id} className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">{c.name} (due {c.dueDay || 31})</span>
+                                <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
                               </div>
-                            );
-                          }
-                          return null;
-                        })()}
+                            ))}
+                          </div>
+                        )}
                         {hasProjected && <p className="text-muted-foreground text-[10px]">* Projected from your recurring rules — not yet a real transaction.</p>}
                         {hasTodayItems && <p className="text-muted-foreground text-[10px] mt-0.5">Items dated today may already be reflected in your balance.</p>}
                       </>
@@ -831,10 +824,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(recommendedSafeMinimum, false)}</p>
             </div>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground flex items-center justify-center gap-1">Safe to Pay <Info size={9} className="shrink-0" /></p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <p className="text-xs sm:text-sm font-display font-bold text-primary cursor-help underline decoration-dotted underline-offset-2 decoration-primary/40">{formatCurrency(recommendations.totalAvailableCash, false)}</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-primary cursor-help">{formatCurrency(recommendations.totalAvailableCash, false)}</p>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" className="max-w-[320px] text-xs">
                   <p className="font-semibold mb-1">Safe to Pay (today → due date {primaryDueDay}th):</p>
