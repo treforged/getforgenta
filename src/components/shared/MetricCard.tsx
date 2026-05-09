@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, BarChart2 } from 'lucide-react';
 
 type MetricCardProps = {
   label: string;
@@ -8,6 +8,7 @@ type MetricCardProps = {
   accent?: 'gold' | 'silver' | 'crimson' | 'success' | 'orange';
   className?: string;
   icon?: LucideIcon;
+  clickHint?: boolean;
 };
 
 export default function MetricCard({
@@ -17,6 +18,7 @@ export default function MetricCard({
   accent = 'silver',
   className,
   icon: Icon,
+  clickHint,
 }: MetricCardProps) {
   const colorMap = {
     gold: 'text-primary',
@@ -69,6 +71,13 @@ export default function MetricCard({
             <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-snug">
               {sub}
             </p>
+          )}
+
+          {clickHint && (
+            <div className="flex items-center gap-1 mt-2 text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+              <BarChart2 size={10} />
+              <span className="text-[9px] uppercase tracking-wider">breakdown</span>
+            </div>
           )}
         </div>
 

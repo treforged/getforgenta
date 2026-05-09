@@ -618,16 +618,22 @@ export default function BudgetControl() {
   };
 
   // Calc detail openers
-  const openCashCalc = () => setCalcDrawer({
-    title: 'Remaining Cash On Hand',
-    lines: [
-      { label: `Funding Account Balance${fundingAccount ? ` (${fundingAccount.name})` : ''}`, value: formatCurrency(fundingAccountBalance, false) },
-      { label: 'Remaining Income (from Transactions)', value: formatCurrency(remainingTxIncome, false), op: '+' },
-      { label: 'Remaining Expenses (from Transactions)', value: formatCurrency(remainingTxExpenses, false), op: '−' },
-      { label: 'Remaining Debt Payments (from Transactions)', value: formatCurrency(remainingTxDebt, false), op: '−' },
-      { label: 'Remaining Cash On Hand', value: formatCurrency(remainingCashOnHand, false), op: '=' },
-    ],
-  });
+  const openCashCalc = () => {
+    const now2 = new Date();
+    const monthEnd = new Date(now2.getFullYear(), now2.getMonth() + 1, 0);
+    const monthEndLabel = monthEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    setCalcDrawer({
+      title: `Remaining Cash On Hand (today → ${monthEndLabel})`,
+      lines: [
+        { label: `Funding Account Balance${fundingAccount ? ` (${fundingAccount.name})` : ''}`, value: formatCurrency(fundingAccountBalance, false) },
+        { label: `Remaining Income (today → ${monthEndLabel})`, value: formatCurrency(remainingTxIncome, false), op: '+' },
+        { label: `Remaining Expenses (today → ${monthEndLabel})`, value: formatCurrency(remainingTxExpenses, false), op: '−' },
+        { label: `Debt Payments recorded this month (today → ${monthEndLabel})`, value: formatCurrency(remainingTxDebt, false), op: '−' },
+        { label: 'Remaining Cash On Hand', value: formatCurrency(remainingCashOnHand, false), op: '=' },
+        ...(remainingTxDebt === 0 ? [{ label: 'Note: debt payments due on the 1st fall outside this window and appear in next month\'s view', value: '' }] : []),
+      ],
+    });
+  };
 
   const openFixedCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = fixedRules
@@ -858,9 +864,11 @@ export default function BudgetControl() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <button
               onClick={() => setDeductionsCollapsed(c => !c)}
-              className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
             >
-              {deductionsCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+              <span className={`flex items-center justify-center w-5 h-5 rounded bg-secondary border border-border transition-colors ${!deductionsCollapsed ? 'border-primary/30 text-primary' : ''}`}>
+                {deductionsCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+              </span>
               Paycheck Deductions
             </button>
             <button
@@ -1094,22 +1102,22 @@ export default function BudgetControl() {
       {/* KPI Summary + Remaining Cash On Hand */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="cursor-pointer" onClick={openIncomeCalc}>
-          <MetricCard label="Monthly Take-Home" value={formatCurrency(monthlyTakeHome, false)} accent="success" icon={DollarSign} />
+          <MetricCard label="Monthly Take-Home" value={formatCurrency(monthlyTakeHome, false)} accent="success" icon={DollarSign} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openFixedCalc}>
-          <MetricCard label="Fixed Expenses" value={formatCurrency(totalFixedExpenses, false)} accent="crimson" icon={TrendingDown} />
+          <MetricCard label="Fixed Expenses" value={formatCurrency(totalFixedExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openVariableCalc}>
-          <MetricCard label="Variable" value={formatCurrency(totalVariableExpenses, false)} accent="gold" icon={TrendingDown} />
+          <MetricCard label="Variable" value={formatCurrency(totalVariableExpenses, false)} accent="gold" icon={TrendingDown} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openDebtCalc}>
-          <MetricCard label="Debt Payments" value={formatCurrency(totalDebtPayments, false)} accent="crimson" icon={CreditCard} />
+          <MetricCard label="Debt Payments" value={formatCurrency(totalDebtPayments, false)} accent="crimson" icon={CreditCard} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openTransferCalc}>
-          <MetricCard label="Transfers" value={formatCurrency(totalTransfers, false)} accent="gold" icon={ArrowLeftRight} />
+          <MetricCard label="Transfers" value={formatCurrency(totalTransfers, false)} accent="gold" icon={ArrowLeftRight} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openProjectedCalc}>
-          <MetricCard label="Projected Remaining" value={formatCurrency(remaining, false)} accent={remaining >= 0 ? 'success' : 'crimson'} icon={PiggyBank} />
+          <MetricCard label="Projected Remaining" value={formatCurrency(remaining, false)} accent={remaining >= 0 ? 'success' : 'crimson'} icon={PiggyBank} clickHint />
         </div>
       </div>
 
@@ -1123,7 +1131,7 @@ export default function BudgetControl() {
               <Info size={10} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </div>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              Funding balance + remaining income − expenses − debt payments
+              Today → {new Date(now.getFullYear(), now.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · Funding balance + income − expenses − debt payments
               {fundingAccount && <span className="font-medium"> · {fundingAccount.name}</span>}
             </p>
           </div>
