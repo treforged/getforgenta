@@ -157,7 +157,7 @@ function ClickableMetric({
       title={tooltip}
     >
       {children}
-      <div className="absolute top-2 right-2 opacity-30 group-hover:opacity-100 transition-opacity">
+      <div className="absolute bottom-2 right-2 opacity-30 group-hover:opacity-100 transition-opacity">
         <Info size={12} className="text-primary" />
       </div>
     </div>

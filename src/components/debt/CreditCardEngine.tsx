@@ -62,6 +62,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const [overrides, setOverrides] = useState<Record<string, Record<number, number>>>({});
   const [editingMonth, setEditingMonth] = useState<{ cardId: string; month: number } | null>(null);
   const [monthPayInput, setMonthPayInput] = useState('');
+  const [liquidCashOpen, setLiquidCashOpen] = useState(false);
+  const [safeToPayOpen, setSafeToPayOpen] = useState(false);
 
   // Auto-save cash floor to profile on change
   const cashFloorSaveTimer = useState<ReturnType<typeof setTimeout> | null>(null);
@@ -742,9 +744,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           )}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <Tooltip>
+            <Tooltip open={liquidCashOpen} onOpenChange={setLiquidCashOpen}>
               <TooltipTrigger asChild>
-                <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }}>
+                <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setLiquidCashOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Est. Liquid Cash</p>
                   <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(estLiquidCash, false)}</p>
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
@@ -831,9 +833,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe Minimum</p>
               <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(recommendedSafeMinimum, false)}</p>
             </div>
-            <Tooltip>
+            <Tooltip open={safeToPayOpen} onOpenChange={setSafeToPayOpen}>
               <TooltipTrigger asChild>
-                <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }}>
+                <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setSafeToPayOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
                   <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</p>
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />

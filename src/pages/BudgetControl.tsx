@@ -1122,13 +1122,13 @@ export default function BudgetControl() {
       </div>
 
       {/* Remaining Cash On Hand — prominent */}
-      <div className="card-forged p-4 sm:p-5 cursor-pointer hover:border-primary/20 transition-colors group" onClick={openCashCalc}>
+      <div className="relative card-forged p-4 sm:p-5 cursor-pointer hover:border-primary/20 transition-colors group" onClick={openCashCalc}>
+        <Info size={10} className="absolute bottom-2 right-2 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity" />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <Wallet size={14} className="text-primary shrink-0" />
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Remaining Cash On Hand</h3>
-              <Info size={10} className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </div>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
               Today → {new Date(now.getFullYear(), now.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · Funding balance + income − expenses − debt payments
