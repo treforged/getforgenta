@@ -546,55 +546,49 @@ export default function Legal() {
   return (
     <div className="h-screen overflow-y-auto bg-background">
       {/* Top bar */}
-      <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4 flex items-center">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4 flex items-center gap-6">
         <button
           onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
         >
           <ArrowLeft size={12} /> Back
         </button>
+
+        {/* Desktop nav — locked in the top bar */}
+        <nav className="hidden sm:flex items-center gap-1">
+          <Link
+            to="/privacy"
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              isPrivacy ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            to="/terms"
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              !isPrivacy && !isRefund ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            Terms of Service
+          </Link>
+          <Link
+            to="/refund"
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              isRefund ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            Refund Policy
+          </Link>
+        </nav>
+
         <span className="font-display font-bold text-xs text-gold ml-auto tracking-tight">FORGENTA</span>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row gap-8">
-        {/* Sidebar — desktop */}
-        <aside className="hidden sm:block w-44 shrink-0 sticky top-[60px] self-start">
-          <nav className="space-y-1">
-            <Link
-              to="/privacy"
-              className={`block px-3 py-2 text-xs font-medium transition-colors ${
-                isPrivacy
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-              }`}
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Privacy Policy
-            </Link>
-            <Link
-              to="/terms"
-              className={`block px-3 py-2 text-xs font-medium transition-colors ${
-                !isPrivacy && !isRefund
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-              }`}
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Terms of Service
-            </Link>
-            <Link
-              to="/refund"
-              className={`block px-3 py-2 text-xs font-medium transition-colors ${
-                isRefund
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-              }`}
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Refund Policy
-            </Link>
-          </nav>
-        </aside>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col gap-8">
 
         {/* Tab switcher — mobile */}
         <div className="sm:hidden w-full mb-2">
