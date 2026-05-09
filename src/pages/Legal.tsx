@@ -558,8 +558,8 @@ export default function Legal() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row gap-8">
         {/* Sidebar — desktop */}
-        <aside className="hidden sm:block w-44 shrink-0">
-          <nav className="sticky top-[60px] space-y-1">
+        <aside className="hidden sm:block w-44 shrink-0 sticky top-[60px] self-start">
+          <nav className="space-y-1">
             <Link
               to="/privacy"
               className={`block px-3 py-2 text-xs font-medium transition-colors ${
