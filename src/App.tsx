@@ -1,6 +1,6 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Capacitor } from '@capacitor/core';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -71,9 +71,21 @@ function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.Rea
   return <>{children}</>;
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    document.getElementById('scroll-main')?.scrollTo(0, 0);
+    document.getElementById('scroll-legal')?.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 function AppRoutes() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<Auth />} />
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
@@ -109,6 +121,7 @@ function AppRoutes() {
       <Route path="/car-fund" element={<Navigate to="/savings" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </>
   );
 }
 
