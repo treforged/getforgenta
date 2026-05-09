@@ -1021,6 +1021,9 @@ export default function Auth() {
             Terms of Service
           </Link>
         </div>
+        <p className="text-[10px] text-muted-foreground text-center mt-3">
+          &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
+        </p>
       </div>
     </div>
   );
