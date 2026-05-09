@@ -635,6 +635,52 @@ export default function Legal() {
             {isPrivacy ? 'Privacy Policy' : isRefund ? 'Refund Policy' : 'Terms of Service'}
           </h1>
           {isPrivacy ? <PrivacyContent /> : isRefund ? <RefundContent /> : <TermsContent />}
+
+          {/* Bottom nav — mobile only */}
+          <div className="sm:hidden mt-10 space-y-3">
+            <div className="flex gap-2">
+              <Link
+                to="/privacy"
+                className={`flex-1 text-center px-3 py-2 text-xs font-medium border transition-colors ${
+                  isPrivacy
+                    ? 'border-primary text-primary bg-primary/5'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Privacy
+              </Link>
+              <Link
+                to="/terms"
+                className={`flex-1 text-center px-3 py-2 text-xs font-medium border transition-colors ${
+                  !isPrivacy && !isRefund
+                    ? 'border-primary text-primary bg-primary/5'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Terms
+              </Link>
+              <Link
+                to="/refund"
+                className={`flex-1 text-center px-3 py-2 text-xs font-medium border transition-colors ${
+                  isRefund
+                    ? 'border-primary text-primary bg-primary/5'
+                    : 'border-border text-muted-foreground hover:text-foreground'
+                }`}
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Refunds
+              </Link>
+            </div>
+            <Link
+              to="/auth"
+              className="block w-full text-center px-3 py-2.5 text-xs font-medium border border-border text-muted-foreground hover:text-foreground transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              ← Back to Sign In
+            </Link>
+          </div>
         </main>
       </div>
     </div>
