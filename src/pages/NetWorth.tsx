@@ -66,7 +66,7 @@ export default function NetWorth() {
   const { data: manualAssets, add: addAsset, update: updateAsset, remove: removeAsset } = useAssets();
   const { data: manualLiabilities, add: addLiability, update: updateLiability, remove: removeLiability } = useLiabilities();
   const { add: addReconciliation } = useAccountReconciliations();
-  const { data: snapshots, upsert: upsertSnapshot } = useNetWorthSnapshots();
+  const { data: snapshots, loading: snapshotsLoading, upsert: upsertSnapshot } = useNetWorthSnapshots();
 
   const [showAssetForm, setShowAssetForm] = useState(false);
   const [showLiabilityForm, setShowLiabilityForm] = useState(false);
@@ -336,7 +336,13 @@ export default function NetWorth() {
 
       <div className="card-forged p-5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">{snapshots.length > 1 ? 'Net Worth History' : 'Current Net Worth'}</h3>
-        {netWorthTrend.length <= 1 ? (
+        {snapshotsLoading ? (
+          <div className="h-[240px] flex items-end gap-2 px-2 pb-4 animate-pulse">
+            {[40, 55, 48, 62, 70, 58, 75, 80].map((h, i) => (
+              <div key={i} className="flex-1 bg-muted/40 rounded-sm" style={{ height: `${h}%` }} />
+            ))}
+          </div>
+        ) : netWorthTrend.length <= 1 ? (
           <div className="flex flex-col items-center justify-center h-[200px] text-center">
             <Wallet size={28} className="text-primary mb-3" />
             <p className="text-2xl font-display font-bold text-primary whitespace-nowrap">{formatCurrency(netWorth, false)}</p>
