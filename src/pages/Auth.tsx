@@ -834,7 +834,7 @@ export default function Auth() {
           <img
             src="/logo-transparent.png"
             alt="Forgenta"
-            style={{ height: 60, width: 60, objectFit: 'contain', display: 'block', margin: '0 auto 6px' }}
+            style={{ height: 110, width: 110, objectFit: 'contain', display: 'block', margin: '0 auto 6px' }}
             draggable={false}
           />
           <p className="text-xs text-muted-foreground">
