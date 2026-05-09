@@ -335,7 +335,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <span className="font-display font-bold text-xs tracking-tight text-gold">FORGENTA</span>
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
-            <span>&copy; {new Date().getFullYear()} Forgenta. All rights reserved.</span>
+            <span>&copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.</span>
             <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</Link>
             <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Terms of Service</Link>
           </div>
