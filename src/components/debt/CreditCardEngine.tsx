@@ -656,18 +656,18 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           {/* Funding Account Selector */}
           <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2 border-t border-border/50">
             <Wallet size={13} className="text-primary shrink-0" />
-            <span className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider">Funding Account:</span>
+            <span className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider shrink-0">Funding Account:</span>
             <select
               value={fundingAccountId}
               onChange={e => setFundingAccountId(e.target.value)}
-              className="bg-secondary border border-border px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-foreground max-w-[200px] sm:max-w-none" style={{ borderRadius: 'var(--radius)' }}
+              className="flex-1 min-w-0 bg-secondary border border-border px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}
             >
               {liquidAccounts.map((a: any) => (
-                <option key={a.id} value={a.id}>{a.name} ({formatCurrency(Number(a.balance), false)})</option>
+                <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
             {fundingAccount && (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-muted-foreground shrink-0">
                 Balance: <span className="font-display font-bold text-foreground">{formatCurrency(fundingBalance, false)}</span>
               </span>
             )}

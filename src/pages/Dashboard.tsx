@@ -14,7 +14,7 @@ import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import { formatCurrency } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
-import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -179,7 +179,6 @@ export default function Dashboard() {
   const { data: debts, loading: debtsLoading } = useDebts();
   const { data: goals, loading: goalsLoading } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();
-  const { data: subs } = useSubscriptions();
   const { data: rules, loading: rulesLoading } = useRecurringRules();
   const { items: plaidItems } = usePlaidItems();
 
@@ -390,14 +389,6 @@ export default function Dashboard() {
   const upcomingBillsMonth = upcomingMonth.filter(e => e.type === 'expense');
 
   const utilization = accountSummary.ccLimit > 0 ? (accountSummary.ccDebt / accountSummary.ccLimit) * 100 : 0;
-
-  const subTotal = useMemo(
-    () =>
-      subs
-        .filter((s: any) => s.active)
-        .reduce((acc: number, s: any) => acc + (s.billing === 'monthly' ? Number(s.cost || 0) : Number(s.cost || 0) / 12), 0),
-    [subs],
-  );
 
   const remainingTxIncome = useMemo(
     () => getRemainingTransactionIncomeThisMonth(allMonthTransactions),
@@ -797,30 +788,42 @@ export default function Dashboard() {
         <ScheduleSkeleton />
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="card-forged p-4 card-clickable" onClick={() => navigate('/budget')}>
-            <div className="flex items-center gap-2 mb-1"><CalendarDays size={12} className="text-primary" /><p className="text-xs text-muted-foreground uppercase">Next Paycheck</p></div>
-            <p className="text-sm font-display font-bold text-success">{formatCurrency(paycheckNet, false)}</p>
-            <p className="text-xs text-muted-foreground">{nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-          </div>
-          <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
-            <div className="flex items-center gap-2 mb-1"><AlertTriangle size={12} className="text-destructive" /><p className="text-xs text-muted-foreground uppercase">Bills This Week</p></div>
-            <p className="text-sm font-display font-bold text-destructive">{formatCurrency(upcomingBillsWeek.reduce((s, e) => s + e.amount, 0), false)}</p>
-            <p className="text-xs text-muted-foreground">{upcomingBillsWeek.length} upcoming</p>
-          </div>
-          <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
-            <div className="flex items-center gap-2 mb-1"><Repeat size={12} className="text-primary" /><p className="text-xs text-muted-foreground uppercase">Bills This Month</p></div>
-            <p className="text-sm font-display font-bold text-foreground">{formatCurrency(upcomingBillsMonth.reduce((s, e) => s + e.amount, 0), false)}</p>
-            <p className="text-xs text-muted-foreground">{upcomingBillsMonth.length} scheduled</p>
-          </div>
-          <div className="card-forged p-4 card-clickable group" onClick={openMonthEndCalc}>
-            <div className="flex items-center gap-2 mb-1">
-              <Wallet size={12} className="text-primary" />
-              <p className="text-xs text-muted-foreground uppercase">Projected Month-End Cash</p>
-              <Info size={10} className="text-primary opacity-30 group-hover:opacity-100 transition-opacity" />
-            </div>
-            <p className={`text-sm font-display font-bold ${monthEndCash >= 0 ? 'text-success' : 'text-destructive'}`}>{formatCurrency(monthEndCash, false)}</p>
-            <p className="text-xs text-muted-foreground">After all scheduled items</p>
-          </div>
+          <ClickableMetric to="/budget" tooltip="Next scheduled paycheck from your pay setup">
+            <MetricCard
+              label="Next Paycheck"
+              value={formatCurrency(paycheckNet, false)}
+              sub={nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              accent="success"
+              icon={CalendarDays}
+            />
+          </ClickableMetric>
+          <ClickableMetric to="/transactions" tooltip="Total bills due in the next 7 days">
+            <MetricCard
+              label="Bills This Week"
+              value={formatCurrency(upcomingBillsWeek.reduce((s, e) => s + e.amount, 0), false)}
+              sub={`${upcomingBillsWeek.length} upcoming`}
+              accent={upcomingBillsWeek.length > 0 ? 'crimson' : 'silver'}
+              icon={AlertTriangle}
+            />
+          </ClickableMetric>
+          <ClickableMetric to="/transactions" tooltip="All bills scheduled this month">
+            <MetricCard
+              label="Bills This Month"
+              value={formatCurrency(upcomingBillsMonth.reduce((s, e) => s + e.amount, 0), false)}
+              sub={`${upcomingBillsMonth.length} scheduled`}
+              accent="silver"
+              icon={Repeat}
+            />
+          </ClickableMetric>
+          <ClickableMetric onClick={openMonthEndCalc} tooltip="Click to see how this is calculated">
+            <MetricCard
+              label="Month-End Cash"
+              value={formatCurrency(monthEndCash, false)}
+              sub="After all scheduled items"
+              accent={monthEndCash >= 0 ? 'success' : 'crimson'}
+              icon={Wallet}
+            />
+          </ClickableMetric>
         </div>
       )}
 
@@ -862,9 +865,6 @@ export default function Dashboard() {
             <MetricCard label="Total Saved" value={formatCurrency(summary.totalSaved, false)} accent="success" sub={`${goals.length} goals`} icon={PiggyBank} />
           </ClickableMetric>
         )}
-        <ClickableMetric to="/budget" tooltip="Monthly recurring subscription costs">
-          <MetricCard label="Subscriptions" value={formatCurrency(subTotal, false)} accent="gold" sub="Monthly recurring" icon={Repeat} />
-        </ClickableMetric>
       </div>
 
       {carGoalData && (

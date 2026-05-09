@@ -158,7 +158,7 @@ export default function NativePaywall() {
   const packages = offerings.current.availablePackages;
 
   return (
-    <div className="p-4 pb-12 max-w-sm mx-auto space-y-6">
+    <div className="p-4 pb-4 max-w-sm mx-auto space-y-4">
       {/* Header */}
       <div className="text-center space-y-2 pt-2">
         <div className="w-12 h-12 rounded-full bg-gold/15 flex items-center justify-center mx-auto">
@@ -240,14 +240,21 @@ export default function NativePaywall() {
         )}
       </button>
 
-      <p className="text-[10px] text-muted-foreground text-center px-4">
-        {isAndroid
-          ? 'Subscription auto-renews. Cancel anytime in Google Play settings. Payment charged to your Google account at confirmation of purchase.'
-          : 'Subscription auto-renews. Cancel anytime in App Store settings. Payment charged to your Apple ID at confirmation of purchase.'}
-      </p>
+      {/* Redeem code — iOS only — above restore, slightly larger */}
+      {!isAndroid && (
+        <div className="text-center">
+          <button
+            onClick={handleRedeemCode}
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+          >
+            <Tag size={14} />
+            Redeem code
+          </button>
+        </div>
+      )}
 
-      {/* Restore purchases — required by both App Store and Google Play guidelines */}
-      <div className="text-center">
+      {/* Restore purchases + legal — grouped to stay above fold */}
+      <div className="flex flex-col items-center gap-1.5">
         <button
           onClick={handleRestore}
           disabled={restoring}
@@ -260,20 +267,12 @@ export default function NativePaywall() {
           )}
           Restore purchases
         </button>
+        <p className="text-[10px] text-muted-foreground text-center px-4">
+          {isAndroid
+            ? 'Auto-renews. Cancel anytime in Google Play settings.'
+            : 'Auto-renews. Cancel anytime in App Store settings.'}
+        </p>
       </div>
-
-      {/* Redeem code — iOS only (Android promo codes are redeemed in the Play Store) */}
-      {!isAndroid && (
-        <div className="text-center">
-          <button
-            onClick={handleRedeemCode}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
-          >
-            <Tag size={12} />
-            Redeem code
-          </button>
-        </div>
-      )}
     </div>
   );
 }
