@@ -808,7 +808,7 @@ export default function Auth() {
   // ── Sign in / Sign up / Request reset ────────────────────────────────────
   return (
     <div
-      className="min-h-screen bg-background flex items-center justify-center px-4"
+      className="min-h-screen bg-background flex items-center justify-center px-4 relative"
       style={{
         paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
@@ -1021,10 +1021,11 @@ export default function Auth() {
             Terms of Service
           </Link>
         </div>
-        <p className="text-[10px] text-muted-foreground text-center mt-3">
-          &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
-        </p>
       </div>
+      <p className="absolute bottom-3 left-0 right-0 text-[10px] text-muted-foreground text-center"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
+      </p>
     </div>
   );
 }
