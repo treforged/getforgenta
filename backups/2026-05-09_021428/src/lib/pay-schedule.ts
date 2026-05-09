@@ -297,9 +297,7 @@ export function getRemainingTransactionIncomeByDay(
   const year = now.getFullYear();
   const month = now.getMonth();
   const monthEnd = new Date(year, month + 1, 0);
-  // If the due date already passed this month, look through end of month so
-  // upcoming income (e.g. a paycheck on the 15th) is not silently zeroed out.
-  const effectiveDueDay = dueDay < today ? monthEnd.getDate() : Math.min(dueDay, monthEnd.getDate());
+  const effectiveDueDay = Math.min(dueDay, monthEnd.getDate());
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
   let total = 0;
@@ -328,8 +326,7 @@ export function getRemainingTransactionExpensesByDay(
   const year = now.getFullYear();
   const month = now.getMonth();
   const monthEnd = new Date(year, month + 1, 0);
-  // Mirror the income function: if the due date already passed, look through end of month.
-  const effectiveDueDay = dueDay < today ? monthEnd.getDate() : Math.min(dueDay, monthEnd.getDate());
+  const effectiveDueDay = Math.min(dueDay, monthEnd.getDate());
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
 
   let total = 0;
