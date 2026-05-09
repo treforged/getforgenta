@@ -121,7 +121,7 @@ export function buildPayConfig(profile: any): PayScheduleConfig {
   let postTaxDeductions: number;
 
   // Use new JSONB deductions array if present; fall back to legacy columns
-  const jsonDeds = profile?.paycheck_deductions as { value: number; mode: string; preTax: boolean }[] | null;
+  const jsonDeds = profile?.paycheck_deductions as { value: number; mode: string; preTax: boolean; label?: string }[] | null;
   if (jsonDeds && jsonDeds.length > 0) {
     preTaxDeductions  = jsonDeds.filter(d => d.preTax).reduce((s, d) => s + resolveDeductionAmt(d.value, d.mode, paycheckGross), 0);
     postTaxDeductions = jsonDeds.filter(d => !d.preTax).reduce((s, d) => s + resolveDeductionAmt(d.value, d.mode, paycheckGross), 0);
@@ -143,9 +143,15 @@ export function buildPayConfig(profile: any): PayScheduleConfig {
     postTaxDeductions = (!pre401k ? amt401k : 0) + (!preHsa ? amtHsa : 0) + (!preFsa ? amtFsa : 0) + (!preMedical ? amtMedical : 0);
   }
 
+  // When withholding/FICA/OASDI are itemized as deductions, they already represent
+  // the full tax burden — applying taxRate on top would double-count.
+  const taxDedActive = jsonDeds != null && jsonDeds.length > 0
+    ? jsonDeds.some(d => d.label != null && /withholding|fica|oasdi/i.test(d.label) && d.value > 0)
+    : false;
+
   return {
     weeklyGross: wg,
-    taxRate: Number(profile?.tax_rate) || 22,
+    taxRate: taxDedActive ? 0 : (Number(profile?.tax_rate) || 22),
     paycheckDay: Number(profile?.paycheck_day) ?? 5,
     frequency: pf,
     paycheckStartDate: profile?.paycheck_start_date || undefined,
