@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/cookie-consent';
@@ -540,11 +540,16 @@ function RefundContent() {
 export default function Legal() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  const containerRef = useRef<HTMLDivElement>(null);
   const isPrivacy = pathname === '/privacy';
   const isRefund = pathname === '/refund';
 
+  useEffect(() => {
+    containerRef.current?.scrollTo(0, 0);
+  }, [pathname]);
+
   return (
-    <div id="scroll-legal" className="h-screen overflow-y-auto bg-background">
+    <div ref={containerRef} id="scroll-legal" className="h-screen overflow-y-auto bg-background">
       {/* Top bar */}
       <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4 flex items-center gap-6">
         <button
