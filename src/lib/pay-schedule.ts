@@ -297,19 +297,27 @@ export function getRemainingTransactionIncomeByDay(
   const year = now.getFullYear();
   const month = now.getMonth();
   const monthEnd = new Date(year, month + 1, 0);
-  // If the due date already passed this month, look through end of month so
-  // upcoming income (e.g. a paycheck on the 15th) is not silently zeroed out.
-  const effectiveDueDay = dueDay < today ? monthEnd.getDate() : Math.min(dueDay, monthEnd.getDate());
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+  // When due date already passed this month, the real deadline is dueDay of next month.
+  // Capture rest of current month AND early next-month income up to dueDay.
+  const dueAlreadyPassed = dueDay < today;
+  const effectiveDueDay = dueAlreadyPassed ? monthEnd.getDate() : Math.min(dueDay, monthEnd.getDate());
+  const nextYear = month === 11 ? year + 1 : year;
+  const nextMonth = (month + 1) % 12;
+  const nextMonthStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}`;
 
   let total = 0;
   for (const t of transactions) {
     if (t.type !== 'income') continue;
     if (t.category === 'Balance Adjustment') continue;
-    if (!t.date || !t.date.startsWith(monthStr)) continue;
-    const txDay = parseInt(t.date.split('-')[2]);
-    if (txDay >= today && txDay <= effectiveDueDay) {
-      total += Number(t.amount);
+    if (!t.date) continue;
+    if (t.date.startsWith(monthStr)) {
+      const txDay = parseInt(t.date.split('-')[2]);
+      if (txDay >= today && txDay <= effectiveDueDay) total += Number(t.amount);
+    } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
+      // Include next-month income through the actual upcoming due day
+      const txDay = parseInt(t.date.split('-')[2]);
+      if (txDay >= 1 && txDay <= dueDay) total += Number(t.amount);
     }
   }
   return total;
@@ -328,19 +336,27 @@ export function getRemainingTransactionExpensesByDay(
   const year = now.getFullYear();
   const month = now.getMonth();
   const monthEnd = new Date(year, month + 1, 0);
-  // Mirror the income function: if the due date already passed, look through end of month.
-  const effectiveDueDay = dueDay < today ? monthEnd.getDate() : Math.min(dueDay, monthEnd.getDate());
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+  // Mirror income function: when due date already passed, real deadline is next month's dueDay.
+  const dueAlreadyPassed = dueDay < today;
+  const effectiveDueDay = dueAlreadyPassed ? monthEnd.getDate() : Math.min(dueDay, monthEnd.getDate());
+  const nextYear = month === 11 ? year + 1 : year;
+  const nextMonth = (month + 1) % 12;
+  const nextMonthStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}`;
 
   let total = 0;
   for (const t of transactions) {
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
-    if (!t.date || !t.date.startsWith(monthStr)) continue;
-    const txDay = parseInt(t.date.split('-')[2]);
-    if (txDay >= today && txDay <= effectiveDueDay) {
-      total += Number(t.amount);
+    if (!t.date) continue;
+    if (t.date.startsWith(monthStr)) {
+      const txDay = parseInt(t.date.split('-')[2]);
+      if (txDay >= today && txDay <= effectiveDueDay) total += Number(t.amount);
+    } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
+      // Include next-month expenses through the actual upcoming due day
+      const txDay = parseInt(t.date.split('-')[2]);
+      if (txDay >= 1 && txDay <= dueDay) total += Number(t.amount);
     }
   }
   return total;
@@ -709,17 +725,16 @@ export function getSafeToPayByDueDate(
  * This is the shared utility so all pages (Dashboard, Debt Payoff, Budget Control)
  * produce the same generated transaction set before merging with real DB transactions.
  */
-export function generateCurrentMonthTransactionsFromRules(
+export function generateMonthTransactionsFromRules(
   rules: any[],
   accounts: any[],
+  year: number,
+  month: number, // 0-indexed
 ): any[] {
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const todayStr = now.toISOString().split('T')[0]; // only generate future transactions
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
   const generated: any[] = [];
 
-  // Build account lookup for source normalization
   const accountMap: Record<string, any> = {};
   accounts.forEach((a: any) => { accountMap[a.id] = a; accountMap[`account:${a.id}`] = a; });
 
@@ -772,7 +787,7 @@ export function generateCurrentMonthTransactionsFromRules(
       }
     } else if (r.frequency === 'monthly') {
       const dueDay = Math.min(r.due_day || 1, monthEnd.getDate());
-      const d = new Date(now.getFullYear(), now.getMonth(), dueDay);
+      const d = new Date(year, month, dueDay);
       if (d >= monthStart && d <= monthEnd) {
         const dateStr = d.toISOString().split('T')[0];
         generated.push({
@@ -783,9 +798,9 @@ export function generateCurrentMonthTransactionsFromRules(
       }
     } else if (r.frequency === 'yearly') {
       const dueMonth = (r.due_month ?? 1) - 1;
-      if (dueMonth === now.getMonth()) {
+      if (dueMonth === month) {
         const dueDay = Math.min(r.due_day || 1, monthEnd.getDate());
-        const d = new Date(now.getFullYear(), dueMonth, dueDay);
+        const d = new Date(year, dueMonth, dueDay);
         const dateStr = d.toISOString().split('T')[0];
         generated.push({
           id: `gen:${r.id}:${dateStr}`, date: dateStr, type: txType,
@@ -797,6 +812,14 @@ export function generateCurrentMonthTransactionsFromRules(
   });
 
   return generated;
+}
+
+export function generateCurrentMonthTransactionsFromRules(
+  rules: any[],
+  accounts: any[],
+): any[] {
+  const now = new Date();
+  return generateMonthTransactionsFromRules(rules, accounts, now.getFullYear(), now.getMonth());
 }
 
 /**

@@ -7,7 +7,7 @@ import {
 import {
   buildPayConfig, getPrePaycheckNextMonthBills,
   getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
-  mergeWithGeneratedTransactions,
+  mergeWithGeneratedTransactions, generateMonthTransactionsFromRules,
 } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
@@ -125,6 +125,20 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   const cards: CardData[] = useMemo(() => buildCardData(accounts, transactions, rules, debts), [accounts, transactions, rules, debts]);
 
+  // When any revolving card is due on a day that already passed this month, the next
+  // payment falls in next month. Generate those transactions so income/expense helpers
+  // can correctly project cash through the actual upcoming due date.
+  const allTransactionsWithNextMonth = useMemo(() => {
+    const now = new Date();
+    const today = now.getDate();
+    const hasEarlyDueCard = cards.some(c => !c.autopayFullBalance && c.balance > 0 && (c.dueDay || 31) < today);
+    if (!hasEarlyDueCard) return allTransactions;
+    const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const nextMonth = (now.getMonth() + 1) % 12;
+    const nextMonthTxns = generateMonthTransactionsFromRules(rules, accounts, nextYear, nextMonth);
+    return [...allTransactions, ...nextMonthTxns];
+  }, [allTransactions, cards, rules, accounts]);
+
   const monthlyRecurringExpenses = useMemo(() => {
     // CC-tagged rules are tracked via cardPurchasesPerMonth in the engine (Step 2.5).
     // Including them here AND there would double-count, draining available cash
@@ -161,10 +175,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   // Computed income/expense breakdown for display — uses merged Transactions as single source of truth
   const cashBreakdown = useMemo(() => {
-    const transactionIncome = getRemainingTransactionIncomeByDay(allTransactions, primaryDueDay);
-    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactions, primaryDueDay, true);
+    const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, primaryDueDay);
+    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, primaryDueDay, true);
     return { transactionIncome, transactionExpenses };
-  }, [allTransactions, primaryDueDay]);
+  }, [allTransactionsWithNextMonth, primaryDueDay]);
 
   // Estimated liquid cash: funding balance + transaction income through due date - transaction expenses through due date
   const estLiquidCash = useMemo(() => {
@@ -177,12 +191,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const result: Record<string, number> = {};
     for (const card of cards) {
       const dueDay = card.dueDay || 31;
-      const incByDue = getRemainingTransactionIncomeByDay(allTransactions, dueDay);
-      const expByDue = getRemainingTransactionExpensesByDay(allTransactions, dueDay, true);
+      const incByDue = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, dueDay);
+      const expByDue = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, dueDay, true);
       result[card.id] = fundingBalance + incByDue - expByDue;
     }
     return result;
-  }, [cards, fundingBalance, allTransactions]);
+  }, [cards, fundingBalance, allTransactionsWithNextMonth]);
 
   // ── Event-based monthEvents + cardPurchasesPerMonth ──────────────────────────
   // Uses actual scheduled income/expense occurrences instead of flat scalars so
