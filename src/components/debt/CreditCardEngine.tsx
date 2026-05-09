@@ -102,8 +102,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   };
 
   const liquidCash = liquidAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
-  const fundingAccount = liquidAccounts.find((a: any) => a.id === fundingAccountId);
+  // Use defaultFunding as fallback so fundingAccount resolves correctly while
+  // accounts are still loading and fundingAccountId may be '' (no localStorage value yet).
+  const resolvedFundingId = fundingAccountId || defaultFunding;
+  const fundingAccount = liquidAccounts.find((a: any) => a.id === resolvedFundingId);
   const fundingBalance = fundingAccount ? Number(fundingAccount.balance) : liquidCash;
+
+  // Persist defaultFunding to localStorage the first time accounts load so future
+  // reloads initialize fundingAccountId correctly without needing a navigation.
+  useEffect(() => {
+    if (!fundingAccountId && defaultFunding) {
+      setFundingAccountIdLocal(defaultFunding);
+    }
+  }, [defaultFunding, fundingAccountId]);
 
   // Allow-list of payment source strings that match the funding account.
   // Expenses with a source NOT in this set (CC, other checking, savings) are excluded
