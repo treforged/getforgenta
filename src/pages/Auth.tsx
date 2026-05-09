@@ -813,14 +813,14 @@ export default function Auth() {
   // ── Sign in / Sign up / Request reset ────────────────────────────────────
   return (
     <div
-      className="min-h-screen bg-background flex items-center justify-center px-4"
+      className="min-h-screen bg-background overflow-y-auto flex flex-col items-center justify-center px-4"
       style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
-        paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
+        paddingTop: 'calc(env(safe-area-inset-top) + 8px)',
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)',
       }}
     >
       <div className="w-full max-w-sm">
-        <div className="mb-6">
+        <div className="mb-2">
           <button
             type="button"
             onClick={() => switchMode('landing')}
@@ -830,11 +830,11 @@ export default function Auth() {
           </button>
         </div>
 
-        <div className="text-center mb-8">
+        <div className="text-center mb-3">
           <img
             src="/logo-transparent.png"
             alt="Forgenta"
-            style={{ height: 80, width: 80, objectFit: 'contain', display: 'block', margin: '0 auto 8px' }}
+            style={{ height: 60, width: 60, objectFit: 'contain', display: 'block', margin: '0 auto 6px' }}
             draggable={false}
           />
           <p className="text-xs text-muted-foreground">
@@ -844,7 +844,7 @@ export default function Auth() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="card-forged p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="card-forged p-4 space-y-3">
 
           {mode === 'signup' && (
             <div>
@@ -857,7 +857,7 @@ export default function Auth() {
                 placeholder="Your name"
                 maxLength={50}
                 autoComplete="name"
-                className="w-full mt-1 bg-secondary border border-border px-3 py-3 text-base text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 style={{ borderRadius: 'var(--radius)' }}
               />
             </div>
@@ -872,7 +872,7 @@ export default function Auth() {
               required
               maxLength={254}
               autoComplete={mode === 'signup' ? 'email' : 'username'}
-              className="w-full mt-1 bg-secondary border border-border px-3 py-3 text-base text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               style={{ borderRadius: 'var(--radius)' }}
             />
           </div>
@@ -899,7 +899,7 @@ export default function Auth() {
                 minLength={6}
                 maxLength={128}
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                className="w-full mt-1 bg-secondary border border-border px-3 py-3 text-base text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                 style={{ borderRadius: 'var(--radius)' }}
               />
             </div>
@@ -917,7 +917,7 @@ export default function Auth() {
                 maxLength={128}
                 placeholder="Re-enter your password"
                 autoComplete="new-password"
-                className={`w-full mt-1 bg-secondary border px-3 py-3 text-base text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
+                className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
                   confirmPassword && confirmPassword !== password
                     ? 'border-destructive focus:ring-destructive'
                     : 'border-border'
@@ -933,7 +933,7 @@ export default function Auth() {
           <button
             type="submit"
             disabled={loading || (mode === 'signup' && !!confirmPassword && confirmPassword !== password)}
-            className="w-full bg-primary text-primary-foreground py-3 text-xs font-semibold btn-press disabled:opacity-50"
+            className="w-full bg-primary text-primary-foreground py-2.5 text-xs font-semibold btn-press disabled:opacity-50"
             style={{ borderRadius: 'var(--radius)' }}
           >
             {loading
@@ -946,11 +946,11 @@ export default function Auth() {
           </button>
 
           {mode !== 'reset' && (
-            <div className="pt-1">
+            <div className="pt-0.5">
               <button
                 type="button"
                 onClick={() => switchMode(mode === 'login' ? 'signup' : 'login')}
-                className="w-full py-3 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press"
+                className="w-full py-2.5 text-xs font-semibold border border-primary/40 text-primary hover:bg-primary/10 transition-colors btn-press"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 {mode === 'login' ? "Don't have an account? Sign Up" : 'Already have an account? Sign In'}
@@ -962,7 +962,7 @@ export default function Auth() {
             <button
               type="button"
               onClick={() => switchMode('login')}
-              className="w-full py-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               ← Back to Sign In
             </button>
@@ -970,7 +970,7 @@ export default function Auth() {
         </form>
 
         {mode !== 'reset' && (
-          <div className="mt-4 space-y-3">
+          <div className="mt-2 space-y-2">
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border" />
               <span className="text-xs text-muted-foreground uppercase tracking-wider">or</span>
@@ -981,7 +981,7 @@ export default function Auth() {
               type="button"
               disabled={loading}
               onClick={() => handleOAuthSignIn('google')}
-              className="w-full flex items-center justify-center gap-2 py-3 text-xs font-semibold border border-border text-foreground hover:bg-secondary/60 transition-colors btn-press disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold border border-border text-foreground hover:bg-secondary/60 transition-colors btn-press disabled:opacity-50"
               style={{ borderRadius: 'var(--radius)' }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
@@ -997,7 +997,7 @@ export default function Auth() {
               type="button"
               disabled={loading}
               onClick={() => handleOAuthSignIn('apple')}
-              className="w-full flex items-center justify-center gap-2 py-3 text-xs font-semibold border border-border text-foreground hover:bg-secondary/60 transition-colors btn-press disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 py-2 text-xs font-semibold border border-border text-foreground hover:bg-secondary/60 transition-colors btn-press disabled:opacity-50"
               style={{ borderRadius: 'var(--radius)' }}
             >
               <img src="/apple-logo.png" alt="" aria-hidden="true" style={{ height: 20, width: 'auto', display: 'block' }} />
@@ -1006,7 +1006,7 @@ export default function Auth() {
           </div>
         )}
 
-        <div className="flex flex-col items-center gap-2 mt-4">
+        <div className="flex flex-col items-center gap-1.5 mt-2">
           <div className="flex items-center justify-center gap-2">
             <Link
               to="/privacy"
