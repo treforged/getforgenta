@@ -526,7 +526,7 @@ export default function Auth() {
   if (mode === 'landing') {
     return (
       <div
-        className="min-h-screen bg-background flex items-center justify-center px-6"
+        className="min-h-screen bg-background flex items-center justify-center px-6 relative"
         style={{
           paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
@@ -615,6 +615,10 @@ export default function Auth() {
             </Link>
           </div>
         </div>
+        <p className="absolute bottom-3 left-0 right-0 text-[10px] text-muted-foreground text-center"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
+        </p>
       </div>
     );
   }
