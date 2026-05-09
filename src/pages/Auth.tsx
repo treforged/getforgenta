@@ -594,6 +594,26 @@ export default function Auth() {
           <p className="auth-trust text-sm font-medium text-foreground/70 text-center">
             0 ads. Ever. No selling your data.
           </p>
+          <div className="auth-trust flex items-center justify-center gap-2">
+            <Link
+              to="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Terms of Service
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -981,11 +1001,26 @@ export default function Auth() {
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground text-center mt-4">
-          <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</Link>
-          {' · '}
-          <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Terms of Service</Link>
-        </p>
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <Link
+            to="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            to="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            Terms of Service
+          </Link>
+        </div>
       </div>
     </div>
   );
