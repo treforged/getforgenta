@@ -74,10 +74,7 @@ export default function MetricCard({
           )}
 
           {clickHint && (
-            <div className="flex items-center gap-1 mt-2 text-muted-foreground/50 hover:text-muted-foreground transition-colors">
-              <BarChart2 size={10} />
-              <span className="text-[9px] uppercase tracking-wider">breakdown</span>
-            </div>
+            <BarChart2 size={11} className="mt-2 text-muted-foreground/35" />
           )}
         </div>
 
