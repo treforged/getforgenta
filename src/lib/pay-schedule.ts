@@ -329,7 +329,11 @@ export function getRemainingTransactionIncomeByDay(
  * Can optionally exclude debt payment transactions (since those are what we're computing).
  */
 export function getRemainingTransactionExpensesByDay(
-  transactions: any[], dueDay: number = 31, excludeDebtPayments = false
+  transactions: any[],
+  dueDay: number = 31,
+  excludeDebtPayments = false,
+  excludePaymentSources: Set<string> = new Set(),
+  excludeCategories: Set<string> = new Set(),
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -349,12 +353,14 @@ export function getRemainingTransactionExpensesByDay(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    // Skip CC-charged expenses — they hit the card balance, not the funding account
+    if (excludePaymentSources.size > 0 && t.payment_source && excludePaymentSources.has(t.payment_source)) continue;
+    if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
       if (txDay >= today && txDay <= effectiveDueDay) total += Number(t.amount);
     } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
-      // Include next-month expenses through the actual upcoming due day
       const txDay = parseInt(t.date.split('-')[2]);
       if (txDay >= 1 && txDay <= dueDay) total += Number(t.amount);
     }
@@ -407,7 +413,11 @@ export function getRemainingTransactionIncomeItemsByDay(
 
 /** Returns each expense transaction in the due-date window as a line item (same filter as getRemainingTransactionExpensesByDay). */
 export function getRemainingTransactionExpenseItemsByDay(
-  transactions: any[], dueDay: number = 31, excludeDebtPayments = false
+  transactions: any[],
+  dueDay: number = 31,
+  excludeDebtPayments = false,
+  excludePaymentSources: Set<string> = new Set(),
+  excludeCategories: Set<string> = new Set(),
 ): TransactionLineItem[] {
   const now = new Date();
   const today = now.getDate();
@@ -426,6 +436,8 @@ export function getRemainingTransactionExpenseItemsByDay(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    if (excludePaymentSources.size > 0 && t.payment_source && excludePaymentSources.has(t.payment_source)) continue;
+    if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
