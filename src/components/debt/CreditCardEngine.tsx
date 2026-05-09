@@ -108,12 +108,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Allow-list of payment source strings that match the funding account.
   // Expenses with a source NOT in this set (CC, other checking, savings) are excluded
   // from the liquid cash estimate since they don't draw from the funding account.
-  const fundingAccountSources = useMemo(
-    () => fundingAccountId
-      ? new Set([fundingAccountId, `account:${fundingAccountId}`])
-      : new Set<string>(),
-    [fundingAccountId],
-  );
+  // Falls back to defaultFunding so the filter is non-empty even before the persisted
+  // value resolves (accounts still loading → fundingAccountId may be '').
+  const fundingAccountSources = useMemo(() => {
+    const id = fundingAccountId || defaultFunding;
+    return id ? new Set([id, `account:${id}`]) : new Set<string>();
+  }, [fundingAccountId, defaultFunding]);
 
   const monthlyTakeHome = useMemo(() => {
     const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
@@ -195,14 +195,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, primaryDueDay);
     const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
     return { transactionIncome, transactionExpenses };
-  }, [allTransactionsWithNextMonth, primaryDueDay]);
+  }, [allTransactionsWithNextMonth, primaryDueDay, fundingAccountSources]);
 
   // Line-item breakdown so the tooltip can show exactly what's included
   const cashBreakdownItems = useMemo(() => {
     const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, primaryDueDay);
     const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
     return { incomeItems, expenseItems };
-  }, [allTransactionsWithNextMonth, primaryDueDay]);
+  }, [allTransactionsWithNextMonth, primaryDueDay, fundingAccountSources]);
 
   // Estimated liquid cash: funding balance + transaction income through due date - transaction expenses through due date
   const estLiquidCash = useMemo(() => {
@@ -220,7 +220,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       result[card.id] = fundingBalance + incByDue - expByDue;
     }
     return result;
-  }, [cards, fundingBalance, allTransactionsWithNextMonth]);
+  }, [cards, fundingBalance, allTransactionsWithNextMonth, fundingAccountSources]);
 
   // ── Event-based monthEvents + cardPurchasesPerMonth ──────────────────────────
   // Uses actual scheduled income/expense occurrences instead of flat scalars so
