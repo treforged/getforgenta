@@ -50,7 +50,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   useEffect(() => {
     if (profile?.cash_floor != null) setCashFloorLocal(Number(profile.cash_floor));
   }, [profile?.cash_floor]);
-  const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [expandedCard, setExpandedCard] = usePersistedState<string | null>('tre:debt:expanded-card', null);
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
   const [editingMin, setEditingMin] = useState<string | null>(null);
   const [editingDueDay, setEditingDueDay] = useState<string | null>(null);
