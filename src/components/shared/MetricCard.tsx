@@ -47,7 +47,7 @@ export default function MetricCard({
   return (
     <div
       className={cn(
-        'card-forged p-4 sm:p-5 hover:border-primary/20 transition-all duration-300',
+        'relative card-forged p-4 sm:p-5 hover:border-primary/20 transition-all duration-300',
         glowMap[accent],
         className
       )}
@@ -72,10 +72,6 @@ export default function MetricCard({
               {sub}
             </p>
           )}
-
-          {clickHint && (
-            <BarChart2 size={12} className="mt-2 text-muted-foreground/70" />
-          )}
         </div>
 
         {Icon && (
@@ -89,6 +85,10 @@ export default function MetricCard({
           </div>
         )}
       </div>
+
+      {clickHint && (
+        <BarChart2 size={11} className="absolute bottom-2 right-2 text-muted-foreground/60" />
+      )}
     </div>
   );
 }

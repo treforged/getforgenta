@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BookOpen, X } from 'lucide-react';
+import { BookOpen, X, Info, BarChart2 } from 'lucide-react';
 
 type Section = { title: string; body: string };
 
@@ -38,6 +38,16 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
                   <p className="text-[11px] text-muted-foreground leading-relaxed">{s.body}</p>
                 </div>
               ))}
+              <div className="pt-3 border-t border-border/50">
+                <h3 className="text-xs font-semibold text-foreground mb-1">Interactive tiles</h3>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Tiles with a{' '}
+                  <Info size={11} className="inline align-middle text-foreground" />
+                  {' '}or{' '}
+                  <BarChart2 size={11} className="inline align-middle text-foreground" />
+                  {' '}icon in the bottom-right corner are interactive — tap or click anywhere on the tile to see a detailed breakdown or navigate to a related page.
+                </p>
+              </div>
             </div>
           </div>
         </div>

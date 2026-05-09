@@ -742,115 +742,117 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           )}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-3 sm:mb-4">
-            <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase flex items-center justify-center gap-1">Est. Liquid Cash <Info size={9} className="shrink-0" /></p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="text-xs sm:text-sm font-display font-bold text-foreground cursor-help underline decoration-dotted underline-offset-2 decoration-muted-foreground/40">{formatCurrency(estLiquidCash, false)}</p>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[360px] text-xs">
-                  {(() => {
-                    const now = new Date();
-                    const today = now.getDate();
-                    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                    const fmtDate = (d: string) => {
-                      const [,m,day] = d.split('-');
-                      return `${MONTHS[parseInt(m)-1]} ${parseInt(day)}`;
-                    };
-                    const windowEndMonth = primaryDueDay < today
-                      ? MONTHS[(now.getMonth() + 1) % 12]
-                      : MONTHS[now.getMonth()];
-                    const windowLabel = `today → ${windowEndMonth} ${primaryDueDay}`;
-                    const hasProjected = cashBreakdownItems.incomeItems.some(i => i.isGenerated) || cashBreakdownItems.expenseItems.some(i => i.isGenerated);
-                    const hasTodayItems = [...cashBreakdownItems.incomeItems, ...cashBreakdownItems.expenseItems].some(i => i.date.split('-')[2] === String(today).padStart(2,'0'));
-                    return (
-                      <>
-                        <p className="font-semibold mb-2">Est. Liquid Cash ({windowLabel})</p>
-                        <div className="flex justify-between gap-3 mb-2">
-                          <span className="text-muted-foreground">{fundingAccount?.name ?? 'Funding'} balance now</span>
-                          <span className="font-bold">{formatCurrency(fundingBalance, false)}</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }}>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Est. Liquid Cash</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(estLiquidCash, false)}</p>
+                  <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[360px] text-xs">
+                {(() => {
+                  const now = new Date();
+                  const today = now.getDate();
+                  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                  const fmtDate = (d: string) => {
+                    const [,m,day] = d.split('-');
+                    return `${MONTHS[parseInt(m)-1]} ${parseInt(day)}`;
+                  };
+                  const windowEndMonth = primaryDueDay < today
+                    ? MONTHS[(now.getMonth() + 1) % 12]
+                    : MONTHS[now.getMonth()];
+                  const windowLabel = `today → ${windowEndMonth} ${primaryDueDay}`;
+                  const hasProjected = cashBreakdownItems.incomeItems.some(i => i.isGenerated) || cashBreakdownItems.expenseItems.some(i => i.isGenerated);
+                  const hasTodayItems = [...cashBreakdownItems.incomeItems, ...cashBreakdownItems.expenseItems].some(i => i.date.split('-')[2] === String(today).padStart(2,'0'));
+                  return (
+                    <>
+                      <p className="font-semibold mb-2">Est. Liquid Cash ({windowLabel})</p>
+                      <div className="flex justify-between gap-3 mb-2">
+                        <span className="text-muted-foreground">{fundingAccount?.name ?? 'Funding'} balance now</span>
+                        <span className="font-bold">{formatCurrency(fundingBalance, false)}</span>
+                      </div>
+                      {cashBreakdownItems.incomeItems.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-[10px] text-success uppercase tracking-wider mb-1">+ Upcoming income</p>
+                          {cashBreakdownItems.incomeItems.map((item: TransactionLineItem, i: number) => (
+                            <div key={i} className="flex justify-between gap-3">
+                              <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
+                              <span className="text-success shrink-0">+{formatCurrency(item.amount, false)}</span>
+                            </div>
+                          ))}
                         </div>
-                        {cashBreakdownItems.incomeItems.length > 0 && (
-                          <div className="mb-2">
-                            <p className="text-[10px] text-success uppercase tracking-wider mb-1">+ Upcoming income</p>
-                            {cashBreakdownItems.incomeItems.map((item: TransactionLineItem, i: number) => (
-                              <div key={i} className="flex justify-between gap-3">
-                                <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
-                                <span className="text-success shrink-0">+{formatCurrency(item.amount, false)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        {cashBreakdownItems.incomeItems.length === 0 && (
-                          <p className="text-muted-foreground mb-2 italic">No income scheduled in window</p>
-                        )}
-                        {cashBreakdownItems.expenseItems.length > 0 && (
-                          <div className="mb-2">
-                            <p className="text-[10px] text-destructive uppercase tracking-wider mb-1">− Expenses (excl. debt payments)</p>
-                            {cashBreakdownItems.expenseItems.map((item: TransactionLineItem, i: number) => (
-                              <div key={i} className="flex justify-between gap-3">
-                                <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
-                                <span className="text-destructive shrink-0">−{formatCurrency(item.amount, false)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <hr className="my-1 border-border/50" />
-                        <div className="flex justify-between gap-3 font-bold mb-2">
-                          <span>= Est. Liquid Cash</span>
-                          <span>{formatCurrency(estLiquidCash, false)}</span>
+                      )}
+                      {cashBreakdownItems.incomeItems.length === 0 && (
+                        <p className="text-muted-foreground mb-2 italic">No income scheduled in window</p>
+                      )}
+                      {cashBreakdownItems.expenseItems.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-[10px] text-destructive uppercase tracking-wider mb-1">− Expenses (excl. debt payments)</p>
+                          {cashBreakdownItems.expenseItems.map((item: TransactionLineItem, i: number) => (
+                            <div key={i} className="flex justify-between gap-3">
+                              <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
+                              <span className="text-destructive shrink-0">−{formatCurrency(item.amount, false)}</span>
+                            </div>
+                          ))}
                         </div>
-                        {(() => {
-                          const activeCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
-                          const uniqueDueDays = new Set(activeCards.map(c => c.dueDay || 31));
-                          if (activeCards.length > 1 && uniqueDueDays.size > 1) {
-                            return (
-                              <div className="mb-2 space-y-0.5">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Cash available by each card's due date</p>
-                                {activeCards.map(c => (
-                                  <div key={c.id} className="flex justify-between gap-2">
-                                    <span className="text-muted-foreground">{c.name} (due {c.dueDay || 31}th)</span>
-                                    <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            );
-                          }
-                          return null;
-                        })()}
-                        {hasProjected && <p className="text-muted-foreground text-[10px]">* Projected from your recurring rules — not yet a real transaction.</p>}
-                        {hasTodayItems && <p className="text-muted-foreground text-[10px] mt-0.5">Items dated today may already be reflected in your balance.</p>}
-                      </>
-                    );
-                  })()}
-                </TooltipContent>
-              </Tooltip>
-            </div>
+                      )}
+                      <hr className="my-1 border-border/50" />
+                      <div className="flex justify-between gap-3 font-bold mb-2">
+                        <span>= Est. Liquid Cash</span>
+                        <span>{formatCurrency(estLiquidCash, false)}</span>
+                      </div>
+                      {(() => {
+                        const activeCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
+                        const uniqueDueDays = new Set(activeCards.map(c => c.dueDay || 31));
+                        if (activeCards.length > 1 && uniqueDueDays.size > 1) {
+                          return (
+                            <div className="mb-2 space-y-0.5">
+                              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Cash available by each card's due date</p>
+                              {activeCards.map(c => (
+                                <div key={c.id} className="flex justify-between gap-2">
+                                  <span className="text-muted-foreground">{c.name} (due {c.dueDay || 31}th)</span>
+                                  <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                      {hasProjected && <p className="text-muted-foreground text-[10px]">* Projected from your recurring rules — not yet a real transaction.</p>}
+                      {hasTodayItems && <p className="text-muted-foreground text-[10px] mt-0.5">Items dated today may already be reflected in your balance.</p>}
+                    </>
+                  );
+                })()}
+              </TooltipContent>
+            </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe Minimum</p>
               <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(recommendedSafeMinimum, false)}</p>
             </div>
-            <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground flex items-center justify-center gap-1">Safe to Pay <Info size={9} className="shrink-0" /></p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p className="text-xs sm:text-sm font-display font-bold text-primary cursor-help underline decoration-dotted underline-offset-2 decoration-primary/40">{formatCurrency(recommendations.totalAvailableCash, false)}</p>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[320px] text-xs">
-                  <p className="font-semibold mb-1">Safe to Pay (today → due date {primaryDueDay}th):</p>
-                  <div className="space-y-0.5">
-                    <div className="flex justify-between gap-3"><span>Funding Balance (now)</span><span>{formatCurrency(bd.fundingBalance, false)}</span></div>
-                    <div className="flex justify-between gap-3"><span>+ Income from Transactions (today→due)</span><span>{formatCurrency(bd.remainingPaycheckIncome, false)}</span></div>
-                    <div className="flex justify-between gap-3"><span>− Expenses from Transactions (today→due)</span><span>{formatCurrency(bd.remainingExpenses, false)}</span></div>
-                    <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
-                    {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
-                    <hr className="my-1 border-border/50" />
-                    <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
-                  </div>
-                  <p className="text-muted-foreground mt-2">Uses only Transactions as the single source of truth. Income is not double-counted from Budget Control rules. Savings excluded.</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }}>
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</p>
+                  <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[320px] text-xs">
+                <p className="font-semibold mb-1">Safe to Pay (today → due date {primaryDueDay}th):</p>
+                <div className="space-y-0.5">
+                  <div className="flex justify-between gap-3"><span>Funding Balance (now)</span><span>{formatCurrency(bd.fundingBalance, false)}</span></div>
+                  <div className="flex justify-between gap-3"><span>+ Income from Transactions (today→due)</span><span>{formatCurrency(bd.remainingPaycheckIncome, false)}</span></div>
+                  <div className="flex justify-between gap-3"><span>− Expenses from Transactions (today→due)</span><span>{formatCurrency(bd.remainingExpenses, false)}</span></div>
+                  <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
+                  {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
+                  <hr className="my-1 border-border/50" />
+                  <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
+                </div>
+                <p className="text-muted-foreground mt-2">Uses only Transactions as the single source of truth. Income is not double-counted from Budget Control rules. Savings excluded.</p>
+              </TooltipContent>
+            </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Minimums Due</p>
               <p className="text-xs sm:text-sm font-display font-bold text-destructive">{formatCurrency(recommendations.totalMinimumsdue, false)}</p>
