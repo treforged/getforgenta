@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { AuthSession } from '@/lib/auth-session';
 import { useDemo } from '@/contexts/DemoContext';
 
@@ -167,10 +169,8 @@ export default function Auth() {
       : `${window.location.origin}/auth`;
 
     try {
-      if (Capacitor.isNativePlatform()) {
-        // Native: use ASWebAuthenticationSession (via AuthSessionPlugin).
-        // Unlike SFSafariViewController, ASWebAuthenticationSession properly
-        // intercepts the custom URL scheme callback and auto-dismisses.
+      if (Capacitor.getPlatform() === 'ios') {
+        // iOS: ASWebAuthenticationSession — auto-dismisses, captures callback in-process
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
           options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
@@ -204,8 +204,71 @@ export default function Auth() {
 
         navigate('/dashboard', { replace: true });
         setLoading(false);
+
+      } else if (Capacitor.getPlatform() === 'android') {
+        // Android: Chrome Custom Tabs + appUrlOpen.
+        // The intent-filter in AndroidManifest routes com.treforged.forged:// back
+        // to MainActivity, which Capacitor translates into the appUrlOpen event.
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: { redirectTo, skipBrowserRedirect: true },
+        });
+        if (error) throw error;
+        if (!data.url) throw new Error('No OAuth URL returned');
+
+        const oauthUrl = data.url;
+        const callbackUrl = await new Promise<string>((resolve, reject) => {
+          let urlHandle: { remove: () => void } | null = null;
+          let finishedHandle: { remove: () => void } | null = null;
+          let resolved = false;
+
+          const cleanup = () => {
+            urlHandle?.remove();
+            finishedHandle?.remove();
+          };
+
+          const setup = async () => {
+            urlHandle = await App.addListener('appUrlOpen', ({ url }) => {
+              if (url.startsWith('com.treforged.forged://')) {
+                resolved = true;
+                cleanup();
+                Browser.close().catch(() => {});
+                resolve(url);
+              }
+            });
+
+            // browserFinished fires when the user manually closes the tab.
+            // Delay slightly so appUrlOpen wins if both fire on a successful redirect.
+            finishedHandle = await Browser.addListener('browserFinished', () => {
+              setTimeout(() => {
+                if (!resolved) {
+                  cleanup();
+                  reject(new Error('cancelled'));
+                }
+              }, 300);
+            });
+
+            await Browser.open({ url: oauthUrl });
+          };
+
+          setup().catch(err => {
+            cleanup();
+            reject(err);
+          });
+        });
+
+        const incoming = new URL(callbackUrl);
+        const code = incoming.searchParams.get('code');
+        if (!code) throw new Error('No auth code in callback URL');
+
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+        if (exchangeError) throw exchangeError;
+
+        navigate('/dashboard', { replace: true });
+        setLoading(false);
+
       } else {
-        // Web: open in centered popup so user stays on the page
+        // Web: centered popup so the user stays on the page
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,
           options: { redirectTo, skipBrowserRedirect: true, queryParams: { prompt: 'select_account' } },
@@ -219,12 +282,10 @@ export default function Auth() {
         const popup = window.open(data.url, 'forgenta-oauth', `width=${w},height=${h},left=${left},top=${top},scrollbars=yes`);
 
         if (!popup) {
-          // Popup blocked — fall back to full redirect
           window.location.href = data.url;
           return;
         }
 
-        // Poll until popup closes then check session
         const poll = setInterval(() => {
           if (!popup || popup.closed) {
             clearInterval(poll);
@@ -237,7 +298,9 @@ export default function Auth() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
-      if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('email already in use')) {
+      if (msg === 'User cancelled' || msg === 'cancelled') {
+        // User dismissed — no error toast
+      } else if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('email already in use')) {
         toast.error('An account already exists with this email. Sign in with your password or reset it using "Forgot password?".');
       } else {
         toast.error(msg || 'OAuth sign-in failed. Please try again.');
