@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router-dom';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
@@ -12,7 +13,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Wallet, TrendingDown, DollarSign, PiggyBank, Plus, Edit2, Trash2, Copy,
-  CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, Info, X,
+  CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, Info, X, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { getDayName } from '@/lib/scheduling';
 import { CATEGORIES } from '@/lib/types';
@@ -146,6 +147,7 @@ export default function BudgetControl() {
   // Dynamic paycheck deductions
   const [deductions, setDeductions] = useState<PaycheckDeduction[]>(DEFAULT_DEDUCTIONS);
   const [showCatalog, setShowCatalog] = useState(false);
+  const [deductionsCollapsed, setDeductionsCollapsed] = usePersistedState<boolean>('tre:budget:deductions-collapsed', false);
   const [customLabel, setCustomLabel] = useState('');
 
   // Paycheck rule lock — ID of the single income rule auto-synced by income settings
@@ -854,7 +856,13 @@ export default function BudgetControl() {
         {/* Paycheck Deductions */}
         <div className="space-y-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h4 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider">Paycheck Deductions</h4>
+            <button
+              onClick={() => setDeductionsCollapsed(c => !c)}
+              className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
+            >
+              {deductionsCollapsed ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+              Paycheck Deductions
+            </button>
             <button
               onClick={() => setShowCatalog(true)}
               className="shrink-0 flex items-center gap-1 text-xs sm:text-sm text-primary border border-primary/30 px-2 py-1 hover:bg-primary/5 transition-colors"
@@ -864,6 +872,7 @@ export default function BudgetControl() {
             </button>
           </div>
 
+          {!deductionsCollapsed && <>
           {/* Deduction rows — grouped by type */}
           {(() => {
             const isCatalogItem = (label: string) => DEDUCTION_CATALOG.some(c => c.label.toLowerCase() === label.toLowerCase());
@@ -1001,6 +1010,7 @@ export default function BudgetControl() {
               <span className="font-display font-bold text-success">{formatCurrency(paycheckNet, false)} net</span>
             </div>
           )}
+          </>}
         </div>
 
         {/* Income inputs — frequency, tax rate, payday */}
