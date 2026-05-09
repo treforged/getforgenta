@@ -546,7 +546,7 @@ export default function Legal() {
   return (
     <div className="h-screen overflow-y-auto bg-background">
       {/* Top bar */}
-      <div className="border-b border-border px-6 py-4 flex items-center">
+      <div className="sticky top-0 z-10 bg-background border-b border-border px-6 py-4 flex items-center">
         <button
           onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/')}
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -559,7 +559,7 @@ export default function Legal() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 flex flex-col sm:flex-row gap-8">
         {/* Sidebar — desktop */}
         <aside className="hidden sm:block w-44 shrink-0">
-          <nav className="sticky top-8 space-y-1">
+          <nav className="sticky top-[60px] space-y-1">
             <Link
               to="/privacy"
               className={`block px-3 py-2 text-xs font-medium transition-colors ${
