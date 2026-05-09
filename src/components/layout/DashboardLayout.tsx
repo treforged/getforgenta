@@ -16,6 +16,7 @@ export default function DashboardLayout() {
         </div>
 
         <main
+          id="scroll-main"
           className={`
             flex-1
             min-h-0
