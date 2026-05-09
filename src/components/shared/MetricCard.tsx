@@ -47,14 +47,14 @@ export default function MetricCard({
   return (
     <div
       className={cn(
-        'relative card-forged p-4 sm:p-5 hover:border-primary/20 transition-all duration-300',
+        'relative card-forged p-4 sm:p-5 hover:border-primary/20 transition-all duration-300 min-h-[100px] lg:min-h-0',
         glowMap[accent],
         className
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <p className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-wider leading-snug">
+          <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider leading-snug">
             {label}
           </p>
 
