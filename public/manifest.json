@@ -9,18 +9,18 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/forgentalogoLG.png",
+      "src": "/forgenta-favicon.png",
       "sizes": "1024x1024",
       "type": "image/png"
     },
     {
-      "src": "/forgentalogoLG.png",
+      "src": "/forgenta-favicon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/forgentalogoLG.png",
+      "src": "/forgenta-favicon.png",
       "sizes": "192x192",
       "type": "image/png"
     }
