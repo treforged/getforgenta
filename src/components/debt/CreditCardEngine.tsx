@@ -105,6 +105,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const fundingAccount = liquidAccounts.find((a: any) => a.id === fundingAccountId);
   const fundingBalance = fundingAccount ? Number(fundingAccount.balance) : liquidCash;
 
+  // Allow-list of payment source strings that match the funding account.
+  // Expenses with a source NOT in this set (CC, other checking, savings) are excluded
+  // from the liquid cash estimate since they don't draw from the funding account.
+  const fundingAccountSources = useMemo(
+    () => fundingAccountId
+      ? new Set([fundingAccountId, `account:${fundingAccountId}`])
+      : new Set<string>(),
+    [fundingAccountId],
+  );
+
   const monthlyTakeHome = useMemo(() => {
     const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
     const taxRate = Number(profile?.tax_rate) || 22;
@@ -183,14 +193,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Computed income/expense breakdown for display — uses merged Transactions as single source of truth
   const cashBreakdown = useMemo(() => {
     const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, primaryDueDay);
-    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, primaryDueDay, true, ccPaymentSources, CC_DEFAULT_CATEGORIES);
+    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
     return { transactionIncome, transactionExpenses };
   }, [allTransactionsWithNextMonth, primaryDueDay]);
 
   // Line-item breakdown so the tooltip can show exactly what's included
   const cashBreakdownItems = useMemo(() => {
     const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, primaryDueDay);
-    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, primaryDueDay, true, ccPaymentSources, CC_DEFAULT_CATEGORIES);
+    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
     return { incomeItems, expenseItems };
   }, [allTransactionsWithNextMonth, primaryDueDay]);
 
@@ -206,7 +216,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     for (const card of cards) {
       const dueDay = card.dueDay || 31;
       const incByDue = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, dueDay);
-      const expByDue = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, dueDay, true, ccPaymentSources, CC_DEFAULT_CATEGORIES);
+      const expByDue = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, dueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
       result[card.id] = fundingBalance + incByDue - expByDue;
     }
     return result;
@@ -322,7 +332,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // are consistent. getRemainingTransactionExpensesByDay excludes Debt Payments and
     // Balance Adjustments but INCLUDES CC-tagged expenses — this matches estLiquidCash
     // and keeps the simulation conservative (those CC charges will need paying next month).
-    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true, ccPaymentSources, CC_DEFAULT_CATEGORIES);
+    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
 
     // CC account IDs used to exclude CC-charged one-time expenses from future cash-flow months.
     const ccIds = new Set(

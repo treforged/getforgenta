@@ -332,7 +332,7 @@ export function getRemainingTransactionExpensesByDay(
   transactions: any[],
   dueDay: number = 31,
   excludeDebtPayments = false,
-  excludePaymentSources: Set<string> = new Set(),
+  fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
 ): number {
   const now = new Date();
@@ -353,8 +353,10 @@ export function getRemainingTransactionExpensesByDay(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
-    // Skip CC-charged expenses — they hit the card balance, not the funding account
-    if (excludePaymentSources.size > 0 && t.payment_source && excludePaymentSources.has(t.payment_source)) continue;
+    // Only count expenses from the funding account. If a source is set and it
+    // isn't the funding account (CC, other checking, savings, etc.), skip it.
+    if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
+    // When no explicit source, skip CC-default categories (likely charged to a card).
     if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
@@ -416,7 +418,7 @@ export function getRemainingTransactionExpenseItemsByDay(
   transactions: any[],
   dueDay: number = 31,
   excludeDebtPayments = false,
-  excludePaymentSources: Set<string> = new Set(),
+  fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
 ): TransactionLineItem[] {
   const now = new Date();
@@ -436,7 +438,7 @@ export function getRemainingTransactionExpenseItemsByDay(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
-    if (excludePaymentSources.size > 0 && t.payment_source && excludePaymentSources.has(t.payment_source)) continue;
+    if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
     if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
