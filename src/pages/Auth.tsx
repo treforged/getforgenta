@@ -526,7 +526,7 @@ export default function Auth() {
   if (mode === 'landing') {
     return (
       <div
-        className="min-h-screen bg-background flex items-center justify-center px-6 relative"
+        className="min-h-screen bg-background flex items-center justify-center px-6"
         style={{
           paddingTop: 'calc(env(safe-area-inset-top) + 24px)',
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 24px)',
@@ -594,31 +594,32 @@ export default function Auth() {
           <p className="auth-trust text-sm font-medium text-foreground/70 text-center">
             0 ads. Ever. No selling your data.
           </p>
-          <div className="auth-trust flex items-center justify-center gap-2">
-            <Link
-              to="/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Privacy Policy
-            </Link>
-            <Link
-              to="/terms"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Terms of Service
-            </Link>
+          <div className="auth-trust flex flex-col items-center gap-2">
+            <div className="flex items-center justify-center gap-2">
+              <Link
+                to="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                to="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Terms of Service
+              </Link>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center">
+              &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
+            </p>
           </div>
         </div>
-        <p className="absolute bottom-3 left-0 right-0 text-[10px] text-muted-foreground text-center"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-          &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
-        </p>
       </div>
     );
   }
@@ -812,7 +813,7 @@ export default function Auth() {
   // ── Sign in / Sign up / Request reset ────────────────────────────────────
   return (
     <div
-      className="min-h-screen bg-background flex items-center justify-center px-4 relative"
+      className="min-h-screen bg-background flex items-center justify-center px-4"
       style={{
         paddingTop: 'calc(env(safe-area-inset-top) + 16px)',
         paddingBottom: 'calc(env(safe-area-inset-bottom) + 16px)',
@@ -1005,31 +1006,32 @@ export default function Auth() {
           </div>
         )}
 
-        <div className="flex items-center justify-center gap-2 mt-4">
-          <Link
-            to="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            Privacy Policy
-          </Link>
-          <Link
-            to="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            Terms of Service
-          </Link>
+        <div className="flex flex-col items-center gap-2 mt-4">
+          <div className="flex items-center justify-center gap-2">
+            <Link
+              to="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              to="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Terms of Service
+            </Link>
+          </div>
+          <p className="text-[10px] text-muted-foreground text-center">
+            &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
+          </p>
         </div>
       </div>
-      <p className="absolute bottom-3 left-0 right-0 text-[10px] text-muted-foreground text-center"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
-      </p>
     </div>
   );
 }
