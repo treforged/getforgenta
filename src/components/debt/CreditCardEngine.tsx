@@ -7,7 +7,9 @@ import {
 import {
   buildPayConfig, getPrePaycheckNextMonthBills,
   getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
+  getRemainingTransactionIncomeItemsByDay, getRemainingTransactionExpenseItemsByDay,
   mergeWithGeneratedTransactions, generateMonthTransactionsFromRules,
+  type TransactionLineItem,
 } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
@@ -178,6 +180,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, primaryDueDay);
     const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, primaryDueDay, true);
     return { transactionIncome, transactionExpenses };
+  }, [allTransactionsWithNextMonth, primaryDueDay]);
+
+  // Line-item breakdown so the tooltip can show exactly what's included
+  const cashBreakdownItems = useMemo(() => {
+    const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, primaryDueDay);
+    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, primaryDueDay, true);
+    return { incomeItems, expenseItems };
   }, [allTransactionsWithNextMonth, primaryDueDay]);
 
   // Estimated liquid cash: funding balance + transaction income through due date - transaction expenses through due date
@@ -713,22 +722,74 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <TooltipTrigger asChild>
                   <p className="text-xs sm:text-sm font-display font-bold text-foreground cursor-help">{formatCurrency(estLiquidCash, false)}</p>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[320px] text-xs">
-                 <p className="font-semibold mb-1">Cash available from today through card due date ({primaryDueDay}{primaryDueDay === 1 ? 'st' : primaryDueDay === 2 ? 'nd' : primaryDueDay === 3 ? 'rd' : 'th'})</p>
-                  <div className="space-y-0.5">
-                    <div className="flex justify-between gap-3"><span>Funding Balance (now)</span><span className="font-bold">{formatCurrency(bd.fundingBalance, false)}</span></div>
-                    <div className="flex justify-between gap-3"><span>+ Income from Transactions (today→due)</span><span className="font-bold">{formatCurrency(bd.remainingPaycheckIncome, false)}</span></div>
-                    <div className="flex justify-between gap-3"><span>− Expenses from Transactions (today→due)</span><span className="font-bold">{formatCurrency(bd.remainingExpenses, false)}</span></div>
-                    <hr className="my-1 border-border/50" />
-                    <div className="flex justify-between gap-3 font-bold"><span>= Est. Liquid Cash</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
-                  </div>
-                  <p className="text-muted-foreground mt-2">Uses only the funding balance plus income transactions already scheduled/recorded in Transactions between today and the card due date. Income is not counted from Budget Control separately.</p>
-                  {cards.filter(c => !c.autopayFullBalance && c.balance > 0).map(c => (
-                    <div key={c.id} className="flex justify-between gap-2 mt-1">
-                      <span>{c.name} (due {c.dueDay || 31}th)</span>
-                      <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
-                    </div>
-                  ))}
+                <TooltipContent side="bottom" className="max-w-[360px] text-xs">
+                  {(() => {
+                    const now = new Date();
+                    const today = now.getDate();
+                    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    const fmtDate = (d: string) => {
+                      const [,m,day] = d.split('-');
+                      return `${MONTHS[parseInt(m)-1]} ${parseInt(day)}`;
+                    };
+                    const windowEndMonth = primaryDueDay < today
+                      ? MONTHS[(now.getMonth() + 1) % 12]
+                      : MONTHS[now.getMonth()];
+                    const windowLabel = `today → ${windowEndMonth} ${primaryDueDay}`;
+                    const hasProjected = cashBreakdownItems.incomeItems.some(i => i.isGenerated) || cashBreakdownItems.expenseItems.some(i => i.isGenerated);
+                    const hasTodayItems = [...cashBreakdownItems.incomeItems, ...cashBreakdownItems.expenseItems].some(i => i.date.split('-')[2] === String(today).padStart(2,'0'));
+                    return (
+                      <>
+                        <p className="font-semibold mb-2">Est. Liquid Cash ({windowLabel})</p>
+                        <div className="flex justify-between gap-3 mb-2">
+                          <span className="text-muted-foreground">{fundingAccount?.name ?? 'Funding'} balance now</span>
+                          <span className="font-bold">{formatCurrency(fundingBalance, false)}</span>
+                        </div>
+                        {cashBreakdownItems.incomeItems.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-[10px] text-success uppercase tracking-wider mb-1">+ Upcoming income</p>
+                            {cashBreakdownItems.incomeItems.map((item: TransactionLineItem, i: number) => (
+                              <div key={i} className="flex justify-between gap-3">
+                                <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
+                                <span className="text-success shrink-0">+{formatCurrency(item.amount, false)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {cashBreakdownItems.incomeItems.length === 0 && (
+                          <p className="text-muted-foreground mb-2 italic">No income scheduled in window</p>
+                        )}
+                        {cashBreakdownItems.expenseItems.length > 0 && (
+                          <div className="mb-2">
+                            <p className="text-[10px] text-destructive uppercase tracking-wider mb-1">− Expenses (excl. debt payments)</p>
+                            {cashBreakdownItems.expenseItems.map((item: TransactionLineItem, i: number) => (
+                              <div key={i} className="flex justify-between gap-3">
+                                <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
+                                <span className="text-destructive shrink-0">−{formatCurrency(item.amount, false)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <hr className="my-1 border-border/50" />
+                        <div className="flex justify-between gap-3 font-bold mb-2">
+                          <span>= Est. Liquid Cash</span>
+                          <span>{formatCurrency(estLiquidCash, false)}</span>
+                        </div>
+                        {cards.filter(c => !c.autopayFullBalance && c.balance > 0).length > 1 && (
+                          <div className="mb-2 space-y-0.5">
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Per card (by due date)</p>
+                            {cards.filter(c => !c.autopayFullBalance && c.balance > 0).map(c => (
+                              <div key={c.id} className="flex justify-between gap-2">
+                                <span className="text-muted-foreground">{c.name} (due {c.dueDay || 31})</span>
+                                <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {hasProjected && <p className="text-muted-foreground text-[10px]">* Projected from your recurring rules — not yet a real transaction.</p>}
+                        {hasTodayItems && <p className="text-muted-foreground text-[10px] mt-0.5">Items dated today may already be reflected in your balance.</p>}
+                      </>
+                    );
+                  })()}
                 </TooltipContent>
               </Tooltip>
             </div>

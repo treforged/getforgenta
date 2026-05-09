@@ -362,6 +362,86 @@ export function getRemainingTransactionExpensesByDay(
   return total;
 }
 
+export interface TransactionLineItem {
+  date: string;
+  note: string;
+  amount: number;
+  isGenerated: boolean;
+}
+
+/** Returns each income transaction in the due-date window as a line item (same filter as getRemainingTransactionIncomeByDay). */
+export function getRemainingTransactionIncomeItemsByDay(
+  transactions: any[], dueDay: number = 31
+): TransactionLineItem[] {
+  const now = new Date();
+  const today = now.getDate();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const monthEnd = new Date(year, month + 1, 0);
+  const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const dueAlreadyPassed = dueDay < today;
+  const effectiveDueDay = dueAlreadyPassed ? monthEnd.getDate() : Math.min(dueDay, monthEnd.getDate());
+  const nextYear = month === 11 ? year + 1 : year;
+  const nextMonth = (month + 1) % 12;
+  const nextMonthStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}`;
+
+  const items: TransactionLineItem[] = [];
+  for (const t of transactions) {
+    if (t.type !== 'income') continue;
+    if (t.category === 'Balance Adjustment') continue;
+    if (!t.date) continue;
+    if (t.date.startsWith(monthStr)) {
+      const txDay = parseInt(t.date.split('-')[2]);
+      if (txDay >= today && txDay <= effectiveDueDay) {
+        items.push({ date: t.date, note: t.note || t.category || 'Income', amount: Number(t.amount), isGenerated: !!t.isGenerated });
+      }
+    } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
+      const txDay = parseInt(t.date.split('-')[2]);
+      if (txDay >= 1 && txDay <= dueDay) {
+        items.push({ date: t.date, note: t.note || t.category || 'Income', amount: Number(t.amount), isGenerated: !!t.isGenerated });
+      }
+    }
+  }
+  return items.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Returns each expense transaction in the due-date window as a line item (same filter as getRemainingTransactionExpensesByDay). */
+export function getRemainingTransactionExpenseItemsByDay(
+  transactions: any[], dueDay: number = 31, excludeDebtPayments = false
+): TransactionLineItem[] {
+  const now = new Date();
+  const today = now.getDate();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const monthEnd = new Date(year, month + 1, 0);
+  const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
+  const dueAlreadyPassed = dueDay < today;
+  const effectiveDueDay = dueAlreadyPassed ? monthEnd.getDate() : Math.min(dueDay, monthEnd.getDate());
+  const nextYear = month === 11 ? year + 1 : year;
+  const nextMonth = (month + 1) % 12;
+  const nextMonthStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}`;
+
+  const items: TransactionLineItem[] = [];
+  for (const t of transactions) {
+    if (t.type !== 'expense') continue;
+    if (excludeDebtPayments && t.category === 'Debt Payments') continue;
+    if (t.category === 'Balance Adjustment') continue;
+    if (!t.date) continue;
+    if (t.date.startsWith(monthStr)) {
+      const txDay = parseInt(t.date.split('-')[2]);
+      if (txDay >= today && txDay <= effectiveDueDay) {
+        items.push({ date: t.date, note: t.note || t.category || 'Expense', amount: Number(t.amount), isGenerated: !!t.isGenerated });
+      }
+    } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
+      const txDay = parseInt(t.date.split('-')[2]);
+      if (txDay >= 1 && txDay <= dueDay) {
+        items.push({ date: t.date, note: t.note || t.category || 'Expense', amount: Number(t.amount), isGenerated: !!t.isGenerated });
+      }
+    }
+  }
+  return items.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 /**
  * Get ALL remaining income from Transactions for the rest of the current month.
  * Single source of truth for Budget Control Remaining Cash On Hand.
