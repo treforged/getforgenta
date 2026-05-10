@@ -47,7 +47,7 @@ export default function MetricCard({
   return (
     <div
       className={cn(
-        'relative card-forged p-4 sm:p-5 hover:border-primary/20 transition-all duration-300 min-h-[100px] lg:min-h-0',
+        'relative card-forged p-4 sm:p-5 hover:border-primary/20 transition-all duration-300 h-full',
         glowMap[accent],
         className
       )}

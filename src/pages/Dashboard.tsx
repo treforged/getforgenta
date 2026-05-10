@@ -148,7 +148,7 @@ function ClickableMetric({
   const navigate = useNavigate();
   return (
     <div
-      className="relative group cursor-pointer transition-all duration-200 hover:ring-1 hover:ring-primary/40 active:scale-[0.99]"
+      className="relative group cursor-pointer transition-all duration-200 hover:ring-1 hover:ring-primary/40 active:scale-[0.99] h-full"
       style={{ borderRadius: 'var(--radius)' }}
       onClick={() => {
         if (onClick) onClick();
