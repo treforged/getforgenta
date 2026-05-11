@@ -8,6 +8,7 @@ import {
   purchasePackage,
   restorePurchases,
   presentCodeRedemptionSheet,
+  openAndroidOfferRedemption,
 } from '@/lib/purchases';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -89,11 +90,36 @@ export default function NativePaywall() {
   };
 
   const handleRedeemCode = async () => {
-    try {
-      await presentCodeRedemptionSheet();
-      await refetch();
-    } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : 'Could not open code redemption.');
+    if (isAndroid) {
+      try {
+        const { App } = await import('@capacitor/app');
+        let hasLeftApp = false;
+        const listener = await App.addListener('appStateChange', async ({ isActive }) => {
+          if (!isActive) { hasLeftApp = true; return; }
+          if (isActive && hasLeftApp) {
+            await listener.remove();
+            setRestoring(true);
+            try {
+              const info = await restorePurchases();
+              if (info) { await refetch(); toast.success('Subscription updated!'); }
+            } catch {
+              // user can tap Restore purchases manually if needed
+            } finally {
+              setRestoring(false);
+            }
+          }
+        });
+        await openAndroidOfferRedemption();
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Could not open Play Store redemption.');
+      }
+    } else {
+      try {
+        await presentCodeRedemptionSheet();
+        await refetch();
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Could not open code redemption.');
+      }
     }
   };
 
@@ -240,18 +266,16 @@ export default function NativePaywall() {
         )}
       </button>
 
-      {/* Redeem code — iOS only — above restore, slightly larger */}
-      {!isAndroid && (
-        <div className="text-center">
-          <button
-            onClick={handleRedeemCode}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
-          >
-            <Tag size={14} />
-            Redeem code
-          </button>
-        </div>
-      )}
+      {/* Redeem code — all platforms */}
+      <div className="text-center">
+        <button
+          onClick={handleRedeemCode}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+        >
+          <Tag size={14} />
+          {isAndroid ? 'Redeem promo code' : 'Redeem code'}
+        </button>
+      </div>
 
       {/* Restore purchases + legal — grouped to stay above fold */}
       <div className="flex flex-col items-center gap-1.5">
