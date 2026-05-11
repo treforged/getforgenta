@@ -70,4 +70,9 @@ export async function presentCodeRedemptionSheet(): Promise<void> {
   await Purchases.presentCodeRedemptionSheet();
 }
 
+export async function openAndroidOfferRedemption(): Promise<void> {
+  const { App } = await import('@capacitor/app');
+  await App.openUrl({ url: 'https://play.google.com/redeem' });
+}
+
 export type { CustomerInfo, PurchasesOfferings, PurchasesPackage };
