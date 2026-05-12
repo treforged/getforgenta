@@ -93,7 +93,7 @@ export default function Accounts() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; isLinked: boolean } | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'assets' | 'liabilities'>('all');
   const [matchEntries, setMatchEntries] = useState<MatchEntry[]>([]);
   const [showMatchModal, setShowMatchModal] = useState(false);
@@ -300,9 +300,14 @@ export default function Accounts() {
 
   const toggleActive = (a: any) => update.mutate({ id: a.id, active: !a.active });
 
-  const handleDelete = (id: string) => {
-    if (deleteConfirm === id) { remove.mutate(id); setDeleteConfirm(null); }
-    else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
+  const handleDelete = (a: any) => {
+    setDeleteConfirm({ id: a.id, name: a.name, isLinked: !!a.plaid_account_id });
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirm) return;
+    remove.mutate(deleteConfirm.id);
+    setDeleteConfirm(null);
   };
 
   const isLiability = (type: string) => LIABILITY_TYPES.includes(type);
@@ -347,6 +352,45 @@ export default function Accounts() {
             >
               {matchEntries.length > 0 ? 'Match Accounts →' : 'Done'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete account confirmation modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm p-4" onClick={() => setDeleteConfirm(null)}>
+          <div className="card-forged w-full max-w-sm p-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                <Trash2 size={18} className="text-destructive" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">Delete "{deleteConfirm.name}"?</p>
+                <p className="text-xs text-muted-foreground mt-1">This will permanently remove the account and all associated data. This cannot be undone.</p>
+              </div>
+            </div>
+            {deleteConfirm.isLinked && (
+              <div className="bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-400 space-y-1" style={{ borderRadius: 'var(--radius)' }}>
+                <p className="font-semibold">This account is linked to Plaid.</p>
+                <p>Deleting it will disconnect the Plaid sync. It will no longer pull balance or transaction updates.</p>
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2 text-xs font-semibold border border-border text-muted-foreground hover:text-foreground transition-colors"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-2 text-xs font-semibold bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                Delete Account
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -480,7 +524,7 @@ export default function Accounts() {
                       {a.active ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
                     <button onClick={() => openEdit(a)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                    <button onClick={() => handleDelete(a.id)} className={`icon-btn ${deleteConfirm === a.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                    <button onClick={() => handleDelete(a)} className="icon-btn text-muted-foreground hover:text-destructive"><Trash2 size={14} /></button>
                   </div>
                 </div>
               </div>
