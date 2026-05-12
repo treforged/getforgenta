@@ -1077,19 +1077,24 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                 {formatCurrency(Math.max(0, row.endBalance), false)}
                               </div>
                             </div>
-                            {/* Detail row: Start · Purch · Interest · Util · Revert */}
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 pb-1.5 text-[9px] text-muted-foreground">
-                              <span>Start: {formatCurrency(row.startBalance, false)}</span>
-                              {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purch</span>}
-                              {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} int</span>}
-                              <span className={row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
-                                {row.utilization.toFixed(1)}% util
-                              </span>
-                              {isOverridden && (
-                                <button onClick={() => revertMonth(proj.card.id, idx)} className="text-muted-foreground hover:text-primary ml-auto" title="Revert">
-                                  <RotateCcw size={9} />
-                                </button>
-                              )}
+                            {/* Detail row: constrained to first column so it never bleeds into Payment/End Bal */}
+                            <div className="grid grid-cols-3 pb-1.5">
+                              <div className="px-1 flex flex-col gap-0.5 text-[9px] text-muted-foreground">
+                                <span>Start: {formatCurrency(row.startBalance, false)}</span>
+                                {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purch</span>}
+                                {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} int</span>}
+                                <span className={row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
+                                  {row.utilization.toFixed(1)}% util
+                                </span>
+                              </div>
+                              <div />
+                              <div className="px-1 flex items-start justify-end">
+                                {isOverridden && (
+                                  <button onClick={() => revertMonth(proj.card.id, idx)} className="text-muted-foreground hover:text-primary" title="Revert">
+                                    <RotateCcw size={9} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
