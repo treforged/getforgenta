@@ -98,7 +98,7 @@ export default function Landing() {
             FORGENTA
           </motion.span>
           <div className="flex items-center gap-4">
-            <Link to="/auth" className="text-xs text-foreground/70 hover:text-foreground transition-colors">
+            <Link to="/auth" className="text-xs text-muted-foreground hover:text-foreground transition-colors">
               Sign In
             </Link>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
@@ -114,7 +114,6 @@ export default function Landing() {
         </div>
       </motion.header>
 
-      <main>
       {/* Hero */}
       <section
         className="max-w-6xl mx-auto px-4 pt-16 pb-24 lg:pt-24 lg:pb-36 text-center relative"
@@ -184,26 +183,6 @@ export default function Landing() {
             </Link>
           </motion.div>
         </motion.div>
-
-        <motion.div
-          className="mt-6 flex justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.55, duration: 0.5 }}
-        >
-          <a
-            href="https://play.google.com/store/apps/details?id=com.treforged.forged&pcampaignid=web_share"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Get Forgenta on Google Play"
-          >
-            <img
-              src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
-              alt="Get it on Google Play"
-              style={{ height: 40, width: 'auto' }}
-            />
-          </a>
-        </motion.div>
       </section>
 
       {/* Stats */}
@@ -222,7 +201,7 @@ export default function Landing() {
                 <p className="font-display font-extrabold text-3xl md:text-4xl text-gold">
                   <AnimatedCounter target={s.value} suffix={s.suffix} />
                 </p>
-                <p className="text-[10px] text-foreground/60 mt-1 uppercase tracking-wider">{s.label}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">{s.label}</p>
               </motion.div>
             ))}
           </div>
@@ -231,7 +210,6 @@ export default function Landing() {
 
       {/* Pillars */}
       <section className="max-w-6xl mx-auto px-4 py-16">
-        <h2 className="sr-only">Core principles</h2>
         <div className="grid md:grid-cols-3 gap-4">
           {pillars.map((p, i) => (
             <motion.div
@@ -291,7 +269,7 @@ export default function Landing() {
                 </div>
                 <h3 className="font-display font-semibold text-sm group-hover:text-primary transition-colors">{f.title}</h3>
               </div>
-              <p className="text-xs text-foreground/65 leading-relaxed">{f.desc}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
             </motion.div>
           ))}
         </div>
@@ -352,15 +330,13 @@ export default function Landing() {
         </motion.div>
       </section>
 
-      </main>
-
       {/* Footer */}
       <footer className="border-t border-border py-8">
         <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <span className="font-display font-bold text-xs tracking-tight text-gold">FORGENTA</span>
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
             <span>&copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.</span>
-            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors underline underline-offset-2">Privacy Policy</Link>
+            <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Privacy Policy</Link>
             <Link to="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">Terms of Service</Link>
           </div>
         </div>
