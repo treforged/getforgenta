@@ -16,7 +16,7 @@ const navItems = [
   { to: '/budget', icon: Sliders, label: 'Budget Control' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff' },
-  { to: '/savings', icon: PiggyBank, label: 'Savings Goals' },
+  { to: '/savings', icon: PiggyBank, label: 'Goals' },
   { to: '/net-worth', icon: Wallet, label: 'Net Worth' },
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   { to: '/ai', icon: Sparkles, label: 'AI Advisor' },
