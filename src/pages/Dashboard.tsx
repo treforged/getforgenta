@@ -773,7 +773,7 @@ export default function Dashboard() {
               { label: 'Debt Payoff', desc: 'Avalanche engine computes how fast each card gets paid using every dollar above the cash floor.', path: '/debt' },
               { label: 'Forecast', desc: '36-month sim. Debt payoff adjusts monthly so end cash never sits idle — it goes straight to debt.', path: '/forecast' },
               { label: 'Transactions', desc: 'One-time income (tax refund, bonus) and expenses update cash flow and feed the debt engine.', path: '/transactions' },
-              { label: 'Savings & Car Fund', desc: 'Goals track toward specific targets. The car fund models the full purchase: down payment + loan.', path: '/savings' },
+              { label: 'Savings & Car Fund', desc: 'Goals track toward specific targets. The car fund models the full purchase: down payment + loan.', path: '/goals' },
               { label: 'Net Worth', desc: 'Weekly snapshots plot the trajectory — watches Jordan cross zero and start building real wealth.', path: '/net-worth' },
             ].map(f => (
               <Link key={f.path} to={f.path} className="group flex gap-2.5 p-3 bg-secondary/40 hover:bg-secondary/70 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
@@ -877,7 +877,7 @@ export default function Dashboard() {
       </div>
 
       {carGoalData && (
-        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/savings')}>
+        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
           <div className="flex items-center gap-2 mb-4">
             <Car size={14} className="text-primary" />
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
@@ -1003,7 +1003,7 @@ export default function Dashboard() {
       {goalsLoading ? (
         <ChartSkeleton height={120} />
       ) : (
-        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/savings')}>
+        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
           <div className="grid md:grid-cols-3 gap-5">
             {(() => {
