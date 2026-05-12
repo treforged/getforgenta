@@ -1,1 +1,4 @@
 project_id = "mdtosrbfkextcaezuclh"
+
+[functions.plaid-sync-all]
+verify_jwt = false
