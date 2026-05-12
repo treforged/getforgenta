@@ -489,13 +489,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   const handleSaveDueDay = (card: CardData) => {
     const day = parseInt(dueDayInput);
-    if (isNaN(day) || day < 1 || day > 28) {
-      toast.error('Due day must be 1–28 (days 29–31 are not valid for all months)');
+    if (isNaN(day) || day < 1 || day > 31) {
+      toast.error('Due day must be between 1 and 31');
       return;
     }
     updateAccount.mutate({ id: card.id, payment_due_day: day } as any);
     setEditingDueDay(null);
-    toast.success(`Due date for ${card.name} set to the ${day}${day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'}`);
+    toast.success(`Due date for ${card.name} set to the ${day}${day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of each month`);
   };
 
   const handleOverrideMonth = (cardId: string, monthIdx: number) => {
@@ -980,7 +980,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <div className="flex items-center gap-1 justify-center" onClick={e => e.stopPropagation()}>
                         <input type="number" value={dueDayInput} onChange={e => setDueDayInput(e.target.value)}
                           className="w-12 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
-                          style={{ borderRadius: 'var(--radius)' }} autoFocus min={1} max={28} step="1"
+                          style={{ borderRadius: 'var(--radius)' }} autoFocus min={1} max={31} step="1"
                           onKeyDown={e => { if (e.key === 'Enter') handleSaveDueDay(proj.card); if (e.key === 'Escape') setEditingDueDay(null); }} />
                         <button onClick={(e) => { e.stopPropagation(); handleSaveDueDay(proj.card); }} className="text-primary hover:text-primary/80"><Check size={12} /></button>
                       </div>
