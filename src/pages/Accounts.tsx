@@ -450,17 +450,41 @@ export default function Accounts() {
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label="Liquid Cash" value={formatCurrency(summary.liquidCash, false)} accent="success" icon={DollarSign} />
-        <MetricCard label="Investments" value={formatCurrency(summary.investments, false)} accent="gold" icon={TrendingUp} />
-        <MetricCard label="Retirement" value={formatCurrency(summary.retirement, false)} accent="gold" icon={TrendingUp} />
-        <MetricCard label="Credit Card Debt" value={formatCurrency(summary.ccDebt, false)} accent="crimson" icon={CreditCard} />
-      </div>
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <MetricCard label="Total Assets" value={formatCurrency(summary.totalAssets, false)} accent="success" icon={Wallet} />
-        <MetricCard label="Total Liabilities" value={formatCurrency(summary.totalLiabilities, false)} accent="crimson" icon={TrendingDown} />
-        <MetricCard label="Net Worth" value={formatCurrency(summary.netWorth, false)} accent={summary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} />
+      {/* Summary Stats */}
+      <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
+        <div className="grid grid-cols-3 gap-4 sm:gap-6">
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Net Worth</p>
+            <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${summary.netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(summary.netWorth, false)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Assets</p>
+            <p className="text-lg sm:text-2xl font-display font-bold mt-0.5 text-success">{formatCurrency(summary.totalAssets, false)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Liabilities</p>
+            <p className="text-lg sm:text-2xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(summary.totalLiabilities, false)}</p>
+          </div>
+        </div>
+        <div className="border-t border-border/40" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Liquid Cash</p>
+            <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-success">{formatCurrency(summary.liquidCash, false)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Investments</p>
+            <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-primary">{formatCurrency(summary.investments, false)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Retirement</p>
+            <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-primary">{formatCurrency(summary.retirement, false)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">CC Debt</p>
+            <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-destructive">{formatCurrency(summary.ccDebt, false)}</p>
+          </div>
+        </div>
       </div>
 
       {/* Filter */}
