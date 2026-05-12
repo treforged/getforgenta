@@ -324,7 +324,7 @@ export default function SavingsGoals() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Savings Goals</h1>
+            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Goals</h1>
             <InstructionsModal pageTitle="Savings Goals Guide" sections={[
               { title: 'What is this page?', body: 'Track progress toward your financial goals — emergency fund, vacation, down payment, or car purchase. Link goals to real accounts for automatic balance sync.' },
               { title: 'Linked Accounts', body: 'When linked to an account, the goal\'s "current saved" automatically reflects that account balance. "Available after bills" shows the realistic amount after subtracting scheduled outflows.' },
