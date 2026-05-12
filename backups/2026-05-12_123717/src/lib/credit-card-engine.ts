@@ -706,7 +706,7 @@ export function generateRecommendations(
   const totalRemainingOutflows = remainingTransactionExpenses;
 
   const safeToPayTotal = Math.max(0,
-    effectiveFundingBalance + totalRemainingIncome - recommendedSafeMinimum - autopayTotal
+    effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum - autopayTotal
   );
 
   const cashWarning = safeToPayTotal < totalMinDue;
@@ -716,9 +716,10 @@ export function generateRecommendations(
     const dueDay = card.dueDay || 31;
     if (transactions && transactions.length > 0) {
       const incByDue = getRemainingTransactionIncomeByDay(transactions, dueDay);
-      cardEstimatedCash.set(card.id, effectiveFundingBalance + incByDue);
+      const expByDue = getRemainingTransactionExpensesByDay(transactions, dueDay, true);
+      cardEstimatedCash.set(card.id, effectiveFundingBalance + incByDue - expByDue);
     } else {
-      cardEstimatedCash.set(card.id, effectiveFundingBalance + totalRemainingIncome);
+      cardEstimatedCash.set(card.id, effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows);
     }
   }
 
