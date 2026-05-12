@@ -567,7 +567,6 @@ export default function Forecast() {
           return perCheck * (paychecksPerYear / 12);
         })();
 
-    const monthlySavingsContrib = goals.reduce((s: number, g: any) => s + Number(g.monthly_contribution), 0);
     const monthlyCarContrib = carFunds.reduce((s: number, c: any) => {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
@@ -581,7 +580,7 @@ export default function Forecast() {
     const baseData: {
       monthLabel: string; monthKey: string; netIncome: number; baseExpenses: number;
       rawDebtPayment: number; monthTransfers: number; monthBrokerageContrib: number; monthRetireContrib: number; oneTimeNet: number;
-      ccDebtBalance: number; otherDebtBalance: number; monthMinSafe: number;
+      ccDebtBalance: number; otherDebtBalance: number; monthMinSafe: number; monthlySavingsContrib: number;
     }[] = [];
     let incomeMultiplier = 1;
     let expenseMultiplier = 1;
@@ -690,9 +689,15 @@ export default function Forecast() {
 
       const monthMinSafe = getMinSafeCash(rules, payConfig, cashFloor, forecastFundingAccountId, d);
 
+      // Respect contribution_start_date on savings goals — don't subtract contributions before they begin
+      const monthlySavingsContrib = goals.reduce((s: number, g: any) => {
+        if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
+        return s + Number(g.monthly_contribution);
+      }, 0);
+
       baseData.push({
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
-        monthTransfers, monthBrokerageContrib, monthRetireContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe,
+        monthTransfers, monthBrokerageContrib, monthRetireContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
       });
 
       incomeMultiplier *= (1 + monthlyIncomeGrowth);
@@ -730,7 +735,7 @@ export default function Forecast() {
       let bal = liquidBal;
       for (let i = 0; i < 36; i++) {
         const b = baseData[i];
-        const totalOut = b.baseExpenses + debtPayments[i] + monthlySavingsContrib + monthlyCarContrib + b.monthTransfers;
+        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + monthlyCarContrib + b.monthTransfers;
         bal += b.netIncome - totalOut + b.oneTimeNet;
         // Simulate PASS 3 redirect: pin to monthMinSafe in normal months (not save-up months)
         if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > b.monthMinSafe) {
@@ -789,14 +794,14 @@ export default function Forecast() {
       const investGrowthAmt = Math.round(investBal * monthlyInvestGrowth * 100) / 100;
       const retireGrowthAmt = Math.round(retireBal * monthlyRetireGrowth * 100) / 100;
 
-      savingsBal += monthlySavingsContrib;
+      savingsBal += b.monthlySavingsContrib;
       savingsBal *= (1 + monthlySavingsInterest);
       investBal += b.monthBrokerageContrib;
       investBal *= (1 + monthlyInvestGrowth);
       retireBal += b.monthRetireContrib;
       retireBal *= (1 + monthlyRetireGrowth);
 
-      let totalMonthlyOut = b.baseExpenses + monthDebtPayment + monthlySavingsContrib + monthlyCarContrib + b.monthTransfers;
+      let totalMonthlyOut = b.baseExpenses + monthDebtPayment + b.monthlySavingsContrib + monthlyCarContrib + b.monthTransfers;
 
       finalLiquid += b.netIncome - totalMonthlyOut + b.oneTimeNet;
 
@@ -873,7 +878,7 @@ export default function Forecast() {
         debtWasReduced,
         // Popup breakdown fields
         baseExpenses: Math.round(b.baseExpenses),
-        savingsContrib: Math.round(monthlySavingsContrib),
+        savingsContrib: Math.round(b.monthlySavingsContrib),
         carContrib: Math.round(monthlyCarContrib),
         transfersTotal: Math.round(b.monthTransfers),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
