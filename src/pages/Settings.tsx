@@ -774,24 +774,46 @@ export default function SettingsPage() {
         <div className="card-forged p-5 space-y-4 border border-destructive/20">
           <h2 className="text-xs font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
 
-          {deleteStep === 'hidden' && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-xs font-medium">Delete Account</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Permanently deletes your account and all data. Active subscriptions are cancelled immediately. Billing records are retained per IRS requirements.
-                </p>
+          {deleteStep === 'hidden' && (() => {
+            const provider = subscription?.purchase_provider;
+            const hasMobileSub = isPremium && (provider === 'apple' || provider === 'google');
+            const storeLabel = provider === 'apple' ? 'App Store' : 'Google Play';
+            const storeSteps = provider === 'apple'
+              ? 'Settings → [your name] → Subscriptions → Forgenta → Cancel'
+              : 'Play Store → Profile → Payments & subscriptions → Subscriptions → Forgenta → Cancel';
+
+            return (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-medium">Delete Account</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {hasMobileSub
+                      ? 'You must cancel your active subscription before deleting your account.'
+                      : 'Permanently deletes your account and all data. Active subscriptions are cancelled immediately. Billing records are retained per IRS requirements.'}
+                  </p>
+                  {hasMobileSub && (
+                    <div className="mt-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-600" style={{ borderRadius: 'var(--radius)' }}>
+                      <Crown size={13} className="mt-0.5 shrink-0 text-amber-500" />
+                      <span>
+                        You have an active <strong>{storeLabel} subscription</strong>. Cancel it first to avoid further charges, then return here to delete your account.
+                        <br />
+                        <span className="text-amber-500/80 mt-1 block">{storeSteps}</span>
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => !hasMobileSub && setDeleteStep('confirm')}
+                  disabled={hasMobileSub}
+                  className="shrink-0 flex items-center gap-1.5 bg-secondary border border-destructive/30 text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors btn-press disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-secondary"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  <Trash2 size={12} />
+                  Delete account
+                </button>
               </div>
-              <button
-                onClick={() => setDeleteStep('confirm')}
-                className="shrink-0 flex items-center gap-1.5 bg-secondary border border-destructive/30 text-destructive px-3 py-1.5 text-xs font-medium hover:bg-destructive/10 transition-colors btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <Trash2 size={12} />
-                Delete account
-              </button>
-            </div>
-          )}
+            );
+          })()}
 
           {deleteStep === 'confirm' && (
             <div className="space-y-3">
