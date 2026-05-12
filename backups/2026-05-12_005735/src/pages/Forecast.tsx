@@ -612,9 +612,9 @@ export default function Forecast() {
         // Categorize by destination account type
         const destAcct = tr.deposit_account ? accountMap.get(tr.deposit_account) : null;
         const destType = destAcct?.account_type || '';
-        if (['roth_ira', '401k', 'ira', 'hsa'].includes(destType)) {
+        if (['roth_ira', '401k'].includes(destType)) {
           monthRetireContrib += monthAmt;
-        } else if (destType === 'brokerage') {
+        } else if (['brokerage'].includes(destType)) {
           monthBrokerageContrib += monthAmt;
         }
       }
@@ -814,7 +814,6 @@ export default function Forecast() {
 
         brokerageContrib: Math.round(b.monthBrokerageContrib),
         retireContrib: Math.round(b.monthRetireContrib),
-        paycheckRetireContrib: Math.round(monthly401kContrib),
         investGrowth: Math.round(investGrowthAmt),
         retireGrowth: Math.round(retireGrowthAmt),
         oneTimeNet: Math.round(b.oneTimeNet),
@@ -822,11 +821,6 @@ export default function Forecast() {
         monthMinSafe: Math.round(b.monthMinSafe),
         floorBreachedByOneTime,
         debtWasReduced,
-        // Popup breakdown fields
-        baseExpenses: Math.round(b.baseExpenses),
-        savingsContrib: Math.round(monthlySavingsContrib),
-        carContrib: Math.round(monthlyCarContrib),
-        transfersTotal: Math.round(b.monthTransfers),
       });
     }
 
@@ -1109,21 +1103,14 @@ export default function Forecast() {
                           ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
                           { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
                           { label: 'Take-Home Income', value: formatCurrency(row.takeHome, false), op: '+' },
-                          { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                          { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
-                          ...((row.savingsContrib ?? 0) + (row.carContrib ?? 0) > 0
-                            ? [{ label: '  Savings + Car Fund', value: formatCurrency((row.savingsContrib ?? 0) + (row.carContrib ?? 0), false), op: '−' }]
-                            : []),
-                          ...((row.transfersTotal ?? 0) > 0
-                            ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency(row.transfersTotal ?? 0, false), op: '−' }]
-                            : []),
-                          { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
+                          { label: 'Expenses + Debt + Transfers', value: formatCurrency(row.totalExpenses, false), op: '−' },
+                          { label: 'One-Time Net (Cash)', value: formatCurrency(row.oneTimeNet || 0, false), op: row.oneTimeNet >= 0 ? '+' : '−' },
                           { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
                           { label: '', value: '' },
+                          { label: 'Debt Payment', value: formatCurrency(row.debtPayment, false) },
                           { label: 'CC Purchases (one-time)', value: row.ccOneTime ? formatCurrency(row.ccOneTime, false) : '—' },
-                          { label: 'Paycheck 401k Deduction', value: (row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.paycheckRetireContrib, false) : '—' },
-                          { label: 'Total Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
                           { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
+                          { label: 'Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
                           { label: 'Retirement Balance', value: formatCurrency(row.retirementBalance, false) },
                           { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
                         ],
