@@ -144,7 +144,7 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
             title="Create a savings goal"
             body="Add your first savings goal — emergency fund, vacation, down payment, or anything else. Forgenta tracks progress automatically."
             ctaLabel="Open Savings Goals"
-            onNavigate={() => navigateTo('/savings')}
+            onNavigate={() => navigateTo('/goals')}
             onSkip={markComplete}
             isLast
           />

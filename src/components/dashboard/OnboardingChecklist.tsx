@@ -46,7 +46,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
     {
       label: 'Create a savings goal',
       description: 'Emergency fund, vacation, down payment, and more',
-      path: '/savings',
+      path: '/goals',
       done: goals.length > 0,
     },
   ];

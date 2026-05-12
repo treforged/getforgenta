@@ -19,7 +19,7 @@ const PRIMARY = [
 
 const SECONDARY = [
   { to: '/accounts', icon: Building2, label: 'Accounts' },
-  { to: '/savings', icon: PiggyBank, label: 'Goals' },
+  { to: '/goals', icon: PiggyBank, label: 'Goals' },
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   { to: '/net-worth', icon: Wallet, label: 'Net Worth' },
   { to: '/ai', icon: Sparkles, label: 'AI' },
