@@ -102,7 +102,8 @@ export default function Auth() {
     // OAuth callback: Supabase processes hash tokens asynchronously, so
     // getSession() races. Use onAuthStateChange to reliably detect SIGNED_IN,
     // then close the popup (parent poll detects it) or navigate directly.
-    if (hash.includes('access_token')) {
+    // PKCE flow returns ?code= in search; legacy implicit returns #access_token= in hash.
+    if (hash.includes('access_token') || !!searchParams.get('code')) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN' && session) {
           subscription.unsubscribe();
