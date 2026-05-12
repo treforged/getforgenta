@@ -452,7 +452,7 @@ export default function Accounts() {
 
       {/* Summary Stats */}
       <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
-        <div className="grid grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-3 gap-4 sm:gap-6 text-center sm:text-left">
           <div>
             <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Net Worth</p>
             <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${summary.netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(summary.netWorth, false)}</p>
@@ -467,7 +467,7 @@ export default function Accounts() {
           </div>
         </div>
         <div className="border-t border-border/40" />
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center sm:text-left">
           <div>
             <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Liquid Cash</p>
             <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-success">{formatCurrency(summary.liquidCash, false)}</p>
