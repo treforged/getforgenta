@@ -917,9 +917,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             return (
               <div key={proj.card.id} className="card-forged w-full max-w-full min-w-0">
                 <button onClick={() => setExpandedCard(isExpanded ? null : proj.card.id)}
-                  className="w-full p-3 sm:p-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between text-left hover:bg-muted/10 transition-colors">
-                  <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                    <span className="w-3 sm:w-4 h-3 sm:h-4 rounded-sm shrink-0" style={{ backgroundColor: proj.card.color }} />
+                  className="w-full p-3 sm:p-4 flex flex-row items-start justify-between text-left hover:bg-muted/10 transition-colors">
+                  <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
+                    <span className="w-3 sm:w-4 h-3 sm:h-4 rounded-sm shrink-0 mt-0.5" style={{ backgroundColor: proj.card.color }} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <h4 className="text-xs sm:text-sm font-semibold">{proj.card.name}</h4>
@@ -938,11 +938,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         {proj.card.apr}% APR · Limit {formatCurrency(proj.card.creditLimit, false)} · Util {proj.utilizationNow.toFixed(1)}%
                         {proj.card.dueDay && <span> · <CalendarDays size={9} className="inline" /> Due {proj.card.dueDay}{proj.card.dueDay === 1 ? 'st' : proj.card.dueDay === 2 ? 'nd' : proj.card.dueDay === 3 ? 'rd' : 'th'}</span>}
                       </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-                    <div className="text-right">
-                      <p className={`text-sm sm:text-lg font-display font-bold ${proj.card.autopayFullBalance ? 'text-success' : 'text-destructive'}`}>
+                      <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.autopayFullBalance ? 'text-success' : 'text-destructive'}`}>
                         {proj.card.autopayFullBalance ? '$0.00' : formatCurrency(proj.card.balance, false)}
                       </p>
                       <p className="text-[9px] sm:text-[10px] text-muted-foreground">
@@ -952,7 +948,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         }
                       </p>
                     </div>
-                    {isExpanded ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+                  </div>
+                  <div className="shrink-0 ml-2 flex items-center justify-center w-7 h-7 bg-secondary/60" style={{ borderRadius: 'var(--radius)' }}>
+                    {isExpanded ? <ChevronUp size={13} className="text-muted-foreground" /> : <ChevronDown size={13} className="text-muted-foreground" />}
                   </div>
                 </button>
 
@@ -1034,64 +1032,68 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         </button>
                       )}
                     </div>
-                    <div className="w-full overflow-x-auto">
-                      <table className="w-full text-[10px] sm:text-[11px] min-w-[720px] sm:min-w-0">
-                        <thead>
-                          <tr className="border-b border-border">
-                            {['Month', 'Start', 'Purch.', 'Interest', 'Payment', 'End Bal', 'Util', ''].map(h => (
-                              <th key={h} className="py-2 px-1.5 sm:px-2 text-left text-muted-foreground uppercase tracking-wider font-medium text-[9px] sm:text-[11px] whitespace-nowrap">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {proj.months.slice(0, 24).map((row, idx) => {
-                            const isOverridden = cardOverrides[idx] !== undefined;
-                            const isEditingThis = editingMonth?.cardId === proj.card.id && editingMonth?.month === idx;
-                            return (
-                              <tr key={row.month} className={`border-b border-border/30 hover:bg-muted/10 ${isOverridden ? 'bg-primary/5' : ''}`}>
-                                <td className="py-1.5 px-1.5 sm:px-2 font-medium">{row.label}</td>
-                                <td className="py-1.5 px-1.5 sm:px-2 whitespace-nowrap">{formatCurrency(row.startBalance, false)}</td>
-                                <td className="py-1.5 px-1.5 sm:px-2 text-destructive">{row.newPurchases > 0 ? `+${formatCurrency(row.newPurchases, false)}` : '—'}</td>
-                                <td className="py-1.5 px-1.5 sm:px-2 text-destructive">{row.interest > 0 ? `+${formatCurrency(row.interest, true)}` : '—'}</td>
-                                <td className="py-1.5 px-1.5 sm:px-2 whitespace-nowrap">
-                                  {isEditingThis ? (
-                                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                                      <input type="number" value={monthPayInput} onChange={e => setMonthPayInput(e.target.value)}
-                                        className="w-16 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
-                                        style={{ borderRadius: 'var(--radius)' }} autoFocus min={0} step="10"
-                                        onKeyDown={e => { if (e.key === 'Enter') handleOverrideMonth(proj.card.id, idx); if (e.key === 'Escape') setEditingMonth(null); }} />
-                                      <button onClick={() => handleOverrideMonth(proj.card.id, idx)} className="text-primary"><Check size={10} /></button>
-                                    </div>
-                                  ) : (
-                                    <div className="flex items-center gap-1">
-                                      <span className="font-semibold text-primary">
-                                        {row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}
-                                      </span>
-                                      {isOverridden && <span className="text-[8px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>edited</span>}
-                                      {!proj.card.autopayFullBalance && row.startBalance > 0 && (
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); setEditingMonth({ cardId: proj.card.id, month: idx }); setMonthPayInput(String(Math.round(row.payment))); }}
-                                          className="text-muted-foreground hover:text-primary ml-1">
-                                          <Edit2 size={9} />
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="py-1.5 px-1.5 sm:px-2 font-semibold">{formatCurrency(Math.max(0, row.endBalance), false)}</td>
-                                <td className={`py-1.5 px-1.5 sm:px-2 ${row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}`}>{row.utilization.toFixed(1)}%</td>
-                                <td className="py-1.5 px-1">
-                                  {isOverridden && (
-                                    <button onClick={() => revertMonth(proj.card.id, idx)} className="text-muted-foreground hover:text-primary" title="Revert">
-                                      <RotateCcw size={10} />
-                                    </button>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                    <div className="w-full">
+                      {/* Column headers */}
+                      <div className="grid grid-cols-3 border-b border-border pb-1.5 mb-0.5 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
+                        <div className="px-1">Month</div>
+                        <div className="px-1 text-right">Payment</div>
+                        <div className="px-1 text-right">End Bal</div>
+                      </div>
+                      {/* Rows */}
+                      {proj.months.slice(0, 24).map((row, idx) => {
+                        const isOverridden = cardOverrides[idx] !== undefined;
+                        const isEditingThis = editingMonth?.cardId === proj.card.id && editingMonth?.month === idx;
+                        return (
+                          <div key={row.month} className={`border-b border-border/30 hover:bg-muted/10 ${isOverridden ? 'bg-primary/5' : ''}`}>
+                            {/* Main row: Month | Payment | End Balance */}
+                            <div className="grid grid-cols-3 py-1.5">
+                              <div className="px-1 text-[10px] sm:text-[11px] font-medium">{row.label}</div>
+                              <div className="px-1 text-right text-[10px] sm:text-[11px]">
+                                {isEditingThis ? (
+                                  <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                                    <input type="number" value={monthPayInput} onChange={e => setMonthPayInput(e.target.value)}
+                                      className="w-16 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
+                                      style={{ borderRadius: 'var(--radius)' }} autoFocus min={0} step="10"
+                                      onKeyDown={e => { if (e.key === 'Enter') handleOverrideMonth(proj.card.id, idx); if (e.key === 'Escape') setEditingMonth(null); }} />
+                                    <button onClick={() => handleOverrideMonth(proj.card.id, idx)} className="text-primary"><Check size={10} /></button>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center justify-end gap-1">
+                                    <span className="font-semibold text-primary">
+                                      {row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}
+                                    </span>
+                                    {isOverridden && <span className="text-[8px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>edited</span>}
+                                    {!proj.card.autopayFullBalance && row.startBalance > 0 && (
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); setEditingMonth({ cardId: proj.card.id, month: idx }); setMonthPayInput(String(Math.round(row.payment))); }}
+                                        className="text-muted-foreground hover:text-primary">
+                                        <Edit2 size={9} />
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="px-1 text-right font-semibold text-[10px] sm:text-[11px]">
+                                {formatCurrency(Math.max(0, row.endBalance), false)}
+                              </div>
+                            </div>
+                            {/* Detail row: Start · Purch · Interest · Util · Revert */}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 pb-1.5 text-[9px] text-muted-foreground">
+                              <span>Start: {formatCurrency(row.startBalance, false)}</span>
+                              {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purch</span>}
+                              {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} int</span>}
+                              <span className={row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
+                                {row.utilization.toFixed(1)}% util
+                              </span>
+                              {isOverridden && (
+                                <button onClick={() => revertMonth(proj.card.id, idx)} className="text-muted-foreground hover:text-primary ml-auto" title="Revert">
+                                  <RotateCcw size={9} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                   </PremiumGate>

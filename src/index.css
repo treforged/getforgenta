@@ -5,6 +5,21 @@
 * { scrollbar-width: none; -ms-overflow-style: none; }
 *::-webkit-scrollbar { display: none; }
 
+/* Desktop: show thin scrollbars for mouse/trackpad users */
+@media (hover: hover) and (pointer: fine) {
+  * { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+  *::-webkit-scrollbar { display: block; width: 4px; height: 4px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+  *::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+}
+
+/* Thin scrollbars inside popups/drawers (all devices) */
+.popup-scroll { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+.popup-scroll::-webkit-scrollbar { display: block; width: 3px; }
+.popup-scroll::-webkit-scrollbar-track { background: transparent; }
+.popup-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+
 @layer base {
   :root {
     --background: 0 0% 2%;
