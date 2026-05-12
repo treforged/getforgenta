@@ -196,7 +196,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   for (let m = 1; m <= months; m++) {
     const d = new Date();
     d.setMonth(d.getMonth() + m - 1);
-    const label = d.toLocaleString('en', { month: 'short', year: '2-digit' });
+    const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
     const startBal = bal;
     const newPurchases = card.monthlyNewPurchases;
 
@@ -254,7 +254,7 @@ export function projectCardVariable(
   for (let m = 1; m <= months; m++) {
     const d = new Date();
     d.setMonth(d.getMonth() + m - 1);
-    const label = d.toLocaleString('en', { month: 'short', year: '2-digit' });
+    const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
     const startBal = bal;
     const newPurchases = purchasesPerMonth?.[m - 1] !== undefined
       ? purchasesPerMonth[m - 1]

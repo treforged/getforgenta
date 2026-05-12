@@ -1037,7 +1037,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <div className="grid grid-cols-3 border-b border-border pb-1.5 mb-0.5 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
                         <div className="px-1">Month</div>
                         <div className="px-1 text-right">Payment</div>
-                        <div className="px-1 text-right">End Bal</div>
+                        <div className="px-1 text-right">End Balance</div>
                       </div>
                       {/* Rows */}
                       {proj.months.slice(0, 24).map((row, idx) => {
@@ -1081,10 +1081,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                             <div className="grid grid-cols-3 pb-1.5">
                               <div className="px-1 flex flex-col gap-0.5 text-[9px] text-muted-foreground">
                                 <span>Start: {formatCurrency(row.startBalance, false)}</span>
-                                {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purch</span>}
-                                {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} int</span>}
+                                {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
+                                {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
                                 <span className={row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
-                                  {row.utilization.toFixed(1)}% util
+                                  {row.utilization.toFixed(1)}% utilization
                                 </span>
                               </div>
                               <div />
