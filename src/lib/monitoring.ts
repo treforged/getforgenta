@@ -9,9 +9,8 @@ export function initMonitoring(): void {
   Promise.all([
     import('@launchdarkly/observability'),
     import('@launchdarkly/session-replay'),
-  ]).then(([{ LDObserve }, { LDSessionReplay }]) => {
+  ]).then(([{ LDObserve }, { LDRecord }]) => {
     LDObserve.init(clientId, {
-      plugins: [new LDSessionReplay()],
       serviceName: 'forgenta-web',
       tracingOrigins: true,
       networkRecording: {
@@ -19,12 +18,13 @@ export function initMonitoring(): void {
         recordHeadersAndBody: false,
       },
     });
+    LDRecord.init(clientId);
   }).catch(() => { /* non-critical — never block the app */ });
 }
 
 export function identifyMonitoringUser(userId: string, email?: string): void {
   if (Capacitor.isNativePlatform()) return;
   import('@launchdarkly/observability').then(({ LDObserve }) => {
-    LDObserve.identify({ id: userId, email });
+    LDObserve.identify(userId, email ? { email } : undefined);
   }).catch(() => {});
 }
