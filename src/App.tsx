@@ -13,9 +13,10 @@ import { supabase } from '@/lib/supabase';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import CookieBanner from "@/components/shared/CookieBanner";
 import Landing from "@/pages/Landing";
-import Auth from "@/pages/Auth";
-import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
+
+const Auth = lazy(() => import("@/pages/Auth"));
+const Dashboard = lazy(() => import("@/pages/Dashboard"));
 
 const Transactions = lazy(() => import("@/pages/Transactions"));
 const DebtPayoff = lazy(() => import("@/pages/DebtPayoff"));
@@ -86,9 +87,9 @@ function AppRoutes() {
       <ScrollToTop />
       <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/auth" element={<Auth />} />
+      <Route path="/auth" element={<Suspense fallback={<PageLoader />}><Auth /></Suspense>} />
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
         <Route path="/accounts" element={<Suspense fallback={<PageLoader />}><Accounts /></Suspense>} />
         <Route path="/budget" element={<Suspense fallback={<PageLoader />}><BudgetControl /></Suspense>} />
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><Transactions /></Suspense>} />

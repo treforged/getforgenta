@@ -1004,6 +1004,9 @@ export default function Auth() {
               <img src="/apple-logo.png" alt="" aria-hidden="true" style={{ height: 20, width: 'auto', display: 'block' }} />
               Continue with Apple
             </button>
+            <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
+              You may see "Forgenta" or "TRE Forged" in the sign-in prompt — this is expected and secure.
+            </p>
           </div>
         )}
 

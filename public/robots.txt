@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://getforgenta.com/sitemap.xml
