@@ -350,9 +350,18 @@ export default function NetWorth() {
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={netWorthTrend} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+            <LineChart data={netWorthTrend} margin={{ left: 0, right: 8, top: 5, bottom: 24 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} interval={window.innerWidth < 640 ? Math.ceil(netWorthTrend.length / 5) : 0} />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 10, fill: 'hsl(240, 4%, 46%)' }}
+                axisLine={false}
+                tickLine={false}
+                interval={Math.max(0, Math.ceil(netWorthTrend.length / 8) - 1)}
+                angle={-35}
+                textAnchor="end"
+                height={48}
+              />
               <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
               <Line dataKey="value" stroke="hsl(43, 56%, 52%)" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(43, 56%, 52%)', strokeWidth: 0 }} />
