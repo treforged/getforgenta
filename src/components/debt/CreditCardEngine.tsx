@@ -658,7 +658,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
                 return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>{eta > 0 ? `${eta} mo` : 'Paid'}</p>;
               })()}
-              </p>
             </div>
           </div>
         </div>
