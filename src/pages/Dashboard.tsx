@@ -1006,20 +1006,16 @@ export default function Dashboard() {
         <div className="card-forged p-5 card-clickable" onClick={() => navigate('/savings')}>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
           <div className="grid md:grid-cols-3 gap-5">
-            {[
-  ...goals.slice(0, 2),
-  ...(carFunds[0]
-    ? [
-        {
-          id: 'car-dash',
-          name: carFunds[0].vehicle_name,
-          current_amount: carFunds[0].current_saved,
-          target_amount: carFunds[0].down_payment_goal,
-          isCar: true,
-        },
-      ]
-    : []),
-].slice(0, 3).map((g: any) => {
+            {(() => {
+              const retireGoal = goals.find((g: any) => g.goal_type === 'Retirement');
+              const otherGoals = goals.filter((g: any) => g.goal_type !== 'Retirement');
+              const carEntry = carFunds[0] ? [{ id: 'car-dash', name: carFunds[0].vehicle_name, current_amount: carFunds[0].current_saved, target_amount: carFunds[0].down_payment_goal, isCar: true }] : [];
+              return [
+                ...(retireGoal ? [retireGoal] : []),
+                ...otherGoals.slice(0, retireGoal ? 1 : 2),
+                ...carEntry,
+              ].slice(0, 3);
+            })().map((g: any) => {
               const pct = Number(g.target_amount) > 0 ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) : 0;
               return (
                 <div key={g.id} className="space-y-3 p-4 bg-muted/30 border border-border" style={{ borderRadius: 'var(--radius)' }}>
