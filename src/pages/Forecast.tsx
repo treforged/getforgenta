@@ -1159,7 +1159,10 @@ export default function Forecast() {
           {!freePreview && <div className="card-forged p-3 sm:p-5 overflow-x-auto">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monthly Breakdown</h3>
-              <span className="text-[9px] text-muted-foreground">Tap any row for full breakdown</span>
+              <div className="text-right">
+                <span className="text-[9px] text-muted-foreground block">Tap any row for full breakdown</span>
+                <span className="text-[9px] text-muted-foreground/60 block">1× = one-time purchase or income</span>
+              </div>
             </div>
             <table className="w-full text-xs min-w-[480px]">
               <thead>
