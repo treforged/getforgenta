@@ -79,7 +79,7 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
   return { text: `Updated ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: false };
 }
 
-const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '' };
+const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 export default function Accounts() {
@@ -240,7 +240,6 @@ export default function Accounts() {
       balance: String(a.balance), credit_limit: String(a.credit_limit || ''), apr: String(a.apr || ''), notes: a.notes || '',
       min_payment: matchDebt ? String(matchDebt.min_payment) : '',
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
-      payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
     });
     setEditingPlaidLinked(!!a.plaid_account_id);
     setEditId(a.id); setShowForm(true);
@@ -249,14 +248,11 @@ export default function Accounts() {
   const handleSave = () => {
     const balance = parseFloat(form.balance);
     if (!form.name || isNaN(balance)) return;
-    const dueDayRaw = parseInt(form.payment_due_day);
-    const dueDayVal = form.account_type === 'credit_card' && !isNaN(dueDayRaw) && dueDayRaw >= 1 && dueDayRaw <= 28 ? dueDayRaw : null;
     const payload: any = {
       name: form.name, account_type: form.account_type, institution: form.institution,
       credit_limit: parseFloat(form.credit_limit) || null, apr: parseFloat(form.apr) || null,
       notes: form.notes, active: true,
       apy_rate: APY_TYPES.includes(form.account_type) && form.apy_rate !== '' ? parseFloat(form.apy_rate) : null,
-      ...(form.account_type === 'credit_card' ? { payment_due_day: dueDayVal } : {}),
     };
     // Never overwrite Plaid-managed balance — it is owned by the sync job
     if (!editingPlaidLinked) payload.balance = balance;
@@ -463,7 +459,6 @@ export default function Accounts() {
                     {a.apr ? ` · ${a.apr}% APR` : ''}
                     {a.apy_rate != null ? ` · ${a.apy_rate}% APY` : ''}
                     {a.credit_limit ? ` · Limit ${formatCurrency(Number(a.credit_limit), false)}` : ''}
-                    {a.account_type === 'credit_card' && a.payment_due_day ? ` · Due ${a.payment_due_day}th` : ''}
                   </p>
                   <div className="flex items-center gap-0.5 mt-2 -ml-1">
                     {a.plaid_account_id && (
@@ -666,7 +661,6 @@ export default function Accounts() {
             { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true, disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Balance is managed by Plaid auto-sync' : undefined },
             ...(form.account_type === 'credit_card' ? [
               { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01' },
-              { key: 'payment_due_day', label: 'Payment Due Day (1–28)', type: 'number' as const, placeholder: 'e.g. 15', step: '1', hint: 'Day of month your payment is due. Max 28 — not all months have 29–31.' },
             ] : []),
             { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01' },
             ...(APY_TYPES.includes(form.account_type) ? [
