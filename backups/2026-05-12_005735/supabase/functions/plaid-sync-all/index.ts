@@ -15,17 +15,8 @@ function mapPlaidType(type: string, subtype: string | null): string {
     if (subtype === "cd")                              return "savings";
     return "checking";
   }
-  if (type === "credit") return "credit_card";
-  if (type === "investment") {
-    const s = (subtype ?? "").toLowerCase();
-    if (s === "hsa" || s === "health reimbursement arrangement") return "hsa";
-    if (s === "roth" || s === "roth ira")              return "roth_ira";
-    if (["401k","401a","403b","457b","457plan","ira","sep ira","simple ira",
-         "sarsep","keogh","pension","profit sharing plan","thrift savings plan"].includes(s)) {
-      return "401k";
-    }
-    return "brokerage";
-  }
+  if (type === "credit")     return "credit_card";
+  if (type === "investment") return "brokerage";
   if (type === "loan") {
     if (subtype === "auto" || subtype === "auto loan") return "auto_loan";
     if (subtype === "student")                         return "student_loan";
@@ -140,8 +131,7 @@ Deno.serve(async (req) => {
             credit_limit: effectiveCreditLimit,
             name,
             institution: item.institution_name ?? "",
-            // Do NOT overwrite account_type — preserves any manual correction by the user.
-            // account_type is set correctly on first insert via mapPlaidType.
+            account_type: accountType,
             apr: effectiveApr,
             active: true,
             plaid_item_id: item.plaid_item_id,
