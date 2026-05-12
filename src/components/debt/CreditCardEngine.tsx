@@ -934,17 +934,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           </span>
                         )}
                       </div>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">
-                        {proj.card.apr}% APR · Limit {formatCurrency(proj.card.creditLimit, false)} · Util {proj.utilizationNow.toFixed(1)}%
-                        {proj.card.dueDay && <span> · <CalendarDays size={9} className="inline" /> Due {proj.card.dueDay}{proj.card.dueDay === 1 ? 'st' : proj.card.dueDay === 2 ? 'nd' : proj.card.dueDay === 3 ? 'rd' : 'th'}</span>}
+                      <p className="text-[11px] sm:text-xs text-muted-foreground">
+                        {proj.card.apr}% APR · Limit {formatCurrency(proj.card.creditLimit, false)} · Utilization {proj.utilizationNow.toFixed(1)}%
+                        {proj.card.dueDay && <span> · <CalendarDays size={10} className="inline" /> Due {proj.card.dueDay}{proj.card.dueDay === 1 ? 'st' : proj.card.dueDay === 2 ? 'nd' : proj.card.dueDay === 3 ? 'rd' : 'th'}</span>}
                       </p>
                       <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.autopayFullBalance ? 'text-success' : 'text-destructive'}`}>
                         {proj.card.autopayFullBalance ? '$0.00' : formatCurrency(proj.card.balance, false)}
                       </p>
-                      <p className="text-[9px] sm:text-[10px] text-muted-foreground">
+                      <p className="text-[11px] sm:text-xs text-muted-foreground">
                         {proj.card.autopayFullBalance
                           ? 'Debt free'
-                          : `Payoff: ${proj.payoffMonth ? `${proj.payoffMonth} mo` : 'N/A'} · Int: ${formatCurrency(proj.totalInterest, false)}`
+                          : `Payoff: ${proj.payoffMonth ? `${proj.payoffMonth} months` : 'N/A'}`
                         }
                       </p>
                     </div>
