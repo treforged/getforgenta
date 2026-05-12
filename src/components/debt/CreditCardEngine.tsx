@@ -632,34 +632,34 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           )}
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
-          <div className="card-forged p-3 sm:p-4 text-center">
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Total CC Balance</p>
-            <p className="text-base sm:text-lg font-display font-bold text-destructive">{formatCurrency(totalBalance, false)}</p>
-          </div>
-          <div className="card-forged p-3 sm:p-4 text-center">
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Total Limit</p>
-            <p className="text-base sm:text-lg font-display font-bold text-foreground">{formatCurrency(totalLimit, false)}</p>
-          </div>
-          <div className="card-forged p-3 sm:p-4 text-center">
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Utilization</p>
-            <p className={`text-base sm:text-lg font-display font-bold ${overallUtil > 30 ? 'text-destructive' : overallUtil > 10 ? 'text-primary' : 'text-success'}`}>{overallUtil.toFixed(1)}%</p>
-          </div>
-          <div className="card-forged p-3 sm:p-4 text-center">
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Monthly Interest</p>
-            <p className="text-base sm:text-lg font-display font-bold text-destructive">{formatCurrency(projections.reduce((s, p) => s + p.projectedInterestThisMonth, 0), true)}</p>
-          </div>
-          <div className="card-forged p-3 sm:p-4 text-center">
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Payoff ETA</p>
-            <p className="text-base sm:text-lg font-display font-bold text-primary">
-              {(() => {
-                // Derive from the per-card projections (same sim as the card detail rows)
-                // so this number is always consistent with the per-card "Payoff: X mo" display.
-                const eta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
-                return eta > 0 ? `${eta} mo` : 'Paid';
-              })()}
-            </p>
+        {/* Summary Stats */}
+        <div className="card-forged p-4 sm:p-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
+            <div>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total CC Balance</p>
+              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(totalBalance, false)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Limit</p>
+              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-foreground">{formatCurrency(totalLimit, false)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Utilization</p>
+              <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${overallUtil > 30 ? 'text-destructive' : overallUtil > 10 ? 'text-primary' : 'text-success'}`}>{overallUtil.toFixed(1)}%</p>
+            </div>
+            <div>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Monthly Interest</p>
+              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(projections.reduce((s, p) => s + p.projectedInterestThisMonth, 0), true)}</p>
+            </div>
+            <div>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
+              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-primary">
+                {(() => {
+                  const eta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
+                  return eta > 0 ? `${eta} mo` : 'Paid';
+                })()}
+              </p>
+            </div>
           </div>
         </div>
 
