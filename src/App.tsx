@@ -94,7 +94,7 @@ function AppRoutes() {
         <Route path="/budget" element={<Suspense fallback={<PageLoader />}><BudgetControl /></Suspense>} />
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><Transactions /></Suspense>} />
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><DebtPayoff /></Suspense>} />
-        <Route path="/savings" element={<Suspense fallback={<PageLoader />}><SavingsGoals /></Suspense>} />
+        <Route path="/goals" element={<Suspense fallback={<PageLoader />}><SavingsGoals /></Suspense>} />
         <Route path="/net-worth" element={<Suspense fallback={<PageLoader />}><NetWorth /></Suspense>} />
         <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><Forecast /></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
@@ -118,7 +118,7 @@ function AppRoutes() {
       <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/refund" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/subscriptions" element={<Navigate to="/budget" replace />} />
-      <Route path="/car-fund" element={<Navigate to="/savings" replace />} />
+      <Route path="/car-fund" element={<Navigate to="/goals" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
     </>
