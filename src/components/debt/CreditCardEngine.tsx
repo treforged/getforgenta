@@ -944,7 +944,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <p className="text-[11px] sm:text-xs text-muted-foreground">
                         {proj.card.autopayFullBalance
                           ? 'Debt free'
-                          : `Payoff: ${proj.payoffMonth ? `${proj.payoffMonth} months` : 'N/A'}`
+                          : (() => {
+                              if (!proj.payoffMonth) return 'Payoff: N/A';
+                              const d = new Date();
+                              d.setMonth(d.getMonth() + proj.payoffMonth - 1);
+                              const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
+                              return `Payoff: ${proj.payoffMonth} months (${label})`;
+                            })()
                         }
                       </p>
                     </div>
