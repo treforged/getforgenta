@@ -103,11 +103,11 @@ function migrateOldDeductions(profile: any): PaycheckDeduction[] | null {
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backgroundColor: 'hsl(var(--background) / 0.85)' }} onClick={onClose}>
+    <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="card-forged p-6 w-full max-w-md space-y-3 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Info size={14} className="text-primary" /> {title}</h2>
-          <button onClick={onClose} className="icon-btn text-muted-foreground hover:text-foreground"><X size={16} /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
         </div>
         <div className="space-y-2 pt-2">
           {lines.map((l, i) => (
@@ -148,7 +148,6 @@ export default function BudgetControl() {
   const [deductions, setDeductions] = useState<PaycheckDeduction[]>(DEFAULT_DEDUCTIONS);
   const [showCatalog, setShowCatalog] = useState(false);
   const [deductionsCollapsed, setDeductionsCollapsed] = usePersistedState<boolean>('tre:budget:deductions-collapsed', false);
-  const [incomeSectionCollapsed, setIncomeSectionCollapsed] = usePersistedState<boolean>('tre:budget:income-section-collapsed', false);
   const [customLabel, setCustomLabel] = useState('');
 
   // Paycheck rule lock — ID of the single income rule auto-synced by income settings
@@ -482,7 +481,7 @@ export default function BudgetControl() {
   const totalTransfers = useMemo(() => transferRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [transferRules]);
 
   const totalExpenses = totalFixedExpenses + totalVariableExpenses + totalDebtPayments + totalTransfers;
-  const remaining = totalRecurringIncome - totalExpenses;
+  const remaining = monthlyTakeHome - totalExpenses;
 
   const fundingAccount = useMemo(() => {
     const defaultId = (profile as any)?.default_deposit_account;
@@ -505,13 +504,6 @@ export default function BudgetControl() {
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
 
   const remainingCashOnHand = fundingAccountBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt;
-
-  const cashFloor = useMemo(() => Number((profile as any)?.cash_floor) || 0, [profile]);
-  const prePaycheckBillsTotal = useMemo(() =>
-    getPrePaycheckNextMonthBills(rules, payConfig, fundingAccount?.id || null).total,
-    [rules, payConfig, fundingAccount]);
-  const safeMinimum = useMemo(() => Math.max(cashFloor, prePaycheckBillsTotal), [cashFloor, prePaycheckBillsTotal]);
-  const availableCash = remainingCashOnHand - safeMinimum;
 
   const allAccountOptions = useMemo(() => [
     { value: '', label: 'None' },
@@ -638,8 +630,6 @@ export default function BudgetControl() {
         { label: `Remaining Expenses (today → ${monthEndLabel})`, value: formatCurrency(remainingTxExpenses, false), op: '−' },
         { label: `Debt Payments recorded this month (today → ${monthEndLabel})`, value: formatCurrency(remainingTxDebt, false), op: '−' },
         { label: 'Remaining Cash On Hand', value: formatCurrency(remainingCashOnHand, false), op: '=' },
-        { label: 'Safe Minimum (pre-paycheck bills + cash floor)', value: formatCurrency(safeMinimum, false), op: '−' },
-        { label: 'Available Cash', value: formatCurrency(availableCash, false), op: '=' },
         ...(remainingTxDebt === 0 ? [{ label: 'Note: debt payments due on the 1st fall outside this window and appear in next month\'s view', value: '' }] : []),
       ],
     });
@@ -676,6 +666,18 @@ export default function BudgetControl() {
     lines.push({ label: 'Total Transfers', value: formatCurrency(totalTransfers, false), op: '=' });
     setCalcDrawer({ title: 'Transfers This Month', lines });
   };
+
+  const openProjectedCalc = () => setCalcDrawer({
+    title: 'Projected Remaining',
+    lines: [
+      { label: 'Monthly Take-Home', value: formatCurrency(monthlyTakeHome, false) },
+      { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses, false), op: '−' },
+      { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses, false), op: '−' },
+      { label: 'Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '−' },
+      { label: 'Transfers', value: formatCurrency(totalTransfers, false), op: '−' },
+      { label: 'Projected Remaining', value: formatCurrency(remaining, false), op: '=' },
+    ],
+  });
 
   const openIncomeCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = [
@@ -823,15 +825,7 @@ export default function BudgetControl() {
       {/* Income & Taxes — auto-saves */}
       <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <button
-            onClick={() => setIncomeSectionCollapsed(c => !c)}
-            className="flex items-center gap-2 text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider shrink-0 hover:text-foreground transition-colors"
-          >
-            <span className={`flex items-center justify-center w-5 h-5 rounded bg-secondary border border-border transition-colors ${!incomeSectionCollapsed ? 'border-primary/30 text-primary' : ''}`}>
-              {incomeSectionCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-            </span>
-            Income & Taxes
-          </button>
+          <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider shrink-0">Income & Taxes</h3>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end min-w-0">
             {incomeRules.length > 0 && (
               <div className="flex w-full items-center gap-1 sm:w-auto">
@@ -858,15 +852,6 @@ export default function BudgetControl() {
           </div>
         </div>
 
-        {/* Collapsed summary — shows key info when section is folded */}
-        {incomeSectionCollapsed && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground pt-1">
-            <span>{freqLabel(payFrequency)} · Net: <span className="font-display font-bold text-success">{formatCurrency(paycheckNet, false)}</span></span>
-            <span>Next: <span className="font-medium text-primary">{nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span></span>
-          </div>
-        )}
-
-        {!incomeSectionCollapsed && <>
         {/* Gross Income — prominent at top */}
         <div className="pb-3 border-b border-border">
           <label className="text-xs sm:text-sm text-muted-foreground uppercase">Gross Income (per paycheck)</label>
@@ -1112,13 +1097,12 @@ export default function BudgetControl() {
   </p>
 </div>
       </div>
-        </>}
       </div>
 
       {/* KPI Summary + Remaining Cash On Hand */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <div className="cursor-pointer" onClick={openIncomeCalc}>
-          <MetricCard label="Monthly Income" value={formatCurrency(totalRecurringIncome, false)} accent="success" icon={DollarSign} clickHint />
+          <MetricCard label="Monthly Take-Home" value={formatCurrency(monthlyTakeHome, false)} accent="success" icon={DollarSign} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openFixedCalc}>
           <MetricCard label="Fixed Expenses" value={formatCurrency(totalFixedExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
@@ -1132,27 +1116,27 @@ export default function BudgetControl() {
         <div className="cursor-pointer" onClick={openTransferCalc}>
           <MetricCard label="Transfers" value={formatCurrency(totalTransfers, false)} accent="gold" icon={ArrowLeftRight} clickHint />
         </div>
-        <div className="cursor-pointer" onClick={openCashCalc}>
-          <MetricCard label="Available Cash" value={formatCurrency(availableCash, false)} accent={availableCash >= 0 ? 'success' : 'crimson'} icon={PiggyBank} clickHint />
+        <div className="cursor-pointer" onClick={openProjectedCalc}>
+          <MetricCard label="Projected Remaining" value={formatCurrency(remaining, false)} accent={remaining >= 0 ? 'success' : 'crimson'} icon={PiggyBank} clickHint />
         </div>
       </div>
 
-      {/* Available Cash — prominent */}
+      {/* Remaining Cash On Hand — prominent */}
       <div className="relative card-forged p-4 sm:p-5 cursor-pointer hover:border-primary/20 transition-colors group" onClick={openCashCalc}>
         <Info size={10} className="absolute bottom-2 right-2 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity" />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <Wallet size={14} className="text-primary shrink-0" />
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Available Cash</h3>
+              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Remaining Cash On Hand</h3>
             </div>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              Cash on hand minus safe minimum (pre-paycheck bills + floor)
+              Today → {new Date(now.getFullYear(), now.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · Funding balance + income − expenses − debt payments
               {fundingAccount && <span className="font-medium"> · {fundingAccount.name}</span>}
             </p>
           </div>
-          <p className={`text-xl sm:text-2xl font-display font-bold ${availableCash >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {formatCurrency(availableCash, false)}
+          <p className={`text-xl sm:text-2xl font-display font-bold ${remainingCashOnHand >= 0 ? 'text-success' : 'text-destructive'}`}>
+            {formatCurrency(remainingCashOnHand, false)}
           </p>
         </div>
       </div>
@@ -1162,7 +1146,7 @@ export default function BudgetControl() {
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider mb-1">Budget Allocation</h3>
         <p className="text-sm text-muted-foreground mb-4">{now.toLocaleString('en-US', { month: 'long', year: 'numeric' })} — current month only</p>
         {(() => {
-          const t = totalRecurringIncome;
+          const t = monthlyTakeHome;
           const fixedPct    = t > 0 ? Math.max(0, (totalFixedExpenses    / t) * 100) : 0;
           const variablePct = t > 0 ? Math.max(0, (totalVariableExpenses / t) * 100) : 0;
           const debtPct     = t > 0 ? Math.max(0, (totalDebtPayments     / t) * 100) : 0;
@@ -1358,7 +1342,7 @@ export default function BudgetControl() {
           <div className="card-forged p-5 w-full max-w-md space-y-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="font-display font-semibold text-sm">Add Deduction</h2>
-              <button onClick={() => { setShowCatalog(false); setCustomLabel(''); }} className="icon-btn text-muted-foreground hover:text-foreground"><X size={16} /></button>
+              <button onClick={() => { setShowCatalog(false); setCustomLabel(''); }} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
             </div>
 
             {/* Benefits */}
