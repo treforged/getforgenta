@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark, PiggyBank,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight, Wallet,
-  Sliders, TrendingUp, Building2, Home, Sparkles,
+  Sliders, TrendingUp, Building2, Home, Sparkles, Zap,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -15,7 +15,7 @@ const navItems = [
   { to: '/accounts', icon: Building2, label: 'Accounts' },
   { to: '/budget', icon: Sliders, label: 'Budget Control' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
-  { to: '/debt', icon: Landmark, label: 'Debt Payoff' },
+  { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
   { to: '/goals', icon: PiggyBank, label: 'Goals' },
   { to: '/net-worth', icon: Wallet, label: 'Net Worth' },
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
@@ -79,12 +79,19 @@ export default function Sidebar() {
                 "flex items-center gap-3 px-3 py-2 text-xs font-medium transition-colors duration-150 btn-press",
                 active
                   ? "bg-sidebar-accent text-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+                  : item.highlight
+                    ? "text-primary/80 bg-primary/8 hover:bg-primary/12 hover:text-primary"
+                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
               )}
               style={{ borderRadius: 'var(--radius)' }}
             >
               <item.icon size={16} />
-              {!collapsed && <span>{item.label}</span>}
+              {!collapsed && (
+                <span className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <span className="truncate">{item.label}</span>
+                  {item.highlight && !active && <Zap size={10} className="text-primary fill-primary shrink-0" />}
+                </span>
+              )}
             </Link>
           );
         })}

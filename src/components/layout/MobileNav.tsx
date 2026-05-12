@@ -14,7 +14,7 @@ const PRIMARY = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Txns' },
   { to: '/budget', icon: Sliders, label: 'Budget' },
-  { to: '/debt', icon: Landmark, label: 'Debt' },
+  { to: '/debt', icon: Landmark, label: 'Debt', highlight: true },
 ];
 
 const SECONDARY = [
@@ -143,10 +143,15 @@ export default function MobileNav() {
                 to={item.to}
                 className={cn(
                   'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-1.5 text-xs font-medium transition-colors btn-press text-center',
-                  active ? 'text-primary' : 'text-muted-foreground',
+                  active ? 'text-primary' : item.highlight ? 'text-primary/75' : 'text-muted-foreground',
                 )}
               >
-                <item.icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+                <div className="relative">
+                  <item.icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+                  {item.highlight && !active && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full" />
+                  )}
+                </div>
                 <span className="truncate">{item.label}</span>
               </Link>
             );
