@@ -9,7 +9,7 @@ import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, 
 import { generateScheduledEvents, aggregateByMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getCurrentMonthDebtRecommendations, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { buildPayConfig, getMonthNetIncome, getPaychecksInMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
+import { buildPayConfig, getMonthNetIncome, getPaychecksInMonth, getMinSafeCash, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
@@ -95,7 +95,6 @@ export default function Forecast() {
   }, [setHiddenSeries]);
 
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
-  const prePaycheckBillsInfo = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, null), [rules, payConfig]);
   const scheduledEvents = useMemo(() => generateScheduledEvents(rules, accounts, 36), [rules, accounts]);
   const monthlyAggregates = useMemo(() => aggregateByMonth(scheduledEvents), [scheduledEvents]);
 
@@ -717,9 +716,9 @@ export default function Forecast() {
         const b = baseData[i];
         const totalOut = b.baseExpenses + debtPayments[i] + monthlySavingsContrib + monthlyCarContrib + b.monthTransfers;
         bal += b.netIncome - totalOut + b.oneTimeNet;
-        // Simulate PASS 3 redirect: pin to monthMinSafe in normal months (not save-up months)
-        if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > b.monthMinSafe) {
-          bal = b.monthMinSafe;
+        // Simulate PASS 3 redirect: pin to cashFloor in normal months (not save-up months)
+        if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > cashFloor) {
+          bal = cashFloor;
         }
         simCash[i] = bal;
       }
@@ -735,8 +734,8 @@ export default function Forecast() {
     for (let pass = 0; pass < 20; pass++) {
       let anyFixed = false;
       for (let i = 0; i < 36; i++) {
-        if (simCash[i] >= baseData[i].monthMinSafe) continue;
-        const shortfall = baseData[i].monthMinSafe - simCash[i];
+        if (simCash[i] >= cashFloor) continue;
+        const shortfall = cashFloor - simCash[i];
         let toRecover = shortfall;
 
         // Scan BACKWARD from the breached month — prefer reducing the month closest to the breach
@@ -798,8 +797,8 @@ export default function Forecast() {
       // Save-up months (identified by PASS 2) intentionally hold cash above the floor
       // to cover an upcoming one-time CASH expense without breaching the floor.
       // CC one-time purchases are excluded from oneTimeByMonth and never trigger save-up.
-      if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && finalLiquid > b.monthMinSafe) {
-        const surplus = finalLiquid - b.monthMinSafe;
+      if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && finalLiquid > cashFloor) {
+        const surplus = finalLiquid - cashFloor;
         monthDebtPayment += surplus;
         totalMonthlyOut += surplus;
         finalLiquid -= surplus;
@@ -831,7 +830,7 @@ export default function Forecast() {
         milestones.push({ month: b.monthLabel, event: '💸 One-time expense caused floor breach' });
       } else if (endingCash < 0 && (i === 0 || data[data.length - 1]?.endingCash >= 0)) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash goes negative!' });
-      } else if (endingCash >= 0 && endingCash < b.monthMinSafe && (data.length === 0 || data[data.length - 1]?.endingCash >= b.monthMinSafe)) {
+      } else if (endingCash >= 0 && endingCash < cashFloor && (i === 0 || (data.length > 0 && data[data.length - 1]?.endingCash >= cashFloor))) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash below safe minimum' });
       }
 
@@ -1036,34 +1035,12 @@ export default function Forecast() {
         </div>
       )}
 
-      {/* Safe minimum override notice — shown when pre-paycheck bills exceed user cash floor */}
-      {prePaycheckBillsInfo.total > debtPayoffOptions.cashFloor && (
-        <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/20 px-3 py-2.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-          <Info size={13} className="text-primary shrink-0 mt-0.5" />
-          <div className="min-w-0">
-            <p className="font-medium text-foreground">
-              Cash floor raised to {formatCurrency(Math.max(debtPayoffOptions.cashFloor, prePaycheckBillsInfo.total), false)} — pre-paycheck bills exceed your {formatCurrency(debtPayoffOptions.cashFloor, false)} floor.
-            </p>
-            {prePaycheckBillsInfo.items.length > 0 && (
-              <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                {prePaycheckBillsInfo.items.map((item, idx) => (
-                  <span key={idx}>{item.name} — {formatCurrency(item.amount, false)} (due {item.dueDay}th)</span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {viewMode === 'monthly' ? (
         <>
           {/* Net Worth Chart */}
           <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
-              <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth & Assets Projection</h3>
-                <p className="text-[9px] text-muted-foreground mt-0.5">Click legend items to show or hide series</p>
-              </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth & Assets Projection</h3>
               {freePreview && <span className="text-[9px] text-muted-foreground">Showing 3 of 36 months</span>}
             </div>
             <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 220 : 260}>
@@ -1142,85 +1119,70 @@ export default function Forecast() {
 
           {/* Monthly Cash Flow Table — premium only */}
           {!freePreview && <div className="card-forged p-3 sm:p-5 overflow-x-auto">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monthly Breakdown</h3>
-              <span className="text-[9px] text-muted-foreground">Tap any row for full breakdown</span>
-            </div>
-            <table className="w-full text-xs min-w-[480px]">
-              <thead>
-                <tr className="border-b border-border text-muted-foreground">
-                  <th className="py-1.5 px-1.5 text-left font-medium">Month</th>
-                  <th className="py-1.5 px-1.5 text-right font-medium">+Income</th>
-                  <th className="py-1.5 px-1.5 text-right font-medium">−Out</th>
-                  <th className="py-1.5 px-1.5 text-right font-medium">End Cash</th>
-                  <th className="py-1.5 px-1.5 text-left font-medium">Activity</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayData.map((row: any, i: number) => {
-                  const openDrawer = () => {
-                    const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
-                    setCalcDrawer({
-                      title: `${row.month} Breakdown`,
-                      lines: [
-                        ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
-                        { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
-                        { label: 'Take-Home Income', value: formatCurrency(row.takeHome, false), op: '+' },
-                        { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                        { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
-                        ...((row.savingsContrib ?? 0) + (row.carContrib ?? 0) > 0
-                          ? [{ label: '  Savings + Car Fund', value: formatCurrency((row.savingsContrib ?? 0) + (row.carContrib ?? 0), false), op: '−' }]
-                          : []),
-                        ...((row.transfersTotal ?? 0) > 0
-                          ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency(row.transfersTotal ?? 0, false), op: '−' }]
-                          : []),
-                        { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
-                        { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
-                        { label: '', value: '' },
-                        { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
-                        { label: 'Paycheck 401k Deduction', value: (row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.paycheckRetireContrib, false) : '—' },
-                        { label: 'Total Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
-                        { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
-                        { label: 'Retirement Balance', value: formatCurrency(row.retirementBalance, false) },
-                        { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
-                      ],
-                    });
-                  };
-                  const netFlow = (row.takeHome || 0) - (row.totalExpenses || 0) + (row.oneTimeNet || 0);
-                  const hasCC = (row.totalCCPurchases ?? 0) > 0;
-                  const hasOneTime = (row.oneTimeNet ?? 0) !== 0;
-                  return (
-                    <tr key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={openDrawer}>
-                      <td className="py-2 px-1.5 font-medium whitespace-nowrap">{row.month}</td>
-                      <td className="py-2 px-1.5 text-right text-success font-display font-bold whitespace-nowrap">{formatCurrency(row.takeHome, false)}</td>
-                      <td className="py-2 px-1.5 text-right text-destructive font-display font-bold whitespace-nowrap">{formatCurrency(row.totalExpenses, false)}</td>
-                      <td className={`py-2 px-1.5 text-right font-display font-bold whitespace-nowrap ${row.endingCash < row.monthMinSafe ? 'text-destructive' : row.endingCash <= row.monthMinSafe + 50 ? 'text-amber-400' : 'text-success'}`}>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4">Monthly Breakdown</h3>
+            <div className="min-w-0">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-muted-foreground">
+                    <th className="py-1.5 sm:py-2 px-1 sm:px-2 text-left font-medium">Month</th>
+                    <th className="py-1.5 sm:py-2 px-1 sm:px-2 text-left font-medium hidden sm:table-cell">Start</th>
+                    <th className="py-1.5 sm:py-2 px-1 sm:px-2 text-left font-medium">End Cash</th>
+                    <th className="py-1.5 sm:py-2 px-1 sm:px-2 text-left font-medium hidden sm:table-cell">Income</th>
+                    <th className="py-1.5 sm:py-2 px-1 sm:px-2 text-left font-medium">Out</th>
+                    <th className="py-1.5 sm:py-2 px-1 sm:px-2 text-left font-medium hidden sm:table-cell">One-Time</th>
+                    <th className="py-1.5 sm:py-2 px-1 sm:px-2 text-left font-medium hidden sm:table-cell">CC Purchases</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayData.map((row: any, i: number) => (
+                    <tr key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={() => {
+                      const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
+                      setCalcDrawer({
+                        title: `${row.month} Breakdown`,
+                        lines: [
+                          ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
+                          { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
+                          { label: 'Take-Home Income', value: formatCurrency(row.takeHome, false), op: '+' },
+                          { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
+                          { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
+                          ...((row.savingsContrib ?? 0) + (row.carContrib ?? 0) > 0
+                            ? [{ label: '  Savings + Car Fund', value: formatCurrency((row.savingsContrib ?? 0) + (row.carContrib ?? 0), false), op: '−' }]
+                            : []),
+                          ...((row.transfersTotal ?? 0) > 0
+                            ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency(row.transfersTotal ?? 0, false), op: '−' }]
+                            : []),
+                          { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
+                          { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
+                          { label: '', value: '' },
+                          { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
+                          { label: 'Paycheck 401k Deduction', value: (row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.paycheckRetireContrib, false) : '—' },
+                          { label: 'Total Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
+                          { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
+                          { label: 'Retirement Balance', value: formatCurrency(row.retirementBalance, false) },
+                          { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
+                        ],
+                      });
+                    }}>
+                      <td className="py-1.5 sm:py-2 px-1 sm:px-2 font-medium">{row.month}</td>
+                      <td className="py-1.5 sm:py-2 px-1 sm:px-2 hidden sm:table-cell">{formatCurrency(row.startingCash, false)}</td>
+                      <td className={`py-1.5 sm:py-2 px-1 sm:px-2 font-bold ${row.endingCash < debtPayoffOptions.cashFloor ? 'text-destructive' : row.endingCash <= debtPayoffOptions.cashFloor + 50 ? 'text-amber-400' : 'text-success'}`}>
                         {formatCurrency(row.endingCash, false)}
                         {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
-                        {row.floorBreachedByOneTime && <div className="text-[8px] text-amber-400 leading-tight font-normal">one-time</div>}
+                        {row.floorBreachedByOneTime && (
+                          <div className="text-[8px] sm:text-[9px] text-amber-400 leading-tight mt-0.5 font-normal">
+                            one-time expense
+                          </div>
+                        )}
                       </td>
-                      <td className="py-2 px-1.5">
-                        <div className="flex flex-wrap gap-1 items-center">
-                          {hasCC && (
-                            <span className="text-[8px] px-1 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
-                              CC {formatCurrency(row.totalCCPurchases, false)}
-                            </span>
-                          )}
-                          {hasOneTime && (
-                            <span className={`text-[8px] px-1 py-0.5 border whitespace-nowrap ${(row.oneTimeNet || 0) >= 0 ? 'bg-success/10 text-success border-success/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`} style={{ borderRadius: 'var(--radius)' }}>
-                              1× {(row.oneTimeNet || 0) >= 0 ? '+' : ''}{formatCurrency(row.oneTimeNet, false)}
-                            </span>
-                          )}
-                          {!hasCC && !hasOneTime && (
-                            <span className="text-[8px] text-muted-foreground/40">—</span>
-                          )}
-                        </div>
-                      </td>
+                      <td className="py-1.5 sm:py-2 px-1 sm:px-2 hidden sm:table-cell">{formatCurrency(row.takeHome, false)}</td>
+                      <td className="py-1.5 sm:py-2 px-1 sm:px-2">{formatCurrency(row.totalExpenses, false)}</td>
+                      <td className={`py-1.5 sm:py-2 px-1 sm:px-2 hidden sm:table-cell ${row.floorBreachedByOneTime ? 'text-amber-400' : (row.oneTimeNet || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>{row.oneTimeNet ? formatCurrency(row.oneTimeNet, false) : '—'}</td>
+                      <td className={`py-1.5 sm:py-2 px-1 sm:px-2 hidden sm:table-cell ${row.ccOneTime ? 'text-destructive' : 'text-muted-foreground'}`}>{row.ccOneTime ? formatCurrency(row.ccOneTime, false) : '—'}</td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>}
         </>
       ) : (

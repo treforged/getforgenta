@@ -612,25 +612,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendedSafeMinimum, false)}</p>
             </div>
           </div>
-
-          {/* Show why calculated floor is higher than user-set floor */}
-          {prePaycheckBills.total > cashFloor && (
-            <div className="flex items-start gap-2 mt-3 bg-primary/5 border border-primary/15 px-3 py-2 text-[10px] sm:text-xs" style={{ borderRadius: 'var(--radius)' }}>
-              <Info size={13} className="text-primary shrink-0 mt-0.5" />
-              <div className="min-w-0">
-                <p className="text-foreground font-medium">
-                  Pre-paycheck bills ({formatCurrency(prePaycheckBills.total, false)}) exceed your cash floor ({formatCurrency(cashFloor, false)}). Safe minimum raised to {formatCurrency(recommendedSafeMinimum, false)}.
-                </p>
-                {prePaycheckBills.items.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] sm:text-[10px] text-muted-foreground">
-                    {prePaycheckBills.items.map((item, idx) => (
-                      <span key={idx}>{item.name} — {formatCurrency(item.amount, false)} (due {item.dueDay}th)</span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Summary Cards */}
