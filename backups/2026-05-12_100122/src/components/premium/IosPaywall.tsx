@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Crown, Check, RotateCcw, Loader2, AlertCircle, Tag } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
+import { Crown, Check, RotateCcw, Loader2, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import type { PurchasesOfferings, PurchasesPackage } from '@revenuecat/purchases-capacitor';
 import {
   getOfferings,
   purchasePackage,
   restorePurchases,
-  presentCodeRedemptionSheet,
-  openAndroidOfferRedemption,
 } from '@/lib/purchases';
 import { useSubscription } from '@/hooks/useSubscription';
 
@@ -22,9 +19,7 @@ const FEATURE_LIST = [
   'Priority support',
 ];
 
-const isAndroid = Capacitor.getPlatform() === 'android';
-
-export default function NativePaywall() {
+export default function IosPaywall() {
   const { isPremium, refetch } = useSubscription();
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
   const [selectedPkg, setSelectedPkg] = useState<PurchasesPackage | null>(null);
@@ -61,16 +56,12 @@ export default function NativePaywall() {
     try {
       const info = await purchasePackage(selectedPkg);
       if (info) {
-        for (let i = 0; i < 5; i++) {
-          const result = await refetch();
-          const sub = result.data as any;
-          if (sub?.plan === 'premium' && ['active', 'trialing'].includes(sub?.subscription_status ?? '')) break;
-          await new Promise(r => setTimeout(r, 1500));
-        }
+        await refetch();
         toast.success('Welcome to Forgenta Premium!');
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
+      // RevenueCat surfaces user-cancelled as a specific code — don't show an error toast for it
       if (!msg.includes('PURCHASE_CANCELLED')) {
         toast.error(msg || 'Purchase failed. Please try again.');
       }
@@ -94,40 +85,6 @@ export default function NativePaywall() {
     }
   };
 
-  const handleRedeemCode = async () => {
-    if (isAndroid) {
-      try {
-        const { App } = await import('@capacitor/app');
-        let hasLeftApp = false;
-        const listener = await App.addListener('appStateChange', async ({ isActive }) => {
-          if (!isActive) { hasLeftApp = true; return; }
-          if (isActive && hasLeftApp) {
-            await listener.remove();
-            setRestoring(true);
-            try {
-              const info = await restorePurchases();
-              if (info) { await refetch(); toast.success('Subscription updated!'); }
-            } catch {
-              // user can tap Restore purchases manually if needed
-            } finally {
-              setRestoring(false);
-            }
-          }
-        });
-        await openAndroidOfferRedemption();
-      } catch (e: unknown) {
-        toast.error(e instanceof Error ? e.message : 'Could not open Play Store redemption.');
-      }
-    } else {
-      try {
-        await presentCodeRedemptionSheet();
-        await refetch();
-      } catch (e: unknown) {
-        toast.error(e instanceof Error ? e.message : 'Could not open code redemption.');
-      }
-    }
-  };
-
   // ── Already premium ───────────────────────────────────────────────────────────
   if (isPremium) {
     return (
@@ -148,9 +105,7 @@ export default function NativePaywall() {
           ))}
         </ul>
         <p className="text-[11px] text-muted-foreground text-center">
-          {isAndroid
-            ? 'Manage your subscription in Google Play settings.'
-            : 'Manage your subscription in the App Store settings.'}
+          Manage your subscription in the App Store settings.
         </p>
       </div>
     );
@@ -174,7 +129,7 @@ export default function NativePaywall() {
       <div className="p-4 max-w-sm mx-auto pt-8 text-center space-y-4">
         <AlertCircle size={32} className="mx-auto text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {error ?? 'No plans available. Check your store connection and try again.'}
+          {error ?? 'No plans available. Check your App Store connection and try again.'}
         </p>
         <button
           onClick={() => { setError(null); setLoading(true); }}
@@ -189,7 +144,7 @@ export default function NativePaywall() {
   const packages = offerings.current.availablePackages;
 
   return (
-    <div className="p-4 pb-4 max-w-sm mx-auto space-y-4">
+    <div className="p-4 pb-12 max-w-sm mx-auto space-y-6">
       {/* Header */}
       <div className="text-center space-y-2 pt-2">
         <div className="w-12 h-12 rounded-full bg-gold/15 flex items-center justify-center mx-auto">
@@ -271,19 +226,13 @@ export default function NativePaywall() {
         )}
       </button>
 
-      {/* Redeem code — all platforms */}
-      <div className="text-center">
-        <button
-          onClick={handleRedeemCode}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
-        >
-          <Tag size={14} />
-          {isAndroid ? 'Redeem promo code' : 'Redeem code'}
-        </button>
-      </div>
+      <p className="text-[10px] text-muted-foreground text-center px-4">
+        Subscription auto-renews. Cancel anytime in App Store settings.
+        Payment charged to your Apple ID at confirmation of purchase.
+      </p>
 
-      {/* Restore purchases + legal — grouped to stay above fold */}
-      <div className="flex flex-col items-center gap-1.5">
+      {/* Restore purchases — required by App Store guidelines */}
+      <div className="text-center">
         <button
           onClick={handleRestore}
           disabled={restoring}
@@ -296,30 +245,6 @@ export default function NativePaywall() {
           )}
           Restore purchases
         </button>
-        <p className="text-[10px] text-muted-foreground text-center px-4">
-          {isAndroid
-            ? 'Auto-renews. Cancel anytime in Google Play settings.'
-            : 'Auto-renews. Cancel anytime in App Store settings.'}
-        </p>
-        <div className="flex items-center justify-center gap-3 pt-1">
-          <a
-            href="https://getforgenta.com/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-muted-foreground hover:text-foreground underline"
-          >
-            Privacy Policy
-          </a>
-          <span className="text-muted-foreground/30 text-[10px]">·</span>
-          <a
-            href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-muted-foreground hover:text-foreground underline"
-          >
-            Terms of Use
-          </a>
-        </div>
       </div>
     </div>
   );

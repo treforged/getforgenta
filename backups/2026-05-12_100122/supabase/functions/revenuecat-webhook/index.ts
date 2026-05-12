@@ -154,6 +154,15 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Ignore sandbox events — TestFlight purchases must not grant production premium
+  if (event.environment === "SANDBOX") {
+    console.log(`[rc-webhook] sandbox event ignored: ${event.type}`);
+    return new Response(JSON.stringify({ received: true, action: "sandbox_ignored" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const userId = resolveUserId(event);
   const provider = resolveProvider(event.store);
 

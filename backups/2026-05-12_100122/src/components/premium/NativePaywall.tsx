@@ -61,12 +61,7 @@ export default function NativePaywall() {
     try {
       const info = await purchasePackage(selectedPkg);
       if (info) {
-        for (let i = 0; i < 5; i++) {
-          const result = await refetch();
-          const sub = result.data as any;
-          if (sub?.plan === 'premium' && ['active', 'trialing'].includes(sub?.subscription_status ?? '')) break;
-          await new Promise(r => setTimeout(r, 1500));
-        }
+        await refetch();
         toast.success('Welcome to Forgenta Premium!');
       }
     } catch (e: unknown) {
@@ -301,25 +296,6 @@ export default function NativePaywall() {
             ? 'Auto-renews. Cancel anytime in Google Play settings.'
             : 'Auto-renews. Cancel anytime in App Store settings.'}
         </p>
-        <div className="flex items-center justify-center gap-3 pt-1">
-          <a
-            href="https://getforgenta.com/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-muted-foreground hover:text-foreground underline"
-          >
-            Privacy Policy
-          </a>
-          <span className="text-muted-foreground/30 text-[10px]">·</span>
-          <a
-            href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] text-muted-foreground hover:text-foreground underline"
-          >
-            Terms of Use
-          </a>
-        </div>
       </div>
     </div>
   );
