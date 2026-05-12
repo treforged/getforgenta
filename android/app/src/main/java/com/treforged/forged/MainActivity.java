@@ -1,4 +1,4 @@
-﻿package com.treforged.forged;
+package com.treforged.forged;
 
 import android.os.Bundle;
 import androidx.activity.EdgeToEdge;

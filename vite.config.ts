@@ -19,13 +19,13 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-supabase': ['@supabase/supabase-js'],
-          'vendor-icons': ['lucide-react'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-charts': ['recharts'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router-dom/')) return 'vendor-react';
+          if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
+          if (id.includes('node_modules/@supabase/supabase-js')) return 'vendor-supabase';
+          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
+          if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
+          if (id.includes('node_modules/recharts')) return 'vendor-charts';
         },
       },
     },
