@@ -222,14 +222,14 @@ export default function CookieBanner() {
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
             <button
               onClick={() => setShowPrefs(true)}
-              className="text-[11px] text-foreground/75 hover:text-foreground px-3 py-1.5 border border-border transition-colors btn-press"
+              className="text-[11px] text-muted-foreground hover:text-foreground px-3 py-1.5 border border-border transition-colors btn-press"
               style={{ borderRadius: 'var(--radius)' }}
             >
               Manage preferences
             </button>
             <button
               onClick={rejectNonEssential}
-              className="text-[11px] text-foreground/75 hover:text-foreground px-3 py-1.5 border border-border transition-colors btn-press"
+              className="text-[11px] text-muted-foreground hover:text-foreground px-3 py-1.5 border border-border transition-colors btn-press"
               style={{ borderRadius: 'var(--radius)' }}
             >
               Reject non-essential
