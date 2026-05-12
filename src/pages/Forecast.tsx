@@ -1164,14 +1164,21 @@ export default function Forecast() {
                 <span className="text-[9px] text-muted-foreground/60 block">1× = one-time purchase or income</span>
               </div>
             </div>
-            <table className="w-full text-xs min-w-[480px]">
+            <table className="w-full table-fixed text-xs min-w-[500px]">
+              <colgroup>
+                <col className="w-[13%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
+                <col className="w-[22%]" />
+                <col className="w-[25%]" />
+              </colgroup>
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
-                  <th className="py-1.5 px-1.5 text-left font-medium">Month</th>
-                  <th className="py-1.5 px-1.5 text-right font-medium">+Income</th>
-                  <th className="py-1.5 px-1.5 text-right font-medium">−Out</th>
-                  <th className="py-1.5 px-1.5 text-right font-medium">End Cash</th>
-                  <th className="py-1.5 px-1.5 text-left font-medium">Activity</th>
+                  <th className="py-2 px-3 text-left font-medium">Month</th>
+                  <th className="py-2 px-3 text-right font-medium">+Income</th>
+                  <th className="py-2 px-3 text-right font-medium">−Out</th>
+                  <th className="py-2 px-3 text-right font-medium">End Cash</th>
+                  <th className="py-2 px-3 text-left font-medium">Activity</th>
                 </tr>
               </thead>
               <tbody>
@@ -1204,28 +1211,27 @@ export default function Forecast() {
                       ],
                     });
                   };
-                  const netFlow = (row.takeHome || 0) - (row.totalExpenses || 0) + (row.oneTimeNet || 0);
                   const hasCC = (row.totalCCPurchases ?? 0) > 0;
                   const hasOneTime = (row.oneTimeNet ?? 0) !== 0;
                   return (
                     <tr key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={openDrawer}>
-                      <td className="py-2 px-1.5 font-medium whitespace-nowrap">{row.month}</td>
-                      <td className="py-2 px-1.5 text-right text-success font-display font-bold whitespace-nowrap">{formatCurrency(row.takeHome, false)}</td>
-                      <td className="py-2 px-1.5 text-right text-destructive font-display font-bold whitespace-nowrap">{formatCurrency(row.totalExpenses, false)}</td>
-                      <td className={`py-2 px-1.5 text-right font-display font-bold whitespace-nowrap ${row.endingCash < row.monthMinSafe ? 'text-destructive' : row.endingCash <= row.monthMinSafe + 50 ? 'text-amber-400' : 'text-success'}`}>
+                      <td className="py-2 px-3 font-medium whitespace-nowrap">{row.month}</td>
+                      <td className="py-2 px-3 text-right text-success font-display font-bold whitespace-nowrap">{formatCurrency(row.takeHome, false)}</td>
+                      <td className="py-2 px-3 text-right text-destructive font-display font-bold whitespace-nowrap">{formatCurrency(row.totalExpenses, false)}</td>
+                      <td className={`py-2 px-3 text-right font-display font-bold whitespace-nowrap ${row.endingCash < row.monthMinSafe ? 'text-destructive' : row.endingCash <= row.monthMinSafe + 50 ? 'text-amber-400' : 'text-success'}`}>
                         {formatCurrency(row.endingCash, false)}
                         {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
                         {row.floorBreachedByOneTime && <div className="text-[8px] text-amber-400 leading-tight font-normal">one-time</div>}
                       </td>
-                      <td className="py-2 px-1.5">
+                      <td className="py-2 px-3">
                         <div className="flex flex-wrap gap-1 items-center">
                           {hasCC && (
-                            <span className="text-[8px] px-1 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
+                            <span className="text-[8px] px-1.5 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
                               CC {formatCurrency(row.totalCCPurchases, false)}
                             </span>
                           )}
                           {hasOneTime && (
-                            <span className={`text-[8px] px-1 py-0.5 border whitespace-nowrap ${(row.oneTimeNet || 0) >= 0 ? 'bg-success/10 text-success border-success/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`} style={{ borderRadius: 'var(--radius)' }}>
+                            <span className={`text-[8px] px-1.5 py-0.5 border whitespace-nowrap ${(row.oneTimeNet || 0) >= 0 ? 'bg-success/10 text-success border-success/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`} style={{ borderRadius: 'var(--radius)' }}>
                               1× {(row.oneTimeNet || 0) >= 0 ? '+' : ''}{formatCurrency(row.oneTimeNet, false)}
                             </span>
                           )}
