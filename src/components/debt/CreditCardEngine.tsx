@@ -651,7 +651,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Monthly Interest</p>
               <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(projections.reduce((s, p) => s + p.projectedInterestThisMonth, 0), true)}</p>
             </div>
-            <div className="col-span-2 sm:col-span-1">
+            <div className="col-span-2 sm:col-span-1 sm:col-start-3 lg:col-start-auto">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
               {(() => {
                 const eta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
@@ -863,7 +863,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Minimums Due</p>
               <p className="text-xs sm:text-sm font-display font-bold text-destructive">{formatCurrency(recommendations.totalMinimumsdue, false)}</p>
             </div>
-            <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
+            <div className="col-span-2 sm:col-span-1 sm:col-start-3 lg:col-start-auto p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Interest Avoided</p>
               <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendations.interestAvoided, true)}</p>
             </div>
