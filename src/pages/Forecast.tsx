@@ -95,7 +95,21 @@ export default function Forecast() {
   }, [setHiddenSeries]);
 
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
-  const prePaycheckBillsInfo = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, null), [rules, payConfig]);
+
+  // Resolve the funding account the same way CreditCardEngine does — profile preference first,
+  // then first active checking account. Used to scope pre-paycheck bills and safe-floor to the
+  // account that actually funds debt payments.
+  const forecastFundingAccountId = useMemo((): string | null => {
+    const defaultId = (profile as any)?.default_deposit_account;
+    if (defaultId) {
+      const acct = accounts.find((a: any) => a.id === defaultId && a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type));
+      if (acct) return acct.id as string;
+    }
+    const checking = accounts.find((a: any) => a.active && a.account_type === 'checking');
+    return (checking?.id as string) ?? null;
+  }, [accounts, profile]);
+
+  const prePaycheckBillsInfo = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId), [rules, payConfig, forecastFundingAccountId]);
   const scheduledEvents = useMemo(() => generateScheduledEvents(rules, accounts, 36), [rules, accounts]);
   const monthlyAggregates = useMemo(() => aggregateByMonth(scheduledEvents), [scheduledEvents]);
 
@@ -312,7 +326,7 @@ export default function Forecast() {
     const allTxnsForM0 = mergeWithGeneratedTransactions(transactions, rules, accounts);
     const m0Income = getRemainingTransactionIncomeByDay(allTxnsForM0, 31);
     const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true);
-    const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, null, new Date());
+    const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, forecastFundingAccountId, new Date());
 
     const projs = (() => {
       const sim = simulateVariablePayoff(
@@ -400,6 +414,7 @@ export default function Forecast() {
   scheduledEvents,
   pauseSavings,
   forecastMonthEvents,
+  forecastFundingAccountId,
 ]);
 
   // One-time manual transactions for forecast.
@@ -673,7 +688,7 @@ export default function Forecast() {
         .reduce((s: number, dd: any) => s + Number(dd.target_payment), 0);
       const otherDebtBalance = Math.max(0, nonCCLiabilities - otherDebtPayments * i);
 
-      const monthMinSafe = getMinSafeCash(rules, payConfig, cashFloor, null, d);
+      const monthMinSafe = getMinSafeCash(rules, payConfig, cashFloor, forecastFundingAccountId, d);
 
       baseData.push({
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
@@ -866,7 +881,7 @@ export default function Forecast() {
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents]);
+  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId]);
 
   const filteredData = useMemo(() => {
     if (filterYear === 'all') return projections.data;
