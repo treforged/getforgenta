@@ -656,7 +656,7 @@ export default function Accounts() {
           title={editId ? 'Edit Account' : 'Add Account'}
           fields={[
             { key: 'name', label: 'Account Name', type: 'text', placeholder: 'e.g., Chase Checking', required: true, disabled: editingPlaidLinked },
-            { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES, disabled: editingPlaidLinked },
+            { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES },
             { key: 'institution', label: 'Institution', type: 'text', placeholder: 'e.g., Chase, Fidelity', disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Managed by Plaid' : undefined },
             { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true, disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Balance is managed by Plaid auto-sync' : undefined },
             ...(form.account_type === 'credit_card' ? [
@@ -677,7 +677,7 @@ export default function Accounts() {
           onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}
-          notice={editingPlaidLinked ? 'Balance, name, type, and institution are managed by Plaid auto-sync. You can still edit APR, credit limit, minimum payment, and notes.' : undefined}
+          notice={editingPlaidLinked ? 'Balance, name, and institution are managed by Plaid auto-sync. You can edit account type, APR, credit limit, minimum payment, and notes.' : undefined}
         />
       )}
     </div>
