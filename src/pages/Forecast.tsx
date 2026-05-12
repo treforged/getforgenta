@@ -449,6 +449,39 @@ export default function Forecast() {
     return result;
   }, [transactions, accounts]);
 
+  // Scheduled CC rule purchases per month — the recurring spend on credit cards.
+  // Combined with ccOneTimeByMonth to show total CC purchases in the popup.
+  const ccScheduledByMonth = useMemo(() => {
+    const ccPaymentSources = new Set<string>(
+      accounts
+        .filter((a: any) => a.active && a.account_type === 'credit_card')
+        .flatMap((a: any) => [a.id, `account:${a.id}`]),
+    );
+    const ccRuleIds = new Set<string>(
+      rules.filter((r: any) =>
+        r.active && r.rule_type === 'expense' &&
+        (
+          (r.payment_source && ccPaymentSources.has(r.payment_source)) ||
+          (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
+        )
+      ).map((r: any) => r.id),
+    );
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    return Array.from({ length: 36 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      return scheduledEvents
+        .filter(e =>
+          e.type === 'expense' &&
+          e.date.startsWith(monthKey) &&
+          (i > 0 || e.date >= todayStr) &&
+          e.ruleId && ccRuleIds.has(e.ruleId),
+        )
+        .reduce((s, e) => s + e.amount, 0);
+    });
+  }, [accounts, rules, scheduledEvents]);
+
   const projections = useMemo(() => {
     const taxRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
     const cashFloor = Number((profile as any)?.cash_floor) || 1000;
@@ -827,11 +860,12 @@ export default function Forecast() {
         savingsContrib: Math.round(monthlySavingsContrib),
         carContrib: Math.round(monthlyCarContrib),
         transfersTotal: Math.round(b.monthTransfers),
+        totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
       });
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents]);
+  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents]);
 
   const filteredData = useMemo(() => {
     if (filterYear === 'all') return projections.data;
@@ -1120,7 +1154,7 @@ export default function Forecast() {
                           { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
                           { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
                           { label: '', value: '' },
-                          { label: 'CC Purchases (one-time)', value: row.ccOneTime ? formatCurrency(row.ccOneTime, false) : '—' },
+                          { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
                           { label: 'Paycheck 401k Deduction', value: (row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.paycheckRetireContrib, false) : '—' },
                           { label: 'Total Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
                           { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
