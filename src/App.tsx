@@ -218,7 +218,6 @@ const App = () => (
             <SubscriptionProvider>
               <DeepLinkHandler />
               <AppRoutes />
-              <CookieBanner />
             </SubscriptionProvider>
           </AuthProvider>
           </DemoProvider>

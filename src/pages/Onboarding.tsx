@@ -145,13 +145,21 @@ function Select({ value, onChange, options }: { value: string; onChange: (v: str
   );
 }
 
+function getInitialDisplayName(meta: Record<string, unknown> | undefined): string {
+  if (!meta) return '';
+  if (meta.given_name) return meta.given_name as string;
+  if (meta.name) return (meta.name as string).split(' ')[0];
+  if (meta.display_name) return meta.display_name as string;
+  return '';
+}
+
 export default function Onboarding() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('welcome');
   const [data, setData] = useState<OnboardingData>({
     ...DEFAULT_DATA,
-    displayName: (user?.user_metadata?.display_name as string) ?? '',
+    displayName: getInitialDisplayName(user?.user_metadata),
   });
   const [saving, setSaving] = useState(false);
 
