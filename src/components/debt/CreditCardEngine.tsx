@@ -1039,10 +1039,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     </div>
                     <div className="w-full">
                       {/* Column headers */}
-                      <div className="grid grid-cols-3 border-b border-border pb-1.5 mb-0.5 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
-                        <div className="px-1">Month</div>
-                        <div className="px-1 text-right">Payment</div>
-                        <div className="px-1 text-right">End Balance</div>
+                      <div className="grid grid-cols-3 gap-x-3 border-b border-border pb-1.5 mb-0.5 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
+                        <div className="px-2">Month</div>
+                        <div className="px-2 text-right">Payment</div>
+                        <div className="px-2 text-right">End Balance</div>
                       </div>
                       {/* Rows */}
                       {proj.months.slice(0, 24).map((row, idx) => {
@@ -1051,9 +1051,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         return (
                           <div key={row.month} className={`border-b border-border/30 hover:bg-muted/10 ${isOverridden ? 'bg-primary/5' : ''}`}>
                             {/* Main row: Month | Payment | End Balance */}
-                            <div className="grid grid-cols-3 py-1.5">
-                              <div className="px-1 text-[10px] sm:text-[11px] font-medium">{row.label}</div>
-                              <div className="px-1 text-right text-[10px] sm:text-[11px]">
+                            <div className="grid grid-cols-3 gap-x-3 py-1.5">
+                              <div className="px-2 text-[10px] sm:text-[11px] font-medium">{row.label}</div>
+                              <div className="px-2 text-right text-[10px] sm:text-[11px]">
                                 {isEditingThis ? (
                                   <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                                     <input type="number" value={monthPayInput} onChange={e => setMonthPayInput(e.target.value)}
@@ -1078,13 +1078,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                   </div>
                                 )}
                               </div>
-                              <div className="px-1 text-right font-semibold text-[10px] sm:text-[11px]">
+                              <div className="px-2 text-right font-semibold text-[10px] sm:text-[11px]">
                                 {formatCurrency(Math.max(0, row.endBalance), false)}
                               </div>
                             </div>
                             {/* Detail row: constrained to first column so it never bleeds into Payment/End Bal */}
-                            <div className="grid grid-cols-3 pb-1.5">
-                              <div className="px-1 flex flex-col gap-0.5 text-[10px] sm:text-[11px] text-muted-foreground">
+                            <div className="grid grid-cols-3 gap-x-3 pb-1.5">
+                              <div className="px-2 flex flex-col gap-0.5 text-[10px] sm:text-[11px] text-muted-foreground">
                                 <span>Start: {formatCurrency(row.startBalance, false)}</span>
                                 {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
                                 {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
@@ -1093,7 +1093,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                 </span>
                               </div>
                               <div />
-                              <div className="px-1 flex items-start justify-end">
+                              <div className="px-2 flex items-start justify-end">
                                 {isOverridden && (
                                   <button onClick={() => revertMonth(proj.card.id, idx)} className="text-muted-foreground hover:text-primary" title="Revert">
                                     <RotateCcw size={9} />
