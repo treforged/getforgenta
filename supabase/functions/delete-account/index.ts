@@ -27,9 +27,51 @@ const USER_TABLES = [
   "savings_goals",
   "debts",
   "recurring_rules",
+  "plaid_items",
   "accounts",
   "profiles",
 ] as const;
+
+async function callPlaidRemoveForUser(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<void> {
+  const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID");
+  const PLAID_SECRET    = Deno.env.get("PLAID_SECRET");
+  const plaidEnv        = Deno.env.get("PLAID_ENV") || "sandbox";
+  const plaidBase       = `https://${plaidEnv}.plaid.com`;
+
+  if (!PLAID_CLIENT_ID || !PLAID_SECRET) return;
+
+  const { data: items } = await supabase
+    .from("plaid_items")
+    .select("access_token, plaid_item_id")
+    .eq("user_id", userId);
+
+  if (!items || items.length === 0) return;
+
+  await Promise.all(
+    items.map(async (item: { access_token: string; plaid_item_id: string }) => {
+      try {
+        const res = await fetch(`${plaidBase}/item/remove`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id:    PLAID_CLIENT_ID,
+            secret:       PLAID_SECRET,
+            access_token: item.access_token,
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          console.error(`delete-account: Plaid item/remove failed for ${item.plaid_item_id}:`, JSON.stringify(body));
+        }
+      } catch (e) {
+        console.error(`delete-account: Plaid item/remove error for ${item.plaid_item_id}:`, e);
+      }
+    }),
+  );
+}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -96,7 +138,12 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
 
-    // ── 2. Cancel active Stripe subscription immediately ───────────────────
+    // ── 2. Notify Plaid to remove all linked items ────────────────────────
+    // Must happen before row deletion so access_tokens are still readable.
+    // Best-effort — errors are logged but do not block account deletion.
+    await callPlaidRemoveForUser(supabase, userId);
+
+    // ── 3. Cancel active Stripe subscription immediately ──────────────────
     if (userSub?.stripe_subscription_id && STRIPE_SECRET_KEY) {
       const stripeSpan = tracer.startSpan("stripe.subscriptions.cancel", {
         parentSpanId: rootSpan.spanId,
@@ -119,7 +166,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 3. Anonymize billing record (IRS 7-year retention) ─────────────────
+    // ── 4. Anonymize billing record (IRS 7-year retention) ─────────────────
     // We keep the financial columns (Stripe IDs, plan, dates, status) but
     // sever the link to the Supabase auth user by nulling user_id.
     if (userSub) {
@@ -132,7 +179,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 4. Delete all user data ─────────────────────────────────────────────
+    // ── 5. Delete all user data ─────────────────────────────────────────────
     for (const table of USER_TABLES) {
       const deleteSpan = tracer.startSpan(`db.${table}.delete`, {
         parentSpanId: rootSpan.spanId,
@@ -151,10 +198,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── 5. Delete rate_limit keys for this user ────────────────────────────
+    // ── 6. Delete rate_limit keys for this user ────────────────────────────
     // rate_limits rows are keyed by IP, not user_id, so no FK to clean up.
 
-    // ── 6. Delete the Supabase auth user (irreversible) ───────────────────
+    // ── 7. Delete the Supabase auth user (irreversible) ───────────────────
     const authSpan = tracer.startSpan("auth.admin.deleteUser", {
       parentSpanId: rootSpan.spanId,
       kind: "CLIENT",
