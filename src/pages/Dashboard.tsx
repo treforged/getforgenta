@@ -11,6 +11,7 @@ import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
 import FounderNoteModal from '@/components/shared/FounderNoteModal';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
+import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
 import { formatCurrency } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
@@ -647,6 +648,7 @@ export default function Dashboard() {
       )}
       {!isDemo && <AppTour variant="new-user" />}
       <AccountUpdateReminder />
+      {!isDemo && <SubscriptionExpiryBanner />}
 
       {!isDemo && showSecurityBanner && (
         <div className="flex items-start justify-between gap-3 bg-amber-500/8 border border-amber-500/25 px-4 py-3" style={{ borderRadius: 'var(--radius)' }}>

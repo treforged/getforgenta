@@ -14,6 +14,53 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+async function removePlaidItemsForUser(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+): Promise<void> {
+  const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID");
+  const PLAID_SECRET    = Deno.env.get("PLAID_SECRET");
+  const plaidEnv        = Deno.env.get("PLAID_ENV") || "sandbox";
+  const plaidBase       = `https://${plaidEnv}.plaid.com`;
+
+  if (!PLAID_CLIENT_ID || !PLAID_SECRET) return;
+
+  const { data: items } = await supabase
+    .from("plaid_items")
+    .select("access_token, plaid_item_id")
+    .eq("user_id", userId);
+
+  if (!items || items.length === 0) return;
+
+  await Promise.all(
+    items.map(async (item: { access_token: string; plaid_item_id: string }) => {
+      try {
+        const res = await fetch(`${plaidBase}/item/remove`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            client_id:    PLAID_CLIENT_ID,
+            secret:       PLAID_SECRET,
+            access_token: item.access_token,
+          }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          console.error(`[rc-webhook] Plaid item/remove failed for ${item.plaid_item_id}:`, JSON.stringify(body));
+        }
+      } catch (e) {
+        console.error(`[rc-webhook] Plaid item/remove error for ${item.plaid_item_id}:`, e);
+      }
+    }),
+  );
+
+  // Delete Plaid items; accounts stay with active=false so last balance is preserved.
+  await supabase.from("plaid_items").delete().eq("user_id", userId);
+  await supabase.from("accounts").update({ active: false })
+    .eq("user_id", userId)
+    .not("plaid_account_id", "is", null);
+}
+
 const RC_EVENT = {
   INITIAL_PURCHASE:  "INITIAL_PURCHASE",
   RENEWAL:           "RENEWAL",
@@ -170,6 +217,7 @@ Deno.serve(async (req) => {
         current_period_end: null,
       };
       break;
+    // Plaid cleanup for EXPIRATION is handled after the DB write below.
 
     case RC_EVENT.BILLING_ISSUE:
       patch = {
@@ -198,6 +246,12 @@ Deno.serve(async (req) => {
       status: 500,
       headers: { "Content-Type": "application/json" },
     });
+  }
+
+  // Disconnect Plaid when the subscription fully expires.
+  // Accounts are kept with active=false so the last known balance is preserved.
+  if (event.type === RC_EVENT.EXPIRATION) {
+    await removePlaidItemsForUser(supabase, userId);
   }
 
   console.log(`[rc-webhook] ${event.type} → user ${userId.slice(0, 8)}… → ${JSON.stringify(patch)}`);
