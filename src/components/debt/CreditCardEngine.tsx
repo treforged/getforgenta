@@ -1085,7 +1085,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                             </div>
                             {/* Detail row: constrained to first column so it never bleeds into Payment/End Bal */}
                             <div className="grid grid-cols-3 pb-1.5">
-                              <div className="px-1 flex flex-col gap-0.5 text-[9px] text-muted-foreground">
+                              <div className="px-1 flex flex-col gap-0.5 text-[10px] sm:text-[11px] text-muted-foreground">
                                 <span>Start: {formatCurrency(row.startBalance, false)}</span>
                                 {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
                                 {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
