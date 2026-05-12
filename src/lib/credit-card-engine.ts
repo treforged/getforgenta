@@ -192,8 +192,10 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   let totalInterest = 0;
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
+  const simMonths = Math.max(months, 120); // run past display window for accurate totals
 
-  for (let m = 1; m <= months; m++) {
+  for (let m = 1; m <= simMonths; m++) {
+    if (payoffMonth !== null) break;
     const d = new Date();
     d.setMonth(d.getMonth() + m - 1);
     const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
@@ -201,8 +203,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
     const newPurchases = card.monthlyNewPurchases;
 
     if (card.autopayFullBalance) {
-      const payment = newPurchases;
-      rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment, endBalance: 0, utilization: 0 });
+      if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment: newPurchases, endBalance: 0, utilization: 0 });
       continue;
     }
 
@@ -211,7 +212,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
     bal = startBal + newPurchases + interest - payment;
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
-    rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment, endBalance: Math.round(bal * 100) / 100, utilization });
+    if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment, endBalance: Math.round(bal * 100) / 100, utilization });
     if (bal <= 0 && payoffMonth === null && startBal > 0) payoffMonth = m;
   }
 
@@ -250,8 +251,10 @@ export function projectCardVariable(
   let totalInterest = 0;
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
+  const simMonths = Math.max(months, 120); // run past display window for accurate totals
 
-  for (let m = 1; m <= months; m++) {
+  for (let m = 1; m <= simMonths; m++) {
+    if (bal <= 0 && payoffMonth !== null) break;
     const d = new Date();
     d.setMonth(d.getMonth() + m - 1);
     const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
@@ -260,9 +263,8 @@ export function projectCardVariable(
       ? purchasesPerMonth[m - 1]
       : (m === 1 && skipFirstMonthPurchases) ? 0 : card.monthlyNewPurchases;
 
-    if (card.autopayFullBalance || (bal <= 0 && payoffMonth !== null)) {
-      const payment = newPurchases;
-      rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment, endBalance: 0, utilization: 0 });
+    if (card.autopayFullBalance) {
+      if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment: newPurchases, endBalance: 0, utilization: 0 });
       continue;
     }
 
@@ -273,7 +275,7 @@ export function projectCardVariable(
     if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behaviour
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
-    rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
+    if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
     if (bal <= 0 && payoffMonth === null && startBal > 0) payoffMonth = m;
   }
 
