@@ -580,16 +580,33 @@ export default function Auth() {
           </div>
           {!Capacitor.isNativePlatform() && (
             <div className="auth-trust text-center">
+              <div className="inline-flex flex-col gap-2">
               <a
                 href="https://testflight.apple.com/join/P8AvKXr4"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-3 px-5 py-3 border border-border text-foreground hover:bg-secondary/60 hover:border-foreground/40 transition-all"
-                style={{ borderRadius: 'var(--radius)' }}
+                className="inline-flex items-center justify-center gap-3 w-[calc(100%-18px)] mx-auto py-[12px] border border-border text-foreground hover:bg-secondary/60 hover:border-foreground/40 transition-all rounded-xl"
               >
                 <img src="/apple-logo.png" alt="" aria-hidden="true" style={{ height: 26, width: 'auto', display: 'block' }} />
-                <span className="text-xs font-semibold tracking-wide">Test on iPhone — TestFlight</span>
+                <span className="flex flex-col text-xs font-semibold tracking-wide leading-snug">
+                  <span>Test on iPhone</span>
+                  <span>with TestFlight</span>
+                </span>
               </a>
+              <a
+                href="https://play.google.com/store/apps/details?id=com.treforged.forged&pcampaignid=web_share"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Get Forgenta on Google Play"
+                className="inline-flex"
+              >
+                <img
+                  src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
+                  alt="Get it on Google Play"
+                  style={{ height: 80, width: 'auto' }}
+                />
+              </a>
+              </div>
             </div>
           )}
           <p className="auth-trust text-sm font-medium text-foreground/70 text-center">
@@ -1005,7 +1022,7 @@ export default function Auth() {
               Continue with Apple
             </button>
             <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
-              You may see "Forgenta" or "TRE Forged" in the sign-in prompt — this is expected and secure.
+              You may see a supabase.co prompt. This is Forgenta's secure sign-in provider.
             </p>
           </div>
         )}

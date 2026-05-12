@@ -200,7 +200,7 @@ export default function Landing() {
             <img
               src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
               alt="Get it on Google Play"
-              style={{ height: 40, width: 'auto' }}
+              style={{ height: 64, width: 'auto' }}
             />
           </a>
         </motion.div>
