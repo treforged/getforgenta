@@ -653,11 +653,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
             <div className="col-span-2 sm:col-span-1">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
-              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-primary">
-                {(() => {
-                  const eta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
-                  return eta > 0 ? `${eta} mo` : 'Paid';
-                })()}
+              {(() => {
+                const eta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
+                const color = eta <= 1 ? 'text-success' : 'text-primary';
+                return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>{eta > 0 ? `${eta} mo` : 'Paid'}</p>;
+              })()}
               </p>
             </div>
           </div>
