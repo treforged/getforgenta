@@ -608,7 +608,7 @@ export function getPrePaycheckNextMonthBills(
   
   for (const r of rules) {
     if (!r.active || r.rule_type === 'income') continue;
-    
+
     // If a funding account is specified, only count bills from that account
     if (fundingAccountId) {
       const ruleSource = r.payment_source || '';
@@ -616,20 +616,23 @@ export function getPrePaycheckNextMonthBills(
       // Include bills with no source (default to funding account) or matching funding account
       if (normalizedSource && normalizedSource !== fundingAccountId) continue;
     }
-    
+
     if (r.start_date) {
       const sd = new Date(r.start_date + 'T12:00:00');
       if (sd > nextMonthEnd) continue;
     }
-    
+
     const amt = Number(r.amount);
-    
+    // Transfers/investments must be fully funded before they fire — use entire next month as window
+    const isTransfer = r.rule_type === 'transfer' || r.rule_type === 'investment';
+    const effectiveCutoff = isTransfer ? new Date(nextMonthEnd.getTime() + 86400000) : cutoffDate;
+
     if (r.frequency === 'weekly') {
       // Count weekly occurrences between month start and cutoff
       const dayOfWeek = r.due_day ?? 5;
       const d = new Date(nextMonthStart);
       while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
-      while (d < cutoffDate) {
+      while (d < effectiveCutoff) {
         total += amt;
         items.push({ name: r.name, amount: amt, dueDay: d.getDate() });
         d.setDate(d.getDate() + 7);
@@ -637,7 +640,7 @@ export function getPrePaycheckNextMonthBills(
     } else if (r.frequency === 'monthly') {
       const dueDay = Math.min(r.due_day || 1, nextMonthEnd.getDate());
       const d = new Date(nextMonthStart.getFullYear(), nextMonthStart.getMonth(), dueDay);
-      if (d >= nextMonthStart && d < cutoffDate) {
+      if (d >= nextMonthStart && d < effectiveCutoff) {
         total += amt;
         items.push({ name: r.name, amount: amt, dueDay });
       }
@@ -646,7 +649,7 @@ export function getPrePaycheckNextMonthBills(
       if (dueMonth === nextMonthStart.getMonth()) {
         const dueDay = Math.min(r.due_day || 1, nextMonthEnd.getDate());
         const d = new Date(nextMonthStart.getFullYear(), dueMonth, dueDay);
-        if (d < cutoffDate) {
+        if (d < effectiveCutoff) {
           total += amt;
           items.push({ name: r.name, amount: amt, dueDay });
         }

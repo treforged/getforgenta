@@ -511,7 +511,8 @@ export default function BudgetControl() {
     getPrePaycheckNextMonthBills(rules, payConfig, fundingAccount?.id || null).total,
     [rules, payConfig, fundingAccount]);
   const safeMinimum = useMemo(() => Math.max(cashFloor, prePaycheckBillsTotal), [cashFloor, prePaycheckBillsTotal]);
-  const availableCash = remainingCashOnHand - safeMinimum;
+  // Matches Debt tab "Safe to Pay": balance + remaining income − safe minimum (no double-subtract of expenses)
+  const remainingCash = fundingAccountBalance + remainingTxIncome - safeMinimum;
 
   const allAccountOptions = useMemo(() => [
     { value: '', label: 'None' },
@@ -628,19 +629,14 @@ export default function BudgetControl() {
   // Calc detail openers
   const openCashCalc = () => {
     const now2 = new Date();
-    const monthEnd = new Date(now2.getFullYear(), now2.getMonth() + 1, 0);
-    const monthEndLabel = monthEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const monthEndLabel = new Date(now2.getFullYear(), now2.getMonth() + 1, 0).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     setCalcDrawer({
-      title: `Remaining Cash On Hand (today → ${monthEndLabel})`,
+      title: 'Remaining Cash',
       lines: [
         { label: `Funding Account Balance${fundingAccount ? ` (${fundingAccount.name})` : ''}`, value: formatCurrency(fundingAccountBalance, false) },
         { label: `Remaining Income (today → ${monthEndLabel})`, value: formatCurrency(remainingTxIncome, false), op: '+' },
-        { label: `Remaining Expenses (today → ${monthEndLabel})`, value: formatCurrency(remainingTxExpenses, false), op: '−' },
-        { label: `Debt Payments recorded this month (today → ${monthEndLabel})`, value: formatCurrency(remainingTxDebt, false), op: '−' },
-        { label: 'Remaining Cash On Hand', value: formatCurrency(remainingCashOnHand, false), op: '=' },
-        { label: 'Safe Minimum (pre-paycheck bills + cash floor)', value: formatCurrency(safeMinimum, false), op: '−' },
-        { label: 'Available Cash', value: formatCurrency(availableCash, false), op: '=' },
-        ...(remainingTxDebt === 0 ? [{ label: 'Note: debt payments due on the 1st fall outside this window and appear in next month\'s view', value: '' }] : []),
+        { label: 'Safe Minimum (pre-paycheck bills + transfers + cash floor)', value: formatCurrency(safeMinimum, false), op: '−' },
+        { label: 'Remaining Cash', value: formatCurrency(remainingCash, false), op: '=' },
       ],
     });
   };
@@ -1132,27 +1128,24 @@ export default function BudgetControl() {
         <div className="cursor-pointer" onClick={openTransferCalc}>
           <MetricCard label="Transfers" value={formatCurrency(totalTransfers, false)} accent="gold" icon={ArrowLeftRight} clickHint />
         </div>
-        <div className="cursor-pointer" onClick={openCashCalc}>
-          <MetricCard label="Available Cash" value={formatCurrency(availableCash, false)} accent={availableCash >= 0 ? 'success' : 'crimson'} icon={PiggyBank} clickHint />
-        </div>
       </div>
 
-      {/* Available Cash — prominent */}
+      {/* Remaining Cash — prominent */}
       <div className="relative card-forged p-4 sm:p-5 cursor-pointer hover:border-primary/20 transition-colors group" onClick={openCashCalc}>
         <Info size={10} className="absolute bottom-2 right-2 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity" />
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <Wallet size={14} className="text-primary shrink-0" />
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Available Cash</h3>
+              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Remaining Cash</h3>
             </div>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              Cash on hand minus safe minimum (pre-paycheck bills + floor)
+              Balance + remaining income − safe minimum · matches Debt tab Safe to Pay
               {fundingAccount && <span className="font-medium"> · {fundingAccount.name}</span>}
             </p>
           </div>
-          <p className={`text-xl sm:text-2xl font-display font-bold ${availableCash >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {formatCurrency(availableCash, false)}
+          <p className={`text-xl sm:text-2xl font-display font-bold ${remainingCash >= 0 ? 'text-success' : 'text-destructive'}`}>
+            {formatCurrency(remainingCash, false)}
           </p>
         </div>
       </div>
