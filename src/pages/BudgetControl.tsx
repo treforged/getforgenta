@@ -1125,7 +1125,7 @@ export default function BudgetControl() {
         <div className="cursor-pointer" onClick={openDebtCalc}>
           <MetricCard label="Debt Payments" value={formatCurrency(totalDebtPayments, false)} accent="crimson" icon={CreditCard} clickHint />
         </div>
-        <div className="cursor-pointer" onClick={openTransferCalc}>
+        <div className="cursor-pointer sm:col-span-2 lg:col-span-1 lg:col-start-3" onClick={openTransferCalc}>
           <MetricCard label="Transfers" value={formatCurrency(totalTransfers, false)} accent="gold" icon={ArrowLeftRight} clickHint />
         </div>
       </div>
