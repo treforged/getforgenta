@@ -776,7 +776,8 @@ export default function SettingsPage() {
 
           {deleteStep === 'hidden' && (() => {
             const provider = subscription?.purchase_provider;
-            const hasMobileSub = isPremium && (provider === 'apple' || provider === 'google');
+            // Block only if actively renewing — cancel_at_period_end means no future charge risk
+            const hasMobileSub = isPremium && (provider === 'apple' || provider === 'google') && !subscription?.cancel_at_period_end;
             const storeLabel = provider === 'apple' ? 'App Store' : 'Google Play';
             const storeSteps = provider === 'apple'
               ? 'Settings → [your name] → Subscriptions → Forgenta → Cancel'
