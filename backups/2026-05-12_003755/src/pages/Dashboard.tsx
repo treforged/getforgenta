@@ -479,17 +479,10 @@ export default function Dashboard() {
     return months;
   }, [summary, transactions]);
 
-  const recentTxns = useMemo(() => {
-    const todayDate = new Date();
-    const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
-    const cutoff = new Date(todayDate);
-    cutoff.setDate(cutoff.getDate() - 7);
-    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
-    return [...allMonthTransactions]
-      .filter((t: any) => t.date <= todayStr && t.date >= cutoffStr)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 6);
-  }, [allMonthTransactions]);
+  const recentTxns = useMemo(
+    () => [...allMonthTransactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6),
+    [allMonthTransactions],
+  );
 
   const carGoalData = useMemo(() => {
     if (carFunds.length > 0) {
