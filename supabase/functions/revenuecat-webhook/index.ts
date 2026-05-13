@@ -68,12 +68,13 @@ const RC_EVENT = {
   CANCELLATION:      "CANCELLATION",
   EXPIRATION:        "EXPIRATION",
   BILLING_ISSUE:     "BILLING_ISSUE",
+  TRANSFER:          "TRANSFER",
 } as const;
 
 type RcEventType = typeof RC_EVENT[keyof typeof RC_EVENT];
 
 interface RcEvent {
-  type: RcEventType;
+  type: RcEventType | string;
   app_user_id: string;
   original_app_user_id?: string;
   product_id?: string;
@@ -161,6 +162,51 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+
+  // ── TRANSFER: subscription moved between RevenueCat users ────────────────────
+  // Revoke from the old owner and grant to the new owner as separate DB operations.
+  if (event.type === RC_EVENT.TRANSFER) {
+    const oldUserId = event.original_app_user_id;
+    const newUserId = event.app_user_id;
+
+    if (oldUserId && oldUserId !== newUserId) {
+      await supabase.from("user_subscriptions").update({
+        plan: "free",
+        subscription_status: "canceled",
+        cancel_at_period_end: false,
+        current_period_end: null,
+        revenuecat_app_user_id: null,
+      }).eq("user_id", oldUserId);
+    }
+
+    const { error: transferError } = await supabase.from("user_subscriptions").upsert(
+      {
+        user_id: newUserId,
+        plan: "premium",
+        subscription_status: event.period_type === "TRIAL" ? "trialing" : "active",
+        purchase_provider: resolveProvider(event.store),
+        revenuecat_app_user_id: event.app_user_id,
+        apple_original_transaction_id: event.original_transaction_id ?? null,
+        current_period_end: resolveExpiry(event.expiration_at_ms),
+        cancel_at_period_end: false,
+      },
+      { onConflict: "user_id" },
+    );
+
+    if (transferError) {
+      console.error("[rc-webhook] DB error (TRANSFER):", transferError);
+      return new Response(JSON.stringify({ error: "DB write failed" }), {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`[rc-webhook] TRANSFER → ${oldUserId?.slice(0, 8)}… → ${newUserId.slice(0, 8)}…`);
+    return new Response(JSON.stringify({ received: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   // ── Map event → subscription patch ───────────────────────────────────────────
   let patch: Record<string, unknown> | null = null;
