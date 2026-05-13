@@ -108,24 +108,6 @@ Forgenta is a premium personal finance platform that gives you complete visibili
 
 **iOS / Android** — Download from the App Store or Google Play (links coming at launch).
 
-**Local development:**
-
-```bash
-# Clone the repo
-git clone https://github.com/treforged/webappredesign.git
-cd webappredesign
-
-# Install dependencies
-npm install
-
-# Copy environment variables
-cp .env.example .env.local
-# Fill in your Supabase, Stripe, and Plaid keys
-
-# Start the dev server
-npm run dev
-```
-
 ---
 
 ## Security
