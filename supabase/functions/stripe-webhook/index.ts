@@ -357,9 +357,10 @@ Deno.serve(async (req) => {
 
     // ── invoice.payment_failed ────────────────────────────────────────────
     // Stripe enters its dunning retry cycle after the first failure. We mark
-    // the subscription past_due but intentionally keep plan = "premium" so the
-    // user retains access during the retry window. The plan is downgraded to
-    // "free" only when Stripe gives up and fires customer.subscription.deleted.
+    // the subscription past_due but keep plan = "premium" so the user retains
+    // access during the retry window (typically 7-14 days of retries).
+    // Plaid is only disconnected when Stripe fully gives up and fires
+    // customer.subscription.deleted — not on the first payment failure.
     if (event.type === "invoice.payment_failed") {
       const invoice = event.data.object as Stripe.Invoice;
       const customerId = invoice.customer as string;
@@ -393,14 +394,9 @@ Deno.serve(async (req) => {
         if (error) {
           dbUpdateSpan.end("ERROR", new Error(error.message));
           console.error("invoice.payment_failed update error:", error.message);
-          // Throw so Stripe retries — a silent 200 here would leave the
-          // subscription status stale (still "active" instead of "past_due").
           throw new Error(error.message);
         }
         dbUpdateSpan.end("OK");
-
-        // Phase 4.2 — hard-cut Plaid access on first payment failure
-        await removePlaidItemsForUser(supabase, userSub.user_id);
       }
     }
 
