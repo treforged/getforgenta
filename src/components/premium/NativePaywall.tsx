@@ -139,9 +139,17 @@ export default function NativePaywall() {
     } else {
       try {
         await presentCodeRedemptionSheet();
-        await refetch();
+        setRestoring(true);
+        const activated = await pollUntilPremium();
+        if (activated) {
+          toast.success('Welcome to Forgenta Premium!');
+        } else {
+          toast.info('Subscription syncing — tap Restore purchases if Premium isn\'t active in a moment.');
+        }
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : 'Could not open code redemption.');
+      } finally {
+        setRestoring(false);
       }
     }
   };
