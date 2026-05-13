@@ -14,7 +14,7 @@ import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
-  Link2, Unlink, Loader2,
+  Link2, Unlink, Loader2, RefreshCw,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -617,55 +617,77 @@ export default function Accounts() {
             <p className="text-xs text-muted-foreground py-2">No linked banks yet. Click "Link Bank Account" to connect your first institution.</p>
           ) : (
             <div className="space-y-2">
-              {plaidItems.map(item => (
-                <div key={item.id} className="flex items-center justify-between py-2 gap-2 min-w-0 border-b border-border/30 last:border-0">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <Building2 size={13} className="text-primary" />
+              {plaidItems.map(item => {
+                const linkedCreditCards = (accounts ?? []).filter(
+                  (a: any) => a.plaid_item_id === item.plaid_item_id && a.account_type === 'credit_card'
+                );
+                const needsRelink = linkedCreditCards.length > 0 && linkedCreditCards.some((a: any) => !a.liability_synced_at);
+                return (
+                  <div key={item.id} className="space-y-2 border-b border-border/30 last:border-0 pb-2 last:pb-0">
+                    <div className="flex items-center justify-between py-2 gap-2 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <Building2 size={13} className="text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold truncate">{item.institution_name ?? 'Bank'}</p>
+                          {(() => {
+                            const { text, isStale } = formatSyncStatus(item.last_synced_at);
+                            return (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />}
+                                {text}
+                              </p>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                      <button
+                        disabled={delinking}
+                        onClick={async () => {
+                          if (delinkConfirm !== item.plaid_item_id) {
+                            setDelinkConfirm(item.plaid_item_id);
+                            return;
+                          }
+                          setDelinking(true);
+                          setDelinkConfirm(null);
+                          await removePlaidItem(item.plaid_item_id);
+                          setDelinking(false);
+                        }}
+                        onBlur={() => setDelinkConfirm(null)}
+                        className={`text-xs font-medium px-2 py-1 rounded border transition-colors shrink-0 ${
+                          delinkConfirm === item.plaid_item_id
+                            ? 'text-destructive border-destructive/40 bg-destructive/10'
+                            : 'text-muted-foreground border-transparent hover:text-destructive'
+                        }`}
+                        title={delinkConfirm === item.plaid_item_id ? 'Click again to confirm' : 'Remove bank connection'}
+                      >
+                        {delinking && delinkConfirm === null ? (
+                          <Loader2 size={12} className="animate-spin" />
+                        ) : delinkConfirm === item.plaid_item_id ? (
+                          'Confirm remove?'
+                        ) : (
+                          <Unlink size={13} />
+                        )}
+                      </button>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold truncate">{item.institution_name ?? 'Bank'}</p>
-                      {(() => {
-                        const { text, isStale } = formatSyncStatus(item.last_synced_at);
-                        return (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />}
-                            {text}
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  <button
-                    disabled={delinking}
-                    onClick={async () => {
-                      if (delinkConfirm !== item.plaid_item_id) {
-                        setDelinkConfirm(item.plaid_item_id);
-                        return;
-                      }
-                      setDelinking(true);
-                      setDelinkConfirm(null);
-                      await removePlaidItem(item.plaid_item_id);
-                      setDelinking(false);
-                    }}
-                    onBlur={() => setDelinkConfirm(null)}
-                    className={`text-xs font-medium px-2 py-1 rounded border transition-colors shrink-0 ${
-                      delinkConfirm === item.plaid_item_id
-                        ? 'text-destructive border-destructive/40 bg-destructive/10'
-                        : 'text-muted-foreground border-transparent hover:text-destructive'
-                    }`}
-                    title={delinkConfirm === item.plaid_item_id ? 'Click again to confirm' : 'Remove bank connection'}
-                  >
-                    {delinking && delinkConfirm === null ? (
-                      <Loader2 size={12} className="animate-spin" />
-                    ) : delinkConfirm === item.plaid_item_id ? (
-                      'Confirm remove?'
-                    ) : (
-                      <Unlink size={13} />
+                    {needsRelink && (
+                      <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <RefreshCw size={12} className="text-amber-500 shrink-0" />
+                          <p className="text-xs text-muted-foreground">Re-link to auto-populate APR and minimum payment from your bank.</p>
+                        </div>
+                        <PlaidLinkButton
+                          relinkItemId={item.plaid_item_id}
+                          label="Re-link"
+                          onSuccess={() => { invalidatePlaid(); qc.invalidateQueries({ queryKey: ['accounts'] }); }}
+                          onProcessing={setPlaidSyncing}
+                        />
+                      </div>
                     )}
-                  </button>
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

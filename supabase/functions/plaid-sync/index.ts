@@ -291,6 +291,36 @@ Deno.serve(async (req) => {
         }
       }
 
+      // ── Liabilities: fetch APR + minimum payment for credit cards ────────────
+      // Silent skip if institution doesn't support the liabilities product.
+      try {
+        const liabRes = await fetch(`${plaidBase}/liabilities/get`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ client_id: PLAID_CLIENT_ID, secret: PLAID_SECRET, access_token: item.access_token }),
+        });
+        if (liabRes.ok) {
+          const liabBody = await liabRes.json();
+          const creditAccounts: any[] = liabBody.liabilities?.credit ?? [];
+          for (const liab of creditAccounts) {
+            const purchaseApr = (liab.aprs ?? []).find((a: any) => a.apr_type === "purchase_apr");
+            const apr = purchaseApr ? parseFloat(purchaseApr.apr_percentage) : null;
+            const minPayment = liab.minimum_payment_amount != null ? Number(liab.minimum_payment_amount) : null;
+            if (apr === null && minPayment === null) continue;
+            const updateFields: Record<string, unknown> = { liability_synced_at: now };
+            if (apr !== null) updateFields.apr = apr;
+            if (minPayment !== null) updateFields.min_payment = minPayment;
+            await supabase
+              .from("accounts")
+              .update(updateFields)
+              .eq("user_id", userId)
+              .eq("plaid_account_id", liab.account_id);
+          }
+        }
+      } catch (liabErr) {
+        console.warn("Liabilities fetch skipped for item", item.plaid_item_id, ":", liabErr);
+      }
+
       await supabase
         .from("plaid_items")
         .update({ last_synced_at: now, updated_at: now })

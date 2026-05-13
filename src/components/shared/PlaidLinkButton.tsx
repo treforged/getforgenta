@@ -59,66 +59,77 @@ interface PlaidLinkButtonProps {
   onSuccess: (accounts: PlaidSyncedAccount[], institutionName?: string) => void;
   onProcessing?: (processing: boolean) => void;
   disabled?: boolean;
+  /** When set, opens Plaid in update mode to add liabilities product to an existing item. No token exchange — just a force sync. */
+  relinkItemId?: string;
+  /** Label override for re-link mode */
+  label?: string;
 }
 
-export default function PlaidLinkButton({ onSuccess, onProcessing, disabled }: PlaidLinkButtonProps) {
+export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, relinkItemId, label }: PlaidLinkButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = useCallback(async () => {
     setLoading(true);
     try {
-      // Load Plaid SDK
       await loadPlaidScript();
 
       const authHeader = await getAuthHeader();
 
-      // Get link token from our edge function
       const tokenRes = await fetch(`${FN_BASE}/plaid-create-link-token`, {
         method: 'POST',
         headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...(OAUTH_REDIRECT_URI ? { redirect_uri: OAUTH_REDIRECT_URI } : {}) }),
+        body: JSON.stringify({
+          ...(OAUTH_REDIRECT_URI ? { redirect_uri: OAUTH_REDIRECT_URI } : {}),
+          ...(relinkItemId ? { plaid_item_id: relinkItemId } : {}),
+        }),
       });
       const tokenBody = await tokenRes.json();
       if (!tokenRes.ok) throw new Error(tokenBody.error ?? tokenBody.message ?? 'Failed to create link token');
 
       const { link_token } = tokenBody;
-
-      // Store link token for OAuth redirect flow
       localStorage.setItem(LINK_TOKEN_KEY, link_token);
 
-      // Open Plaid Link
       const handler = (window as any).Plaid.create({
         token: link_token,
         onSuccess: async (public_token: string, metadata: any) => {
           onProcessing?.(true);
           try {
             localStorage.removeItem(LINK_TOKEN_KEY);
-            const institution = metadata?.institution ?? {};
-            // Get a fresh token — the original may be stale after time spent in Plaid Link UI
             const freshAuth = await getAuthHeader();
-            const exchangeRes = await fetch(`${FN_BASE}/plaid-exchange-token`, {
-              method: 'POST',
-              headers: { Authorization: freshAuth, 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                public_token,
-                institution_id:   institution.institution_id ?? null,
-                institution_name: institution.name           ?? null,
-              }),
-            });
-            const exchangeBody = await exchangeRes.json();
-            if (!exchangeRes.ok) throw new Error(exchangeBody.error ?? exchangeBody.message ?? 'Exchange failed');
 
-            const institutionName = exchangeBody.institution_name ?? 'Your bank';
+            if (relinkItemId) {
+              // Update mode — no token exchange, just force sync to pull liabilities data
+              const syncRes = await fetch(`${FN_BASE}/plaid-sync`, {
+                method: 'POST',
+                headers: { Authorization: freshAuth, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_id: relinkItemId, force: true }),
+              });
+              const syncBody = syncRes.ok ? await syncRes.json() : { accounts: [] };
+              onSuccess(syncBody.accounts ?? []);
+            } else {
+              // New link — exchange token then sync
+              const institution = metadata?.institution ?? {};
+              const exchangeRes = await fetch(`${FN_BASE}/plaid-exchange-token`, {
+                method: 'POST',
+                headers: { Authorization: freshAuth, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  public_token,
+                  institution_id:   institution.institution_id ?? null,
+                  institution_name: institution.name           ?? null,
+                }),
+              });
+              const exchangeBody = await exchangeRes.json();
+              if (!exchangeRes.ok) throw new Error(exchangeBody.error ?? exchangeBody.message ?? 'Exchange failed');
 
-            // Immediately sync balances for this institution only
-            const syncRes = await fetch(`${FN_BASE}/plaid-sync`, {
-              method: 'POST',
-              headers: { Authorization: freshAuth, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ item_id: exchangeBody.plaid_item_id }),
-            });
-            const syncBody = syncRes.ok ? await syncRes.json() : { accounts: [] };
-
-            onSuccess(syncBody.accounts ?? [], institutionName);
+              const institutionName = exchangeBody.institution_name ?? 'Your bank';
+              const syncRes = await fetch(`${FN_BASE}/plaid-sync`, {
+                method: 'POST',
+                headers: { Authorization: freshAuth, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ item_id: exchangeBody.plaid_item_id }),
+              });
+              const syncBody = syncRes.ok ? await syncRes.json() : { accounts: [] };
+              onSuccess(syncBody.accounts ?? [], institutionName);
+            }
           } catch (err) {
             toast.error(err instanceof Error ? err.message : 'Link failed');
           } finally {
@@ -139,7 +150,9 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled }: P
       setLoading(false);
       toast.error(err instanceof Error ? err.message : 'Failed to open bank link');
     }
-  }, [onSuccess]);
+  }, [onSuccess, relinkItemId]);
+
+  const defaultLabel = relinkItemId ? 'Re-link Account' : 'Link Bank Account';
 
   return (
     <button
@@ -149,7 +162,7 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled }: P
       style={{ borderRadius: 'var(--radius)' }}
     >
       {loading ? <Loader2 size={12} className="animate-spin" /> : <Link2 size={12} />}
-      {loading ? 'Connecting…' : 'Link Bank Account'}
+      {loading ? 'Connecting…' : (label ?? defaultLabel)}
     </button>
   );
 }

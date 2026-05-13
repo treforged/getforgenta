@@ -90,22 +90,42 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Accept optional redirect_uri from client (required for OAuth banks in production)
+    // Accept optional redirect_uri and plaid_item_id from client
     let bodyJson: Record<string, unknown> = {};
     try { bodyJson = await req.clone().json(); } catch { /* no body */ }
-    const redirectUri = typeof bodyJson.redirect_uri === "string" ? bodyJson.redirect_uri : undefined;
+    const redirectUri   = typeof bodyJson.redirect_uri   === "string" ? bodyJson.redirect_uri   : undefined;
+    const relinkItemId  = typeof bodyJson.plaid_item_id  === "string" ? bodyJson.plaid_item_id  : undefined;
 
-    // 4.5 — Create link token with only transactions + balance products
     const linkTokenBody: Record<string, unknown> = {
-      client_id: PLAID_CLIENT_ID,
-      secret:    PLAID_SECRET,
-      client_name: "Forgenta",
+      client_id:    PLAID_CLIENT_ID,
+      secret:       PLAID_SECRET,
+      client_name:  "Forgenta",
       country_codes: ["US"],
-      language: "en",
+      language:     "en",
       user: { client_user_id: userId },
-      products: ["transactions"],
     };
     if (redirectUri) linkTokenBody.redirect_uri = redirectUri;
+
+    if (relinkItemId) {
+      // Update mode — re-link existing item to add liabilities product
+      const { data: plaidItem } = await supabase
+        .from("plaid_items")
+        .select("access_token")
+        .eq("user_id", userId)
+        .eq("plaid_item_id", relinkItemId)
+        .maybeSingle();
+
+      if (!plaidItem) {
+        return new Response(JSON.stringify({ error: "Plaid item not found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      linkTokenBody.access_token = plaidItem.access_token;
+      linkTokenBody.additional_consented_products = ["liabilities"];
+    } else {
+      // New link — include transactions + liabilities products
+      linkTokenBody.products = ["transactions", "liabilities"];
+    }
 
     const res = await fetch(`${plaidBase}/link/token/create`, {
       method: "POST",

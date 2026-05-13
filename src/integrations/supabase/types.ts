@@ -61,14 +61,19 @@ export type Database = {
           account_type: string
           active: boolean
           apr: number | null
+          apy_rate: number | null
           balance: number
           created_at: string
           credit_limit: number | null
           id: string
           institution: string
+          liability_synced_at: string | null
+          min_payment: number | null
           name: string
           notes: string | null
           payment_due_day: number | null
+          plaid_account_id: string | null
+          plaid_item_id: string | null
           updated_at: string
           user_id: string
         }
@@ -76,14 +81,19 @@ export type Database = {
           account_type?: string
           active?: boolean
           apr?: number | null
+          apy_rate?: number | null
           balance?: number
           created_at?: string
           credit_limit?: number | null
           id?: string
           institution?: string
+          liability_synced_at?: string | null
+          min_payment?: number | null
           name: string
           notes?: string | null
           payment_due_day?: number | null
+          plaid_account_id?: string | null
+          plaid_item_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -91,14 +101,19 @@ export type Database = {
           account_type?: string
           active?: boolean
           apr?: number | null
+          apy_rate?: number | null
           balance?: number
           created_at?: string
           credit_limit?: number | null
           id?: string
           institution?: string
+          liability_synced_at?: string | null
+          min_payment?: number | null
           name?: string
           notes?: string | null
           payment_due_day?: number | null
+          plaid_account_id?: string | null
+          plaid_item_id?: string | null
           updated_at?: string
           user_id?: string
         }

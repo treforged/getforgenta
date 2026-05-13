@@ -168,7 +168,11 @@ export function buildCardData(
     const balance = Number(acct.balance);
     const apr = Number(acct.apr) || 0;
     const creditLimit = Number(acct.credit_limit) || 0;
-    const minPay = matchDebt ? Number(matchDebt.min_payment) : calcMinPayment(balance, apr);
+    const minPay = matchDebt
+      ? Number(matchDebt.min_payment)
+      : acct.min_payment != null
+        ? Number(acct.min_payment)
+        : calcMinPayment(balance, apr);
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
     const autopayFullBalance = false;
