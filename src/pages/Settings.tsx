@@ -735,11 +735,11 @@ export default function SettingsPage() {
                   <span className="text-[9px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>Premium</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Your message goes to the front of the queue. Email us with your account issue and we'll respond within 24 hours.
+                  Priority support for premium members. Email us with your account issue and our team will get back to you.
                 </p>
               </div>
               <a
-                href="mailto:contact@getforgenta.com?subject=Premium%20Support%20Request"
+                href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Premium] Support Request — ${user.email}`)}&body=${encodeURIComponent(`Account: ${user.email}\nUser ID: ${user.id}\n\n`)}`}
                 className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
                 style={{ borderRadius: 'var(--radius)' }}
               >
@@ -754,7 +754,7 @@ export default function SettingsPage() {
                   <span className="text-xs font-medium text-muted-foreground">Priority Support</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Premium subscribers get front-of-queue email support with a 24-hour response guarantee.
+                  Priority support is exclusive to premium members. Upgrade to unlock front-of-queue email support.
                 </p>
               </div>
               <Link
