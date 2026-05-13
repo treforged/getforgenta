@@ -4,7 +4,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor } from 'lucide-react';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug } from 'lucide-react';
 
 interface TrustedDevice {
   device_id: string;
@@ -766,6 +766,25 @@ export default function SettingsPage() {
               </Link>
             </div>
           )}
+
+          <div className="border-t border-border pt-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Bug size={13} className="text-muted-foreground" />
+                <span className="text-xs font-medium">Report a Bug</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Found something broken? Let us know and we'll fix it fast.
+              </p>
+            </div>
+            <a
+              href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Bug Report] — ${user.email}`)}&body=${encodeURIComponent(`Account: ${user.email}\nUser ID: ${user.id}\n\nDescribe the bug:\n\nSteps to reproduce:\n1. \n2. \n3. \n\nExpected behavior:\n\nActual behavior:\n`)}`}
+              className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <Bug size={12} /> Report Bug
+            </a>
+          </div>
         </div>
       )}
 
