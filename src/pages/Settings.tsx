@@ -739,7 +739,7 @@ export default function SettingsPage() {
                 </p>
               </div>
               <a
-                href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Premium] Support Request — ${user.email}`)}&body=${encodeURIComponent(`Account: ${user.email}\nUser ID: ${user.id}\n\n`)}`}
+                href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Premium] Support Request — ${user?.email ?? ''}`)}&body=${encodeURIComponent(`Account: ${user?.email ?? ''}\nUser ID: ${user?.id ?? ''}\n\n`)}`}
                 className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
                 style={{ borderRadius: 'var(--radius)' }}
               >
@@ -778,7 +778,7 @@ export default function SettingsPage() {
               </p>
             </div>
             <a
-              href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Bug Report] — ${user.email}`)}&body=${encodeURIComponent(`Account: ${user.email}\nUser ID: ${user.id}\n\nDescribe the bug:\n\nSteps to reproduce:\n1. \n2. \n3. \n\nExpected behavior:\n\nActual behavior:\n`)}`}
+              href={`mailto:contact@getforgenta.com?subject=${encodeURIComponent(`[Bug Report] — ${user?.email ?? ''}`)}&body=${encodeURIComponent(`Account: ${user?.email ?? ''}\nUser ID: ${user?.id ?? ''}\n\nDescribe the bug:\n\nSteps to reproduce:\n1. \n2. \n3. \n\nExpected behavior:\n\nActual behavior:\n`)}`}
               className="shrink-0 flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
               style={{ borderRadius: 'var(--radius)' }}
             >

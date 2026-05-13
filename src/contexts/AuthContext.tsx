@@ -51,9 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from('profiles')
       .update({ founder_note_seen: false, onboarding_completed: false } as any)
       .eq('user_id', userId);
-    await supabase
+    await (supabase as any)
       .from('plaid_items')
-      .update({ last_synced_at: new Date().toISOString() } as any)
+      .update({ last_synced_at: new Date().toISOString() })
       .eq('user_id', userId);
     localStorage.removeItem(`forged:onboarding_done_${userId}`);
     localStorage.removeItem('forged:tour_done_new_user');
