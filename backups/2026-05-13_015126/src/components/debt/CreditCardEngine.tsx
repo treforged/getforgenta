@@ -634,7 +634,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
         {/* Summary Stats */}
         <div className="card-forged p-4 sm:p-5">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 text-center">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6 text-center">
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total CC Balance</p>
               <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(totalBalance, false)}</p>
@@ -651,7 +651,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Monthly Interest</p>
               <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(projections.reduce((s, p) => s + p.projectedInterestThisMonth, 0), true)}</p>
             </div>
-            <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto">
+            <div className="col-span-2 sm:col-span-1 sm:col-start-3 lg:col-start-auto">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
               {(() => {
                 const eta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
@@ -760,7 +760,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3 sm:mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-3 sm:mb-4">
             <Tooltip open={liquidCashOpen} onOpenChange={setLiquidCashOpen}>
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setLiquidCashOpen(v => !v)}>
@@ -863,7 +863,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Minimums Due</p>
               <p className="text-xs sm:text-sm font-display font-bold text-destructive">{formatCurrency(recommendations.totalMinimumsdue, false)}</p>
             </div>
-            <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
+            <div className="col-span-2 sm:col-span-1 sm:col-start-3 lg:col-start-auto p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Interest Avoided</p>
               <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendations.interestAvoided, true)}</p>
             </div>
@@ -959,7 +959,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   </div>
                 </button>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 px-3 sm:px-4 pb-3 text-center">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 px-3 sm:px-4 pb-3 text-center">
                   <div>
                     <p className="text-[9px] text-muted-foreground uppercase">Min Payment</p>
                     {isEditingThisMin ? (
