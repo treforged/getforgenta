@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency } from '@/lib/calculations';
@@ -70,7 +69,7 @@ export default function Forecast() {
   const { data: debts } = useDebts();
   const { data: goals } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();
-  const { data: accounts, loading: accountsLoading } = useAccounts();
+  const { data: accounts } = useAccounts();
   const { data: subs } = useSubscriptions();
   const { data: budgetItems } = useBudgetItems();
   const { data: profile } = useProfile();
@@ -916,8 +915,6 @@ export default function Forecast() {
 
   const freePreview = !isPremium && !isDemo;
   const displayData = freePreview ? filteredData.slice(0, 3) : filteredData;
-
-  if (accountsLoading) return <PageSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
