@@ -55,18 +55,25 @@ export default function NativePaywall() {
     return () => { cancelled = true; };
   }, []);
 
+  // Polls Supabase up to 5× (7.5 s) waiting for the RevenueCat webhook to land.
+  // Returns true if premium is confirmed, false if the window expires.
+  const pollUntilPremium = async (): Promise<boolean> => {
+    for (let i = 0; i < 5; i++) {
+      const result = await refetch();
+      const sub = result.data as any;
+      if (sub?.plan === 'premium' && ['active', 'trialing'].includes(sub?.subscription_status ?? '')) return true;
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    return false;
+  };
+
   const handlePurchase = async () => {
     if (!selectedPkg) return;
     setPurchasing(true);
     try {
       const info = await purchasePackage(selectedPkg);
       if (info) {
-        for (let i = 0; i < 5; i++) {
-          const result = await refetch();
-          const sub = result.data as any;
-          if (sub?.plan === 'premium' && ['active', 'trialing'].includes(sub?.subscription_status ?? '')) break;
-          await new Promise(r => setTimeout(r, 1500));
-        }
+        await pollUntilPremium();
         toast.success('Welcome to Forgenta Premium!');
       }
     } catch (e: unknown) {
@@ -84,8 +91,12 @@ export default function NativePaywall() {
     try {
       const info = await restorePurchases();
       if (info) {
-        await refetch();
-        toast.success('Purchases restored successfully!');
+        const activated = await pollUntilPremium();
+        if (activated) {
+          toast.success('Welcome to Forgenta Premium!');
+        } else {
+          toast.success('Purchases restored! If Premium isn\'t active, please restart the app.');
+        }
       }
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Restore failed. Please try again.');
@@ -106,7 +117,14 @@ export default function NativePaywall() {
             setRestoring(true);
             try {
               const info = await restorePurchases();
-              if (info) { await refetch(); toast.success('Subscription updated!'); }
+              if (info) {
+                const activated = await pollUntilPremium();
+                if (activated) {
+                  toast.success('Welcome to Forgenta Premium!');
+                } else {
+                  toast.info('Subscription syncing — tap Restore purchases if Premium isn\'t active in a moment.');
+                }
+              }
             } catch {
               // user can tap Restore purchases manually if needed
             } finally {
