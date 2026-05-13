@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 15 (API 35) window insets override.
+  Apps targeting API 35 are forced edge-to-edge by the platform.
+  These attributes tell the system we are handling bar contrast ourselves
+  (via EdgeToEdge.enable + WindowInsetsControllerCompat in the web layer)
+  so it should not enforce its own contrast adjustments on status/nav bars.
+-->
+<resources>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <!-- Disable platform-enforced contrast so the app controls bar appearance -->
+        <item name="android:enforceStatusBarContrast">false</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
+
+</resources>
