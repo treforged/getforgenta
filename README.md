@@ -31,9 +31,8 @@ Forgenta is a premium personal finance platform that gives you complete visibili
 
 ## Stats
 
-| | | |
-|:---:|:---:|:---:|
 | **12+** | **100%** | **0** |
+|:---:|:---:|:---:|
 | Financial Tools | Free to Start | Ads. Ever. |
 
 ---
