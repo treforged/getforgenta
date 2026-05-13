@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router-dom';
+import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import MetricCard from '@/components/shared/MetricCard';
@@ -130,7 +131,7 @@ export default function BudgetControl() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: profile, update: updateProfile } = useProfile();
-  const { data: accounts } = useAccounts();
+  const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules, add: addRule, update: updateRule, remove: removeRule, loading: rulesLoading } = useRecurringRules();
   const { data: savingsGoals, update: updateGoal } = useSavingsGoals();
   const { data: subs } = useSubscriptions();
@@ -769,6 +770,8 @@ export default function BudgetControl() {
   </div>
 </div>
   );
+
+  if (accountsLoading || rulesLoading) return <PageSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-x-hidden">

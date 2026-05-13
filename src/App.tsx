@@ -12,6 +12,7 @@ import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import CookieBanner from "@/components/shared/CookieBanner";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
 
@@ -88,17 +89,17 @@ function AppRoutes() {
       <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/auth" element={<Suspense fallback={<PageLoader />}><Auth /></Suspense>} />
-      <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-        <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />
-        <Route path="/accounts" element={<Suspense fallback={<PageLoader />}><Accounts /></Suspense>} />
-        <Route path="/budget" element={<Suspense fallback={<PageLoader />}><BudgetControl /></Suspense>} />
-        <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><Transactions /></Suspense>} />
-        <Route path="/debt" element={<Suspense fallback={<PageLoader />}><DebtPayoff /></Suspense>} />
-        <Route path="/goals" element={<Suspense fallback={<PageLoader />}><SavingsGoals /></Suspense>} />
-        <Route path="/net-worth" element={<Suspense fallback={<PageLoader />}><NetWorth /></Suspense>} />
-        <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><Forecast /></Suspense>} />
-        <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
-        <Route path="/ai" element={<Suspense fallback={<PageLoader />}><AiAdvisor /></Suspense>} />
+      <Route element={<ProtectedRoute><ErrorBoundary><DashboardLayout /></ErrorBoundary></ProtectedRoute>}>
+        <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Dashboard /></ErrorBoundary></Suspense>} />
+        <Route path="/accounts" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Accounts /></ErrorBoundary></Suspense>} />
+        <Route path="/budget" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><BudgetControl /></ErrorBoundary></Suspense>} />
+        <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Transactions /></ErrorBoundary></Suspense>} />
+        <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><DebtPayoff /></ErrorBoundary></Suspense>} />
+        <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SavingsGoals /></ErrorBoundary></Suspense>} />
+        <Route path="/net-worth" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><NetWorth /></ErrorBoundary></Suspense>} />
+        <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Forecast /></ErrorBoundary></Suspense>} />
+        <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SettingsPage /></ErrorBoundary></Suspense>} />
+        <Route path="/ai" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><AiAdvisor /></ErrorBoundary></Suspense>} />
         <Route path="/premium" element={<Suspense fallback={<PageLoader />}><Premium /></Suspense>} />
         <Route path="/premium/success" element={<Suspense fallback={<PageLoader />}><PremiumSuccess /></Suspense>} />
         <Route path="/premium/cancel" element={<Suspense fallback={<PageLoader />}><PremiumCancel /></Suspense>} />

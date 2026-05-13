@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts } from '@/hooks/useSupabaseData';
@@ -69,7 +70,7 @@ function SavingsGrowthChart({ goals }: { goals: any[] }) {
 export default function SavingsGoals() {
   const { data: goals, add, update, remove } = useSavingsGoals();
   const { data: carFunds, add: addCarFund, update: updateCarFund, remove: removeCarFund } = useCarFunds();
-  const { data: accounts } = useAccounts();
+  const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules } = useRecurringRules();
   const { data: profile } = useProfile();
   const { data: txns } = useTransactions();
@@ -318,6 +319,8 @@ export default function SavingsGoals() {
     }
     return fields;
   }, [form.goal_type, form.linked_account, accountOptions]);
+
+  if (accountsLoading) return <PageSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 overflow-x-hidden">
