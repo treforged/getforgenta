@@ -193,6 +193,7 @@ Deno.serve(async (req) => {
           plan: "premium",
           subscription_status: sub.status,
           current_period_end: toISO(getPeriodEnd(sub)),
+          cancel_at_period_end: sub.cancel_at_period_end ?? false,
         }, { onConflict: "user_id" });
         if (error) {
           dbUpsertSpan.end("ERROR", new Error(error.message));
