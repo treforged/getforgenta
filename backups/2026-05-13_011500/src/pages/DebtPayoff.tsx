@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulateDebtPayoff } from '@/lib/calculations';
 import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations } from '@/hooks/useSupabaseData';
@@ -16,7 +15,7 @@ const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_paym
 export default function DebtPayoff() {
   const { data: debts, add, update, remove } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
-  const { data: accounts, loading: accountsLoading } = useAccounts();
+  const { data: accounts } = useAccounts();
   const { data: transactions } = useTransactions();
   const { data: rules } = useRecurringRules();
   const { data: profile } = useProfile();
@@ -107,8 +106,6 @@ export default function DebtPayoff() {
   };
 
   const hasCreditCards = accounts?.some((a: any) => a.account_type === 'credit_card' && a.active) ?? false;
-
-  if (accountsLoading) return <PageSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 overflow-x-hidden">

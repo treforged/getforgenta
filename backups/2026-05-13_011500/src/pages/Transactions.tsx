@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback } from 'react';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations } from '@/hooks/useSupabaseData';
@@ -25,7 +24,7 @@ export default function Transactions() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: transactions, add, update, remove } = useTransactions();
-  const { data: accounts, loading: accountsLoading } = useAccounts();
+  const { data: accounts } = useAccounts();
   const { data: rules, update: updateRule } = useRecurringRules();
   const { data: debts } = useDebts();
   const { data: profile } = useProfile();
@@ -586,8 +585,6 @@ export default function Transactions() {
     { key: 'payment_source', label: editId?.startsWith('rule:') ? 'Account' : 'Payment Source', type: 'select' as const, options: paymentSourceOptions },
     { key: 'note', label: 'Note', type: 'text' as const, placeholder: 'What was this for?' },
   ], [paymentSourceOptions, editId]);
-
-  if (accountsLoading) return <PageSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 overflow-x-hidden">
