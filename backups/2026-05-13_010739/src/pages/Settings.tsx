@@ -4,7 +4,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug } from 'lucide-react';
 
 interface TrustedDevice {
   device_id: string;
@@ -127,9 +127,6 @@ export default function SettingsPage() {
   const [defaultDepositAccount, setDefaultDepositAccount] = useState('');
   const [autoGenerateRecurring, setAutoGenerateRecurring] = useState(true);
   const [dirty, setDirty] = useState(false);
-
-  const [forceSignOutLoading, setForceSignOutLoading] = useState(false);
-  const [forceSignOutConfirm, setForceSignOutConfirm] = useState(false);
 
   const [signinPasskeyBusy, setSigninPasskeyBusy] = useState(false);
   const [hasSigninPasskey, setHasSigninPasskey] = useState(false);
@@ -285,17 +282,6 @@ export default function SettingsPage() {
       toast.error(err.message || 'Failed to update password');
     } finally {
       setPasswordLoading(false);
-    }
-  };
-
-  const handleForceSignOut = async () => {
-    setForceSignOutLoading(true);
-    try {
-      await supabase.auth.signOut({ scope: 'global' });
-      // SIGNED_OUT event in AuthContext navigates to /auth
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Failed to sign out all devices');
-      setForceSignOutLoading(false);
     }
   };
 
@@ -596,48 +582,6 @@ export default function SettingsPage() {
                   {passwordLoading ? 'Updating…' : 'Update Password'}
                 </button>
               </div>
-            )}
-          </div>
-
-          <div className="border-t border-border" />
-
-          {/* Sign out all devices */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <LogOut size={13} className="text-muted-foreground" />
-              <span className="text-xs font-medium">Sign Out All Devices</span>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Immediately invalidates all active sessions across every device and browser. Use after a password change or if you suspect unauthorized access.
-            </p>
-            {forceSignOutConfirm ? (
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <span className="text-xs text-muted-foreground">Sign out everywhere, including this device?</span>
-                <button
-                  onClick={handleForceSignOut}
-                  disabled={forceSignOutLoading}
-                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-destructive text-destructive-foreground px-3 py-1.5 text-xs font-medium btn-press disabled:opacity-50"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  {forceSignOutLoading ? <Loader2 size={12} className="animate-spin" /> : <LogOut size={12} />}
-                  {forceSignOutLoading ? 'Signing out…' : 'Yes, sign out all'}
-                </button>
-                <button
-                  onClick={() => setForceSignOutConfirm(false)}
-                  disabled={forceSignOutLoading}
-                  className="px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setForceSignOutConfirm(true)}
-                className="w-full sm:w-auto flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-destructive/40 hover:text-destructive transition-colors btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <LogOut size={12} /> Sign out all devices
-              </button>
             )}
           </div>
         </div>
