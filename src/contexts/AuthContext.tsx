@@ -115,6 +115,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else if (event === 'SIGNED_OUT') {
         logOutRevenueCat().catch(() => {/* native no-op on web */});
         navigate('/auth');
+      } else if (event === 'USER_UPDATED') {
+        // Sync the updated email to Stripe so dunning/receipt emails stay current.
+        // Fire-and-forget — a failure here is non-critical.
+        if (session?.user?.email) {
+          supabase.functions.invoke('sync-stripe-email').catch(() => {});
+        }
       } else if (event === 'TOKEN_REFRESHED') {
         // Session refreshed silently — no action needed
       }
