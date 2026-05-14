@@ -21,7 +21,7 @@ function CookiePreferencesInline() {
 
   return (
     <section className="space-y-3">
-      <h2 className="font-display font-semibold text-base">13. Cookie Preferences</h2>
+      <h2 className="font-display font-semibold text-base">14. Cookie Preferences</h2>
       <p className="text-muted-foreground leading-relaxed">
         You can review and change your cookie consent at any time below.
       </p>
@@ -98,7 +98,7 @@ function CookiePreferencesInline() {
 function PrivacyContent() {
   return (
     <div className="space-y-8 text-sm">
-      <p className="text-xs text-muted-foreground">Effective date: January 1, 2025 · Last updated: March 2026</p>
+      <p className="text-xs text-muted-foreground">Effective date: January 1, 2025 · Last updated: May 2026</p>
 
       <section className="space-y-3">
         <h2 className="font-display font-semibold text-base">1. Introduction</h2>
@@ -118,11 +118,17 @@ function PrivacyContent() {
           <p><span className="text-foreground font-medium">Financial data:</span> Budget rules, transactions,
           account balances, savings goals, debt entries, and net worth entries you enter into the app. This data
           is stored solely in your account and is not shared with any third party.</p>
+          <p><span className="text-foreground font-medium">Connected account data:</span> If you connect a bank
+          account via Plaid, we store your Plaid access token (encrypted at rest), institution name, account
+          names, masked account numbers (last 4 digits), balances, and transaction data returned by Plaid.
+          Connecting a bank account is entirely optional. See Section 6 for full details.</p>
           <p><span className="text-foreground font-medium">Usage data:</span> Basic interaction logs (page
           navigation, feature usage) used to improve the service. We do not use third-party analytics trackers.</p>
-          <p><span className="text-foreground font-medium">Payment data:</span> Billing is processed entirely by
-          Stripe. We store only your Stripe customer ID and subscription status — no card numbers, CVVs, or bank
-          account details are ever stored by TRE Forgenta LLC.</p>
+          <p><span className="text-foreground font-medium">Payment data:</span> On web, billing is processed by
+          Stripe. On iOS, billing is processed by Apple. On Android, billing is processed by Google Play.
+          Subscription state across platforms is managed by RevenueCat. We store only platform-specific customer
+          identifiers (Stripe customer ID, RevenueCat app user ID) and your subscription status — no card
+          numbers, CVVs, or full payment details are ever stored by TRE Forgenta LLC.</p>
         </div>
       </section>
 
@@ -132,6 +138,7 @@ function PrivacyContent() {
           <li>To provide, operate, and maintain the Forgenta service</li>
           <li>To authenticate your identity and protect your account</li>
           <li>To process payments and manage your subscription status</li>
+          <li>To sync connected bank accounts and display up-to-date balances and transactions</li>
           <li>To send transactional emails (account confirmation, billing receipts)</li>
           <li>To respond to support requests</li>
           <li>To detect and prevent fraud or abuse</li>
@@ -161,23 +168,73 @@ function PrivacyContent() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">5. Payment Processing — Stripe</h2>
+        <h2 className="font-display font-semibold text-base">5. Payment Processing — Stripe, Apple, Google Play &amp; RevenueCat</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Premium subscription payments are processed by Stripe, Inc. When you subscribe, you are redirected to
-          a Stripe-hosted checkout page. TRE Forgenta LLC never receives, transmits, or stores your payment card
-          details. Stripe is PCI-DSS Level 1 certified. We store only your Stripe customer ID and subscription
-          status (active, trialing, past_due, canceled) for the purpose of determining which features you have
-          access to.
+          Forgenta uses different payment platforms depending on where you subscribe:
         </p>
-        <p className="text-muted-foreground leading-relaxed">
-          For Stripe's data practices, see{' '}
+        <div className="space-y-2 text-muted-foreground leading-relaxed">
+          <p><span className="text-foreground font-medium">Web — Stripe:</span> Subscriptions purchased on the
+          web are processed by Stripe, Inc. via a Stripe-hosted checkout page. TRE Forgenta LLC never receives,
+          transmits, or stores your payment card details. Stripe is PCI-DSS Level 1 certified. We store only
+          your Stripe customer ID and subscription status. For Stripe's data practices, see{' '}
           <a href="https://stripe.com/privacy" target="_blank" rel="noopener noreferrer"
-            className="text-primary hover:underline">stripe.com/privacy</a>.
+            className="text-primary hover:underline">stripe.com/privacy</a>.</p>
+          <p><span className="text-foreground font-medium">iOS — Apple In-App Purchase:</span> Subscriptions
+          purchased on iOS are billed directly by Apple, Inc. through the App Store. TRE Forgenta LLC does not
+          receive your Apple ID, payment method, or card details. Apple's payment and billing terms govern these
+          transactions. For Apple's data practices, see{' '}
+          <a href="https://www.apple.com/legal/privacy" target="_blank" rel="noopener noreferrer"
+            className="text-primary hover:underline">apple.com/legal/privacy</a>.</p>
+          <p><span className="text-foreground font-medium">Android — Google Play Billing:</span> Subscriptions
+          purchased on Android are billed by Google LLC through Google Play. TRE Forgenta LLC does not receive
+          your Google account payment details. Google's payment and billing terms govern these transactions.
+          For Google's data practices, see{' '}
+          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer"
+            className="text-primary hover:underline">policies.google.com/privacy</a>.</p>
+          <p><span className="text-foreground font-medium">RevenueCat — subscription management:</span> We use
+          RevenueCat, Inc. to manage and verify subscription entitlements across web, iOS, and Android.
+          RevenueCat receives your app user ID, platform purchase receipts, and device metadata to track
+          subscription status. We store your RevenueCat app user ID in our database. For RevenueCat's data
+          practices, see{' '}
+          <a href="https://www.revenuecat.com/privacy" target="_blank" rel="noopener noreferrer"
+            className="text-primary hover:underline">revenuecat.com/privacy</a>.</p>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display font-semibold text-base">6. Bank Account Connections — Plaid</h2>
+        <p className="text-muted-foreground leading-relaxed">
+          Forgenta optionally integrates with Plaid, Inc. to let you connect bank accounts and automatically
+          import balances and transactions. Connecting an account is entirely optional — you can use Forgenta
+          without linking any external accounts.
+        </p>
+        <div className="space-y-2 text-muted-foreground leading-relaxed">
+          <p><span className="text-foreground font-medium">What Plaid accesses:</span> When you connect an
+          account, Plaid authenticates with your financial institution on your behalf and retrieves account
+          names, masked account numbers (last 4 digits), current balances, and recent transaction history.
+          Plaid does not share your full account number, routing number, or bank login credentials with
+          TRE Forgenta LLC.</p>
+          <p><span className="text-foreground font-medium">What we store:</span> We store your Plaid access
+          token (encrypted at rest), institution name, account names, masked account numbers, balances, and
+          transaction data (merchant name, amount, date, category). We do not store your bank login
+          credentials.</p>
+          <p><span className="text-foreground font-medium">How the data is used:</span> Plaid data is used
+          solely to display your account balances and transactions within Forgenta. It is not sold, shared,
+          or used for advertising.</p>
+          <p><span className="text-foreground font-medium">Revoking access:</span> You can disconnect any
+          linked account at any time from the Accounts page. Disconnecting removes the Plaid access token and
+          stops future syncs. You can also revoke access directly through your bank's linked-apps or connected
+          accounts settings.</p>
+        </div>
+        <p className="text-muted-foreground leading-relaxed">
+          For Plaid's data practices, see{' '}
+          <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer"
+            className="text-primary hover:underline">plaid.com/legal</a>.
         </p>
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">6. Data Retention</h2>
+        <h2 className="font-display font-semibold text-base">7. Data Retention</h2>
         <p className="text-muted-foreground leading-relaxed">
           Your account data is retained for as long as your account is active. If you delete your account, we
           will purge your personal data and financial records within 30 days. Anonymized or aggregated data that
@@ -186,7 +243,7 @@ function PrivacyContent() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">7. Your Rights</h2>
+        <h2 className="font-display font-semibold text-base">8. Your Rights</h2>
         <div className="space-y-2 text-muted-foreground leading-relaxed">
           <p><span className="text-foreground font-medium">Access:</span> You can view all data you have entered
           in the app at any time.</p>
@@ -202,7 +259,7 @@ function PrivacyContent() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">8. Security</h2>
+        <h2 className="font-display font-semibold text-base">9. Security</h2>
         <p className="text-muted-foreground leading-relaxed">
           All connections to Forgenta are encrypted via HTTPS. Authentication uses industry-standard JWT tokens
           with expiration. We apply Row-Level Security at the database layer so each user's data is isolated.
@@ -213,7 +270,7 @@ function PrivacyContent() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">9. Children's Privacy</h2>
+        <h2 className="font-display font-semibold text-base">10. Children's Privacy</h2>
         <p className="text-muted-foreground leading-relaxed">
           Forgenta is not intended for users under the age of 13. We do not knowingly collect
           personal information from children. If we become aware that a child under 13 has provided personal
@@ -222,7 +279,7 @@ function PrivacyContent() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">10. Changes to This Policy</h2>
+        <h2 className="font-display font-semibold text-base">11. Changes to This Policy</h2>
         <p className="text-muted-foreground leading-relaxed">
           We may update this Privacy Policy from time to time. When we make material changes, we will notify
           you by email or by a notice within the app. Continued use of the service after changes take effect
@@ -231,7 +288,7 @@ function PrivacyContent() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">11. Contact Us</h2>
+        <h2 className="font-display font-semibold text-base">12. Contact Us</h2>
         <p className="text-muted-foreground leading-relaxed">
           For privacy-related questions, data requests, or to exercise your rights, contact TRE Forgenta LLC at:
           <br />
@@ -240,7 +297,7 @@ function PrivacyContent() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">12. AI Advisor &amp; AI Processing</h2>
+        <h2 className="font-display font-semibold text-base">13. AI Advisor &amp; AI Processing</h2>
         <p className="text-muted-foreground leading-relaxed">
           Forgenta's AI Advisor feature is powered by <strong className="text-foreground">Gemini 2.5 Flash</strong>, a
           large language model provided by Google LLC. When you use AI Advisor, the following data may be

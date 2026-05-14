@@ -198,7 +198,7 @@ export default function Landing() {
             aria-label="Download on the App Store"
           >
             <img
-              src="/app-store-badge.jpg"
+              src="/app-store-badge.svg"
               alt="Download on the App Store"
               style={{ height: 54, width: 'auto' }}
             />
