@@ -291,34 +291,77 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ── Liabilities: fetch APR + minimum payment for credit cards ────────────
-      // Silent skip if institution doesn't support the liabilities product.
-      try {
-        const liabRes = await fetch(`${plaidBase}/liabilities/get`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ client_id: PLAID_CLIENT_ID, secret: PLAID_SECRET, access_token: item.access_token }),
-        });
-        if (liabRes.ok) {
-          const liabBody = await liabRes.json();
-          const creditAccounts: any[] = liabBody.liabilities?.credit ?? [];
-          for (const liab of creditAccounts) {
-            const purchaseApr = (liab.aprs ?? []).find((a: any) => a.apr_type === "purchase_apr");
-            const apr = purchaseApr ? parseFloat(purchaseApr.apr_percentage) : null;
-            const minPayment = liab.minimum_payment_amount != null ? Number(liab.minimum_payment_amount) : null;
-            if (apr === null && minPayment === null) continue;
+      // ── Liabilities: APR + credit limit + minimum payment for credit cards ──────
+      // liability_synced_at is ALWAYS written (even when endpoint fails or returns
+      // no data) so the UI relink prompt clears for unsupported institutions.
+      // credit_limit comes from liabilities (more reliable than balances.limit).
+      // min_payment falls back to calcMinPayment when Plaid omits it.
+      const itemCreditCardIds: string[] = plaidAccounts
+        .filter((a: any) => mapPlaidType(a.type, a.subtype) === "credit_card")
+        .map((a: any) => a.account_id as string);
+
+      if (itemCreditCardIds.length > 0) {
+        try {
+          const liabRes = await fetch(`${plaidBase}/liabilities/get`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ client_id: PLAID_CLIENT_ID, secret: PLAID_SECRET, access_token: item.access_token }),
+          });
+
+          const creditDataMap = new Map<string, any>();
+          if (liabRes.ok) {
+            const liabBody = await liabRes.json();
+            for (const liab of (liabBody.liabilities?.credit ?? [])) {
+              creditDataMap.set(liab.account_id, liab);
+            }
+          } else {
+            const errBody = await liabRes.json().catch(() => ({}));
+            console.warn(`Liabilities non-OK for item ${item.plaid_item_id}:`, JSON.stringify(errBody));
+          }
+
+          for (const plaidAccountId of itemCreditCardIds) {
+            const liab = creditDataMap.get(plaidAccountId);
             const updateFields: Record<string, unknown> = { liability_synced_at: now };
-            if (apr !== null) updateFields.apr = apr;
-            if (minPayment !== null) updateFields.min_payment = minPayment;
+
+            if (liab) {
+              const purchaseApr = (liab.aprs ?? []).find((a: any) => a.apr_type === "purchase_apr");
+              const liabApr   = purchaseApr ? parseFloat(purchaseApr.apr_percentage) : null;
+              const liabMin   = liab.minimum_payment_amount != null ? Number(liab.minimum_payment_amount) : null;
+              const liabLimit = liab.credit_limit != null ? Number(liab.credit_limit) : null;
+              if (liabApr   !== null) updateFields.apr          = liabApr;
+              if (liabLimit !== null) updateFields.credit_limit = liabLimit;
+              if (liabMin   !== null) updateFields.min_payment  = liabMin;
+            }
+
+            // Fallback: estimate min_payment from APR + balance when Plaid omits it
+            if (updateFields.min_payment === undefined) {
+              const { data: snap } = await supabase
+                .from("accounts")
+                .select("balance, apr")
+                .eq("user_id", userId)
+                .eq("plaid_account_id", plaidAccountId)
+                .maybeSingle();
+              const effectiveApr = (updateFields.apr as number | undefined) ?? (snap as any)?.apr;
+              if (snap && effectiveApr) {
+                updateFields.min_payment = calcMinPayment(Number((snap as any).balance), Number(effectiveApr));
+              }
+            }
+
             await supabase
               .from("accounts")
               .update(updateFields)
               .eq("user_id", userId)
-              .eq("plaid_account_id", liab.account_id);
+              .eq("plaid_account_id", plaidAccountId);
           }
+        } catch (liabErr) {
+          console.warn("Liabilities fetch threw for item", item.plaid_item_id, ":", liabErr);
+          // Still stamp liability_synced_at so the relink prompt clears
+          await supabase
+            .from("accounts")
+            .update({ liability_synced_at: now })
+            .eq("user_id", userId)
+            .in("plaid_account_id", itemCreditCardIds);
         }
-      } catch (liabErr) {
-        console.warn("Liabilities fetch skipped for item", item.plaid_item_id, ":", liabErr);
       }
 
       await supabase
