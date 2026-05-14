@@ -656,12 +656,14 @@ export default function Accounts() {
           ) : (
             <div className="space-y-2">
               {plaidItems.map(item => {
-                const linkedCreditCards = (accounts ?? []).filter(
-                  (a: any) => a.plaid_item_id === item.plaid_item_id && a.account_type === 'credit_card'
+                const linkedAccounts = (accounts ?? []).filter(
+                  (a: any) => a.plaid_item_id === item.plaid_item_id
                 );
+                const linkedCreditCards = linkedAccounts.filter((a: any) => a.account_type === 'credit_card');
                 const neverSynced = item.last_synced_at === null;
+                const noAccounts = item.last_synced_at !== null && linkedAccounts.length === 0;
                 const missingLiabilities = linkedCreditCards.length > 0 && linkedCreditCards.some((a: any) => !a.liability_synced_at);
-                const needsRelink = neverSynced || missingLiabilities;
+                const needsRelink = neverSynced || noAccounts || missingLiabilities;
                 return (
                   <div key={item.id} className="space-y-2 border-b border-border/30 last:border-0 pb-2 last:pb-0">
                     <div className="flex items-center justify-between py-2 gap-2 min-w-0">
@@ -716,15 +718,15 @@ export default function Accounts() {
                         <div className="flex items-center gap-2 min-w-0">
                           <RefreshCw size={12} className="text-amber-500 shrink-0" />
                           <p className="text-xs text-muted-foreground">
-                            {neverSynced
-                              ? 'Initial sync incomplete — re-link to pull your account data.'
+                            {neverSynced || noAccounts
+                              ? 'Sync pulled no accounts — re-link to try again.'
                               : 'Re-link to auto-populate APR and minimum payment from your bank.'}
                           </p>
                         </div>
                         <PlaidLinkButton
                           relinkItemId={item.plaid_item_id}
                           label="Re-link"
-                          onSuccess={() => { invalidatePlaid(); qc.invalidateQueries({ queryKey: ['accounts'] }); }}
+                          onSuccess={(accts) => handlePlaidSuccess(accts, item.institution_name ?? undefined)}
                           onProcessing={setPlaidSyncing}
                         />
                       </div>
