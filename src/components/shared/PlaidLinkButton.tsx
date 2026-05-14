@@ -53,6 +53,11 @@ export interface PlaidSyncedAccount {
   name: string;
   balance: number;
   type: string;
+  plaid_account_id?: string;
+  apr?: number | null;
+  credit_limit?: number | null;
+  min_payment?: number | null;
+  liability_synced?: boolean;
 }
 
 interface PlaidLinkButtonProps {
@@ -125,7 +130,7 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
               const syncRes = await fetch(`${FN_BASE}/plaid-sync`, {
                 method: 'POST',
                 headers: { Authorization: freshAuth, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ item_id: exchangeBody.plaid_item_id }),
+                body: JSON.stringify({ item_id: exchangeBody.plaid_item_id, force: true }),
               });
               const syncBody = syncRes.ok ? await syncRes.json() : { accounts: [] };
               onSuccess(syncBody.accounts ?? [], institutionName);

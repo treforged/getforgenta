@@ -327,7 +327,31 @@ Deno.serve(async (req) => {
         .eq("id", item.id);
     }
 
-    return new Response(JSON.stringify({ synced: syncedAccounts.length, accounts: syncedAccounts, last_synced_at: now }), {
+    // Enrich response: fetch final DB state for all synced accounts so the client
+    // gets the true APR/credit_limit/min_payment values (set by the liabilities pass above).
+    const syncedPlaidIds = syncedAccounts.map((a: any) => a.plaid_account_id).filter(Boolean);
+    let richAccounts: any[] = syncedAccounts;
+    if (syncedPlaidIds.length > 0) {
+      const { data: dbAccts } = await supabase
+        .from("accounts")
+        .select("name, balance, account_type, apr, credit_limit, min_payment, plaid_account_id, liability_synced_at")
+        .eq("user_id", userId)
+        .in("plaid_account_id", syncedPlaidIds);
+      if (dbAccts) {
+        richAccounts = (dbAccts as any[]).map(a => ({
+          name: a.name,
+          balance: Number(a.balance),
+          type: a.account_type,
+          plaid_account_id: a.plaid_account_id,
+          apr: a.apr != null ? Number(a.apr) : null,
+          credit_limit: a.credit_limit != null ? Number(a.credit_limit) : null,
+          min_payment: a.min_payment != null ? Number(a.min_payment) : null,
+          liability_synced: !!a.liability_synced_at,
+        }));
+      }
+    }
+
+    return new Response(JSON.stringify({ synced: richAccounts.length, accounts: richAccounts, last_synced_at: now }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
