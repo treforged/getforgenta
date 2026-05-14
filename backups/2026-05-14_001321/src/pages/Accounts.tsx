@@ -102,14 +102,14 @@ export default function Accounts() {
   const [unlinkConfirm, setUnlinkConfirm] = useState<string | null>(null);
   const [delinkConfirm, setDelinkConfirm] = useState<string | null>(null);
   const [delinking, setDelinking] = useState(false);
-  const [plaidSyncResult, setPlaidSyncResult] = useState<{ institutionName: string; accounts: PlaidSyncedAccount[] } | null>(null);
+  const [plaidLinkedName, setPlaidLinkedName] = useState<string | null>(null);
 
   const handlePlaidSuccess = useCallback((syncedAccounts: PlaidSyncedAccount[], institutionName?: string) => {
   invalidatePlaid();
   qc.invalidateQueries({ queryKey: ['accounts'] });
 
   const name = institutionName ?? 'Your bank';
-  setPlaidSyncResult({ institutionName: name, accounts: syncedAccounts });
+  setPlaidLinkedName(name);
 
   const manualAccounts = accounts.filter((a: any) => !a.plaid_account_id && a.active);
 
@@ -332,57 +332,19 @@ export default function Accounts() {
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
       {/* Plaid link success overlay */}
-      {plaidSyncResult && !plaidSyncing && (
+      {plaidLinkedName && !plaidSyncing && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
-          <div className="card-forged w-full max-w-sm p-5 flex flex-col gap-4">
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
-                <Link2 size={22} className="text-success" />
-              </div>
-              <p className="text-sm font-semibold">{plaidSyncResult.institutionName} linked!</p>
-              <p className="text-xs text-muted-foreground">
-                {plaidSyncResult.accounts.length} account{plaidSyncResult.accounts.length !== 1 ? 's' : ''} synced
-              </p>
+          <div className="card-forged w-full max-w-sm p-6 flex flex-col items-center text-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-success/10 flex items-center justify-center">
+              <Link2 size={24} className="text-success" />
             </div>
-
-            {plaidSyncResult.accounts.length > 0 && (
-              <div className="space-y-0 max-h-52 overflow-y-auto border border-border/40 rounded" style={{ borderRadius: 'var(--radius)' }}>
-                {plaidSyncResult.accounts.map((acct, i) => {
-                  const isCreditCard = acct.type === 'credit_card';
-                  return (
-                    <div key={i} className="flex items-start gap-2.5 px-3 py-2.5 border-b border-border/30 last:border-0 text-xs">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">{acct.name}</p>
-                        <p className="text-muted-foreground">{formatCurrency(acct.balance, false)}</p>
-                      </div>
-                      {isCreditCard && (
-                        <div className="flex flex-col gap-0.5 items-end shrink-0 text-[10px] font-medium">
-                          <span className={acct.apr != null ? 'text-success' : 'text-muted-foreground'}>
-                            APR {acct.apr != null ? `${acct.apr}%` : '—'}
-                          </span>
-                          <span className={acct.credit_limit != null ? 'text-success' : 'text-muted-foreground'}>
-                            Limit {acct.credit_limit != null ? formatCurrency(acct.credit_limit, false) : '—'}
-                          </span>
-                          <span className={acct.min_payment != null ? 'text-success' : 'text-muted-foreground'}>
-                            Min {acct.min_payment != null ? formatCurrency(acct.min_payment, false) : '—'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {plaidSyncResult.accounts.some(a => a.type === 'credit_card' && !a.liability_synced) && (
-              <p className="text-[10px] text-amber-500 text-center leading-relaxed">
-                Card details (APR, limit, min) not available from this bank. Use Re-link in the Linked Banks section to retry.
-              </p>
-            )}
-
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">{plaidLinkedName} linked!</p>
+              <p className="text-xs text-muted-foreground mt-1">Balances synced successfully. Your accounts are ready.</p>
+            </div>
             <button
               onClick={() => {
-                setPlaidSyncResult(null);
+                setPlaidLinkedName(null);
                 if (matchEntries.length > 0) setShowMatchModal(true);
               }}
               className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press"
@@ -659,9 +621,7 @@ export default function Accounts() {
                 const linkedCreditCards = (accounts ?? []).filter(
                   (a: any) => a.plaid_item_id === item.plaid_item_id && a.account_type === 'credit_card'
                 );
-                const neverSynced = item.last_synced_at === null;
-                const missingLiabilities = linkedCreditCards.length > 0 && linkedCreditCards.some((a: any) => !a.liability_synced_at);
-                const needsRelink = neverSynced || missingLiabilities;
+                const needsRelink = linkedCreditCards.length > 0 && linkedCreditCards.some((a: any) => !a.liability_synced_at);
                 return (
                   <div key={item.id} className="space-y-2 border-b border-border/30 last:border-0 pb-2 last:pb-0">
                     <div className="flex items-center justify-between py-2 gap-2 min-w-0">
@@ -715,11 +675,7 @@ export default function Accounts() {
                       <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <RefreshCw size={12} className="text-amber-500 shrink-0" />
-                          <p className="text-xs text-muted-foreground">
-                            {neverSynced
-                              ? 'Initial sync incomplete — re-link to pull your account data.'
-                              : 'Re-link to auto-populate APR and minimum payment from your bank.'}
-                          </p>
+                          <p className="text-xs text-muted-foreground">Re-link to auto-populate APR and minimum payment from your bank.</p>
                         </div>
                         <PlaidLinkButton
                           relinkItemId={item.plaid_item_id}
