@@ -47,11 +47,18 @@ interface AdviceResult {
   };
 }
 
+interface ConversationTurn {
+  question: string | null;
+  summary: string;
+  nextMove: string;
+}
+
 interface ChatEntry {
   id: string;
   question: string | null;
   result: AdviceResult;
   created_at: string;
+  _pending?: boolean;
 }
 
 interface Conversation {
@@ -224,6 +231,37 @@ function SectionView({ section }: { section: ResponseSection }) {
 // ── EntryView — full AI response card ─────────────────────────────────────────
 
 function EntryView({ entry, isFirst }: { entry: ChatEntry; isFirst: boolean }) {
+  if (entry._pending) {
+    return (
+      <div className="space-y-3">
+        {entry.question && (
+          <div className="flex justify-end">
+            <div className="flex items-center gap-2 max-w-[88%] min-w-0">
+              <div
+                className="text-xs px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug break-words min-w-0"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                {entry.question}
+              </div>
+              <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <User size={13} className="text-primary" />
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="flex gap-3">
+          <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
+            <Sparkles size={13} className="text-primary" />
+          </div>
+          <div className="flex items-center gap-2 px-4 py-3 bg-secondary/60 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
+            <Loader2 size={13} className="animate-spin text-primary" />
+            <span className="text-xs text-muted-foreground">Forgenta is thinking…</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const { result, question } = entry;
   const pct = Math.min(100, Math.max(0, result.score ?? 0));
   const color = scoreColor(pct);
@@ -333,10 +371,7 @@ function ConsentGate({
     <div className="flex flex-col h-full max-w-3xl mx-auto w-full overflow-hidden">
       <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
         <Sparkles size={16} className="text-primary" />
-        <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
-        <span className="text-xs px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium hidden sm:inline" style={{ borderRadius: 'var(--radius)' }}>
-          Gemini 2.5
-        </span>
+        <span className="font-display font-bold text-base tracking-tight">Forgenta AI</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-6" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
@@ -347,18 +382,18 @@ function ConsentGate({
             </div>
             <div>
               <h2 className="text-base font-bold tracking-tight">Before You Continue</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Review how AI Advisor uses your data</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Review how Forgenta AI uses your data</p>
             </div>
           </div>
 
           <div className="bg-secondary/40 border border-border/50 p-4 space-y-3 text-xs text-muted-foreground leading-relaxed" style={{ borderRadius: 'var(--radius)' }}>
             <p className="text-foreground font-medium text-sm">
-              AI Advisor uses Gemini 2.5 Flash by Google to generate personalized financial insights.
+              Forgenta AI uses an AI model to generate personalized financial insights.
             </p>
             <ul className="space-y-2.5">
               <li className="flex gap-2">
                 <span className="text-primary shrink-0 mt-0.5">•</span>
-                <span>Your prompts, chat messages, and relevant financial context (income, expenses, debts, savings goals) are sent to Gemini to generate responses.</span>
+                <span>Your prompts, chat messages, and relevant financial context (income, expenses, debts, savings goals) are sent to an AI model to generate responses.</span>
               </li>
               <li className="flex gap-2">
                 <span className="text-amber-400 shrink-0 mt-0.5">•</span>
@@ -378,11 +413,11 @@ function ConsentGate({
               </li>
               <li className="flex gap-2">
                 <span className="text-primary shrink-0 mt-0.5">•</span>
-                <span>AI Advisor is subject to daily and weekly usage limits to manage service costs.</span>
+                <span>Forgenta AI is subject to daily and weekly usage limits to manage service costs.</span>
               </li>
             </ul>
             <p className="pt-1 border-t border-border/30">
-              By clicking <strong className="text-foreground">I Agree</strong>, you confirm you have read and accept how AI Advisor processes your data as described in our{' '}
+              By clicking <strong className="text-foreground">I Agree</strong>, you confirm you have read and accept how Forgenta AI processes your data as described in our{' '}
               <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>
               {' '}and{' '}
               <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>.
@@ -542,6 +577,7 @@ export default function AiAdvisor() {
 
   const [activeEntries, setActiveEntries] = useState<ChatEntry[]>([]);
   const [activeTitle, setActiveTitle] = useState<string | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -646,10 +682,10 @@ export default function AiAdvisor() {
     Promise.all([
       (supabase as any)
         .from('ai_advisor_history')
-        .select('id, question, result, created_at')
+        .select('id, question, result, created_at, conversation_id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(100),
       (supabase as any)
         .from('ai_usage_events')
         .select('*', { count: 'exact', head: true })
@@ -662,12 +698,30 @@ export default function AiAdvisor() {
         .maybeSingle(),
     ]).then(([{ data }, { count }, { data: profile }]) => {
       if (data && data.length > 0) {
-        const convos: Conversation[] = data.map((entry: ChatEntry) => ({
-          id: entry.id,
-          title: entry.question,
-          entries: [entry],
-          created_at: entry.created_at,
-        }));
+        const grouped = new Map<string, any[]>();
+        (data as any[]).forEach((row: any) => {
+          const key = (row.conversation_id as string | null) ?? (row.id as string);
+          if (!grouped.has(key)) grouped.set(key, []);
+          grouped.get(key)!.push(row);
+        });
+        const convos: Conversation[] = Array.from(grouped.entries())
+          .map(([key, rows]) => {
+            const sorted = [...rows].sort((a: any, b: any) =>
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+            return {
+              id: key,
+              title: (sorted[0] as any).question as string | null,
+              entries: sorted.map((r: any) => ({
+                id: r.id as string,
+                question: r.question as string | null,
+                result: r.result as AdviceResult,
+                created_at: r.created_at as string,
+              })),
+              created_at: (sorted[0] as any).created_at as string,
+            };
+          })
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
         setConversations(convos);
       }
       setUsedToday(count ?? 0);
@@ -693,6 +747,7 @@ export default function AiAdvisor() {
   const openConversation = (convo: Conversation) => {
     setActiveEntries(convo.entries);
     setActiveTitle(convo.title);
+    setActiveConversationId(convo.id);
     setError(null);
     setView('chat');
   };
@@ -700,6 +755,7 @@ export default function AiAdvisor() {
   const startNew = () => {
     setActiveEntries([]);
     setActiveTitle(null);
+    setActiveConversationId(null);
     setQuestion('');
     setError(null);
     setView('new');
@@ -741,17 +797,49 @@ export default function AiAdvisor() {
     }
 
     lastAskTime.current = now;
+
+    // Resolve or create conversation ID for this thread
+    const convId = activeConversationId ?? crypto.randomUUID();
+    if (!activeConversationId) setActiveConversationId(convId);
+
+    // Show the question immediately before the API returns
+    const pendingId = crypto.randomUUID();
+    setActiveEntries(prev => [...prev, {
+      id: pendingId,
+      question: finalQ || null,
+      result: {} as AdviceResult,
+      created_at: new Date().toISOString(),
+      _pending: true,
+    }]);
+    if (view === 'new') setView('chat');
+
     setLoading(true);
     setError(null);
     setQuestion('');
-    if (view === 'new') setView('chat');
+
+    // Build conversation history from completed entries (last 4 turns)
+    const historyForApi: ConversationTurn[] = activeEntries
+      .filter(e => !e._pending && e.result?.summary)
+      .slice(-4)
+      .map(e => ({
+        question: e.question,
+        summary: e.result.summary,
+        nextMove: e.result.nextMove ?? '',
+      }));
 
     try {
       const debtStrategy = (localStorage.getItem('tre:debt:strategy') || 'avalanche') as 'avalanche' | 'snowball';
       const paymentMode = (localStorage.getItem('tre:debt:paymentMode') || 'variable') as 'variable' | 'consistent';
 
       const { data, error: fnErr } = await tracedInvoke<AdviceResult>(supabase, 'ai-advisor', {
-        body: { ...snapshot, debtStrategy, paymentMode, question: finalQ || undefined },
+        body: {
+          ...snapshot,
+          debtStrategy,
+          paymentMode,
+          question: finalQ || undefined,
+          conversationId: convId,
+          conversationHistory: historyForApi.length > 0 ? historyForApi : undefined,
+        },
       });
 
       if (fnErr) {
@@ -759,6 +847,7 @@ export default function AiAdvisor() {
         try {
           const ctx = await (fnErr as any)?.context?.json?.();
           if (ctx?.error === 'ai_consent_required') {
+            setActiveEntries(prev => prev.filter(e => e.id !== pendingId));
             setConsentStatus('pending');
             return;
           }
@@ -781,13 +870,27 @@ export default function AiAdvisor() {
         created_at: advice._history_created_at ?? new Date().toISOString(),
       };
 
-      setActiveEntries(prev => [...prev, entry]);
-      setConversations(prev => [{
-        id: entry.id,
-        title: entry.question,
-        entries: [entry],
-        created_at: entry.created_at,
-      }, ...prev]);
+      // Replace the pending entry with the real response
+      setActiveEntries(prev => prev.map(e => e.id === pendingId ? entry : e));
+
+      // Update existing conversation or create new one in history
+      setConversations(prev => {
+        const existingIdx = prev.findIndex(c => c.id === convId);
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            entries: [...updated[existingIdx].entries.filter(e => e.id !== pendingId), entry],
+          };
+          return updated;
+        }
+        return [{
+          id: convId,
+          title: entry.question,
+          entries: [entry],
+          created_at: entry.created_at,
+        }, ...prev];
+      });
 
       if (!activeTitle && finalQ) setActiveTitle(finalQ);
       if (advice.usage) {
@@ -800,6 +903,8 @@ export default function AiAdvisor() {
       setCooldown(true);
       setTimeout(() => setCooldown(false), COOLDOWN_MS);
     } catch (e) {
+      // Remove pending entry so the chat doesn't show a stuck bubble
+      setActiveEntries(prev => prev.filter(entry => entry.id !== pendingId));
       setError(e instanceof Error ? e.message : 'Something went wrong.');
     } finally {
       setLoading(false);
@@ -813,14 +918,14 @@ export default function AiAdvisor() {
       <div className="py-4 lg:py-6 max-w-3xl mx-auto overflow-x-hidden">
         <div className="flex items-center gap-2 mb-6">
           <Sparkles size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">AI Advisor</h1>
+          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Forgenta AI</h1>
         </div>
         <div className="border border-border/60 bg-secondary/30 p-8 text-center space-y-4" style={{ borderRadius: 'var(--radius)' }}>
           <div className="w-12 h-12 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center mx-auto">
             <Sparkles size={22} className="text-primary" />
           </div>
           <div className="space-y-1.5">
-            <h2 className="font-display font-bold text-lg tracking-tight">AI Advisor is a Premium Feature</h2>
+            <h2 className="font-display font-bold text-lg tracking-tight">Forgenta AI is a Premium Feature</h2>
             <p className="text-sm text-muted-foreground max-w-xs mx-auto leading-relaxed">
               Create a free account and upgrade to Forgenta Premium to get your personalized financial health score and ask unlimited money questions.
             </p>
@@ -845,7 +950,7 @@ export default function AiAdvisor() {
       <div className="flex flex-col h-[calc(100dvh-56px)] lg:h-screen overflow-x-hidden">
         <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
           <Sparkles size={18} className="text-primary" />
-          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">AI Advisor</h1>
+          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Forgenta AI</h1>
         </div>
         <PremiumGate
           title="AI Budget Advisor"
@@ -897,7 +1002,7 @@ export default function AiAdvisor() {
       <div className="flex flex-col h-full max-w-3xl mx-auto w-full overflow-hidden">
         <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
           <Sparkles size={16} className="text-primary" />
-          <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
+          <span className="font-display font-bold text-base tracking-tight">Forgenta AI</span>
         </div>
         <div className="flex-1 flex items-center justify-center">
           <Loader2 size={20} className="animate-spin text-muted-foreground" />
@@ -922,14 +1027,14 @@ export default function AiAdvisor() {
       <div className="flex flex-col h-full max-w-3xl mx-auto w-full overflow-hidden">
         <div className="px-4 pt-4 pb-3 lg:px-6 lg:pt-5 border-b border-border/40 shrink-0 flex items-center gap-2">
           <Sparkles size={16} className="text-primary" />
-          <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
+          <span className="font-display font-bold text-base tracking-tight">Forgenta AI</span>
         </div>
         <div className="flex-1 flex flex-col items-center justify-center gap-5 text-center px-6">
           <div className="w-12 h-12 rounded-xl bg-border/40 border border-border/60 flex items-center justify-center">
             <Sparkles size={22} className="text-muted-foreground" />
           </div>
           <div className="space-y-2 max-w-xs">
-            <p className="text-sm font-semibold">AI Advisor Requires Your Consent</p>
+            <p className="text-sm font-semibold">Forgenta AI Requires Your Consent</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
               No financial data is sent to AI services until you accept the AI data terms.
             </p>
@@ -991,10 +1096,7 @@ export default function AiAdvisor() {
           ) : (
             <div className="flex items-center gap-2 shrink-0">
               <Sparkles size={16} className="text-primary" />
-              <span className="font-display font-bold text-base tracking-tight">AI Advisor</span>
-              <span className="text-xs px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium hidden sm:inline" style={{ borderRadius: 'var(--radius)' }}>
-                Gemini 2.5
-              </span>
+              <span className="font-display font-bold text-base tracking-tight">Forgenta AI</span>
             </div>
           )}
 
@@ -1059,7 +1161,7 @@ export default function AiAdvisor() {
                 <Sparkles size={24} className="text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold">Ask Forge anything about your finances</p>
+                <p className="text-sm font-semibold">Ask Forgenta anything about your finances</p>
                 <p className="text-xs text-muted-foreground mt-1">Personalized advice based on your live data</p>
               </div>
               <div className="flex flex-wrap justify-center gap-2 w-full max-w-sm">
@@ -1082,19 +1184,6 @@ export default function AiAdvisor() {
           {activeEntries.map((entry, index) => (
             <EntryView key={entry.id} entry={entry} isFirst={index === 0} />
           ))}
-
-          {/* Loading bubble */}
-          {loading && (
-            <div className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center shrink-0 mt-0.5">
-                <Sparkles size={12} className="text-primary" />
-              </div>
-              <div className="flex items-center gap-2 px-4 py-3 bg-secondary/60 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
-                <Loader2 size={13} className="animate-spin text-primary" />
-                <span className="text-xs text-muted-foreground">Analyzing your finances…</span>
-              </div>
-            </div>
-          )}
 
           <div ref={bottomRef} />
         </div>
