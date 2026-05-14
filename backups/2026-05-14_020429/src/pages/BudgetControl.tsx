@@ -1133,12 +1133,6 @@ export default function BudgetControl() {
         </div>
       </div>
 
-      {/* Monthly & Annual Spend Totals */}
-      <div className="grid grid-cols-2 gap-3">
-        <MetricCard label="Monthly Spend" value={formatCurrency(totalExpenses, false)} accent="crimson" icon={TrendingDown} />
-        <MetricCard label="Annual Spend" value={formatCurrency(totalExpenses * 12, false)} accent="crimson" icon={TrendingDown} />
-      </div>
-
       {/* Remaining Cash — prominent */}
       <div className="relative card-forged p-4 sm:p-5 cursor-pointer hover:border-primary/20 transition-colors group" onClick={openCashCalc}>
         <Info size={10} className="absolute bottom-2 right-2 text-muted-foreground/60 opacity-0 group-hover:opacity-100 transition-opacity" />
