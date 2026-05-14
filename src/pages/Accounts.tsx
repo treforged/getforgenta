@@ -230,10 +230,11 @@ export default function Accounts() {
     return accounts;
   }, [accounts, filterType]);
 
-  const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setShowForm(true); };
+  const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
   const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
   const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
   const [editingPlaidAprSynced, setEditingPlaidAprSynced] = useState(false);
+  const [editingPlaidMinSynced, setEditingPlaidMinSynced] = useState(false);
 
   const openEdit = (a: any) => {
     const matchDebt = debts.find((d: any) => d.name.toLowerCase() === a.name.toLowerCase());
@@ -256,6 +257,7 @@ export default function Accounts() {
     setEditingPlaidLinked(!!a.plaid_account_id);
     setEditingPlaidLiability(plaidLiability);
     setEditingPlaidAprSynced(!!a.apr_plaid_synced);
+    setEditingPlaidMinSynced(!!a.min_payment_plaid_synced);
     setEditId(a.id); setShowForm(true);
   };
 
@@ -838,17 +840,17 @@ export default function Accounts() {
               { key: 'apy_rate', label: 'APY % (annual growth rate)', type: 'number' as const, placeholder: '7.0', step: '0.1' },
             ] : []),
             ...(LIABILITY_TYPES.includes(form.account_type) ? [
-              { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01', disabled: editingPlaidLiability, hint: editingPlaidLiability ? 'Managed by Plaid' : undefined },
+              { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01', disabled: editingPlaidMinSynced, hint: editingPlaidMinSynced ? 'Managed by Plaid' : undefined },
             ] : []),
             { key: 'notes', label: 'Notes (optional)', type: 'text' as const, placeholder: 'Any details...' },
           ]}
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
-          onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); }}
+          onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}
-          notice={editingPlaidLinked ? `Balance, name, and institution are managed by Plaid.${editingPlaidLiability ? ` Credit limit and minimum payment are synced from Plaid.${editingPlaidAprSynced ? ' APR is also synced from Plaid.' : ' APR was not returned by Plaid — you can edit it.'}` : ''} Notes and payment due day are always editable.` : undefined}
+          notice={editingPlaidLinked ? `Balance, name, and institution are managed by Plaid.${editingPlaidLiability ? ` Credit limit is synced from Plaid.${editingPlaidAprSynced ? ' APR is synced from Plaid.' : ' APR was not returned by Plaid — you can edit it.'}${editingPlaidMinSynced ? ' Minimum payment is synced from Plaid.' : ' Minimum payment was not returned by Plaid — you can edit it.'}` : ''} Notes and payment due day are always editable.` : undefined}
         />
       )}
     </div>
