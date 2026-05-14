@@ -139,16 +139,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Persist to plaid_items (service role bypasses RLS).
-    // Reset last_synced_at so the next plaid-sync call always hits Plaid fresh,
-    // even if the item was synced recently (covers the reconnect case).
+    // Persist to plaid_items (service role bypasses RLS)
     const { error: insertErr } = await supabase.from("plaid_items").upsert({
       user_id: userId,
       plaid_item_id: item_id,
       access_token,
       institution_id,
       institution_name,
-      last_synced_at: null,
       updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,plaid_item_id" });
 
