@@ -236,15 +236,24 @@ export default function Accounts() {
 
   const openEdit = (a: any) => {
     const matchDebt = debts.find((d: any) => d.name.toLowerCase() === a.name.toLowerCase());
+    const plaidLiability = !!a.plaid_account_id && !!a.liability_synced_at;
+    // When Plaid owns liability data, read apr/credit_limit/min_payment from the
+    // accounts row (where Plaid writes). Otherwise fall back to the debts table
+    // which reflects whatever the user manually entered.
     setForm({
       name: a.name, account_type: a.account_type, institution: a.institution || '',
-      balance: String(a.balance), credit_limit: String(a.credit_limit || ''), apr: String(a.apr || ''), notes: a.notes || '',
-      min_payment: matchDebt ? String(matchDebt.min_payment) : '',
+      balance: String(a.balance),
+      credit_limit: String(a.credit_limit || ''),
+      apr: String(a.apr || ''),
+      notes: a.notes || '',
+      min_payment: plaidLiability
+        ? (a.min_payment != null ? String(a.min_payment) : '')
+        : (matchDebt ? String(matchDebt.min_payment) : ''),
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
     });
     setEditingPlaidLinked(!!a.plaid_account_id);
-    setEditingPlaidLiability(!!a.plaid_account_id && !!a.liability_synced_at);
+    setEditingPlaidLiability(plaidLiability);
     setEditId(a.id); setShowForm(true);
   };
 
