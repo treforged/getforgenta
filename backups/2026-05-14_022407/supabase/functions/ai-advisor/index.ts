@@ -1,7 +1,7 @@
 /**
- * ai-advisor v4
+ * ai-advisor v3
  *
- * Forgenta AI — personal finance coach powered by Google Gemini.
+ * Forged AI budget advisor powered by Google Gemini 2.5 Flash.
  * Enforces per-user server-side checks in order:
  *   1. JWT auth
  *   2. Active premium subscription
@@ -44,12 +44,6 @@ interface SavingsGoalDetail {
   targetDate: string | null;
 }
 
-interface ConversationTurn {
-  question: string | null;
-  summary: string;
-  nextMove: string;
-}
-
 interface FinancialSnapshot {
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -64,22 +58,15 @@ interface FinancialSnapshot {
   debtStrategy?: 'avalanche' | 'snowball';
   paymentMode?: 'variable' | 'consistent';
   question?: string;
-  conversationId?: string;
-  conversationHistory?: ConversationTurn[];
 }
 
 function buildPrompt(body: FinancialSnapshot): string {
   const hasDebts = body.debtDetails.length > 0;
   const hasGoals = body.savingsGoals.length > 0;
   const hasQuestion = !!body.question?.trim();
-  const hasHistory = (body.conversationHistory?.length ?? 0) > 0;
 
-  const strategyLabel = body.debtStrategy === 'snowball'
-    ? 'Snowball (lowest balance first)'
-    : 'Avalanche (highest APR first)';
-  const modeLabel = body.paymentMode === 'consistent'
-    ? 'Consistent fixed payments each month'
-    : 'Variable — payments adjust dynamically based on available cash each month';
+  const strategyLabel = body.debtStrategy === 'snowball' ? 'Snowball (lowest balance first)' : 'Avalanche (highest APR first)';
+  const modeLabel = body.paymentMode === 'consistent' ? 'Consistent fixed payments each month' : 'Variable — payments adjust dynamically based on available cash each month';
 
   const debtSection = hasDebts
     ? body.debtDetails
@@ -121,82 +108,15 @@ function buildPrompt(body: FinancialSnapshot): string {
 
   const surplus = body.monthlyIncome - body.monthlyExpenses;
 
-  const historySection = hasHistory
-    ? `\nCONVERSATION HISTORY (prior turns in this chat — do not repeat this advice, build on it)\n${
-        body.conversationHistory!.map((h, i) =>
-          `Turn ${i + 1}: ${h.question ? `User asked: "${h.question}"` : 'Initial analysis'}\nForgenta said: ${h.summary}${h.nextMove ? ` Recommended: ${h.nextMove}` : ''}`
-        ).join('\n\n')
-      }\n`
-    : '';
-
   const directive = hasQuestion
-    ? hasHistory
-      ? `The user is following up with: "${body.question!.trim()}"\n\nThis is a continuation. Answer the follow-up directly and specifically, building on what was already discussed. Go deeper where relevant — do not restate prior advice. If they want clarification, give it with their actual numbers.`
-      : `The user is asking: "${body.question!.trim()}"\n\nAnswer this question directly and specifically using their actual numbers, debt names, and goal names. Then add 1-2 high-priority insights if the data supports it.`
-    : `Give a personalized analysis of this person's financial picture. Start by acknowledging something they're doing well — even small wins matter. Then identify the 2-4 most impactful things they should focus on, ordered by financial impact. Use their specific debt names, goal names, and actual dollar amounts throughout.`;
+    ? `The user is asking: "${body.question!.trim()}"\n\nAnswer this question directly and specifically using their actual numbers, debt names, and goal names. Then add 1-2 additional high-priority insights if the data warrants it.`
+    : `Give a personalized analysis of this person's financial picture. Identify the 2-5 most impactful actions they should take right now, ordered by financial impact. Reference their specific debt names, goal names, and actual dollar amounts — not generic advice.`;
 
   const summaryInstruction = hasQuestion
-    ? hasHistory
-      ? "A direct, complete answer to the follow-up question that builds on what was already discussed. 2-4 sentences. Use their specific names and numbers — no restating prior answers."
-      : "Directly and fully answer the user's question using their actual numbers, names, and dates. Be complete — 3-6 sentences. Do not open with a general financial health overview."
-    : "2-3 sentences covering what they're doing well and what needs the most attention, with specific numbers.";
+    ? "Directly and fully answer the user's question using their actual numbers, names, and dates from their data. Be complete — 3-6 sentences. Do not use this field for a general financial health overview."
+    : "2-3 sentences summarizing their overall financial situation with specific numbers.";
 
-  return `You are Forgenta, a personal finance coach inside the Forgenta app. You have full access to this user's live financial data. You're direct and specific — never generic — but you're also human about it. You care about this person's real progress. You acknowledge what's hard, celebrate what's working, and give people guidance they can act on today. When someone is stressed about money, lead with empathy before analysis. When they've made progress, say so clearly.${historySection ? '\n' + historySection : ''}
-
-THEIR FINANCIAL PICTURE
-
-Income & Cash Flow
-- Monthly take-home income: $${body.monthlyIncome.toFixed(0)}
-- Monthly expenses: $${body.monthlyExpenses.toFixed(0)}
-- Monthly surplus/deficit: $${surplus >= 0 ? '+' : ''}${surplus.toFixed(0)}
-- Savings rate: ${body.savingsRate.toFixed(1)}%
-
-Debt Payoff Settings
-- Strategy: ${strategyLabel}
-- Payment mode: ${modeLabel}
-
-Debts (total owed: $${body.totalDebt.toFixed(0)})
-${debtSection}
-
-Savings Goals
-${goalSection}
-
-Cash Position
-- Checking / liquid cash: $${body.cashOnHand.toFixed(0)}
-- Savings account balance: $${body.savingsBalance.toFixed(0)}
-- Net worth: $${body.netWorth.toFixed(0)}
-
-Top Spending Categories This Month
-${categorySection}
-
----
-${directive}
-
-Rules:
-- Always use the actual debt names, goal names, and dollar amounts from the data above
-- Payoff projections assume consistent payments — note this when payment mode is Variable
-- Do not add disclaimers or suggest consulting a financial advisor
-- Don't pad sections — only include what's directly relevant
-- For follow-up questions, prefer paragraphs and bullets over tables/pie charts unless the question specifically calls for comparison data
-- Acknowledge progress and effort, not just problems — people need to know when they're on the right track
-
-Respond ONLY in this exact JSON (no markdown, no code fences, no preamble):
-{
-  "summary": "${summaryInstruction}",
-  "score": <integer 1-100 representing overall financial health>,
-  "scoreLabel": "<Poor|Fair|Good|Strong|Excellent>",
-  "sections": [
-    /* Choose the format that best fits each piece of information. Options:
-       { "type": "paragraph", "text": "..." }
-       { "type": "bullets", "items": ["...", "..."] }
-       { "type": "table", "headers": ["Col1", "Col2"], "rows": [["val1", "val2"]] }
-       { "type": "pie", "title": "...", "data": [{ "label": "Category", "value": 450 }] }
-    Use table for multi-column debt/payoff comparisons. Use pie ONLY for spending breakdowns.
-    Use paragraph or bullets for advice. Include only sections that add value.
-    For follow-up questions, keep sections to 1-3 focused items. */
-  ],
-  "nextMove": "The single highest-impact action this month with a specific dollar amount or target. Phrase it as direct, personal advice — as if you're talking to this person, not writing a report."
-}`;
+  return `You are Forge, a direct and specific personal finance advisor inside the Forgenta app. You have full access to this user's live financial data. Give advice specific to THIS person — use their exact account names, balances, dates, and numbers. Never give generic advice.\n\nTHEIR FINANCIAL PICTURE\n\nIncome & Cash Flow\n- Monthly take-home income: $${body.monthlyIncome.toFixed(0)}\n- Monthly expenses: $${body.monthlyExpenses.toFixed(0)}\n- Monthly surplus/deficit: $${surplus >= 0 ? '+' : ''}${surplus.toFixed(0)}\n- Savings rate: ${body.savingsRate.toFixed(1)}%\n\nDebt Payoff Settings\n- Strategy: ${strategyLabel}\n- Payment mode: ${modeLabel}\n\nDebts (total owed: $${body.totalDebt.toFixed(0)})\n${debtSection}\n\nSavings Goals\n${goalSection}\n\nCash Position\n- Checking / liquid cash: $${body.cashOnHand.toFixed(0)}\n- Savings account balance: $${body.savingsBalance.toFixed(0)}\n- Net worth: $${body.netWorth.toFixed(0)}\n\nTop Spending Categories This Month\n${categorySection}\n\n---\n${directive}\n\nRules:\n- Always use the actual debt names, goal names, and dollar amounts from the data above\n- Payoff projections above assume consistent payments — note this when payment mode is Variable\n- Do not add disclaimers or suggest consulting a financial advisor\n- Do not pad sections — only include what's relevant to the question\n\nRespond ONLY in this exact JSON (no markdown, no code fences, no preamble):\n{\n  "summary": "${summaryInstruction}",\n  "score": <integer 1-100 representing overall financial health>,\n  "scoreLabel": "<Poor|Fair|Good|Strong|Excellent>",\n  "sections": [\n    /* Choose the format that best fits each piece of information. Options:\n       { "type": "paragraph", "text": "..." }\n       { "type": "bullets", "items": ["...", "..."] }\n       { "type": "table", "headers": ["Col1", "Col2"], "rows": [["val1", "val2"]] }\n       { "type": "pie", "title": "...", "data": [{ "label": "Category", "value": 450 }] }\n    Use table for multi-column debt/payoff data. Use pie ONLY for spending breakdowns.\n    Use paragraph or bullets for advice. Include only sections that add value. */\n  ],\n  "nextMove": "The single highest-impact action this month with a specific dollar amount or target."\n}`;
 }
 
 function extractJson(raw: string): string {
@@ -322,17 +242,6 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: `Question too long (max ${MAX_QUESTION_LENGTH} characters).` }, 400, corsHeaders);
     }
 
-    // Sanitize conversation history — max 4 turns, trim to safe length
-    if (body.conversationHistory) {
-      body.conversationHistory = body.conversationHistory
-        .slice(-4)
-        .map(h => ({
-          question: h.question ? h.question.slice(0, MAX_QUESTION_LENGTH) : null,
-          summary: (h.summary ?? '').slice(0, 400),
-          nextMove: (h.nextMove ?? '').slice(0, 200),
-        }));
-    }
-
     const prompt = buildPrompt(body);
 
     const geminiRes = await fetch(
@@ -383,12 +292,7 @@ Deno.serve(async (req) => {
       supabase.from("ai_usage_events").insert({ user_id: userId }),
       supabase
         .from("ai_advisor_history")
-        .insert({
-          user_id: userId,
-          question: body.question ?? null,
-          result: parsed,
-          conversation_id: body.conversationId ?? null,
-        })
+        .insert({ user_id: userId, question: body.question ?? null, result: parsed })
         .select("id, created_at")
         .single(),
     ]);
