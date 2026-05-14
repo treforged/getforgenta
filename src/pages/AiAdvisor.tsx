@@ -588,7 +588,7 @@ export default function AiAdvisor() {
   const [limitWeek, setLimitWeek] = useState(() => isPremium ? 750 : 75);
   const [cooldown, setCooldown] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastAskTime = useRef(0);
 
   // Financial snapshot
@@ -1211,15 +1211,24 @@ export default function AiAdvisor() {
           style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
         >
           <div className="flex gap-2">
-            <input
+            <textarea
               ref={inputRef}
-              type="text"
+              rows={1}
               value={question}
-              onChange={e => setQuestion(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !blocked && question.trim()) handleAsk(); }}
+              onChange={e => {
+                setQuestion(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey && !blocked && question.trim()) {
+                  e.preventDefault();
+                  handleAsk();
+                }
+              }}
               placeholder={atLimit ? `Daily limit reached (${limitDay}/day) — resets midnight UTC` : (activeEntries.length > 0 ? 'Ask a follow-up…' : 'Ask anything about your finances…')}
               maxLength={500}
-              className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50 min-w-0"
+              className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50 min-w-0 resize-none overflow-hidden leading-snug"
               style={{ borderRadius: 'var(--radius)' }}
               disabled={blocked}
             />

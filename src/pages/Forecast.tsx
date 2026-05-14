@@ -82,6 +82,7 @@ export default function Forecast() {
     incomeGrowth: 3, investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5, bonusIncome: 0, taxOverride: 0,
   });
   const [showAssumptions, setShowAssumptions] = useState(false);
+  const [assumptionsTutorialSeen, setAssumptionsTutorialSeen] = usePersistedState('tre:forecast:assumptionsTutorialSeen', false);
   const [filterYear, setFilterYear] = usePersistedState<'all' | '1' | '2' | '3'>('tre:forecast:filterYear', 'all');
   const [chartMode, setChartMode] = usePersistedState<'combo' | 'line'>('tre:forecast:chartMode', 'combo');
   const [viewMode, setViewMode] = usePersistedState<'monthly' | 'detailed'>('tre:forecast:viewMode', 'monthly');
@@ -922,6 +923,42 @@ export default function Forecast() {
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
+      {!isDemo && !assumptionsTutorialSeen && (
+        <div className="fixed inset-0 bg-background/80 z-[60] flex items-center justify-center p-4" onClick={() => setAssumptionsTutorialSeen(true)}>
+          <div className="card-forged p-5 sm:p-6 w-full max-w-md space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Settings2 size={14} className="text-primary shrink-0" /> Forecast Assumptions</h2>
+              <button onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-1"><X size={16} /></button>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              These six inputs directly drive every number in the 36-month projection. Changing them instantly re-runs the full forecast.
+            </p>
+            <div className="space-y-2">
+              {[
+                { label: 'Income Growth %', desc: 'Annual raise applied to your take-home. 3% means your income increases 3% each year.' },
+                { label: 'Expense Growth %', desc: 'Annual inflation on recurring expenses. 2.5% reflects typical cost-of-living increases.' },
+                { label: 'Investment Growth %', desc: 'Annual return applied to investment account balances in the projection.' },
+                { label: 'Savings Interest %', desc: 'Annual APY applied to savings and HYSA account balances.' },
+                { label: 'Bonus Income $', desc: 'A one-time annual bonus added to total income, spread evenly across all 12 months.' },
+                { label: 'Tax Override %', desc: 'Overrides the default tax rate used to estimate your take-home. Leave at 0 to use your profile rate.' },
+              ].map(a => (
+                <div key={a.label} className="flex gap-2.5 py-1.5 border-b border-border/30 last:border-0">
+                  <span className="text-primary font-bold text-xs shrink-0 mt-0.5">→</span>
+                  <div><span className="text-xs font-medium text-foreground">{a.label}: </span><span className="text-xs text-muted-foreground">{a.desc}</span></div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Access assumptions anytime with the <span className="font-medium text-foreground">Assumptions</span> button in the toolbar.</p>
+            <button
+              onClick={() => setAssumptionsTutorialSeen(true)}
+              className="w-full bg-primary text-primary-foreground py-2 text-sm font-semibold btn-press hover:bg-primary/90 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
