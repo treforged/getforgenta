@@ -674,6 +674,32 @@ export default function BudgetControl() {
     setCalcDrawer({ title: 'Transfers This Month', lines });
   };
 
+  const openMonthlySpendCalc = () => {
+    setCalcDrawer({
+      title: 'Monthly Spend Breakdown',
+      lines: [
+        { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses, false) },
+        { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses, false), op: '+' },
+        { label: 'Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '+' },
+        { label: 'Transfers', value: formatCurrency(totalTransfers, false), op: '+' },
+        { label: 'Total Monthly Spend', value: formatCurrency(totalExpenses, false), op: '=' },
+      ],
+    });
+  };
+
+  const openAnnualSpendCalc = () => {
+    setCalcDrawer({
+      title: 'Annual Spend Breakdown (× 12)',
+      lines: [
+        { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses * 12, false) },
+        { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses * 12, false), op: '+' },
+        { label: 'Debt Payments', value: formatCurrency(totalDebtPayments * 12, false), op: '+' },
+        { label: 'Transfers', value: formatCurrency(totalTransfers * 12, false), op: '+' },
+        { label: 'Total Annual Spend', value: formatCurrency(totalExpenses * 12, false), op: '=' },
+      ],
+    });
+  };
+
   const openIncomeCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = [
       { label: `Pay frequency: ${payFrequency}`, value: '' },
@@ -1135,8 +1161,12 @@ export default function BudgetControl() {
 
       {/* Monthly & Annual Spend Totals */}
       <div className="grid grid-cols-2 gap-3">
-        <MetricCard label="Monthly Spend" value={formatCurrency(totalExpenses, false)} accent="crimson" icon={TrendingDown} />
-        <MetricCard label="Annual Spend" value={formatCurrency(totalExpenses * 12, false)} accent="crimson" icon={TrendingDown} />
+        <div className="cursor-pointer" onClick={openMonthlySpendCalc}>
+          <MetricCard label="Monthly Spend" value={formatCurrency(totalExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
+        </div>
+        <div className="cursor-pointer" onClick={openAnnualSpendCalc}>
+          <MetricCard label="Annual Spend" value={formatCurrency(totalExpenses * 12, false)} accent="crimson" icon={TrendingDown} clickHint />
+        </div>
       </div>
 
       {/* Remaining Cash — prominent */}

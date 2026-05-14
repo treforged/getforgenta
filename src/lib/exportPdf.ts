@@ -127,25 +127,25 @@ export async function exportTransactionsPdf(rows: ExportRow[], period = 'All Tim
 
 const PDF_STYLES = `
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: system-ui, -apple-system, sans-serif; font-size: 11px; color: #111827; padding: 24px; }
-  header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid #111; }
-  h1 { font-size: 15px; font-weight: 700; letter-spacing: -0.03em; }
-  .meta { font-size: 10px; color: #6b7280; margin-top: 2px; }
+  body { font-family: system-ui, -apple-system, sans-serif; font-size: 9px; color: #111827; padding: 16px; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; padding-bottom: 7px; border-bottom: 2px solid #111; }
+  h1 { font-size: 13px; font-weight: 700; letter-spacing: -0.03em; }
+  .meta { font-size: 9px; color: #6b7280; margin-top: 2px; }
   .right { text-align: right; }
   table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-  th { text-align: left; padding: 5px 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.07em; border-bottom: 1px solid #111; color: #374151; }
+  th { text-align: left; padding: 3px 5px; font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.07em; border-bottom: 1px solid #111; color: #374151; }
   th:last-child, td:last-child { text-align: right; }
-  td { padding: 5px 6px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+  td { padding: 3px 5px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; font-size: 8.5px; }
   .pos { color: #16a34a; font-weight: 600; }
   .neg { color: #dc2626; font-weight: 600; }
   .num { text-align: right; }
   tr:last-child td { border-bottom: none; }
-  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0 16px; }
-  .kpi { padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 6px; }
-  .kpi-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.07em; color: #6b7280; }
-  .kpi-value { font-size: 15px; font-weight: 700; margin-top: 2px; letter-spacing: -0.02em; }
-  footer { margin-top: 16px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 9px; color: #9ca3af; }
-  @media print { @page { margin: 1.5cm; size: A4 portrait; } body { padding: 0; } }
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 12px; }
+  .kpi { padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 6px; }
+  .kpi-label { font-size: 8px; text-transform: uppercase; letter-spacing: 0.07em; color: #6b7280; }
+  .kpi-value { font-size: 13px; font-weight: 700; margin-top: 2px; letter-spacing: -0.02em; }
+  footer { margin-top: 10px; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: 8px; color: #9ca3af; }
+  @media print { @page { margin: 0.8cm; size: A4 landscape; } body { padding: 0; } }
 `;
 
 function fmt(n: number): string {
