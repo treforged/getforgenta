@@ -582,15 +582,15 @@ export default function Auth() {
             <div className="auth-trust text-center">
               <div className="inline-flex flex-col gap-2">
               <a
-                href="https://testflight.apple.com/join/P8AvKXr4"
+                href="https://apps.apple.com/us/app/forgenta-track-build-wealth/id6762540239"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-3 w-[calc(100%-18px)] mx-auto py-[12px] border border-border text-foreground hover:bg-secondary/60 hover:border-foreground/40 transition-all rounded-xl"
               >
                 <img src="/apple-logo.png" alt="" aria-hidden="true" style={{ height: 26, width: 'auto', display: 'block' }} />
                 <span className="flex flex-col text-xs font-semibold tracking-wide leading-snug">
-                  <span>Test on iPhone</span>
-                  <span>with TestFlight</span>
+                  <span>Download on the</span>
+                  <span>App Store</span>
                 </span>
               </a>
               <a
