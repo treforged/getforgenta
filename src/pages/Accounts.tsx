@@ -230,9 +230,10 @@ export default function Accounts() {
     return accounts;
   }, [accounts, filterType]);
 
-  const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setShowForm(true); };
+  const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setShowForm(true); };
   const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
   const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
+  const [editingPlaidAprSynced, setEditingPlaidAprSynced] = useState(false);
 
   const openEdit = (a: any) => {
     const matchDebt = debts.find((d: any) => d.name.toLowerCase() === a.name.toLowerCase());
@@ -254,6 +255,7 @@ export default function Accounts() {
     });
     setEditingPlaidLinked(!!a.plaid_account_id);
     setEditingPlaidLiability(plaidLiability);
+    setEditingPlaidAprSynced(!!a.apr_plaid_synced);
     setEditId(a.id); setShowForm(true);
   };
 
@@ -826,7 +828,7 @@ export default function Accounts() {
               { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidLiability, hint: editingPlaidLiability ? 'Managed by Plaid' : undefined },
               { key: 'payment_due_day', label: 'Payment Due Day (1–28)', type: 'number' as const, placeholder: 'e.g. 15', step: '1', hint: 'Day of month your payment is due. Max 28 — not all months have 29–31.' },
             ] : []),
-            { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01' },
+            { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidAprSynced, hint: editingPlaidAprSynced ? 'Managed by Plaid' : undefined },
             ...(APY_TYPES.includes(form.account_type) ? [
               { key: 'apy_rate', label: 'APY % (annual growth rate)', type: 'number' as const, placeholder: '7.0', step: '0.1' },
             ] : []),
@@ -838,10 +840,10 @@ export default function Accounts() {
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
-          onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); }}
+          onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}
-          notice={editingPlaidLinked ? `Balance, name, and institution are managed by Plaid.${editingPlaidLiability ? ' Credit limit and minimum payment are synced from Plaid. You can always edit APR.' : ''} Notes and payment due day are always editable.` : undefined}
+          notice={editingPlaidLinked ? `Balance, name, and institution are managed by Plaid.${editingPlaidLiability ? ` Credit limit and minimum payment are synced from Plaid.${editingPlaidAprSynced ? ' APR is also synced from Plaid.' : ' APR was not returned by Plaid — you can edit it.'}` : ''} Notes and payment due day are always editable.` : undefined}
         />
       )}
     </div>

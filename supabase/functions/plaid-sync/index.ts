@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
               const liabApr   = purchaseApr ? parseFloat(purchaseApr.apr_percentage) : null;
               const liabMin   = liab.minimum_payment_amount != null ? Number(liab.minimum_payment_amount) : null;
               const liabLimit = liab.credit_limit != null ? Number(liab.credit_limit) : null;
-              if (liabApr   !== null) updateFields.apr          = liabApr;
+              if (liabApr   !== null) { updateFields.apr = liabApr; updateFields.apr_plaid_synced = true; }
               if (liabLimit !== null) updateFields.credit_limit = liabLimit;
               if (liabMin   !== null) updateFields.min_payment  = liabMin;
             }
