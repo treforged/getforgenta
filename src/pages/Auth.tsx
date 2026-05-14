@@ -585,13 +585,14 @@ export default function Auth() {
                 href="https://apps.apple.com/us/app/forgenta-track-build-wealth/id6762540239"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-3 w-[calc(100%-18px)] mx-auto py-[12px] border border-border text-foreground hover:bg-secondary/60 hover:border-foreground/40 transition-all rounded-xl"
+                aria-label="Download on the App Store"
+                className="inline-flex"
               >
-                <img src="/apple-logo.png" alt="" aria-hidden="true" style={{ height: 26, width: 'auto', display: 'block' }} />
-                <span className="flex flex-col text-xs font-semibold tracking-wide leading-snug">
-                  <span>Download on the</span>
-                  <span>App Store</span>
-                </span>
+                <img
+                  src="/app-store-badge.jpg"
+                  alt="Download on the App Store"
+                  style={{ height: 54, width: 'auto' }}
+                />
               </a>
               <a
                 href="https://play.google.com/store/apps/details?id=com.treforged.forged&pcampaignid=web_share"
