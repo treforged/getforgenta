@@ -273,15 +273,20 @@ export default function Accounts() {
     };
     // Never overwrite Plaid-managed balance — it is owned by the sync job
     if (!editingPlaidLinked) payload.balance = balance;
-    // When APR is corrected on a Plaid liability account, recalculate the
-    // estimated min_payment so it stays in sync with the updated rate.
-    if (editingPlaidLiability && form.account_type === 'credit_card') {
-      const existingAcct = accounts.find((a: any) => a.id === editId);
-      const acctBalance = existingAcct ? Number(existingAcct.balance) : balance;
-      const newApr = parseFloat(form.apr);
-      if (!isNaN(newApr) && newApr > 0 && acctBalance > 0) {
-        const monthly = (acctBalance * (newApr / 100)) / 12;
-        payload.min_payment = Math.max(25, Math.ceil(acctBalance * 0.01 + monthly));
+    // Always write min_payment to the accounts row for credit cards so the
+    // debt engine reads a consistent value from accounts (not the debts table).
+    if (form.account_type === 'credit_card') {
+      if (editingPlaidLiability) {
+        // APR corrected on a Plaid account — recalculate the estimate.
+        const existingAcct = accounts.find((a: any) => a.id === editId);
+        const acctBalance = existingAcct ? Number(existingAcct.balance) : balance;
+        const newApr = parseFloat(form.apr);
+        if (!isNaN(newApr) && newApr > 0 && acctBalance > 0) {
+          const monthly = (acctBalance * (newApr / 100)) / 12;
+          payload.min_payment = Math.max(25, Math.ceil(acctBalance * 0.01 + monthly));
+        }
+      } else if (form.min_payment) {
+        payload.min_payment = parseFloat(form.min_payment) || null;
       }
     }
     if (editId) {

@@ -54,11 +54,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [profile?.cash_floor]);
   const [expandedCard, setExpandedCard] = usePersistedState<string | null>('tre:debt:expanded-card', null);
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
-  const [editingMin, setEditingMin] = useState<string | null>(null);
-  const [editingDueDay, setEditingDueDay] = useState<string | null>(null);
+
   const [targetInput, setTargetInput] = useState('');
-  const [minInput, setMinInput] = useState('');
-  const [dueDayInput, setDueDayInput] = useState('');
   const [overrides, setOverrides] = useState<Record<string, Record<number, number>>>({});
   const [editingMonth, setEditingMonth] = useState<{ cardId: string; month: number } | null>(null);
   const [monthPayInput, setMonthPayInput] = useState('');
@@ -476,28 +473,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     toast.success(`Target payment for ${card.name} updated to ${formatCurrency(newTarget, false)}`);
   };
 
-  const handleSaveMin = (card: CardData) => {
-    const newMin = parseFloat(minInput);
-    if (isNaN(newMin) || newMin <= 0) {
-      toast.error('Minimum payment must be greater than 0');
-      return;
-    }
-    syncDebtAndAccount(card, { min_payment: newMin });
-    setEditingMin(null);
-    toast.success(`Minimum payment for ${card.name} updated to ${formatCurrency(newMin, false)}`);
-  };
-
-  const handleSaveDueDay = (card: CardData) => {
-    const day = parseInt(dueDayInput);
-    if (isNaN(day) || day < 1 || day > 28) {
-      toast.error('Due day must be 1–28 (days 29–31 are not valid for all months)');
-      return;
-    }
-    updateAccount.mutate({ id: card.id, payment_due_day: day } as any);
-    setEditingDueDay(null);
-    toast.success(`Due date for ${card.name} set to the ${day}${day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'}`);
-  };
-
   const handleOverrideMonth = (cardId: string, monthIdx: number) => {
     const val = parseFloat(monthPayInput);
     if (isNaN(val) || val < 0) {
@@ -909,7 +884,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         <div className="space-y-3">
           {projections.map(proj => {
             const isExpanded = expandedCard === proj.card.id;
-            const isEditingThisMin = editingMin === proj.card.id;
             const cardOverrides = overrides[proj.card.id] || {};
             const hasOverrides = Object.keys(cardOverrides).length > 0;
 
@@ -962,37 +936,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 px-3 sm:px-4 pb-3 text-center">
                   <div>
                     <p className="text-[9px] text-muted-foreground uppercase">Min Payment</p>
-                    {isEditingThisMin ? (
-                      <div className="flex items-center gap-1 justify-center" onClick={e => e.stopPropagation()}>
-                        <input type="number" value={minInput} onChange={e => setMinInput(e.target.value)}
-                          className="w-16 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
-                          style={{ borderRadius: 'var(--radius)' }} autoFocus min={1} step="5"
-                          onKeyDown={e => { if (e.key === 'Enter') handleSaveMin(proj.card); if (e.key === 'Escape') setEditingMin(null); }} />
-                        <button onClick={(e) => { e.stopPropagation(); handleSaveMin(proj.card); }} className="text-primary hover:text-primary/80"><Check size={12} /></button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1 justify-center">
-                        <p className="text-xs font-semibold">{formatCurrency(proj.card.minPayment, false)}</p>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingMin(proj.card.id); setMinInput(String(proj.card.minPayment)); }} className="text-muted-foreground hover:text-primary"><Edit2 size={10} /></button>
-                      </div>
-                    )}
+                    <p className="text-xs font-semibold">{formatCurrency(proj.card.minPayment, false)}</p>
+                    <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
                   </div>
                   <div>
                     <p className="text-[9px] text-muted-foreground uppercase">Due Date</p>
-                    {editingDueDay === proj.card.id ? (
-                      <div className="flex items-center gap-1 justify-center" onClick={e => e.stopPropagation()}>
-                        <input type="number" value={dueDayInput} onChange={e => setDueDayInput(e.target.value)}
-                          className="w-12 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
-                          style={{ borderRadius: 'var(--radius)' }} autoFocus min={1} max={28} step="1"
-                          onKeyDown={e => { if (e.key === 'Enter') handleSaveDueDay(proj.card); if (e.key === 'Escape') setEditingDueDay(null); }} />
-                        <button onClick={(e) => { e.stopPropagation(); handleSaveDueDay(proj.card); }} className="text-primary hover:text-primary/80"><Check size={12} /></button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-1 justify-center">
-                        <p className="text-xs font-semibold">{proj.card.dueDay ? `${proj.card.dueDay}th` : '—'}</p>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingDueDay(proj.card.id); setDueDayInput(String(proj.card.dueDay || 31)); }} className="text-muted-foreground hover:text-primary"><Edit2 size={10} /></button>
-                      </div>
-                    )}
+                    <p className="text-xs font-semibold">{proj.card.dueDay ? `${proj.card.dueDay}${proj.card.dueDay === 1 ? 'st' : proj.card.dueDay === 2 ? 'nd' : proj.card.dueDay === 3 ? 'rd' : 'th'}` : '—'}</p>
+                    <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
                   </div>
                   <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.card.monthlyNewPurchases, false)}</p></div>
                   <div><p className="text-[9px] text-muted-foreground uppercase">Interest/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.projectedInterestThisMonth, true)}</p></div>
