@@ -186,11 +186,23 @@ export default function Landing() {
         </motion.div>
 
         <motion.div
-          className="mt-6 flex justify-center"
+          className="mt-6 flex flex-col items-center gap-1"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.55, duration: 0.5 }}
         >
+          <a
+            href="https://apps.apple.com/us/app/forgenta-track-build-wealth/id6762540239"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Download on the App Store"
+          >
+            <img
+              src="/app-store-badge.jpg"
+              alt="Download on the App Store"
+              style={{ height: 54, width: 'auto' }}
+            />
+          </a>
           <a
             href="https://play.google.com/store/apps/details?id=com.treforged.forged&pcampaignid=web_share"
             target="_blank"
