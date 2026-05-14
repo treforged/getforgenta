@@ -330,7 +330,7 @@ Deno.serve(async (req) => {
               const liabLimit = liab.credit_limit != null ? Number(liab.credit_limit) : null;
               if (liabApr   !== null) { updateFields.apr = liabApr; updateFields.apr_plaid_synced = true; }
               if (liabLimit !== null) updateFields.credit_limit = liabLimit;
-              if (liabMin   !== null) updateFields.min_payment  = liabMin;
+              if (liabMin   !== null) { updateFields.min_payment = liabMin; updateFields.min_payment_plaid_synced = true; }
             }
 
             // Fallback: estimate min_payment from APR + balance when Plaid omits it
