@@ -230,8 +230,9 @@ export default function Accounts() {
     return accounts;
   }, [accounts, filterType]);
 
-  const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setShowForm(true); };
+  const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setShowForm(true); };
   const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
+  const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
 
   const openEdit = (a: any) => {
     const matchDebt = debts.find((d: any) => d.name.toLowerCase() === a.name.toLowerCase());
@@ -243,6 +244,7 @@ export default function Accounts() {
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
     });
     setEditingPlaidLinked(!!a.plaid_account_id);
+    setEditingPlaidLiability(!!a.plaid_account_id && !!a.liability_synced_at);
     setEditId(a.id); setShowForm(true);
   };
 
@@ -801,25 +803,25 @@ export default function Accounts() {
             { key: 'institution', label: 'Institution', type: 'text', placeholder: 'e.g., Chase, Fidelity', disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Managed by Plaid' : undefined },
             { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true, disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Balance is managed by Plaid auto-sync' : undefined },
             ...(form.account_type === 'credit_card' ? [
-              { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01' },
+              { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidLiability, hint: editingPlaidLiability ? 'Managed by Plaid' : undefined },
               { key: 'payment_due_day', label: 'Payment Due Day (1–28)', type: 'number' as const, placeholder: 'e.g. 15', step: '1', hint: 'Day of month your payment is due. Max 28 — not all months have 29–31.' },
             ] : []),
-            { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01' },
+            { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidLiability, hint: editingPlaidLiability ? 'Managed by Plaid' : undefined },
             ...(APY_TYPES.includes(form.account_type) ? [
               { key: 'apy_rate', label: 'APY % (annual growth rate)', type: 'number' as const, placeholder: '7.0', step: '0.1' },
             ] : []),
             ...(LIABILITY_TYPES.includes(form.account_type) ? [
-              { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01' },
+              { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01', disabled: editingPlaidLiability, hint: editingPlaidLiability ? 'Managed by Plaid' : undefined },
             ] : []),
             { key: 'notes', label: 'Notes (optional)', type: 'text' as const, placeholder: 'Any details...' },
           ]}
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
-          onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); }}
+          onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}
-          notice={editingPlaidLinked ? 'Balance, name, and institution are managed by Plaid auto-sync. You can edit account type, APR, credit limit, minimum payment, and notes.' : undefined}
+          notice={editingPlaidLinked ? `Balance, name, and institution are managed by Plaid.${editingPlaidLiability ? ' APR, credit limit, and minimum payment are also synced from Plaid.' : ' You can edit APR, credit limit, and minimum payment manually.'} Notes and payment due day are always editable.` : undefined}
         />
       )}
     </div>
