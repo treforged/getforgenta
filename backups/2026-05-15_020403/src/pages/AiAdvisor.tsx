@@ -620,17 +620,8 @@ export default function AiAdvisor() {
       .filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment')
       .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
-    const isDebtTx = (t: any) =>
-      (t as any).isDebtPayment ||
-      t.category?.toLowerCase().includes('debt') ||
-      t.category?.toLowerCase().includes('credit card');
-
-    const monthlyDebtPayments = thisMonth
-      .filter((t: any) => t.type === 'expense' && t.category !== 'Balance Adjustment' && isDebtTx(t))
-      .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
-
     const monthlyExpenses = thisMonth
-      .filter((t: any) => t.type === 'expense' && t.category !== 'Balance Adjustment' && !isDebtTx(t))
+      .filter((t: any) => t.type === 'expense' && t.category !== 'Balance Adjustment')
       .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
     const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance ?? 0), 0);
@@ -688,7 +679,7 @@ export default function AiAdvisor() {
       targetDate: g.target_date ?? null,
     }));
 
-    return { monthlyIncome, monthlyExpenses, monthlyDebtPayments, totalDebt, savingsBalance, cashOnHand, netWorth, savingsRate, topCategories, debtDetails, savingsGoals };
+    return { monthlyIncome, monthlyExpenses, totalDebt, savingsBalance, cashOnHand, netWorth, savingsRate, topCategories, debtDetails, savingsGoals };
   }, [allTxns, debts, goals, accounts]);
 
   // Make this page fill the layout's content area exactly so only the

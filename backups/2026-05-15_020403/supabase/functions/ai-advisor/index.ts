@@ -53,7 +53,6 @@ interface ConversationTurn {
 interface FinancialSnapshot {
   monthlyIncome: number;
   monthlyExpenses: number;
-  monthlyDebtPayments?: number;
   totalDebt: number;
   savingsBalance: number;
   cashOnHand: number;
@@ -120,8 +119,7 @@ function buildPrompt(body: FinancialSnapshot): string {
         .join("\n")
     : "  (no category data this month)";
 
-  const debtPayments = body.monthlyDebtPayments ?? 0;
-  const surplus = body.monthlyIncome - body.monthlyExpenses - debtPayments;
+  const surplus = body.monthlyIncome - body.monthlyExpenses;
 
   const historySection = hasHistory
     ? `\nCONVERSATION HISTORY (prior turns in this chat — do not repeat this advice, build on it)\n${
@@ -149,11 +147,9 @@ THEIR FINANCIAL PICTURE
 
 Income & Cash Flow
 - Monthly take-home income: $${body.monthlyIncome.toFixed(0)}
-- Monthly spending (bills, subscriptions, living expenses): $${body.monthlyExpenses.toFixed(0)}
-- Monthly debt payments (CC, loans — separate from spending above): $${debtPayments.toFixed(0)}
-- Monthly surplus after all outflows: $${surplus >= 0 ? '+' : ''}${surplus.toFixed(0)}
+- Monthly expenses: $${body.monthlyExpenses.toFixed(0)}
+- Monthly surplus/deficit: $${surplus >= 0 ? '+' : ''}${surplus.toFixed(0)}
 - Savings rate: ${body.savingsRate.toFixed(1)}%
-Note: the surplus above already accounts for debt payments. Do not add them again.
 
 Debt Payoff Settings
 - Strategy: ${strategyLabel}
