@@ -941,22 +941,25 @@ export default function Forecast() {
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
-    if (assumptions.taxReturnAmountOverride > 0) {
-      return { federalRefund: assumptions.taxReturnAmountOverride, stateRefund: 0, totalRefund: assumptions.taxReturnAmountOverride, federalTaxOwed: 0, stateTaxOwed: 0 };
-    }
-    const annualGross = payConfig.weeklyGross * 52;
-    const txRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
-    const federalWithheld = assumptions.taxReturnFederalWithheld || Math.round(annualGross * (txRate / 100));
-    const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
-    const stateWithheld = Math.round(annualGross * stateRate);
-    return estimateTaxReturn({
-      annualGrossIncome: annualGross,
-      federalWithheld,
-      filingStatus: assumptions.taxReturnFilingStatus,
-      dependentsUnder17: assumptions.taxReturnDependents,
-      stateCode: assumptions.taxReturnState,
-      stateWithheld,
-    });
+    try {
+      if (assumptions.taxReturnAmountOverride > 0) {
+        return { federalRefund: assumptions.taxReturnAmountOverride, stateRefund: 0, totalRefund: assumptions.taxReturnAmountOverride, federalTaxOwed: 0, stateTaxOwed: 0 };
+      }
+      const annualGross = payConfig.weeklyGross * 52;
+      if (!annualGross || annualGross <= 0) return null;
+      const txRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
+      const federalWithheld = assumptions.taxReturnFederalWithheld || Math.round(annualGross * (txRate / 100));
+      const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
+      const stateWithheld = Math.round(annualGross * stateRate);
+      return estimateTaxReturn({
+        annualGrossIncome: annualGross,
+        federalWithheld,
+        filingStatus: assumptions.taxReturnFilingStatus,
+        dependentsUnder17: assumptions.taxReturnDependents,
+        stateCode: assumptions.taxReturnState,
+        stateWithheld,
+      });
+    } catch { return null; }
   }, [assumptions, payConfig, profile]);
 
   const filteredData = useMemo(() => {
