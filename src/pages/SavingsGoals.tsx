@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
@@ -258,8 +259,12 @@ export default function SavingsGoals() {
       contribution_start_date: (form as any).contribution_start_date || null,
       linked_rule_id: (form as any).linked_rule_id || null,
     };
-    if (editId) update.mutate({ id: editId, ...payload });
-    else add.mutate(payload);
+    if (editId) {
+      update.mutate({ id: editId, ...payload });
+    } else {
+      add.mutate(payload);
+      requestReviewAfterAction();
+    }
     setShowForm(false);
   };
 
