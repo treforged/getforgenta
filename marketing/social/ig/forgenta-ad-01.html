@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1080">
+<title>Forgenta — Ad 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold:       #C4973A;
+    --gold-dim:   #a07828;
+    --gold-glow:  rgba(196,151,58,.18);
+    --bg:         #050505;
+    --surface:    #0f0f0f;
+    --surface2:   #161616;
+    --border:     rgba(255,255,255,.07);
+    --text:       #DDE4EE;
+    --muted:      #6b7280;
+    --success:    #34a853;
+    --crimson:    #9b1c1c;
+    --orange:     #d97706;
+  }
+
+  body {
+    width: 1080px;
+    height: 1080px;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+    position: relative;
+  }
+
+  /* ── subtle grain texture ── */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 256px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: .6;
+  }
+
+  /* ── gold ambient glow top-right ── */
+  .glow-tr {
+    position: absolute;
+    top: -200px;
+    right: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(196,151,58,.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── gold ambient glow bottom-left ── */
+  .glow-bl {
+    position: absolute;
+    bottom: -200px;
+    left: -200px;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(196,151,58,.07) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .canvas {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 64px 72px 56px;
+  }
+
+  /* ── header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo-mark {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo-icon svg { width: 22px; height: 22px; }
+
+  .logo-name {
+    font-family: 'Outfit', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text);
+  }
+
+  .badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold);
+    border: 1px solid rgba(196,151,58,.35);
+    padding: 5px 14px;
+    border-radius: 100px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    background: rgba(196,151,58,.06);
+  }
+
+  /* ── hero headline ── */
+  .hero {
+    margin-top: 52px;
+  }
+
+  .hero-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .hero-h1 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 80px;
+    font-weight: 900;
+    line-height: .96;
+    letter-spacing: -0.04em;
+    color: var(--text);
+    max-width: 680px;
+  }
+
+  .hero-h1 .accent { color: var(--gold); }
+
+  .hero-sub {
+    margin-top: 20px;
+    font-size: 17px;
+    font-weight: 400;
+    color: var(--muted);
+    max-width: 480px;
+    line-height: 1.6;
+  }
+
+  /* ── stat cards row ── */
+  .cards {
+    display: flex;
+    gap: 16px;
+    margin-top: 52px;
+    flex: 1;
+    align-items: flex-start;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 26px;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(196,151,58,.25), transparent);
+  }
+
+  .card-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .dot-gold    { background: var(--gold); }
+  .dot-green   { background: var(--success); }
+  .dot-orange  { background: var(--orange); }
+
+  .card-value {
+    font-family: 'Outfit', sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .card-value.gold    { color: var(--gold); }
+  .card-value.green   { color: var(--success); }
+  .card-value.orange  { color: var(--orange); }
+
+  .card-sub {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  /* progress bar */
+  .progress-wrap {
+    margin-top: 14px;
+    height: 4px;
+    background: rgba(255,255,255,.06);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 99px;
+  }
+
+  /* sparkline stub */
+  .sparkline {
+    margin-top: 14px;
+    height: 40px;
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+  }
+
+  .spark-bar {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+    opacity: .55;
+  }
+  .spark-bar.active { opacity: 1; }
+
+  /* ── divider line ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 36px 0 28px;
+  }
+
+  /* ── footer ── */
+  .footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .tagline {
+    font-family: 'Outfit', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+
+  .tagline .sep { color: var(--gold); margin: 0 6px; }
+
+  .footer-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .url {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--gold);
+    letter-spacing: .02em;
+  }
+
+  .platform-pills {
+    display: flex;
+    gap: 8px;
+  }
+
+  .pill {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--muted);
+    border: 1px solid rgba(255,255,255,.09);
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+  <div class="glow-tr"></div>
+  <div class="glow-bl"></div>
+
+  <div class="canvas">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-mark">
+        <div class="logo-icon">
+          <!-- Trending up icon (Lucide-style) -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="#050505" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+          </svg>
+        </div>
+        <span class="logo-name">Forgenta</span>
+      </div>
+      <div class="badge">Personal Finance</div>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <div class="hero-eyebrow">Your money. Your control.</div>
+      <h1 class="hero-h1">
+        Track.<br>
+        Build.<br>
+        <span class="accent">Wealth.</span>
+      </h1>
+      <p class="hero-sub">
+        One app for budgets, debt payoff, net worth, and AI-powered financial guidance — free to start.
+      </p>
+    </div>
+
+    <!-- Stat Cards -->
+    <div class="cards">
+
+      <!-- Net Worth -->
+      <div class="card">
+        <div class="card-label">
+          <span class="dot dot-gold"></span>
+          Net Worth
+        </div>
+        <div class="card-value gold">$47,200</div>
+        <div class="card-sub">↑ $3,840 this quarter</div>
+        <!-- mini sparkline -->
+        <div class="sparkline">
+          <div class="spark-bar" style="background:var(--gold);height:45%"></div>
+          <div class="spark-bar" style="background:var(--gold);height:52%"></div>
+          <div class="spark-bar" style="background:var(--gold);height:48%"></div>
+          <div class="spark-bar" style="background:var(--gold);height:61%"></div>
+          <div class="spark-bar" style="background:var(--gold);height:58%"></div>
+          <div class="spark-bar" style="background:var(--gold);height:70%"></div>
+          <div class="spark-bar active" style="background:var(--gold);height:88%"></div>
+        </div>
+      </div>
+
+      <!-- Monthly Surplus -->
+      <div class="card">
+        <div class="card-label">
+          <span class="dot dot-green"></span>
+          Monthly Surplus
+        </div>
+        <div class="card-value green">$1,840</div>
+        <div class="card-sub">After all bills &amp; debt payments</div>
+        <div class="sparkline">
+          <div class="spark-bar" style="background:var(--success);height:55%"></div>
+          <div class="spark-bar" style="background:var(--success);height:62%"></div>
+          <div class="spark-bar" style="background:var(--success);height:70%"></div>
+          <div class="spark-bar" style="background:var(--success);height:65%"></div>
+          <div class="spark-bar" style="background:var(--success);height:80%"></div>
+          <div class="spark-bar" style="background:var(--success);height:75%"></div>
+          <div class="spark-bar active" style="background:var(--success);height:92%"></div>
+        </div>
+      </div>
+
+      <!-- Debt Payoff -->
+      <div class="card">
+        <div class="card-label">
+          <span class="dot dot-orange"></span>
+          Debt Payoff
+        </div>
+        <div class="card-value orange">68%</div>
+        <div class="card-sub">$4,100 of $6,000 cleared</div>
+        <div class="progress-wrap">
+          <div class="progress-fill" style="width:68%;background:var(--orange)"></div>
+        </div>
+        <div class="card-sub" style="margin-top:10px">On track · debt-free by Aug</div>
+      </div>
+
+    </div>
+
+    <!-- Divider -->
+    <div class="divider"></div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div class="tagline">
+        Track<span class="sep">·</span>Build<span class="sep">·</span>Wealth
+      </div>
+      <div class="footer-right">
+        <div class="url">getforgenta.com</div>
+        <div class="platform-pills">
+          <div class="pill">iOS</div>
+          <div class="pill">Android</div>
+          <div class="pill">Web</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

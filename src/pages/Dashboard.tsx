@@ -42,6 +42,7 @@ import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip,
   Line, CartesianGrid, ComposedChart,
 } from 'recharts';
+import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
 import {
   Plus, ArrowUpRight, DollarSign, CreditCard,
   TrendingUp, PiggyBank, Landmark, Percent, Wallet, Repeat,
@@ -925,6 +926,15 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      <MonthlyBudgetSnapshot
+        fundingBalance={fundingBalance}
+        remainingIncome={remainingTxIncome}
+        spentSoFar={summary.expenses + totalDebtPayments}
+        expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
+        projectedSurplus={monthEndCash}
+        onCalcClick={openMonthEndCalc}
+      />
 
       <div className="card-forged p-5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Cash Flow Overview</h3>
