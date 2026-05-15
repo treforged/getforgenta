@@ -580,7 +580,7 @@ export default function Auth() {
           </div>
           {!Capacitor.isNativePlatform() && (
             <div className="auth-trust text-center">
-              <div className="inline-flex flex-col gap-2">
+              <div className="inline-flex flex-col items-center gap-2">
               <a
                 href="https://apps.apple.com/us/app/forgenta-track-build-wealth/id6762540239"
                 target="_blank"

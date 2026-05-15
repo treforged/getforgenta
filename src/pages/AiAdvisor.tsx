@@ -180,11 +180,30 @@ function MiniPieChart({ title, data }: { title: string; data: { label: string; v
   );
 }
 
+// ── Inline markdown renderer (bold, italic, code) ────────────────────────────
+
+function renderInline(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    if (m[2] !== undefined) parts.push(<strong key={key++} className="font-semibold text-foreground">{m[2]}</strong>);
+    else if (m[3] !== undefined) parts.push(<em key={key++} className="italic">{m[3]}</em>);
+    else if (m[4] !== undefined) parts.push(<code key={key++} className="font-mono text-[11px] bg-secondary px-1 py-0.5 rounded">{m[4]}</code>);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
 // ── SectionView — renders a single flexible AI response section ───────────────
 
 function SectionView({ section }: { section: ResponseSection }) {
   if (section.type === 'paragraph') {
-    return <p className="text-xs text-foreground leading-relaxed">{section.text}</p>;
+    return <p className="text-xs text-foreground leading-relaxed">{renderInline(section.text)}</p>;
   }
   if (section.type === 'bullets') {
     return (
@@ -192,7 +211,7 @@ function SectionView({ section }: { section: ResponseSection }) {
         {section.items.map((item, i) => (
           <li key={i} className="flex gap-2 text-xs">
             <span className="text-primary shrink-0 mt-0.5">•</span>
-            <span className="text-foreground leading-relaxed">{item}</span>
+            <span className="text-foreground leading-relaxed">{renderInline(item)}</span>
           </li>
         ))}
       </ul>
