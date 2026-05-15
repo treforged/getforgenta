@@ -43,6 +43,7 @@ import {
   Line, CartesianGrid, ComposedChart,
 } from 'recharts';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
+import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, DollarSign, CreditCard,
   TrendingUp, PiggyBank, Landmark, Percent, Wallet, Repeat,
@@ -452,6 +453,12 @@ export default function Dashboard() {
     () => fundingBalance + remainingTxIncome - remainingTxExpenses - adjustedDebtPayments,
     [fundingBalance, remainingTxIncome, remainingTxExpenses, adjustedDebtPayments],
   );
+
+  useWidgetSync({
+    monthEndCash,
+    netWorth: accountSummary.netWorth,
+    enabled: !isDemo && !essentialLoading,
+  });
 
   const categoryData = useMemo(
     () => Object.entries(expenseBreakdown).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
