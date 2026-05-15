@@ -23,7 +23,7 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center p-3 sm:p-4" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))' }} onClick={() => setOpen(false)}>
           <div className="card-forged p-4 sm:p-6 w-full max-w-lg space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-display font-semibold text-sm flex items-center gap-2 min-w-0">

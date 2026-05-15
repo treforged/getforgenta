@@ -32,27 +32,19 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
   }, []);
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
-      style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 bg-background/80 z-[60] flex items-end sm:items-center justify-center sm:p-4" style={{ touchAction: 'none' }} onClick={onClose}>
       <div
-        className="card-forged w-full sm:max-w-md flex flex-col rounded-t-[var(--radius)] rounded-b-none sm:rounded-b-[var(--radius)]"
-        style={{
-          maxHeight: 'calc(88dvh - env(safe-area-inset-bottom))',
-          paddingBottom: 'env(safe-area-inset-bottom)',
-        }}
+        className="card-forged w-full sm:max-w-md flex flex-col max-h-[78dvh] sm:max-h-[90dvh] rounded-b-none sm:rounded-b-[var(--radius)]"
         onClick={e => e.stopPropagation()}
       >
         {/* Sticky header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-4 sm:pt-6 pb-3 shrink-0">
           <h2 className="font-display font-semibold text-sm">{title}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1"><X size={16} /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
         </div>
 
         {/* Scrollable fields */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-3 pb-2 popup-scroll" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-2 sm:space-y-3 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
           {notice && (
             <div className="flex items-start gap-2 bg-primary/8 border border-primary/20 px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
               <Info size={12} className="text-primary mt-0.5 shrink-0" />
@@ -61,13 +53,13 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
           )}
           {fields.map(f => (
             <div key={f.key}>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider">{f.label}</label>
+              <label className="text-[10px] text-muted-foreground uppercase">{f.label}</label>
               {f.type === 'select' ? (
                 <select
                   value={values[f.key] || ''}
                   onChange={e => onChange(f.key, e.target.value)}
                   disabled={f.disabled}
-                  className={`w-full mt-1 bg-secondary border border-border px-3 py-3 text-sm text-foreground ${f.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full mt-0.5 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground ${f.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -79,7 +71,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                   value={values[f.key] || ''}
                   onChange={e => !f.disabled && onChange(f.key, e.target.value)}
                   readOnly={f.disabled}
-                  className={`w-full mt-1 bg-secondary border border-border px-3 py-3 text-sm text-foreground ${f.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full mt-0.5 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground ${f.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{ borderRadius: 'var(--radius)' }}
                   placeholder={f.placeholder}
                 />
@@ -90,14 +82,14 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
         </div>
 
         {/* Sticky save button — always visible */}
-        <div className="px-4 sm:px-6 pt-3 pb-5 sm:pb-6 shrink-0 border-t border-border mt-1">
+        <div className="px-4 sm:px-6 pt-3 pb-4 sm:pb-6 shrink-0 border-t border-border">
           <button
             onClick={onSave}
             disabled={saving}
-            className="w-full bg-primary text-primary-foreground py-3.5 text-sm font-semibold btn-press disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold btn-press disabled:opacity-50 flex items-center justify-center gap-1.5"
             style={{ borderRadius: 'var(--radius)' }}
           >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
             {saving ? 'Saving...' : saveLabel}
           </button>
         </div>
