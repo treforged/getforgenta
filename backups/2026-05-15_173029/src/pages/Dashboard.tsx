@@ -39,7 +39,7 @@ import {
 } from '@/lib/pay-schedule';
 import { getCurrentMonthDebtRecommendations } from "@/lib/credit-card-engine";
 import {
-  Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
+  BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip,
   Line, CartesianGrid, ComposedChart,
 } from 'recharts';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
@@ -71,16 +71,15 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-const CATEGORY_COLORS = [
-  'hsl(43, 70%, 55%)',
-  'hsl(168, 55%, 42%)',
-  'hsl(25, 80%, 55%)',
-  'hsl(260, 55%, 62%)',
-  'hsl(210, 65%, 55%)',
-  'hsl(0, 65%, 52%)',
-  'hsl(140, 55%, 42%)',
-  'hsl(300, 45%, 55%)',
-];
+function CategoryTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
+      <p className="font-medium">{payload[0].payload.name}</p>
+      <p className="text-primary font-semibold">{formatCurrency(payload[0].value, false)}</p>
+    </div>
+  );
+}
 
 function CalcDrawer({
   open,
@@ -514,7 +513,7 @@ export default function Dashboard() {
   }, [allMonthTransactions]);
 
   const carGoalData = useMemo(() => {
-    if (carFunds && carFunds.length > 0) {
+    if (carFunds.length > 0) {
       const c = carFunds[0];
       return {
         name: c.vehicle_name,
@@ -523,23 +522,10 @@ export default function Dashboard() {
         price: Number(c.target_price),
         apr: Number(c.expected_apr),
         term: Number(c.loan_term_months),
-        isCarFund: true,
-      };
-    }
-    const carGoal = goals?.find((g: any) => g.goal_type === 'Car Fund');
-    if (carGoal) {
-      return {
-        name: (carGoal as any).name,
-        saved: Number((carGoal as any).current_amount),
-        target: Number((carGoal as any).target_amount),
-        price: 0,
-        apr: 0,
-        term: 0,
-        isCarFund: false,
       };
     }
     return null;
-  }, [carFunds, goals]);
+  }, [carFunds]);
 
   const openMonthEndCalc = () => {
     const hasDebt =
@@ -944,27 +930,25 @@ export default function Dashboard() {
             <Car size={14} className="text-primary" />
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
           </div>
-          <div className={`grid gap-4 ${carGoalData.isCarFund ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3'}`}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <p className="text-xs text-muted-foreground uppercase">Saved</p>
               <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.saved, false)}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground uppercase">{carGoalData.isCarFund ? 'Down Payment Goal' : 'Target'}</p>
+              <p className="text-xs text-muted-foreground uppercase">Down Payment Goal</p>
               <p className="text-lg font-display font-bold text-foreground">{formatCurrency(carGoalData.target, false)}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground uppercase">Progress</p>
               <p className="text-lg font-display font-bold text-success">{carGoalData.target > 0 ? `${((carGoalData.saved / carGoalData.target) * 100).toFixed(0)}%` : '0%'}</p>
             </div>
-            {carGoalData.isCarFund && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Est. Monthly Pmt</p>
-                <p className="text-lg font-display font-bold text-destructive">
-                  {formatCurrency(calculateMonthlyPayment(carGoalData.price - carGoalData.target, carGoalData.apr, carGoalData.term), true)}
-                </p>
-              </div>
-            )}
+            <div>
+              <p className="text-xs text-muted-foreground uppercase">Est. Monthly Pmt</p>
+              <p className="text-lg font-display font-bold text-destructive">
+                {formatCurrency(calculateMonthlyPayment(carGoalData.price - carGoalData.target, carGoalData.apr, carGoalData.term), true)}
+              </p>
+            </div>
           </div>
           <div className="mt-3">
             <ProgressBar value={carGoalData.saved} max={carGoalData.target} color="gold" />
@@ -993,51 +977,21 @@ export default function Dashboard() {
 
       <div className="grid lg:grid-cols-2 gap-5">
         <div className="card-forged p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spending by Category</h3>
-            {categoryData.length > 0 && (
-              <span className="text-xs font-bold font-display text-foreground">
-                {formatCurrency(categoryData.reduce((s, c) => s + c.value, 0), false)}
-              </span>
-            )}
-          </div>
-          {categoryData.length > 0 ? (() => {
-            const total = categoryData.reduce((s, c) => s + c.value, 0);
-            const top = categoryData.slice(0, 8);
-            const rest = categoryData.slice(8);
-            return (
-              <div className="space-y-3">
-                {top.map(({ name, value }, i) => {
-                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                  const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
-                  return (
-                    <div key={name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                          <CategoryIcon category={name} size={11} className="shrink-0" />
-                          <span className="text-xs font-medium truncate">{name}</span>
-                        </div>
-                        <div className="flex items-center gap-2.5 shrink-0 ml-2">
-                          <span className="text-[10px] text-muted-foreground w-7 text-right">{pct}%</span>
-                          <span className="text-xs font-bold font-display w-16 text-right">{formatCurrency(value, false)}</span>
-                        </div>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-                      </div>
-                    </div>
-                  );
-                })}
-                {rest.length > 0 && (
-                  <div className="flex items-center justify-between pt-1.5 border-t border-border/40">
-                    <span className="text-[10px] text-muted-foreground">+{rest.length} more</span>
-                    <span className="text-[10px] font-display font-semibold text-muted-foreground">{formatCurrency(rest.reduce((s, c) => s + c.value, 0), false)}</span>
-                  </div>
-                )}
-              </div>
-            );
-          })() : (
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Spending by Category</h3>
+          {categoryData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={categoryData} layout="vertical" margin={{ left: 0, right: 0 }}>
+                <XAxis type="number" hide />
+                <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CategoryTooltip />} />
+                <Bar dataKey="value" radius={[0, 2, 2, 0]} barSize={14}>
+                  {categoryData.map((_, i) => (
+                    <Cell key={i} fill={i === 0 ? 'hsl(43, 56%, 52%)' : i === 1 ? 'hsl(43, 56%, 42%)' : 'hsl(0, 0%, 22%)'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
             <p className="text-xs text-muted-foreground text-center py-8">No expenses recorded yet.</p>
           )}
         </div>
