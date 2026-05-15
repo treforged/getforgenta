@@ -80,7 +80,7 @@ export default function Forecast() {
   const { data: transactions } = useTransactions();
 
   const [assumptions, setAssumptions] = usePersistedState('tre:forecast:assumptions', {
-    incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
+    incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3,
     investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5, taxOverride: 0,
     bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
     taxReturnEnabled: false, taxReturnFilingStatus: 'single' as FilingStatus, taxReturnDependents: 0,
@@ -609,12 +609,7 @@ export default function Forecast() {
 
       // Apply annual raise as a step in the specified month (not continuous compounding)
       if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && i > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
-        if ((assumptions as any).raiseMode === 'flat') {
-          const currentAnnual = payConfig.weeklyGross * 52 * incomeMultiplier;
-          if (currentAnnual > 0) incomeMultiplier *= (1 + assumptions.incomeGrowth / currentAnnual);
-        } else {
-          incomeMultiplier *= (1 + assumptions.incomeGrowth / 100);
-        }
+        incomeMultiplier *= (1 + assumptions.incomeGrowth / 100);
       }
 
       const adjustedConfig = { ...payConfig, weeklyGross: payConfig.weeklyGross * incomeMultiplier };
@@ -939,8 +934,9 @@ export default function Forecast() {
     return { data, milestones };
   }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId]);
 
-  // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
+  // Live tax refund preview for the assumptions panel UI
   const taxRefundPreview = useMemo(() => {
+    if (!assumptions.taxReturnEnabled) return null;
     if (assumptions.taxReturnAmountOverride > 0) {
       return { federalRefund: assumptions.taxReturnAmountOverride, stateRefund: 0, totalRefund: assumptions.taxReturnAmountOverride, federalTaxOwed: 0, stateTaxOwed: 0 };
     }
@@ -1149,10 +1145,7 @@ export default function Forecast() {
 
       {showAssumptions && (
         <div className="card-forged p-3 sm:p-5 space-y-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Forecast Assumptions</h3>
-            <button onClick={() => setShowAssumptions(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1"><X size={14} /></button>
-          </div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Forecast Assumptions</h3>
 
           {/* Growth & Returns */}
           <div>
@@ -1185,39 +1178,29 @@ export default function Forecast() {
               </button>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Annual Raise</p>
             </div>
-            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.incomeGrowthEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">Mode</label>
-                <div className="flex mt-1 border border-border overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
-                  {(['pct', 'flat'] as const).map(m => (
-                    <button key={m}
-                      onClick={() => setAssumptions(prev => ({ ...prev, raiseMode: m }))}
-                      className={`flex-1 py-1.5 text-xs font-medium transition-colors ${(assumptions as any).raiseMode === m ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
-                      {m === 'pct' ? '%' : '$'}
-                    </button>
-                  ))}
+            {assumptions.incomeGrowthEnabled && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[9px] text-muted-foreground uppercase">Raise %</label>
+                  <input type="number" value={assumptions.incomeGrowth}
+                    onChange={e => setAssumptions(prev => ({ ...prev, incomeGrowth: parseFloat(e.target.value) || 0 }))}
+                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="0.1" />
+                </div>
+                <div>
+                  <label className="text-[9px] text-muted-foreground uppercase">Effective Month</label>
+                  <select value={assumptions.raiseMonth}
+                    onChange={e => setAssumptions(prev => ({ ...prev, raiseMonth: parseInt(e.target.value) }))}
+                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
+                    {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
+                      <option key={m} value={idx + 1}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end pb-1">
+                  <p className="text-[10px] text-muted-foreground">Applied as a step each year in the selected month, not continuous drift.</p>
                 </div>
               </div>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">{(assumptions as any).raiseMode === 'flat' ? 'Raise $/yr' : 'Raise %'}</label>
-                <input type="number" value={assumptions.incomeGrowth}
-                  onChange={e => setAssumptions(prev => ({ ...prev, incomeGrowth: parseFloat(e.target.value) || 0 }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={(assumptions as any).raiseMode === 'flat' ? '500' : '0.1'} />
-              </div>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">Effective Month</label>
-                <select value={assumptions.raiseMonth}
-                  onChange={e => setAssumptions(prev => ({ ...prev, raiseMonth: parseInt(e.target.value) }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                  {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
-                    <option key={m} value={idx + 1}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end pb-1">
-                <p className="text-[10px] text-muted-foreground">Applied once per year in the selected month.</p>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Bonus */}
@@ -1231,136 +1214,129 @@ export default function Forecast() {
               </button>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Expected Bonus</p>
             </div>
-            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.bonusEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">Mode</label>
-                <select value={assumptions.bonusMode}
-                  onChange={e => setAssumptions(prev => ({ ...prev, bonusMode: e.target.value as 'flat' | 'pct' }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                  <option value="flat">Flat $</option>
-                  <option value="pct">% of Income</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">{assumptions.bonusMode === 'pct' ? 'Bonus %' : 'Bonus $'}</label>
-                <input type="number" value={assumptions.bonusAmount}
-                  onChange={e => setAssumptions(prev => ({ ...prev, bonusAmount: parseFloat(e.target.value) || 0 }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={assumptions.bonusMode === 'pct' ? '0.1' : '100'} />
-              </div>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">Paid In</label>
-                <select value={assumptions.bonusMonth}
-                  onChange={e => setAssumptions(prev => ({ ...prev, bonusMonth: parseInt(e.target.value) }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                  {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
-                    <option key={m} value={idx + 1}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col justify-end gap-1">
-                <label className="text-[9px] text-muted-foreground uppercase">Recurring</label>
-                <button
-                  onClick={() => setAssumptions(prev => ({ ...prev, bonusRecurring: !prev.bonusRecurring }))}
-                  className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1.5 border transition-colors ${assumptions.bonusRecurring ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground'}`}
-                  style={{ borderRadius: 'var(--radius)' }}>
-                  {assumptions.bonusRecurring ? 'Every year' : 'One time'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Tax Return Estimator */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAssumptions(prev => ({ ...prev, taxReturnEnabled: !prev.taxReturnEnabled }))}
-                  className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${assumptions.taxReturnEnabled ? 'bg-primary' : 'bg-border'}`}
-                >
-                  <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${assumptions.taxReturnEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                </button>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tax Return Estimator</p>
-              </div>
-              {taxRefundPreview && (
-                <div className="bg-primary/5 border border-primary/20 px-2 py-1 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-                  <span className="text-muted-foreground">Est. </span>
-                  <span className="font-display font-bold text-primary">{formatCurrency(taxRefundPreview.totalRefund, false)}</span>
-                  {taxRefundPreview.stateRefund !== 0 && (
-                    <span className="text-muted-foreground ml-1.5">({formatCurrency(taxRefundPreview.federalRefund, false)} fed + {formatCurrency(taxRefundPreview.stateRefund, false)} state)</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className={`space-y-3 transition-opacity ${assumptions.taxReturnEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            {assumptions.bonusEnabled && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Filing Status</label>
-                  <select value={assumptions.taxReturnFilingStatus}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFilingStatus: e.target.value as FilingStatus }))}
+                  <label className="text-[9px] text-muted-foreground uppercase">Mode</label>
+                  <select value={assumptions.bonusMode}
+                    onChange={e => setAssumptions(prev => ({ ...prev, bonusMode: e.target.value as 'flat' | 'pct' }))}
                     className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                    <option value="single">Single</option>
-                    <option value="mfj">Married Filing Jointly</option>
-                    <option value="mfs">Married Filing Sep.</option>
-                    <option value="hoh">Head of Household</option>
+                    <option value="flat">Flat $</option>
+                    <option value="pct">% of Income</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Dependents (&lt;17)</label>
-                  <input type="number" min={0} max={10} value={assumptions.taxReturnDependents}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnDependents: parseInt(e.target.value) || 0 }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="1" />
+                  <label className="text-[9px] text-muted-foreground uppercase">{assumptions.bonusMode === 'pct' ? 'Bonus %' : 'Bonus $'}</label>
+                  <input type="number" value={assumptions.bonusAmount}
+                    onChange={e => setAssumptions(prev => ({ ...prev, bonusAmount: parseFloat(e.target.value) || 0 }))}
+                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={assumptions.bonusMode === 'pct' ? '0.1' : '100'} />
                 </div>
                 <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">State</label>
-                  <select value={assumptions.taxReturnState}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnState: e.target.value }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                    {[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming'],['DC','Washington DC']].map(([code, name]) => (
-                      <option key={code} value={code}>{name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Refund Month</label>
-                  <select value={assumptions.taxReturnMonth}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnMonth: parseInt(e.target.value) }))}
+                  <label className="text-[9px] text-muted-foreground uppercase">Paid In</label>
+                  <select value={assumptions.bonusMonth}
+                    onChange={e => setAssumptions(prev => ({ ...prev, bonusMonth: parseInt(e.target.value) }))}
                     className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
                     {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
                       <option key={m} value={idx + 1}>{m}</option>
                     ))}
                   </select>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Fed. Withheld/yr (0 = auto)</label>
-                  <input type="number" value={assumptions.taxReturnFederalWithheld}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFederalWithheld: parseFloat(e.target.value) || 0 }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
+                <div className="flex flex-col justify-end gap-1">
+                  <label className="text-[9px] text-muted-foreground uppercase">Recurring</label>
+                  <button
+                    onClick={() => setAssumptions(prev => ({ ...prev, bonusRecurring: !prev.bonusRecurring }))}
+                    className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1.5 border transition-colors ${assumptions.bonusRecurring ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground'}`}
+                    style={{ borderRadius: 'var(--radius)' }}>
+                    {assumptions.bonusRecurring ? 'Every year' : 'One time'}
+                  </button>
                 </div>
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Override Refund $ (0 = estimate)</label>
-                  <input type="number" value={assumptions.taxReturnAmountOverride}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnAmountOverride: parseFloat(e.target.value) || 0 }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
-                </div>
-                {taxRefundPreview && (
-                  <div className="flex flex-col justify-end">
-                    <p className="text-[9px] text-muted-foreground uppercase mb-1">Estimated Refund</p>
-                    <div className="bg-primary/5 border border-primary/20 px-2 py-1.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-                      <span className="text-muted-foreground">Fed </span>
-                      <span className="font-display font-bold text-foreground">{formatCurrency(taxRefundPreview.federalRefund, false)}</span>
-                      {taxRefundPreview.stateRefund !== 0 && (
-                        <><span className="text-muted-foreground ml-2">State </span>
-                        <span className="font-display font-bold text-foreground">{formatCurrency(taxRefundPreview.stateRefund, false)}</span></>
-                      )}
-                      <div className="mt-0.5 font-display font-bold text-primary">{formatCurrency(taxRefundPreview.totalRefund, false)} total</div>
-                    </div>
-                  </div>
-                )}
               </div>
-              <p className="text-[10px] text-muted-foreground">Estimate uses 2025 federal brackets, standard deduction, and child tax credit. State uses a simplified flat rate. Injected as income in the selected month every year.</p>
+            )}
+          </div>
+
+          {/* Tax Return Estimator */}
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={() => setAssumptions(prev => ({ ...prev, taxReturnEnabled: !prev.taxReturnEnabled }))}
+                className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${assumptions.taxReturnEnabled ? 'bg-primary' : 'bg-border'}`}
+              >
+                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${assumptions.taxReturnEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tax Return Estimator</p>
             </div>
+            {assumptions.taxReturnEnabled && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-[9px] text-muted-foreground uppercase">Filing Status</label>
+                    <select value={assumptions.taxReturnFilingStatus}
+                      onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFilingStatus: e.target.value as FilingStatus }))}
+                      className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
+                      <option value="single">Single</option>
+                      <option value="mfj">Married Filing Jointly</option>
+                      <option value="mfs">Married Filing Sep.</option>
+                      <option value="hoh">Head of Household</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground uppercase">Dependents (&lt;17)</label>
+                    <input type="number" min={0} max={10} value={assumptions.taxReturnDependents}
+                      onChange={e => setAssumptions(prev => ({ ...prev, taxReturnDependents: parseInt(e.target.value) || 0 }))}
+                      className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="1" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground uppercase">State</label>
+                    <select value={assumptions.taxReturnState}
+                      onChange={e => setAssumptions(prev => ({ ...prev, taxReturnState: e.target.value }))}
+                      className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
+                      {[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming'],['DC','Washington DC']].map(([code, name]) => (
+                        <option key={code} value={code}>{name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground uppercase">Refund Month</label>
+                    <select value={assumptions.taxReturnMonth}
+                      onChange={e => setAssumptions(prev => ({ ...prev, taxReturnMonth: parseInt(e.target.value) }))}
+                      className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
+                      {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
+                        <option key={m} value={idx + 1}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[9px] text-muted-foreground uppercase">Fed. Withheld/yr (0 = auto)</label>
+                    <input type="number" value={assumptions.taxReturnFederalWithheld}
+                      onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFederalWithheld: parseFloat(e.target.value) || 0 }))}
+                      className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-muted-foreground uppercase">Override Refund $ (0 = estimate)</label>
+                    <input type="number" value={assumptions.taxReturnAmountOverride}
+                      onChange={e => setAssumptions(prev => ({ ...prev, taxReturnAmountOverride: parseFloat(e.target.value) || 0 }))}
+                      className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
+                  </div>
+                  {taxRefundPreview && (
+                    <div className="flex flex-col justify-end">
+                      <p className="text-[9px] text-muted-foreground uppercase mb-1">Estimated Refund</p>
+                      <div className="bg-primary/5 border border-primary/20 px-2 py-1.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
+                        <span className="text-muted-foreground">Fed </span>
+                        <span className="font-display font-bold text-foreground">{formatCurrency(taxRefundPreview.federalRefund, false)}</span>
+                        {taxRefundPreview.stateRefund !== 0 && (
+                          <><span className="text-muted-foreground ml-2">State </span>
+                          <span className="font-display font-bold text-foreground">{formatCurrency(taxRefundPreview.stateRefund, false)}</span></>
+                        )}
+                        <div className="mt-0.5 font-display font-bold text-primary">{formatCurrency(taxRefundPreview.totalRefund, false)} total</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Estimate uses 2025 federal brackets, standard deduction, and child tax credit. State uses a simplified flat rate. Injected as income in the selected month every year.</p>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,6 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency } from '@/lib/calculations';
@@ -17,15 +16,13 @@ import {
 } from 'recharts';
 import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
-import { exportForecastCsv } from '@/lib/exportCsv';
-import { estimateTaxReturn, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
 
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-background/80 z-[60] flex items-center justify-center p-4" onClick={onClose}>
   <div
-    className="card-forged p-4 sm:p-6 w-full max-w-sm sm:max-w-md space-y-3 max-h-[75vh] overflow-y-auto popup-scroll"
+    className="card-forged p-4 sm:p-6 w-full max-w-sm sm:max-w-md space-y-3 max-h-[75vh] overflow-y-auto"
     onClick={e => e.stopPropagation()}
   >
         <div className="flex items-center justify-between gap-2">
@@ -72,7 +69,7 @@ export default function Forecast() {
   const { data: debts } = useDebts();
   const { data: goals } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();
-  const { data: accounts, loading: accountsLoading } = useAccounts();
+  const { data: accounts } = useAccounts();
   const { data: subs } = useSubscriptions();
   const { data: budgetItems } = useBudgetItems();
   const { data: profile } = useProfile();
@@ -80,14 +77,9 @@ export default function Forecast() {
   const { data: transactions } = useTransactions();
 
   const [assumptions, setAssumptions] = usePersistedState('tre:forecast:assumptions', {
-    incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
-    investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5, taxOverride: 0,
-    bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
-    taxReturnEnabled: false, taxReturnFilingStatus: 'single' as FilingStatus, taxReturnDependents: 0,
-    taxReturnState: 'FL', taxReturnFederalWithheld: 0, taxReturnMonth: 2, taxReturnAmountOverride: 0,
+    incomeGrowth: 3, investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5, bonusIncome: 0, taxOverride: 0,
   });
   const [showAssumptions, setShowAssumptions] = useState(false);
-  const [assumptionsTutorialSeen, setAssumptionsTutorialSeen] = usePersistedState('tre:forecast:assumptionsTutorialSeen', false);
   const [filterYear, setFilterYear] = usePersistedState<'all' | '1' | '2' | '3'>('tre:forecast:filterYear', 'all');
   const [chartMode, setChartMode] = usePersistedState<'combo' | 'line'>('tre:forecast:chartMode', 'combo');
   const [viewMode, setViewMode] = usePersistedState<'monthly' | 'detailed'>('tre:forecast:viewMode', 'monthly');
@@ -365,7 +357,7 @@ export default function Forecast() {
       const now = new Date();
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const row: any = {
-        month: d.toLocaleString('en', { month: 'short', year: 'numeric' }),
+        month: d.toLocaleString('en', { month: 'short', year: '2-digit' }),
         totalCCBalance: 0,
         totalInterest: 0,
       };
@@ -534,6 +526,8 @@ export default function Forecast() {
 
     const monthlyInvestGrowth = Math.pow(1 + assumptions.investmentGrowth / 100, 1 / 12) - 1;
     const monthlySavingsInterest = Math.pow(1 + assumptions.savingsInterest / 100, 1 / 12) - 1;
+    const monthlyIncomeGrowth = Math.pow(1 + assumptions.incomeGrowth / 100, 1 / 12) - 1;
+    // FIX #1: Apply expense growth multiplier — was completely missing before
     const monthlyExpenseGrowth = Math.pow(1 + assumptions.expenseGrowth / 100, 1 / 12) - 1;
 
     // Per-account weighted APY for retirement growth — falls back to global investmentGrowth
@@ -591,75 +585,28 @@ export default function Forecast() {
     let incomeMultiplier = 1;
     let expenseMultiplier = 1;
 
-    // Index of the first (or only) bonus month in the 36-month window — used for non-recurring bonus
-    const nextBonusMonthIndex = !assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0
-      ? (() => {
-          for (let k = 0; k < 36; k++) {
-            const dd = new Date(nowDate.getFullYear(), nowDate.getMonth() + k, 1);
-            if (dd.getMonth() + 1 === assumptions.bonusMonth) return k;
-          }
-          return -1;
-        })()
-      : -1;
-
     for (let i = 0; i < 36; i++) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
-      const monthLabel = d.toLocaleString('en', { month: 'short', year: 'numeric' });
+      const monthLabel = d.toLocaleString('en', { month: 'short', year: '2-digit' });
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
-      // Apply annual raise as a step in the specified month (not continuous compounding)
-      if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && i > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
-        if ((assumptions as any).raiseMode === 'flat') {
-          const currentAnnual = payConfig.weeklyGross * 52 * incomeMultiplier;
-          if (currentAnnual > 0) incomeMultiplier *= (1 + assumptions.incomeGrowth / currentAnnual);
-        } else {
-          incomeMultiplier *= (1 + assumptions.incomeGrowth / 100);
-        }
-      }
-
+      // FIX #2: Apply income growth to the payConfig correctly
       const adjustedConfig = { ...payConfig, weeklyGross: payConfig.weeklyGross * incomeMultiplier };
       const scheduled = monthlyAggregates[monthKey];
       // Use CC-filtered income from forecastMonthEvents; fall back to monthlyAggregates
       const scheduledIncome = forecastMonthEvents[i]?.income || scheduled?.income || 0;
       const fallbackTakeHome = getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth());
 
-      // Bonus calculation — flat dollar amount or % of projected annual gross
-      const annualGrossHere = payConfig.weeklyGross * 52 * incomeMultiplier;
-      const grossBonusAmt = assumptions.bonusMode === 'pct'
-        ? annualGrossHere * (assumptions.bonusAmount / 100)
-        : assumptions.bonusAmount;
-      const isBonusMonth =
-        assumptions.bonusEnabled &&
-        assumptions.bonusAmount > 0 &&
-        d.getMonth() + 1 === assumptions.bonusMonth &&
-        (assumptions.bonusRecurring ? true : i === nextBonusMonthIndex);
-
+      // FIX #3: Income calculation - use scheduledIncome only for current month (i===0),
+      // for future months use fallback (growth-adjusted paycheck net) + non-paycheck income.
+      // Non-paycheck income (e.g. roommate rent) = forecastMonthEvents income minus the
+      // paycheck portion already captured in fallbackTakeHome.
       let netIncome: number;
       if (i === 0 && scheduledIncome > 0) {
-        netIncome = scheduledIncome + (isBonusMonth ? grossBonusAmt : 0);
+        netIncome = scheduledIncome + assumptions.bonusIncome / 12;
       } else {
         const otherIncome = Math.max(0, (forecastMonthEvents[i]?.income ?? 0) - fallbackTakeHome);
-        netIncome = fallbackTakeHome + otherIncome + (isBonusMonth ? grossBonusAmt : 0);
-      }
-
-      // Tax return injection — estimate or override, applied annually in the configured month
-      if (assumptions.taxReturnEnabled && d.getMonth() + 1 === assumptions.taxReturnMonth) {
-        const refundAmt = assumptions.taxReturnAmountOverride > 0
-          ? assumptions.taxReturnAmountOverride
-          : (() => {
-              const federalWithheld = assumptions.taxReturnFederalWithheld || Math.round(annualGrossHere * (taxRate / 100));
-              const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
-              const stateWithheld = Math.round(annualGrossHere * stateRate);
-              return Math.max(0, estimateTaxReturn({
-                annualGrossIncome: annualGrossHere,
-                federalWithheld,
-                filingStatus: assumptions.taxReturnFilingStatus,
-                dependentsUnder17: assumptions.taxReturnDependents,
-                stateCode: assumptions.taxReturnState,
-                stateWithheld,
-              }).totalRefund);
-            })();
-        netIncome += refundAmt;
+        netIncome = fallbackTakeHome + otherIncome + assumptions.bonusIncome / 12;
       }
 
       // FIX #4: Expenses — use CC-filtered forecastMonthEvents to avoid double-counting
@@ -753,6 +700,8 @@ export default function Forecast() {
         monthTransfers, monthBrokerageContrib, monthRetireContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
       });
 
+      incomeMultiplier *= (1 + monthlyIncomeGrowth);
+      // FIX #6: Apply expense growth each month
       expenseMultiplier *= (1 + monthlyExpenseGrowth);
     }
 
@@ -939,26 +888,6 @@ export default function Forecast() {
     return { data, milestones };
   }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId]);
 
-  // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
-  const taxRefundPreview = useMemo(() => {
-    if (assumptions.taxReturnAmountOverride > 0) {
-      return { federalRefund: assumptions.taxReturnAmountOverride, stateRefund: 0, totalRefund: assumptions.taxReturnAmountOverride, federalTaxOwed: 0, stateTaxOwed: 0 };
-    }
-    const annualGross = payConfig.weeklyGross * 52;
-    const txRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
-    const federalWithheld = assumptions.taxReturnFederalWithheld || Math.round(annualGross * (txRate / 100));
-    const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
-    const stateWithheld = Math.round(annualGross * stateRate);
-    return estimateTaxReturn({
-      annualGrossIncome: annualGross,
-      federalWithheld,
-      filingStatus: assumptions.taxReturnFilingStatus,
-      dependentsUnder17: assumptions.taxReturnDependents,
-      stateCode: assumptions.taxReturnState,
-      stateWithheld,
-    });
-  }, [assumptions, payConfig, profile]);
-
   const filteredData = useMemo(() => {
     if (filterYear === 'all') return projections.data;
     const yr = parseInt(filterYear);
@@ -987,46 +916,8 @@ export default function Forecast() {
   const freePreview = !isPremium && !isDemo;
   const displayData = freePreview ? filteredData.slice(0, 3) : filteredData;
 
-  if (accountsLoading) return <PageSkeleton />;
-
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
-      {!isDemo && !assumptionsTutorialSeen && (
-        <div className="fixed inset-0 bg-background/80 z-[60] flex items-center justify-center p-4" onClick={() => setAssumptionsTutorialSeen(true)}>
-          <div className="card-forged p-5 sm:p-6 w-full max-w-md space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Settings2 size={14} className="text-primary shrink-0" /> Forecast Assumptions</h2>
-              <button onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-1"><X size={16} /></button>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              These six inputs directly drive every number in the 36-month projection. Changing them instantly re-runs the full forecast.
-            </p>
-            <div className="space-y-2">
-              {[
-                { label: 'Income Growth %', desc: 'Annual raise applied to your take-home. 3% means your income increases 3% each year.' },
-                { label: 'Expense Growth %', desc: 'Annual inflation on recurring expenses. 2.5% reflects typical cost-of-living increases.' },
-                { label: 'Investment Growth %', desc: 'Annual return applied to investment account balances in the projection.' },
-                { label: 'Savings Interest %', desc: 'Annual APY applied to savings and HYSA account balances.' },
-                { label: 'Bonus Income $', desc: 'A one-time annual bonus added to total income, spread evenly across all 12 months.' },
-                { label: 'Tax Override %', desc: 'Overrides the default tax rate used to estimate your take-home. Leave at 0 to use your profile rate.' },
-              ].map(a => (
-                <div key={a.label} className="flex gap-2.5 py-1.5 border-b border-border/30 last:border-0">
-                  <span className="text-primary font-bold text-xs shrink-0 mt-0.5">→</span>
-                  <div><span className="text-xs font-medium text-foreground">{a.label}: </span><span className="text-xs text-muted-foreground">{a.desc}</span></div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">Access assumptions anytime with the <span className="font-medium text-foreground">Assumptions</span> button in the toolbar.</p>
-            <button
-              onClick={() => setAssumptionsTutorialSeen(true)}
-              className="w-full bg-primary text-primary-foreground py-2 text-sm font-semibold btn-press hover:bg-primary/90 transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Got it
-            </button>
-          </div>
-        </div>
-      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
@@ -1056,64 +947,34 @@ export default function Forecast() {
             <Settings2 size={12} /> Assumptions
           </button>
           {(isPremium || isDemo) ? (
-            <>
-              <button
-                onClick={async () => {
-                  const label = filterYear === 'all' ? 'All 36 Months' : `Year ${filterYear}`;
-                  await exportForecastPdf(filteredData.map((r: any) => ({
-                    month: r.month,
-                    takeHome: r.takeHome ?? 0,
-                    totalExpenses: r.totalExpenses ?? 0,
-                    debtPayment: r.debtPayment ?? 0,
-                    liquidCash: r.liquidCash ?? 0,
-                    endingCash: r.endingCash ?? 0,
-                    netWorth: r.netWorth ?? 0,
-                    debtBalance: r.debtBalance ?? 0,
-                    savingsBalance: r.savingsBalance ?? 0,
-                  } as ForecastRow)), label);
-                }}
-                className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <FileDown size={12} /> PDF
-              </button>
-              <button
-                onClick={async () => {
-                  await exportForecastCsv(filteredData.map((r: any): ForecastRow => ({
-                    month: r.month,
-                    takeHome: r.takeHome ?? 0,
-                    totalExpenses: r.totalExpenses ?? 0,
-                    debtPayment: r.debtPayment ?? 0,
-                    liquidCash: r.liquidCash ?? 0,
-                    endingCash: r.endingCash ?? 0,
-                    netWorth: r.netWorth ?? 0,
-                    debtBalance: r.debtBalance ?? 0,
-                    savingsBalance: r.savingsBalance ?? 0,
-                  })));
-                }}
-                className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <FileDown size={12} /> CSV
-              </button>
-            </>
+            <button
+              onClick={async () => {
+                const label = filterYear === 'all' ? 'All 36 Months' : `Year ${filterYear}`;
+                await exportForecastPdf(filteredData.map((r: any) => ({
+                  month: r.month,
+                  takeHome: r.takeHome ?? 0,
+                  totalExpenses: r.totalExpenses ?? 0,
+                  debtPayment: r.debtPayment ?? 0,
+                  liquidCash: r.liquidCash ?? 0,
+                  endingCash: r.endingCash ?? 0,
+                  netWorth: r.netWorth ?? 0,
+                  debtBalance: r.debtBalance ?? 0,
+                  savingsBalance: r.savingsBalance ?? 0,
+                } as ForecastRow)), label);
+              }}
+              className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <FileDown size={12} /> PDF
+            </button>
           ) : (
-            <>
-              <Link
-                to="/premium"
-                className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 border border-primary/30 text-primary/70 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press hover:bg-primary/5 transition-colors"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <FileDown size={12} /> PDF
-              </Link>
-              <Link
-                to="/premium"
-                className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 border border-primary/30 text-primary/70 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press hover:bg-primary/5 transition-colors"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <FileDown size={12} /> CSV
-              </Link>
-            </>
+            <Link
+              to="/premium"
+              className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 border border-primary/30 text-primary/70 px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press hover:bg-primary/5 transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <FileDown size={12} /> PDF
+            </Link>
           )}
         </div>
       </div>
@@ -1148,219 +1009,24 @@ export default function Forecast() {
       )}
 
       {showAssumptions && (
-        <div className="card-forged p-3 sm:p-5 space-y-5">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Forecast Assumptions</h3>
-            <button onClick={() => setShowAssumptions(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1"><X size={14} /></button>
-          </div>
-
-          {/* Growth & Returns */}
-          <div>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Growth & Returns</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { key: 'investmentGrowth', label: 'Investment %' },
-                { key: 'savingsInterest', label: 'Savings Interest %' },
-                { key: 'expenseGrowth', label: 'Expense Inflation %' },
-                { key: 'taxOverride', label: 'Tax Override %' },
-              ].map(({ key, label }) => (
-                <div key={key}>
-                  <label className="text-[9px] text-muted-foreground uppercase">{label}</label>
-                  <input type="number" value={(assumptions as any)[key]}
-                    onChange={e => setAssumptions(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="0.1" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Income Growth / Annual Raise */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <button
-                onClick={() => setAssumptions(prev => ({ ...prev, incomeGrowthEnabled: !prev.incomeGrowthEnabled }))}
-                className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${assumptions.incomeGrowthEnabled ? 'bg-primary' : 'bg-border'}`}
-              >
-                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${assumptions.incomeGrowthEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Annual Raise</p>
-            </div>
-            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.incomeGrowthEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">Mode</label>
-                <div className="flex mt-1 border border-border overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
-                  {(['pct', 'flat'] as const).map(m => (
-                    <button key={m}
-                      onClick={() => setAssumptions(prev => ({ ...prev, raiseMode: m }))}
-                      className={`flex-1 py-1.5 text-xs font-medium transition-colors ${(assumptions as any).raiseMode === m ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
-                      {m === 'pct' ? '%' : '$'}
-                    </button>
-                  ))}
-                </div>
+        <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Forecast Assumptions</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+            {[
+              { key: 'incomeGrowth', label: 'Income Growth %' },
+              { key: 'investmentGrowth', label: 'Investment Growth %' },
+              { key: 'savingsInterest', label: 'Savings Interest %' },
+              { key: 'expenseGrowth', label: 'Expense Growth %' },
+              { key: 'bonusIncome', label: 'Bonus Income $' },
+              { key: 'taxOverride', label: 'Tax Override %' },
+            ].map(({ key, label }) => (
+              <div key={key}>
+                <label className="text-[9px] sm:text-xs text-muted-foreground uppercase">{label}</label>
+                <input type="number" value={(assumptions as any)[key]}
+                  onChange={e => setAssumptions(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
+                  className="w-full mt-1 bg-secondary border border-border px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="0.1" />
               </div>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">{(assumptions as any).raiseMode === 'flat' ? 'Raise $/yr' : 'Raise %'}</label>
-                <input type="number" value={assumptions.incomeGrowth}
-                  onChange={e => setAssumptions(prev => ({ ...prev, incomeGrowth: parseFloat(e.target.value) || 0 }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={(assumptions as any).raiseMode === 'flat' ? '500' : '0.1'} />
-              </div>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">Effective Month</label>
-                <select value={assumptions.raiseMonth}
-                  onChange={e => setAssumptions(prev => ({ ...prev, raiseMonth: parseInt(e.target.value) }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                  {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
-                    <option key={m} value={idx + 1}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end pb-1">
-                <p className="text-[10px] text-muted-foreground">Applied once per year in the selected month.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bonus */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <button
-                onClick={() => setAssumptions(prev => ({ ...prev, bonusEnabled: !prev.bonusEnabled }))}
-                className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${assumptions.bonusEnabled ? 'bg-primary' : 'bg-border'}`}
-              >
-                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${assumptions.bonusEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-              </button>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Expected Bonus</p>
-            </div>
-            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.bonusEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">Mode</label>
-                <select value={assumptions.bonusMode}
-                  onChange={e => setAssumptions(prev => ({ ...prev, bonusMode: e.target.value as 'flat' | 'pct' }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                  <option value="flat">Flat $</option>
-                  <option value="pct">% of Income</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">{assumptions.bonusMode === 'pct' ? 'Bonus %' : 'Bonus $'}</label>
-                <input type="number" value={assumptions.bonusAmount}
-                  onChange={e => setAssumptions(prev => ({ ...prev, bonusAmount: parseFloat(e.target.value) || 0 }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={assumptions.bonusMode === 'pct' ? '0.1' : '100'} />
-              </div>
-              <div>
-                <label className="text-[9px] text-muted-foreground uppercase">Paid In</label>
-                <select value={assumptions.bonusMonth}
-                  onChange={e => setAssumptions(prev => ({ ...prev, bonusMonth: parseInt(e.target.value) }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                  {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
-                    <option key={m} value={idx + 1}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-col justify-end gap-1">
-                <label className="text-[9px] text-muted-foreground uppercase">Recurring</label>
-                <button
-                  onClick={() => setAssumptions(prev => ({ ...prev, bonusRecurring: !prev.bonusRecurring }))}
-                  className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1.5 border transition-colors ${assumptions.bonusRecurring ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground'}`}
-                  style={{ borderRadius: 'var(--radius)' }}>
-                  {assumptions.bonusRecurring ? 'Every year' : 'One time'}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Tax Return Estimator */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-2">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setAssumptions(prev => ({ ...prev, taxReturnEnabled: !prev.taxReturnEnabled }))}
-                  className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${assumptions.taxReturnEnabled ? 'bg-primary' : 'bg-border'}`}
-                >
-                  <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${assumptions.taxReturnEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                </button>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tax Return Estimator</p>
-              </div>
-              {taxRefundPreview && (
-                <div className="bg-primary/5 border border-primary/20 px-2 py-1 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-                  <span className="text-muted-foreground">Est. </span>
-                  <span className="font-display font-bold text-primary">{formatCurrency(taxRefundPreview.totalRefund, false)}</span>
-                  {taxRefundPreview.stateRefund !== 0 && (
-                    <span className="text-muted-foreground ml-1.5">({formatCurrency(taxRefundPreview.federalRefund, false)} fed + {formatCurrency(taxRefundPreview.stateRefund, false)} state)</span>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className={`space-y-3 transition-opacity ${assumptions.taxReturnEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Filing Status</label>
-                  <select value={assumptions.taxReturnFilingStatus}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFilingStatus: e.target.value as FilingStatus }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                    <option value="single">Single</option>
-                    <option value="mfj">Married Filing Jointly</option>
-                    <option value="mfs">Married Filing Sep.</option>
-                    <option value="hoh">Head of Household</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Dependents (&lt;17)</label>
-                  <input type="number" min={0} max={10} value={assumptions.taxReturnDependents}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnDependents: parseInt(e.target.value) || 0 }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="1" />
-                </div>
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">State</label>
-                  <select value={assumptions.taxReturnState}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnState: e.target.value }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                    {[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming'],['DC','Washington DC']].map(([code, name]) => (
-                      <option key={code} value={code}>{name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Refund Month</label>
-                  <select value={assumptions.taxReturnMonth}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnMonth: parseInt(e.target.value) }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                    {['January','February','March','April','May','June','July','August','September','October','November','December'].map((m, idx) => (
-                      <option key={m} value={idx + 1}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Fed. Withheld/yr (0 = auto)</label>
-                  <input type="number" value={assumptions.taxReturnFederalWithheld}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFederalWithheld: parseFloat(e.target.value) || 0 }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
-                </div>
-                <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Override Refund $ (0 = estimate)</label>
-                  <input type="number" value={assumptions.taxReturnAmountOverride}
-                    onChange={e => setAssumptions(prev => ({ ...prev, taxReturnAmountOverride: parseFloat(e.target.value) || 0 }))}
-                    className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
-                </div>
-                {taxRefundPreview && (
-                  <div className="flex flex-col justify-end">
-                    <p className="text-[9px] text-muted-foreground uppercase mb-1">Estimated Refund</p>
-                    <div className="bg-primary/5 border border-primary/20 px-2 py-1.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-                      <span className="text-muted-foreground">Fed </span>
-                      <span className="font-display font-bold text-foreground">{formatCurrency(taxRefundPreview.federalRefund, false)}</span>
-                      {taxRefundPreview.stateRefund !== 0 && (
-                        <><span className="text-muted-foreground ml-2">State </span>
-                        <span className="font-display font-bold text-foreground">{formatCurrency(taxRefundPreview.stateRefund, false)}</span></>
-                      )}
-                      <div className="mt-0.5 font-display font-bold text-primary">{formatCurrency(taxRefundPreview.totalRefund, false)} total</div>
-                    </div>
-                  </div>
-                )}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Estimate uses 2025 federal brackets, standard deduction, and child tax credit. State uses a simplified flat rate. Injected as income in the selected month every year.</p>
-            </div>
+            ))}
           </div>
         </div>
       )}
@@ -1495,7 +1161,7 @@ export default function Forecast() {
           )}
 
           {/* Monthly Cash Flow Table — premium only */}
-          {!freePreview && <div className="card-forged p-3 sm:p-5">
+          {!freePreview && <div className="card-forged p-3 sm:p-5 overflow-x-auto">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monthly Breakdown</h3>
               <div className="text-right">
@@ -1503,74 +1169,87 @@ export default function Forecast() {
                 <span className="text-[9px] text-muted-foreground/60 block">1× = one-time purchase or income</span>
               </div>
             </div>
-            {/* Column headers */}
-            <div className="grid grid-cols-[5rem_1fr_1fr_1fr] border-b border-border pb-1.5 mb-0.5 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
-              <div className="px-1">Month</div>
-              <div className="px-1 text-right">+Income</div>
-              <div className="px-1 text-right">−Out</div>
-              <div className="px-1 text-right">End Cash</div>
-            </div>
-            {/* Rows */}
-            {displayData.map((row: any, i: number) => {
-              const openDrawer = () => {
-                const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
-                setCalcDrawer({
-                  title: `${row.month} Breakdown`,
-                  lines: [
-                    ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
-                    { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
-                    { label: 'Take-Home Income', value: formatCurrency(row.takeHome, false), op: '+' },
-                    { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
-                    ...((row.savingsContrib ?? 0) + (row.carContrib ?? 0) > 0
-                      ? [{ label: '  Savings + Car Fund', value: formatCurrency((row.savingsContrib ?? 0) + (row.carContrib ?? 0), false), op: '−' }]
-                      : []),
-                    ...((row.transfersTotal ?? 0) > 0
-                      ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency(row.transfersTotal ?? 0, false), op: '−' }]
-                      : []),
-                    { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
-                    { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
-                    { label: '', value: '' },
-                    { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
-                    { label: 'Paycheck 401k Deduction', value: (row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.paycheckRetireContrib, false) : '—' },
-                    { label: 'Total Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
-                    { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
-                    { label: 'Retirement Balance', value: formatCurrency(row.retirementBalance, false) },
-                    { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
-                  ],
-                });
-              };
-              const hasCC = (row.totalCCPurchases ?? 0) > 0;
-              const hasOneTime = (row.oneTimeNet ?? 0) !== 0;
-              return (
-                <div key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={openDrawer}>
-                  <div className="grid grid-cols-[5rem_1fr_1fr_1fr] py-2">
-                    <div className="px-1 text-xs font-medium">{row.month}</div>
-                    <div className="px-1 text-right text-success font-display font-bold text-xs">{formatCurrency(row.takeHome, false)}</div>
-                    <div className="px-1 text-right text-destructive font-display font-bold text-xs">{formatCurrency(row.totalExpenses, false)}</div>
-                    <div className={`px-1 text-right font-display font-bold text-xs ${row.endingCash < row.monthMinSafe ? 'text-destructive' : row.endingCash <= row.monthMinSafe + 50 ? 'text-amber-400' : 'text-success'}`}>
-                      {formatCurrency(row.endingCash, false)}
-                      {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
-                      {row.floorBreachedByOneTime && <div className="text-[8px] text-amber-400 leading-tight font-normal">one-time</div>}
-                    </div>
-                  </div>
-                  {(hasCC || hasOneTime) && (
-                    <div className="px-1 pb-1.5 flex flex-wrap gap-1">
-                      {hasCC && (
-                        <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
-                          CC {formatCurrency(row.totalCCPurchases, false)}
-                        </span>
-                      )}
-                      {hasOneTime && (
-                        <span className={`text-[10px] sm:text-xs px-1.5 py-0.5 border whitespace-nowrap ${(row.oneTimeNet || 0) >= 0 ? 'bg-success/10 text-success border-success/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`} style={{ borderRadius: 'var(--radius)' }}>
-                          1× {(row.oneTimeNet || 0) >= 0 ? '+' : ''}{formatCurrency(row.oneTimeNet, false)}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            <table className="w-full table-fixed text-xs min-w-[500px]">
+              <colgroup>
+                <col className="w-[13%]" />
+                <col className="w-[20%]" />
+                <col className="w-[20%]" />
+                <col className="w-[22%]" />
+                <col className="w-[25%]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-border text-muted-foreground">
+                  <th className="py-2 px-3 text-left font-medium">Month</th>
+                  <th className="py-2 px-3 text-right font-medium">+Income</th>
+                  <th className="py-2 px-3 text-right font-medium">−Out</th>
+                  <th className="py-2 px-3 text-right font-medium">End Cash</th>
+                  <th className="py-2 px-3 text-left font-medium">Activity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayData.map((row: any, i: number) => {
+                  const openDrawer = () => {
+                    const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
+                    setCalcDrawer({
+                      title: `${row.month} Breakdown`,
+                      lines: [
+                        ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
+                        { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
+                        { label: 'Take-Home Income', value: formatCurrency(row.takeHome, false), op: '+' },
+                        { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
+                        { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
+                        ...((row.savingsContrib ?? 0) + (row.carContrib ?? 0) > 0
+                          ? [{ label: '  Savings + Car Fund', value: formatCurrency((row.savingsContrib ?? 0) + (row.carContrib ?? 0), false), op: '−' }]
+                          : []),
+                        ...((row.transfersTotal ?? 0) > 0
+                          ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency(row.transfersTotal ?? 0, false), op: '−' }]
+                          : []),
+                        { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
+                        { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
+                        { label: '', value: '' },
+                        { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
+                        { label: 'Paycheck 401k Deduction', value: (row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.paycheckRetireContrib, false) : '—' },
+                        { label: 'Total Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
+                        { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
+                        { label: 'Retirement Balance', value: formatCurrency(row.retirementBalance, false) },
+                        { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
+                      ],
+                    });
+                  };
+                  const hasCC = (row.totalCCPurchases ?? 0) > 0;
+                  const hasOneTime = (row.oneTimeNet ?? 0) !== 0;
+                  return (
+                    <tr key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={openDrawer}>
+                      <td className="py-2 px-3 font-medium whitespace-nowrap">{row.month}</td>
+                      <td className="py-2 px-3 text-right text-success font-display font-bold whitespace-nowrap">{formatCurrency(row.takeHome, false)}</td>
+                      <td className="py-2 px-3 text-right text-destructive font-display font-bold whitespace-nowrap">{formatCurrency(row.totalExpenses, false)}</td>
+                      <td className={`py-2 px-3 text-right font-display font-bold whitespace-nowrap ${row.endingCash < row.monthMinSafe ? 'text-destructive' : row.endingCash <= row.monthMinSafe + 50 ? 'text-amber-400' : 'text-success'}`}>
+                        {formatCurrency(row.endingCash, false)}
+                        {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
+                        {row.floorBreachedByOneTime && <div className="text-[8px] text-amber-400 leading-tight font-normal">one-time</div>}
+                      </td>
+                      <td className="py-2 px-3">
+                        <div className="flex flex-wrap gap-1 items-center">
+                          {hasCC && (
+                            <span className="text-[8px] px-1.5 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
+                              CC {formatCurrency(row.totalCCPurchases, false)}
+                            </span>
+                          )}
+                          {hasOneTime && (
+                            <span className={`text-[8px] px-1.5 py-0.5 border whitespace-nowrap ${(row.oneTimeNet || 0) >= 0 ? 'bg-success/10 text-success border-success/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`} style={{ borderRadius: 'var(--radius)' }}>
+                              1× {(row.oneTimeNet || 0) >= 0 ? '+' : ''}{formatCurrency(row.oneTimeNet, false)}
+                            </span>
+                          )}
+                          {!hasCC && !hasOneTime && (
+                            <span className="text-[8px] text-muted-foreground/40">—</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>}
         </>
       ) : (

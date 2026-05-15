@@ -42,8 +42,6 @@ import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip,
   Line, CartesianGrid, ComposedChart,
 } from 'recharts';
-import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
-import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, DollarSign, CreditCard,
   TrendingUp, PiggyBank, Landmark, Percent, Wallet, Repeat,
@@ -454,12 +452,6 @@ export default function Dashboard() {
     [fundingBalance, remainingTxIncome, remainingTxExpenses, adjustedDebtPayments],
   );
 
-  useWidgetSync({
-    monthEndCash,
-    netWorth: accountSummary.netWorth,
-    enabled: !isDemo && !essentialLoading,
-  });
-
   const categoryData = useMemo(
     () => Object.entries(expenseBreakdown).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
     [expenseBreakdown],
@@ -486,18 +478,6 @@ export default function Dashboard() {
 
     return months;
   }, [summary, transactions]);
-
-  const avgMonthlySpend = useMemo(() => {
-    const past = cashFlowData.slice(0, 5);
-    const total = past.reduce((s, m) => s + m.expenses, 0);
-    return past.length > 0 ? total / past.length : 0;
-  }, [cashFlowData]);
-
-  const emergencyRunwayMonths = useMemo(() => {
-    const burn = summary.expenses + totalDebtPayments;
-    if (burn <= 0) return null;
-    return accountSummary.liquidCash / burn;
-  }, [accountSummary.liquidCash, summary.expenses, totalDebtPayments]);
 
   const recentTxns = useMemo(() => {
     const todayDate = new Date();
@@ -813,33 +793,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      <MonthlyBudgetSnapshot
-        fundingBalance={fundingBalance}
-        remainingIncome={remainingTxIncome}
-        spentSoFar={summary.expenses + totalDebtPayments}
-        expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
-        projectedSurplus={monthEndCash}
-        onCalcClick={openMonthEndCalc}
-      />
-
-      {!rulesLoading && upcomingBillsWeek.length > 0 && (
-        <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Upcoming This Week</h3>
-          <div className="space-y-1">
-            {upcomingBillsWeek.slice(0, 5).map((e, i) => (
-              <div key={i} className="flex items-center justify-between py-1.5 text-xs">
-                <div>
-                  <span className="font-medium">{e.name}</span>
-                  <span className="text-muted-foreground ml-2">{formatDateShort(e.date)}</span>
-                  {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
-                </div>
-                <span className="font-display font-bold text-destructive">{formatCurrency(e.amount, false)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {rulesLoading ? (
         <ScheduleSkeleton />
       ) : (
@@ -955,6 +908,24 @@ export default function Dashboard() {
         </div>
       )}
 
+      {!rulesLoading && upcomingBillsWeek.length > 0 && (
+        <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Upcoming This Week</h3>
+          <div className="space-y-1">
+            {upcomingBillsWeek.slice(0, 5).map((e, i) => (
+              <div key={i} className="flex items-center justify-between py-1.5 text-xs">
+                <div>
+                  <span className="font-medium">{e.name}</span>
+                  <span className="text-muted-foreground ml-2">{formatDateShort(e.date)}</span>
+                  {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
+                </div>
+                <span className="font-display font-bold text-destructive">{formatCurrency(e.amount, false)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card-forged p-5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Cash Flow Overview</h3>
         {cashFlowData.some(d => d.income > 0 || d.expenses > 0) ? (
@@ -1037,11 +1008,7 @@ export default function Dashboard() {
           <div className="grid md:grid-cols-3 gap-5">
             {(() => {
               const retireGoal = goals.find((g: any) => g.goal_type === 'Retirement');
-              const otherGoals = [...goals.filter((g: any) => g.goal_type !== 'Retirement')].sort((a: any, b: any) => {
-                if (a.goal_type === 'Emergency Fund') return -1;
-                if (b.goal_type === 'Emergency Fund') return 1;
-                return 0;
-              });
+              const otherGoals = goals.filter((g: any) => g.goal_type !== 'Retirement');
               const carEntry = carFunds[0] ? [{ id: 'car-dash', name: carFunds[0].vehicle_name, current_amount: carFunds[0].current_saved, target_amount: carFunds[0].down_payment_goal, isCar: true }] : [];
               return [
                 ...(retireGoal ? [retireGoal] : []),
@@ -1076,42 +1043,21 @@ export default function Dashboard() {
         isPremium={isPremium || isDemo}
         title="Advanced Analytics"
         features={[
-          'Emergency runway — months your liquid cash covers at current burn rate',
+          'Weekly take-home after taxes — see your real pay each cycle',
           'Projected annual savings based on your live cash flow',
-          'Average monthly spend trend from the last 5 months',
+          'Total debt at a glance — all accounts in one number',
         ]}
       >
         <div className="card-forged p-5">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Advanced Analytics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MetricCard
-              label="Per Paycheck"
-              value={formatCurrency(paycheckNet, false)}
-              sub="take-home"
-              accent="gold"
-              icon={DollarSign}
-            />
-            <MetricCard
-              label="Annual Savings"
-              value={formatCurrency(summary.cashFlow * 12, false)}
-              sub="projected"
-              accent={summary.cashFlow >= 0 ? 'success' : 'crimson'}
-              icon={TrendingUp}
-            />
-            <MetricCard
-              label="Emergency Runway"
-              value={emergencyRunwayMonths !== null ? `${emergencyRunwayMonths.toFixed(1)} mo` : '—'}
-              sub="liquid / monthly burn"
-              accent={emergencyRunwayMonths === null ? 'silver' : emergencyRunwayMonths >= 3 ? 'success' : emergencyRunwayMonths >= 1 ? 'gold' : 'crimson'}
-              icon={Shield}
-            />
-            <MetricCard
-              label="Avg Monthly Spend"
-              value={avgMonthlySpend > 0 ? formatCurrency(avgMonthlySpend, false) : '—'}
-              sub="5-month avg"
-              accent="silver"
-              icon={Wallet}
-            />
+          <div className="grid md:grid-cols-3 gap-4">
+            <MetricCard label="Weekly Take-Home" value={formatCurrency(paycheckNet, false)} accent="gold" icon={DollarSign} />
+            <MetricCard label="Projected Annual Savings" value={formatCurrency(summary.cashFlow * 12, false)} accent="success" icon={TrendingUp} />
+            {debtsLoading ? (
+              <MetricSkeleton />
+            ) : (
+              <MetricCard label="Total Debt" value={formatCurrency(summary.totalDebt, false)} accent="crimson" sub={`${debts.length} active debts`} icon={Landmark} />
+            )}
           </div>
         </div>
       </PremiumGate>
