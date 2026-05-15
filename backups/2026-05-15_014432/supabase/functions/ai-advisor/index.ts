@@ -335,25 +335,17 @@ Deno.serve(async (req) => {
 
     const prompt = buildPrompt(body);
 
-    const geminiPayload = JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.5, maxOutputTokens: 8000 },
-    });
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-
-    // Retry on 503/429 (transient overload) — up to 2 retries, 4s apart
-    const RETRYABLE = new Set([429, 503]);
-    let geminiRes!: Response;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, 4000));
-      geminiRes = await fetch(geminiUrl, {
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: geminiPayload,
-      });
-      if (geminiRes.ok || !RETRYABLE.has(geminiRes.status)) break;
-      console.warn(`ai-advisor: Gemini ${geminiRes.status}, attempt ${attempt + 1}/3`);
-    }
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.5, maxOutputTokens: 8000 },
+        }),
+      },
+    );
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
