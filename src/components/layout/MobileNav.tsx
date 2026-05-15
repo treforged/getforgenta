@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const PRIMARY = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
@@ -34,6 +34,9 @@ export default function MobileNav() {
   const [showMore, setShowMore] = useState(false);
 
   const moreActive = SECONDARY.some(i => pathname === i.to);
+
+  // Auto-close More panel whenever the route changes (covers primary tabs, back button, programmatic nav)
+  useEffect(() => { setShowMore(false); }, [pathname]);
 
   return (
     <>
