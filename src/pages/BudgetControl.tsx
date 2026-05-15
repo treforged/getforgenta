@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
@@ -561,8 +562,12 @@ export default function BudgetControl() {
       deposit_account: form.deposit_account || null, notes: form.notes, active: true,
       start_date: form.start_date || null,
     };
-    if (editId) updateRule.mutate({ id: editId, ...payload });
-    else addRule.mutate(payload);
+    if (editId) {
+      updateRule.mutate({ id: editId, ...payload });
+    } else {
+      addRule.mutate(payload);
+      requestReviewAfterAction();
+    }
     setShowForm(false);
     setEditId(null);
   };
