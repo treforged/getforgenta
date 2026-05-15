@@ -23,7 +23,7 @@ import { estimateTaxReturn, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }} onClick={onClose}>
+    <div className="fixed inset-0 bg-background/80 z-[60] flex items-center justify-center p-4" onClick={onClose}>
   <div
     className="card-forged p-4 sm:p-6 w-full max-w-sm sm:max-w-md space-y-3 max-h-[75vh] overflow-y-auto popup-scroll"
     onClick={e => e.stopPropagation()}
@@ -995,12 +995,8 @@ export default function Forecast() {
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
       {!isDemo && !assumptionsTutorialSeen && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}
-          onClick={() => setAssumptionsTutorialSeen(true)}
-        >
-          <div className="card-forged p-5 sm:p-6 w-full max-w-md space-y-4 overflow-y-auto popup-scroll" style={{ maxHeight: '100%' }} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-background/80 z-[60] flex items-center justify-center p-4" onClick={() => setAssumptionsTutorialSeen(true)}>
+          <div className="card-forged p-5 sm:p-6 w-full max-w-md space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Settings2 size={14} className="text-primary shrink-0" /> Forecast Assumptions</h2>
               <button onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-1"><X size={16} /></button>
