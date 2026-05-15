@@ -483,7 +483,8 @@ export default function BudgetControl() {
   const totalDebtPayments = useMemo(() => debtRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [debtRules]);
   const totalTransfers = useMemo(() => transferRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [transferRules]);
 
-  const totalExpenses = totalFixedExpenses + totalVariableExpenses + totalDebtPayments + totalTransfers;
+  const totalCharges = totalFixedExpenses + totalVariableExpenses;
+  const totalExpenses = totalCharges + totalDebtPayments + totalTransfers;
   const remaining = totalRecurringIncome - totalExpenses;
 
   const fundingAccount = useMemo(() => {
@@ -685,9 +686,7 @@ export default function BudgetControl() {
       lines: [
         { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses, false) },
         { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses, false), op: '+' },
-        { label: 'Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '+' },
-        { label: 'Transfers', value: formatCurrency(totalTransfers, false), op: '+' },
-        { label: 'Total Monthly Spend', value: formatCurrency(totalExpenses, false), op: '=' },
+        { label: 'Total Monthly Spend', value: formatCurrency(totalCharges, false), op: '=' },
       ],
     });
   };
@@ -698,9 +697,7 @@ export default function BudgetControl() {
       lines: [
         { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses * 12, false) },
         { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses * 12, false), op: '+' },
-        { label: 'Debt Payments', value: formatCurrency(totalDebtPayments * 12, false), op: '+' },
-        { label: 'Transfers', value: formatCurrency(totalTransfers * 12, false), op: '+' },
-        { label: 'Total Annual Spend', value: formatCurrency(totalExpenses * 12, false), op: '=' },
+        { label: 'Total Annual Spend', value: formatCurrency(totalCharges * 12, false), op: '=' },
       ],
     });
   };
@@ -1167,10 +1164,10 @@ export default function BudgetControl() {
       {/* Monthly & Annual Spend Totals */}
       <div className="grid grid-cols-2 gap-3">
         <div className="cursor-pointer" onClick={openMonthlySpendCalc}>
-          <MetricCard label="Monthly Spend" value={formatCurrency(totalExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
+          <MetricCard label="Monthly Spend" value={formatCurrency(totalCharges, false)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openAnnualSpendCalc}>
-          <MetricCard label="Annual Spend" value={formatCurrency(totalExpenses * 12, false)} accent="crimson" icon={TrendingDown} clickHint />
+          <MetricCard label="Annual Spend" value={formatCurrency(totalCharges * 12, false)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
       </div>
 
