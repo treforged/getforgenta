@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_vertical"
+    android:padding="14dp"
+    android:background="@drawable/widget_background">
+
+    <TextView
+        android:id="@+id/widget_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="NET WORTH"
+        android:textSize="9sp"
+        android:textColor="@color/widget_muted"
+        android:letterSpacing="0.1"
+        android:fontFamily="sans-serif-medium" />
+
+    <TextView
+        android:id="@+id/widget_amount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="--"
+        android:textSize="26sp"
+        android:textColor="@color/widget_gold"
+        android:textStyle="bold"
+        android:fontFamily="sans-serif-condensed" />
+
+    <TextView
+        android:id="@+id/widget_updated"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dp"
+        android:text="Open Forgenta to sync"
+        android:textSize="9sp"
+        android:textColor="@color/widget_muted" />
+
+</LinearLayout>
