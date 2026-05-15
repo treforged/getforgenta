@@ -11,7 +11,6 @@ import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
 import FounderNoteModal from '@/components/shared/FounderNoteModal';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
-import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
 import { formatCurrency } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
@@ -42,8 +41,6 @@ import {
   BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip,
   Line, CartesianGrid, ComposedChart,
 } from 'recharts';
-import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
-import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, DollarSign, CreditCard,
   TrendingUp, PiggyBank, Landmark, Percent, Wallet, Repeat,
@@ -454,12 +451,6 @@ export default function Dashboard() {
     [fundingBalance, remainingTxIncome, remainingTxExpenses, adjustedDebtPayments],
   );
 
-  useWidgetSync({
-    monthEndCash,
-    netWorth: accountSummary.netWorth,
-    enabled: !isDemo && !essentialLoading,
-  });
-
   const categoryData = useMemo(
     () => Object.entries(expenseBreakdown).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
     [expenseBreakdown],
@@ -487,29 +478,10 @@ export default function Dashboard() {
     return months;
   }, [summary, transactions]);
 
-  const avgMonthlySpend = useMemo(() => {
-    const past = cashFlowData.slice(0, 5);
-    const total = past.reduce((s, m) => s + m.expenses, 0);
-    return past.length > 0 ? total / past.length : 0;
-  }, [cashFlowData]);
-
-  const emergencyRunwayMonths = useMemo(() => {
-    const burn = summary.expenses + totalDebtPayments;
-    if (burn <= 0) return null;
-    return accountSummary.liquidCash / burn;
-  }, [accountSummary.liquidCash, summary.expenses, totalDebtPayments]);
-
-  const recentTxns = useMemo(() => {
-    const todayDate = new Date();
-    const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
-    const cutoff = new Date(todayDate);
-    cutoff.setDate(cutoff.getDate() - 7);
-    const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
-    return [...allMonthTransactions]
-      .filter((t: any) => t.date <= todayStr && t.date >= cutoffStr)
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, 6);
-  }, [allMonthTransactions]);
+  const recentTxns = useMemo(
+    () => [...allMonthTransactions].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6),
+    [allMonthTransactions],
+  );
 
   const carGoalData = useMemo(() => {
     if (carFunds.length > 0) {
@@ -675,7 +647,6 @@ export default function Dashboard() {
       )}
       {!isDemo && <AppTour variant="new-user" />}
       <AccountUpdateReminder />
-      {!isDemo && <SubscriptionExpiryBanner />}
 
       {!isDemo && showSecurityBanner && (
         <div className="flex items-start justify-between gap-3 bg-amber-500/8 border border-amber-500/25 px-4 py-3" style={{ borderRadius: 'var(--radius)' }}>
@@ -793,7 +764,7 @@ export default function Dashboard() {
               { label: 'Debt Payoff', desc: 'Avalanche engine computes how fast each card gets paid using every dollar above the cash floor.', path: '/debt' },
               { label: 'Forecast', desc: '36-month sim. Debt payoff adjusts monthly so end cash never sits idle — it goes straight to debt.', path: '/forecast' },
               { label: 'Transactions', desc: 'One-time income (tax refund, bonus) and expenses update cash flow and feed the debt engine.', path: '/transactions' },
-              { label: 'Savings & Car Fund', desc: 'Goals track toward specific targets. The car fund models the full purchase: down payment + loan.', path: '/goals' },
+              { label: 'Savings & Car Fund', desc: 'Goals track toward specific targets. The car fund models the full purchase: down payment + loan.', path: '/savings' },
               { label: 'Net Worth', desc: 'Weekly snapshots plot the trajectory — watches Jordan cross zero and start building real wealth.', path: '/net-worth' },
             ].map(f => (
               <Link key={f.path} to={f.path} className="group flex gap-2.5 p-3 bg-secondary/40 hover:bg-secondary/70 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
@@ -809,33 +780,6 @@ export default function Dashboard() {
             <Link to="/auth" className="text-xs font-semibold text-primary hover:underline">
               Set up your own profile →
             </Link>
-          </div>
-        </div>
-      )}
-
-      <MonthlyBudgetSnapshot
-        fundingBalance={fundingBalance}
-        remainingIncome={remainingTxIncome}
-        spentSoFar={summary.expenses + totalDebtPayments}
-        expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
-        projectedSurplus={monthEndCash}
-        onCalcClick={openMonthEndCalc}
-      />
-
-      {!rulesLoading && upcomingBillsWeek.length > 0 && (
-        <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Upcoming This Week</h3>
-          <div className="space-y-1">
-            {upcomingBillsWeek.slice(0, 5).map((e, i) => (
-              <div key={i} className="flex items-center justify-between py-1.5 text-xs">
-                <div>
-                  <span className="font-medium">{e.name}</span>
-                  <span className="text-muted-foreground ml-2">{formatDateShort(e.date)}</span>
-                  {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
-                </div>
-                <span className="font-display font-bold text-destructive">{formatCurrency(e.amount, false)}</span>
-              </div>
-            ))}
           </div>
         </div>
       )}
@@ -924,7 +868,7 @@ export default function Dashboard() {
       </div>
 
       {carGoalData && (
-        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
+        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/savings')}>
           <div className="flex items-center gap-2 mb-4">
             <Car size={14} className="text-primary" />
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
@@ -951,6 +895,24 @@ export default function Dashboard() {
           </div>
           <div className="mt-3">
             <ProgressBar value={carGoalData.saved} max={carGoalData.target} color="gold" />
+          </div>
+        </div>
+      )}
+
+      {!rulesLoading && upcomingBillsWeek.length > 0 && (
+        <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Upcoming This Week</h3>
+          <div className="space-y-1">
+            {upcomingBillsWeek.slice(0, 5).map((e, i) => (
+              <div key={i} className="flex items-center justify-between py-1.5 text-xs">
+                <div>
+                  <span className="font-medium">{e.name}</span>
+                  <span className="text-muted-foreground ml-2">{formatDateShort(e.date)}</span>
+                  {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
+                </div>
+                <span className="font-display font-bold text-destructive">{formatCurrency(e.amount, false)}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -1032,23 +994,23 @@ export default function Dashboard() {
       {goalsLoading ? (
         <ChartSkeleton height={120} />
       ) : (
-        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
+        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/savings')}>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
           <div className="grid md:grid-cols-3 gap-5">
-            {(() => {
-              const retireGoal = goals.find((g: any) => g.goal_type === 'Retirement');
-              const otherGoals = [...goals.filter((g: any) => g.goal_type !== 'Retirement')].sort((a: any, b: any) => {
-                if (a.goal_type === 'Emergency Fund') return -1;
-                if (b.goal_type === 'Emergency Fund') return 1;
-                return 0;
-              });
-              const carEntry = carFunds[0] ? [{ id: 'car-dash', name: carFunds[0].vehicle_name, current_amount: carFunds[0].current_saved, target_amount: carFunds[0].down_payment_goal, isCar: true }] : [];
-              return [
-                ...(retireGoal ? [retireGoal] : []),
-                ...otherGoals.slice(0, retireGoal ? 1 : 2),
-                ...carEntry,
-              ].slice(0, 3);
-            })().map((g: any) => {
+            {[
+  ...goals.slice(0, 2),
+  ...(carFunds[0]
+    ? [
+        {
+          id: 'car-dash',
+          name: carFunds[0].vehicle_name,
+          current_amount: carFunds[0].current_saved,
+          target_amount: carFunds[0].down_payment_goal,
+          isCar: true,
+        },
+      ]
+    : []),
+].slice(0, 3).map((g: any) => {
               const pct = Number(g.target_amount) > 0 ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) : 0;
               return (
                 <div key={g.id} className="space-y-3 p-4 bg-muted/30 border border-border" style={{ borderRadius: 'var(--radius)' }}>
@@ -1076,42 +1038,21 @@ export default function Dashboard() {
         isPremium={isPremium || isDemo}
         title="Advanced Analytics"
         features={[
-          'Emergency runway — months your liquid cash covers at current burn rate',
+          'Weekly take-home after taxes — see your real pay each cycle',
           'Projected annual savings based on your live cash flow',
-          'Average monthly spend trend from the last 5 months',
+          'Total debt at a glance — all accounts in one number',
         ]}
       >
         <div className="card-forged p-5">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Advanced Analytics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MetricCard
-              label="Per Paycheck"
-              value={formatCurrency(paycheckNet, false)}
-              sub="take-home"
-              accent="gold"
-              icon={DollarSign}
-            />
-            <MetricCard
-              label="Annual Savings"
-              value={formatCurrency(summary.cashFlow * 12, false)}
-              sub="projected"
-              accent={summary.cashFlow >= 0 ? 'success' : 'crimson'}
-              icon={TrendingUp}
-            />
-            <MetricCard
-              label="Emergency Runway"
-              value={emergencyRunwayMonths !== null ? `${emergencyRunwayMonths.toFixed(1)} mo` : '—'}
-              sub="liquid / monthly burn"
-              accent={emergencyRunwayMonths === null ? 'silver' : emergencyRunwayMonths >= 3 ? 'success' : emergencyRunwayMonths >= 1 ? 'gold' : 'crimson'}
-              icon={Shield}
-            />
-            <MetricCard
-              label="Avg Monthly Spend"
-              value={avgMonthlySpend > 0 ? formatCurrency(avgMonthlySpend, false) : '—'}
-              sub="5-month avg"
-              accent="silver"
-              icon={Wallet}
-            />
+          <div className="grid md:grid-cols-3 gap-4">
+            <MetricCard label="Weekly Take-Home" value={formatCurrency(paycheckNet, false)} accent="gold" icon={DollarSign} />
+            <MetricCard label="Projected Annual Savings" value={formatCurrency(summary.cashFlow * 12, false)} accent="success" icon={TrendingUp} />
+            {debtsLoading ? (
+              <MetricSkeleton />
+            ) : (
+              <MetricCard label="Total Debt" value={formatCurrency(summary.totalDebt, false)} accent="crimson" sub={`${debts.length} active debts`} icon={Landmark} />
+            )}
           </div>
         </div>
       </PremiumGate>
