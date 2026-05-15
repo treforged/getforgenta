@@ -1192,7 +1192,7 @@ export default function Forecast() {
               </button>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Annual Raise</p>
             </div>
-            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.incomeGrowthEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.incomeGrowthEnabled ? 'opacity-100' : 'opacity-50'}`}>
               <div>
                 <label className="text-[9px] text-muted-foreground uppercase">Mode</label>
                 <div className="flex mt-1 border border-border overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
@@ -1238,7 +1238,7 @@ export default function Forecast() {
               </button>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Expected Bonus</p>
             </div>
-            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.bonusEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 transition-opacity ${assumptions.bonusEnabled ? 'opacity-100' : 'opacity-50'}`}>
               <div>
                 <label className="text-[9px] text-muted-foreground uppercase">Mode</label>
                 <select value={assumptions.bonusMode}
@@ -1298,7 +1298,7 @@ export default function Forecast() {
                 </div>
               )}
             </div>
-            <div className={`space-y-3 transition-opacity ${assumptions.taxReturnEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+            <div className={`space-y-3 transition-opacity ${assumptions.taxReturnEnabled ? 'opacity-100' : 'opacity-50'}`}>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div>
                   <label className="text-[9px] text-muted-foreground uppercase">Filing Status</label>
