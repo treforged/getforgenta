@@ -60,7 +60,7 @@ export default function MetricCard({
 
           <p
             className={cn(
-              'text-xl sm:text-2xl font-display font-bold mt-2 tracking-tight break-words',
+              'text-xl sm:text-2xl font-display font-bold mt-2 tracking-tight whitespace-nowrap',
               colorMap[accent]
             )}
           >
