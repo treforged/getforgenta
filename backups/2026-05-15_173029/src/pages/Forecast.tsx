@@ -644,22 +644,25 @@ export default function Forecast() {
 
       // Tax return injection — estimate or override, applied annually in the configured month
       if (assumptions.taxReturnEnabled && d.getMonth() + 1 === assumptions.taxReturnMonth) {
-        const refundAmt = assumptions.taxReturnAmountOverride > 0
-          ? assumptions.taxReturnAmountOverride
-          : (() => {
-              const federalWithheld = assumptions.taxReturnFederalWithheld || Math.round(annualGrossHere * (taxRate / 100));
-              const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
-              const stateWithheld = Math.round(annualGrossHere * stateRate);
-              return Math.max(0, estimateTaxReturn({
-                annualGrossIncome: annualGrossHere,
-                federalWithheld,
-                filingStatus: assumptions.taxReturnFilingStatus,
-                dependentsUnder17: assumptions.taxReturnDependents,
-                stateCode: assumptions.taxReturnState,
-                stateWithheld,
-              }).totalRefund);
-            })();
-        netIncome += refundAmt;
+        try {
+          const refundAmt = assumptions.taxReturnAmountOverride > 0
+            ? assumptions.taxReturnAmountOverride
+            : (() => {
+                if (!annualGrossHere || annualGrossHere <= 0) return 0;
+                const federalWithheld = assumptions.taxReturnFederalWithheld || Math.round(annualGrossHere * (taxRate / 100));
+                const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
+                const stateWithheld = Math.round(annualGrossHere * stateRate);
+                return Math.max(0, estimateTaxReturn({
+                  annualGrossIncome: annualGrossHere,
+                  federalWithheld,
+                  filingStatus: assumptions.taxReturnFilingStatus,
+                  dependentsUnder17: assumptions.taxReturnDependents,
+                  stateCode: assumptions.taxReturnState,
+                  stateWithheld,
+                }).totalRefund);
+              })();
+          netIncome += refundAmt;
+        } catch { /* skip refund if estimator throws */ }
       }
 
       // FIX #4: Expenses — use CC-filtered forecastMonthEvents to avoid double-counting
@@ -1186,9 +1189,9 @@ export default function Forecast() {
             <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={() => setAssumptions(prev => ({ ...prev, incomeGrowthEnabled: !prev.incomeGrowthEnabled }))}
-                className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${assumptions.incomeGrowthEnabled ? 'bg-primary' : 'bg-border'}`}
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${assumptions.incomeGrowthEnabled ? 'bg-primary' : 'bg-border'}`}
               >
-                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${assumptions.incomeGrowthEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform ${assumptions.incomeGrowthEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
               </button>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Annual Raise</p>
             </div>
@@ -1232,9 +1235,9 @@ export default function Forecast() {
             <div className="flex items-center gap-2 mb-2">
               <button
                 onClick={() => setAssumptions(prev => ({ ...prev, bonusEnabled: !prev.bonusEnabled }))}
-                className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${assumptions.bonusEnabled ? 'bg-primary' : 'bg-border'}`}
+                className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${assumptions.bonusEnabled ? 'bg-primary' : 'bg-border'}`}
               >
-                <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${assumptions.bonusEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform ${assumptions.bonusEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
               </button>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Expected Bonus</p>
             </div>
@@ -1282,9 +1285,9 @@ export default function Forecast() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setAssumptions(prev => ({ ...prev, taxReturnEnabled: !prev.taxReturnEnabled }))}
-                  className={`relative w-8 h-4 rounded-full transition-colors shrink-0 ${assumptions.taxReturnEnabled ? 'bg-primary' : 'bg-border'}`}
+                  className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${assumptions.taxReturnEnabled ? 'bg-primary' : 'bg-border'}`}
                 >
-                  <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-transform ${assumptions.taxReturnEnabled ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                  <span className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 bg-white rounded-full transition-transform ${assumptions.taxReturnEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
                 </button>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tax Return Estimator</p>
               </div>
