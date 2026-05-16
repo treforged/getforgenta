@@ -519,7 +519,14 @@ export default function Forecast() {
     const retireTypes = ['roth_ira', '401k', 'ira', 'hsa'];
     const liabilityTypes = ['credit_card', 'student_loan', 'auto_loan', 'other_liability'];
 
-    let liquidBal = active.filter((a: any) => liquidTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
+    // Starting liquid cash = funding account only (the account that pays debt/expenses).
+    // Using all liquid accounts inflates starting cash and masks real floor breaches.
+    const fundingAcct = forecastFundingAccountId
+      ? active.find((a: any) => a.id === forecastFundingAccountId)
+      : active.find((a: any) => a.account_type === 'checking' || a.account_type === 'business_checking');
+    let liquidBal = fundingAcct
+      ? Number(fundingAcct.balance)
+      : active.filter((a: any) => liquidTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
     let investBal = active.filter((a: any) => investTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
     let retireBal = active.filter((a: any) => retireTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
     let totalLiabilityBal = active.filter((a: any) => liabilityTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
@@ -1627,7 +1634,11 @@ export default function Forecast() {
               const openDrawer = () => {
                 const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
                 const recDebt = row.recommendedDebtPayment ?? row.debtPayment;
+                // surplusApplied > 0 when PASS 3 redirected extra cash to debt above the plan.
+                // baseDebt = actual amount before surplus — may be less than recDebt if safety net cut it.
                 const surplusApplied = Math.max(0, row.debtPayment - recDebt);
+                const baseDebt = row.debtPayment - surplusApplied;
+                const reducedForFloor = recDebt > baseDebt + 1;
                 setCalcDrawer({
                   title: `${row.month} Breakdown`,
                   lines: [
@@ -1639,7 +1650,8 @@ export default function Forecast() {
                     ...((row.bonusIncome ?? 0) > 0 ? [{ label: '  Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
                     ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: '  Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    { label: '  Debt Payments', value: formatCurrency(recDebt, false), op: '−' },
+                    { label: '  Debt Payments', value: formatCurrency(baseDebt, false), op: '−' },
+                    ...(reducedForFloor ? [{ label: `    (planned ${formatCurrency(recDebt, false)}, reduced for floor)`, value: '' }] : []),
                     ...(surplusApplied > 1 ? [{ label: '    + Surplus to Debt', value: formatCurrency(surplusApplied, false), op: '−' }] : []),
                     ...((row.savingsContrib ?? 0) + (row.carContrib ?? 0) > 0
                       ? [{ label: '  Savings + Car Fund', value: formatCurrency((row.savingsContrib ?? 0) + (row.carContrib ?? 0), false), op: '−' }]
