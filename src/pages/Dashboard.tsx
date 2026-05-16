@@ -463,15 +463,16 @@ export default function Dashboard() {
       if (i === 0) {
         months.push({ month: monthName, income: summary.income, expenses: summary.expenses, net: summary.cashFlow });
       } else {
-        const monthTxns = transactions.filter(t => t.date.startsWith(monthStr));
-        const inc = monthTxns.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0);
-        const exp = monthTxns.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const monthTxns = baseTxns.filter((t: any) => t.date?.startsWith(monthStr));
+        const inc = monthTxns.filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const expBreakdown = categorizeExpenses(monthTxns, true);
+        const exp = Object.values(expBreakdown).reduce((s: number, v: number) => s + v, 0);
         months.push({ month: monthName, income: Math.round(inc), expenses: Math.round(exp), net: Math.round(inc - exp) });
       }
     }
 
     return months;
-  }, [summary, transactions]);
+  }, [summary, baseTxns]);
 
   const avgMonthlySpend = useMemo(() => {
     const past = cashFlowData.slice(0, 5);
