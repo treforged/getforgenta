@@ -12,6 +12,7 @@ import FounderNoteModal from '@/components/shared/FounderNoteModal';
 import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
+import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
@@ -19,6 +20,7 @@ import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, u
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 import {
   buildPayConfig,
   getRemainingIncomeThisMonth,
@@ -47,7 +49,7 @@ import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, DollarSign, CreditCard,
   TrendingUp, PiggyBank, Landmark, Percent, Wallet, Repeat,
-  CalendarDays, AlertTriangle, Info, X, Car, Shield, Check, FileDown,
+  CalendarDays, AlertTriangle, Info, X, Car, Shield, Check, FileDown, LayoutDashboard,
 } from 'lucide-react';
 import { exportDashboardPdf } from '@/lib/exportPdf';
 import { Link, useNavigate } from 'react-router-dom';
@@ -55,6 +57,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
+import type { WidgetId } from '@/lib/dashboard-widgets';
 
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -187,6 +190,8 @@ export default function Dashboard() {
   const { data: rules, loading: rulesLoading } = useRecurringRules();
   const { items: plaidItems } = usePlaidItems();
 
+  const { layout, setLayout, visibleWidgets, isCustomizing, setCustomizing, resetLayout } = useDashboardLayout();
+
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
@@ -206,13 +211,10 @@ export default function Dashboard() {
 
   const FOUNDER_NOTE_KEY = 'forged:founder_note_seen';
 
-  // Phase 3: initialize founder note + onboarding wizard once all data loads.
   useEffect(() => {
     if (isDemo || profileLoading || debtsLoading || goalsLoading || acctLoading || onboardingInitRef.current) return;
     onboardingInitRef.current = true;
     const p = profile as any;
-    // sessionStorage guard: never re-show in the same browser session even if
-    // the React Query cache hasn't propagated the updated founder_note_seen yet.
     const alreadySeenThisSession = sessionStorage.getItem(FOUNDER_NOTE_KEY) === '1';
     if (p?.founder_note_seen === false && !alreadySeenThisSession) {
       setFounderNoteVisible(true);
@@ -290,14 +292,7 @@ export default function Dashboard() {
 
   const accountSummary = useMemo(() => {
     if (!accounts.length) {
-      return {
-        liquidCash: 0,
-        totalAssets: 0,
-        totalLiabilities: 0,
-        netWorth: 0,
-        ccDebt: 0,
-        ccLimit: 0,
-      };
+      return { liquidCash: 0, totalAssets: 0, totalLiabilities: 0, netWorth: 0, ccDebt: 0, ccLimit: 0 };
     }
 
     const active = accounts.filter((a: any) => a.active);
@@ -307,34 +302,13 @@ export default function Dashboard() {
     const liabilityTypes = ['credit_card', 'student_loan', 'auto_loan', 'other_liability'];
     const assetTypes = [...liquidTypes, ...investTypes, ...retireTypes, 'other_asset'];
 
-    const liquidCash = active
-      .filter((a: any) => liquidTypes.includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
+    const liquidCash = active.filter((a: any) => liquidTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
+    const totalAssets = active.filter((a: any) => assetTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
+    const totalLiabilities = active.filter((a: any) => liabilityTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
+    const ccDebt = active.filter((a: any) => a.account_type === 'credit_card').reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
+    const ccLimit = active.filter((a: any) => a.account_type === 'credit_card' && a.credit_limit).reduce((s: number, a: any) => s + Number(a.credit_limit || 0), 0);
 
-    const totalAssets = active
-      .filter((a: any) => assetTypes.includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
-
-    const totalLiabilities = active
-      .filter((a: any) => liabilityTypes.includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
-
-    const ccDebt = active
-      .filter((a: any) => a.account_type === 'credit_card')
-      .reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
-
-    const ccLimit = active
-      .filter((a: any) => a.account_type === 'credit_card' && a.credit_limit)
-      .reduce((s: number, a: any) => s + Number(a.credit_limit || 0), 0);
-
-    return {
-      liquidCash,
-      totalAssets,
-      totalLiabilities,
-      netWorth: totalAssets - totalLiabilities,
-      ccDebt,
-      ccLimit,
-    };
+    return { liquidCash, totalAssets, totalLiabilities, netWorth: totalAssets - totalLiabilities, ccDebt, ccLimit };
   }, [accounts]);
 
   const now = new Date();
@@ -366,7 +340,6 @@ export default function Dashboard() {
       .reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
 
     const expenses = Object.values(expenseBreakdown).reduce((s: number, v: number) => s + v, 0);
-
     const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance || 0), 0);
 
     const totalSaved = goals.reduce((s: number, g: any) => {
@@ -386,11 +359,7 @@ export default function Dashboard() {
 
   const scheduledEvents = useMemo(() => {
     if (!rules.length) return [];
-    try {
-      return generateScheduledEvents(rules, accounts, 1);
-    } catch {
-      return [];
-    }
+    try { return generateScheduledEvents(rules, accounts, 1); } catch { return []; }
   }, [rules, accounts]);
 
   const upcomingWeek = useMemo(() => getUpcomingEvents(scheduledEvents, 7), [scheduledEvents]);
@@ -400,20 +369,9 @@ export default function Dashboard() {
 
   const utilization = accountSummary.ccLimit > 0 ? (accountSummary.ccDebt / accountSummary.ccLimit) * 100 : 0;
 
-  const remainingTxIncome = useMemo(
-    () => getRemainingTransactionIncomeThisMonth(allMonthTransactions),
-    [allMonthTransactions],
-  );
-
-  const remainingTxExpenses = useMemo(
-    () => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true),
-    [allMonthTransactions],
-  );
-
-  const remainingTxDebt = useMemo(
-    () => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions),
-    [allMonthTransactions],
-  );
+  const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
+  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true), [allMonthTransactions]);
+  const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
 
   const cashFloor = Number(profile?.cash_floor) || 1000;
 
@@ -433,18 +391,12 @@ export default function Dashboard() {
     return accountSummary.liquidCash;
   }, [accounts, fundingAccountId, accountSummary]);
 
-  // monthEndCash uses the engine's recommendations (already in remainingTxDebt via transactions)
-  // rather than a custom surplus-allocation formula, so Dashboard and Debt Payoff stay in sync.
   const monthEndCash = useMemo(
     () => fundingBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt,
     [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt],
   );
 
-  useWidgetSync({
-    monthEndCash,
-    netWorth: accountSummary.netWorth,
-    enabled: !isDemo && !essentialLoading,
-  });
+  useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
 
   const categoryData = useMemo(
     () => Object.entries(expenseBreakdown).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value),
@@ -507,36 +459,18 @@ export default function Dashboard() {
   const carGoalData = useMemo(() => {
     if (carFunds && carFunds.length > 0) {
       const c = carFunds[0];
-      return {
-        name: c.vehicle_name,
-        saved: Number(c.current_saved),
-        target: Number(c.down_payment_goal),
-        price: Number(c.target_price),
-        apr: Number(c.expected_apr),
-        term: Number(c.loan_term_months),
-        isCarFund: true,
-      };
+      return { name: c.vehicle_name, saved: Number(c.current_saved), target: Number(c.down_payment_goal), price: Number(c.target_price), apr: Number(c.expected_apr), term: Number(c.loan_term_months), isCarFund: true };
     }
     const carGoal = goals?.find((g: any) => g.goal_type === 'Car Fund');
     if (carGoal) {
-      return {
-        name: (carGoal as any).name,
-        saved: Number((carGoal as any).current_amount),
-        target: Number((carGoal as any).target_amount),
-        price: 0,
-        apr: 0,
-        term: 0,
-        isCarFund: false,
-      };
+      return { name: (carGoal as any).name, saved: Number((carGoal as any).current_amount), target: Number((carGoal as any).target_amount), price: 0, apr: 0, term: 0, isCarFund: false };
     }
     return null;
   }, [carFunds, goals]);
 
-  const openMonthEndCalc = () => {
-    const hasDebt =
-      debts.some((d: any) => Number(d.balance) > 0) ||
-      accounts.some((a: any) => a.account_type === 'credit_card' && a.active && Number(a.balance) > 0);
+  // ─── Calc drawer openers ──────────────────────────────────────────────────
 
+  const openMonthEndCalc = () => {
     const engineMinimums = debtBreakdown.totalMinimumsDue;
     const engineTotal = debtBreakdown.totalRecommended;
     const engineExtra = Math.max(0, engineTotal - engineMinimums);
@@ -562,25 +496,21 @@ export default function Dashboard() {
         value: '',
       },
     ];
-
     setCalcDrawer({ title: 'Projected Month-End Cash', lines });
   };
 
   const openIncomeCalc = () => {
     const incomeItems = currentMonthTransactions.filter((t: any) => t.type === 'income');
-    const paychecksThisMonth = getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth());
-
+    const paycheckCount = getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth());
     const lines: { label: string; value: string; op?: string }[] = [
       { label: `Pay Schedule: ${payConfig.frequency}`, value: `${payConfig.paycheckDay === 5 ? 'Fri' : `Day ${payConfig.paycheckDay}`}` },
       { label: 'Net per paycheck (post-tax)', value: formatCurrency(paycheckNet, false) },
-      { label: 'Paychecks this month', value: String(paychecksThisMonth.length) },
+      { label: 'Paychecks this month', value: String(paycheckCount.length) },
       { label: `${incomeItems.length} income transactions`, value: '' },
     ];
-
-    incomeItems.slice(0, 8).forEach(t => {
+    incomeItems.slice(0, 8).forEach((t: any) => {
       lines.push({ label: `  ${(t as any).note || t.category}`, value: formatCurrency(Number(t.amount), false), op: '+' });
     });
-
     lines.push({ label: 'Total Monthly Income', value: formatCurrency(summary.income, false), op: '=' });
     setCalcDrawer({ title: 'Monthly Income', lines });
   };
@@ -589,13 +519,9 @@ export default function Dashboard() {
     const lines: { label: string; value: string; op?: string }[] = [
       { label: 'All current-month expense transactions (excluding debt):', value: '' },
     ];
-
     Object.entries(expenseBreakdown)
       .sort((a, b) => b[1] - a[1])
-      .forEach(([cat, val]) => {
-        lines.push({ label: `  ${cat}`, value: formatCurrency(val, false), op: '+' });
-      });
-
+      .forEach(([cat, val]) => lines.push({ label: `  ${cat}`, value: formatCurrency(val, false), op: '+' }));
     lines.push({ label: 'Total Monthly Expenses', value: formatCurrency(summary.expenses, false), op: '=' });
     setCalcDrawer({ title: 'Monthly Expenses', lines });
   };
@@ -604,15 +530,12 @@ export default function Dashboard() {
     const lines: { label: string; value: string; op?: string }[] = [
       { label: 'All current-month debt payment transactions:', value: '' },
     ];
-
     debtPaymentBreakdown.forEach(({ cardName, amount }) => {
       lines.push({ label: `  ${cardName}`, value: formatCurrency(amount, false), op: '+' });
     });
-
     if (debtPaymentBreakdown.length === 0) {
       lines.push({ label: '  No debt payments this month', value: '$0' });
     }
-
     lines.push({ label: 'Total Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '=' });
     setCalcDrawer({ title: 'Debt Payments', lines });
   };
@@ -620,33 +543,343 @@ export default function Dashboard() {
   const openNetWorthCalc = () => {
     const active = accounts.filter((a: any) => a.active);
     const lines: { label: string; value: string; op?: string }[] = [];
-
     const assetAccts = active.filter((a: any) => !['credit_card', 'student_loan', 'auto_loan', 'other_liability'].includes(a.account_type));
     const liabAccts = active.filter((a: any) => ['credit_card', 'student_loan', 'auto_loan', 'other_liability'].includes(a.account_type));
-
     lines.push({ label: `Assets (${assetAccts.length} accounts)`, value: '' });
     assetAccts.forEach((a: any) => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '+' }));
-
     lines.push({ label: 'Total Assets', value: formatCurrency(accountSummary.totalAssets, false), op: '=' });
     lines.push({ label: `Liabilities (${liabAccts.length} accounts)`, value: '' });
-
     liabAccts.forEach((a: any) => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '−' }));
-
     lines.push({ label: 'Total Liabilities', value: formatCurrency(accountSummary.totalLiabilities, false), op: '=' });
     lines.push({ label: 'Net Worth', value: formatCurrency(accountSummary.netWorth, false), op: '=' });
-
     setCalcDrawer({ title: 'Net Worth', lines });
   };
 
   const openLiquidCashCalc = () => {
     const active = accounts.filter((a: any) => a.active && ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'].includes(a.account_type));
     const lines: { label: string; value: string; op?: string }[] = [];
-
     active.forEach((a: any) => lines.push({ label: a.name, value: formatCurrency(Number(a.balance), false), op: '+' }));
     lines.push({ label: 'Total Liquid Cash', value: formatCurrency(accountSummary.liquidCash, false), op: '=' });
-
     setCalcDrawer({ title: 'Liquid Cash', lines });
   };
+
+  // ─── Widget renderer ──────────────────────────────────────────────────────
+
+  const renderWidget = (id: WidgetId) => {
+    switch (id) {
+      case 'monthly_snapshot':
+        return (
+          <MonthlyBudgetSnapshot
+            key="monthly_snapshot"
+            fundingBalance={fundingBalance}
+            remainingIncome={remainingTxIncome}
+            spentSoFar={summary.expenses + totalDebtPayments}
+            expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
+            projectedSurplus={monthEndCash}
+            onCalcClick={openMonthEndCalc}
+          />
+        );
+
+      case 'upcoming_week':
+        if (rulesLoading || upcomingBillsWeek.length === 0) return null;
+        return (
+          <div key="upcoming_week" className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Upcoming This Week</h3>
+            <div className="space-y-1">
+              {upcomingBillsWeek.slice(0, 5).map((e, i) => (
+                <div key={i} className="flex items-center justify-between py-1.5 text-xs">
+                  <div>
+                    <span className="font-medium">{e.name}</span>
+                    <span className="text-muted-foreground ml-2">{formatDateShort(e.date)}</span>
+                    {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
+                  </div>
+                  <span className="font-display font-bold text-destructive">{formatCurrency(e.amount, false)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'schedule_cards':
+        return rulesLoading ? (
+          <ScheduleSkeleton key="schedule_cards" />
+        ) : (
+          <div key="schedule_cards" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <ClickableMetric to="/budget" tooltip="Next scheduled paycheck from your pay setup">
+              <MetricCard label="Next Paycheck" value={formatCurrency(paycheckNet, false)} sub={nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} accent="success" icon={CalendarDays} />
+            </ClickableMetric>
+            <ClickableMetric to="/transactions" tooltip="Total bills due in the next 7 days">
+              <MetricCard label="Bills This Week" value={formatCurrency(upcomingBillsWeek.reduce((s, e) => s + e.amount, 0), false)} sub={`${upcomingBillsWeek.length} upcoming`} accent={upcomingBillsWeek.length > 0 ? 'crimson' : 'silver'} icon={AlertTriangle} />
+            </ClickableMetric>
+            <ClickableMetric to="/transactions" tooltip="All bills scheduled this month">
+              <MetricCard label="Bills This Month" value={formatCurrency(upcomingBillsMonth.reduce((s, e) => s + e.amount, 0), false)} sub={`${upcomingBillsMonth.length} scheduled`} accent="silver" icon={Repeat} />
+            </ClickableMetric>
+            <ClickableMetric onClick={openMonthEndCalc} tooltip="Click to see how this is calculated">
+              <MetricCard label="Month-End Cash" value={formatCurrency(monthEndCash, false)} sub="After all scheduled items" accent={monthEndCash >= 0 ? 'success' : 'crimson'} icon={Wallet} />
+            </ClickableMetric>
+          </div>
+        );
+
+      case 'financial_health':
+        return (
+          <div key="financial_health" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <ClickableMetric onClick={openLiquidCashCalc} tooltip="View liquid cash breakdown">
+              <MetricCard label="Liquid Cash" value={formatCurrency(accountSummary.liquidCash, false)} accent="success" icon={DollarSign} />
+            </ClickableMetric>
+            <ClickableMetric onClick={openIncomeCalc} tooltip="How income is calculated">
+              <MetricCard label="Monthly Income" value={summary.income > 0 ? formatCurrency(summary.income, false) : '—'} accent="success" icon={TrendingUp} />
+            </ClickableMetric>
+            <ClickableMetric onClick={openExpenseCalc} tooltip="How expenses are calculated">
+              <MetricCard label="Monthly Expenses" value={summary.expenses > 0 ? formatCurrency(summary.expenses, false) : '—'} accent="crimson" icon={CreditCard} />
+            </ClickableMetric>
+            <ClickableMetric onClick={openDebtPaymentsCalc} tooltip="View debt payment breakdown by card">
+              <MetricCard label="Debt Payments" value={totalDebtPayments > 0 ? formatCurrency(totalDebtPayments, false) : '—'} accent="silver" icon={Landmark} />
+            </ClickableMetric>
+          </div>
+        );
+
+      case 'wealth_overview':
+        return (
+          <div key="wealth_overview" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <ClickableMetric onClick={openNetWorthCalc} tooltip="How net worth is calculated">
+              <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} sub={`${formatCurrency(accountSummary.totalAssets, false)} assets`} />
+            </ClickableMetric>
+            <ClickableMetric to="/budget" tooltip="Savings rate = (income - expenses) / income">
+              <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent={summary.savingsRate >= 0 ? 'gold' : 'crimson'} icon={Percent} sub={summary.income > 0 ? `${formatCurrency(summary.cashFlow, false)} net / mo` : '—'} />
+            </ClickableMetric>
+            <ClickableMetric to="/debt" tooltip="Credit card balances / total limits">
+              <MetricCard label="Credit Utilization" value={`${utilization.toFixed(1)}%`} accent={utilization > 30 ? 'crimson' : 'success'} sub={`${formatCurrency(accountSummary.ccDebt, false)} / ${formatCurrency(accountSummary.ccLimit, false)}`} icon={CreditCard} />
+            </ClickableMetric>
+            {goalsLoading ? (
+              <MetricSkeleton />
+            ) : (
+              <ClickableMetric to="/goals" tooltip="Total saved across all goals">
+                <MetricCard label="Total Saved" value={formatCurrency(summary.totalSaved, false)} accent="success" sub={`${goals.length} goals`} icon={PiggyBank} />
+              </ClickableMetric>
+            )}
+          </div>
+        );
+
+      case 'car_goal':
+        if (!carGoalData) return null;
+        return (
+          <div key="car_goal" className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
+            <div className="flex items-center gap-2 mb-4">
+              <Car size={14} className="text-primary" />
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
+            </div>
+            <div className={`grid gap-4 ${carGoalData.isCarFund ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3'}`}>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase">Saved</p>
+                <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.saved, false)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase">{carGoalData.isCarFund ? 'Down Payment Goal' : 'Target'}</p>
+                <p className="text-lg font-display font-bold text-foreground">{formatCurrency(carGoalData.target, false)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase">Progress</p>
+                <p className="text-lg font-display font-bold text-success">{carGoalData.target > 0 ? `${((carGoalData.saved / carGoalData.target) * 100).toFixed(0)}%` : '0%'}</p>
+              </div>
+              {carGoalData.isCarFund && (
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase">Est. Monthly Pmt</p>
+                  <p className="text-lg font-display font-bold text-destructive">
+                    {formatCurrency(calculateMonthlyPayment(carGoalData.price - carGoalData.target, carGoalData.apr, carGoalData.term), true)}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="mt-3">
+              <ProgressBar value={carGoalData.saved} max={carGoalData.target} color="gold" />
+            </div>
+          </div>
+        );
+
+      case 'cash_flow_chart':
+        return (
+          <div key="cash_flow_chart" className="card-forged p-5">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Cash Flow Overview</h3>
+            {cashFlowData.some(d => d.income > 0 || d.expenses > 0) ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <ComposedChart data={cashFlowData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="income" name="Income" fill="hsl(142, 50%, 40%)" radius={[2, 2, 0, 0]} barSize={20} />
+                  <Bar dataKey="expenses" name="Expenses" fill="hsl(0, 73%, 35%)" radius={[2, 2, 0, 0]} barSize={20} />
+                  <Line dataKey="net" name="Net Cash Flow" stroke="hsl(43, 56%, 52%)" strokeWidth={2} dot={{ r: 4, fill: 'hsl(43, 56%, 52%)' }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-8">No transaction data yet. Add transactions or set up recurring rules in Budget Control.</p>
+            )}
+          </div>
+        );
+
+      case 'transactions_spending':
+        return (
+          <div key="transactions_spending" className="grid lg:grid-cols-2 gap-5">
+            <div className="card-forged p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spending by Category</h3>
+                {categoryData.length > 0 && (
+                  <span className="text-xs font-bold font-display text-foreground">
+                    {formatCurrency(categoryData.reduce((s, c) => s + c.value, 0), false)}
+                  </span>
+                )}
+              </div>
+              {categoryData.length > 0 ? (() => {
+                const total = categoryData.reduce((s, c) => s + c.value, 0);
+                const top = categoryData.slice(0, 8);
+                const rest = categoryData.slice(8);
+                return (
+                  <div className="space-y-3">
+                    {top.map(({ name, value }, i) => {
+                      const pct = total > 0 ? Math.round((value / total) * 100) : 0;
+                      const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
+                      return (
+                        <div key={name}>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                              <CategoryIcon category={name} size={11} className="shrink-0" />
+                              <span className="text-xs font-medium truncate">{name}</span>
+                            </div>
+                            <div className="flex items-center gap-2.5 shrink-0 ml-2">
+                              <span className="text-[10px] text-muted-foreground w-7 text-right">{pct}%</span>
+                              <span className="text-xs font-bold font-display w-16 text-right">{formatCurrency(value, false)}</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {rest.length > 0 && (
+                      <div className="flex items-center justify-between pt-1.5 border-t border-border/40">
+                        <span className="text-[10px] text-muted-foreground">+{rest.length} more</span>
+                        <span className="text-[10px] font-display font-semibold text-muted-foreground">{formatCurrency(rest.reduce((s, c) => s + c.value, 0), false)}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : (
+                <p className="text-xs text-muted-foreground text-center py-8">No expenses recorded yet.</p>
+              )}
+            </div>
+
+            <div className="card-forged p-5">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Transactions</h3>
+                <Link to="/transactions" className="text-xs text-primary hover:underline font-medium">View All</Link>
+              </div>
+              <div className="space-y-1">
+                {recentTxns.map((t: any) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between py-2.5 px-2 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-md flex items-center justify-center ${t.type === 'income' ? 'bg-success/10' : 'bg-muted'}`}>
+                        {t.type === 'income' ? <ArrowUpRight size={14} className="text-success" /> : <CategoryIcon category={t.category} size={14} />}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1">
+                          <p className="text-xs font-medium">{t.note || '—'}</p>
+                          {t.isGenerated && <Repeat size={9} className="text-primary" />}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{t.category}</p>
+                      </div>
+                    </div>
+                    <span className={`text-xs font-bold font-display ${t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
+                      {t.type === 'income' ? '+' : '-'}{formatCurrency(Number(t.amount), false)}
+                    </span>
+                  </div>
+                ))}
+                {recentTxns.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No transactions yet.</p>}
+              </div>
+            </div>
+          </div>
+        );
+
+      case 'goal_progress':
+        return goalsLoading ? (
+          <ChartSkeleton key="goal_progress" height={120} />
+        ) : (
+          <div key="goal_progress" className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
+            <div className="grid md:grid-cols-3 gap-5">
+              {(() => {
+                const retireGoal = goals.find((g: any) => g.goal_type === 'Retirement');
+                const otherGoals = [...goals.filter((g: any) => g.goal_type !== 'Retirement')].sort((a: any, b: any) => {
+                  if (a.goal_type === 'Emergency Fund') return -1;
+                  if (b.goal_type === 'Emergency Fund') return 1;
+                  return 0;
+                });
+                const carEntry = carFunds[0] ? [{ id: 'car-dash', name: carFunds[0].vehicle_name, current_amount: carFunds[0].current_saved, target_amount: carFunds[0].down_payment_goal, isCar: true }] : [];
+                return [
+                  ...(retireGoal ? [retireGoal] : []),
+                  ...otherGoals.slice(0, retireGoal ? 1 : 2),
+                  ...carEntry,
+                ].slice(0, 3);
+              })().map((g: any) => {
+                const pct = Number(g.target_amount) > 0 ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) : 0;
+                return (
+                  <div key={g.id} className="space-y-3 p-4 bg-muted/30 border border-border" style={{ borderRadius: 'var(--radius)' }}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold flex items-center gap-1.5">
+                        {g.isCar && <Car size={11} className="text-primary" />}
+                        {g.name}
+                      </span>
+                      <span className="text-xs font-bold text-primary">{pct}%</span>
+                    </div>
+                    <ProgressBar value={Number(g.current_amount)} max={Number(g.target_amount)} thick showLabel />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{formatCurrency(Number(g.current_amount), false)}</span>
+                      <span>{formatCurrency(Number(g.target_amount), false)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              {goals.length === 0 && !carFunds[0] && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No savings goals yet.</p>}
+            </div>
+          </div>
+        );
+
+      case 'advanced_analytics':
+        return (
+          <PremiumGate
+            key="advanced_analytics"
+            isPremium={isPremium || isDemo}
+            title="Advanced Analytics"
+            features={[
+              'Emergency runway — months your liquid cash covers at current burn rate',
+              'Projected annual savings based on your live cash flow',
+              'Average monthly spend trend from the last 5 months',
+            ]}
+          >
+            <div className="card-forged p-5">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Advanced Analytics</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <MetricCard label="Debt-to-Income" value={dti !== null ? `${dti.toFixed(1)}%` : '—'} sub={dti === null ? 'no debt data' : dti < 28 ? 'healthy' : dti < 43 ? 'caution' : 'high risk'} accent={dti === null ? 'silver' : dti < 28 ? 'success' : dti < 43 ? 'gold' : 'crimson'} icon={Percent} />
+                <MetricCard label="Annual Savings" value={formatCurrency(summary.cashFlow * 12, false)} sub="projected" accent={summary.cashFlow >= 0 ? 'success' : 'crimson'} icon={TrendingUp} />
+                <MetricCard label="Emergency Runway" value={emergencyRunwayMonths !== null ? `${emergencyRunwayMonths.toFixed(1)} mo` : '—'} sub="above floor / monthly burn" accent={emergencyRunwayMonths === null ? 'silver' : emergencyRunwayMonths >= 3 ? 'success' : emergencyRunwayMonths >= 1 ? 'gold' : 'crimson'} icon={Shield} />
+                <MetricCard label="Avg Monthly Spend" value={avgMonthlySpend > 0 ? formatCurrency(avgMonthlySpend, false) : '—'} sub="5-month avg" accent="silver" icon={Wallet} />
+              </div>
+            </div>
+          </PremiumGate>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // ─── Loading state ────────────────────────────────────────────────────────
 
   if (essentialLoading) {
     return (
@@ -667,19 +900,12 @@ export default function Dashboard() {
     );
   }
 
+  // ─── Render ───────────────────────────────────────────────────────────────
+
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
-      {/* Phase 3A: Founder's note — first login only */}
-      {founderNoteVisible && (
-        <FounderNoteModal onDismiss={handleFounderNoteDismiss} />
-      )}
-      {/* Phase 3B/C: Onboarding wizard — new users with no data */}
-      {wizardVisible && (
-        <OnboardingWizard
-          onComplete={() => setWizardVisible(false)}
-          onDismiss={() => setWizardVisible(false)}
-        />
-      )}
+      {founderNoteVisible && <FounderNoteModal onDismiss={handleFounderNoteDismiss} />}
+      {wizardVisible && <OnboardingWizard onComplete={() => setWizardVisible(false)} onDismiss={() => setWizardVisible(false)} />}
       {!isDemo && <AppTour variant="new-user" />}
       <AccountUpdateReminder />
       {!isDemo && <SubscriptionExpiryBanner />}
@@ -696,42 +922,26 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Link
-              to="/settings#security"
-              className="flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-600 transition-colors btn-press"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
+            <Link to="/settings#security" className="flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-600 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
               <Shield size={10} /> Secure my account
             </Link>
-            <button
-              onClick={() => setShowSecurityBanner(false)}
-              className="text-muted-foreground hover:text-foreground transition-colors p-1"
-            >
+            <button onClick={() => setShowSecurityBanner(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
               <X size={13} />
             </button>
           </div>
         </div>
       )}
 
-      {/* Phase 3D: Onboarding checklist — shown until all 4 items complete */}
       {!isDemo && !(profile as any)?.onboarding_completed && !profileLoading && (
-        <OnboardingChecklist
-          profile={profile}
-          accounts={accounts}
-          debts={debts}
-          goals={goals}
-          plaidItems={plaidItems}
-        />
+        <OnboardingChecklist profile={profile} accounts={accounts} debts={debts} goals={goals} plaidItems={plaidItems} />
       )}
 
-      {/* Updated mobile-friendly header */}
+      {/* Header */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">
-                Command Center
-              </h1>
+              <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Command Center</h1>
               <InstructionsModal
                 pageTitle="Dashboard Guide"
                 sections={[
@@ -739,6 +949,7 @@ export default function Dashboard() {
                   { title: 'KPI Cards', body: 'Click any metric card to see exactly how it is calculated, including which accounts and transactions are included.' },
                   { title: 'Projected Month-End Cash', body: 'Shows your expected cash position at month end: current liquid cash + remaining paychecks − remaining expenses − debt payments. Must stay above your cash floor.' },
                   { title: 'Cash Flow Chart', body: 'Displays the last 6 months of income vs expenses with net cash flow trend line.' },
+                  { title: 'Customize Dashboard', body: 'Click the Customize button to show/hide widgets and drag them into the order that works best for you. Layout is saved to your account.' },
                   { title: 'How edits affect this page', body: 'Changes to Accounts, Budget Control rules, or Debt Payoff recommendations instantly update all dashboard metrics.' },
                 ]}
               />
@@ -749,6 +960,14 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setCustomizing(true)}
+              className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-2 text-xs font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <LayoutDashboard size={13} /> Customize
+            </button>
+
             {(isPremium || isDemo) && (
               <button
                 onClick={async () =>
@@ -813,356 +1032,32 @@ export default function Dashboard() {
           </div>
           <div className="mt-4 flex items-center justify-between">
             <p className="text-xs text-muted-foreground">All data is fictional and resets when you close the tab.</p>
-            <Link to="/auth" className="text-xs font-semibold text-primary hover:underline">
-              Set up your own profile →
-            </Link>
+            <Link to="/auth" className="text-xs font-semibold text-primary hover:underline">Set up your own profile →</Link>
           </div>
         </div>
       )}
 
-      <MonthlyBudgetSnapshot
-        fundingBalance={fundingBalance}
-        remainingIncome={remainingTxIncome}
-        spentSoFar={summary.expenses + totalDebtPayments}
-        expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
-        projectedSurplus={monthEndCash}
-        onCalcClick={openMonthEndCalc}
-      />
+      {/* Dynamic widget stack */}
+      {visibleWidgets.map(id => renderWidget(id))}
 
-      {!rulesLoading && upcomingBillsWeek.length > 0 && (
-        <div className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Upcoming This Week</h3>
-          <div className="space-y-1">
-            {upcomingBillsWeek.slice(0, 5).map((e, i) => (
-              <div key={i} className="flex items-center justify-between py-1.5 text-xs">
-                <div>
-                  <span className="font-medium">{e.name}</span>
-                  <span className="text-muted-foreground ml-2">{formatDateShort(e.date)}</span>
-                  {e.source && <span className="text-muted-foreground ml-2">· {e.source}</span>}
-                </div>
-                <span className="font-display font-bold text-destructive">{formatCurrency(e.amount, false)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Customizer panel */}
+      {isCustomizing && (
+        <DashboardCustomizer
+          layout={layout}
+          onLayoutChange={setLayout}
+          onClose={() => setCustomizing(false)}
+          onReset={resetLayout}
+        />
       )}
-
-      {rulesLoading ? (
-        <ScheduleSkeleton />
-      ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <ClickableMetric to="/budget" tooltip="Next scheduled paycheck from your pay setup">
-            <MetricCard
-              label="Next Paycheck"
-              value={formatCurrency(paycheckNet, false)}
-              sub={nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-              accent="success"
-              icon={CalendarDays}
-            />
-          </ClickableMetric>
-          <ClickableMetric to="/transactions" tooltip="Total bills due in the next 7 days">
-            <MetricCard
-              label="Bills This Week"
-              value={formatCurrency(upcomingBillsWeek.reduce((s, e) => s + e.amount, 0), false)}
-              sub={`${upcomingBillsWeek.length} upcoming`}
-              accent={upcomingBillsWeek.length > 0 ? 'crimson' : 'silver'}
-              icon={AlertTriangle}
-            />
-          </ClickableMetric>
-          <ClickableMetric to="/transactions" tooltip="All bills scheduled this month">
-            <MetricCard
-              label="Bills This Month"
-              value={formatCurrency(upcomingBillsMonth.reduce((s, e) => s + e.amount, 0), false)}
-              sub={`${upcomingBillsMonth.length} scheduled`}
-              accent="silver"
-              icon={Repeat}
-            />
-          </ClickableMetric>
-          <ClickableMetric onClick={openMonthEndCalc} tooltip="Click to see how this is calculated">
-            <MetricCard
-              label="Month-End Cash"
-              value={formatCurrency(monthEndCash, false)}
-              sub="After all scheduled items"
-              accent={monthEndCash >= 0 ? 'success' : 'crimson'}
-              icon={Wallet}
-            />
-          </ClickableMetric>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <ClickableMetric onClick={openLiquidCashCalc} tooltip="View liquid cash breakdown">
-          <MetricCard label="Liquid Cash" value={formatCurrency(accountSummary.liquidCash, false)} accent="success" icon={DollarSign} />
-        </ClickableMetric>
-        <ClickableMetric onClick={openIncomeCalc} tooltip="How income is calculated">
-          <MetricCard label="Monthly Income" value={summary.income > 0 ? formatCurrency(summary.income, false) : '—'} accent="success" icon={TrendingUp} />
-        </ClickableMetric>
-        <ClickableMetric onClick={openExpenseCalc} tooltip="How expenses are calculated">
-          <MetricCard label="Monthly Expenses" value={summary.expenses > 0 ? formatCurrency(summary.expenses, false) : '—'} accent="crimson" icon={CreditCard} />
-        </ClickableMetric>
-        <ClickableMetric onClick={openDebtPaymentsCalc} tooltip="View debt payment breakdown by card">
-          <MetricCard label="Debt Payments" value={totalDebtPayments > 0 ? formatCurrency(totalDebtPayments, false) : '—'} accent="silver" icon={Landmark} />
-        </ClickableMetric>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <ClickableMetric onClick={openNetWorthCalc} tooltip="How net worth is calculated">
-          <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} sub={`${formatCurrency(accountSummary.totalAssets, false)} assets`} />
-        </ClickableMetric>
-        <ClickableMetric to="/budget" tooltip="Savings rate = (income - expenses) / income">
-          <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent={summary.savingsRate >= 0 ? 'gold' : 'crimson'} icon={Percent} sub={summary.income > 0 ? `${formatCurrency(summary.cashFlow, false)} net / mo` : '—'} />
-        </ClickableMetric>
-        <ClickableMetric to="/debt" tooltip="Credit card balances / total limits">
-          <MetricCard
-            label="Credit Utilization"
-            value={`${utilization.toFixed(1)}%`}
-            accent={utilization > 30 ? 'crimson' : 'success'}
-            sub={`${formatCurrency(accountSummary.ccDebt, false)} / ${formatCurrency(accountSummary.ccLimit, false)}`}
-            icon={CreditCard}
-          />
-        </ClickableMetric>
-        {goalsLoading ? (
-          <MetricSkeleton />
-        ) : (
-          <ClickableMetric to="/goals" tooltip="Total saved across all goals">
-            <MetricCard label="Total Saved" value={formatCurrency(summary.totalSaved, false)} accent="success" sub={`${goals.length} goals`} icon={PiggyBank} />
-          </ClickableMetric>
-        )}
-      </div>
-
-      {carGoalData && (
-        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
-          <div className="flex items-center gap-2 mb-4">
-            <Car size={14} className="text-primary" />
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
-          </div>
-          <div className={`grid gap-4 ${carGoalData.isCarFund ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-3'}`}>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase">Saved</p>
-              <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.saved, false)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase">{carGoalData.isCarFund ? 'Down Payment Goal' : 'Target'}</p>
-              <p className="text-lg font-display font-bold text-foreground">{formatCurrency(carGoalData.target, false)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground uppercase">Progress</p>
-              <p className="text-lg font-display font-bold text-success">{carGoalData.target > 0 ? `${((carGoalData.saved / carGoalData.target) * 100).toFixed(0)}%` : '0%'}</p>
-            </div>
-            {carGoalData.isCarFund && (
-              <div>
-                <p className="text-xs text-muted-foreground uppercase">Est. Monthly Pmt</p>
-                <p className="text-lg font-display font-bold text-destructive">
-                  {formatCurrency(calculateMonthlyPayment(carGoalData.price - carGoalData.target, carGoalData.apr, carGoalData.term), true)}
-                </p>
-              </div>
-            )}
-          </div>
-          <div className="mt-3">
-            <ProgressBar value={carGoalData.saved} max={carGoalData.target} color="gold" />
-          </div>
-        </div>
-      )}
-
-      <div className="card-forged p-5">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Cash Flow Overview</h3>
-        {cashFlowData.some(d => d.income > 0 || d.expenses > 0) ? (
-          <ResponsiveContainer width="100%" height={260}>
-            <ComposedChart data={cashFlowData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
-              <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="income" name="Income" fill="hsl(142, 50%, 40%)" radius={[2, 2, 0, 0]} barSize={20} />
-              <Bar dataKey="expenses" name="Expenses" fill="hsl(0, 73%, 35%)" radius={[2, 2, 0, 0]} barSize={20} />
-              <Line dataKey="net" name="Net Cash Flow" stroke="hsl(43, 56%, 52%)" strokeWidth={2} dot={{ r: 4, fill: 'hsl(43, 56%, 52%)' }} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        ) : (
-          <p className="text-xs text-muted-foreground text-center py-8">No transaction data yet. Add transactions or set up recurring rules in Budget Control.</p>
-        )}
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-5">
-        <div className="card-forged p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Spending by Category</h3>
-            {categoryData.length > 0 && (
-              <span className="text-xs font-bold font-display text-foreground">
-                {formatCurrency(categoryData.reduce((s, c) => s + c.value, 0), false)}
-              </span>
-            )}
-          </div>
-          {categoryData.length > 0 ? (() => {
-            const total = categoryData.reduce((s, c) => s + c.value, 0);
-            const top = categoryData.slice(0, 8);
-            const rest = categoryData.slice(8);
-            return (
-              <div className="space-y-3">
-                {top.map(({ name, value }, i) => {
-                  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-                  const color = CATEGORY_COLORS[i % CATEGORY_COLORS.length];
-                  return (
-                    <div key={name}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                          <CategoryIcon category={name} size={11} className="shrink-0" />
-                          <span className="text-xs font-medium truncate">{name}</span>
-                        </div>
-                        <div className="flex items-center gap-2.5 shrink-0 ml-2">
-                          <span className="text-[10px] text-muted-foreground w-7 text-right">{pct}%</span>
-                          <span className="text-xs font-bold font-display w-16 text-right">{formatCurrency(value, false)}</span>
-                        </div>
-                      </div>
-                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-                      </div>
-                    </div>
-                  );
-                })}
-                {rest.length > 0 && (
-                  <div className="flex items-center justify-between pt-1.5 border-t border-border/40">
-                    <span className="text-[10px] text-muted-foreground">+{rest.length} more</span>
-                    <span className="text-[10px] font-display font-semibold text-muted-foreground">{formatCurrency(rest.reduce((s, c) => s + c.value, 0), false)}</span>
-                  </div>
-                )}
-              </div>
-            );
-          })() : (
-            <p className="text-xs text-muted-foreground text-center py-8">No expenses recorded yet.</p>
-          )}
-        </div>
-
-        <div className="card-forged p-5">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recent Transactions</h3>
-            <Link to="/transactions" className="text-xs text-primary hover:underline font-medium">View All</Link>
-          </div>
-          <div className="space-y-1">
-            {recentTxns.map((t: any) => (
-              <div
-                key={t.id}
-                className="flex items-center justify-between py-2.5 px-2 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-md flex items-center justify-center ${t.type === 'income' ? 'bg-success/10' : 'bg-muted'}`}>
-                    {t.type === 'income' ? <ArrowUpRight size={14} className="text-success" /> : <CategoryIcon category={t.category} size={14} />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <p className="text-xs font-medium">{t.note || '—'}</p>
-                      {t.isGenerated && <Repeat size={9} className="text-primary" />}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{t.category}</p>
-                  </div>
-                </div>
-                <span className={`text-xs font-bold font-display ${t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
-                  {t.type === 'income' ? '+' : '-'}{formatCurrency(Number(t.amount), false)}
-                </span>
-              </div>
-            ))}
-            {recentTxns.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No transactions yet.</p>}
-          </div>
-        </div>
-      </div>
-
-      {goalsLoading ? (
-        <ChartSkeleton height={120} />
-      ) : (
-        <div className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
-          <div className="grid md:grid-cols-3 gap-5">
-            {(() => {
-              const retireGoal = goals.find((g: any) => g.goal_type === 'Retirement');
-              const otherGoals = [...goals.filter((g: any) => g.goal_type !== 'Retirement')].sort((a: any, b: any) => {
-                if (a.goal_type === 'Emergency Fund') return -1;
-                if (b.goal_type === 'Emergency Fund') return 1;
-                return 0;
-              });
-              const carEntry = carFunds[0] ? [{ id: 'car-dash', name: carFunds[0].vehicle_name, current_amount: carFunds[0].current_saved, target_amount: carFunds[0].down_payment_goal, isCar: true }] : [];
-              return [
-                ...(retireGoal ? [retireGoal] : []),
-                ...otherGoals.slice(0, retireGoal ? 1 : 2),
-                ...carEntry,
-              ].slice(0, 3);
-            })().map((g: any) => {
-              const pct = Number(g.target_amount) > 0 ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) : 0;
-              return (
-                <div key={g.id} className="space-y-3 p-4 bg-muted/30 border border-border" style={{ borderRadius: 'var(--radius)' }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold flex items-center gap-1.5">
-                      {g.isCar && <Car size={11} className="text-primary" />}
-                      {g.name}
-                    </span>
-                    <span className="text-xs font-bold text-primary">{pct}%</span>
-                  </div>
-                  <ProgressBar value={Number(g.current_amount)} max={Number(g.target_amount)} thick showLabel />
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{formatCurrency(Number(g.current_amount), false)}</span>
-                    <span>{formatCurrency(Number(g.target_amount), false)}</span>
-                  </div>
-                </div>
-              );
-            })}
-            {goals.length === 0 && !carFunds[0] && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No savings goals yet.</p>}
-          </div>
-        </div>
-      )}
-
-      <PremiumGate
-        isPremium={isPremium || isDemo}
-        title="Advanced Analytics"
-        features={[
-          'Emergency runway — months your liquid cash covers at current burn rate',
-          'Projected annual savings based on your live cash flow',
-          'Average monthly spend trend from the last 5 months',
-        ]}
-      >
-        <div className="card-forged p-5">
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Advanced Analytics</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <MetricCard
-              label="Debt-to-Income"
-              value={dti !== null ? `${dti.toFixed(1)}%` : '—'}
-              sub={dti === null ? 'no debt data' : dti < 28 ? 'healthy' : dti < 43 ? 'caution' : 'high risk'}
-              accent={dti === null ? 'silver' : dti < 28 ? 'success' : dti < 43 ? 'gold' : 'crimson'}
-              icon={Percent}
-            />
-            <MetricCard
-              label="Annual Savings"
-              value={formatCurrency(summary.cashFlow * 12, false)}
-              sub="projected"
-              accent={summary.cashFlow >= 0 ? 'success' : 'crimson'}
-              icon={TrendingUp}
-            />
-            <MetricCard
-              label="Emergency Runway"
-              value={emergencyRunwayMonths !== null ? `${emergencyRunwayMonths.toFixed(1)} mo` : '—'}
-              sub="above floor / monthly burn"
-              accent={emergencyRunwayMonths === null ? 'silver' : emergencyRunwayMonths >= 3 ? 'success' : emergencyRunwayMonths >= 1 ? 'gold' : 'crimson'}
-              icon={Shield}
-            />
-            <MetricCard
-              label="Avg Monthly Spend"
-              value={avgMonthlySpend > 0 ? formatCurrency(avgMonthlySpend, false) : '—'}
-              sub="5-month avg"
-              accent="silver"
-              icon={Wallet}
-            />
-          </div>
-        </div>
-      </PremiumGate>
 
       {calcDrawer && (
-  <CalcDrawer
-    open={true}
-    onClose={() => setCalcDrawer(null)}
-    title={calcDrawer.title}
-    lines={calcDrawer.lines}
-  />
-)}
+        <CalcDrawer
+          open={true}
+          onClose={() => setCalcDrawer(null)}
+          title={calcDrawer.title}
+          lines={calcDrawer.lines}
+        />
+      )}
     </div>
   );
 }
