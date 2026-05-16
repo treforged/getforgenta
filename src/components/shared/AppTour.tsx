@@ -161,7 +161,7 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
               {variant === 'premium' ? 'Premium Tour' : 'Getting Started'} · {step + 1}/{steps.length}
             </span>
           </div>
-          <button onClick={dismiss} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={dismiss} className="text-muted-foreground hover:text-foreground transition-colors p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X size={14} />
           </button>
         </div>
