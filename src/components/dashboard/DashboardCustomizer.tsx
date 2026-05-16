@@ -59,13 +59,21 @@ export default function DashboardCustomizer({ layout, onLayoutChange, onClose, o
         onClick={onClose}
       />
 
-      {/* Panel */}
+      {/* Panel — bottom sheet on mobile, right slide-out on sm+ */}
       <div
-        className="fixed top-0 right-0 bottom-0 z-50 w-full max-w-xs sm:max-w-sm bg-card border-l border-border flex flex-col shadow-2xl"
-        style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="fixed inset-x-0 bottom-0 z-50 flex flex-col bg-card border-t border-border shadow-2xl rounded-t-2xl sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-0 sm:w-80 sm:border-t-0 sm:border-l sm:rounded-none"
+        style={{
+          maxHeight: 'calc(85dvh)',
+          paddingBottom: 'max(env(safe-area-inset-bottom), 0.5rem)',
+        }}
       >
+        {/* Mobile drag handle */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
           <div>
             <h2 className="font-display font-semibold text-sm">Customize Dashboard</h2>
             <p className="text-xs text-muted-foreground mt-0.5">{visibleCount} of {layout.length} widgets shown</p>
