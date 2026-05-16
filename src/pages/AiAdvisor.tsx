@@ -508,7 +508,7 @@ function HistoryDrawer({
           </div>
           <button
             onClick={onClose}
-            className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-secondary transition-colors"
+            className="flex items-center justify-center min-w-[44px] min-h-[44px] rounded-md hover:bg-secondary transition-colors"
           >
             <X size={14} />
           </button>

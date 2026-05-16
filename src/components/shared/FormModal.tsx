@@ -48,7 +48,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
         {/* Sticky header */}
         <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0">
           <h2 className="font-display font-semibold text-sm">{title}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1"><X size={16} /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
         </div>
 
         {/* Scrollable fields */}

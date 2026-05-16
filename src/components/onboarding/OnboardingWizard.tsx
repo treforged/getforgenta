@@ -73,7 +73,7 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
         </div>
         <button
           onClick={dismiss}
-          className="text-muted-foreground hover:text-foreground transition-colors p-1"
+          className="text-muted-foreground hover:text-foreground transition-colors p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Dismiss"
         >
           <X size={16} />

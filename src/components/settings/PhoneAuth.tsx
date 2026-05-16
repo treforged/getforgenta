@@ -120,9 +120,9 @@ export function PhoneAuth() {
             </button>
             <button
               onClick={() => { setStep('idle'); setOtp(''); }}
-              className="px-2 py-2 text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground p-3 min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
-              <X size={13} />
+              <X size={14} />
             </button>
           </div>
           <button

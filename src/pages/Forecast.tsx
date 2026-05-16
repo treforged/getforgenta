@@ -1078,7 +1078,7 @@ export default function Forecast() {
           <div className="card-forged p-5 sm:p-6 w-full max-w-md space-y-4 overflow-y-auto popup-scroll" style={{ maxHeight: '100%' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Settings2 size={14} className="text-primary shrink-0" /> Forecast Assumptions</h2>
-              <button onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-1"><X size={16} /></button>
+              <button onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               These six inputs directly drive every number in the 36-month projection. Changing them instantly re-runs the full forecast.
@@ -1233,7 +1233,7 @@ export default function Forecast() {
         <div className="card-forged p-3 sm:p-5 space-y-5">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Forecast Assumptions</h3>
-            <button onClick={() => setShowAssumptions(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1"><X size={14} /></button>
+            <button onClick={() => setShowAssumptions(false)} className="text-muted-foreground hover:text-foreground transition-colors p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={14} /></button>
           </div>
 
           {/* Growth & Returns */}

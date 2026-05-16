@@ -1058,7 +1058,7 @@ export default function SettingsPage() {
                 <div className="border border-border rounded-lg overflow-hidden p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium">Update payment method</span>
-                    <button onClick={() => setSetupClientSecret(null)} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={() => setSetupClientSecret(null)} className="text-muted-foreground hover:text-foreground p-2 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center">
                       <X size={14} />
                     </button>
                   </div>
