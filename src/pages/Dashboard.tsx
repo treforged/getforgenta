@@ -501,6 +501,11 @@ export default function Dashboard() {
     return accountSummary.liquidCash / burn;
   }, [accountSummary.liquidCash, summary.expenses, totalDebtPayments]);
 
+  const dti = useMemo(() => {
+    if (summary.income <= 0) return null;
+    return (totalDebtPayments / summary.income) * 100;
+  }, [totalDebtPayments, summary.income]);
+
   const recentTxns = useMemo(() => {
     const todayDate = new Date();
     const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
@@ -546,27 +551,23 @@ export default function Dashboard() {
       debts.some((d: any) => Number(d.balance) > 0) ||
       accounts.some((a: any) => a.account_type === 'credit_card' && a.active && Number(a.balance) > 0);
 
+    const surplusAllocation = Math.max(0, adjustedDebtPayments - remainingTxDebt);
     const lines: { label: string; value: string; op?: string }[] = [
       { label: 'Funding Account Balance', value: formatCurrency(fundingBalance, false) },
-      { label: 'Remaining Income (from Transactions)', value: formatCurrency(remainingTxIncome, false), op: '+' },
-      { label: 'Remaining Expenses (from Transactions)', value: formatCurrency(remainingTxExpenses, false), op: '−' },
-      { label: 'Remaining Debt Payments (adjusted)', value: formatCurrency(adjustedDebtPayments, false), op: '−' },
+      { label: 'Remaining Income', value: formatCurrency(remainingTxIncome, false), op: '+' },
+      { label: 'Remaining Expenses', value: formatCurrency(remainingTxExpenses, false), op: '−' },
+      { label: 'Scheduled Debt Payments', value: formatCurrency(remainingTxDebt, false), op: '−' },
+      ...(surplusAllocation > 0 ? [{ label: 'Extra Debt Payoff (surplus directed to debt)', value: formatCurrency(surplusAllocation, false), op: '−' }] : []),
       { label: 'Projected Month-End Cash', value: formatCurrency(monthEndCash, false), op: '=' },
       { label: '', value: '' },
-      { label: 'Cash Floor', value: formatCurrency(cashFloor, false) },
-      { label: `Pre-paycheck next-month bills (${prePaycheckBills.items.length} items)`, value: formatCurrency(prePaycheckBills.total, false) },
-      { label: 'Min Safe Cash Reserve', value: formatCurrency(minSafeCash, false), op: '≥' },
+      { label: 'Your Cash Floor Setting', value: formatCurrency(cashFloor, false) },
+      { label: `Pre-paycheck bills (${prePaycheckBills.items.length} items)`, value: formatCurrency(prePaycheckBills.total, false) },
+      { label: 'Effective Cash Floor (used in debt payoff)', value: formatCurrency(minSafeCash, false), op: '≥' },
       { label: '', value: '' },
       {
         label: monthEndCash >= minSafeCash
           ? '✅ Cash is above safety threshold'
           : '⚠️ Cash is below safety threshold — debt payments may need adjustment',
-        value: '',
-      },
-      {
-        label: hasDebt
-          ? 'While debt exists, month-end cash targets ~$100 above the safe minimum. Extra cash is directed to debt payoff.'
-          : 'Uses Transactions as single source of truth. Same formula as Budget Control Remaining Cash On Hand.',
         value: '',
       },
     ];
@@ -932,7 +933,7 @@ export default function Dashboard() {
         {goalsLoading ? (
           <MetricSkeleton />
         ) : (
-          <ClickableMetric to="/savings" tooltip="Total saved across all goals">
+          <ClickableMetric to="/goals" tooltip="Total saved across all goals">
             <MetricCard label="Total Saved" value={formatCurrency(summary.totalSaved, false)} accent="success" sub={`${goals.length} goals`} icon={PiggyBank} />
           </ClickableMetric>
         )}
@@ -1132,11 +1133,11 @@ export default function Dashboard() {
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">Advanced Analytics</h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <MetricCard
-              label="Per Paycheck"
-              value={formatCurrency(paycheckNet, false)}
-              sub="take-home"
-              accent="gold"
-              icon={DollarSign}
+              label="Debt-to-Income"
+              value={dti !== null ? `${dti.toFixed(1)}%` : '—'}
+              sub={dti === null ? 'no debt data' : dti < 28 ? 'healthy' : dti < 43 ? 'caution' : 'high risk'}
+              accent={dti === null ? 'silver' : dti < 28 ? 'success' : dti < 43 ? 'gold' : 'crimson'}
+              icon={Percent}
             />
             <MetricCard
               label="Annual Savings"
