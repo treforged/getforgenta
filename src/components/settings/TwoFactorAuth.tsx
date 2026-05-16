@@ -188,7 +188,7 @@ export function TwoFactorAuth() {
         <div className="space-y-3 border border-border p-4" style={{ borderRadius: 'var(--radius)' }}>
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium">Scan with your authenticator app</p>
-            <button onClick={cancelEnroll} className="text-muted-foreground hover:text-foreground"><X size={13} /></button>
+            <button onClick={cancelEnroll} className="text-muted-foreground hover:text-foreground p-2 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={14} /></button>
           </div>
           {totpQr && <img src={totpQr} alt="TOTP QR Code" className="w-40 h-40 mx-auto bg-white p-2" style={{ borderRadius: 'var(--radius)' }} />}
           <div className="bg-secondary/60 border border-border px-3 py-2" style={{ borderRadius: 'var(--radius)' }}>
@@ -210,7 +210,7 @@ export function TwoFactorAuth() {
         <div className="space-y-3 border border-border p-4" style={{ borderRadius: 'var(--radius)' }}>
           <div className="flex items-center justify-between">
             <p className="text-xs font-medium">Enter the 6-digit code from your app</p>
-            <button onClick={cancelEnroll} className="text-muted-foreground hover:text-foreground"><X size={13} /></button>
+            <button onClick={cancelEnroll} className="text-muted-foreground hover:text-foreground p-2 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={14} /></button>
           </div>
           <input
             type="text"

@@ -109,7 +109,7 @@ function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: (
       <div className="card-forged p-6 w-full max-w-md space-y-3 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Info size={14} className="text-primary" /> {title}</h2>
-          <button onClick={onClose} className="icon-btn text-muted-foreground hover:text-foreground"><X size={16} /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
         </div>
         <div className="space-y-2 pt-2">
           {lines.map((l, i) => (
