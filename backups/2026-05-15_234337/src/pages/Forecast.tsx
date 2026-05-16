@@ -30,7 +30,7 @@ function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: (
   >
         <div className="flex items-center justify-between gap-2">
           <h2 className="font-display font-semibold text-sm flex items-center gap-2 min-w-0"><Info size={14} className="text-primary shrink-0" /> <span className="truncate">{title}</span></h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0 p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0 p-1"><X size={16} /></button>
         </div>
         <div className="space-y-2 pt-2">
           {lines.map((l, i) => (
@@ -587,7 +587,6 @@ export default function Forecast() {
       monthLabel: string; monthKey: string; netIncome: number; baseExpenses: number;
       rawDebtPayment: number; monthTransfers: number; monthBrokerageContrib: number; monthRetireContrib: number; oneTimeNet: number;
       ccDebtBalance: number; otherDebtBalance: number; monthMinSafe: number; monthlySavingsContrib: number;
-      paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
     }[] = [];
     let incomeMultiplier = 1;
     let expenseMultiplier = 1;
@@ -635,23 +634,15 @@ export default function Forecast() {
         d.getMonth() + 1 === assumptions.bonusMonth &&
         (assumptions.bonusRecurring ? true : i === nextBonusMonthIndex);
 
-      const isRaiseMonth = assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && i > 0 && d.getMonth() + 1 === assumptions.raiseMonth;
-      const bonusIncome = isBonusMonth ? grossBonusAmt : 0;
-      let paycheckIncome: number;
-      let otherIncome: number;
       let netIncome: number;
       if (i === 0 && scheduledIncome > 0) {
-        paycheckIncome = Math.min(scheduledIncome, fallbackTakeHome);
-        otherIncome = Math.max(0, scheduledIncome - fallbackTakeHome);
-        netIncome = scheduledIncome + bonusIncome;
+        netIncome = scheduledIncome + (isBonusMonth ? grossBonusAmt : 0);
       } else {
-        paycheckIncome = fallbackTakeHome;
-        otherIncome = Math.max(0, (forecastMonthEvents[i]?.income ?? 0) - fallbackTakeHome);
-        netIncome = fallbackTakeHome + otherIncome + bonusIncome;
+        const otherIncome = Math.max(0, (forecastMonthEvents[i]?.income ?? 0) - fallbackTakeHome);
+        netIncome = fallbackTakeHome + otherIncome + (isBonusMonth ? grossBonusAmt : 0);
       }
 
       // Tax return injection — estimate or override, applied annually in the configured month
-      let taxReturnIncome = 0;
       if (assumptions.taxReturnEnabled && d.getMonth() + 1 === assumptions.taxReturnMonth) {
         try {
           const refundAmt = assumptions.taxReturnAmountOverride > 0
@@ -671,7 +662,6 @@ export default function Forecast() {
                 }).totalRefund);
               })();
           netIncome += refundAmt;
-          taxReturnIncome = refundAmt;
         } catch { /* skip refund if estimator throws */ }
       }
 
@@ -764,7 +754,6 @@ export default function Forecast() {
       baseData.push({
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
         monthTransfers, monthBrokerageContrib, monthRetireContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
-        paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
       });
 
       expenseMultiplier *= (1 + monthlyExpenseGrowth);
@@ -947,12 +936,6 @@ export default function Forecast() {
         carContrib: Math.round(monthlyCarContrib),
         transfersTotal: Math.round(b.monthTransfers),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
-        paycheckIncome: Math.round(b.paycheckIncome),
-        otherIncome: Math.round(b.otherIncome),
-        bonusIncome: Math.round(b.bonusIncome),
-        taxReturnIncome: Math.round(b.taxReturnIncome),
-        isRaiseMonth: b.isRaiseMonth,
-        recommendedDebtPayment: Math.round(b.rawDebtPayment),
       });
     }
 
@@ -981,61 +964,6 @@ export default function Forecast() {
       });
     } catch { return null; }
   }, [assumptions, payConfig, profile]);
-
-  const yearlyProjections = useMemo(() => {
-    if (!payConfig) return [];
-    const nowDate = new Date();
-    let multiplier = 1;
-    const txRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
-    const results: { year: number; monthlyTakeHome: number; bonus: number; taxReturn: number; raiseApplied: boolean }[] = [];
-
-    for (let i = 1; i <= 36; i++) {
-      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
-      let raiseApplied = false;
-      if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
-        if ((assumptions as any).raiseMode === 'flat') {
-          const currentAnnual = payConfig.weeklyGross * 52 * multiplier;
-          if (currentAnnual > 0) multiplier *= (1 + assumptions.incomeGrowth / currentAnnual);
-        } else {
-          multiplier *= (1 + assumptions.incomeGrowth / 100);
-        }
-        raiseApplied = true;
-      }
-
-      if (i === 12 || i === 24 || i === 36) {
-        const adjustedConfig = { ...payConfig, weeklyGross: payConfig.weeklyGross * multiplier };
-        const monthlyTakeHome = getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth());
-        const annualGross = payConfig.weeklyGross * 52 * multiplier;
-
-        const bonus = assumptions.bonusEnabled && assumptions.bonusAmount > 0
-          ? (assumptions.bonusMode === 'pct' ? annualGross * (assumptions.bonusAmount / 100) : assumptions.bonusAmount)
-          : 0;
-
-        let taxReturn = 0;
-        if (assumptions.taxReturnEnabled) {
-          try {
-            if (assumptions.taxReturnAmountOverride > 0) {
-              taxReturn = assumptions.taxReturnAmountOverride;
-            } else if (annualGross > 0) {
-              const federalWithheld = assumptions.taxReturnFederalWithheld || Math.round(annualGross * (txRate / 100));
-              const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
-              taxReturn = Math.max(0, estimateTaxReturn({
-                annualGrossIncome: annualGross,
-                federalWithheld,
-                filingStatus: assumptions.taxReturnFilingStatus,
-                dependentsUnder17: assumptions.taxReturnDependents,
-                stateCode: assumptions.taxReturnState,
-                stateWithheld: Math.round(annualGross * stateRate),
-              }).totalRefund);
-            }
-          } catch {}
-        }
-
-        results.push({ year: i / 12, monthlyTakeHome, bonus, taxReturn, raiseApplied: i <= 12 ? raiseApplied : true });
-      }
-    }
-    return results;
-  }, [payConfig, assumptions, profile]);
 
   const filteredData = useMemo(() => {
     if (filterYear === 'all') return projections.data;
@@ -1444,36 +1372,6 @@ export default function Forecast() {
               <p className="text-[10px] text-muted-foreground">Estimate uses 2025 federal brackets, standard deduction, and child tax credit. State uses a simplified flat rate. Injected as income in the selected month every year.</p>
             </div>
           </div>
-
-          {/* 3-Year Projection Summary */}
-          {yearlyProjections.length > 0 && (
-            <div>
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Projected Estimates</p>
-              <div className="grid grid-cols-3 gap-2">
-                {yearlyProjections.map(yr => (
-                  <div key={yr.year} className="bg-secondary/50 border border-border/50 px-2.5 py-2 space-y-1" style={{ borderRadius: 'var(--radius)' }}>
-                    <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Year {yr.year}</p>
-                    <div>
-                      <p className="text-[9px] text-muted-foreground">Monthly Take-Home</p>
-                      <p className="text-xs font-display font-bold text-foreground">{formatCurrency(yr.monthlyTakeHome, false)}</p>
-                    </div>
-                    {yr.bonus > 0 && (
-                      <div>
-                        <p className="text-[9px] text-muted-foreground">Bonus</p>
-                        <p className="text-xs font-display font-bold text-success">{formatCurrency(yr.bonus, false)}</p>
-                      </div>
-                    )}
-                    {yr.taxReturn > 0 && (
-                      <div>
-                        <p className="text-[9px] text-muted-foreground">Tax Return</p>
-                        <p className="text-xs font-display font-bold text-primary">{formatCurrency(yr.taxReturn, false)}</p>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -1626,21 +1524,14 @@ export default function Forecast() {
             {displayData.map((row: any, i: number) => {
               const openDrawer = () => {
                 const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
-                const recDebt = row.recommendedDebtPayment ?? row.debtPayment;
-                const surplusApplied = Math.max(0, row.debtPayment - recDebt);
                 setCalcDrawer({
                   title: `${row.month} Breakdown`,
                   lines: [
                     ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
-                    ...(row.isRaiseMonth ? [{ label: '⬆ Raise applied — income increased this month', value: '' }] : []),
                     { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
-                    { label: 'Paycheck', value: formatCurrency(row.paycheckIncome ?? row.takeHome, false), op: '+' },
-                    ...((row.otherIncome ?? 0) > 0 ? [{ label: '  Other Income', value: formatCurrency(row.otherIncome, false), op: '+' }] : []),
-                    ...((row.bonusIncome ?? 0) > 0 ? [{ label: '  Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
-                    ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: '  Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
+                    { label: 'Take-Home Income', value: formatCurrency(row.takeHome, false), op: '+' },
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    { label: '  Debt Payments', value: formatCurrency(recDebt, false), op: '−' },
-                    ...(surplusApplied > 1 ? [{ label: '    + Surplus to Debt', value: formatCurrency(surplusApplied, false), op: '−' }] : []),
+                    { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
                     ...((row.savingsContrib ?? 0) + (row.carContrib ?? 0) > 0
                       ? [{ label: '  Savings + Car Fund', value: formatCurrency((row.savingsContrib ?? 0) + (row.carContrib ?? 0), false), op: '−' }]
                       : []),
