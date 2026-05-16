@@ -109,7 +109,7 @@ function CalcDrawer({
           <h2 className="font-display font-semibold text-sm flex items-center gap-2">
             <Info size={14} className="text-primary" /> {title}
           </h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X size={16} />
           </button>
         </div>
