@@ -410,7 +410,7 @@ export default function Dashboard() {
     [allMonthTransactions],
   );
 
-  const cashFloor = Number(profile?.cash_floor) || 500;
+  const cashFloor = Number(profile?.cash_floor) || 1000;
 
   const minSafeCash = useMemo(
     () => getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId),
@@ -498,8 +498,9 @@ export default function Dashboard() {
   const emergencyRunwayMonths = useMemo(() => {
     const burn = summary.expenses + totalDebtPayments;
     if (burn <= 0) return null;
-    return accountSummary.liquidCash / burn;
-  }, [accountSummary.liquidCash, summary.expenses, totalDebtPayments]);
+    const available = Math.max(0, accountSummary.liquidCash - cashFloor);
+    return available / burn;
+  }, [accountSummary.liquidCash, cashFloor, summary.expenses, totalDebtPayments]);
 
   const dti = useMemo(() => {
     if (summary.income <= 0) return null;
@@ -1149,7 +1150,7 @@ export default function Dashboard() {
             <MetricCard
               label="Emergency Runway"
               value={emergencyRunwayMonths !== null ? `${emergencyRunwayMonths.toFixed(1)} mo` : '—'}
-              sub="liquid / monthly burn"
+              sub="above floor / monthly burn"
               accent={emergencyRunwayMonths === null ? 'silver' : emergencyRunwayMonths >= 3 ? 'success' : emergencyRunwayMonths >= 1 ? 'gold' : 'crimson'}
               icon={Shield}
             />
