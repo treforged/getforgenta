@@ -847,16 +847,22 @@ export function generateRecommendations(
  * Used by Dashboard, Budget Control, Savings Goals, and Forecast to get
  * the same debt payment values that Debt Payoff displays.
  */
-export function getCurrentMonthDebtRecommendations(
+export type MonthlyDebtBreakdown = {
+  recommendations: { cardId: string; cardName: string; payment: number; dueDay: number | null; reason: string }[];
+  totalMinimumsDue: number;
+  totalRecommended: number;
+};
+
+function buildCurrentMonthRecommendationSummary(
   accounts: any[],
   transactions: any[],
   rules: any[],
   debts: any[],
   profile: any,
-): { cardId: string; cardName: string; payment: number; dueDay: number | null; reason: string }[] {
-  if (!accounts || !transactions || !rules || !debts) return [];
+): RecommendationSummary | null {
+  if (!accounts || !transactions || !rules || !debts) return null;
   const cards = buildCardData(accounts, transactions, rules, debts);
-  if (cards.length === 0) return [];
+  if (cards.length === 0) return null;
 
   const liquidTypes = ['checking', 'business_checking', 'cash'];
   const liquidAccounts = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type));
@@ -867,10 +873,9 @@ export function getCurrentMonthDebtRecommendations(
   const ccPaymentSources = new Set(cards.flatMap((c: CardData) => [c.id, `account:${c.id}`]));
   const monthlyExpenses = rules.filter((r: any) => {
     if (!r.active) return false;
-    // Transfer/investment rules are liquid-cash outflows that reduce available debt surplus
     if (r.rule_type === 'transfer' || r.rule_type === 'investment') return true;
     if (r.rule_type !== 'expense') return false;
-    if (ccPaymentSources.size === 0) return true; // safety: no CC data, include all
+    if (ccPaymentSources.size === 0) return true;
     if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
     if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
     return true;
@@ -895,7 +900,6 @@ export function getCurrentMonthDebtRecommendations(
 
   const fundAcct = liquidAccounts.find((a: any) => a.id === fundingAccountId);
   const fundBal = fundAcct ? Number(fundAcct.balance) : liquidCash;
-
   const { total: ppBills } = getPrePaycheckNextMonthBills(rules, pc, fundingAccountId);
 
   const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
@@ -903,13 +907,45 @@ export function getCurrentMonthDebtRecommendations(
     ? Math.min(...revolving.map(c => c.dueDay || 31))
     : 31;
 
-  const recs = generateRecommendations(
+  return generateRecommendations(
     cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses,
     'variable', pc, rules, fundingAccountId, ppBills, fundBal,
     undefined, undefined, transactions, primaryDueDay,
   );
+}
 
-  return recs.recommendations.map(r => ({
+export function getMonthlyDebtBreakdown(
+  accounts: any[],
+  transactions: any[],
+  rules: any[],
+  debts: any[],
+  profile: any,
+): MonthlyDebtBreakdown {
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile);
+  if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0 };
+  return {
+    recommendations: summary.recommendations.map(r => ({
+      cardId: r.cardId,
+      cardName: r.cardName,
+      payment: r.payment,
+      dueDay: r.dueDay || null,
+      reason: r.reason,
+    })),
+    totalMinimumsDue: summary.totalMinimumsdue,
+    totalRecommended: summary.recommendations.reduce((s, r) => s + r.payment, 0),
+  };
+}
+
+export function getCurrentMonthDebtRecommendations(
+  accounts: any[],
+  transactions: any[],
+  rules: any[],
+  debts: any[],
+  profile: any,
+): { cardId: string; cardName: string; payment: number; dueDay: number | null; reason: string }[] {
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile);
+  if (!summary) return [];
+  return summary.recommendations.map(r => ({
     cardId: r.cardId,
     cardName: r.cardName,
     payment: r.payment,
