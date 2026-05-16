@@ -103,6 +103,7 @@ export default function Forecast() {
   }, [setHiddenSeries]);
 
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
+  const cashFloor = useMemo(() => Number((profile as any)?.cash_floor) || 1000, [profile]);
 
   // Resolve the funding account the same way CreditCardEngine does — profile preference first,
   // then first active checking account. Used to scope pre-paycheck bills and safe-floor to the
@@ -124,9 +125,9 @@ export default function Forecast() {
   const debtPayoffOptions = useMemo(() => ({
     strategy: 'avalanche' as const,
     paymentMode: 'variable' as const,
-    cashFloor: Number(profile?.cash_floor) || 1000,
+    cashFloor,
     overrides: {} as Record<string, Record<number, number>>,
-  }), [profile]);
+  }), [cashFloor]);
 
   const debtPaymentsByMonth = useMemo(() =>
     getDebtPaymentsByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, 36),
@@ -508,7 +509,6 @@ export default function Forecast() {
 
   const projections = useMemo(() => {
     const taxRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
-    const cashFloor = Number((profile as any)?.cash_floor) || 1000;
 
     const active = accounts.filter((a: any) => a.active);
     // FIX: Aligned with debt engine — only checking/business_checking/cash are "liquid"
@@ -940,7 +940,7 @@ export default function Forecast() {
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId]);
+  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {

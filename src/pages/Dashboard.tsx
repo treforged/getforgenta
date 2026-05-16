@@ -37,7 +37,7 @@ import {
   mergeDebtPaymentsIntoStream,
   getPaychecksInMonth,
 } from '@/lib/pay-schedule';
-import { getCurrentMonthDebtRecommendations } from "@/lib/credit-card-engine";
+import { getCurrentMonthDebtRecommendations, getMonthlyDebtBreakdown, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
   Line, CartesianGrid, ComposedChart,
@@ -273,10 +273,15 @@ export default function Dashboard() {
     return checking?.id || null;
   }, [accounts, profile]);
 
-  const debtPaymentTxns = useMemo(() => {
-    const recs = getCurrentMonthDebtRecommendations(accounts, baseTxns, rules, debts, profile);
-    return createDebtPaymentTransactions(recs, fundingAccountId);
-  }, [accounts, baseTxns, rules, debts, profile, fundingAccountId]);
+  const debtBreakdown = useMemo<MonthlyDebtBreakdown>(
+    () => getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile),
+    [accounts, baseTxns, rules, debts, profile],
+  );
+
+  const debtPaymentTxns = useMemo(
+    () => createDebtPaymentTransactions(debtBreakdown.recommendations, fundingAccountId),
+    [debtBreakdown.recommendations, fundingAccountId],
+  );
 
   const allMonthTransactions = useMemo(
     () => mergeDebtPaymentsIntoStream(baseTxns, debtPaymentTxns),
@@ -428,32 +433,11 @@ export default function Dashboard() {
     return accountSummary.liquidCash;
   }, [accounts, fundingAccountId, accountSummary]);
 
-  const rawMonthEndCash = useMemo(
+  // monthEndCash uses the engine's recommendations (already in remainingTxDebt via transactions)
+  // rather than a custom surplus-allocation formula, so Dashboard and Debt Payoff stay in sync.
+  const monthEndCash = useMemo(
     () => fundingBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt,
     [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt],
-  );
-
-  const adjustedDebtPayments = useMemo(() => {
-    const hasDebt =
-      debts.some((d: any) => Number(d.balance) > 0) ||
-      accounts.some((a: any) => a.account_type === 'credit_card' && a.active && Number(a.balance) > 0);
-
-    if (!hasDebt) return remainingTxDebt;
-
-    const surplus = rawMonthEndCash - minSafeCash;
-
-    if (surplus > 100) {
-      return remainingTxDebt + Math.max(0, surplus - 100);
-    }
-    if (surplus < 0) {
-      return Math.max(0, remainingTxDebt + surplus);
-    }
-    return remainingTxDebt;
-  }, [rawMonthEndCash, minSafeCash, remainingTxDebt, debts, accounts]);
-
-  const monthEndCash = useMemo(
-    () => fundingBalance + remainingTxIncome - remainingTxExpenses - adjustedDebtPayments,
-    [fundingBalance, remainingTxIncome, remainingTxExpenses, adjustedDebtPayments],
   );
 
   useWidgetSync({
@@ -504,8 +488,8 @@ export default function Dashboard() {
 
   const dti = useMemo(() => {
     if (summary.income <= 0) return null;
-    return (totalDebtPayments / summary.income) * 100;
-  }, [totalDebtPayments, summary.income]);
+    return (debtBreakdown.totalMinimumsDue / summary.income) * 100;
+  }, [debtBreakdown.totalMinimumsDue, summary.income]);
 
   const recentTxns = useMemo(() => {
     const todayDate = new Date();
@@ -552,14 +536,19 @@ export default function Dashboard() {
       debts.some((d: any) => Number(d.balance) > 0) ||
       accounts.some((a: any) => a.account_type === 'credit_card' && a.active && Number(a.balance) > 0);
 
-    const surplusAllocation = Math.max(0, adjustedDebtPayments - remainingTxDebt);
+    const engineMinimums = debtBreakdown.totalMinimumsDue;
+    const engineTotal = debtBreakdown.totalRecommended;
+    const engineExtra = Math.max(0, engineTotal - engineMinimums);
     const lines: { label: string; value: string; op?: string }[] = [
       { label: 'Funding Account Balance', value: formatCurrency(fundingBalance, false) },
       { label: 'Remaining Income', value: formatCurrency(remainingTxIncome, false), op: '+' },
       { label: 'Remaining Expenses', value: formatCurrency(remainingTxExpenses, false), op: '−' },
-      { label: 'Scheduled Debt Payments', value: formatCurrency(remainingTxDebt, false), op: '−' },
-      ...(surplusAllocation > 0 ? [{ label: 'Extra Debt Payoff (surplus directed to debt)', value: formatCurrency(surplusAllocation, false), op: '−' }] : []),
+      { label: 'Remaining Debt Payments', value: formatCurrency(remainingTxDebt, false), op: '−' },
       { label: 'Projected Month-End Cash', value: formatCurrency(monthEndCash, false), op: '=' },
+      { label: '', value: '' },
+      { label: 'Minimum Payments Due (this month)', value: formatCurrency(engineMinimums, false) },
+      ...(engineExtra > 0 ? [{ label: 'Extra Debt Payoff (above minimums)', value: formatCurrency(engineExtra, false), op: '+' }] : []),
+      { label: 'Total Recommended Debt Payment', value: formatCurrency(engineTotal, false), op: '=' },
       { label: '', value: '' },
       { label: 'Your Cash Floor Setting', value: formatCurrency(cashFloor, false) },
       { label: `Pre-paycheck bills (${prePaycheckBills.items.length} items)`, value: formatCurrency(prePaycheckBills.total, false) },
