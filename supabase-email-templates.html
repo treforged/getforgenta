@@ -12,1014 +12,1229 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Confirm Your Forged Account</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .muted-text { color: #666666 !important; }
+        .divider { background: linear-gradient(90deg, transparent 0%, #cccccc 50%, transparent 100%) !important; }
+        .alt-link-label { color: #666666 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
 </head>
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-    
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
+
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
         <tr>
             <td style="padding: 40px 20px;">
-                
+
                 <!-- Main Container -->
-                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
-                    
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+
                     <!-- Header with Gold Accent -->
                     <tr>
-                        <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                            <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
                         </td>
                     </tr>
-                    
+
                     <!-- Main Content -->
                     <tr>
                         <td style="padding: 48px 40px;">
-                            
-                            <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
                                 Welcome to Your Financial Future
                             </h2>
-                            
-                            <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
                                 You're one step away from taking complete control of your finances. Click the button below to confirm your email and get started.
                             </p>
-                            
+
                             <!-- CTA Button -->
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                 <tr>
                                     <td style="padding: 16px 0 32px;">
                                         <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
-                                            Confirm & Sign In
+                                            Confirm &amp; Sign In
                                         </a>
                                     </td>
                                 </tr>
                             </table>
-                            
+
                             <!-- Divider -->
-                            <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
-                            
+                            <div class="divider" style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
+
                             <!-- Alternative Link -->
-                            <p style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
+                            <p class="alt-link-label" style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
                                 Button not working? Copy and paste this link into your browser:
                             </p>
                             <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
                                 {{ .ConfirmationURL }}
                             </p>
-                            
+
                         </td>
                     </tr>
-                    
+
                     <!-- Security Notice -->
                     <tr>
-                        <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                            <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
                                 <strong style="color: #d4af37;">🔒 Security Notice</strong>
                             </p>
-                            <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                This link will expire in 24 hours. If you didn't create a Forged account, you can safely ignore this email.
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                This link will expire in 24 hours. If you didn't create a Forgenta account, you can safely ignore this email.
                             </p>
                         </td>
                     </tr>
-                    
+
                     <!-- Footer -->
                     <tr>
-                        <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                            <p style="margin: 0 0 16px; font-size: 12px; color: #888; line-height: 1.6;">
-                                © 2026 TRE Forged LLC. All rights reserved.<br>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0 0 16px; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
                                 Your trusted partner in financial mastery.
                             </p>
                         </td>
                     </tr>
-                    
+
                 </table>
-                
+
             </td>
         </tr>
     </table>
-    
+
 </body>
 </html>
 <!-- CONFIRM SIGNUP END -->
 
 
 <!-- ==================== INVITE USER START ==================== -->
- <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>You've Been Invited to Forged</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  You've Been Invited
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  Someone has invited you to join Forged — your personal financial command center. Accept your invite to create your account and take control of your finances.
-                              </p>
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="padding: 16px 0 32px;">
-                                          <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius:
-  8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
-                                              Accept Invite
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
-                              <p style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
-                                  Button not working? Copy and paste this link into your browser:
-                              </p>
-                              <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
-                                  {{ .ConfirmationURL }}
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  This invite link will expire in 24 hours. If you weren't expecting this invitation, you can safely ignore this email.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You've Been Invited to Forgenta</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .muted-text { color: #666666 !important; }
+        .divider { background: linear-gradient(90deg, transparent 0%, #cccccc 50%, transparent 100%) !important; }
+        .alt-link-label { color: #666666 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                You've Been Invited
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                Someone has invited you to join Forgenta — your personal financial command center. Accept your invite to create your account and take control of your finances.
+                            </p>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="padding: 16px 0 32px;">
+                                        <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
+                                            Accept Invite
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div class="divider" style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
+                            <p class="alt-link-label" style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
+                                Button not working? Copy and paste this link into your browser:
+                            </p>
+                            <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
+                                {{ .ConfirmationURL }}
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                This invite link will expire in 24 hours. If you weren't expecting this invitation, you can safely ignore this email.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- INVITE USER END -->
 
 
 <!-- ==================== MAGIC LINK START ==================== -->
- <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Your Forged Sign-In Link</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Your One-Time Sign-In Link
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  Click the button below to sign in instantly — no password needed. This link is single-use and expires in 1 hour.
-                              </p>
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="padding: 16px 0 32px;">
-                                          <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius:
-  8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
-                                              Sign In Now
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
-                              <p style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
-                                  Button not working? Copy and paste this link into your browser:
-                              </p>
-                              <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
-                                  {{ .ConfirmationURL }}
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  This link expires in 1 hour and can only be used once. If you didn't request this, you can safely ignore this email — your account remains secure.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Forgenta Sign-In Link</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .divider { background: linear-gradient(90deg, transparent 0%, #cccccc 50%, transparent 100%) !important; }
+        .alt-link-label { color: #666666 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Your One-Time Sign-In Link
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                Click the button below to sign in instantly — no password needed. This link is single-use and expires in 1 hour.
+                            </p>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="padding: 16px 0 32px;">
+                                        <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
+                                            Sign In Now
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div class="divider" style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
+                            <p class="alt-link-label" style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
+                                Button not working? Copy and paste this link into your browser:
+                            </p>
+                            <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
+                                {{ .ConfirmationURL }}
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                This link expires in 1 hour and can only be used once. If you didn't request this, you can safely ignore this email — your account remains secure.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- MAGIC LINK END -->
 
 
 <!-- ==================== CHANGE EMAIL START ==================== -->
- <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Confirm Your New Email — Forged</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Confirm Your New Email Address
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  You requested an email change on your Forged account. Click below to confirm your new email address and complete the update.
-                              </p>
-                              <!-- New email highlight -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
-                                  <tr>
-                                      <td style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
-                                          <p style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">New email address</p>
-                                          <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37;">{{ .NewEmail }}</p>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="padding: 0 0 32px;">
-                                          <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius:
-  8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
-                                              Confirm New Email
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
-                              <p style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
-                                  Button not working? Copy and paste this link into your browser:
-                              </p>
-                              <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
-                                  {{ .ConfirmationURL }}
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  This link expires in 24 hours. If you didn't request this change, please secure your account immediately by resetting your password.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Your New Email — Forgenta</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .divider { background: linear-gradient(90deg, transparent 0%, #cccccc 50%, transparent 100%) !important; }
+        .alt-link-label { color: #666666 !important; }
+        .info-box { background-color: rgba(212,175,55,0.07) !important; }
+        .info-label { color: #777777 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Confirm Your New Email Address
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                You requested an email change on your Forgenta account. Click below to confirm your new email address and complete the update.
+                            </p>
+                            <!-- New email highlight -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td class="info-box" style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
+                                        <p class="info-label" style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">New email address</p>
+                                        <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37;">{{ .NewEmail }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="padding: 0 0 32px;">
+                                        <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
+                                            Confirm New Email
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div class="divider" style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
+                            <p class="alt-link-label" style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
+                                Button not working? Copy and paste this link into your browser:
+                            </p>
+                            <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
+                                {{ .ConfirmationURL }}
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                This link expires in 24 hours. If you didn't request this change, please secure your account immediately by resetting your password.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- CHANGE EMAIL END -->
 
 
 <!-- ==================== RESET PASSWORD START ==================== -->
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Reset Your Forged Password</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Reset Your Password
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  We received a request to reset the password on your Forged account. Click below to choose a new password. This link is valid for 1 hour.
-                              </p>
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="padding: 16px 0 32px;">
-                                          <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius:
-  8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
-                                              Reset Password
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <div style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
-                              <p style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
-                                  Button not working? Copy and paste this link into your browser:
-                              </p>
-                              <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
-                                  {{ .ConfirmationURL }}
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email — your password will not be changed.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Your Forgenta Password</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .divider { background: linear-gradient(90deg, transparent 0%, #cccccc 50%, transparent 100%) !important; }
+        .alt-link-label { color: #666666 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Reset Your Password
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                We received a request to reset the password on your Forgenta account. Click below to choose a new password. This link is valid for 1 hour.
+                            </p>
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="padding: 16px 0 32px;">
+                                        <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
+                                            Reset Password
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div class="divider" style="height: 1px; background: linear-gradient(90deg, transparent 0%, #333 50%, transparent 100%); margin: 32px 0;"></div>
+                            <p class="alt-link-label" style="margin: 0 0 8px; font-size: 14px; color: #aaa;">
+                                Button not working? Copy and paste this link into your browser:
+                            </p>
+                            <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
+                                {{ .ConfirmationURL }}
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email — your password will not be changed.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- RESET PASSWORD END -->
 
 
 <!-- ==================== REAUTHENTICATION START ==================== -->
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Forged Verification Code</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Verify It's You
-                              </h2>
-                              <p style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  You're attempting a sensitive action on your Forged account. Enter the code below to confirm your identity.
-                              </p>
-                              <!-- OTP Code Block -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
-                                  <tr>
-                                      <td style="text-align: center; background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 32px 20px;">
-                                          <p style="margin: 0 0 8px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px;">Your verification code</p>
-                                          <p style="margin: 0; font-size: 48px; font-weight: 700; letter-spacing: 12px; color: #d4af37; font-variant-numeric: tabular-nums;">{{ .Token }}</p>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #888; text-align: center;">
-                                  Enter this code in the Forged app to continue.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  This code expires in 10 minutes and can only be used once. Never share this code with anyone. Forged will never ask for it via phone or chat.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgenta Verification Code</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .otp-box { background: rgba(212,175,55,0.08) !important; border-color: rgba(212,175,55,0.25) !important; }
+        .otp-label { color: #777777 !important; }
+        .otp-hint { color: #666666 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Verify It's You
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                You're attempting a sensitive action on your Forgenta account. Enter the code below to confirm your identity.
+                            </p>
+                            <!-- OTP Code Block -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td class="otp-box" style="text-align: center; background: linear-gradient(135deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%); border: 1px solid rgba(212, 175, 55, 0.3); border-radius: 12px; padding: 32px 20px;">
+                                        <p class="otp-label" style="margin: 0 0 8px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 1px;">Your verification code</p>
+                                        <p style="margin: 0; font-size: 48px; font-weight: 700; letter-spacing: 12px; color: #d4af37; font-variant-numeric: tabular-nums;">{{ .Token }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p class="otp-hint" style="margin: 0; font-size: 14px; line-height: 1.6; color: #888; text-align: center;">
+                                Enter this code in the Forgenta app to continue.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                This code expires in 10 minutes and can only be used once. Never share this code with anyone. Forgenta will never ask for it via phone or chat.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- REAUTHENTICATION END -->
 
 
 <!-- ==================== EMAIL CHANGE CONFIRMATION START ==================== -->
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Your Forged Email Address Has Been Changed</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a00a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Your Email Address Has Been Updated
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  Your Forged account email address has been successfully changed. Future sign-ins and notifications will use your new address.
-                              </p>
-                              <!-- New email display -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
-                                  <tr>
-                                      <td style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
-                                          <p style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">New email address</p>
-                                          <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37;">{{ .NewEmail }}</p>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <!-- Wasn't you block -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
-                                          <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't make this change?</p>
-                                          <p style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
-                                              If you didn't change your email address, your account may be compromised. Secure it immediately.
-                                          </p>
-                                          <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
-                                              Secure My Account
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  Forged will never ask you to share account credentials. Contact us at contact@treforged.com if you need assistance.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Forgenta Email Address Has Been Changed</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .info-box { background-color: rgba(212,175,55,0.07) !important; }
+        .info-label { color: #777777 !important; }
+        .warn-body { color: #333333 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Your Email Address Has Been Updated
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                Your Forgenta account email address has been successfully changed. Future sign-ins and notifications will use your new address.
+                            </p>
+                            <!-- New email display -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td class="info-box" style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
+                                        <p class="info-label" style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">New email address</p>
+                                        <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37;">{{ .NewEmail }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <!-- Wasn't you block -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
+                                        <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't make this change?</p>
+                                        <p class="warn-body" style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
+                                            If you didn't change your email address, your account may be compromised. Secure it immediately.
+                                        </p>
+                                        <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
+                                            Secure My Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                Forgenta will never ask you to share account credentials. Contact us at contact@treforged.com if you need assistance.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- EMAIL CHANGE CONFIRMATION END -->
 
 
 <!-- ==================== PASSWORD CHANGED START ==================== -->
- <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Your Forged Password Has Been Changed</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Your Password Has Been Changed
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  This is a confirmation that the password for your Forged account was successfully updated. If you made this change, no further action is needed.
-                              </p>
-                              <!-- Wasn't you block -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
-                                          <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't make this change?</p>
-                                          <p style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
-                                              If you didn't change your password, your account may be compromised. Secure it immediately.
-                                          </p>
-                                          <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
-                                              Secure My Account
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  Forged will never ask for your password via email, phone, or chat. If you need help, contact us at contact@treforged.com.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Forgenta Password Has Been Changed</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .warn-body { color: #333333 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Your Password Has Been Changed
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                This is a confirmation that the password for your Forgenta account was successfully updated. If you made this change, no further action is needed.
+                            </p>
+                            <!-- Wasn't you block -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
+                                        <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't make this change?</p>
+                                        <p class="warn-body" style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
+                                            If you didn't change your password, your account may be compromised. Secure it immediately.
+                                        </p>
+                                        <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
+                                            Secure My Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                Forgenta will never ask for your password via email, phone, or chat. If you need help, contact us at contact@treforged.com.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- PASSWORD CHANGED END -->
 
 
 <!-- ==================== PHONE NUMBER CHANGED START ==================== -->
- <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Your Forged Phone Number Has Been Changed</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Your Phone Number Has Been Updated
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  The phone number linked to your Forged account has been successfully changed.
-                              </p>
-                              <!-- New phone display -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
-                                  <tr>
-                                      <td style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
-                                          <p style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">New phone number</p>
-                                          <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37;">{{ .NewPhone }}</p>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <!-- Wasn't you block -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
-                                          <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't make this change?</p>
-                                          <p style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
-                                              If you didn't update your phone number, your account may be compromised. Secure it immediately.
-                                          </p>
-                                          <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
-                                              Secure My Account
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  Forged will never ask for your credentials. Contact us at contact@treforged.com if you need assistance.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Forgenta Phone Number Has Been Changed</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .info-box { background-color: rgba(212,175,55,0.07) !important; }
+        .info-label { color: #777777 !important; }
+        .warn-body { color: #333333 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Your Phone Number Has Been Updated
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                The phone number linked to your Forgenta account has been successfully changed.
+                            </p>
+                            <!-- New phone display -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td class="info-box" style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
+                                        <p class="info-label" style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">New phone number</p>
+                                        <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37;">{{ .NewPhone }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <!-- Wasn't you block -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
+                                        <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't make this change?</p>
+                                        <p class="warn-body" style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
+                                            If you didn't update your phone number, your account may be compromised. Secure it immediately.
+                                        </p>
+                                        <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
+                                            Secure My Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                Forgenta will never ask for your credentials. Contact us at contact@treforged.com if you need assistance.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- PHONE NUMBER CHANGED END -->
 
 
 <!-- ==================== IDENTITY LINKED START ==================== -->
- <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>New Sign-In Method Linked — Forged</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  New Sign-In Method Linked
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  A new sign-in method has been linked to your Forged account. You can now use it to sign in.
-                              </p>
-                              <!-- Provider display -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
-                                  <tr>
-                                      <td style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
-                                          <p style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Provider linked</p>
-                                          <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37; text-transform: capitalize;">{{ .ProviderType }}</p>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <!-- Wasn't you block -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
-                                          <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't do this?</p>
-                                          <p style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
-                                              If you didn't link this sign-in method, your account may be compromised. Secure it immediately.
-                                          </p>
-                                          <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
-                                              Secure My Account
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  Forged will never ask for your credentials. Contact us at contact@treforged.com if you need assistance.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Sign-In Method Linked — Forgenta</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .info-box { background-color: rgba(212,175,55,0.07) !important; }
+        .info-label { color: #777777 !important; }
+        .warn-body { color: #333333 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                New Sign-In Method Linked
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                A new sign-in method has been linked to your Forgenta account. You can now use it to sign in.
+                            </p>
+                            <!-- Provider display -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td class="info-box" style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
+                                        <p class="info-label" style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Provider linked</p>
+                                        <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37; text-transform: capitalize;">{{ .ProviderType }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <!-- Wasn't you block -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
+                                        <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't do this?</p>
+                                        <p class="warn-body" style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
+                                            If you didn't link this sign-in method, your account may be compromised. Secure it immediately.
+                                        </p>
+                                        <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
+                                            Secure My Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                Forgenta will never ask for your credentials. Contact us at contact@treforged.com if you need assistance.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- IDENTITY LINKED END -->
 
 
 <!-- ==================== IDENTITY UNLINKED START ==================== -->
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Sign-In Method Removed — Forged</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Sign-In Method Removed
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  A sign-in method has been removed from your Forged account. You will no longer be able to sign in using it.
-                              </p>
-                              <!-- Provider display -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
-                                  <tr>
-                                      <td style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
-                                          <p style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Provider removed</p>
-                                          <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37; text-transform: capitalize;">{{ .ProviderType }}</p>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <!-- Wasn't you block -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
-                                          <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't do this?</p>
-                                          <p style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
-                                              If you didn't remove this sign-in method, your account may be compromised. Secure it immediately.
-                                          </p>
-                                          <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
-                                              Secure My Account
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  Forged will never ask for your credentials. Contact us at contact@treforged.com if you need assistance.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign-In Method Removed — Forgenta</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .info-box { background-color: rgba(212,175,55,0.07) !important; }
+        .info-label { color: #777777 !important; }
+        .warn-body { color: #333333 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Sign-In Method Removed
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                A sign-in method has been removed from your Forgenta account. You will no longer be able to sign in using it.
+                            </p>
+                            <!-- Provider display -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td class="info-box" style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
+                                        <p class="info-label" style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Provider removed</p>
+                                        <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37; text-transform: capitalize;">{{ .ProviderType }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <!-- Wasn't you block -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
+                                        <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't do this?</p>
+                                        <p class="warn-body" style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
+                                            If you didn't remove this sign-in method, your account may be compromised. Secure it immediately.
+                                        </p>
+                                        <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
+                                            Secure My Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                Forgenta will never ask for your credentials. Contact us at contact@treforged.com if you need assistance.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- IDENTITY UNLINKED END -->
 
 
 <!-- ==================== MFA METHOD ADDED START ==================== -->
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Two-Factor Authentication Enabled — Forged</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Two-Factor Authentication Enabled
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  A new two-factor authentication method has been added to your Forged account. Your account is now more secure.
-                              </p>
-                              <!-- MFA type display -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
-                                  <tr>
-                                      <td style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
-                                          <p style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Method added</p>
-                                          <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37; text-transform: uppercase;">{{ .FactorType }}</p>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <!-- Wasn't you block -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
-                                          <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't do this?</p>
-                                          <p style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
-                                              If you didn't add this authentication method, your account may be compromised. Secure it immediately.
-                                          </p>
-                                          <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
-                                              Secure My Account
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  Forged will never ask for your credentials or 2FA codes. Contact us at contact@treforged.com if you need assistance.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Factor Authentication Enabled — Forgenta</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .info-box { background-color: rgba(212,175,55,0.07) !important; }
+        .info-label { color: #777777 !important; }
+        .warn-body { color: #333333 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Two-Factor Authentication Enabled
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                A new two-factor authentication method has been added to your Forgenta account. Your account is now more secure.
+                            </p>
+                            <!-- MFA type display -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td class="info-box" style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
+                                        <p class="info-label" style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Method added</p>
+                                        <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37; text-transform: uppercase;">{{ .FactorType }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <!-- Wasn't you block -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
+                                        <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't do this?</p>
+                                        <p class="warn-body" style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
+                                            If you didn't add this authentication method, your account may be compromised. Secure it immediately.
+                                        </p>
+                                        <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
+                                            Secure My Account
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                Forgenta will never ask for your credentials or 2FA codes. Contact us at contact@treforged.com if you need assistance.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- MFA METHOD ADDED END -->
 
 
 <!-- ==================== MFA METHOD REMOVED START ==================== -->
 <!DOCTYPE html>
-  <html lang="en">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Two-Factor Authentication Removed — Forged</title>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #0a0a0a;">
-          <tr>
-              <td style="padding: 40px 20px;">
-                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0,
-  0, 0.5);">
-                      <tr>
-                          <td style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
-                              <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGED</h1>
-                              <p style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="padding: 48px 40px;">
-                              <h2 style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
-                                  Two-Factor Authentication Removed
-                              </h2>
-                              <p style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
-                                  A two-factor authentication method has been removed from your Forged account.
-                              </p>
-                              <!-- MFA type display -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
-                                  <tr>
-                                      <td style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
-                                          <p style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Method removed</p>
-                                          <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37; text-transform: uppercase;">{{ .FactorType }}</p>
-                                      </td>
-                                  </tr>
-                              </table>
-                              <!-- High urgency warning — removing 2FA is elevated risk -->
-                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
-                                  <tr>
-                                      <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
-                                          <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't do this? Act immediately.</p>
-                                          <p style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
-                                              Removing two-factor authentication reduces your account security. If you didn't make this change, your account has been compromised — reset your password and re-enable 2FA now.
-                                          </p>
-                                          <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
-                                              Secure My Account Now
-                                          </a>
-                                      </td>
-                                  </tr>
-                              </table>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
-                              <p style="margin: 0 0 8px; font-size: 13px; color: #999;">
-                                  <strong style="color: #d4af37;">🔒 Security Notice</strong>
-                              </p>
-                              <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
-                                  Forged will never ask for your credentials or 2FA codes. Contact us at contact@treforged.com if you need assistance.
-                              </p>
-                          </td>
-                      </tr>
-                      <tr>
-                          <td style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
-                              <p style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
-                                  © 2026 TRE Forged LLC. All rights reserved.<br>
-                                  Your trusted partner in financial mastery.
-                              </p>
-                          </td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
-      </table>
-  </body>
-  </html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Factor Authentication Removed — Forgenta</title>
+    <style>
+      @media (prefers-color-scheme: light) {
+        body, .bg-outer { background-color: #f0f2f5 !important; color: #1a1a1a !important; }
+        .card { background: #ffffff !important; box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; }
+        .card-header { background: linear-gradient(135deg, #fdf8ed 0%, #f0e6c8 100%) !important; }
+        .header-sub { color: #777777 !important; }
+        .heading { color: #111111 !important; }
+        .body-text { color: #444444 !important; }
+        .info-box { background-color: rgba(212,175,55,0.07) !important; }
+        .info-label { color: #777777 !important; }
+        .warn-body { color: #333333 !important; }
+        .security-band { background-color: rgba(212,175,55,0.07) !important; border-top-color: #e8dfc8 !important; }
+        .security-label-text { color: #888888 !important; }
+        .security-body-text { color: #666666 !important; }
+        .footer-band { background-color: #f5f5f5 !important; border-top-color: #e5e5e5 !important; }
+        .footer-text { color: #555555 !important; }
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; background-color: #0a0a0a; color: #e5e5e5;">
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="bg-outer" style="background-color: #0a0a0a;">
+        <tr>
+            <td style="padding: 40px 20px;">
+                <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" class="card" style="max-width: 600px; margin: 0 auto; background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);">
+                    <tr>
+                        <td class="card-header" style="background: linear-gradient(135deg, #1a1a1a 0%, #0f0f0f 100%); padding: 48px 40px 32px; text-align: center; border-bottom: 1px solid #d4af37;">
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: 2px; color: #d4af37; text-transform: uppercase;">FORGENTA</h1>
+                            <p class="header-sub" style="margin: 12px 0 0; font-size: 14px; color: #888; letter-spacing: 0.5px;">FINANCIAL COMMAND CENTER</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 48px 40px;">
+                            <h2 class="heading" style="margin: 0 0 24px; font-size: 24px; font-weight: 600; color: #ffffff; line-height: 1.3;">
+                                Two-Factor Authentication Removed
+                            </h2>
+                            <p class="body-text" style="margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #d4d4d4;">
+                                A two-factor authentication method has been removed from your Forgenta account.
+                            </p>
+                            <!-- MFA type display -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-bottom: 32px;">
+                                <tr>
+                                    <td class="info-box" style="background-color: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; padding: 16px 20px;">
+                                        <p class="info-label" style="margin: 0 0 4px; font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px;">Method removed</p>
+                                        <p style="margin: 0; font-size: 15px; font-weight: 600; color: #d4af37; text-transform: uppercase;">{{ .FactorType }}</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <!-- High urgency warning — removing 2FA is elevated risk -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                    <td style="background-color: rgba(220, 80, 60, 0.08); border: 1px solid rgba(220, 80, 60, 0.25); border-radius: 8px; padding: 20px 24px;">
+                                        <p style="margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #e05c4a;">Didn't do this? Act immediately.</p>
+                                        <p class="warn-body" style="margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: #d4d4d4;">
+                                            Removing two-factor authentication reduces your account security. If you didn't make this change, your account has been compromised — reset your password and re-enable 2FA now.
+                                        </p>
+                                        <a href="{{ .SiteURL }}/auth?reset=true" style="display: inline-block; background-color: #e05c4a; color: #ffffff; text-decoration: none; font-size: 13px; font-weight: 600; padding: 10px 24px; border-radius: 6px; letter-spacing: 0.3px;">
+                                            Secure My Account Now
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="security-band" style="background-color: rgba(212, 175, 55, 0.05); padding: 24px 40px; border-top: 1px solid #252525;">
+                            <p class="security-label-text" style="margin: 0 0 8px; font-size: 13px; color: #999;">
+                                <strong style="color: #d4af37;">🔒 Security Notice</strong>
+                            </p>
+                            <p class="security-body-text" style="margin: 0; font-size: 13px; line-height: 1.6; color: #aaa;">
+                                Forgenta will never ask for your credentials or 2FA codes. Contact us at contact@treforged.com if you need assistance.
+                            </p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="footer-band" style="background-color: #0a0a0a; padding: 32px 40px; text-align: center; border-top: 1px solid #1a1a1a;">
+                            <p class="footer-text" style="margin: 0; font-size: 12px; color: #888; line-height: 1.6;">
+                                &copy; 2026 Forgenta&trade; by TRE Forged LLC. All rights reserved.<br>
+                                Your trusted partner in financial mastery.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 <!-- MFA METHOD REMOVED END -->
