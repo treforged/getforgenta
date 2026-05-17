@@ -675,8 +675,9 @@ export function generateRecommendations(
   transactions?: any[],
   primaryDueDay?: number,
 ): RecommendationSummary {
-  const preferenceCards = cards.filter(c => c.paymentPreference !== 'revolving');
-  const revolvingCards = cards.filter(c => c.paymentPreference === 'revolving' && c.balance > 0);
+  // Preference mode only activates once a card is fully paid off; until then it's revolving.
+  const preferenceCards = cards.filter(c => c.paymentPreference !== 'revolving' && c.balance <= 0);
+  const revolvingCards = cards.filter(c => c.balance > 0);
 
   const totalMinDue = revolvingCards.reduce((s, c) => s + c.minPayment, 0);
 

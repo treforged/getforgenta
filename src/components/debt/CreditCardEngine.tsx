@@ -52,7 +52,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   useEffect(() => {
     if (profile?.cash_floor != null) setCashFloorLocal(Number(profile.cash_floor));
   }, [profile?.cash_floor]);
-  const [expandedCard, setExpandedCard] = usePersistedState<string | null>('tre:debt:expanded-card', null);
+  const [expandedCards, setExpandedCards] = usePersistedState<string[]>('tre:debt:expanded-cards', []);
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
 
   const [targetInput, setTargetInput] = useState('');
@@ -883,13 +883,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         {/* Individual Card Projections */}
         <div className="space-y-3">
           {projections.map(proj => {
-            const isExpanded = expandedCard === proj.card.id;
+            const isExpanded = expandedCards.includes(proj.card.id);
             const cardOverrides = overrides[proj.card.id] || {};
             const hasOverrides = Object.keys(cardOverrides).length > 0;
 
             return (
               <div key={proj.card.id} className="card-forged w-full max-w-full min-w-0">
-                <button onClick={() => setExpandedCard(isExpanded ? null : proj.card.id)}
+                <button onClick={() => setExpandedCards(isExpanded ? expandedCards.filter(id => id !== proj.card.id) : [...expandedCards, proj.card.id])}
                   className="w-full p-3 sm:p-4 flex flex-row items-start justify-between text-left hover:bg-muted/10 transition-colors">
                   <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
                     <span className="w-3 sm:w-4 h-3 sm:h-4 rounded-sm shrink-0 mt-0.5" style={{ backgroundColor: proj.card.color }} />
