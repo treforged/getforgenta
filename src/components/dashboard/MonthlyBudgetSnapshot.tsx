@@ -9,6 +9,7 @@ type Props = {
   spentSoFar: number;
   expectedRemainingExpenses: number;
   projectedSurplus: number;
+  cashFloor: number;
   onCalcClick?: () => void;
 };
 
@@ -26,6 +27,7 @@ export default function MonthlyBudgetSnapshot({
   spentSoFar,
   expectedRemainingExpenses,
   projectedSurplus,
+  cashFloor,
   onCalcClick,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
@@ -53,6 +55,7 @@ export default function MonthlyBudgetSnapshot({
     { label: 'Income still coming',  value: remainingIncome,           sign: '+', colorClass: 'text-success' },
     { label: 'Bills still coming',   value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
     { label: 'Projected remaining',  value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
+    { label: 'Cash floor',           value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground' },
   ];
 
   return (
@@ -135,7 +138,8 @@ export default function MonthlyBudgetSnapshot({
         {/* Breakdown rows */}
         <div className="space-y-0">
           {rows.map((row, i) => {
-            const isTotal = i === rows.length - 1;
+            const isTotal = row.sign === '=';
+            const isSubRow = row.sign === '−' && i > 0 && rows[i - 1].sign === '=';
             return (
               <div
                 key={i}
@@ -143,6 +147,8 @@ export default function MonthlyBudgetSnapshot({
                   'flex items-center justify-between py-2 text-xs',
                   isTotal
                     ? 'border-t border-border mt-1 pt-3'
+                    : isSubRow
+                    ? 'border-b border-border/20 opacity-70'
                     : 'border-b border-border/30',
                 )}
               >
