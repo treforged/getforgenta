@@ -355,29 +355,27 @@ export default function Forecast() {
       return { ...e, income: normalizedBasePaycheck + e.income };
     });
 
-    const projs = (() => {
-      const sim = simulateVariablePayoff(
-        cards,
-        liquidCash,
-        debtPayoffOptions.cashFloor,
-        'avalanche',
-        monthlyTakeHome,
-        monthlyExpenses,
-        36,
-        simulationMonthEvents,
-        undefined,
-        cardPurchasesPerMonth,
-        m0Income,
-        m0Expenses,
-        oneTimeArr,
-        m0SafeFloor,
-      );
+    const sim = simulateVariablePayoff(
+      cards,
+      liquidCash,
+      debtPayoffOptions.cashFloor,
+      'avalanche',
+      monthlyTakeHome,
+      monthlyExpenses,
+      36,
+      simulationMonthEvents,
+      undefined,
+      cardPurchasesPerMonth,
+      m0Income,
+      m0Expenses,
+      oneTimeArr,
+      m0SafeFloor,
+    );
 
-      return cards.map(c => {
-        const pays = sim.monthlyPayments.get(c.id) || [];
-        return projectCardVariable(c, pays, 36, true);
-      });
-    })();
+    const projs = cards.map(c => {
+      const pays = sim.monthlyPayments.get(c.id) || [];
+      return projectCardVariable(c, pays, 36, true);
+    });
 
     const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
     const data = Array.from({ length: 36 }, (_, i) => {
@@ -412,11 +410,12 @@ export default function Forecast() {
       }, 0),
     );
 
+    // Derived from sim.monthlyPayments (not projs) so post-payoff purchase payments
+    // are included. projs breaks out of its loop at payoff and has no further entries.
     const allPaymentTotals = Array.from({ length: 36 }, (_, i) =>
-      projs.reduce((total, proj) => {
-        const m = proj.months[i];
-        if (!m) return total;
-        return total + m.payment;
+      cards.reduce((total, card) => {
+        const pays = sim.monthlyPayments.get(card.id);
+        return total + (pays?.[i] ?? 0);
       }, 0),
     );
 
@@ -713,10 +712,11 @@ export default function Forecast() {
         baseExpenses = budgetFallback * expenseMultiplier;
       }
 
-      // rawDebtPayment drives the cash-flow calculation (PASS 2 floor protection, PASS 3 surplus).
-      // All months use cardProjectionData's real-debt-only totals (startBalance > 0 guard kept to
-      // avoid post-payoff autopay inflating PASS 2's look-ahead). Falls back to scalar sim.
-      let rawDebtPayment = cardProjectionData?.debtPaymentTotals?.[i]
+      // rawDebtPayment = all CC outflows: debt payoff while balances remain + post-payoff
+      // purchase pass-through. Uses allPaymentTotals (from sim.monthlyPayments) so
+      // post-payoff CC purchases appear as cash outflows — forecastMonthEvents.expenses
+      // already excludes CC purchases, so without this they vanish from the model.
+      let rawDebtPayment = cardProjectionData?.allPaymentTotals?.[i]
         ?? debtPaymentsByMonth[monthKey]
         ?? 0;
 
