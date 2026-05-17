@@ -576,6 +576,7 @@ export default function Dashboard() {
             spentSoFar={summary.expenses + totalDebtPayments}
             expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
             projectedSurplus={monthEndCash}
+            cashFloor={cashFloor}
             onCalcClick={openMonthEndCalc}
           />
         );
