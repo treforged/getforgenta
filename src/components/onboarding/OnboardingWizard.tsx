@@ -7,21 +7,23 @@ import PlaidLinkButton from '@/components/shared/PlaidLinkButton';
 import ModalShell from '@/components/shared/ModalShell';
 import {
   X, ChevronRight, Crown, Check, Shield,
-  DollarSign, CreditCard, PiggyBank,
+  DollarSign, CreditCard, PiggyBank, Zap,
 } from 'lucide-react';
 
 const WIZARD_DISMISSED_KEY = 'forged:onboarding_wizard_dismissed';
 const WIZARD_STEP_KEY = 'forged:onboarding_step';
 
-type Step = 1 | 2 | 3 | 4;
-type UpsellStage = null | 'first' | 'second';
+// Free users: steps 1-3 (income, debt, goals) — bank connect requires premium
+// Premium users: steps 1-4 (bank, income, debt, goals)
+type UpsellStage = 'first' | 'second' | null;
 
 interface Props {
   onComplete: () => void;
   onDismiss: () => void;
 }
 
-const STEP_LABELS = ['Connect a bank', 'Set your income', 'Add a debt', 'Create a goal'];
+const FREE_STEP_LABELS = ['Set your income', 'Add a debt', 'Create a goal'];
+const PREMIUM_STEP_LABELS = ['Connect a bank', 'Set your income', 'Add a debt', 'Create a goal'];
 
 export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
   const { user } = useAuth();
@@ -29,17 +31,19 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
   const navigate = useNavigate();
 
   const savedStep = parseInt(sessionStorage.getItem(WIZARD_STEP_KEY) ?? '1', 10);
-  const [step, setStep] = useState<Step>((Math.min(Math.max(savedStep, 1), 4)) as Step);
+  const [step, setStep] = useState(Math.min(Math.max(savedStep, 1), isPremium ? 4 : 3));
+
+  // Free users start on the upsell pre-step. Premium users skip it entirely.
   const [upsellStage, setUpsellStage] = useState<UpsellStage>(isPremium ? null : 'first');
   const [bankLinked, setBankLinked] = useState(false);
+
+  const stepLabels = isPremium ? PREMIUM_STEP_LABELS : FREE_STEP_LABELS;
+  const totalSteps = stepLabels.length;
 
   const markComplete = async () => {
     sessionStorage.removeItem(WIZARD_STEP_KEY);
     if (user) {
-      await supabase
-        .from('profiles')
-        .update({ onboarding_completed: true } as any)
-        .eq('user_id', user.id);
+      await supabase.from('profiles').update({ onboarding_completed: true } as any).eq('user_id', user.id);
     }
     onComplete();
   };
@@ -51,25 +55,45 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
   };
 
   const nextStep = () => {
-    if (step < 4) setStep((step + 1) as Step);
+    if (step < totalSteps) setStep(step + 1);
     else markComplete();
   };
 
   const navigateTo = (path: string) => {
-    const next = step < 4 ? step + 1 : step;
+    const next = step < totalSteps ? step + 1 : step;
     sessionStorage.setItem(WIZARD_STEP_KEY, String(next));
     navigate(path);
   };
+
+  const declineUpsell = () => {
+    // Both upsell stages declined — enter free onboarding at step 1
+    setUpsellStage(null);
+    setStep(1);
+  };
+
+  const showingUpsell = upsellStage !== null;
 
   return (
     <ModalShell onDismiss={dismiss} zIndex="z-40">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 sm:px-6 sm:pt-6">
         <div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Getting started</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Step {step} of {STEP_LABELS.length} — {STEP_LABELS[step - 1]}
-          </p>
+          {showingUpsell ? (
+            <>
+              <div className="flex items-center gap-1.5">
+                <Crown size={12} className="text-primary" />
+                <p className="text-[10px] text-primary uppercase tracking-wider font-semibold">Exclusive offer</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">Unlock Forgenta's full potential</p>
+            </>
+          ) : (
+            <>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Getting started</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Step {step} of {totalSteps} — {stepLabels[step - 1]}
+              </p>
+            </>
+          )}
         </div>
         <button
           onClick={dismiss}
@@ -80,18 +104,36 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
         </button>
       </div>
 
-      {/* Progress bar */}
-      <div className="mx-5 sm:mx-6 mt-4 h-1 bg-secondary rounded-full overflow-hidden">
-        <div
-          className="h-full bg-primary rounded-full transition-all duration-500"
-          style={{ width: `${(step / STEP_LABELS.length) * 100}%` }}
-        />
-      </div>
+      {/* Progress bar — only shown during onboarding steps, not upsell */}
+      {!showingUpsell && (
+        <div className="mx-5 sm:mx-6 mt-4 h-1 bg-secondary rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary rounded-full transition-all duration-500"
+            style={{ width: `${(step / totalSteps) * 100}%` }}
+          />
+        </div>
+      )}
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-5 py-5 sm:px-6 sm:py-5 space-y-5">
-        {/* ── Step 1: Bank connect ── */}
-        {step === 1 && isPremium && (
+
+        {/* ── Upsell pre-step (free users only, before any onboarding steps) ── */}
+        {showingUpsell && upsellStage === 'first' && (
+          <FirstUpsell
+            onUpgrade={() => navigateTo('/premium')}
+            onDecline={() => setUpsellStage('second')}
+          />
+        )}
+
+        {showingUpsell && upsellStage === 'second' && (
+          <SecondUpsell
+            onUpgrade={() => navigateTo('/premium')}
+            onDecline={declineUpsell}
+          />
+        )}
+
+        {/* ── Premium step 1: Bank connect ── */}
+        {!showingUpsell && isPremium && step === 1 && (
           <BankConnectStep
             linked={bankLinked}
             onLinked={() => { setBankLinked(true); nextStep(); }}
@@ -99,22 +141,8 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
           />
         )}
 
-        {step === 1 && !isPremium && upsellStage === 'first' && (
-          <FirstUpsell
-            onUpgrade={() => navigateTo('/premium')}
-            onDecline={() => setUpsellStage('second')}
-          />
-        )}
-
-        {step === 1 && !isPremium && upsellStage === 'second' && (
-          <SecondUpsell
-            onUpgrade={() => navigateTo('/premium')}
-            onDecline={nextStep}
-          />
-        )}
-
-        {/* ── Step 2: Income ── */}
-        {step === 2 && (
+        {/* ── Free step 1 / Premium step 2: Income ── */}
+        {!showingUpsell && step === (isPremium ? 2 : 1) && (
           <NavStep
             icon={<DollarSign size={16} className="text-primary" />}
             title="Set your monthly income"
@@ -125,8 +153,8 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
           />
         )}
 
-        {/* ── Step 3: Debt ── */}
-        {step === 3 && (
+        {/* ── Free step 2 / Premium step 3: Debt ── */}
+        {!showingUpsell && step === (isPremium ? 3 : 2) && (
           <NavStep
             icon={<CreditCard size={16} className="text-primary" />}
             title="Add a debt"
@@ -137,8 +165,8 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
           />
         )}
 
-        {/* ── Step 4: Goals ── */}
-        {step === 4 && (
+        {/* ── Free step 3 / Premium step 4: Goals ── */}
+        {!showingUpsell && step === (isPremium ? 4 : 3) && (
           <NavStep
             icon={<PiggyBank size={16} className="text-primary" />}
             title="Create a savings goal"
@@ -204,37 +232,53 @@ function FirstUpsell({
   onUpgrade: () => void;
   onDecline: () => void;
 }) {
+  const highlights = [
+    'Auto-sync bank balances every morning',
+    'AI Advisor — ask anything about your money',
+    'Up to 3 linked accounts with real transaction import',
+    'Advanced 36-month cash flow forecast',
+    'Export reports as PDF or CSV',
+  ];
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 bg-primary/15 border border-primary/30 rounded-full flex items-center justify-center shrink-0">
-          <Crown size={14} className="text-gold" />
+        <div className="w-9 h-9 bg-primary/15 border border-primary/30 rounded-full flex items-center justify-center shrink-0">
+          <Zap size={15} className="text-primary" />
         </div>
         <div>
           <p className="text-sm font-semibold leading-snug">
-            Connect up to 10 bank accounts automatically with Forgenta Premium.
+            Get more done with Forgenta Premium
           </p>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Premium also includes: AI Advisor (unlimited), daily auto-sync,
-            advanced forecasting, and priority support.
+            Connect your bank once and let Forgenta do the heavy lifting — transactions, balances, and projections stay up to date automatically.
           </p>
         </div>
       </div>
 
+      <ul className="space-y-2.5">
+        {highlights.map(h => (
+          <li key={h} className="flex items-start gap-2 text-xs text-muted-foreground">
+            <Check size={11} className="text-primary mt-0.5 shrink-0" />
+            {h}
+          </li>
+        ))}
+      </ul>
+
       <div className="flex gap-2">
         <button
           onClick={onUpgrade}
-          className="flex-1 py-2.5 bg-primary text-primary-foreground text-xs font-semibold btn-press"
+          className="flex-1 py-2.5 bg-primary text-primary-foreground text-xs font-semibold btn-press flex items-center justify-center gap-1.5"
           style={{ borderRadius: 'var(--radius)' }}
         >
-          Yes, upgrade
+          <Crown size={12} /> Upgrade now
         </button>
         <button
           onClick={onDecline}
           className="flex-1 py-2.5 border border-border text-xs text-muted-foreground hover:text-foreground btn-press transition-colors"
           style={{ borderRadius: 'var(--radius)' }}
         >
-          No, I'll stick to free
+          No thanks
         </button>
       </div>
     </div>
@@ -251,7 +295,7 @@ function SecondUpsell({
   const perks = [
     'Auto-sync every morning — wake up to fresh balances',
     'AI Advisor — ask your money anything, get real answers',
-    'Up to 10 linked accounts vs. manual-only on free',
+    'Up to 3 linked accounts vs. manual-only on free',
     'Advanced 36-month forecast with Plaid data',
     'Cancel anytime',
   ];
@@ -282,7 +326,7 @@ function SecondUpsell({
           className="flex-1 py-2.5 border border-border text-xs text-muted-foreground hover:text-foreground btn-press transition-colors"
           style={{ borderRadius: 'var(--radius)' }}
         >
-          I'll stay on free — let's keep going
+          I'll stay on free
         </button>
       </div>
     </div>
