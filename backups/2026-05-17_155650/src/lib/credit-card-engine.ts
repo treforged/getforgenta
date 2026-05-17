@@ -697,17 +697,9 @@ export function generateRecommendations(
   let remainingTransactionIncome = 0;
   let remainingTransactionExpenses = 0;
 
-  // Match the same source filtering that CreditCardEngine.tsx uses for cashBreakdown:
-  // exclude CC charges (by payment_source) and CC-default-category items (no source).
-  const fundSources = fundingAccountId
-    ? new Set([fundingAccountId, `account:${fundingAccountId}`])
-    : new Set<string>();
-
   if (transactions && transactions.length > 0) {
     remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, effectivePrimaryDueDay);
-    remainingTransactionExpenses = getRemainingTransactionExpensesByDay(
-      transactions, effectivePrimaryDueDay, true, fundSources, CC_DEFAULT_CATEGORIES,
-    );
+    remainingTransactionExpenses = getRemainingTransactionExpensesByDay(transactions, effectivePrimaryDueDay, true);
   } else if (payConfig && rules) {
     remainingTransactionIncome = getRemainingIncomeByDay(payConfig, effectivePrimaryDueDay)
       + getRemainingNonPaycheckIncomeByDay(rules, effectivePrimaryDueDay, fundingAccountId || null);
@@ -727,9 +719,8 @@ export function generateRecommendations(
   const totalRemainingOutflows = remainingTransactionExpenses;
 
   // Preference cards (statement/full) are allocated first, capped by cash above floor.
-  // Subtract outflows (bank bills through due date) so upcoming expenses aren't ignored.
   const availableAboveFloor = Math.max(0,
-    effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum,
+    effectiveFundingBalance + totalRemainingIncome - recommendedSafeMinimum,
   );
   let preferencePool = availableAboveFloor;
   let autopayTotal = 0;
