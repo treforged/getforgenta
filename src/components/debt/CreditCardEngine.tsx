@@ -949,6 +949,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   <div><p className="text-[9px] text-muted-foreground uppercase">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.totalInterest, false)}</p></div>
                 </div>
 
+                {/* Full balance autopay toggle */}
+                <div className="px-3 sm:px-4 pb-2 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-medium text-foreground leading-none">Pay full balance each month</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Treats this card as paid in full — no interest tracked</p>
+                  </div>
+                  <button
+                    onClick={() => updateAccount.mutate({ id: proj.card.id, autopay_full_balance: !proj.card.autopayFullBalance } as any)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${proj.card.autopayFullBalance ? 'bg-success' : 'bg-muted'}`}
+                    aria-label={proj.card.autopayFullBalance ? 'Disable full balance autopay' : 'Enable full balance autopay'}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${proj.card.autopayFullBalance ? 'translate-x-5' : 'translate-x-1'}`} />
+                  </button>
+                </div>
+
                 <div className="px-3 sm:px-4 pb-3">
                   <div className="w-full h-2 bg-muted/50 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
                     <div className={`h-full transition-all ${proj.card.autopayFullBalance ? 'bg-success' : proj.utilizationNow > 30 ? 'bg-destructive' : proj.utilizationNow > 10 ? 'bg-primary' : 'bg-success'}`}
