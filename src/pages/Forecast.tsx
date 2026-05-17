@@ -23,29 +23,38 @@ import { estimateTaxReturn, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }} onClick={onClose}>
-  <div
-    className="card-forged p-4 sm:p-6 w-full max-w-sm sm:max-w-md space-y-3 max-h-[75vh] overflow-y-auto popup-scroll"
-    onClick={e => e.stopPropagation()}
-  >
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="font-display font-semibold text-sm flex items-center gap-2 min-w-0"><Info size={14} className="text-primary shrink-0" /> <span className="truncate">{title}</span></h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0 p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))' }} onClick={onClose}>
+      <div
+        className="card-forged w-full max-w-sm sm:max-w-md flex flex-col"
+        style={{ maxHeight: 'min(85vh, calc(100dvh - 2rem))' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Sticky header */}
+        <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 border-b border-border shrink-0">
+          <h2 className="font-display font-semibold text-sm flex items-center gap-2 min-w-0">
+            <Info size={14} className="text-primary shrink-0" />
+            <span className="truncate">{title}</span>
+          </h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center">
+            <X size={18} />
+          </button>
         </div>
-        <div className="space-y-2 pt-2">
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto px-4 sm:px-6 py-4 space-y-2">
           {lines.map((l, i) => (
-            <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0 gap-2">
-              <span className="text-xs text-muted-foreground flex items-center gap-1.5 min-w-0">
-                {l.op && <span className="text-primary font-bold shrink-0">{l.op}</span>}
-                <span className="truncate">{l.label}</span>
+            <div key={i} className="flex items-start justify-between py-1.5 border-b border-border/30 last:border-0 gap-2">
+              <span className="text-xs text-muted-foreground flex items-start gap-1.5 min-w-0 flex-1">
+                {l.op && <span className="text-primary font-bold shrink-0 mt-px">{l.op}</span>}
+                <span className="break-words">{l.label}</span>
               </span>
               <span className="text-xs font-display font-bold text-foreground whitespace-nowrap shrink-0">{l.value}</span>
             </div>
           ))}
+          <p className="text-xs text-muted-foreground pt-2 border-t border-border/30">
+            A negative monthly cash flow can be acceptable if prior saved cash covers the difference and ending cash stays above the required floor. One-time purchases (e.g. car down payment) reduce available cash and may auto-adjust debt recommendations.
+          </p>
         </div>
-        <p className="text-xs text-muted-foreground pt-2 border-t border-border/30">
-          A negative monthly cash flow can be acceptable if prior saved cash covers the difference and ending cash stays above the required floor. One-time purchases (e.g. car down payment) reduce available cash and may auto-adjust debt recommendations.
-        </p>
       </div>
     </div>
   );
@@ -1639,16 +1648,19 @@ export default function Forecast() {
                 const surplusApplied = Math.max(0, row.debtPayment - recDebt);
                 const baseDebt = row.debtPayment - surplusApplied;
                 const reducedForFloor = recDebt > baseDebt + 1;
+                const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
+                const perPaycheck = Math.round((row.paycheckIncome ?? row.takeHome) / (paychecksPerYear / 12));
+                const freqLabel = payConfig?.frequency === 'biweekly' ? 'biweekly' : payConfig?.frequency === 'monthly' ? 'monthly' : 'weekly';
                 setCalcDrawer({
                   title: `${row.month} Breakdown`,
                   lines: [
                     ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
-                    ...(row.isRaiseMonth ? [{ label: '⬆ Raise applied — income increased this month', value: '' }] : []),
+                    ...(row.isRaiseMonth ? [{ label: `⬆ Raise applied — new ${freqLabel} paycheck: ${formatCurrency(perPaycheck, false)}`, value: '' }] : []),
                     { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
                     { label: 'Paycheck', value: formatCurrency(row.paycheckIncome ?? row.takeHome, false), op: '+' },
                     ...((row.otherIncome ?? 0) > 0 ? [{ label: '  Other Income', value: formatCurrency(row.otherIncome, false), op: '+' }] : []),
-                    ...((row.bonusIncome ?? 0) > 0 ? [{ label: '  Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
-                    ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: '  Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
+                    ...((row.bonusIncome ?? 0) > 0 ? [{ label: 'Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
+                    ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
                     { label: '  Debt Payments', value: formatCurrency(baseDebt, false), op: '−' },
                     ...(reducedForFloor ? [{ label: `    (planned ${formatCurrency(recDebt, false)}, reduced for floor)`, value: '' }] : []),

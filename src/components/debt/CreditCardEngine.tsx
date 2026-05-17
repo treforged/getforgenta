@@ -153,7 +153,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const allTransactionsWithNextMonth = useMemo(() => {
     const now = new Date();
     const today = now.getDate();
-    const hasEarlyDueCard = cards.some(c => c.paymentPreference === 'revolving' && c.balance > 0 && (c.dueDay || 31) < today);
+    const hasEarlyDueCard = cards.some(c => !c.autopayFullBalance && c.balance > 0 && (c.dueDay || 31) < today);
     if (!hasEarlyDueCard) return allTransactions;
     const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
     const nextMonth = (now.getMonth() + 1) % 12;
@@ -193,7 +193,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   // Use the earliest card due day as the default window for the top-level display
   const primaryDueDay = useMemo(() => {
-    const revolving = cards.filter(c => c.paymentPreference === 'revolving' && c.balance > 0);
+    const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
     if (revolving.length === 0) return 31;
     // Use the earliest due day among revolving cards
     const dueDays = revolving.map(c => c.dueDay || 31);
@@ -786,7 +786,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         <span>{formatCurrency(estLiquidCash, false)}</span>
                       </div>
                       {(() => {
-                        const activeCards = cards.filter(c => c.paymentPreference === 'revolving' && c.balance > 0);
+                        const activeCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
                         const uniqueDueDays = new Set(activeCards.map(c => c.dueDay || 31));
                         if (activeCards.length > 1 && uniqueDueDays.size > 1) {
                           return (
