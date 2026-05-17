@@ -16,7 +16,6 @@ export type CardData = {
   monthlyNewPurchases: number;
   monthlyRepayments: number;
   color: string;
-  paymentPreference: 'revolving' | 'statement' | 'full';
   autopayFullBalance: boolean;
   dueDay: number | null;
 };
@@ -178,10 +177,7 @@ export function buildCardData(
         : calcMinPayment(balance, apr);
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
-    const pref = (acct as any).payment_preference;
-    const paymentPreference: 'revolving' | 'statement' | 'full' =
-      pref === 'statement' ? 'statement' : pref === 'full' ? 'full' : 'revolving';
-    const autopayFullBalance = paymentPreference !== 'revolving';
+    const autopayFullBalance = Boolean((acct as any).autopay_full_balance);
 
     return {
       id: acct.id, name: acct.name, balance, apr, creditLimit,
@@ -189,7 +185,7 @@ export function buildCardData(
       targetPayment: Math.max(targetPay, minPay),
       monthlyNewPurchases, monthlyRepayments: monthRepayments,
       color: getCardColor(colorStartIndex + i),
-      paymentPreference, autopayFullBalance,
+      autopayFullBalance,
       dueDay: (acct as any).payment_due_day ?? null,
     };
   });
@@ -212,7 +208,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
     const startBal = bal;
     const newPurchases = card.monthlyNewPurchases;
 
-    if (card.autopayFullBalance && bal <= 0) {
+    if (card.autopayFullBalance) {
       if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment: newPurchases, endBalance: 0, utilization: 0 });
       continue;
     }
@@ -229,7 +225,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   return {
     card, months: rows, payoffMonth, totalInterest: Math.round(totalInterest),
     projectedInterestThisMonth: rows[0]?.interest || 0,
-    recommendedPayment: (card.autopayFullBalance && card.balance <= 0) ? card.monthlyNewPurchases : card.targetPayment,
+    recommendedPayment: card.autopayFullBalance ? card.monthlyNewPurchases : card.targetPayment,
     utilizationNow: card.creditLimit > 0 ? (card.balance / card.creditLimit) * 100 : 0,
   };
 }
@@ -273,7 +269,7 @@ export function projectCardVariable(
       ? purchasesPerMonth[m - 1]
       : (m === 1 && skipFirstMonthPurchases) ? 0 : card.monthlyNewPurchases;
 
-    if (card.autopayFullBalance && bal <= 0) {
+    if (card.autopayFullBalance) {
       if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment: newPurchases, endBalance: 0, utilization: 0 });
       continue;
     }
@@ -292,7 +288,7 @@ export function projectCardVariable(
   return {
     card, months: rows, payoffMonth, totalInterest: Math.round(totalInterest),
     projectedInterestThisMonth: rows[0]?.interest || 0,
-    recommendedPayment: (card.autopayFullBalance && card.balance <= 0) ? card.monthlyNewPurchases : (monthlyPayments[0] ?? card.targetPayment),
+    recommendedPayment: card.autopayFullBalance ? card.monthlyNewPurchases : (monthlyPayments[0] ?? card.targetPayment),
     utilizationNow: card.creditLimit > 0 ? (card.balance / card.creditLimit) * 100 : 0,
   };
 }
@@ -443,11 +439,6 @@ export function simulateVariablePayoff(
     const cardPurchasesThisMonth = (c: CardData): number =>
       cardPurchasesPerMonth?.[m]?.[c.id] ?? (m === 0 ? 0 : c.monthlyNewPurchases);
 
-    // Floor and one-time items — computed once per month, shared by Steps 2 and 5.
-    const effectiveFloor = (m === 0 && month0SafeFloor !== undefined) ? month0SafeFloor : cashFloor;
-    const oneTimeNet = m === 0 ? 0
-      : (oneTimeByMonth?.[m]?.income ?? 0) - (oneTimeByMonth?.[m]?.expenses ?? 0);
-
     // ── Step 1 — Mark newly paid-off cards (one-way transition) ──
     for (const card of cards) {
       if (!paidOffCards.has(card.id) && (balances.get(card.id) ?? 0) <= 0) {
@@ -455,18 +446,14 @@ export function simulateVariablePayoff(
       }
     }
 
-    // ── Step 2 — Handle paid-off cards: pay purchases, capped by cash above floor ──
-    // These cards stay at $0 permanently. Purchase cost is a cash outflow
+    // ── Step 2 — Handle paid-off cards: auto-pay purchases, no interest ──
+    // These cards stay at $0 permanently. Their purchase cost is a cash outflow
     // but does NOT create a balance that accrues interest (grace period model).
-    // Cap total paid-off payments so currentCash never drops below effectiveFloor.
-    const tentativeAvailAboveFloor = Math.max(0, currentCash + monthIncome - monthExpenses + oneTimeNet - effectiveFloor);
-    let paidOffPool = tentativeAvailAboveFloor;
     let paidOffCashCost = 0;
     for (const card of cards) {
       if (!paidOffCards.has(card.id)) continue;
       const purchases = cardPurchasesThisMonth(card);
-      const pay = Math.round(Math.min(purchases, paidOffPool) * 100) / 100;
-      paidOffPool -= pay;
+      const pay = Math.round(purchases * 100) / 100;
       monthlyPayments.get(card.id)!.push(pay);
       paidOffCashCost += pay;
       if (pay > 0) {
@@ -518,10 +505,18 @@ export function simulateVariablePayoff(
       return s + Math.min(c.minPayment, bbp);
     }, 0);
 
+    // One-time net for this month: windfall income increases available surplus,
+    // one-time expenses reduce it — factored in BEFORE debt allocation so the sim
+    // throttles payments to protect the cash floor rather than letting end-cash
+    // drop below it after one-time expenses are applied in Step 7.
+    // Month 0 one-time items are already baked into month0RemainingIncome/Expenses.
+    const oneTimeNet = m === 0 ? 0
+      : (oneTimeByMonth?.[m]?.income ?? 0) - (oneTimeByMonth?.[m]?.expenses ?? 0);
+
     // availableCash = what's left above the floor after income, expenses, paid-off costs,
     // and one-time items for this month.
     // Month 0 uses month0SafeFloor (= max(cashFloor, ppBills)) so the projection matches recommendations.
-    // effectiveFloor and oneTimeNet are computed at top of this iteration (before Step 2).
+    const effectiveFloor = (m === 0 && month0SafeFloor !== undefined) ? month0SafeFloor : cashFloor;
     let availableCash = currentCash + monthIncome - monthExpenses - effectiveFloor - paidOffCashCost + oneTimeNet;
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });
@@ -675,10 +670,11 @@ export function generateRecommendations(
   transactions?: any[],
   primaryDueDay?: number,
 ): RecommendationSummary {
-  const preferenceCards = cards.filter(c => c.paymentPreference !== 'revolving');
-  const revolvingCards = cards.filter(c => c.paymentPreference === 'revolving' && c.balance > 0);
+  const autopayCards = cards.filter(c => c.autopayFullBalance);
+  const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
 
   const totalMinDue = revolvingCards.reduce((s, c) => s + c.minPayment, 0);
+  const autopayTotal = autopayCards.reduce((s, c) => s + c.monthlyNewPurchases, 0);
 
   const userCashFloor = cashFloor;
   const ppBills = prePaycheckBillsTotal ?? 0;
@@ -717,31 +713,9 @@ export function generateRecommendations(
   const totalRemainingIncome = remainingTransactionIncome;
   const totalRemainingOutflows = remainingTransactionExpenses;
 
-  // Preference cards (statement/full) are allocated first, capped by cash above floor.
-  const availableAboveFloor = Math.max(0,
-    effectiveFundingBalance + totalRemainingIncome - recommendedSafeMinimum,
+  const safeToPayTotal = Math.max(0,
+    effectiveFundingBalance + totalRemainingIncome - recommendedSafeMinimum - autopayTotal
   );
-  let preferencePool = availableAboveFloor;
-  let autopayTotal = 0;
-  const preferenceRecs: PayoffRecommendation[] = [];
-
-  for (const card of preferenceCards) {
-    const desired = card.paymentPreference === 'full'
-      ? Math.max(0, card.balance) + card.monthlyNewPurchases
-      : card.monthlyNewPurchases;
-    const actual = Math.round(Math.min(desired, preferencePool) * 100) / 100;
-    preferencePool -= actual;
-    autopayTotal += actual;
-    preferenceRecs.push({
-      cardId: card.id, cardName: card.name, color: card.color,
-      payment: actual,
-      isMinimumOnly: actual < desired,
-      reason: card.paymentPreference === 'full' ? 'Pay Full Balance' : 'Pay Statement Balance',
-      dueDay: card.dueDay,
-    });
-  }
-
-  const safeToPayTotal = preferencePool; // remaining for revolving cards
 
   const cashWarning = safeToPayTotal < totalMinDue;
 
@@ -762,7 +736,17 @@ export function generateRecommendations(
   };
 
   let remaining = safeToPayTotal;
-  const recs: PayoffRecommendation[] = [...preferenceRecs];
+  const recs: PayoffRecommendation[] = [];
+
+  for (const card of autopayCards) {
+    recs.push({
+      cardId: card.id, cardName: card.name, color: card.color,
+      payment: card.monthlyNewPurchases,
+      isMinimumOnly: false,
+      reason: 'Autopay Full Balance',
+      dueDay: card.dueDay,
+    });
+  }
 
   const sorted = [...revolvingCards];
   if (strategy === 'avalanche') {
