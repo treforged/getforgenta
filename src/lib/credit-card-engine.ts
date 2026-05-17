@@ -177,7 +177,7 @@ export function buildCardData(
         : calcMinPayment(balance, apr);
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
-    const autopayFullBalance = false;
+    const autopayFullBalance = Boolean((acct as any).autopay_full_balance);
 
     return {
       id: acct.id, name: acct.name, balance, apr, creditLimit,
