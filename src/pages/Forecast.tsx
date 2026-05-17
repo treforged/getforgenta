@@ -647,11 +647,7 @@ export default function Forecast() {
       const scheduled = monthlyAggregates[monthKey];
       // Use CC-filtered income from forecastMonthEvents; fall back to monthlyAggregates
       const scheduledIncome = forecastMonthEvents[i]?.income || scheduled?.income || 0;
-      // Month 0: actual paycheck count this calendar month. Months 1+: normalized (paychecksPerYear/12)
-      // to eliminate the 4-vs-5 Friday variance that makes the paycheck appear to drop mid-forecast.
-      const fallbackTakeHome = i === 0
-        ? getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth())
-        : getNormalizedMonthNetIncome(adjustedConfig);
+      const fallbackTakeHome = getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth());
 
       // Bonus calculation — flat dollar amount or % of projected annual gross
       const annualGrossHere = payConfig.weeklyGross * 52 * incomeMultiplier;
@@ -1663,7 +1659,14 @@ export default function Forecast() {
                 const baseDebt = row.debtPayment - surplusApplied;
                 const reducedForFloor = recDebt > baseDebt + 1;
                 const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
-                const perPaycheck = Math.round((row.paycheckIncome ?? row.takeHome) / (paychecksPerYear / 12));
+                // Use actual paycheck count for this month — dividing by normalized 52/12 gives wrong
+                // per-check (e.g. 4-Friday month ÷ 4.33 shows raise as lower than pre-raise amount).
+                const absoluteI = filterYear === 'all' ? i : (parseInt(filterYear, 10) - 1) * 12 + i;
+                const _rowDate = new Date(new Date().getFullYear(), new Date().getMonth() + absoluteI, 1);
+                const paycheckCount = getPaychecksInMonth(payConfig, _rowDate.getFullYear(), _rowDate.getMonth()).length;
+                const perPaycheck = paycheckCount > 0
+                  ? Math.round((row.paycheckIncome ?? row.takeHome) / paycheckCount)
+                  : Math.round((row.paycheckIncome ?? row.takeHome) / (paychecksPerYear / 12));
                 const freqLabel = payConfig?.frequency === 'biweekly' ? 'biweekly' : payConfig?.frequency === 'monthly' ? 'monthly' : 'weekly';
                 setCalcDrawer({
                   title: `${row.month} Breakdown`,
