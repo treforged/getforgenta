@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
+import { supabase } from '@/integrations/supabase/client';
+import { tracedInvoke } from '@/lib/tracer';
 import { premiumSuccessParamsSchema } from '@/lib/schemas';
 import AppTour from '@/components/shared/AppTour';
 
@@ -16,38 +18,67 @@ export default function PremiumSuccess() {
   const sessionId = sessionIdResult.success ? sessionIdResult.data.session_id : null;
 
   useEffect(() => {
-    // No valid session_id means the user navigated here directly — show confirmation without polling
     if (!sessionId) {
       setPolling(false);
       return;
     }
 
-    // Stripe webhook is async. Poll every 1.5s (max 7 attempts ≈ 10.5s) until the DB
-    // reflects the active subscription that the webhook will write.
-    let attempts = 0;
-    const MAX_ATTEMPTS = 7;
+    let cancelled = false;
 
-    const poll = async () => {
-      const result = await refetch();
-      const sub = result.data as { plan?: string; subscription_status?: string } | null;
-      if (
-        sub?.plan === 'premium' &&
-        ['active', 'trialing'].includes(sub?.subscription_status || '')
-      ) {
+    const run = async () => {
+      // Primary path: call verify-checkout to activate immediately from the
+      // redirect URL, bypassing the webhook entirely. This is the fix for
+      // mobile Safari users who leave before the webhook fires.
+      const { data, error } = await tracedInvoke<{
+        activated: boolean;
+        plan?: string;
+        subscription_status?: string;
+      }>(supabase, 'verify-checkout', {
+        method: 'POST',
+        body: { session_id: sessionId },
+      });
+
+      if (cancelled) return;
+
+      if (!error && data?.activated) {
         setVerified(true);
         setPolling(false);
         return;
       }
-      attempts++;
-      if (attempts >= MAX_ATTEMPTS) {
-        setPolling(false);
-        return;
-      }
-      setTimeout(poll, 1500);
+
+      // Fallback: edge function unavailable or session already activated — poll
+      // the DB until the subscription record reflects the active state.
+      let attempts = 0;
+      const MAX_ATTEMPTS = 7;
+
+      const poll = async () => {
+        if (cancelled) return;
+        const result = await refetch();
+        const sub = result.data as { plan?: string; subscription_status?: string } | null;
+        if (
+          sub?.plan === 'premium' &&
+          ['active', 'trialing'].includes(sub?.subscription_status || '')
+        ) {
+          if (!cancelled) {
+            setVerified(true);
+            setPolling(false);
+          }
+          return;
+        }
+        attempts++;
+        if (attempts >= MAX_ATTEMPTS) {
+          if (!cancelled) setPolling(false);
+          return;
+        }
+        setTimeout(poll, 1500);
+      };
+
+      setTimeout(poll, 500);
     };
 
-    // Give the webhook a 1s head-start before first poll
-    setTimeout(poll, 1000);
+    run();
+
+    return () => { cancelled = true; };
   }, []);
 
   if (polling) {
