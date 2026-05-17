@@ -56,6 +56,7 @@ export default function MonthlyBudgetSnapshot({
     { label: 'Bills still coming',   value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
     { label: 'Projected remaining',  value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
     { label: 'Cash floor',           value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground' },
+    { label: 'Available to deploy',  value: projectedSurplus - cashFloor, sign: '=', colorClass: (projectedSurplus - cashFloor) >= 0 ? 'text-success' : 'text-destructive' },
   ];
 
   return (
