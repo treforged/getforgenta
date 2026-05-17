@@ -10,7 +10,7 @@ import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, 
 import { generateScheduledEvents, aggregateByMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getCurrentMonthDebtRecommendations, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { buildPayConfig, getMonthNetIncome, getPaychecksInMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
+import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
@@ -346,6 +346,15 @@ export default function Forecast() {
     const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true);
     const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, forecastFundingAccountId, new Date());
 
+    // For months > 0: forecastMonthEvents.income only contains income rules (e.g. GF rent $500).
+    // The simulation fallback monthlyTakeHome would be bypassed when income > 0, using $500 as total
+    // monthly income instead of $3,500. Fix: add normalized paycheck to rule-based income for months > 0.
+    const normalizedBasePaycheck = getNormalizedMonthNetIncome(payConfig);
+    const simulationMonthEvents = forecastMonthEvents.map((e, idx) => {
+      if (idx === 0) return e;
+      return { ...e, income: normalizedBasePaycheck + e.income };
+    });
+
     const projs = (() => {
       const sim = simulateVariablePayoff(
         cards,
@@ -355,7 +364,7 @@ export default function Forecast() {
         monthlyTakeHome,
         monthlyExpenses,
         36,
-        forecastMonthEvents,
+        simulationMonthEvents,
         undefined,
         cardPurchasesPerMonth,
         m0Income,
@@ -638,7 +647,11 @@ export default function Forecast() {
       const scheduled = monthlyAggregates[monthKey];
       // Use CC-filtered income from forecastMonthEvents; fall back to monthlyAggregates
       const scheduledIncome = forecastMonthEvents[i]?.income || scheduled?.income || 0;
-      const fallbackTakeHome = getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth());
+      // Month 0: actual paycheck count this calendar month. Months 1+: normalized (paychecksPerYear/12)
+      // to eliminate the 4-vs-5 Friday variance that makes the paycheck appear to drop mid-forecast.
+      const fallbackTakeHome = i === 0
+        ? getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth())
+        : getNormalizedMonthNetIncome(adjustedConfig);
 
       // Bonus calculation — flat dollar amount or % of projected annual gross
       const annualGrossHere = payConfig.weeklyGross * 52 * incomeMultiplier;
@@ -662,7 +675,7 @@ export default function Forecast() {
         netIncome = scheduledIncome + bonusIncome;
       } else {
         paycheckIncome = fallbackTakeHome;
-        otherIncome = Math.max(0, (forecastMonthEvents[i]?.income ?? 0) - fallbackTakeHome);
+        otherIncome = forecastMonthEvents[i]?.income ?? 0;
         netIncome = fallbackTakeHome + otherIncome + bonusIncome;
       }
 
@@ -963,6 +976,7 @@ export default function Forecast() {
         carContrib: Math.round(monthlyCarContrib),
         transfersTotal: Math.round(b.monthTransfers),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
+        ccDebtBalance: Math.round(b.ccDebtBalance),
         paycheckIncome: Math.round(b.paycheckIncome),
         otherIncome: Math.round(b.otherIncome),
         bonusIncome: Math.round(b.bonusIncome),
@@ -1658,7 +1672,7 @@ export default function Forecast() {
                     ...(row.isRaiseMonth ? [{ label: `⬆ Raise applied — new ${freqLabel} paycheck: ${formatCurrency(perPaycheck, false)}`, value: '' }] : []),
                     { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
                     { label: 'Paycheck', value: formatCurrency(row.paycheckIncome ?? row.takeHome, false), op: '+' },
-                    ...((row.otherIncome ?? 0) > 0 ? [{ label: '  Other Income', value: formatCurrency(row.otherIncome, false), op: '+' }] : []),
+                    ...((row.otherIncome ?? 0) > 0 ? [{ label: 'Other Income', value: formatCurrency(row.otherIncome, false), op: '+' }] : []),
                     ...((row.bonusIncome ?? 0) > 0 ? [{ label: 'Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
                     ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
@@ -1675,8 +1689,8 @@ export default function Forecast() {
                     { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
                     { label: '', value: '' },
                     { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
-                    { label: 'Paycheck 401k Deduction', value: (row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.paycheckRetireContrib, false) : '—' },
-                    { label: 'Total Retirement Contrib', value: formatCurrency(row.retireContrib, false) },
+                    { label: 'Total CC Balance', value: (row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDebtBalance, false) : '—' },
+                    { label: 'Monthly 401k Contribution', value: (row.retireContrib ?? 0) > 0 ? formatCurrency(row.retireContrib, false) : '—' },
                     { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
                     { label: 'Retirement Balance', value: formatCurrency(row.retirementBalance, false) },
                     { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },

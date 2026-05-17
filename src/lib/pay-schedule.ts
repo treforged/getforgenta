@@ -106,6 +106,13 @@ export function getMonthNetIncome(config: PayScheduleConfig, year: number, month
   return getPaychecksInMonth(config, year, month).reduce((s, p) => s + p.net, 0);
 }
 
+/** Normalized monthly net income — averages 52/26/12 paychecks across 12 months to eliminate 4-vs-5 paycheck variance in forecast display */
+export function getNormalizedMonthNetIncome(config: PayScheduleConfig): number {
+  const net = getPaycheckNet(config);
+  const paychecksPerYear = config.frequency === 'biweekly' ? 26 : config.frequency === 'monthly' ? 12 : 52;
+  return net * (paychecksPerYear / 12);
+}
+
 /** Resolve a deduction value to a flat dollar amount per paycheck */
 function resolveDeductionAmt(value: number, mode: string, gross: number): number {
   return mode === 'pct' ? gross * (value / 100) : value;
