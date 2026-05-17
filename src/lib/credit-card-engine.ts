@@ -181,7 +181,8 @@ export function buildCardData(
     const pref = (acct as any).payment_preference;
     const paymentPreference: 'revolving' | 'statement' | 'full' =
       pref === 'statement' ? 'statement' : pref === 'full' ? 'full' : 'revolving';
-    const autopayFullBalance = paymentPreference !== 'revolving';
+    // Only active once the card is fully paid off — while balance > 0 the card stays revolving.
+    const autopayFullBalance = paymentPreference !== 'revolving' && balance <= 0;
 
     return {
       id: acct.id, name: acct.name, balance, apr, creditLimit,
@@ -675,9 +676,8 @@ export function generateRecommendations(
   transactions?: any[],
   primaryDueDay?: number,
 ): RecommendationSummary {
-  // Preference mode only activates once a card is fully paid off; until then it's revolving.
-  const preferenceCards = cards.filter(c => c.paymentPreference !== 'revolving' && c.balance <= 0);
-  const revolvingCards = cards.filter(c => c.balance > 0);
+  const preferenceCards = cards.filter(c => c.autopayFullBalance); // balance <= 0 already encoded
+  const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
 
   const totalMinDue = revolvingCards.reduce((s, c) => s + c.minPayment, 0);
 
