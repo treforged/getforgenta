@@ -153,7 +153,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const allTransactionsWithNextMonth = useMemo(() => {
     const now = new Date();
     const today = now.getDate();
-    const hasEarlyDueCard = cards.some(c => c.paymentPreference === 'revolving' && c.balance > 0 && (c.dueDay || 31) < today);
+    const hasEarlyDueCard = cards.some(c => !c.autopayFullBalance && c.balance > 0 && (c.dueDay || 31) < today);
     if (!hasEarlyDueCard) return allTransactions;
     const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
     const nextMonth = (now.getMonth() + 1) % 12;
@@ -193,7 +193,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   // Use the earliest card due day as the default window for the top-level display
   const primaryDueDay = useMemo(() => {
-    const revolving = cards.filter(c => c.paymentPreference === 'revolving' && c.balance > 0);
+    const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
     if (revolving.length === 0) return 31;
     // Use the earliest due day among revolving cards
     const dueDays = revolving.map(c => c.dueDay || 31);
@@ -786,7 +786,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         <span>{formatCurrency(estLiquidCash, false)}</span>
                       </div>
                       {(() => {
-                        const activeCards = cards.filter(c => c.paymentPreference === 'revolving' && c.balance > 0);
+                        const activeCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
                         const uniqueDueDays = new Set(activeCards.map(c => c.dueDay || 31));
                         if (activeCards.length > 1 && uniqueDueDays.size > 1) {
                           return (
@@ -896,9 +896,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <h4 className="text-xs sm:text-sm font-semibold">{proj.card.name}</h4>
-                        {proj.card.paymentPreference !== 'revolving' && (
+                        {proj.card.autopayFullBalance && (
                           <span className="text-[8px] sm:text-[9px] px-1.5 py-0.5 bg-success/15 text-success border border-success/30 font-medium flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
-                            <CheckCircle2 size={9} /> {proj.card.paymentPreference === 'full' ? 'Full Balance' : 'Statement'}
+                            <CheckCircle2 size={9} /> Autopay
                           </span>
                         )}
                         {hasOverrides && (
@@ -911,11 +911,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         {proj.card.apr}% APR · Limit {formatCurrency(proj.card.creditLimit, false)} · Utilization {proj.utilizationNow.toFixed(1)}%
                         {proj.card.dueDay && <span> · <CalendarDays size={10} className="inline" /> Due {proj.card.dueDay}{proj.card.dueDay === 1 ? 'st' : proj.card.dueDay === 2 ? 'nd' : proj.card.dueDay === 3 ? 'rd' : 'th'}</span>}
                       </p>
-                      <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive'}`}>
-                        {formatCurrency(Math.max(0, proj.card.balance), false)}
+                      <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.autopayFullBalance ? 'text-success' : 'text-destructive'}`}>
+                        {proj.card.autopayFullBalance ? '$0.00' : formatCurrency(proj.card.balance, false)}
                       </p>
                       <p className="text-[11px] sm:text-xs text-muted-foreground">
-                        {proj.card.balance <= 0
+                        {proj.card.autopayFullBalance
                           ? 'Debt free'
                           : (() => {
                               if (!proj.payoffMonth) return 'Payoff: N/A';
@@ -949,36 +949,25 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   <div><p className="text-[9px] text-muted-foreground uppercase">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.totalInterest, false)}</p></div>
                 </div>
 
-                {/* Payment preference selector */}
-                <div className="px-3 sm:px-4 pb-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Payment preference</p>
-                  <div className="flex gap-0 border border-border overflow-hidden text-[10px] font-medium" style={{ borderRadius: 'var(--radius)' }}>
-                    {(['revolving', 'statement', 'full'] as const).map((opt, idx) => {
-                      const active = proj.card.paymentPreference === opt;
-                      const label = opt === 'revolving' ? 'Revolving' : opt === 'statement' ? 'Statement' : 'Full Balance';
-                      return (
-                        <button
-                          key={opt}
-                          onClick={() => updateAccount.mutate({ id: proj.card.id, payment_preference: opt === 'revolving' ? null : opt } as any)}
-                          className={`flex-1 py-1.5 transition-colors ${active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'} ${idx > 0 ? 'border-l border-border' : ''}`}
-                          aria-pressed={active}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
+                {/* Full balance autopay toggle */}
+                <div className="px-3 sm:px-4 pb-2 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-medium text-foreground leading-none">Pay full balance each month</p>
+                    <p className="text-[9px] text-muted-foreground mt-0.5">Treats this card as paid in full — no interest tracked</p>
                   </div>
-                  <p className="text-[9px] text-muted-foreground mt-1">
-                    {proj.card.paymentPreference === 'revolving' && 'Standard — pay minimums + extra via debt strategy'}
-                    {proj.card.paymentPreference === 'statement' && 'Pay new charges only — as cash allows above floor'}
-                    {proj.card.paymentPreference === 'full' && 'Pay entire balance + new charges — as cash allows above floor'}
-                  </p>
+                  <button
+                    onClick={() => updateAccount.mutate({ id: proj.card.id, autopay_full_balance: !proj.card.autopayFullBalance } as any)}
+                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${proj.card.autopayFullBalance ? 'bg-success' : 'bg-muted'}`}
+                    aria-label={proj.card.autopayFullBalance ? 'Disable full balance autopay' : 'Enable full balance autopay'}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${proj.card.autopayFullBalance ? 'translate-x-5' : 'translate-x-1'}`} />
+                  </button>
                 </div>
 
                 <div className="px-3 sm:px-4 pb-3">
                   <div className="w-full h-2 bg-muted/50 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
-                    <div className={`h-full transition-all ${proj.utilizationNow > 30 ? 'bg-destructive' : proj.utilizationNow > 10 ? 'bg-primary' : 'bg-success'}`}
-                      style={{ width: `${Math.min(100, proj.utilizationNow)}%` }} />
+                    <div className={`h-full transition-all ${proj.card.autopayFullBalance ? 'bg-success' : proj.utilizationNow > 30 ? 'bg-destructive' : proj.utilizationNow > 10 ? 'bg-primary' : 'bg-success'}`}
+                      style={{ width: `${proj.card.autopayFullBalance ? 100 : Math.min(100, proj.utilizationNow)}%` }} />
                   </div>
                 </div>
 
@@ -997,10 +986,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     className="border-t border-border"
                   >
                   <div className="px-3 sm:px-4 py-3">
-                    {proj.card.balance <= 0 && proj.card.paymentPreference !== 'revolving' && (
+                    {proj.card.autopayFullBalance && (
                       <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={14} className="shrink-0" />
-                        <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.monthlyNewPurchases, false)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : 'statement balance'} — as cash allows.</span>
+                        <span>This card is debt-free. All monthly purchases ({formatCurrency(proj.card.monthlyNewPurchases, false)}) are paid in full automatically.</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
