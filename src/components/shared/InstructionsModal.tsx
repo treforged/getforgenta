@@ -23,15 +23,33 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4" style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))' }} onClick={() => setOpen(false)}>
-          <div className="card-forged p-4 sm:p-6 w-full max-w-lg space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between gap-2">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="card-forged w-full max-w-lg flex flex-col"
+            style={{ maxHeight: 'min(85vh, calc(100dvh - 2rem))' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Sticky header — always visible */}
+            <div className="flex items-center justify-between gap-2 px-4 sm:px-6 py-4 border-b border-border shrink-0">
               <h2 className="font-display font-semibold text-sm flex items-center gap-2 min-w-0">
-                <BookOpen size={14} className="text-primary shrink-0" /> <span className="truncate">{pageTitle}</span>
+                <BookOpen size={14} className="text-primary shrink-0" />
+                <span className="truncate">{pageTitle}</span>
               </h2>
-              <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground shrink-0 p-1"><X size={16} /></button>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-muted-foreground hover:text-foreground shrink-0 p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                aria-label="Close guide"
+              >
+                <X size={18} />
+              </button>
             </div>
-            <div className="space-y-4">
+
+            {/* Scrollable body */}
+            <div className="overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
               {sections.map((s, i) => (
                 <div key={i}>
                   <h3 className="text-xs font-semibold text-foreground mb-1">{s.title}</h3>
