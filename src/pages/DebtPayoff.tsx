@@ -26,6 +26,10 @@ export default function DebtPayoff() {
   const { isDemo } = useDemo();
 
   const [pauseSavings, setPauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
+  const [forecastAssumptions] = usePersistedState('tre:forecast:assumptions', {
+    incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3,
+    raiseMode: 'pct' as 'pct' | 'flat', expenseGrowth: 2.5,
+  });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -206,7 +210,15 @@ export default function DebtPayoff() {
       )}
 
       {activeTab === 'cards' ? (
-        <CreditCardEngine accounts={accounts} transactions={transactions} rules={rules} debts={debts} profile={profile} goals={goals ?? []} carFunds={carFunds ?? []} />
+        <CreditCardEngine
+          accounts={accounts} transactions={transactions} rules={rules} debts={debts} profile={profile}
+          goals={goals ?? []} carFunds={carFunds ?? []}
+          incomeGrowthEnabled={forecastAssumptions.incomeGrowthEnabled}
+          incomeGrowth={forecastAssumptions.incomeGrowth}
+          raiseMonth={forecastAssumptions.raiseMonth}
+          raiseMode={forecastAssumptions.raiseMode}
+          expenseGrowth={forecastAssumptions.expenseGrowth}
+        />
       ) : (
         <>
           {/* Other Debts Summary */}
