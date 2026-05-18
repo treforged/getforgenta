@@ -18,7 +18,6 @@ import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filteri
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
-import { usePersistedState } from '@/hooks/usePersistedState';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
@@ -193,7 +192,6 @@ export default function Dashboard() {
 
   const { layout, setLayout, visibleWidgets, isCustomizing, setCustomizing, resetLayout } = useDashboardLayout();
 
-  const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
@@ -278,7 +276,6 @@ export default function Dashboard() {
   }, [accounts, profile]);
 
   const monthlySavingsAndCar = useMemo(() => {
-    if (pauseSavings) return 0;
     const retireIds = new Set<string>(
       accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
     );
@@ -301,7 +298,7 @@ export default function Dashboard() {
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
     return savingsTotal + carTotal;
-  }, [pauseSavings, goals, carFunds, accounts, rules]);
+  }, [goals, carFunds, accounts, rules]);
 
   const debtBreakdown = useMemo<MonthlyDebtBreakdown>(
     () => getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar),

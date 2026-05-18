@@ -82,7 +82,7 @@ export default function SavingsGoals() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const cashFloor = Number((profile as any)?.cash_floor) || 1000;
+  const cashFloor = Number((profile as any)?.cash_floor) || 500;
 
   // Build full transaction stream including debt payments for linked-account math
   const baseTxns = useMemo(() => mergeWithGeneratedTransactions(txns || [], rules, accounts), [txns, rules, accounts]);
