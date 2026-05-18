@@ -292,6 +292,7 @@ export default function Dashboard() {
       ).map((r: any) => r.deposit_account),
     );
     const savingsTotal = goals.reduce((s: number, g: any) => {
+      if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
       if (g.linked_account && retireIds.has(g.linked_account)) return s;
       if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
       return s + Number(g.monthly_contribution);

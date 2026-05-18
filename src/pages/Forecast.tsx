@@ -170,6 +170,7 @@ export default function Forecast() {
         ).map((r: any) => r.deposit_account),
       );
       const savingsTotal = goals.reduce((s: number, g: any) => {
+        if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now0) return s;
         if (g.linked_account && retireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests0.has(g.linked_account)) return s;
         return s + Number(g.monthly_contribution);
@@ -706,7 +707,7 @@ export default function Forecast() {
       return d401kMode === 'pct' ? paycheckGrossForForecast * (d401kVal / 100) : d401kVal;
     })();
 
-    const monthlyCarContrib = carFunds.reduce((s: number, c: any) => {
+    const monthlyCarContrib = pauseSavings ? 0 : carFunds.reduce((s: number, c: any) => {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
@@ -1124,7 +1125,7 @@ export default function Forecast() {
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor]);
+  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
