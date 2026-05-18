@@ -448,7 +448,7 @@ export default function Forecast() {
       return {
         ...e,
         income: normalizedBasePaycheck + e.nonPaycheckIncome,
-        expenses: e.expenses + (pauseSavings ? 0 : monthSavings) + simCarMonthly + monthTransfers,
+        expenses: e.expenses + monthSavings + simCarMonthly + monthTransfers,
       };
     });
 
