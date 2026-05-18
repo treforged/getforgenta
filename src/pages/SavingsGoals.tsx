@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { usePersistedState } from '@/hooks/usePersistedState';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
@@ -83,8 +84,10 @@ export default function SavingsGoals() {
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const cashFloor = Number((profile as any)?.cash_floor) || 1000;
+  const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
 
   const monthlySavingsAndCar = useMemo(() => {
+    if (pauseSavings) return 0;
     const retireIds = new Set<string>(
       accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
     );
@@ -107,7 +110,7 @@ export default function SavingsGoals() {
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
     return savingsTotal + carTotal;
-  }, [goals, carFunds, accounts, rules]);
+  }, [pauseSavings, goals, carFunds, accounts, rules]);
 
   // Build full transaction stream including debt payments for linked-account math
   const baseTxns = useMemo(() => mergeWithGeneratedTransactions(txns || [], rules, accounts), [txns, rules, accounts]);

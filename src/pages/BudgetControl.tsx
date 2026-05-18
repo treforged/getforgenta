@@ -388,7 +388,10 @@ export default function BudgetControl() {
     [txns, rules, accounts],
   );
 
+  const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
+
   const monthlySavingsAndCar = useMemo(() => {
+    if (pauseSavings) return 0;
     const retireIds = new Set<string>(
       accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
     );
@@ -411,7 +414,7 @@ export default function BudgetControl() {
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
     return savingsTotal + carTotal;
-  }, [savingsGoals, carFunds, accounts, rules]);
+  }, [pauseSavings, savingsGoals, carFunds, accounts, rules]);
 
   // Compute debt recommendations using shared helper
   const debtRecommendations = useMemo(() =>
