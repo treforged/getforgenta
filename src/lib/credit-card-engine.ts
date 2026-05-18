@@ -893,6 +893,7 @@ export type MonthlyDebtBreakdown = {
   recommendations: { cardId: string; cardName: string; payment: number; dueDay: number | null; reason: string }[];
   totalMinimumsDue: number;
   totalRecommended: number;
+  totalAvailableCash: number;
 };
 
 function buildCurrentMonthRecommendationSummary(
@@ -964,7 +965,7 @@ export function getMonthlyDebtBreakdown(
   profile: any,
 ): MonthlyDebtBreakdown {
   const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile);
-  if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0 };
+  if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0 };
   return {
     recommendations: summary.recommendations.map(r => ({
       cardId: r.cardId,
@@ -975,6 +976,7 @@ export function getMonthlyDebtBreakdown(
     })),
     totalMinimumsDue: summary.totalMinimumsdue,
     totalRecommended: summary.recommendations.reduce((s, r) => s + r.payment, 0),
+    totalAvailableCash: summary.totalAvailableCash,
   };
 }
 
