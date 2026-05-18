@@ -385,12 +385,6 @@ export function simulateVariablePayoff(
    * Should be max(cashFloor, prePaycheckBills) so month 0 payments match recommendations.
    */
   month0SafeFloor?: number,
-  /**
-   * Optional per-month cap on the total debt payment allocation (revolving cards only).
-   * Set to ccMinTotal for "save-up" months identified by the look-ahead pre-pass in callers.
-   * Mirrors Forecast PASS 2 behavior so future-month debt projections are consistent.
-   */
-  maxDebtPaymentByMonth?: number[],
 ): {
   monthlyPayments: Map<string, number[]>;
   projectedPayoffMonths: number;
@@ -532,12 +526,6 @@ export function simulateVariablePayoff(
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });
       availableCash = 0;
-    }
-
-    // Cap debt allocation in save-up months (look-ahead pre-pass set these to ccMinTotal)
-    const mDebtCap = maxDebtPaymentByMonth?.[m];
-    if (mDebtCap !== undefined && isFinite(mDebtCap) && availableCash > mDebtCap) {
-      availableCash = mDebtCap;
     }
 
     const payments = new Map<string, number>(cards.map(c => [c.id, 0]));

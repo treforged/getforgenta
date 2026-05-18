@@ -400,72 +400,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       augmentedCCPurchases.push(monthCCPurchases);
     }
 
-    // ── Look-ahead pre-pass (mirrors Forecast PASS 2) ─────────────────────────────
-    // Identifies save-up months: months where debt payments are capped at CC minimums
-    // so cash accumulates before future large one-time cash expenses (e.g. car purchase).
-    const ccMinTotalPrepass = cards
-      .filter(c => !c.autopayFullBalance && c.balance > 0)
-      .reduce((s, c) => s + c.minPayment, 0);
-
-    const maxDebtPaymentByMonth: number[] = Array(36).fill(Infinity);
-
-    if (ccMinTotalPrepass > 0 && oneTimeByMonth.some((o, i) => i > 0 && o.expenses > 0)) {
-      const saveUpMonths = new Set<number>();
-
-      // Initialize: greedy estimate (all surplus above floor → debt)
-      // Month 0 uses fundingBalance; months 1+ approximate PASS 3 (start at cashFloor)
-      const simDebtPay: number[] = [];
-      for (let m = 0; m < 36; m++) {
-        const mInc = m === 0 ? month0Income : (monthEvents?.[m]?.income ?? monthlyTakeHome);
-        const mExp = m === 0 ? month0Expenses : (monthEvents?.[m]?.expenses ?? monthlyRecurringExpenses);
-        const startBal = m === 0 ? fundingBalance : cashFloor;
-        const available = Math.max(0, startBal + mInc - mExp - cashFloor);
-        simDebtPay.push(Math.max(ccMinTotalPrepass, available));
-      }
-
-      const recomputeSimCash = (): number[] => {
-        let bal = fundingBalance;
-        const cash: number[] = [];
-        for (let m = 0; m < 36; m++) {
-          const mInc = m === 0 ? month0Income : (monthEvents?.[m]?.income ?? monthlyTakeHome);
-          const mExp = m === 0 ? month0Expenses : (monthEvents?.[m]?.expenses ?? monthlyRecurringExpenses);
-          const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeByMonth[m] ?? { income: 0, expenses: 0 });
-          const availForDebt = Math.max(0, bal + mInc - mExp - cashFloor);
-          const effectivePay = Math.min(simDebtPay[m], availForDebt + ccMinTotalPrepass);
-          bal += mInc - mExp - effectivePay;
-          if (!saveUpMonths.has(m) && bal > cashFloor) bal = cashFloor;
-          bal += oneTime.income - oneTime.expenses;
-          cash.push(bal);
-        }
-        return cash;
-      };
-
-      for (let pass = 0; pass < 20; pass++) {
-        const simCash = recomputeSimCash();
-        let anyFixed = false;
-        for (let i = 0; i < 36; i++) {
-          if (simCash[i] >= cashFloor) continue;
-          const shortfall = cashFloor - simCash[i];
-          let toRecover = shortfall;
-          for (let j = i; j >= 0 && toRecover > 0; j--) {
-            const canReduce = Math.max(0, Math.min(simDebtPay[j] - ccMinTotalPrepass, toRecover));
-            if (canReduce > 0) {
-              simDebtPay[j] -= canReduce;
-              toRecover -= canReduce;
-              if (j < i && (oneTimeByMonth[i]?.expenses ?? 0) > 0) saveUpMonths.add(j);
-              anyFixed = true;
-            }
-          }
-          if (anyFixed) break;
-        }
-        if (!anyFixed) break;
-      }
-
-      for (const m of saveUpMonths) {
-        maxDebtPaymentByMonth[m] = ccMinTotalPrepass;
-      }
-    }
-
     const sim = simulateVariablePayoff(
       cards, fundingBalance, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, 36,
@@ -473,7 +407,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       month0Income, month0Expenses,
       oneTimeByMonth,
       Math.max(cashFloor, prePaycheckBills.total), // month0SafeFloor — match recommendations
-      maxDebtPaymentByMonth,
     );
     // Return augmentedCCPurchases alongside the sim so projections can use it
     // to pass per-month purchase amounts to projectCardVariable.
