@@ -275,18 +275,9 @@ export default function Dashboard() {
     return checking?.id || null;
   }, [accounts, profile]);
 
-  const monthlySavingsAndCar = useMemo(() => {
-    const savingsTotal = goals.reduce((s: number, g: any) => s + Number(g.monthly_contribution), 0);
-    const carTotal = carFunds.reduce((s: number, c: any) => {
-      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
-      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
-    }, 0);
-    return savingsTotal + carTotal;
-  }, [goals, carFunds]);
-
   const debtBreakdown = useMemo<MonthlyDebtBreakdown>(
-    () => getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar),
-    [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar],
+    () => getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile),
+    [accounts, baseTxns, rules, debts, profile],
   );
 
   const debtPaymentTxns = useMemo(
