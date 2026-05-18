@@ -647,7 +647,7 @@ export default function Forecast() {
     // ═══ PASS 1: Compute base values without debt payment adjustments ═══
     const baseData: {
       monthLabel: string; monthKey: string; netIncome: number; baseExpenses: number;
-      rawDebtPayment: number; monthTransfers: number; monthBrokerageContrib: number; monthRetireContrib: number; oneTimeNet: number;
+      rawDebtPayment: number; monthTransfers: number; monthBrokerageContrib: number; monthRetireContrib: number; monthBusinessContrib: number; oneTimeNet: number;
       ccDebtBalance: number; otherDebtBalance: number; monthMinSafe: number; monthlySavingsContrib: number;
       paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
       paycheckRetireContrib: number; fullMonth401kContrib: number;
@@ -779,6 +779,7 @@ export default function Forecast() {
       let monthTransfers = 0;
       let monthBrokerageContrib = 0;
       let monthRetireContrib = 0;
+      let monthBusinessContrib = 0;
       for (const tr of transferRulesAll) {
         if (tr.start_date && new Date(tr.start_date) > d) continue;
         if (tr.end_date && new Date(tr.end_date) < d) continue;
@@ -795,6 +796,11 @@ export default function Forecast() {
           monthRetireContrib += monthAmt;
         } else if (destType === 'brokerage') {
           monthBrokerageContrib += monthAmt;
+        } else if (
+          destType === 'business_checking' ||
+          (destType === 'checking' && forecastFundingAccountId != null && destAcct?.id !== forecastFundingAccountId)
+        ) {
+          monthBusinessContrib += monthAmt;
         }
       }
 
@@ -835,7 +841,7 @@ export default function Forecast() {
 
       baseData.push({
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
-        monthTransfers, monthBrokerageContrib, monthRetireContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
+        monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib,
       });
@@ -1023,6 +1029,7 @@ export default function Forecast() {
         savingsContrib: Math.round(actualGoalsSavings),
         carContrib: Math.round(actualCarSavings),
         transfersTotal: Math.round(actualTransfers),
+        businessContrib: Math.round(b.monthBusinessContrib),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
         ccDebtBalance: Math.round(b.ccDebtBalance),
         paycheckIncome: Math.round(b.paycheckIncome),
@@ -1734,11 +1741,13 @@ export default function Forecast() {
                     { label: '  Debt Payments', value: formatCurrency(baseDebt, false), op: '−' },
                     ...(reducedForFloor ? [{ label: `    (planned ${formatCurrency(recDebt, false)}, reduced for floor)`, value: '' }] : []),
                     ...(surplusApplied > 1 ? [{ label: '    + Surplus to Debt', value: formatCurrency(surplusApplied, false), op: '−' }] : []),
-                    ...((row.savingsContrib ?? 0) + (row.carContrib ?? 0) > 0
-                      ? [{ label: '  Savings + Car Fund', value: formatCurrency((row.savingsContrib ?? 0) + (row.carContrib ?? 0), false), op: '−' }]
+                    ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
+                    ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
+                    ...(((row.transfersTotal ?? 0) - (row.businessContrib ?? 0)) > 0
+                      ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency((row.transfersTotal ?? 0) - (row.businessContrib ?? 0), false), op: '−' }]
                       : []),
-                    ...((row.transfersTotal ?? 0) > 0
-                      ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency(row.transfersTotal ?? 0, false), op: '−' }]
+                    ...((row.businessContrib ?? 0) > 0
+                      ? [{ label: '  Business Contributions', value: formatCurrency(row.businessContrib, false), op: '−' }]
                       : []),
                     { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
                     { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
