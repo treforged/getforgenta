@@ -52,14 +52,24 @@ export default function MonthlyBudgetSnapshot({
   // Correct three-line breakdown: balance + remaining income − bills still coming = remaining
   // "Spent so far" is already reflected in fundingBalance (current account balance), so it is
   // shown in the pie for context but NOT deducted again in the arithmetic rows.
-  const rows = [
-    { label: 'Balance on hand',      value: fundingBalance,            sign: ' ', colorClass: 'text-foreground' },
-    { label: 'Income still coming',  value: remainingIncome,           sign: '+', colorClass: 'text-success' },
-    { label: 'Bills still coming',   value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
-    { label: 'Projected remaining',  value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
-    { label: 'Cash floor',           value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground' },
-    { label: 'Available to deploy',  value: availableToDeploy ?? (projectedSurplus - cashFloor), sign: '=', colorClass: (availableToDeploy ?? (projectedSurplus - cashFloor)) >= 0 ? 'text-success' : 'text-destructive' },
-  ];
+  // "Available to deploy" when provided comes from the debt engine (same as Safe to Pay on Debt tab)
+  // and is shown as a separate total — it is not derived from the rows above to avoid confusion.
+  const rows = availableToDeploy !== undefined
+    ? [
+        { label: 'Balance on hand',      value: fundingBalance,            sign: ' ', colorClass: 'text-foreground' },
+        { label: 'Income still coming',  value: remainingIncome,           sign: '+', colorClass: 'text-success' },
+        { label: 'Bills still coming',   value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
+        { label: 'Projected remaining',  value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
+        { label: 'Available to deploy',  value: availableToDeploy,         sign: '=', colorClass: availableToDeploy >= 0 ? 'text-success' : 'text-destructive' },
+      ]
+    : [
+        { label: 'Balance on hand',      value: fundingBalance,            sign: ' ', colorClass: 'text-foreground' },
+        { label: 'Income still coming',  value: remainingIncome,           sign: '+', colorClass: 'text-success' },
+        { label: 'Bills still coming',   value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
+        { label: 'Projected remaining',  value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
+        { label: 'Cash floor',           value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground' },
+        { label: 'Available to deploy',  value: projectedSurplus - cashFloor, sign: '=', colorClass: (projectedSurplus - cashFloor) >= 0 ? 'text-success' : 'text-destructive' },
+      ];
 
   return (
     <div className="card-forged p-5">
