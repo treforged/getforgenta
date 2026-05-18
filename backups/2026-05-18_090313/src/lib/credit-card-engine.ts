@@ -681,7 +681,6 @@ export function generateRecommendations(
   oneTimeIncomeThisMonth?: number,
   transactions?: any[],
   primaryDueDay?: number,
-  monthlySavingsAndCar?: number,
 ): RecommendationSummary {
   const preferenceCards = cards.filter(c => c.autopayFullBalance); // balance <= 0 already encoded
   const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
@@ -735,10 +734,8 @@ export function generateRecommendations(
 
   // Preference cards (statement/full) are allocated first, capped by cash above floor.
   // Subtract outflows (bank bills through due date) so upcoming expenses aren't ignored.
-  // Also subtract savings goals + car fund so Safe to Pay is net of those real outflows.
   const availableAboveFloor = Math.max(0,
-    effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum
-    - (monthlySavingsAndCar ?? 0),
+    effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum,
   );
   let preferencePool = availableAboveFloor;
   let autopayTotal = 0;
@@ -905,7 +902,6 @@ function buildCurrentMonthRecommendationSummary(
   rules: any[],
   debts: any[],
   profile: any,
-  monthlySavingsAndCar?: number,
 ): RecommendationSummary | null {
   if (!accounts || !transactions || !rules || !debts) return null;
   const cards = buildCardData(accounts, transactions, rules, debts);
@@ -957,7 +953,7 @@ function buildCurrentMonthRecommendationSummary(
   return generateRecommendations(
     cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses,
     'variable', pc, rules, fundingAccountId, ppBills, fundBal,
-    undefined, undefined, transactions, primaryDueDay, monthlySavingsAndCar,
+    undefined, undefined, transactions, primaryDueDay,
   );
 }
 
@@ -967,9 +963,8 @@ export function getMonthlyDebtBreakdown(
   rules: any[],
   debts: any[],
   profile: any,
-  monthlySavingsAndCar?: number,
 ): MonthlyDebtBreakdown {
-  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar);
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile);
   if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0 };
   return {
     recommendations: summary.recommendations.map(r => ({
@@ -991,9 +986,8 @@ export function getCurrentMonthDebtRecommendations(
   rules: any[],
   debts: any[],
   profile: any,
-  monthlySavingsAndCar?: number,
 ): { cardId: string; cardName: string; payment: number; dueDay: number | null; reason: string }[] {
-  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar);
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile);
   if (!summary) return [];
   return summary.recommendations.map(r => ({
     cardId: r.cardId,
