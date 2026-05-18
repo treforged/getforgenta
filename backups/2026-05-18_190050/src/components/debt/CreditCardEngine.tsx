@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { formatCurrency } from '@/lib/calculations';
 import {
   buildCardData, projectCard, projectCardVariable, generateRecommendations,
@@ -63,7 +63,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const { isDemo } = useDemo();
   const [strategy, setStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
   const [paymentMode, setPaymentMode] = usePersistedState<'variable' | 'consistent'>('tre:debt:paymentMode', 'variable');
-  const [cashFloor, setCashFloorLocal] = useState(() => Number(profile?.cash_floor) || 1000);
+  const [cashFloor, setCashFloorLocal] = useState(() => Number(profile?.cash_floor) ?? 500);
   useEffect(() => {
     if (profile?.cash_floor != null) setCashFloorLocal(Number(profile.cash_floor));
   }, [profile?.cash_floor]);
@@ -78,11 +78,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const [safeToPayOpen, setSafeToPayOpen] = useState(false);
 
   // Auto-save cash floor to profile on change
-  const cashFloorSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cashFloorSaveTimer = useState<ReturnType<typeof setTimeout> | null>(null);
   const setCashFloor = (val: number) => {
     setCashFloorLocal(val);
-    if (cashFloorSaveTimer.current) clearTimeout(cashFloorSaveTimer.current);
-    cashFloorSaveTimer.current = setTimeout(() => {
+    if (cashFloorSaveTimer[0]) clearTimeout(cashFloorSaveTimer[0]);
+    cashFloorSaveTimer[0] = setTimeout(() => {
       updateProfile.mutate({ cash_floor: val } as any);
     }, 1000);
   };
@@ -393,7 +393,30 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           return true;
         })
         .reduce((s: number, t: any) => s + Number(t.amount), 0);
-      oneTimeByMonth.push({ income: inc, expenses: exp });
+      // Inject Forecast assumption-driven bonus and tax return income
+      let extraIncome = inc;
+      if (bonusEnabled && (bonusAmount ?? 0) > 0 && d.getMonth() + 1 === (bonusMonth ?? 12)) {
+        const firstBonusIdx = !bonusRecurring
+          ? (() => {
+              for (let k = 1; k < 36; k++) {
+                const dd = new Date(now.getFullYear(), now.getMonth() + k, 1);
+                if (dd.getMonth() + 1 === (bonusMonth ?? 12)) return k;
+              }
+              return -1;
+            })()
+          : -1;
+        if (bonusRecurring || i === firstBonusIdx) {
+          const annualTakeHome = monthlyTakeHome * 12;
+          const grossBonus = bonusMode === 'pct'
+            ? annualTakeHome * ((bonusAmount ?? 0) / 100)
+            : (bonusAmount ?? 0);
+          extraIncome += grossBonus;
+        }
+      }
+      if (taxReturnEnabled && (taxReturnAmountOverride ?? 0) > 0 && d.getMonth() + 1 === (taxReturnMonth ?? 2)) {
+        extraIncome += (taxReturnAmountOverride ?? 0);
+      }
+      oneTimeByMonth.push({ income: extraIncome, expenses: exp });
 
       // Build per-card one-time CC purchases for this month
       const baseMonth = ccPurchasesPerMonth[i] ?? {};
@@ -419,16 +442,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // (it uses actual remaining transaction amounts, not scaled values).
     const monthlyExpGrowthRate = Math.pow(1 + (expenseGrowth ?? 0) / 100, 1 / 12) - 1;
     let incMult = 1;
-    // Pre-compute bonus month index for non-recurring bonus (first occurrence in window)
-    const firstBonusIdx = (!bonusRecurring && bonusEnabled && (bonusAmount ?? 0) > 0)
-      ? (() => {
-          for (let k = 1; k < 36; k++) {
-            const kd = new Date(now.getFullYear(), now.getMonth() + k, 1);
-            if (kd.getMonth() + 1 === (bonusMonth ?? 12)) return k;
-          }
-          return -1;
-        })()
-      : -1;
     const growthAdjustedMonthEvents = (monthEvents ?? []).map((ev, m) => {
       if (m === 0) return ev;
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
@@ -441,20 +454,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         }
       }
       const expMult = Math.pow(1 + monthlyExpGrowthRate, m);
-      // Inject bonus + tax return into regular monthly income — same slot as Forecast PASS 1
-      // so extra cash is available for debt allocation that month, not deferred post-allocation.
-      let bonusTaxInc = 0;
-      if (bonusEnabled && (bonusAmount ?? 0) > 0 && d.getMonth() + 1 === (bonusMonth ?? 12)) {
-        if (bonusRecurring || m === firstBonusIdx) {
-          bonusTaxInc += bonusMode === 'pct'
-            ? monthlyTakeHome * 12 * incMult * ((bonusAmount ?? 0) / 100)
-            : (bonusAmount ?? 0);
-        }
-      }
-      if (taxReturnEnabled && (taxReturnAmountOverride ?? 0) > 0 && d.getMonth() + 1 === (taxReturnMonth ?? 2)) {
-        bonusTaxInc += (taxReturnAmountOverride ?? 0);
-      }
-      return { income: ev.income * incMult + bonusTaxInc, expenses: ev.expenses * expMult };
+      return { income: ev.income * incMult, expenses: ev.expenses * expMult };
     });
 
     // ── Per-month safe floor (mirrors Forecast monthMinSafe) ─────────────────────

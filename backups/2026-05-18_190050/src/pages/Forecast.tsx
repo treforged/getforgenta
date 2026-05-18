@@ -183,7 +183,7 @@ export default function Forecast() {
       const autopayTotal = Math.max(0, breakdown.totalRecommended - safeToPayTotal);
       return { safeToPayTotal, autopayTotal };
     } catch { return null; }
-  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings]);
+  }, [accounts, transactions, rules, debts, profile, goals, carFunds]);
 
   // ── Shared CC-filtered month events ─────────────────────────────────────────
   // Excludes CC-tagged expense rules from cash expenses so the main projections
