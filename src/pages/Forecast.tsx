@@ -154,7 +154,13 @@ export default function Forecast() {
   const currentMonthRecommendedDebt = useMemo(() => {
     try {
       const allTxns = mergeWithGeneratedTransactions(transactions, rules, accounts);
-      const savingsTotal = goals.reduce((s: number, g: any) => s + Number(g.monthly_contribution), 0);
+      const retireIds = new Set<string>(
+        accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+      );
+      const savingsTotal = goals.reduce((s: number, g: any) => {
+        if (g.linked_account && retireIds.has(g.linked_account)) return s;
+        return s + Number(g.monthly_contribution);
+      }, 0);
       const carTotal = carFunds.reduce((s: number, c: any) => {
         const rem = Number(c.down_payment_goal) - Number(c.current_saved);
         return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
@@ -833,9 +839,11 @@ export default function Forecast() {
 
       const monthMinSafe = getMinSafeCash(rules, payConfig, cashFloor, forecastFundingAccountId, d);
 
-      // Respect contribution_start_date on savings goals — don't subtract contributions before they begin
+      // Respect contribution_start_date; also exclude goals linked to retirement accounts
+      // (those contributions come from the paycheck deduction, not a separate checking outflow)
       const monthlySavingsContrib = goals.reduce((s: number, g: any) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
+        if (g.linked_account && retireAccountIds.has(g.linked_account)) return s;
         return s + Number(g.monthly_contribution);
       }, 0);
 
@@ -1738,9 +1746,8 @@ export default function Forecast() {
                     ...((row.bonusIncome ?? 0) > 0 ? [{ label: 'Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
                     ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    { label: '  Debt Payments', value: formatCurrency(baseDebt, false), op: '−' },
+                    { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
                     ...(reducedForFloor ? [{ label: `    (planned ${formatCurrency(recDebt, false)}, reduced for floor)`, value: '' }] : []),
-                    ...(surplusApplied > 1 ? [{ label: '    + Surplus to Debt', value: formatCurrency(surplusApplied, false), op: '−' }] : []),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
                     ...(((row.transfersTotal ?? 0) - (row.businessContrib ?? 0)) > 0
