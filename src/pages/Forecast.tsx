@@ -392,9 +392,44 @@ export default function Forecast() {
     // The simulation fallback monthlyTakeHome would be bypassed when income > 0, using $500 as total
     // monthly income instead of $3,500. Fix: add normalized paycheck to rule-based income for months > 0.
     const normalizedBasePaycheck = getNormalizedMonthNetIncome(payConfig);
+
+    // Pre-compute retirement account IDs so savings goals linked to them are excluded
+    // (those contributions come from the paycheck deduction, not a cash outflow).
+    const simRetireIds = new Set<string>(
+      (accounts as any[]).filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+    );
+    const simTransferRules = (rules as any[]).filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
+    const simCarMonthly = (carFunds as any[]).reduce((s: number, c: any) => {
+      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
+      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
+    }, 0);
+
     const simulationMonthEvents = forecastMonthEvents.map((e, idx) => {
       if (idx === 0) return e;
-      return { ...e, income: normalizedBasePaycheck + e.nonPaycheckIncome };
+      const d = new Date(now.getFullYear(), now.getMonth() + idx, 1);
+
+      // Savings goals active this month (respects contribution_start_date, excludes retirement-linked)
+      const monthSavings = (goals as any[]).reduce((s: number, g: any) => {
+        if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
+        if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
+        return s + Number(g.monthly_contribution);
+      }, 0);
+
+      // Transfer/investment rules active this month (respects start_date / end_date)
+      const monthTransfers = simTransferRules.reduce((s: number, tr: any) => {
+        if (tr.start_date && new Date(tr.start_date) > d) return s;
+        if (tr.end_date && new Date(tr.end_date) < d) return s;
+        const amt = Number(tr.amount);
+        if (tr.frequency === 'weekly') return s + amt * 4.33;
+        if (tr.frequency === 'yearly') return s + amt / 12;
+        return s + amt;
+      }, 0);
+
+      return {
+        ...e,
+        income: normalizedBasePaycheck + e.nonPaycheckIncome,
+        expenses: e.expenses + monthSavings + simCarMonthly + monthTransfers,
+      };
     });
 
     const sim = simulateVariablePayoff(
@@ -487,6 +522,8 @@ export default function Forecast() {
   transactions,
   rules,
   debts,
+  goals,
+  carFunds,
   profile,
   debtPayoffOptions,
   payConfig,
