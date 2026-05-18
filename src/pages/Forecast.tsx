@@ -402,6 +402,9 @@ export default function Forecast() {
           row[p.card.name] = Math.round(m.endBalance);
           row.totalCCBalance += m.endBalance;
           row.totalInterest += m.interest;
+        } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
+          // Card paid off before this month — flatline at 0 so chart line doesn't disappear
+          row[p.card.name] = 0;
         }
       }
 
