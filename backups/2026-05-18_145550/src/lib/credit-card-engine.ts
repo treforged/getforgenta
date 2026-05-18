@@ -712,16 +712,13 @@ export function generateRecommendations(
 
   if (transactions && transactions.length > 0) {
     remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, effectivePrimaryDueDay);
-    // Use end-of-month (31) so ALL remaining monthly outflows are counted regardless of
-    // when they fall relative to the CC due date. Income stays windowed to the due date
-    // because post-due-date paychecks aren't available for this billing cycle.
     remainingTransactionExpenses = getRemainingTransactionExpensesByDay(
-      transactions, 31, true, fundSources, CC_DEFAULT_CATEGORIES,
+      transactions, effectivePrimaryDueDay, true, fundSources, CC_DEFAULT_CATEGORIES,
     );
   } else if (payConfig && rules) {
     remainingTransactionIncome = getRemainingIncomeByDay(payConfig, effectivePrimaryDueDay)
       + getRemainingNonPaycheckIncomeByDay(rules, effectivePrimaryDueDay, fundingAccountId || null);
-    remainingTransactionExpenses = getRemainingExpensesByDay(rules, 31, fundingAccountId || null);
+    remainingTransactionExpenses = getRemainingExpensesByDay(rules, effectivePrimaryDueDay, fundingAccountId || null);
   } else {
     remainingTransactionIncome = monthlyTakeHome;
     remainingTransactionExpenses = monthlyExpenses;
