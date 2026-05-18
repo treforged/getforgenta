@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulateDebtPayoff } from '@/lib/calculations';
-import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations, useSavingsGoals, useCarFunds } from '@/hooks/useSupabaseData';
+import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations } from '@/hooks/useSupabaseData';
 import FormModal from '@/components/shared/FormModal';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
@@ -20,8 +20,6 @@ export default function DebtPayoff() {
   const { data: transactions } = useTransactions();
   const { data: rules } = useRecurringRules();
   const { data: profile } = useProfile();
-  const { data: goals } = useSavingsGoals();
-  const { data: carFunds } = useCarFunds();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
 
@@ -206,7 +204,7 @@ export default function DebtPayoff() {
       )}
 
       {activeTab === 'cards' ? (
-        <CreditCardEngine accounts={accounts} transactions={transactions} rules={rules} debts={debts} profile={profile} goals={goals ?? []} carFunds={carFunds ?? []} />
+        <CreditCardEngine accounts={accounts} transactions={transactions} rules={rules} debts={debts} profile={profile} />
       ) : (
         <>
           {/* Other Debts Summary */}
