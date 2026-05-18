@@ -391,6 +391,12 @@ export function simulateVariablePayoff(
    * Mirrors Forecast PASS 2 behavior so future-month debt projections are consistent.
    */
   maxDebtPaymentByMonth?: number[],
+  /**
+   * Optional per-month safe cash floor, computed via getMinSafeCash for each month.
+   * When provided, replaces the constant cashFloor for months 1+.
+   * Mirrors Forecast's monthMinSafe so the debt payoff floor matches the forecast floor.
+   */
+  cashFloorByMonth?: number[],
 ): {
   monthlyPayments: Map<string, number[]>;
   projectedPayoffMonths: number;
@@ -450,7 +456,9 @@ export function simulateVariablePayoff(
       cardPurchasesPerMonth?.[m]?.[c.id] ?? (m === 0 ? 0 : c.monthlyNewPurchases);
 
     // Floor and one-time items — computed once per month, shared by Steps 2 and 5.
-    const effectiveFloor = (m === 0 && month0SafeFloor !== undefined) ? month0SafeFloor : cashFloor;
+    const effectiveFloor = (m === 0 && month0SafeFloor !== undefined)
+      ? month0SafeFloor
+      : (cashFloorByMonth?.[m] ?? cashFloor);
     const oneTimeNet = m === 0 ? 0
       : (oneTimeByMonth?.[m]?.income ?? 0) - (oneTimeByMonth?.[m]?.expenses ?? 0);
 
