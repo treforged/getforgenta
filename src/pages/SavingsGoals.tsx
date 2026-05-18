@@ -84,6 +84,31 @@ export default function SavingsGoals() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const cashFloor = Number((profile as any)?.cash_floor) || 1000;
 
+  const monthlySavingsAndCar = useMemo(() => {
+    const retireIds = new Set<string>(
+      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+    );
+    const now = new Date();
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const activeTransferDests = new Set<string>(
+      (rules as any[]).filter((r: any) =>
+        r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
+        !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
+        !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
+      ).map((r: any) => r.deposit_account),
+    );
+    const savingsTotal = (goals as any[] ?? []).reduce((s: number, g: any) => {
+      if (g.linked_account && retireIds.has(g.linked_account)) return s;
+      if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
+      return s + Number(g.monthly_contribution);
+    }, 0);
+    const carTotal = (carFunds as any[] ?? []).reduce((s: number, c: any) => {
+      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
+      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
+    }, 0);
+    return savingsTotal + carTotal;
+  }, [goals, carFunds, accounts, rules]);
+
   // Build full transaction stream including debt payments for linked-account math
   const baseTxns = useMemo(() => mergeWithGeneratedTransactions(txns || [], rules, accounts), [txns, rules, accounts]);
   const debtRecs = useMemo(() => {
@@ -93,13 +118,14 @@ export default function SavingsGoals() {
       baseTxns,
       rules,
       debts,
-      profile
+      profile,
+      monthlySavingsAndCar
     );
   } catch (e) {
     console.error('Debt engine failed:', e);
     return [];
   }
-}, [accounts, baseTxns, rules, debts, profile]);
+}, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar]);
   const debtTxns = useMemo(() => {
     const fundId = (profile as any)?.default_deposit_account ||
       accounts.find((a: any) => a.account_type === 'checking' && a.active)?.id || null;
