@@ -34,6 +34,14 @@ type Props = {
   raiseMonth?: number;
   raiseMode?: 'pct' | 'flat';
   expenseGrowth?: number;
+  bonusEnabled?: boolean;
+  bonusAmount?: number;
+  bonusMode?: 'flat' | 'pct';
+  bonusMonth?: number;
+  bonusRecurring?: boolean;
+  taxReturnEnabled?: boolean;
+  taxReturnAmountOverride?: number;
+  taxReturnMonth?: number;
 };
 
 const STRATEGY_TIPS = {
@@ -46,7 +54,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -385,7 +393,30 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           return true;
         })
         .reduce((s: number, t: any) => s + Number(t.amount), 0);
-      oneTimeByMonth.push({ income: inc, expenses: exp });
+      // Inject Forecast assumption-driven bonus and tax return income
+      let extraIncome = inc;
+      if (bonusEnabled && (bonusAmount ?? 0) > 0 && d.getMonth() + 1 === (bonusMonth ?? 12)) {
+        const firstBonusIdx = !bonusRecurring
+          ? (() => {
+              for (let k = 1; k < 36; k++) {
+                const dd = new Date(now.getFullYear(), now.getMonth() + k, 1);
+                if (dd.getMonth() + 1 === (bonusMonth ?? 12)) return k;
+              }
+              return -1;
+            })()
+          : -1;
+        if (bonusRecurring || i === firstBonusIdx) {
+          const annualTakeHome = monthlyTakeHome * 12;
+          const grossBonus = bonusMode === 'pct'
+            ? annualTakeHome * ((bonusAmount ?? 0) / 100)
+            : (bonusAmount ?? 0);
+          extraIncome += grossBonus;
+        }
+      }
+      if (taxReturnEnabled && (taxReturnAmountOverride ?? 0) > 0 && d.getMonth() + 1 === (taxReturnMonth ?? 2)) {
+        extraIncome += (taxReturnAmountOverride ?? 0);
+      }
+      oneTimeByMonth.push({ income: extraIncome, expenses: exp });
 
       // Build per-card one-time CC purchases for this month
       const baseMonth = ccPurchasesPerMonth[i] ?? {};
@@ -518,6 +549,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [cards, fundingBalance, cashFloor, strategy, monthlyTakeHome,
       monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth,
+      bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
+      taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
       rules, payConfig, fundingAccountId]);
 
   const monthlySavingsAndCar = useMemo(() => {

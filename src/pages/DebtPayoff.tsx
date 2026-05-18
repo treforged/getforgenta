@@ -29,6 +29,8 @@ export default function DebtPayoff() {
   const [forecastAssumptions] = usePersistedState('tre:forecast:assumptions', {
     incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3,
     raiseMode: 'pct' as 'pct' | 'flat', expenseGrowth: 2.5,
+    bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
+    taxReturnEnabled: false, taxReturnAmountOverride: 0, taxReturnMonth: 2,
   });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -218,6 +220,14 @@ export default function DebtPayoff() {
           raiseMonth={forecastAssumptions.raiseMonth}
           raiseMode={forecastAssumptions.raiseMode}
           expenseGrowth={forecastAssumptions.expenseGrowth}
+          bonusEnabled={forecastAssumptions.bonusEnabled}
+          bonusAmount={forecastAssumptions.bonusAmount}
+          bonusMode={forecastAssumptions.bonusMode}
+          bonusMonth={forecastAssumptions.bonusMonth}
+          bonusRecurring={forecastAssumptions.bonusRecurring}
+          taxReturnEnabled={forecastAssumptions.taxReturnEnabled}
+          taxReturnAmountOverride={forecastAssumptions.taxReturnAmountOverride}
+          taxReturnMonth={forecastAssumptions.taxReturnMonth}
         />
       ) : (
         <>

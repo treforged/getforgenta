@@ -8,7 +8,7 @@ import { formatCurrency } from '@/lib/calculations';
 import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
 import { toast } from 'sonner';
-import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals } from '@/hooks/useSupabaseData';
+import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals, useCarFunds } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -135,6 +135,7 @@ export default function BudgetControl() {
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules, add: addRule, update: updateRule, remove: removeRule, loading: rulesLoading } = useRecurringRules();
   const { data: savingsGoals, update: updateGoal } = useSavingsGoals();
+  const { data: carFunds } = useCarFunds();
   const { data: subs } = useSubscriptions();
   const { data: debts } = useDebts();
 
@@ -387,10 +388,35 @@ export default function BudgetControl() {
     [txns, rules, accounts],
   );
 
+  const monthlySavingsAndCar = useMemo(() => {
+    const retireIds = new Set<string>(
+      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+    );
+    const now = new Date();
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const activeTransferDests = new Set<string>(
+      (rules as any[]).filter((r: any) =>
+        r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
+        !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
+        !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
+      ).map((r: any) => r.deposit_account),
+    );
+    const savingsTotal = (savingsGoals as any[] ?? []).reduce((s: number, g: any) => {
+      if (g.linked_account && retireIds.has(g.linked_account)) return s;
+      if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
+      return s + Number(g.monthly_contribution);
+    }, 0);
+    const carTotal = (carFunds as any[] ?? []).reduce((s: number, c: any) => {
+      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
+      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
+    }, 0);
+    return savingsTotal + carTotal;
+  }, [savingsGoals, carFunds, accounts, rules]);
+
   // Compute debt recommendations using shared helper
   const debtRecommendations = useMemo(() =>
-    getCurrentMonthDebtRecommendations(accounts, baseTxns, rules, debts, profile),
-    [accounts, baseTxns, rules, debts, profile],
+    getCurrentMonthDebtRecommendations(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar),
+    [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar],
   );
 
   const debtPaymentRules = useMemo(() =>
