@@ -27,11 +27,10 @@ export default function DebtPayoff() {
 
   const [pauseSavings, setPauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const [forecastAssumptions] = usePersistedState('tre:forecast:assumptions', {
-    incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
-    investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5, taxOverride: 0,
+    incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3,
+    raiseMode: 'pct' as 'pct' | 'flat', expenseGrowth: 2.5,
     bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
-    taxReturnEnabled: false, taxReturnFilingStatus: 'single' as const, taxReturnDependents: 0,
-    taxReturnState: 'FL', taxReturnFederalWithheld: 0, taxReturnMonth: 2, taxReturnAmountOverride: 0,
+    taxReturnEnabled: false, taxReturnAmountOverride: 0, taxReturnMonth: 2,
   });
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
