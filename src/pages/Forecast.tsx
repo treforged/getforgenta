@@ -8,7 +8,7 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions } from '@/hooks/useSupabaseData';
 import { generateScheduledEvents, aggregateByMonth } from '@/lib/scheduling';
-import { simulateVariablePayoff, buildCardData, projectCardVariable, getCurrentMonthDebtRecommendations, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
+import { simulateVariablePayoff, buildCardData, projectCardVariable, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
 import {
@@ -150,7 +150,10 @@ export default function Forecast() {
     [accounts, transactions, rules, debts, profile, debtPayoffOptions],
   );
 
-  // Current-month recommended debt total — ensures forecast month 0 matches Debt Payoff
+  // Current-month debt breakdown — pins forecast month 0 to the same calc as Debt Payoff + Dashboard.
+  // Returns safeToPayTotal (revolving pool) + autopayTotal (preference card pass-throughs) separately:
+  // rawDebtPayment uses safeToPayTotal (matches Safe to Pay / Available to Deploy),
+  // autopayTotal is folded into baseExpenses so the cash model still deducts the full CC outflow.
   const currentMonthRecommendedDebt = useMemo(() => {
     try {
       const allTxns = mergeWithGeneratedTransactions(transactions, rules, accounts);
@@ -175,8 +178,10 @@ export default function Forecast() {
         const rem = Number(c.down_payment_goal) - Number(c.current_saved);
         return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
       }, 0);
-      const recs = getCurrentMonthDebtRecommendations(accounts, allTxns, rules, debts, profile, savingsTotal + carTotal);
-      return recs.reduce((s, r) => s + r.payment, 0);
+      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, savingsTotal + carTotal);
+      const safeToPayTotal = breakdown.totalAvailableCash;
+      const autopayTotal = Math.max(0, breakdown.totalRecommended - safeToPayTotal);
+      return { safeToPayTotal, autopayTotal };
     } catch { return null; }
   }, [accounts, transactions, rules, debts, profile, goals, carFunds]);
 
@@ -837,9 +842,13 @@ export default function Forecast() {
         }
       }
 
-      // Month 0: pin to Debt Payoff tab recommendations so forecast matches what user sees there
-      if (i === 0 && currentMonthRecommendedDebt !== null && currentMonthRecommendedDebt > 0) {
-        rawDebtPayment = currentMonthRecommendedDebt;
+      // Month 0: pin rawDebtPayment to the revolving pool (safeToPayTotal) so the popup's
+      // "Debt Payments" row matches Safe to Pay / Available to Deploy on the other tabs.
+      // Preference card pass-throughs (autopayTotal) are folded into baseExpenses so the
+      // full CC outflow still lands in the cash model — net deduction is unchanged.
+      if (i === 0 && currentMonthRecommendedDebt !== null && currentMonthRecommendedDebt.safeToPayTotal > 0) {
+        rawDebtPayment = currentMonthRecommendedDebt.safeToPayTotal;
+        baseExpenses += currentMonthRecommendedDebt.autopayTotal;
       }
 
       const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
