@@ -178,7 +178,7 @@ export default function Forecast() {
         const rem = Number(c.down_payment_goal) - Number(c.current_saved);
         return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
       }, 0);
-      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal);
+      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, savingsTotal + carTotal);
       const safeToPayTotal = breakdown.totalAvailableCash;
       const autopayTotal = Math.max(0, breakdown.totalRecommended - safeToPayTotal);
       return { safeToPayTotal, autopayTotal };
@@ -448,7 +448,7 @@ export default function Forecast() {
       return {
         ...e,
         income: normalizedBasePaycheck + e.nonPaycheckIncome,
-        expenses: e.expenses + (pauseSavings ? 0 : monthSavings + simCarMonthly) + monthTransfers,
+        expenses: e.expenses + (pauseSavings ? 0 : monthSavings) + simCarMonthly + monthTransfers,
       };
     });
 
