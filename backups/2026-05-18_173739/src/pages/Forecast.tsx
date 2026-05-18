@@ -1612,17 +1612,6 @@ export default function Forecast() {
             </div>
           </div>
 
-          {/* Plan Impact Note */}
-          <div className="border-t border-border/50 pt-3 space-y-1.5">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Impact on Your Financial Plan</p>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
-              Income growth and expense inflation apply to both this Forecast and the Debt Payoff tab's future-month payment schedule. A higher raise accelerates your payoff timeline; higher expense inflation reduces the monthly surplus available for debt. Bonus and tax return amounts are injected as one-time income and also shift how quickly balances drop.
-            </p>
-            <p className="text-[10px] text-muted-foreground leading-relaxed">
-              Investment return and savings interest rates only affect net worth and account growth projections here — they do not change what flows to debt payoff.
-            </p>
-          </div>
-
           {/* 3-Year Projection Summary */}
           {yearlyProjections.length > 0 && (
             <div>
