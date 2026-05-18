@@ -426,7 +426,6 @@ export default function Forecast() {
       const row: any = {
         month: d.toLocaleString('en', { month: 'short', year: 'numeric' }),
         totalCCBalance: 0,
-        displayCCBalance: 0,
         totalInterest: 0,
       };
 
@@ -435,21 +434,14 @@ export default function Forecast() {
         if (m) {
           row[p.card.name] = Math.round(m.endBalance);
           row.totalCCBalance += m.endBalance;
-          row.displayCCBalance += m.endBalance;
           row.totalInterest += m.interest;
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
           // Card paid off before this month — flatline at 0 so chart line doesn't disappear
           row[p.card.name] = 0;
-          // Preference cards (full/statement) still incur monthly purchases after initial debt payoff;
-          // show those as an ongoing statement balance so the popup doesn't read $0 forever.
-          if (p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement') {
-            row.displayCCBalance += p.card.monthlyNewPurchases;
-          }
         }
       }
 
       row.totalCCBalance = Math.round(Math.max(0, row.totalCCBalance));
-      row.displayCCBalance = Math.round(Math.max(0, row.displayCCBalance));
       row.totalInterest = Math.round(row.totalInterest);
       row.utilization = totalLimit > 0 ? Math.round((row.totalCCBalance / totalLimit) * 100) : 0;
       return row;
@@ -1048,7 +1040,6 @@ export default function Forecast() {
         businessContrib: Math.round(b.monthBusinessContrib),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
         ccDebtBalance: Math.round(b.ccDebtBalance),
-        ccDisplayBalance: Math.round(cardProjectionData?.data[i]?.displayCCBalance ?? b.ccDebtBalance),
         paycheckIncome: Math.round(b.paycheckIncome),
         otherIncome: Math.round(b.otherIncome),
         bonusIncome: Math.round(b.bonusIncome),
@@ -1728,6 +1719,12 @@ export default function Forecast() {
             {displayData.map((row: any, i: number) => {
               const openDrawer = () => {
                 const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
+                const recDebt = row.recommendedDebtPayment ?? row.debtPayment;
+                // surplusApplied > 0 when PASS 3 redirected extra cash to debt above the plan.
+                // baseDebt = actual amount before surplus — may be less than recDebt if safety net cut it.
+                const surplusApplied = Math.max(0, row.debtPayment - recDebt);
+                const baseDebt = row.debtPayment - surplusApplied;
+                const reducedForFloor = recDebt > baseDebt + 1;
                 const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
                 // Use actual paycheck count for this month — dividing by normalized 52/12 gives wrong
                 // per-check (e.g. 4-Friday month ÷ 4.33 shows raise as lower than pre-raise amount).
@@ -1750,6 +1747,7 @@ export default function Forecast() {
                     ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
                     { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
+                    ...(reducedForFloor ? [{ label: `    (planned ${formatCurrency(recDebt, false)}, reduced for floor)`, value: '' }] : []),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
                     ...(((row.transfersTotal ?? 0) - (row.businessContrib ?? 0)) > 0
@@ -1762,7 +1760,7 @@ export default function Forecast() {
                     { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
                     { label: '', value: '' },
                     { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
-                    { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
+                    { label: 'Total CC Balance', value: (row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDebtBalance, false) : '—' },
                     { label: 'Monthly 401k Contribution', value: (row.fullMonth401kContrib ?? row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.fullMonth401kContrib ?? row.paycheckRetireContrib, false) : '—' },
                     { label: '401k Balance', value: formatCurrency(row.retirementBalance, false) },
                     { label: 'Brokerage Contrib', value: (row.brokerageContrib ?? 0) > 0 ? formatCurrency(row.brokerageContrib, false) : '—' },
