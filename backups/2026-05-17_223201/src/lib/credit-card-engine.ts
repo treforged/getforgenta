@@ -16,7 +16,7 @@ export type CardData = {
   monthlyNewPurchases: number;
   monthlyRepayments: number;
   color: string;
-  paymentPreference: 'statement' | 'full' | null;
+  paymentPreference: 'revolving' | 'statement' | 'full';
   autopayFullBalance: boolean;
   dueDay: number | null;
 };
@@ -179,9 +179,10 @@ export function buildCardData(
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
     const pref = (acct as any).payment_preference;
-    const paymentPreference: 'statement' | 'full' | null =
-      pref === 'statement' ? 'statement' : pref === 'full' ? 'full' : null;
-    const autopayFullBalance = balance <= 0;
+    const paymentPreference: 'revolving' | 'statement' | 'full' =
+      pref === 'statement' ? 'statement' : pref === 'full' ? 'full' : 'revolving';
+    // Only active once the card is fully paid off — while balance > 0 the card stays revolving.
+    const autopayFullBalance = paymentPreference !== 'revolving' && balance <= 0;
 
     return {
       id: acct.id, name: acct.name, balance, apr, creditLimit,
@@ -578,20 +579,13 @@ export function simulateVariablePayoff(
       }
 
       // ── Step 5b — Cascade surplus to priority cards ────────
-      // Strategy order (avalanche/snowball) determines priority.
-      // paymentPreference is an overlay that caps the amount allocated per card:
-      //   null/full: pay as much as possible toward this card (standard cascade)
-      //   statement: cap at startBal + interest — avoids paying new purchases this cycle
+      // All surplus goes to card #1 (highest APR / lowest balance).
+      // If card #1 is fully paid this month, leftover cascades to card #2, etc.
       for (const card of strategyOrder) {
         if (remaining <= 0) break;
         const bbp = balBeforePayment.get(card.id) ?? 0;
-        const startBal = balances.get(card.id) ?? 0;
-        const interest = interestMap.get(card.id) ?? 0;
         const currentPayment = payments.get(card.id) ?? 0;
-        const target = card.paymentPreference === 'statement'
-          ? Math.max(0, startBal + interest)
-          : bbp;
-        const maxExtra = Math.max(0, target - currentPayment);
+        const maxExtra = Math.max(0, bbp - currentPayment);
         const extra = Math.min(remaining, maxExtra);
         if (extra > 0) {
           payments.set(card.id, currentPayment + extra);
@@ -752,9 +746,7 @@ export function generateRecommendations(
       cardId: card.id, cardName: card.name, color: card.color,
       payment: actual,
       isMinimumOnly: actual < desired,
-      reason: card.paymentPreference === 'full' ? 'Pay Full Balance'
-        : card.paymentPreference === 'statement' ? 'Pay Statement Balance'
-        : 'Pay Monthly Charges',
+      reason: card.paymentPreference === 'full' ? 'Pay Full Balance' : 'Pay Statement Balance',
       dueDay: card.dueDay,
     });
   }
@@ -805,20 +797,12 @@ export function generateRecommendations(
     for (let i = 0; i < sorted.length && remaining > 0; i++) {
       const card = sorted[i];
       const rec = recs.find(r => r.cardId === card.id)!;
-      // statement preference: cap extra at current balance (don't pre-pay new purchases)
-      // full or null: pay balance + anticipated new purchases (clear the card fully)
-      const maxExtra = card.paymentPreference === 'statement'
-        ? Math.max(0, card.balance - rec.payment)
-        : Math.max(0, card.balance + card.monthlyNewPurchases - rec.payment);
+      const maxExtra = card.balance - rec.payment;
       const extra = Math.min(remaining, maxExtra);
       if (extra > 0) {
         rec.payment += extra;
         rec.isMinimumOnly = false;
-        rec.reason = card.paymentPreference === 'statement'
-          ? 'Pay Statement Balance'
-          : card.paymentPreference === 'full'
-          ? 'Pay Full Balance'
-          : strategy === 'avalanche'
+        rec.reason = strategy === 'avalanche'
           ? `Highest APR (${card.apr}%)`
           : `Smallest balance (${formatCurrency(card.balance, false)})`;
         remaining -= extra;

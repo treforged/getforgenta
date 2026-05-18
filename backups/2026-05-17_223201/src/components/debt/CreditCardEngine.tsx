@@ -896,9 +896,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <h4 className="text-xs sm:text-sm font-semibold">{proj.card.name}</h4>
-                        {proj.card.paymentPreference !== null && (
+                        {proj.card.paymentPreference !== 'revolving' && (
                           <span className="text-[8px] sm:text-[9px] px-1.5 py-0.5 bg-success/15 text-success border border-success/30 font-medium flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
-                            <CheckCircle2 size={9} /> {proj.card.paymentPreference === 'full' ? 'Full Balance' : 'Statement Bal.'}
+                            <CheckCircle2 size={9} /> {proj.card.paymentPreference === 'full' ? 'Full Balance' : 'Statement'}
                           </span>
                         )}
                         {hasOverrides && (
@@ -951,18 +951,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
                 {/* Payment preference selector */}
                 <div className="px-3 sm:px-4 pb-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Payment amount preference</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Payment preference</p>
                   <div className="flex gap-0 border border-border overflow-hidden text-[10px] font-medium" style={{ borderRadius: 'var(--radius)' }}>
-                    {([
-                      { key: 'standard', dbVal: null, label: 'Standard' },
-                      { key: 'statement', dbVal: 'statement', label: 'Statement Bal.' },
-                      { key: 'full', dbVal: 'full', label: 'Full Balance' },
-                    ] as const).map(({ key, dbVal, label }, idx) => {
-                      const active = key === 'standard' ? proj.card.paymentPreference === null : proj.card.paymentPreference === key;
+                    {(['revolving', 'statement', 'full'] as const).map((opt, idx) => {
+                      const active = proj.card.paymentPreference === opt;
+                      const label = opt === 'revolving' ? 'Revolving' : opt === 'statement' ? 'Statement' : 'Full Balance';
                       return (
                         <button
-                          key={key}
-                          onClick={() => updateAccount.mutate({ id: proj.card.id, payment_preference: dbVal } as any)}
+                          key={opt}
+                          onClick={() => updateAccount.mutate({ id: proj.card.id, payment_preference: opt === 'revolving' ? null : opt } as any)}
                           className={`flex-1 py-1.5 transition-colors ${active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'} ${idx > 0 ? 'border-l border-border' : ''}`}
                           aria-pressed={active}
                         >
@@ -972,11 +969,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     })}
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-1">
-                    {proj.card.paymentPreference === null && 'Standard — avalanche/snowball allocates as much surplus as possible'}
-                    {proj.card.paymentPreference === 'statement' && 'Statement Bal. — pay carried balance + interest; new purchases carry to next cycle'}
-                    {proj.card.paymentPreference === 'full' && 'Full Balance — pay entire balance + new purchases each month if cash allows'}
+                    {proj.card.paymentPreference === 'revolving' && 'Standard — pay minimums + extra via debt strategy'}
+                    {proj.card.paymentPreference === 'statement' && 'Pay new charges only — as cash allows above floor'}
+                    {proj.card.paymentPreference === 'full' && 'Pay entire balance + new charges — as cash allows above floor'}
                   </p>
-                  <p className="text-[9px] text-muted-foreground/60 mt-0.5">Strategy (avalanche/snowball) sets priority order; this controls how much is paid when it's this card's turn.</p>
                 </div>
 
                 <div className="px-3 sm:px-4 pb-3">
@@ -1001,7 +997,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     className="border-t border-border"
                   >
                   <div className="px-3 sm:px-4 py-3">
-                    {proj.card.balance <= 0 && (
+                    {proj.card.balance <= 0 && proj.card.paymentPreference !== 'revolving' && (
                       <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={14} className="shrink-0" />
                         <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.monthlyNewPurchases, false)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : 'statement balance'} — as cash allows.</span>
