@@ -276,13 +276,19 @@ export default function Dashboard() {
   }, [accounts, profile]);
 
   const monthlySavingsAndCar = useMemo(() => {
-    const savingsTotal = goals.reduce((s: number, g: any) => s + Number(g.monthly_contribution), 0);
+    const retireIds = new Set<string>(
+      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+    );
+    const savingsTotal = goals.reduce((s: number, g: any) => {
+      if (g.linked_account && retireIds.has(g.linked_account)) return s;
+      return s + Number(g.monthly_contribution);
+    }, 0);
     const carTotal = carFunds.reduce((s: number, c: any) => {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
     return savingsTotal + carTotal;
-  }, [goals, carFunds]);
+  }, [goals, carFunds, accounts]);
 
   const debtBreakdown = useMemo<MonthlyDebtBreakdown>(
     () => getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar),
