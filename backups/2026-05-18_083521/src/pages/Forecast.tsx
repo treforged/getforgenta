@@ -865,8 +865,7 @@ export default function Forecast() {
       let bal = liquidBal;
       for (let i = 0; i < 36; i++) {
         const b = baseData[i];
-        // Savings + transfers excluded — they only come from surplus above floor in PASS 3
-        const totalOut = b.baseExpenses + debtPayments[i];
+        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + monthlyCarContrib + b.monthTransfers;
         bal += b.netIncome - totalOut + b.oneTimeNet;
         // Simulate PASS 3 redirect: pin to monthMinSafe in normal months (not save-up months)
         if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > b.monthMinSafe) {
@@ -925,52 +924,36 @@ export default function Forecast() {
       const investGrowthAmt = Math.round(investBal * monthlyInvestGrowth * 100) / 100;
       const retireGrowthAmt = Math.round(retireBal * monthlyRetireGrowth * 100) / 100;
 
-      // Step 1: apply income and non-discretionary outflows (base expenses + debt)
-      let cashAfterDebt = finalLiquid + b.netIncome - b.baseExpenses - monthDebtPayment + b.oneTimeNet;
+      savingsBal += b.monthlySavingsContrib;
+      savingsBal *= (1 + monthlySavingsInterest);
+      investBal += b.monthBrokerageContrib;
+      investBal *= (1 + monthlyInvestGrowth);
+      retireBal += b.monthRetireContrib;
+      retireBal *= (1 + monthlyRetireGrowth);
 
-      // Step 2: floor check — only reduce DEBT to hit floor, not savings/transfers
-      if (i >= minAdjustableMonthIndex && cashAfterDebt < b.monthMinSafe) {
-        const shortfall = b.monthMinSafe - cashAfterDebt;
-        const adj = Math.min(shortfall, monthDebtPayment);
-        cashAfterDebt += adj;
-        monthDebtPayment -= adj;
+      let totalMonthlyOut = b.baseExpenses + monthDebtPayment + b.monthlySavingsContrib + monthlyCarContrib + b.monthTransfers;
+
+      finalLiquid += b.netIncome - totalMonthlyOut + b.oneTimeNet;
+
+      // Final safety net for forecasted months
+      if (i >= minAdjustableMonthIndex && finalLiquid < b.monthMinSafe) {
+        const shortfall = b.monthMinSafe - finalLiquid;
+        const adjustment = Math.min(shortfall, monthDebtPayment);
+        finalLiquid += adjustment;
+        monthDebtPayment -= adjustment;
+        totalMonthlyOut -= adjustment;
       }
 
-      // Step 3: savings + transfers come from surplus above floor only
-      const surplusForDiscretionary = Math.max(0, cashAfterDebt - b.monthMinSafe);
-      const plannedSavings = b.monthlySavingsContrib + monthlyCarContrib;
-      const plannedTransfers = b.monthTransfers;
-      const actualSavingsTotal = Math.min(plannedSavings, surplusForDiscretionary);
-      const actualTransfers = Math.min(plannedTransfers, Math.max(0, surplusForDiscretionary - actualSavingsTotal));
-
-      // Split savings proportionally between goals and car fund
-      const savingsRatio = plannedSavings > 0 ? actualSavingsTotal / plannedSavings : 1;
-      const actualGoalsSavings = b.monthlySavingsContrib * savingsRatio;
-      const actualCarSavings = monthlyCarContrib * savingsRatio;
-
-      finalLiquid = cashAfterDebt - actualSavingsTotal - actualTransfers;
-
-      // Step 4: redirect any remaining surplus to debt (EXCEPT in save-up months)
+      // Redirect surplus to debt when CC balance exists — EXCEPT in save-up months.
+      // Save-up months (identified by PASS 2) intentionally hold cash above the floor
+      // to cover an upcoming one-time CASH expense without breaching the floor.
+      // CC one-time purchases are excluded from oneTimeByMonth and never trigger save-up.
       if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && finalLiquid > b.monthMinSafe) {
         const surplus = finalLiquid - b.monthMinSafe;
         monthDebtPayment += surplus;
+        totalMonthlyOut += surplus;
         finalLiquid -= surplus;
       }
-
-      // Step 5: update balance tracking with actual contribution amounts
-      // Paycheck 401k (paycheckRetireContrib) always applies — it's already out of the paycheck.
-      // Transfer-based retirement and brokerage are scaled proportionally from actualTransfers.
-      const xferRetireAmt = b.monthTransfers > 0 ? (b.monthRetireContrib - b.paycheckRetireContrib) / b.monthTransfers * actualTransfers : 0;
-      const xferBrokerageAmt = b.monthTransfers > 0 ? b.monthBrokerageContrib / b.monthTransfers * actualTransfers : 0;
-
-      savingsBal += actualGoalsSavings;
-      savingsBal *= (1 + monthlySavingsInterest);
-      investBal += xferBrokerageAmt;
-      investBal *= (1 + monthlyInvestGrowth);
-      retireBal += b.paycheckRetireContrib + xferRetireAmt;
-      retireBal *= (1 + monthlyRetireGrowth);
-
-      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + actualSavingsTotal + actualTransfers;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       const endingCash = Math.round(finalLiquid);
@@ -1013,8 +996,8 @@ export default function Forecast() {
         debtPayment: Math.round(monthDebtPayment),
         plannedDebtPayment: cardProjectionData?.allPaymentTotals?.[i] ?? Math.round(monthDebtPayment),
 
-        brokerageContrib: Math.round(xferBrokerageAmt),
-        retireContrib: Math.round(b.paycheckRetireContrib + xferRetireAmt),
+        brokerageContrib: Math.round(b.monthBrokerageContrib),
+        retireContrib: Math.round(b.monthRetireContrib),
         paycheckRetireContrib: Math.round(b.paycheckRetireContrib),
         investGrowth: Math.round(investGrowthAmt),
         retireGrowth: Math.round(retireGrowthAmt),
@@ -1025,9 +1008,9 @@ export default function Forecast() {
         debtWasReduced,
         // Popup breakdown fields
         baseExpenses: Math.round(b.baseExpenses),
-        savingsContrib: Math.round(actualGoalsSavings),
-        carContrib: Math.round(actualCarSavings),
-        transfersTotal: Math.round(actualTransfers),
+        savingsContrib: Math.round(b.monthlySavingsContrib),
+        carContrib: Math.round(monthlyCarContrib),
+        transfersTotal: Math.round(b.monthTransfers),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
         ccDebtBalance: Math.round(b.ccDebtBalance),
         paycheckIncome: Math.round(b.paycheckIncome),
@@ -1750,9 +1733,9 @@ export default function Forecast() {
                     { label: '', value: '' },
                     { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
                     { label: 'Total CC Balance', value: (row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDebtBalance, false) : '—' },
-                    { label: 'Monthly 401k Contribution', value: (row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.paycheckRetireContrib, false) : '—' },
-                    { label: '401k Balance', value: formatCurrency(row.retirementBalance, false) },
-                    { label: 'Brokerage Contrib', value: (row.brokerageContrib ?? 0) > 0 ? formatCurrency(row.brokerageContrib, false) : '—' },
+                    { label: 'Monthly 401k Contribution', value: (row.retireContrib ?? 0) > 0 ? formatCurrency(row.retireContrib, false) : '—' },
+                    { label: 'Brokerage Contrib', value: formatCurrency(row.brokerageContrib, false) },
+                    { label: 'Retirement Balance', value: formatCurrency(row.retirementBalance, false) },
                     { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
                   ],
                 });
