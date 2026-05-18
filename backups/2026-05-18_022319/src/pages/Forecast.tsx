@@ -163,7 +163,7 @@ export default function Forecast() {
   // Excludes CC-tagged expense rules from cash expenses so the main projections
   // engine doesn't double-count them with the debt engine's autopay pass-through
   // payments after cards are paid off.
-  const forecastMonthEvents = useMemo((): { income: number; nonPaycheckIncome: number; expenses: number }[] => {
+  const forecastMonthEvents = useMemo((): { income: number; expenses: number }[] => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
 
@@ -179,22 +179,6 @@ export default function Forecast() {
         (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
       ).map((r: any) => r.id),
     );
-
-    // Identify the paycheck rule(s) so we can separate them from "other income".
-    // paycheck income is already captured via fallbackTakeHome in PASS 1 — including it
-    // again from forecastMonthEvents would double-count it for months > 0.
-    const explicitPaycheckRuleId = (profile as any)?.paycheck_rule_id as string | undefined;
-    const paycheckRuleIds = new Set<string>();
-    if (explicitPaycheckRuleId) {
-      paycheckRuleIds.add(explicitPaycheckRuleId);
-    } else {
-      // Fallback: treat periodic-pay-frequency income rules as the paycheck rule
-      rules.filter((r: any) =>
-        r.active && r.rule_type === 'income' &&
-        ['weekly', 'biweekly', 'semi_monthly'].includes(r.frequency) &&
-        (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-      ).forEach((r: any) => paycheckRuleIds.add(r.id));
-    }
 
     const ccPaymentSources = new Set<string>(
       accounts
@@ -237,12 +221,6 @@ export default function Forecast() {
         .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId))
         .reduce((s, e) => s + e.amount, 0);
 
-      // nonPaycheckIncome excludes the paycheck rule so PASS 1 / simulationMonthEvents can
-      // add fallbackTakeHome (computed gross→net) without double-counting the paycheck.
-      const nonPaycheckIncome = eventsInMonth
-        .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId) && !paycheckRuleIds.has(e.ruleId))
-        .reduce((s, e) => s + e.amount, 0);
-
       const expenses = eventsInMonth
         .filter(e =>
           e.type === 'expense' &&
@@ -251,9 +229,9 @@ export default function Forecast() {
         )
         .reduce((s, e) => s + e.amount, 0);
 
-      return { income, nonPaycheckIncome, expenses };
+      return { income, expenses };
     });
-  }, [accounts, rules, scheduledEvents, pauseSavings, profile]);
+  }, [accounts, rules, scheduledEvents, pauseSavings]);
 
   const cardProjectionData = useMemo(() => {
   try {
@@ -383,7 +361,7 @@ export default function Forecast() {
     const normalizedBasePaycheck = getNormalizedMonthNetIncome(payConfig);
     const simulationMonthEvents = forecastMonthEvents.map((e, idx) => {
       if (idx === 0) return e;
-      return { ...e, income: normalizedBasePaycheck + e.nonPaycheckIncome };
+      return { ...e, income: normalizedBasePaycheck + e.income };
     });
 
     const sim = simulateVariablePayoff(
@@ -704,7 +682,7 @@ export default function Forecast() {
         netIncome = scheduledIncome + bonusIncome;
       } else {
         paycheckIncome = fallbackTakeHome;
-        otherIncome = forecastMonthEvents[i]?.nonPaycheckIncome ?? 0;
+        otherIncome = forecastMonthEvents[i]?.income ?? 0;
         netIncome = fallbackTakeHome + otherIncome + bonusIncome;
       }
 
