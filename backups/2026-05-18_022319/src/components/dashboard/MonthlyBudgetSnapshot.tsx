@@ -10,7 +10,6 @@ type Props = {
   expectedRemainingExpenses: number;
   projectedSurplus: number;
   cashFloor: number;
-  availableToDeploy?: number;
   onCalcClick?: () => void;
 };
 
@@ -29,7 +28,6 @@ export default function MonthlyBudgetSnapshot({
   expectedRemainingExpenses,
   projectedSurplus,
   cashFloor,
-  availableToDeploy,
   onCalcClick,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
@@ -58,7 +56,7 @@ export default function MonthlyBudgetSnapshot({
     { label: 'Bills still coming',   value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
     { label: 'Projected remaining',  value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
     { label: 'Cash floor',           value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground' },
-    { label: 'Available to deploy',  value: availableToDeploy ?? (projectedSurplus - cashFloor), sign: '=', colorClass: (availableToDeploy ?? (projectedSurplus - cashFloor)) >= 0 ? 'text-success' : 'text-destructive' },
+    { label: 'Available to deploy',  value: projectedSurplus - cashFloor, sign: '=', colorClass: (projectedSurplus - cashFloor) >= 0 ? 'text-success' : 'text-destructive' },
   ];
 
   return (
