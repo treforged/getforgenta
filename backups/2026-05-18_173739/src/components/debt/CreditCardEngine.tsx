@@ -29,11 +29,6 @@ type Props = {
   profile: any;
   goals: any[];
   carFunds: any[];
-  incomeGrowthEnabled?: boolean;
-  incomeGrowth?: number;
-  raiseMonth?: number;
-  raiseMode?: 'pct' | 'flat';
-  expenseGrowth?: number;
 };
 
 const STRATEGY_TIPS = {
@@ -46,7 +41,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -405,27 +400,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       augmentedCCPurchases.push(monthCCPurchases);
     }
 
-    // ── Apply Forecast growth-rate assumptions to future months ──────────────
-    // Mirrors Forecast PASS 1: expense inflation compounds monthly; income raises
-    // apply as a step in the configured month each year. Month 0 is left unchanged
-    // (it uses actual remaining transaction amounts, not scaled values).
-    const monthlyExpGrowthRate = Math.pow(1 + (expenseGrowth ?? 0) / 100, 1 / 12) - 1;
-    let incMult = 1;
-    const growthAdjustedMonthEvents = (monthEvents ?? []).map((ev, m) => {
-      if (m === 0) return ev;
-      const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-      if (incomeGrowthEnabled && (incomeGrowth ?? 0) > 0 && d.getMonth() + 1 === (raiseMonth ?? 3)) {
-        if (raiseMode === 'flat') {
-          const currentAnnual = monthlyTakeHome * 12 * incMult;
-          if (currentAnnual > 0) incMult *= (1 + (incomeGrowth ?? 0) / currentAnnual);
-        } else {
-          incMult *= (1 + (incomeGrowth ?? 0) / 100);
-        }
-      }
-      const expMult = Math.pow(1 + monthlyExpGrowthRate, m);
-      return { income: ev.income * incMult, expenses: ev.expenses * expMult };
-    });
-
     // ── Look-ahead pre-pass (mirrors Forecast PASS 2) ─────────────────────────────
     // Identifies save-up months: months where debt payments are capped at CC minimums
     // so cash accumulates before future large one-time cash expenses (e.g. car purchase).
@@ -442,8 +416,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       // Month 0 uses fundingBalance; months 1+ approximate PASS 3 (start at cashFloor)
       const simDebtPay: number[] = [];
       for (let m = 0; m < 36; m++) {
-        const mInc = m === 0 ? month0Income : (growthAdjustedMonthEvents[m]?.income ?? monthlyTakeHome);
-        const mExp = m === 0 ? month0Expenses : (growthAdjustedMonthEvents[m]?.expenses ?? monthlyRecurringExpenses);
+        const mInc = m === 0 ? month0Income : (monthEvents?.[m]?.income ?? monthlyTakeHome);
+        const mExp = m === 0 ? month0Expenses : (monthEvents?.[m]?.expenses ?? monthlyRecurringExpenses);
         const startBal = m === 0 ? fundingBalance : cashFloor;
         const available = Math.max(0, startBal + mInc - mExp - cashFloor);
         simDebtPay.push(Math.max(ccMinTotalPrepass, available));
@@ -453,8 +427,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         let bal = fundingBalance;
         const cash: number[] = [];
         for (let m = 0; m < 36; m++) {
-          const mInc = m === 0 ? month0Income : (growthAdjustedMonthEvents[m]?.income ?? monthlyTakeHome);
-          const mExp = m === 0 ? month0Expenses : (growthAdjustedMonthEvents[m]?.expenses ?? monthlyRecurringExpenses);
+          const mInc = m === 0 ? month0Income : (monthEvents?.[m]?.income ?? monthlyTakeHome);
+          const mExp = m === 0 ? month0Expenses : (monthEvents?.[m]?.expenses ?? monthlyRecurringExpenses);
           const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeByMonth[m] ?? { income: 0, expenses: 0 });
           const availForDebt = Math.max(0, bal + mInc - mExp - cashFloor);
           const effectivePay = Math.min(simDebtPay[m], availForDebt + ccMinTotalPrepass);
@@ -495,7 +469,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const sim = simulateVariablePayoff(
       cards, fundingBalance, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, 36,
-      growthAdjustedMonthEvents, undefined, augmentedCCPurchases,
+      monthEvents, undefined, augmentedCCPurchases,
       month0Income, month0Expenses,
       oneTimeByMonth,
       Math.max(cashFloor, prePaycheckBills.total), // month0SafeFloor — match recommendations
@@ -505,8 +479,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // to pass per-month purchase amounts to projectCardVariable.
     return { ...sim, augmentedCCPurchases };
   }, [cards, fundingBalance, cashFloor, strategy, monthlyTakeHome,
-      monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents,
-      incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth]);
+      monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
