@@ -10,7 +10,7 @@ import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, 
 import { generateScheduledEvents, aggregateByMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getCurrentMonthDebtRecommendations, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
+import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
@@ -103,6 +103,8 @@ export default function Forecast() {
   const [hiddenSeries, setHiddenSeries] = usePersistedState<string[]>('tre:forecast:hidden', []);
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
+  const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
+  const [persistedDebtFundingId] = usePersistedState<string>('tre:debt:fundingAccount', '');
 
   const toggleSeries = useCallback((key: string) => {
     setHiddenSeries((prev: string[]) => {
@@ -239,6 +241,13 @@ export default function Forecast() {
     const liquidTypes = ['checking', 'business_checking', 'cash'];
     const liquidCash = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type))
       .reduce((s: number, a: any) => s + Number(a.balance), 0);
+    // Use same funding account as Debt Payoff tab — reads persisted selection so both tabs stay in sync
+    const resolvedDebtFundingId = persistedDebtFundingId || forecastFundingAccountId;
+    const debtFundingAccount = accounts.find((a: any) => a.active && a.id === resolvedDebtFundingId);
+    const debtFundingBalance = debtFundingAccount ? Number(debtFundingAccount.balance) : liquidCash;
+    const debtFundingSources = resolvedDebtFundingId
+      ? new Set([resolvedDebtFundingId, `account:${resolvedDebtFundingId}`])
+      : new Set<string>();
     // Scalar fallbacks (used only when monthEvents not provided by legacy callers)
     const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
     const taxRate = Number(profile?.tax_rate) || 22;
@@ -343,7 +352,7 @@ export default function Forecast() {
 
     const allTxnsForM0 = mergeWithGeneratedTransactions(transactions, rules, accounts);
     const m0Income = getRemainingTransactionIncomeByDay(allTxnsForM0, 31);
-    const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true);
+    const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true, debtFundingSources, CC_DEFAULT_CATEGORIES);
     const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, forecastFundingAccountId, new Date());
 
     // For months > 0: forecastMonthEvents.income only contains income rules (e.g. GF rent $500).
@@ -357,9 +366,9 @@ export default function Forecast() {
 
     const sim = simulateVariablePayoff(
       cards,
-      liquidCash,
+      debtFundingBalance,
       debtPayoffOptions.cashFloor,
-      'avalanche',
+      debtStrategy,
       monthlyTakeHome,
       monthlyExpenses,
       36,
@@ -441,6 +450,8 @@ export default function Forecast() {
   pauseSavings,
   forecastMonthEvents,
   forecastFundingAccountId,
+  debtStrategy,
+  persistedDebtFundingId,
 ]);
 
   // One-time manual transactions for forecast.
@@ -757,10 +768,11 @@ export default function Forecast() {
         }
       }
 
-      // Add paycheck 401k deduction — scaled by actual paycheck count for this month (4 vs 5 paychecks)
-      const month401kContrib = payConfig
-        ? perCheck401k * getPaychecksInMonth(adjustedConfig, d.getFullYear(), d.getMonth()).length
-        : 0;
+      // Add paycheck 401k deduction — month 0 uses remaining paychecks only (past ones already in balance)
+      const paychecksThisMonth = i === 0
+        ? getRemainingPaychecksThisMonth(adjustedConfig).length
+        : getPaychecksInMonth(adjustedConfig, d.getFullYear(), d.getMonth()).length;
+      const month401kContrib = payConfig ? perCheck401k * paychecksThisMonth : 0;
       monthRetireContrib += month401kContrib;
 
       const oneTime = oneTimeByMonth[monthKey] || { income: 0, expense: 0 };

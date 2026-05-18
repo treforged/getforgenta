@@ -951,20 +951,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
                 {/* Payment preference selector */}
                 <div className="px-3 sm:px-4 pb-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Payment amount preference</p>
-                  <div className="flex gap-0 border border-border overflow-hidden text-[10px] font-medium" style={{ borderRadius: 'var(--radius)' }}>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Pay amount (when it's this card's turn)</p>
+                  <div className="flex gap-2">
                     {([
-                      { key: 'standard', dbVal: null, label: 'Standard' },
-                      { key: 'statement', dbVal: 'statement', label: 'Statement Bal.' },
-                      { key: 'full', dbVal: 'full', label: 'Full Balance' },
-                    ] as const).map(({ key, dbVal, label }, idx) => {
-                      const active = key === 'standard' ? proj.card.paymentPreference === null : proj.card.paymentPreference === key;
+                      { key: 'statement', label: 'Statement Bal.', desc: 'Pay carried balance + interest only — new purchases carry to next cycle' },
+                      { key: 'full', label: 'Full Balance', desc: 'Pay entire balance + new purchases each month, as cash allows' },
+                    ] as const).map(({ key, label, desc }) => {
+                      const active = proj.card.paymentPreference === key;
                       return (
                         <button
                           key={key}
-                          onClick={() => updateAccount.mutate({ id: proj.card.id, payment_preference: dbVal } as any)}
-                          className={`flex-1 py-1.5 transition-colors ${active ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'} ${idx > 0 ? 'border-l border-border' : ''}`}
+                          onClick={() => updateAccount.mutate({ id: proj.card.id, payment_preference: active ? null : key } as any)}
+                          className={`flex-1 py-1.5 text-[10px] font-medium border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
+                          style={{ borderRadius: 'var(--radius)' }}
                           aria-pressed={active}
+                          title={desc}
                         >
                           {label}
                         </button>
@@ -972,11 +973,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     })}
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-1">
-                    {proj.card.paymentPreference === null && 'Standard — avalanche/snowball allocates as much surplus as possible'}
-                    {proj.card.paymentPreference === 'statement' && 'Statement Bal. — pay carried balance + interest; new purchases carry to next cycle'}
-                    {proj.card.paymentPreference === 'full' && 'Full Balance — pay entire balance + new purchases each month if cash allows'}
+                    {proj.card.paymentPreference === null && 'Avalanche/snowball pushes as much surplus as possible to this card down to the cash floor'}
+                    {proj.card.paymentPreference === 'statement' && 'Pay carried balance + interest — new purchases carry to next cycle'}
+                    {proj.card.paymentPreference === 'full' && 'Pay entire balance + new purchases — as cash allows above floor'}
                   </p>
-                  <p className="text-[9px] text-muted-foreground/60 mt-0.5">Strategy (avalanche/snowball) sets priority order; this controls how much is paid when it's this card's turn.</p>
                 </div>
 
                 <div className="px-3 sm:px-4 pb-3">

@@ -341,6 +341,9 @@ export default function BudgetControl() {
   }), [weeklyGross, effectiveTaxRate, paycheckDay, payFrequency, preTaxDeductionsFlat, postTaxDeductionsFlat]);
 
   const paycheckNet = useMemo(() => getPaycheckNet(payConfig), [payConfig]);
+  const retire401kPerCheck = deductionAmounts
+    .filter(d => /401|403|roth|ira/i.test(d.label))
+    .reduce((s, d) => s + d.flatAmt, 0);
   const now = new Date();
   const monthlyTakeHome = useMemo(() => {
     const paychecks = getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth());
@@ -1058,6 +1061,16 @@ export default function BudgetControl() {
               {postTaxDeductionsFlat > 0 && <><span className="text-gold">−{formatCurrency(postTaxDeductionsFlat, false)} post-tax</span></>}
               <span>→</span>
               <span className="font-display font-bold text-success">{formatCurrency(paycheckNet, false)} net</span>
+            </div>
+          )}
+          {/* 401k per-paycheck breakdown — used by Forecast to compute remaining contributions this month */}
+          {retire401kPerCheck > 0 && (
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] sm:text-xs text-muted-foreground pt-1 border-t border-border/40 mt-1">
+              <span className="font-medium text-foreground">401(k)/retirement: {formatCurrency(retire401kPerCheck, false)}/paycheck</span>
+              <span>·</span>
+              <span>{remainingPaychecks.length} paycheck{remainingPaychecks.length !== 1 ? 's' : ''} left this month</span>
+              <span>→</span>
+              <span className="font-medium text-foreground">{formatCurrency(retire401kPerCheck * remainingPaychecks.length, false)} remaining contribution this month</span>
             </div>
           )}
           </>}
