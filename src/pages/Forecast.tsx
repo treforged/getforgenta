@@ -583,21 +583,16 @@ export default function Forecast() {
     const retireAccountIds = new Set(retireAccounts.map((a: any) => a.id as string));
     const payDeds: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
       Array.isArray(prof?.paycheck_deductions) ? prof.paycheck_deductions : [];
-    const linkedRetireMonthly = payDeds
-      .filter(d => d.accountId && retireAccountIds.has(d.accountId) && d.value > 0)
-      .reduce((s, d) => {
-        const perCheck = d.mode === 'pct' ? paycheckGrossForForecast * (d.value / 100) : d.value;
-        return s + perCheck * (paychecksPerYear / 12);
-      }, 0);
-    // Fallback: legacy deduction_401k_value column
-    const monthly401kContrib = linkedRetireMonthly > 0
-      ? linkedRetireMonthly
-      : (() => {
-          const d401kVal = Number(prof?.deduction_401k_value) || 0;
-          const d401kMode = prof?.deduction_401k_mode || 'pct';
-          const perCheck = d401kMode === 'pct' ? paycheckGrossForForecast * (d401kVal / 100) : d401kVal;
-          return perCheck * (paychecksPerYear / 12);
-        })();
+    // Per-paycheck contribution amount — multiplied by actual paycheck count per month inside the loop
+    const perCheck401k = (() => {
+      const linked = payDeds
+        .filter(d => d.accountId && retireAccountIds.has(d.accountId) && d.value > 0)
+        .reduce((s, d) => s + (d.mode === 'pct' ? paycheckGrossForForecast * (d.value / 100) : d.value), 0);
+      if (linked > 0) return linked;
+      const d401kVal = Number(prof?.deduction_401k_value) || 0;
+      const d401kMode = prof?.deduction_401k_mode || 'pct';
+      return d401kMode === 'pct' ? paycheckGrossForForecast * (d401kVal / 100) : d401kVal;
+    })();
 
     const monthlyCarContrib = carFunds.reduce((s: number, c: any) => {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
@@ -614,6 +609,7 @@ export default function Forecast() {
       rawDebtPayment: number; monthTransfers: number; monthBrokerageContrib: number; monthRetireContrib: number; oneTimeNet: number;
       ccDebtBalance: number; otherDebtBalance: number; monthMinSafe: number; monthlySavingsContrib: number;
       paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
+      paycheckRetireContrib: number;
     }[] = [];
     let incomeMultiplier = 1;
     let expenseMultiplier = 1;
@@ -761,8 +757,11 @@ export default function Forecast() {
         }
       }
 
-      // Add paycheck 401k deduction contribution (not double-count if also has a transfer rule to 401k)
-      monthRetireContrib += monthly401kContrib;
+      // Add paycheck 401k deduction — scaled by actual paycheck count for this month (4 vs 5 paychecks)
+      const month401kContrib = payConfig
+        ? perCheck401k * getPaychecksInMonth(adjustedConfig, d.getFullYear(), d.getMonth()).length
+        : 0;
+      monthRetireContrib += month401kContrib;
 
       const oneTime = oneTimeByMonth[monthKey] || { income: 0, expense: 0 };
       const oneTimeNet = oneTime.income - oneTime.expense;
@@ -793,6 +792,7 @@ export default function Forecast() {
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
         monthTransfers, monthBrokerageContrib, monthRetireContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
+        paycheckRetireContrib: month401kContrib,
       });
 
       expenseMultiplier *= (1 + monthlyExpenseGrowth);
@@ -961,7 +961,7 @@ export default function Forecast() {
 
         brokerageContrib: Math.round(b.monthBrokerageContrib),
         retireContrib: Math.round(b.monthRetireContrib),
-        paycheckRetireContrib: Math.round(monthly401kContrib),
+        paycheckRetireContrib: Math.round(b.paycheckRetireContrib),
         investGrowth: Math.round(investGrowthAmt),
         retireGrowth: Math.round(retireGrowthAmt),
         oneTimeNet: Math.round(b.oneTimeNet),
