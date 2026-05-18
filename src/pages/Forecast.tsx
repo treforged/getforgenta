@@ -842,13 +842,12 @@ export default function Forecast() {
         }
       }
 
-      // Month 0: pin rawDebtPayment to the revolving pool (safeToPayTotal) so the popup's
-      // "Debt Payments" row matches Safe to Pay / Available to Deploy on the other tabs.
-      // Preference card pass-throughs (autopayTotal) are folded into baseExpenses so the
-      // full CC outflow still lands in the cash model — net deduction is unchanged.
-      if (i === 0 && currentMonthRecommendedDebt !== null && currentMonthRecommendedDebt.safeToPayTotal > 0) {
-        rawDebtPayment = currentMonthRecommendedDebt.safeToPayTotal;
-        baseExpenses += currentMonthRecommendedDebt.autopayTotal;
+      // Month 0: pin to total recommended CC outflow (revolving + autopay pass-throughs).
+      // displayDebtPayment in data.push shows only safeToPayTotal so the popup matches
+      // Debt Payoff / Dashboard — the cash model still uses the full amount.
+      if (i === 0 && currentMonthRecommendedDebt !== null &&
+          (currentMonthRecommendedDebt.safeToPayTotal + currentMonthRecommendedDebt.autopayTotal) > 0) {
+        rawDebtPayment = currentMonthRecommendedDebt.safeToPayTotal + currentMonthRecommendedDebt.autopayTotal;
       }
 
       const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
@@ -1092,6 +1091,7 @@ export default function Forecast() {
         startingCash,
         takeHome: Math.round(b.netIncome), totalExpenses: Math.round(totalMonthlyOut),
         debtPayment: Math.round(monthDebtPayment),
+        displayDebtPayment: i === 0 && currentMonthRecommendedDebt !== null ? currentMonthRecommendedDebt.safeToPayTotal : undefined,
         plannedDebtPayment: cardProjectionData?.allPaymentTotals?.[i] ?? Math.round(monthDebtPayment),
 
         brokerageContrib: Math.round(xferBrokerageAmt),
@@ -1814,7 +1814,7 @@ export default function Forecast() {
                     ...((row.bonusIncome ?? 0) > 0 ? [{ label: 'Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
                     ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    { label: '  Debt Payments', value: formatCurrency(row.debtPayment, false), op: '−' },
+                    { label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' },
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
                     ...(((row.transfersTotal ?? 0) - (row.businessContrib ?? 0)) > 0
