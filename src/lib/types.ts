@@ -82,9 +82,12 @@ export type Liability = {
 };
 
 export const CATEGORIES = [
-  'Bills', 'Groceries', 'Gas', 'Dining', 'Entertainment',
-  'Subscriptions', 'Debt Payments', 'Savings', 'Investing',
-  'Car', 'Travel', 'Other',
+  'Bills', 'Rent', 'Mortgage', 'Utilities', 'Insurance',
+  'Groceries', 'Gas', 'Dining', 'Shopping', 'Entertainment',
+  'Subscriptions', 'Health', 'Personal', 'Travel', 'Car',
+  'Education', 'Pets', 'Clothing', 'Gifts',
+  'Savings', 'Investing', 'Business', 'Debt Payments',
+  'Income', 'Other',
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];

@@ -601,11 +601,7 @@ export default function BudgetControl() {
     if (form.frequency === 'yearly') {
       fields.push({ key: 'due_month', label: 'Due Month (1-12)', type: 'number' });
     }
-    if (isPremium || isDemo) {
-      fields.push({ key: 'category', label: 'Category (custom)', type: 'text', placeholder: 'e.g., Bills, Groceries, Side Hustle…' });
-    } else {
-      fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
-    }
+    fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
     
     if (form.rule_type === 'transfer' || form.rule_type === 'investment') {
       fields.push({ key: 'start_date', label: 'Start Date', type: 'date' });

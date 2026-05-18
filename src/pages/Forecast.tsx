@@ -157,8 +157,18 @@ export default function Forecast() {
       const retireIds = new Set<string>(
         accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
       );
+      const now0 = new Date();
+      const monthEnd0 = new Date(now0.getFullYear(), now0.getMonth() + 1, 0);
+      const activeTransferDests0 = new Set<string>(
+        (rules as any[]).filter((r: any) =>
+          r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
+          !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd0) &&
+          !(r.end_date && new Date(r.end_date + 'T00:00:00') < now0),
+        ).map((r: any) => r.deposit_account),
+      );
       const savingsTotal = goals.reduce((s: number, g: any) => {
         if (g.linked_account && retireIds.has(g.linked_account)) return s;
+        if (g.linked_account && activeTransferDests0.has(g.linked_account)) return s;
         return s + Number(g.monthly_contribution);
       }, 0);
       const carTotal = carFunds.reduce((s: number, c: any) => {
@@ -407,22 +417,27 @@ export default function Forecast() {
     const simulationMonthEvents = forecastMonthEvents.map((e, idx) => {
       if (idx === 0) return e;
       const d = new Date(now.getFullYear(), now.getMonth() + idx, 1);
+      const simMonthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
 
-      // Savings goals active this month (respects contribution_start_date, excludes retirement-linked)
+      // Transfer/investment rules active this month — builds dest set for savings dedup
+      const simActiveTransferDests = new Set<string>();
+      let monthTransfers = 0;
+      for (const tr of simTransferRules) {
+        if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > simMonthEnd) continue;
+        if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
+        if (tr.deposit_account) simActiveTransferDests.add(tr.deposit_account);
+        const amt = Number(tr.amount);
+        if (tr.frequency === 'weekly') monthTransfers += amt * 4.33;
+        else if (tr.frequency === 'yearly') monthTransfers += amt / 12;
+        else monthTransfers += amt;
+      }
+
+      // Savings goals active this month — exclude retirement-linked and transfer-funded (avoid double count)
       const monthSavings = (goals as any[]).reduce((s: number, g: any) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
+        if (g.linked_account && simActiveTransferDests.has(g.linked_account)) return s;
         return s + Number(g.monthly_contribution);
-      }, 0);
-
-      // Transfer/investment rules active this month (respects start_date / end_date)
-      const monthTransfers = simTransferRules.reduce((s: number, tr: any) => {
-        if (tr.start_date && new Date(tr.start_date) > d) return s;
-        if (tr.end_date && new Date(tr.end_date) < d) return s;
-        const amt = Number(tr.amount);
-        if (tr.frequency === 'weekly') return s + amt * 4.33;
-        if (tr.frequency === 'yearly') return s + amt / 12;
-        return s + amt;
       }, 0);
 
       return {
@@ -827,13 +842,16 @@ export default function Forecast() {
         rawDebtPayment = currentMonthRecommendedDebt;
       }
 
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       let monthTransfers = 0;
       let monthBrokerageContrib = 0;
       let monthRetireContrib = 0;
       let monthBusinessContrib = 0;
+      const activeTransferDestIds = new Set<string>();
       for (const tr of transferRulesAll) {
-        if (tr.start_date && new Date(tr.start_date) > d) continue;
-        if (tr.end_date && new Date(tr.end_date) < d) continue;
+        if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > monthEnd) continue;
+        if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
+        if (tr.deposit_account) activeTransferDestIds.add(tr.deposit_account);
         const amt = Number(tr.amount);
         let monthAmt = amt;
         if (tr.frequency === 'weekly') monthAmt = amt * 4.33;
@@ -884,11 +902,12 @@ export default function Forecast() {
 
       const monthMinSafe = getMinSafeCash(rules, payConfig, cashFloor, forecastFundingAccountId, d);
 
-      // Respect contribution_start_date; also exclude goals linked to retirement accounts
-      // (those contributions come from the paycheck deduction, not a separate checking outflow)
+      // Respect contribution_start_date; exclude goals linked to retirement accounts (paycheck deduction)
+      // and goals whose linked account is funded by an active transfer rule this month (avoid double count)
       const monthlySavingsContrib = goals.reduce((s: number, g: any) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && retireAccountIds.has(g.linked_account)) return s;
+        if (g.linked_account && activeTransferDestIds.has(g.linked_account)) return s;
         return s + Number(g.monthly_contribution);
       }, 0);
 
