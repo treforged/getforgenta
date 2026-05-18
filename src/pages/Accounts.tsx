@@ -60,23 +60,42 @@ const TYPE_ICONS: Record<string, any> = {
   other_liability: TrendingDown, other_asset: Wallet,
 };
 
+// Plaid sync runs Mon/Wed/Fri at 13:00 UTC (9 AM ET).
+const PLAID_SYNC_DAYS = new Set([1, 3, 5]); // Mon, Wed, Fri UTC day-of-week
+const PLAID_SYNC_HOUR_UTC = 13;
+
+function getLastScheduledSyncTime(from: Date): Date {
+  for (let i = 0; i <= 7; i++) {
+    const d = new Date(from);
+    d.setUTCDate(d.getUTCDate() - i);
+    d.setUTCHours(PLAID_SYNC_HOUR_UTC, 0, 0, 0);
+    if (PLAID_SYNC_DAYS.has(d.getUTCDay()) && d <= from) return d;
+  }
+  return new Date(from.getTime() - 7 * 24 * 60 * 60 * 1000);
+}
+
 function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale: boolean } {
   if (!lastSyncedAt) return { text: 'Not yet synced', isStale: false };
-  const ms = Date.now() - new Date(lastSyncedAt).getTime();
+  const now = new Date();
+  const lastSync = new Date(lastSyncedAt);
+  const ms = now.getTime() - lastSync.getTime();
   const hours = ms / (1000 * 60 * 60);
-  if (hours > 25) return { text: 'Sync delayed', isStale: true };
+
   if (hours < 1) {
     const mins = Math.round(ms / (1000 * 60));
     return { text: mins <= 1 ? 'Updated just now' : `Updated ${mins} min ago`, isStale: false };
   }
+
+  // Stale only when the most recent scheduled sync ran but our data predates it by >2 hours.
+  const lastScheduled = getLastScheduledSyncTime(now);
+  const missedSync = lastSync < lastScheduled && (now.getTime() - lastScheduled.getTime()) > 2 * 60 * 60 * 1000;
+
   const h = Math.floor(hours);
-  if (h < 24) return { text: `Updated ${h} hour${h === 1 ? '' : 's'} ago`, isStale: false };
-  const d = new Date(lastSyncedAt);
-  const today = new Date();
-  if (d.toDateString() === today.toDateString()) {
-    return { text: `Updated today at ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`, isStale: false };
+  if (h < 24) return { text: `Updated ${h} hour${h === 1 ? '' : 's'} ago`, isStale: missedSync };
+  if (lastSync.toDateString() === now.toDateString()) {
+    return { text: `Updated today at ${lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`, isStale: missedSync };
   }
-  return { text: `Updated ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: false };
+  return { text: `Updated ${lastSync.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: missedSync };
 }
 
 const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '' };
@@ -655,8 +674,8 @@ export default function Accounts() {
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-yellow-500'}`} />
                 {mostRecent
-                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Updates daily at 9 AM ET`
-                  : 'Not yet synced · Will sync daily at 9 AM ET'}
+                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs Mon, Wed & Fri at 9 AM ET`
+                  : 'Not yet synced · Syncs Mon, Wed & Fri at 9 AM ET'}
               </div>
             );
           })()}

@@ -460,7 +460,9 @@ export default function Forecast() {
       if ((t as any).isGenerated) continue;
       const monthKey = t.date?.substring(0, 7);
       if (!monthKey) continue;
-      if (monthKey === currentMonthKey && t.date && t.date < todayStr) continue;
+      // Exclude today and past transactions in the current month — the live account balance
+      // already reflects them, so projecting them again would double-deduct.
+      if (monthKey === currentMonthKey && t.date && t.date <= todayStr) continue;
       if (!result[monthKey]) result[monthKey] = { income: 0, expense: 0 };
       if (t.type === 'income') result[monthKey].income += Number(t.amount);
       else if (!t.payment_source || !ccSources.has(t.payment_source)) result[monthKey].expense += Number(t.amount);
@@ -485,7 +487,7 @@ export default function Forecast() {
       if (!t.payment_source || !ccSources.has(t.payment_source)) continue;
       const monthKey = t.date?.substring(0, 7);
       if (!monthKey) continue;
-      if (monthKey === currentMonthKey && t.date && t.date < todayStr) continue;
+      if (monthKey === currentMonthKey && t.date && t.date <= todayStr) continue;
       result[monthKey] = (result[monthKey] || 0) + Number(t.amount);
     }
     return result;
@@ -699,12 +701,13 @@ export default function Forecast() {
         } catch { /* skip refund if estimator throws */ }
       }
 
-      // FIX #4: Expenses — use CC-filtered forecastMonthEvents to avoid double-counting
-      // CC purchases with the debt engine's autopay pass-through payments post-payoff.
+      // Expenses — use CC-filtered forecastMonthEvents (scheduled events from today onward).
+      // Month 0: starting cash already reflects all paid expenses; never fall back to the
+      // full-month budget amount or past bills that have already cleared would be re-charged.
       const filteredExpenses = forecastMonthEvents[i]?.expenses ?? 0;
       const budgetFallback = budgetItems.reduce((s: number, b: any) => s + Number(b.amount), 0);
       let baseExpenses: number;
-      if (i === 0 && filteredExpenses > 0) {
+      if (i === 0) {
         baseExpenses = filteredExpenses;
       } else if (filteredExpenses > 0) {
         baseExpenses = filteredExpenses * expenseMultiplier;
