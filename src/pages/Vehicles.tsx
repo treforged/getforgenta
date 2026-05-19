@@ -21,8 +21,8 @@ const toMonthly = (amount: number, freq: string) =>
   : amount;
 
 const emptySavingForm = {
-  vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', current_saved: '',
-  monthly_insurance: '', expected_apr: '', loan_term_months: '60',
+  vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', gift_contribution: '',
+  current_saved: '', monthly_insurance: '', expected_apr: '', loan_term_months: '60',
   linked_account: '', linked_rule_id: '', planned_purchase_date: '',
 };
 
@@ -51,14 +51,16 @@ function estimateSavingCompletion(downGoal: number, saved: number, monthly: numb
 function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib }:
   { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean;
     linkedAccountName?: string | null; monthlyContrib?: number }) {
-  const pct = cf.down_payment_goal > 0 ? (cf.current_saved / cf.down_payment_goal) * 100 : 0;
+  const gift = Number(cf.gift_contribution) || 0;
+  const personalGoal = Math.max(0, cf.down_payment_goal - gift);
+  const pct = personalGoal > 0 ? Math.min((cf.current_saved / personalGoal) * 100, 100) : 100;
   const monthlyEst = calculateMonthlyPayment(
     cf.target_price + cf.tax_fees - cf.down_payment_goal,
     cf.expected_apr,
     cf.loan_term_months,
   );
   const monthly = monthlyContrib ?? 0;
-  const completionLabel = estimateSavingCompletion(cf.down_payment_goal, cf.current_saved, monthly, cf.planned_purchase_date);
+  const completionLabel = estimateSavingCompletion(personalGoal, cf.current_saved, monthly, cf.planned_purchase_date);
   return (
     <div className="card-forged p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -92,9 +94,19 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
       <div>
         <div className="flex justify-between text-xs mb-1">
           <span className="text-muted-foreground">Down payment progress</span>
-          <span className="font-medium">{formatCurrency(cf.current_saved, false)} / {formatCurrency(cf.down_payment_goal, false)}</span>
+          <span className="font-medium">
+            {formatCurrency(cf.current_saved, false)} / {formatCurrency(personalGoal, false)}
+            {gift > 0 && <span className="text-muted-foreground"> · {formatCurrency(cf.down_payment_goal, false)} total</span>}
+          </span>
         </div>
-        <ProgressBar value={Math.min(pct, 100)} max={100} />
+        <ProgressBar value={pct} max={100} />
+        {gift > 0 && (
+          <div className="flex items-center gap-1 mt-1">
+            <span className="text-[10px] px-1.5 py-0.5 bg-success/10 border border-success/20 text-success font-medium" style={{ borderRadius: 'var(--radius)' }}>
+              Gift/contribution: {formatCurrency(gift, false)} covered
+            </span>
+          </div>
+        )}
         <p className="text-[10px] text-muted-foreground mt-1">
           {Math.round(pct)}%{' '}
           {cf.planned_purchase_date
@@ -423,7 +435,8 @@ export default function Vehicles() {
       { key: 'vehicle_name', label: 'Vehicle Name', type: 'text', placeholder: 'e.g., 2025 Honda Civic' },
       { key: 'target_price', label: 'Target Price', type: 'number', placeholder: '28000', step: '0.01' },
       { key: 'tax_fees', label: 'Tax & Fees', type: 'number', placeholder: '2000', step: '0.01' },
-      { key: 'down_payment_goal', label: 'Down Payment Goal', type: 'number', placeholder: '5600', step: '0.01' },
+      { key: 'down_payment_goal', label: 'Down Payment Goal (total to dealer)', type: 'number', placeholder: '5600', step: '0.01' },
+      { key: 'gift_contribution', label: 'Gift / External Contribution (optional)', type: 'number', placeholder: '0', step: '0.01' },
       { key: 'planned_purchase_date', label: 'Planned Purchase Date (optional)', type: 'date' },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
       { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync contribution)', type: 'select', options: transferRuleOptions },
@@ -448,6 +461,7 @@ export default function Vehicles() {
       target_price: String(cf.target_price),
       tax_fees: String(cf.tax_fees),
       down_payment_goal: String(cf.down_payment_goal),
+      gift_contribution: cf.gift_contribution ? String(cf.gift_contribution) : '',
       current_saved: String(cf.current_saved),
       monthly_insurance: String(cf.monthly_insurance),
       expected_apr: String(cf.expected_apr),
@@ -484,6 +498,7 @@ export default function Vehicles() {
       target_price: parseFloat(savingForm.target_price) || 0,
       tax_fees: parseFloat(savingForm.tax_fees) || 0,
       down_payment_goal: parseFloat(savingForm.down_payment_goal) || 0,
+      gift_contribution: parseFloat(savingForm.gift_contribution) || 0,
       current_saved: effectiveSaved,
       monthly_insurance: parseFloat(savingForm.monthly_insurance) || 0,
       expected_apr: parseFloat(savingForm.expected_apr) || 0,
