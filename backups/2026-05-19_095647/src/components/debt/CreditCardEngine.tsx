@@ -723,6 +723,58 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           <span className="text-[9px] sm:text-[10px] text-muted-foreground">Targets ending cash ≈ safe minimum ({formatCurrency(recommendedSafeMinimum, false)})</span>
         </div>
 
+        <div className="card-forged p-3 sm:p-4">
+          <h3 className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 sm:mb-3 flex items-center gap-2">
+            <ShieldCheck size={12} className="text-primary" /> Recommended Cash Floor
+          </h3>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground">User Cash Floor</p>
+              <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(cashFloor, false)}</p>
+            </div>
+            <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground">Pre-Paycheck Bills</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="text-xs sm:text-sm font-display font-bold text-foreground cursor-help">{formatCurrency(prePaycheckBills.total, false)}</p>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[260px] text-xs">
+                  <p className="font-semibold mb-1">Bills due before first paycheck next month:</p>
+                  {prePaycheckBills.items.length > 0 ? prePaycheckBills.items.map((item, i) => (
+                    <div key={i} className="flex justify-between gap-2">
+                      <span>{item.name} (day {item.dueDay})</span>
+                      <span className="font-bold">{formatCurrency(item.amount, false)}</span>
+                    </div>
+                  )) : <p>No bills found before next paycheck</p>}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="p-2 sm:p-3 bg-primary/10 border border-primary/20 text-center" style={{ borderRadius: 'var(--radius)' }}>
+              <p className="text-[9px] sm:text-[10px] text-primary uppercase">Safe Minimum</p>
+              <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendedSafeMinimum, false)}</p>
+            </div>
+          </div>
+
+          {/* Show why calculated floor is higher than user-set floor */}
+          {prePaycheckBills.total > cashFloor && (
+            <div className="flex items-start gap-2 mt-3 bg-primary/5 border border-primary/15 px-3 py-2 text-[10px] sm:text-xs" style={{ borderRadius: 'var(--radius)' }}>
+              <Info size={13} className="text-primary shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-foreground font-medium">
+                  Pre-paycheck bills ({formatCurrency(prePaycheckBills.total, false)}) exceed your cash floor ({formatCurrency(cashFloor, false)}). Safe minimum raised to {formatCurrency(recommendedSafeMinimum, false)}.
+                </p>
+                {prePaycheckBills.items.length > 0 && (
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] sm:text-[10px] text-muted-foreground">
+                    {prePaycheckBills.items.map((item, idx) => (
+                      <span key={idx}>{item.name} — {formatCurrency(item.amount, false)} (due {item.dueDay}th)</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Summary Stats */}
         <div className="card-forged p-4 sm:p-5">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 text-center">
@@ -797,47 +849,18 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               ))}
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <label className="text-[10px] text-muted-foreground uppercase">Cash Floor</label>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span><Info size={11} className="text-muted-foreground cursor-help" /></span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[220px] text-xs">
-                    Never recommend payments that push liquid cash below this amount. Also reserves for early next-month bills.
-                  </TooltipContent>
-                </Tooltip>
-                <input type="number" value={cashFloor} onChange={e => setCashFloor(Number(e.target.value) || 0)}
-                  className="w-20 sm:w-24 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" min="0" />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="flex items-center gap-1 px-2 py-1 bg-primary/10 border border-primary/20 text-[10px] font-medium text-primary cursor-help" style={{ borderRadius: 'var(--radius)' }}>
-                      <ShieldCheck size={10} /> Safe Min: {formatCurrency(recommendedSafeMinimum, false)}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="max-w-[260px] text-xs">
-                    <p className="font-semibold mb-1">Safe Minimum = max(cash floor, pre-paycheck bills)</p>
-                    {prePaycheckBills.items.length > 0 ? (
-                      <>
-                        <p className="mb-1">Bills due before first paycheck next month:</p>
-                        {prePaycheckBills.items.map((item, i) => (
-                          <div key={i} className="flex justify-between gap-2">
-                            <span>{item.name} (day {item.dueDay})</span>
-                            <span className="font-bold">{formatCurrency(item.amount, false)}</span>
-                          </div>
-                        ))}
-                      </>
-                    ) : <p>No bills found before next paycheck</p>}
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-              {prePaycheckBills.total > cashFloor && (
-                <p className="text-[9px] text-primary flex items-center gap-1">
-                  <Info size={9} className="shrink-0" />
-                  Floor raised to {formatCurrency(recommendedSafeMinimum, false)} — pre-paycheck bills exceed your {formatCurrency(cashFloor, false)} floor.
-                </p>
-              )}
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] text-muted-foreground uppercase">Cash Floor</label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span><Info size={11} className="text-muted-foreground cursor-help" /></span>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[220px] text-xs">
+                  Never recommend payments that push liquid cash below this amount. Also reserves for early next-month bills.
+                </TooltipContent>
+              </Tooltip>
+              <input type="number" value={cashFloor} onChange={e => setCashFloor(Number(e.target.value) || 0)}
+                className="w-20 sm:w-24 bg-secondary border border-border px-2 py-1 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" min="0" />
             </div>
           </div>
 
@@ -1063,13 +1086,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         {proj.card.balance <= 0
                           ? 'Debt free'
                           : (() => {
-                              if (!proj.payoffMonth) return proj.card.paymentPreference === 'statement' ? 'Interest-free: N/A' : 'Payoff: N/A';
+                              if (!proj.payoffMonth) return 'Payoff: N/A';
                               const d = new Date();
                               d.setMonth(d.getMonth() + proj.payoffMonth - 1);
                               const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
-                              return proj.card.paymentPreference === 'statement'
-                                ? `Interest-free: ${proj.payoffMonth} mo (${label})`
-                                : `Payoff: ${proj.payoffMonth} months (${label})`;
+                              return `Payoff: ${proj.payoffMonth} months (${label})`;
                             })()
                         }
                       </p>
