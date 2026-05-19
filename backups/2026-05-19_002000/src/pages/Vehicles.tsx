@@ -6,24 +6,17 @@ import FormModal from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
 import { buildAmortizationSchedule, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
-import { useCarFunds, useAccounts, useRecurringRules } from '@/hooks/useSupabaseData';
+import { useCarFunds, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { CarFund } from '@/lib/types';
 
-const toMonthly = (amount: number, freq: string) =>
-  freq === 'weekly' ? amount * 52 / 12
-  : freq === 'biweekly' ? amount * 26 / 12
-  : freq === 'yearly' ? amount / 12
-  : amount;
-
 const emptySavingForm = {
   vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', current_saved: '',
   monthly_insurance: '', expected_apr: '', loan_term_months: '60',
-  linked_account: '', linked_rule_id: '',
 };
 
 const emptyLoanForm = {
@@ -42,17 +35,14 @@ function estimateSavingCompletion(downGoal: number, saved: number, monthly: numb
   return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib }:
-  { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean;
-    linkedAccountName?: string | null; monthlyContrib?: number }) {
-  const effectiveSaved = cf.current_saved;
-  const pct = cf.down_payment_goal > 0 ? (effectiveSaved / cf.down_payment_goal) * 100 : 0;
+function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm }:
+  { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean }) {
+  const pct = cf.down_payment_goal > 0 ? (cf.current_saved / cf.down_payment_goal) * 100 : 0;
   const monthlyEst = calculateMonthlyPayment(
     cf.target_price + cf.tax_fees - cf.down_payment_goal,
     cf.expected_apr,
     cf.loan_term_months,
   );
-  const monthly = monthlyContrib ?? 0;
   return (
     <div className="card-forged p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -60,14 +50,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
           <Car size={16} className="text-primary shrink-0" />
           <div className="min-w-0">
             <h3 className="text-sm font-semibold truncate">{cf.vehicle_name}</h3>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <p className="text-xs text-muted-foreground">Saving for down payment</p>
-              {linkedAccountName && (
-                <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
-                  <Link2 size={8} /> {linkedAccountName}
-                </span>
-              )}
-            </div>
+            <p className="text-xs text-muted-foreground">Saving for down payment</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
@@ -79,15 +62,10 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
       <div>
         <div className="flex justify-between text-xs mb-1">
           <span className="text-muted-foreground">Down payment progress</span>
-          <span className="font-medium">{formatCurrency(effectiveSaved, false)} / {formatCurrency(cf.down_payment_goal, false)}</span>
+          <span className="font-medium">{formatCurrency(cf.current_saved, false)} / {formatCurrency(cf.down_payment_goal, false)}</span>
         </div>
         <ProgressBar value={Math.min(pct, 100)} max={100} />
-        <p className="text-[10px] text-muted-foreground mt-1">
-          {Math.round(pct)}% ·{' '}
-          {monthly > 0
-            ? `Est. ready ${estimateSavingCompletion(cf.down_payment_goal, effectiveSaved, monthly)}`
-            : linkedAccountName ? 'Balance auto-synced from account' : 'Set a transfer rule to estimate completion'}
-        </p>
+        <p className="text-[10px] text-muted-foreground mt-1">{Math.round(pct)}% · Est. ready {estimateSavingCompletion(cf.down_payment_goal, cf.current_saved, 0)}</p>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center">
@@ -104,13 +82,6 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
           <p className="text-xs font-semibold">{formatCurrency(cf.monthly_insurance, false)}</p>
         </div>
       </div>
-
-      {monthly > 0 && (
-        <p className="text-[10px] text-primary/70 text-center">
-          {formatCurrency(monthly, false)}/mo contribution
-          {linkedAccountName ? ' · via transfer rule' : ''}
-        </p>
-      )}
 
       <button
         onClick={onBuyIt}
@@ -355,7 +326,6 @@ function BuyItDialog({ cf, onConfirm, onClose }:
 export default function Vehicles() {
   const { data: carFunds, add, update, remove, loading } = useCarFunds();
   const { data: accounts } = useAccounts();
-  const { data: rules } = useRecurringRules();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
 
@@ -374,62 +344,15 @@ export default function Vehicles() {
   const activeLoans = useMemo(() => getActiveCarLoanPayments(carFunds as CarFund[]), [carFunds]);
   const totalMonthlyLoanPayments = activeLoans.reduce((s, l) => s + l.payment, 0);
 
-  const accountMap = useMemo(() => {
-    const map: Record<string, any> = {};
-    (accounts as any[]).forEach((a: any) => { map[a.id] = a; });
-    return map;
-  }, [accounts]);
-
-  const accountOptions = useMemo(() => [
-    { value: '', label: 'None (Manual)' },
-    ...(accounts as any[]).filter((a: any) => a.active).map((a: any) => ({
-      value: a.id,
-      label: `${a.name} (${a.account_type.replace(/_/g, ' ')})`,
-    })),
-  ], [accounts]);
-
-  const transferRuleOptions = useMemo(() => [
-    { value: '', label: 'None (manual)' },
-    ...(rules as any[])
-      .filter((r: any) => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
-      .map((r: any) => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
-  ], [rules]);
-
-  const savingFormFields = useMemo(() => {
-    const fields: any[] = [
-      { key: 'vehicle_name', label: 'Vehicle Name', type: 'text', placeholder: 'e.g., 2025 Honda Civic' },
-      { key: 'target_price', label: 'Target Price', type: 'number', placeholder: '28000', step: '0.01' },
-      { key: 'tax_fees', label: 'Tax & Fees', type: 'number', placeholder: '2000', step: '0.01' },
-      { key: 'down_payment_goal', label: 'Down Payment Goal', type: 'number', placeholder: '5600', step: '0.01' },
-      { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
-      { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync contribution)', type: 'select', options: transferRuleOptions },
-    ];
-    if (!savingForm.linked_account) {
-      fields.push({ key: 'current_saved', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' });
-    }
-    fields.push(
-      { key: 'monthly_insurance', label: 'Monthly Insurance Est.', type: 'number', placeholder: '180', step: '0.01' },
-      { key: 'expected_apr', label: 'Expected Loan APR %', type: 'number', placeholder: '5.9', step: '0.01' },
-      { key: 'loan_term_months', label: 'Loan Term (months)', type: 'number', placeholder: '60' },
-    );
-    return fields;
-  }, [savingForm.linked_account, accountOptions, transferRuleOptions]);
-
   const openAddSaving = () => { setSavingForm(emptySavingForm); setEditId(null); setShowSavingForm(true); };
   const openAddLoan = () => { setLoanForm(emptyLoanForm); setEditId(null); setShowLoanForm(true); };
 
   const openEditSaving = (cf: CarFund) => {
     setSavingForm({
-      vehicle_name: cf.vehicle_name,
-      target_price: String(cf.target_price),
-      tax_fees: String(cf.tax_fees),
-      down_payment_goal: String(cf.down_payment_goal),
-      current_saved: String(cf.current_saved),
-      monthly_insurance: String(cf.monthly_insurance),
-      expected_apr: String(cf.expected_apr),
-      loan_term_months: String(cf.loan_term_months),
-      linked_account: cf.linked_account ?? '',
-      linked_rule_id: cf.linked_rule_id ?? '',
+      vehicle_name: cf.vehicle_name, target_price: String(cf.target_price),
+      tax_fees: String(cf.tax_fees), down_payment_goal: String(cf.down_payment_goal),
+      current_saved: String(cf.current_saved), monthly_insurance: String(cf.monthly_insurance),
+      expected_apr: String(cf.expected_apr), loan_term_months: String(cf.loan_term_months),
     });
     setEditId(cf.id); setShowSavingForm(true);
   };
@@ -447,24 +370,15 @@ export default function Vehicles() {
 
   const handleSaveSaving = () => {
     if (!savingForm.vehicle_name) return;
-    const linkedAccount = savingForm.linked_account || null;
-    const linkedRule = savingForm.linked_rule_id
-      ? (rules as any[]).find((r: any) => r.id === savingForm.linked_rule_id)
-      : null;
-    const effectiveSaved = linkedAccount && accountMap[linkedAccount]
-      ? Number(accountMap[linkedAccount].balance)
-      : parseFloat(savingForm.current_saved) || 0;
     const payload = {
       vehicle_name: savingForm.vehicle_name,
       target_price: parseFloat(savingForm.target_price) || 0,
       tax_fees: parseFloat(savingForm.tax_fees) || 0,
       down_payment_goal: parseFloat(savingForm.down_payment_goal) || 0,
-      current_saved: effectiveSaved,
+      current_saved: parseFloat(savingForm.current_saved) || 0,
       monthly_insurance: parseFloat(savingForm.monthly_insurance) || 0,
       expected_apr: parseFloat(savingForm.expected_apr) || 0,
       loan_term_months: parseInt(savingForm.loan_term_months) || 60,
-      linked_account: linkedAccount,
-      linked_rule_id: linkedRule?.id ?? null,
       phase: 'saving' as const,
       loan_amount: 0, loan_start_date: null, payment_start_date: null,
       interest_start_date: null, actual_monthly_payment: 0,
@@ -488,7 +402,6 @@ export default function Vehicles() {
       monthly_insurance: parseFloat(loanForm.monthly_insurance) || 0,
       phase: 'loan' as const,
       target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0,
-      linked_account: null, linked_rule_id: null,
     };
     if (editId) update.mutate({ id: editId, ...payload });
     else add.mutate(payload);
@@ -517,10 +430,8 @@ export default function Vehicles() {
           <div className="flex items-center gap-2">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Vehicles</h1>
             <InstructionsModal pageTitle="Vehicles Guide" sections={[
-              { title: 'Two phases', body: 'Saving phase: track your down payment goal and preview loan costs. Link a savings account to auto-sync your balance, and a transfer rule to track contributions. Loan phase: enter your actual loan terms and track the full amortization until payoff.' },
-              { title: 'Linked Account', body: 'Link your savings account to auto-pull the current balance as your down payment progress. When linked, "Current Saved" in the form is skipped — the live balance is used instead.' },
-              { title: 'Transfer Rule', body: 'Link a recurring transfer rule to auto-sync the monthly contribution amount. The transfer amount and frequency are used for the estimated completion date.' },
-              { title: 'I bought it', body: 'Hit "I bought it" on a saving-phase card to enter your real loan amount, APR, start date, first payment date, and interest start date.' },
+              { title: 'Two phases', body: 'Saving phase: track your down payment goal and preview loan costs. Loan phase: activated when you buy — enter your actual loan terms and track the full amortization until payoff.' },
+              { title: 'I bought it', body: 'Hit "I bought it" on a saving-phase card to enter your real loan amount, APR, start date, first payment date, and interest start date. The scheduled monthly payment is pre-filled.' },
               { title: 'Deferred interest', body: 'If your dealer offers deferred interest (e.g. 90 days same as cash), set interest_start_date to when it actually starts. Interest is zero until that date.' },
               { title: 'Connects to Forecast', body: 'Active loan payments appear as "Car Loan Payments" in the Forecast row drawer — separate from credit card debt payments.' },
               { title: 'Connects to Debt Payoff', body: 'Active loans appear under the Auto Loans tab in Debt Payoff for a full picture of all fixed obligations.' },
@@ -596,30 +507,16 @@ export default function Vehicles() {
 
       {activeTab === 'saving' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {savingVehicles.map((cf: any) => {
-            const linkedAccount = cf.linked_account ? accountMap[cf.linked_account] : null;
-            const linkedRule = cf.linked_rule_id
-              ? (rules as any[]).find((r: any) => r.id === cf.linked_rule_id)
-              : null;
-            const displayCf: CarFund = linkedAccount
-              ? { ...cf, current_saved: Number(linkedAccount.balance) }
-              : cf;
-            const monthlyContrib = linkedRule
-              ? toMonthly(Number(linkedRule.amount), linkedRule.frequency)
-              : 0;
-            return (
-              <SavingCard
-                key={cf.id}
-                cf={displayCf}
-                onEdit={() => openEditSaving(cf)}
-                onDelete={() => handleDelete(cf.id)}
-                onBuyIt={() => setBuyItFor(cf)}
-                deleteConfirm={deleteConfirm === cf.id}
-                linkedAccountName={linkedAccount?.name ?? null}
-                monthlyContrib={monthlyContrib}
-              />
-            );
-          })}
+          {savingVehicles.map((cf: any) => (
+            <SavingCard
+              key={cf.id}
+              cf={cf}
+              onEdit={() => openEditSaving(cf)}
+              onDelete={() => handleDelete(cf.id)}
+              onBuyIt={() => setBuyItFor(cf)}
+              deleteConfirm={deleteConfirm === cf.id}
+            />
+          ))}
           {savingVehicles.length === 0 && (
             <div className="card-forged p-12 text-center col-span-2">
               <p className="text-sm text-muted-foreground">No vehicle goals yet.</p>
@@ -657,7 +554,16 @@ export default function Vehicles() {
       {showSavingForm && (
         <FormModal
           title={editId ? 'Edit Vehicle Goal' : 'Add Vehicle Goal'}
-          fields={savingFormFields}
+          fields={[
+            { key: 'vehicle_name', label: 'Vehicle Name', type: 'text', placeholder: 'e.g., 2025 Honda Civic' },
+            { key: 'target_price', label: 'Target Price', type: 'number', placeholder: '28000', step: '0.01' },
+            { key: 'tax_fees', label: 'Tax & Fees', type: 'number', placeholder: '2000', step: '0.01' },
+            { key: 'down_payment_goal', label: 'Down Payment Goal', type: 'number', placeholder: '5600', step: '0.01' },
+            { key: 'current_saved', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' },
+            { key: 'monthly_insurance', label: 'Monthly Insurance Est.', type: 'number', placeholder: '180', step: '0.01' },
+            { key: 'expected_apr', label: 'Expected Loan APR %', type: 'number', placeholder: '5.9', step: '0.01' },
+            { key: 'loan_term_months', label: 'Loan Term (months)', type: 'number', placeholder: '60' },
+          ]}
           values={savingForm}
           onChange={(k, v) => setSavingForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSaveSaving}
