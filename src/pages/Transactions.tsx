@@ -4,7 +4,7 @@ import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
-import { CATEGORIES } from '@/lib/types';
+import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
@@ -797,7 +797,10 @@ export default function Transactions() {
           return (
             <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${isProjected ? 'opacity-50' : t.isGenerated ? 'bg-muted/5' : ''} ${(t as any).isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-amber-500/40' : ''}`}>
               <div className="flex items-center gap-3">
-                {isRecon ? <SlidersHorizontal size={14} className="text-amber-500" /> : (t as any).isDebtPayment ? <Landmark size={14} className="text-primary" /> : t.type === 'income' ? <ArrowUpRight size={14} className="text-success" /> : <ArrowDownRight size={14} className="text-destructive" />}
+                {isRecon
+                  ? <SlidersHorizontal size={14} className="text-amber-500" />
+                  : <span className="text-base leading-none w-5 text-center shrink-0">{(t as any).isDebtPayment ? '💳' : t.type === 'income' ? '💰' : (CATEGORY_EMOJI[t.category] ?? '📦')}</span>
+                }
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-medium">{t.note || '—'}</p>

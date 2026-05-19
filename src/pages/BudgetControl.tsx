@@ -1184,21 +1184,25 @@ export default function BudgetControl() {
       </div>
 
       {/* KPI Summary + Remaining Cash On Hand */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <div className="cursor-pointer" onClick={openIncomeCalc}>
-          <MetricCard label="Monthly Income" value={formatCurrency(totalRecurringIncome, false)} accent="success" icon={DollarSign} clickHint />
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="cursor-pointer" onClick={openIncomeCalc}>
+            <MetricCard label="Monthly Income" value={formatCurrency(totalRecurringIncome, false)} accent="success" icon={DollarSign} clickHint />
+          </div>
+          <div className="cursor-pointer" onClick={openFixedCalc}>
+            <MetricCard label="Fixed Expenses" value={formatCurrency(totalFixedExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
+          </div>
+          <div className="cursor-pointer" onClick={openVariableCalc}>
+            <MetricCard label="Variable" value={formatCurrency(totalVariableExpenses, false)} accent="gold" icon={TrendingDown} clickHint />
+          </div>
         </div>
-        <div className="cursor-pointer" onClick={openFixedCalc}>
-          <MetricCard label="Fixed Expenses" value={formatCurrency(totalFixedExpenses, false)} accent="crimson" icon={TrendingDown} clickHint />
-        </div>
-        <div className="cursor-pointer" onClick={openVariableCalc}>
-          <MetricCard label="Variable" value={formatCurrency(totalVariableExpenses, false)} accent="gold" icon={TrendingDown} clickHint />
-        </div>
-        <div className="cursor-pointer" onClick={openDebtCalc}>
-          <MetricCard label="Debt Payments" value={formatCurrency(totalDebtPayments, false)} accent="crimson" icon={CreditCard} clickHint />
-        </div>
-        <div className="cursor-pointer sm:col-span-2 lg:col-span-1 lg:col-start-3" onClick={openTransferCalc}>
-          <MetricCard label="Transfers" value={formatCurrency(totalTransfers, false)} accent="gold" icon={ArrowLeftRight} clickHint />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="cursor-pointer" onClick={openDebtCalc}>
+            <MetricCard label="Debt Payments" value={formatCurrency(totalDebtPayments, false)} accent="crimson" icon={CreditCard} clickHint />
+          </div>
+          <div className="cursor-pointer" onClick={openTransferCalc}>
+            <MetricCard label="Transfers" value={formatCurrency(totalTransfers, false)} accent="gold" icon={ArrowLeftRight} clickHint />
+          </div>
         </div>
       </div>
 

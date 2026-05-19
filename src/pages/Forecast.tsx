@@ -1344,7 +1344,7 @@ export default function Forecast() {
   const gridStroke = 'hsl(0, 0%, 18%)';
   const tickStyle = { fontSize: 10, fill: 'hsl(240, 4%, 50%)' };
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
-  const xInterval = filterYear === 'all' ? (isMobile ? 5 : 2) : (isMobile ? 2 : 0);
+  const xInterval = filterYear === 'all' ? (isMobile ? 5 : 4) : (isMobile ? 2 : 1);
 
   // Helper to check visibility — a series is visible if NOT in hiddenSeries
   const isVisible = (key: string) => !hiddenSeries.includes(key);
