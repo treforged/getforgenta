@@ -13,6 +13,7 @@ import {
 } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDebts, useAccounts, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -612,6 +613,28 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return baseProjs;
   }, [cards, paymentMode, variableSim, overrides]);
 
+  const debtChartData = useMemo(() => {
+    if (projections.length === 0) return [];
+    const now = new Date();
+    return Array.from({ length: 36 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const row: Record<string, number | string> = {
+        month: d.toLocaleString('en', { month: 'short', year: 'numeric' }),
+      };
+      for (const p of projections) {
+        const m = p.months[i];
+        if (m) {
+          row[p.card.name] = Math.round(m.endBalance);
+        } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
+          row[p.card.name] = p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement'
+            ? Math.round(p.card.monthlyNewPurchases)
+            : 0;
+        }
+      }
+      return row;
+    });
+  }, [projections]);
+
   const totalBalance = cards.reduce((s, c) => s + c.balance, 0);
   const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
@@ -712,6 +735,27 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4 sm:space-y-5">
+        {/* Debt Payoff Trajectory Chart */}
+        {debtChartData.length > 0 && (
+          <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4 flex items-center gap-2">
+              <CreditCard size={12} /> Credit Card Debt Payoff Trajectory
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
+              <LineChart data={debtChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                <CartesianGrid stroke="hsl(0, 0%, 18%)" strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} interval={5} />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={v => `$${(Number(v) / 1000).toFixed(0)}k`} />
+                <RechartsTooltip formatter={(v: number) => [`$${Number(v).toLocaleString()}`, '']} labelStyle={{ fontSize: 10 }} contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 10 }} />
+                <Legend wrapperStyle={{ fontSize: 10 }} />
+                {projections.map(p => (
+                  <Line key={p.card.name} type="monotone" dataKey={p.card.name} stroke={p.card.color} strokeWidth={2} dot={false} />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
         {/* Reset & Recalculate Button */}
         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <button
