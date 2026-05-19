@@ -56,6 +56,7 @@ export type CarFund = {
   linked_account: string | null;
   linked_rule_id: string | null;
   planned_purchase_date: string | null;
+  gift_contribution: number;
   created_at: string;
 };
 
