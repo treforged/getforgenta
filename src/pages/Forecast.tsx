@@ -18,7 +18,7 @@ import {
 import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
-import { estimateTaxReturn, estimateFederalOwed, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
+import { estimateTaxReturn, getDefaultFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
 
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
@@ -835,7 +835,7 @@ export default function Forecast() {
             ? assumptions.taxReturnAmountOverride
             : (() => {
                 if (!annualGrossHere || annualGrossHere <= 0) return 0;
-                const federalWithheld = assumptions.taxReturnFederalWithheld || estimateFederalOwed(annualGrossHere, assumptions.taxReturnFilingStatus, assumptions.taxReturnDependents);
+                const federalWithheld = assumptions.taxReturnFederalWithheld || getDefaultFederalWithheld(annualGrossHere, assumptions.taxReturnState);
                 const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
                 const stateWithheld = Math.round(annualGrossHere * stateRate);
                 return Math.max(0, estimateTaxReturn({
@@ -1186,7 +1186,7 @@ export default function Forecast() {
       }
       const annualGross = payConfig.weeklyGross * 52;
       if (!annualGross || annualGross <= 0) return null;
-      const federalWithheld = assumptions.taxReturnFederalWithheld || estimateFederalOwed(annualGross, assumptions.taxReturnFilingStatus, assumptions.taxReturnDependents);
+      const federalWithheld = assumptions.taxReturnFederalWithheld || getDefaultFederalWithheld(annualGross, assumptions.taxReturnState);
       const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
       const stateWithheld = Math.round(annualGross * stateRate);
       return estimateTaxReturn({
@@ -1235,7 +1235,7 @@ export default function Forecast() {
             if (assumptions.taxReturnAmountOverride > 0) {
               taxReturn = assumptions.taxReturnAmountOverride;
             } else if (annualGross > 0) {
-              const federalWithheld = assumptions.taxReturnFederalWithheld || estimateFederalOwed(annualGross, assumptions.taxReturnFilingStatus, assumptions.taxReturnDependents);
+              const federalWithheld = assumptions.taxReturnFederalWithheld || getDefaultFederalWithheld(annualGross, assumptions.taxReturnState);
               const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
               taxReturn = Math.max(0, estimateTaxReturn({
                 annualGrossIncome: annualGross,
