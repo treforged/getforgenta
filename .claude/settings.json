@@ -3,6 +3,16 @@
     "ui-ux-pro-max@ui-ux-pro-max-skill": true
   },
   "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -ExecutionPolicy Bypass -File \"C:/Users/tvonh/Desktop/getforgenta/scripts/sync-graph-to-obsidian.ps1\""
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
