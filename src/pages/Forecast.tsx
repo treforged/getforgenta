@@ -18,8 +18,8 @@ import {
 import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
-import { estimateTaxReturn, getDefaultFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
-import { getTotalCarLoanMonthly, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
+import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
 
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
@@ -116,6 +116,22 @@ export default function Forecast() {
 
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
   const cashFloor = useMemo(() => Number((profile as any)?.cash_floor) || 1000, [profile]);
+
+  // Annualize the "Federal Withholding" deduction from Budget Control, if the user has set one.
+  // Takes priority over the state-rate default so the estimate reflects their actual W-4 setup.
+  const annualFederalWithheldFromBudget = useMemo(() => {
+    if (!payConfig || !profile) return 0;
+    const jsonDeds = (profile as any)?.paycheck_deductions as { value: number; mode: string; label?: string }[] | null;
+    if (!jsonDeds || jsonDeds.length === 0) return 0;
+    const fedDed = jsonDeds.find(d => d.label != null && /federal.*withholding|^withholding$/i.test(d.label));
+    if (!fedDed || !fedDed.value) return 0;
+    const paycheckGross = payConfig.frequency === 'biweekly' ? payConfig.weeklyGross * 2
+      : payConfig.frequency === 'monthly' ? payConfig.weeklyGross * 52 / 12
+      : payConfig.weeklyGross;
+    const perPaycheck = fedDed.mode === 'pct' ? paycheckGross * (fedDed.value / 100) : fedDed.value;
+    const paychecksPerYear = payConfig.frequency === 'biweekly' ? 26 : payConfig.frequency === 'monthly' ? 12 : 52;
+    return Math.round(perPaycheck * paychecksPerYear);
+  }, [payConfig, profile]);
 
   // Resolve the funding account the same way CreditCardEngine does — profile preference first,
   // then first active checking account. Used to scope pre-paycheck bills and safe-floor to the
@@ -747,6 +763,57 @@ export default function Forecast() {
           : 0;
         return { contrib, purchaseMonthIdx, projPayment, downPayment: Number(c.down_payment_goal), insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months) };
       });
+    // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
+    const carLoanBalanceByMonth = new Array(36).fill(0);
+    for (const cf of carFunds as any[]) {
+      if (cf.phase === 'loan' && cf.loan_start_date && cf.payment_start_date) {
+        try {
+          const proj = buildAmortizationSchedule({
+            loanAmount: Number(cf.loan_amount),
+            apr: Number(cf.expected_apr),
+            termMonths: Number(cf.loan_term_months),
+            loanStartDate: cf.loan_start_date,
+            paymentStartDate: cf.payment_start_date,
+            interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
+            actualMonthlyPayment: Number(cf.actual_monthly_payment),
+          }, nowDate);
+          for (let i = 0; i < 36; i++) {
+            const schedIdx = proj.monthsElapsed - 1 + i;
+            const bal = schedIdx < 0 ? Number(cf.loan_amount)
+              : (proj.schedule[schedIdx]?.endBalance ?? 0);
+            carLoanBalanceByMonth[i] += Math.max(0, bal);
+          }
+        } catch {}
+      } else if (cf.phase === 'saving') {
+        const loanPrincipal = Math.max(0, Number(cf.target_price) + Number(cf.tax_fees) - Number(cf.down_payment_goal));
+        if (loanPrincipal <= 0) continue;
+        const apr = Number(cf.expected_apr);
+        const termMonths = Number(cf.loan_term_months);
+        if (termMonths <= 0) continue;
+        let purchaseMonthIdx: number;
+        if (cf.planned_purchase_date) {
+          const parts = (cf.planned_purchase_date as string).split('-').map(Number);
+          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+          purchaseMonthIdx = Math.max(0, (pd.getFullYear() - nowDate.getFullYear()) * 12 + (pd.getMonth() - nowDate.getMonth()));
+        } else {
+          const rem = Math.max(0, Number(cf.down_payment_goal) - Number(cf.current_saved) - Number(cf.gift_contribution || 0));
+          const mc = rem > 0 ? Math.min(rem / 12, 500) : 0;
+          purchaseMonthIdx = mc > 0 ? Math.ceil(rem / mc) : 999;
+        }
+        if (!isFinite(purchaseMonthIdx) || purchaseMonthIdx >= 36) continue;
+        const r = apr > 0 ? apr / 100 / 12 : 0;
+        const scheduled = r > 0
+          ? (loanPrincipal * r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1)
+          : loanPrincipal / termMonths;
+        let bal = loanPrincipal;
+        for (let i = purchaseMonthIdx; i < 36 && bal > 0; i++) {
+          carLoanBalanceByMonth[i] += Math.round(bal);
+          const interest = r > 0 ? bal * r : 0;
+          bal = Math.max(0, bal + interest - Math.min(scheduled, bal + interest));
+        }
+      }
+    }
+
     const getMonthCarContrib = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (i < v.purchaseMonthIdx ? v.contrib : 0), 0);
     const getMonthProjLoan = (i: number) => vehicleProjections.reduce(
@@ -835,19 +902,21 @@ export default function Forecast() {
             ? assumptions.taxReturnAmountOverride
             : (() => {
                 if (!annualGrossHere || annualGrossHere <= 0) return 0;
-                const federalWithheld = assumptions.taxReturnFederalWithheld || getDefaultFederalWithheld(annualGrossHere, assumptions.taxReturnState);
+                const federalWithheld = assumptions.taxReturnFederalWithheld
+                  || annualFederalWithheldFromBudget
+                  || estimateFederalWithheld(annualGrossHere, assumptions.taxReturnFilingStatus, assumptions.taxReturnDependents);
                 const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
                 const stateWithheld = Math.round(annualGrossHere * stateRate);
-                return Math.max(0, estimateTaxReturn({
+                return estimateTaxReturn({
                   annualGrossIncome: annualGrossHere,
                   federalWithheld,
                   filingStatus: assumptions.taxReturnFilingStatus,
                   dependentsUnder17: assumptions.taxReturnDependents,
                   stateCode: assumptions.taxReturnState,
                   stateWithheld,
-                }).totalRefund);
+                }).totalRefund;
               })();
-          netIncome += refundAmt;
+          netIncome += refundAmt; // positive = refund income; negative = amount owed outflow
           taxReturnIncome = refundAmt;
         } catch { /* skip refund if estimator throws */ }
       }
@@ -1061,7 +1130,7 @@ export default function Forecast() {
       const downPaymentThisMonth = getMonthDownPayment(i);
       const vehicleInsuranceThisMonth = getMonthVehicleInsurance(i);
 
-      totalLiabilityBal = b.ccDebtBalance + b.otherDebtBalance;
+      totalLiabilityBal = b.ccDebtBalance + b.otherDebtBalance + carLoanBalanceByMonth[i];
 
       const investGrowthAmt = Math.round(investBal * monthlyInvestGrowth * 100) / 100;
       const retireGrowthAmt = Math.round(retireBal * monthlyRetireGrowth * 100) / 100;
@@ -1186,7 +1255,7 @@ export default function Forecast() {
       }
       const annualGross = payConfig.weeklyGross * 52;
       if (!annualGross || annualGross <= 0) return null;
-      const federalWithheld = assumptions.taxReturnFederalWithheld || getDefaultFederalWithheld(annualGross, assumptions.taxReturnState);
+      const federalWithheld = assumptions.taxReturnFederalWithheld || annualFederalWithheldFromBudget || estimateFederalWithheld(annualGross, assumptions.taxReturnFilingStatus, assumptions.taxReturnDependents);
       const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
       const stateWithheld = Math.round(annualGross * stateRate);
       return estimateTaxReturn({
@@ -1198,7 +1267,7 @@ export default function Forecast() {
         stateWithheld,
       });
     } catch { return null; }
-  }, [assumptions, payConfig, profile]);
+  }, [assumptions, payConfig, annualFederalWithheldFromBudget]);
 
   const yearlyProjections = useMemo(() => {
     if (!payConfig) return [];
@@ -1235,16 +1304,16 @@ export default function Forecast() {
             if (assumptions.taxReturnAmountOverride > 0) {
               taxReturn = assumptions.taxReturnAmountOverride;
             } else if (annualGross > 0) {
-              const federalWithheld = assumptions.taxReturnFederalWithheld || getDefaultFederalWithheld(annualGross, assumptions.taxReturnState);
+              const federalWithheld = assumptions.taxReturnFederalWithheld || annualFederalWithheldFromBudget || estimateFederalWithheld(annualGross, assumptions.taxReturnFilingStatus, assumptions.taxReturnDependents);
               const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
-              taxReturn = Math.max(0, estimateTaxReturn({
+              taxReturn = estimateTaxReturn({
                 annualGrossIncome: annualGross,
                 federalWithheld,
                 filingStatus: assumptions.taxReturnFilingStatus,
                 dependentsUnder17: assumptions.taxReturnDependents,
                 stateCode: assumptions.taxReturnState,
                 stateWithheld: Math.round(annualGross * stateRate),
-              }).totalRefund);
+              }).totalRefund;
             }
           } catch {}
         }
@@ -1253,7 +1322,7 @@ export default function Forecast() {
       }
     }
     return results;
-  }, [payConfig, assumptions, profile]);
+  }, [payConfig, assumptions, annualFederalWithheldFromBudget]);
 
   const filteredData = useMemo(() => {
     if (filterYear === 'all') return projections.data;
@@ -1581,15 +1650,6 @@ export default function Forecast() {
                 </button>
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tax Return Estimator</p>
               </div>
-              {taxRefundPreview && (
-                <div className="bg-primary/5 border border-primary/20 px-2 py-1 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-                  <span className="text-muted-foreground">Est. </span>
-                  <span className="font-display font-bold text-primary">{formatCurrency(taxRefundPreview.totalRefund, false)}</span>
-                  {taxRefundPreview.stateRefund !== 0 && (
-                    <span className="text-muted-foreground ml-1.5">({formatCurrency(taxRefundPreview.federalRefund, false)} fed + {formatCurrency(taxRefundPreview.stateRefund, false)} state)</span>
-                  )}
-                </div>
-              )}
             </div>
             <div className={`space-y-3 transition-opacity ${assumptions.taxReturnEnabled ? 'opacity-100' : 'opacity-50'}`}>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1615,9 +1675,11 @@ export default function Forecast() {
                   <select value={assumptions.taxReturnState}
                     onChange={e => setAssumptions(prev => ({ ...prev, taxReturnState: e.target.value }))}
                     className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }}>
-                    {[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming'],['DC','Washington DC']].map(([code, name]) => (
-                      <option key={code} value={code}>{name}</option>
-                    ))}
+                    {[['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming'],['DC','Washington DC']].map(([code, name]) => {
+                      const rate = STATE_TAX_RATES[code] ?? 0;
+                      const rateLabel = rate === 0 ? '0%' : `${(rate * 100).toFixed(1).replace(/\.0$/, '')}%`;
+                      return <option key={code} value={code}>{name} ({rateLabel})</option>;
+                    })}
                   </select>
                 </div>
                 <div>
@@ -1633,7 +1695,7 @@ export default function Forecast() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="text-[9px] text-muted-foreground uppercase">Fed. Withheld/yr (0 = auto)</label>
+                  <label className="text-[9px] text-muted-foreground uppercase">Fed. Withheld/yr (0 = auto-detect)</label>
                   <input type="number" value={assumptions.taxReturnFederalWithheld}
                     onChange={e => setAssumptions(prev => ({ ...prev, taxReturnFederalWithheld: parseFloat(e.target.value) || 0 }))}
                     className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="100" />
@@ -1646,15 +1708,18 @@ export default function Forecast() {
                 </div>
                 {taxRefundPreview && (
                   <div className="flex flex-col justify-end">
-                    <p className="text-[9px] text-muted-foreground uppercase mb-1">Estimated Refund</p>
-                    <div className="bg-primary/5 border border-primary/20 px-2 py-1.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
+                    <p className="text-[9px] text-muted-foreground uppercase mb-1">Tax Estimate</p>
+                    <div className={`px-2 py-1.5 text-xs border ${taxRefundPreview.totalRefund >= 0 ? 'bg-primary/5 border-primary/20' : 'bg-destructive/5 border-destructive/20'}`} style={{ borderRadius: 'var(--radius)' }}>
                       <span className="text-muted-foreground">Fed </span>
-                      <span className="font-display font-bold text-foreground">{formatCurrency(taxRefundPreview.federalRefund, false)}</span>
+                      <span className="font-display font-bold text-foreground">{formatCurrency(Math.abs(taxRefundPreview.federalRefund), false)}</span>
                       {taxRefundPreview.stateRefund !== 0 && (
                         <><span className="text-muted-foreground ml-2">State </span>
-                        <span className="font-display font-bold text-foreground">{formatCurrency(taxRefundPreview.stateRefund, false)}</span></>
+                        <span className="font-display font-bold text-foreground">{formatCurrency(Math.abs(taxRefundPreview.stateRefund), false)}</span></>
                       )}
-                      <div className="mt-0.5 font-display font-bold text-primary">{formatCurrency(taxRefundPreview.totalRefund, false)} total</div>
+                      <div className={`mt-0.5 font-display font-bold ${taxRefundPreview.totalRefund >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                        {taxRefundPreview.totalRefund >= 0 ? 'Est. Refund ' : 'Est. Owed '}
+                        {formatCurrency(Math.abs(taxRefundPreview.totalRefund), false)}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1692,10 +1757,10 @@ export default function Forecast() {
                         <p className="text-xs font-display font-bold text-success">{formatCurrency(yr.bonus, false)}</p>
                       </div>
                     )}
-                    {yr.taxReturn > 0 && (
+                    {yr.taxReturn !== 0 && (
                       <div>
-                        <p className="text-[9px] text-muted-foreground">Tax Return</p>
-                        <p className="text-xs font-display font-bold text-primary">{formatCurrency(yr.taxReturn, false)}</p>
+                        <p className="text-[9px] text-muted-foreground">{yr.taxReturn > 0 ? 'Tax Return' : 'Tax Owed'}</p>
+                        <p className={`text-xs font-display font-bold ${yr.taxReturn > 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(Math.abs(yr.taxReturn), false)}</p>
                       </div>
                     )}
                   </div>
@@ -1816,24 +1881,6 @@ export default function Forecast() {
             </div>
           )}
 
-          {/* Debt Projection Chart — premium only */}
-          {!freePreview && cardProjectionData && (
-            <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4 flex items-center gap-2"><CreditCard size={12} /> Credit Card Debt Payoff Trajectory</h3>
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={cardProjectionData.data.slice(0, filterYear === 'all' ? 36 : parseInt(filterYear) * 12)} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tick={tickStyle} interval={xInterval} />
-                  <YAxis tick={tickStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip content={<ForecastTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 10 }} />
-                  {cardProjectionData.cards.map(c => (
-                    <Line key={c.name} type="monotone" dataKey={c.name} stroke={c.color} strokeWidth={2} dot={false} />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
 
           {/* Monthly Cash Flow Table — premium only */}
           {!freePreview && <div className="card-forged p-3 sm:p-5">
@@ -1874,7 +1921,9 @@ export default function Forecast() {
                     { label: 'Paycheck', value: formatCurrency(row.paycheckIncome ?? row.takeHome, false), op: '+' },
                     ...((row.otherIncome ?? 0) > 0 ? [{ label: 'Other Income', value: formatCurrency(row.otherIncome, false), op: '+' }] : []),
                     ...((row.bonusIncome ?? 0) > 0 ? [{ label: 'Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
-                    ...((row.taxReturnIncome ?? 0) > 0 ? [{ label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }] : []),
+                    ...((row.taxReturnIncome ?? 0) !== 0 ? [(row.taxReturnIncome ?? 0) > 0
+                      ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
+                      : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
                     { label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' },
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
