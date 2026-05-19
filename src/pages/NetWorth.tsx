@@ -399,7 +399,6 @@ export default function NetWorth() {
                     <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                     <span className="font-medium truncate">{a.name}</span>
                     <span className="text-xs text-muted-foreground hidden sm:inline shrink-0">{a.type}</span>
-                    {(a as any).isLive && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5 shrink-0" style={{ borderRadius: 'var(--radius)' }}>live</span>}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="font-bold font-display text-success whitespace-nowrap">{formatCurrency(Number(a.value), false)}</span>
@@ -445,7 +444,6 @@ export default function NetWorth() {
                     <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
                     <span className="font-medium truncate">{l.name}</span>
                     <span className="text-xs text-muted-foreground hidden sm:inline shrink-0">{l.type}</span>
-                    {(l as any).isLive && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5 shrink-0" style={{ borderRadius: 'var(--radius)' }}>live</span>}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="font-bold font-display text-destructive whitespace-nowrap">{formatCurrency(Number(l.balance), false)}</span>
@@ -517,7 +515,7 @@ export default function NetWorth() {
                   <Building2 size={16} className="text-muted-foreground" />
                   <div>
                     <p className="text-xs font-semibold">{a.name}</p>
-                    <p className="text-xs text-muted-foreground">{a.type} {(a as any).isLive ? '· Live' : ''} {a.notes ? `· ${a.notes}` : ''}</p>
+                    <p className="text-xs text-muted-foreground">{a.type}{a.notes ? ` · ${a.notes}` : ''}</p>
                   </div>
                 </div>
                 <span className="text-sm font-bold font-display text-success">{formatCurrency(Number(a.value), false)}</span>
