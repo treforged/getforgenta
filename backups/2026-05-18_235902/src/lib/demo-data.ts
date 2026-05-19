@@ -187,6 +187,8 @@ export const demoSavingsGoals: (Omit<SavingsGoal, 'id' | 'user_id' | 'created_at
 ];
 
 // ── Demo Car Funds ─────────────────────────────────────────
+// Linked to Chase Checking (d1) so "available after outflows" shows cash
+// remaining after rent, utilities, subscriptions, and debt payments.
 export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'> & { linked_account?: string })[] = [
   {
     vehicle_name: '2024 Honda Civic',
@@ -198,29 +200,6 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'> & { l
     expected_apr: 5.9,
     loan_term_months: 60,
     linked_account: 'd1',
-    phase: 'saving',
-    loan_amount: 0,
-    loan_start_date: null,
-    payment_start_date: null,
-    interest_start_date: null,
-    actual_monthly_payment: 0,
-  },
-  {
-    vehicle_name: 'Toyota RAV4 (Owned)',
-    target_price: 34000,
-    tax_fees: 2500,
-    down_payment_goal: 6800,
-    current_saved: 6800,
-    monthly_insurance: 210,
-    expected_apr: 6.4,
-    loan_term_months: 60,
-    linked_account: undefined,
-    phase: 'loan',
-    loan_amount: 27500,
-    loan_start_date: d(1, -2),
-    payment_start_date: d(1, -1),
-    interest_start_date: d(1, -1),
-    actual_monthly_payment: 0,
   },
 ];
 
