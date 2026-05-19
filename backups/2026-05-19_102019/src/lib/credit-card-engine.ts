@@ -203,8 +203,6 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
   const simMonths = Math.max(months, 120); // run past display window for accurate totals
-  // Grace period: true when last payment covered full statement balance, so new purchases don't accrue interest
-  let inGrace = card.paymentPreference === 'statement' && card.balance <= card.monthlyNewPurchases + 0.01;
 
   for (let m = 1; m <= simMonths; m++) {
     if (payoffMonth !== null) break;
@@ -219,11 +217,8 @@ export function projectCard(card: CardData, months = 36): CardProjection {
       continue;
     }
 
-    const interest = (card.paymentPreference === 'statement' && inGrace)
-      ? 0
-      : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
+    const interest = Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
     const payment = bal <= 0 ? 0 : Math.min(card.targetPayment, bal + newPurchases + interest);
-    if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
     bal = startBal + newPurchases + interest - payment;
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
@@ -274,7 +269,6 @@ export function projectCardVariable(
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
   const simMonths = Math.max(months, 120); // run past display window for accurate totals
-  let inGrace = card.paymentPreference === 'statement' && card.balance <= card.monthlyNewPurchases + 0.01;
 
   for (let m = 1; m <= simMonths; m++) {
     if (bal <= 0 && payoffMonth !== null) break;
@@ -291,12 +285,9 @@ export function projectCardVariable(
       continue;
     }
 
-    const interest = (card.paymentPreference === 'statement' && inGrace)
-      ? 0
-      : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
+    const interest = Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
     const availablePayment = monthlyPayments[m - 1] ?? card.minPayment;
     const payment = bal <= 0 ? 0 : Math.min(availablePayment, bal + newPurchases + interest);
-    if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
     bal = startBal + newPurchases + interest - payment;
     if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behaviour
     totalInterest += interest;
@@ -456,13 +447,6 @@ export function simulateVariablePayoff(
   // Tracks cards that have reached $0 — one-way transition, never re-enters debt mode.
   const paidOffCards = new Set<string>();
 
-  // Grace period tracking for statement-balance preference cards.
-  // When a card pays its full statement balance (startBal + interest), the new purchases
-  // added that cycle are in grace period — no interest charged next billing cycle.
-  const graceMap = new Map<string, boolean>(
-    cards.map(c => [c.id, c.paymentPreference === 'statement' && c.balance <= c.monthlyNewPurchases + 0.01]),
-  );
-
   for (let m = 0; m < months; m++) {
 
     // ── Income / expenses for this month ───────────────────────
@@ -537,15 +521,12 @@ export function simulateVariablePayoff(
     }
 
     // ── Step 3 — Compute interest on STARTING balances ────────
-    // Interest is charged only on the balance carried from last month.
-    // For statement-balance preference cards in grace period (last payment covered
-    // the full statement balance), new purchases carry without accruing interest —
-    // matching real credit card grace period behavior.
+    // Interest is charged only on the balance carried from last month,
+    // before this month's purchases are added (standard grace period model).
     const interestMap = new Map<string, number>();
     for (const card of debtCards) {
       const bal = balances.get(card.id) ?? 0;
-      const inGrace = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
-      const interest = inGrace ? 0 : Math.round(Math.max(0, bal) * (card.apr / 100 / 12) * 100) / 100;
+      const interest = Math.round(Math.max(0, bal) * (card.apr / 100 / 12) * 100) / 100;
       interestMap.set(card.id, interest);
     }
 
@@ -678,12 +659,6 @@ export function simulateVariablePayoff(
       const bbp = balBeforePayment.get(card.id) ?? 0; // startBal + interest + purchases
       const endBal = Math.max(0, bbp - pay);
       balances.set(card.id, endBal < 1 ? 0 : endBal); // clear sub-dollar dust
-
-      // Update grace state: grace applies next month if this month's payment covered
-      // the full statement balance (startBal + interest), i.e., nothing carried over.
-      if (card.paymentPreference === 'statement') {
-        graceMap.set(card.id, pay >= startBal + interest - 0.01);
-      }
 
       if (pay > 0) {
         debtPaymentTransactions.push({
