@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark, PiggyBank,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight, Wallet,
-  Sliders, TrendingUp, Building2, Home, Sparkles, Zap, Car,
+  Sliders, TrendingUp, Building2, Home, Sparkles, Zap,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -17,7 +17,6 @@ const navItems = [
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
   { to: '/goals', icon: PiggyBank, label: 'Goals' },
-  { to: '/vehicles', icon: Car, label: 'Vehicles' },
   { to: '/net-worth', icon: Wallet, label: 'Net Worth' },
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   { to: '/ai', icon: Sparkles, label: 'AI Advisor' },

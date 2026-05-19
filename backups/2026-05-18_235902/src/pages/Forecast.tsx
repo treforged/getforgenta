@@ -19,7 +19,6 @@ import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, 
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { estimateTaxReturn, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
-import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 
 function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
@@ -177,12 +176,10 @@ export default function Forecast() {
         return s + Number(g.monthly_contribution);
       }, 0);
       const carTotal = carFunds.reduce((s: number, c: any) => {
-        if (c.phase === 'loan') return s;
         const rem = Number(c.down_payment_goal) - Number(c.current_saved);
         return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
       }, 0);
-      const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
-      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal);
+      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal);
       const safeToPayTotal = breakdown.totalAvailableCash;
       const autopayTotal = Math.max(0, breakdown.totalRecommended - safeToPayTotal);
       return { safeToPayTotal, autopayTotal };
@@ -419,10 +416,9 @@ export default function Forecast() {
     );
     const simTransferRules = (rules as any[]).filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
     const simCarMonthly = (carFunds as any[]).reduce((s: number, c: any) => {
-      if (c.phase === 'loan') return s;
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
-    }, 0) + getTotalCarLoanMonthly(carFunds as any[]);
+    }, 0);
 
     const simulationMonthEvents = forecastMonthEvents.map((e, idx) => {
       if (idx === 0) return e;
@@ -712,12 +708,9 @@ export default function Forecast() {
     })();
 
     const monthlyCarContrib = pauseSavings ? 0 : carFunds.reduce((s: number, c: any) => {
-      if (c.phase === 'loan') return s;
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
-    // Fixed monthly obligation for active auto loans — separate from CC debt engine
-    const carLoanMonthly = getTotalCarLoanMonthly(carFunds as any[]);
 
     const transferRulesAll = rules.filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
 
@@ -1026,10 +1019,10 @@ export default function Forecast() {
       const investGrowthAmt = Math.round(investBal * monthlyInvestGrowth * 100) / 100;
       const retireGrowthAmt = Math.round(retireBal * monthlyRetireGrowth * 100) / 100;
 
-      // Step 1: savings + transfers + fixed car loan payments apply first as regular outflows
+      // Step 1: savings + transfers apply first as regular outflows (401k already in netIncome)
       const savingsOut = b.monthlySavingsContrib + monthlyCarContrib;
       const transfersOut = b.monthTransfers;
-      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanMonthly - transfersOut + b.oneTimeNet;
+      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - transfersOut + b.oneTimeNet;
 
       // Step 2: debt gets what's available above floor — never causes floor breach
       const availableForDebt = Math.max(0, cashPreDebt - b.monthMinSafe);
@@ -1058,7 +1051,7 @@ export default function Forecast() {
       retireBal += b.paycheckRetireContrib + xferRetireAmt;
       retireBal *= (1 + monthlyRetireGrowth);
 
-      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanMonthly + actualTransfers;
+      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + actualTransfers;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       const endingCash = Math.round(finalLiquid);
@@ -1117,7 +1110,6 @@ export default function Forecast() {
         baseExpenses: Math.round(b.baseExpenses),
         savingsContrib: Math.round(actualGoalsSavings),
         carContrib: Math.round(actualCarSavings),
-        carLoanPayment: Math.round(carLoanMonthly),
         transfersTotal: Math.round(actualTransfers),
         businessContrib: Math.round(b.monthBusinessContrib),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
@@ -1837,7 +1829,6 @@ export default function Forecast() {
                     { label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' },
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
-                    ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, false), op: '−' }] : []),
                     ...(((row.transfersTotal ?? 0) - (row.businessContrib ?? 0)) > 0
                       ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency((row.transfersTotal ?? 0) - (row.businessContrib ?? 0), false), op: '−' }]
                       : []),

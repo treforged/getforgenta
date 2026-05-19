@@ -34,8 +34,6 @@ export type SavingsGoal = {
   created_at: string;
 };
 
-export type CarFundPhase = 'saving' | 'loan';
-
 export type CarFund = {
   id: string;
   user_id: string;
@@ -47,12 +45,6 @@ export type CarFund = {
   monthly_insurance: number;
   expected_apr: number;
   loan_term_months: number;
-  phase: CarFundPhase;
-  loan_amount: number;
-  loan_start_date: string | null;
-  payment_start_date: string | null;
-  interest_start_date: string | null;
-  actual_monthly_payment: number;
   created_at: string;
 };
 
