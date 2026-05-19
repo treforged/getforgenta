@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import FormModal from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
@@ -578,7 +579,48 @@ export default function Vehicles() {
     }
   };
 
-  if (loading) return <PageSkeleton />;
+  if (loading) return (
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-5 overflow-x-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="space-y-1.5">
+          <Skeleton className="h-7 w-32 bg-muted/50" />
+          <Skeleton className="h-3 w-52 bg-muted/50" />
+        </div>
+        <Skeleton className="h-8 w-36 bg-muted/50" />
+      </div>
+      {/* Tab strip */}
+      <div className="flex gap-2">
+        <Skeleton className="h-8 w-28 bg-muted/50" />
+        <Skeleton className="h-8 w-24 bg-muted/50" />
+      </div>
+      {/* Vehicle cards */}
+      {[0, 1].map(i => (
+        <div key={i} className="card-forged p-4 sm:p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-40 bg-muted/50" />
+              <Skeleton className="h-3 w-24 bg-muted/50" />
+            </div>
+            <Skeleton className="h-6 w-16 bg-muted/50" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[0, 1, 2, 3].map(j => (
+              <div key={j} className="space-y-1">
+                <Skeleton className="h-2.5 w-16 bg-muted/50" />
+                <Skeleton className="h-4 w-20 bg-muted/50" />
+              </div>
+            ))}
+          </div>
+          <Skeleton className="h-2 w-full bg-muted/50 rounded-full" />
+          <div className="flex gap-2 justify-end">
+            <Skeleton className="h-7 w-16 bg-muted/50" />
+            <Skeleton className="h-7 w-20 bg-muted/50" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-5 overflow-x-hidden">
