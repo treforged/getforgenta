@@ -206,6 +206,7 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     payment_start_date: null,
     interest_start_date: null,
     actual_monthly_payment: 0,
+    gift_contribution: 0,
   },
   {
     vehicle_name: 'Toyota RAV4 (Owned)',
@@ -225,6 +226,7 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     payment_start_date: d(1, -1),
     interest_start_date: d(1, -1),
     actual_monthly_payment: 0,
+    gift_contribution: 0,
   },
 ];
 
