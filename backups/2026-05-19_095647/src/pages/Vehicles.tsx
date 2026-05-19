@@ -10,7 +10,6 @@ import { useCarFunds, useAccounts, useRecurringRules } from '@/hooks/useSupabase
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock } from 'lucide-react';
-import PremiumGate from '@/components/shared/PremiumGate';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { CarFund } from '@/lib/types';
@@ -635,17 +634,6 @@ export default function Vehicles() {
         </div>
       )}
 
-      <PremiumGate
-        isPremium={isPremium || isDemo}
-        title="Vehicle Tracker — Premium Feature"
-        features={[
-          'Track down payment savings with auto account balance sync',
-          'Full loan amortization from purchase to payoff',
-          'Set a planned purchase date and see it wired into the 36-month Forecast',
-          'Gift/contribution tracking reduces your personal savings target',
-        ]}
-      >
-
       {loanVehicles.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="card-forged p-4 text-center">
@@ -731,8 +719,6 @@ export default function Vehicles() {
           )}
         </div>
       )}
-
-      </PremiumGate>
 
       {buyItFor && (
         <BuyItDialog cf={buyItFor} onConfirm={handleBuyIt} onClose={() => setBuyItFor(null)} />
