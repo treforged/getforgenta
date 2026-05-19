@@ -187,7 +187,7 @@ export const demoSavingsGoals: (Omit<SavingsGoal, 'id' | 'user_id' | 'created_at
 ];
 
 // ── Demo Car Funds ─────────────────────────────────────────
-export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'> & { linked_account?: string })[] = [
+export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = [
   {
     vehicle_name: '2024 Honda Civic',
     target_price: 28000,
@@ -198,6 +198,7 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'> & { l
     expected_apr: 5.9,
     loan_term_months: 60,
     linked_account: 'd1',
+    linked_rule_id: null,
     phase: 'saving',
     loan_amount: 0,
     loan_start_date: null,
@@ -214,7 +215,8 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'> & { l
     monthly_insurance: 210,
     expected_apr: 6.4,
     loan_term_months: 60,
-    linked_account: undefined,
+    linked_account: null,
+    linked_rule_id: null,
     phase: 'loan',
     loan_amount: 27500,
     loan_start_date: d(1, -2),
