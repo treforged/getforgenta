@@ -4,7 +4,7 @@ import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
+import { formatCurrency } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts } from '@/hooks/useSupabaseData';
 import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal from '@/components/shared/FormModal';
@@ -17,17 +17,14 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { toast } from 'sonner';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
-const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Car Fund', 'Retirement', 'Custom'];
+const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
 const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '', linked_rule_id: '' };
-const emptyCarForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Car Fund', target_price: '', tax_fees: '', monthly_insurance: '', expected_apr: '', loan_term_months: '', linked_account: '', contribution_start_date: '', linked_rule_id: '' };
 
 const toMonthly = (amount: number, freq: string) =>
   freq === 'weekly' ? amount * 52 / 12
   : freq === 'biweekly' ? amount * 26 / 12
   : freq === 'yearly' ? amount / 12
   : amount;
-
-// getAccountScheduledOutflows removed — replaced by transaction-based getAccountRemainingCashThisMonth from pay-schedule
 
 function SavingsGrowthChart({ goals }: { goals: any[] }) {
   const chartData = useMemo(() => {
@@ -71,7 +68,7 @@ function SavingsGrowthChart({ goals }: { goals: any[] }) {
 
 export default function SavingsGoals() {
   const { data: goals, add, update, remove } = useSavingsGoals();
-  const { data: carFunds, add: addCarFund, update: updateCarFund, remove: removeCarFund } = useCarFunds();
+  const { data: carFunds } = useCarFunds();
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules } = useRecurringRules();
   const { data: profile } = useProfile();
@@ -137,28 +134,12 @@ export default function SavingsGoals() {
   }, [debtRecs, profile, accounts]);
   const allTxns = useMemo(() => mergeDebtPaymentsIntoStream(baseTxns, debtTxns), [baseTxns, debtTxns]);
 
-  // Account lookup
   const accountMap = useMemo(() => {
     const map: Record<string, any> = {};
     accounts.forEach((a: any) => { map[a.id] = a; });
     return map;
   }, [accounts]);
 
-  // Merge car funds into goals for display
-  const carGoals = useMemo(() => carFunds.map((c: any) => ({
-    id: `car:${c.id}`,
-    name: c.vehicle_name,
-    target_amount: Number(c.down_payment_goal),
-    current_amount: Number(c.current_saved),
-    monthly_contribution: 0,
-    target_date: null,
-    goal_type: 'Car Fund',
-    car_data: c,
-    linked_account: (c as any).linked_account || null,
-  })), [carFunds]);
-
-  // Compute available-after-outflows for linked accounts using transaction-based math
-  // Formula: account balance + remaining income - remaining expenses (including debt) - cash floor
   const getLinkedAmount = (accountId: string) => {
     const acct = accountMap[accountId];
     if (!acct) return 0;
@@ -166,9 +147,7 @@ export default function SavingsGoals() {
   };
 
   const allGoals = useMemo(() => {
-    const carNames = new Set(carGoals.map(c => c.name.toLowerCase()));
-    const filtered = goals.filter(g => !carNames.has(g.name.toLowerCase()));
-    return [...filtered.map(g => {
+    return goals.map(g => {
       const linkedRule = (g as any).linked_rule_id
         ? rules.find((r: any) => r.id === (g as any).linked_rule_id)
         : null;
@@ -187,8 +166,8 @@ export default function SavingsGoals() {
         contribution_start_date: linkedRule?.start_date ?? (g as any).contribution_start_date ?? null,
         linked_rule: linkedRule || null,
       };
-    })];
-  }, [goals, carGoals, accountMap, rules, cashFloor]);
+    });
+  }, [goals, accountMap, rules, cashFloor]);
 
   const totalSaved = allGoals.reduce((s, g) => s + Number(g.current_amount), 0);
   const totalTarget = allGoals.reduce((s, g) => s + Number(g.target_amount), 0);
@@ -206,52 +185,29 @@ export default function SavingsGoals() {
   ], [rules]);
 
   const openAdd = (goalType = 'Custom') => {
-    if (goalType === 'Car Fund') setForm({ ...emptyCarForm });
-    else setForm({ ...emptyForm, goal_type: goalType });
+    setForm({ ...emptyForm, goal_type: goalType });
     setEditId(null); setShowForm(true);
   };
 
   const openEdit = (g: any) => {
-    if (g.goal_type === 'Car Fund' && g.car_data) {
-      const c = g.car_data;
-      setForm({
-        name: c.vehicle_name, target_amount: String(c.down_payment_goal), current_amount: String(c.current_saved),
-        monthly_contribution: '0', target_date: '', goal_type: 'Car Fund',
-        target_price: String(c.target_price), tax_fees: String(c.tax_fees),
-        monthly_insurance: String(c.monthly_insurance), expected_apr: String(c.expected_apr),
-        loan_term_months: String(c.loan_term_months), linked_account: '',
-      } as any);
-    } else {
-      setForm({
-        name: g.name, target_amount: String(g.target_amount), current_amount: String(g.current_amount),
-        monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
-        goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
-        contribution_start_date: (g as any).contribution_start_date || '',
-        linked_rule_id: (g as any).linked_rule_id || '',
-      });
-    }
+    setForm({
+      name: g.name, target_amount: String(g.target_amount), current_amount: String(g.current_amount),
+      monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
+      goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
+      contribution_start_date: (g as any).contribution_start_date || '',
+      linked_rule_id: (g as any).linked_rule_id || '',
+    });
     setEditId(g.id); setShowForm(true);
   };
 
   const handleDuplicate = (g: any) => {
-    if (g.goal_type === 'Car Fund' && g.car_data) {
-      const c = g.car_data;
-      setForm({
-        name: `${c.vehicle_name} (Copy)`, target_amount: String(c.down_payment_goal), current_amount: '0',
-        monthly_contribution: '0', target_date: '', goal_type: 'Car Fund',
-        target_price: String(c.target_price), tax_fees: String(c.tax_fees),
-        monthly_insurance: String(c.monthly_insurance), expected_apr: String(c.expected_apr),
-        loan_term_months: String(c.loan_term_months), linked_account: '',
-      } as any);
-    } else {
-      setForm({
-        name: `${g.name} (Copy)`, target_amount: String(g.target_amount), current_amount: '0',
-        monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
-        goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
-        contribution_start_date: (g as any).contribution_start_date || '',
-        linked_rule_id: (g as any).linked_rule_id || '',
-      });
-    }
+    setForm({
+      name: `${g.name} (Copy)`, target_amount: String(g.target_amount), current_amount: '0',
+      monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
+      goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
+      contribution_start_date: (g as any).contribution_start_date || '',
+      linked_rule_id: (g as any).linked_rule_id || '',
+    });
     setEditId(null); setShowForm(true);
     toast.info('Goal duplicated — edit and save');
   };
@@ -259,27 +215,6 @@ export default function SavingsGoals() {
   const handleSave = () => {
     const target_amount = parseFloat(form.target_amount);
     if (!form.name || isNaN(target_amount)) return;
-
-    // Handle car fund updates
-    if (editId && editId.startsWith('car:')) {
-      const carId = editId.replace('car:', '');
-      const carPayload: any = {
-        id: carId,
-        vehicle_name: form.name,
-        down_payment_goal: target_amount,
-        current_saved: parseFloat(form.current_amount) || 0,
-      };
-      const f = form as any;
-      if (f.target_price !== undefined) carPayload.target_price = parseFloat(f.target_price) || 0;
-      if (f.tax_fees !== undefined) carPayload.tax_fees = parseFloat(f.tax_fees) || 0;
-      if (f.monthly_insurance !== undefined) carPayload.monthly_insurance = parseFloat(f.monthly_insurance) || 0;
-      if (f.expected_apr !== undefined) carPayload.expected_apr = parseFloat(f.expected_apr) || 0;
-      if (f.loan_term_months !== undefined) carPayload.loan_term_months = parseInt(f.loan_term_months) || 60;
-      updateCarFund.mutate(carPayload);
-      setShowForm(false);
-      return;
-    }
-
     const payload: any = {
       name: form.name, target_amount, current_amount: parseFloat(form.current_amount) || 0,
       monthly_contribution: parseFloat(form.monthly_contribution) || 0,
@@ -299,12 +234,6 @@ export default function SavingsGoals() {
   };
 
   const handleDelete = (id: string) => {
-    if (id.startsWith('car:')) {
-      const carId = id.replace('car:', '');
-      if (deleteConfirm === id) { removeCarFund.mutate(carId); setDeleteConfirm(null); }
-      else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
-      return;
-    }
     if (deleteConfirm === id) { remove.mutate(id); setDeleteConfirm(null); }
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
@@ -327,33 +256,22 @@ export default function SavingsGoals() {
 
   const formFields = useMemo(() => {
     const fields: any[] = [
-      { key: 'name', label: form.goal_type === 'Car Fund' ? 'Vehicle Name' : 'Goal Name', type: 'text', placeholder: form.goal_type === 'Car Fund' ? 'e.g., Porsche Cayman' : 'e.g., Emergency Fund' },
+      { key: 'name', label: 'Goal Name', type: 'text', placeholder: 'e.g., Emergency Fund' },
       { key: 'goal_type', label: 'Goal Type', type: 'select', options: GOAL_TYPES.map(t => ({ value: t, label: t })) },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
       { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync amount & start date)', type: 'select', options: transferRuleOptions },
-      { key: 'target_amount', label: form.goal_type === 'Car Fund' ? 'Down Payment Goal' : 'Target Amount', type: 'number', placeholder: '10000', step: '0.01' },
+      { key: 'target_amount', label: 'Target Amount', type: 'number', placeholder: '10000', step: '0.01' },
     ];
-    // Only show manual current_amount if no linked account
     if (!form.linked_account) {
       fields.push({ key: 'current_amount', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' });
     }
-    // Hide manual contribution/start when a rule is linked (auto-derived)
     if (!(form as any).linked_rule_id) {
       fields.push({ key: 'monthly_contribution', label: 'Monthly Contribution', type: 'number', placeholder: '500', step: '0.01' });
       fields.push({ key: 'contribution_start_date', label: 'Contributions Start (optional)', type: 'date' });
     }
     fields.push({ key: 'target_date', label: 'Target Date', type: 'date' });
-    if (form.goal_type === 'Car Fund') {
-      fields.push(
-        { key: 'target_price', label: 'Vehicle Target Price', type: 'number', placeholder: '50000', step: '0.01' },
-        { key: 'tax_fees', label: 'Tax & Fees', type: 'number', placeholder: '5000', step: '0.01' },
-        { key: 'monthly_insurance', label: 'Monthly Insurance', type: 'number', placeholder: '250', step: '0.01' },
-        { key: 'expected_apr', label: 'Expected Loan APR %', type: 'number', placeholder: '5.9', step: '0.01' },
-        { key: 'loan_term_months', label: 'Loan Term (months)', type: 'number', placeholder: '60' },
-      );
-    }
     return fields;
-  }, [form.goal_type, form.linked_account, accountOptions]);
+  }, [form.goal_type, form.linked_account, (form as any).linked_rule_id, accountOptions, transferRuleOptions]);
 
   if (accountsLoading) return <PageSkeleton />;
 
@@ -364,10 +282,10 @@ export default function SavingsGoals() {
           <div className="flex items-center gap-2">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Goals</h1>
             <InstructionsModal pageTitle="Savings Goals Guide" sections={[
-              { title: 'What is this page?', body: 'Track progress toward your financial goals — emergency fund, vacation, down payment, or car purchase. Link goals to real accounts for automatic balance sync.' },
+              { title: 'What is this page?', body: 'Track progress toward your financial goals — emergency fund, vacation, down payment, or retirement. Link goals to real accounts for automatic balance sync.' },
               { title: 'Linked Accounts', body: 'When linked to an account, the goal\'s "current saved" automatically reflects that account balance. "Available after bills" shows the realistic amount after subtracting scheduled outflows.' },
-              { title: 'Car Fund', body: 'The Car Fund mode adds vehicle-specific fields like price, APR, loan term, and insurance to give you a complete affordability picture.' },
               { title: 'Target Date', body: 'Set a target date to see estimated completion. The chart projects growth based on your monthly contribution.' },
+              { title: 'Vehicles', body: 'Tracking a car purchase? Use the Vehicles page for down payment goals and full loan amortization.' },
             ]} />
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Build your financial runway</p>
@@ -378,7 +296,6 @@ export default function SavingsGoals() {
           ) : (
             <Link to="/premium" className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary/20 text-primary px-3 py-1.5 text-xs font-medium btn-press hover:bg-primary/30 transition-colors" style={{ borderRadius: 'var(--radius)' }}><Crown size={12} /> Add Goal</Link>
           )}
-
           <Link to="/vehicles" className="w-full sm:w-auto flex items-center justify-center gap-1.5 border border-border text-foreground px-3 py-1.5 text-xs font-medium btn-press hover:bg-muted/30" style={{ borderRadius: 'var(--radius)' }}><Car size={12} /> Vehicles</Link>
         </div>
       </div>
@@ -388,16 +305,16 @@ export default function SavingsGoals() {
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-foreground">Savings goals + Car Fund — track every target in one place</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Jordan is building an emergency fund while saving for a car. Goals link to real accounts and auto-sync balances.</p>
+              <p className="text-xs font-semibold text-foreground">Savings goals — track every target in one place</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Jordan is building an emergency fund. Goals link to real accounts and auto-sync balances.</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {[
               { label: 'Emergency Fund', desc: 'Linked to Marcus HYS — the $5,800 balance auto-syncs here. Monthly $300 contribution tracked against the $15,000 target.' },
-              { label: 'Car Fund', desc: 'Models the full purchase: $28,000 target, $5,600 down payment goal, 5.9% APR loan. Shows estimated monthly payment after purchase.' },
               { label: 'Linked accounts', desc: 'When an account is linked, "current saved" always reflects the live balance — no manual updates needed.' },
               { label: 'Connects to Forecast', desc: 'Monthly contributions here are deducted in the Forecast before sizing debt payments — goals don\'t compete with the debt engine.' },
+              { label: 'Vehicles', desc: 'Car goals have moved to the Vehicles page — save for a down payment, then track the full loan to payoff.' },
             ].map((f, i) => (
               <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
                 <span className="text-primary font-bold shrink-0">→</span>
@@ -432,8 +349,6 @@ export default function SavingsGoals() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {allGoals.map(g => {
           const pct = Number(g.target_amount) > 0 ? (Number(g.current_amount) / Number(g.target_amount)) * 100 : 0;
-          const isCar = g.goal_type === 'Car Fund';
-          const car = (g as any).car_data;
           const isLinked = !!(g as any).linked_account && accountMap[(g as any).linked_account];
           const linkedAcct = isLinked ? accountMap[(g as any).linked_account] : null;
 
@@ -442,7 +357,6 @@ export default function SavingsGoals() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
-                    {isCar && <Car size={14} className="text-primary" />}
                     <h3 className="text-sm font-semibold break-words">{g.name}</h3>
                     <span className="text-[9px] px-1.5 py-0.5 bg-muted/50 border border-border text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>{g.goal_type || 'Custom'}</span>
                     {isLinked && (
@@ -477,14 +391,6 @@ export default function SavingsGoals() {
                 <span>{pct.toFixed(0)}% complete</span>
                 <span>Est. completion: {estimateCompletion(g)}</span>
               </div>
-              {isCar && car && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-border">
-                  <div className="text-center"><p className="text-[9px] text-muted-foreground uppercase">Vehicle Price</p><p className="text-xs font-display font-bold">{formatCurrency(Number(car.target_price), false)}</p></div>
-                  <div className="text-center"><p className="text-[9px] text-muted-foreground uppercase">Est. Monthly</p><p className="text-xs font-display font-bold text-primary">{formatCurrency(calculateMonthlyPayment(Number(car.target_price) + Number(car.tax_fees) - Number(car.down_payment_goal), Number(car.expected_apr), Number(car.loan_term_months)), true)}</p></div>
-                  <div className="text-center"><p className="text-[9px] text-muted-foreground uppercase">Insurance/mo</p><p className="text-xs font-display font-bold">{formatCurrency(Number(car.monthly_insurance), false)}</p></div>
-                  <div className="text-center"><p className="text-[9px] text-muted-foreground uppercase">Loan Term</p><p className="text-xs font-display font-bold">{car.loan_term_months} mo</p></div>
-                </div>
-              )}
             </div>
           );
         })}
@@ -496,13 +402,13 @@ export default function SavingsGoals() {
 
       {showForm && (
         <FormModal
-          title={editId ? 'Edit Goal' : form.goal_type === 'Car Fund' ? 'New Car Fund Goal' : 'New Savings Goal'}
+          title={editId ? 'Edit Goal' : 'New Savings Goal'}
           fields={formFields}
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
           onClose={() => setShowForm(false)}
-          saving={add.isPending || update.isPending || updateCarFund.isPending}
+          saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Goal' : 'Add Goal'}
         />
       )}
