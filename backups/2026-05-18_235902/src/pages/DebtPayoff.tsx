@@ -9,8 +9,7 @@ import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, CreditCard, Landmark, Crown, Car } from 'lucide-react';
-import { buildAmortizationSchedule, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
+import { Plus, Edit2, Trash2, CreditCard, Landmark, Crown } from 'lucide-react';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -38,7 +37,7 @@ export default function DebtPayoff() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'cards' | 'other' | 'auto'>('cards');
+  const [activeTab, setActiveTab] = useState<'cards' | 'other'>('cards');
 
   // Filter debts to non-credit-card items
   const ccAccountNames = useMemo(() => {
@@ -118,9 +117,6 @@ export default function DebtPayoff() {
 
   const hasCreditCards = accounts?.some((a: any) => a.account_type === 'credit_card' && a.active) ?? false;
 
-  const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds as any[]), [carFunds]);
-  const loanVehicles = useMemo(() => (carFunds as any[]).filter((c: any) => c.phase === 'loan'), [carFunds]);
-
   if (accountsLoading) return <PageSkeleton />;
 
   return (
@@ -198,11 +194,6 @@ export default function DebtPayoff() {
           style={{ borderRadius: 'var(--radius)' }}>
           <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{otherDebts.length}</span>}
         </button>
-        <button onClick={() => setActiveTab('auto')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'auto' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
-          style={{ borderRadius: 'var(--radius)' }}>
-          <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{activeAutoLoans.length}</span>}
-        </button>
       </div>
 
       {activeTab === 'cards' && (
@@ -218,65 +209,6 @@ export default function DebtPayoff() {
           >
             <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${pauseSavings ? 'translate-x-5' : 'translate-x-1'}`} />
           </button>
-        </div>
-      )}
-
-      {activeTab === 'auto' && (
-        <div className="space-y-4">
-          {activeAutoLoans.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="card-forged p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase">Monthly Payments</p>
-                <p className="text-lg font-display font-bold text-primary">{formatCurrency(activeAutoLoans.reduce((s, l) => s + l.payment, 0), false)}</p>
-              </div>
-              <div className="card-forged p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase">Total Remaining</p>
-                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(activeAutoLoans.reduce((s, l) => s + l.remainingBalance, 0), false)}</p>
-              </div>
-            </div>
-          )}
-          <div className="space-y-3">
-            {loanVehicles.map((cf: any) => {
-              if (!cf.payment_start_date || !cf.loan_start_date) return null;
-              const proj = buildAmortizationSchedule({
-                loanAmount: cf.loan_amount, apr: cf.expected_apr, termMonths: cf.loan_term_months,
-                loanStartDate: cf.loan_start_date, paymentStartDate: cf.payment_start_date,
-                interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
-                actualMonthlyPayment: cf.actual_monthly_payment,
-              });
-              const payoffFmt = new Date(proj.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-              return (
-                <div key={cf.id} className="card-forged p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Car size={15} className="text-success shrink-0" />
-                      <div>
-                        <h3 className="text-sm font-semibold">{cf.vehicle_name}</h3>
-                        <p className="text-xs text-muted-foreground">{cf.expected_apr}% APR · {cf.loan_term_months} mo loan</p>
-                      </div>
-                    </div>
-                    <p className="text-lg font-display font-bold text-destructive">{formatCurrency(proj.remainingBalance, false)}</p>
-                  </div>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div><p className="text-xs text-muted-foreground">Monthly Pmt</p><p className="text-xs font-semibold text-primary">{formatCurrency(proj.effectivePayment, false)}/mo</p></div>
-                    <div><p className="text-xs text-muted-foreground">Payoff</p><p className="text-xs font-semibold">{payoffFmt}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.totalInterest, false)}</p></div>
-                  </div>
-                  <Link to="/vehicles" className="mt-3 text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline block">
-                    Edit on Vehicles page →
-                  </Link>
-                </div>
-              );
-            })}
-            {loanVehicles.length === 0 && (
-              <div className="card-forged p-12 text-center">
-                <Car size={28} className="text-muted-foreground mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">No active auto loans.</p>
-                <Link to="/vehicles" className="mt-2 text-xs text-primary hover:underline block">Set up on the Vehicles page →</Link>
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground">Auto loans are managed on the <Link to="/vehicles" className="text-primary hover:underline">Vehicles page</Link>. Monthly payments automatically flow into Forecast.</p>
         </div>
       )}
 
