@@ -121,6 +121,15 @@ export const LIABILITY_TYPES = [
   'Credit Card', 'Student Loan', 'Auto Loan', 'Personal Loan', 'Other',
 ] as const;
 
+export const CATEGORY_EMOJI: Record<string, string> = {
+  Bills: '📄', Rent: '🏠', Mortgage: '🏡', Utilities: '💡', Insurance: '🛡️',
+  Groceries: '🛒', Gas: '⛽', Dining: '🍽️', Shopping: '🛍️', Entertainment: '🎮',
+  Subscriptions: '📺', Health: '💊', Personal: '🧴', Travel: '✈️', Car: '🚗',
+  Education: '📚', Pets: '🐾', Clothing: '👕', Gifts: '🎁',
+  Savings: '🐷', Investing: '📈', Business: '💼', 'Debt Payments': '💳',
+  Income: '💰', Other: '📦',
+};
+
 export const CATEGORY_ICONS: Record<string, string> = {
   Bills: 'Receipt',
   Groceries: 'ShoppingCart',
