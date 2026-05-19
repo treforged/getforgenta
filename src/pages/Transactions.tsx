@@ -235,6 +235,19 @@ export default function Transactions() {
     const schedEvts = generateScheduledEvents(rules, accounts, 36);
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
+    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const month0Income = getRemainingTransactionIncomeByDay(baseTxns, 31);
+    const month0Expenses = (baseTxns as any[])
+      .filter((t: any) => {
+        if (t.type !== 'expense') return false;
+        if (!t.date || !t.date.startsWith(monthStr)) return false;
+        if (t.date < todayStr) return false;
+        if (t.category === 'Debt Payments') return false;
+        if (t.category === 'Balance Adjustment') return false;
+        if (t.payment_source && ccPaymentSources.has(t.payment_source)) return false;
+        return true;
+      })
+      .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
     // Same CC-aware builder as Forecast.tsx cardProjectionData (T1/T2/T3/T4)
     const liquidAccountIds = new Set<string>(
@@ -312,6 +325,7 @@ export default function Transactions() {
       cards, liquidCash, cashFloor, 'avalanche',
       monthlyTakeHome, monthlyExpenses, 36,
       monthEvts, fundingAccountId || undefined, cardPurchasesPerMonth,
+      month0Income, month0Expenses,
     );
 
     return sim.debtPaymentTransactions.map(p => ({

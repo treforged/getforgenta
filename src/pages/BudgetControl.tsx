@@ -347,7 +347,8 @@ export default function BudgetControl() {
     .reduce((s, d) => s + d.flatAmt, 0);
   const now = new Date();
   const monthlyTakeHome = useMemo(() => {
-    const paychecks = getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth());
+    const d = new Date();
+    const paychecks = getPaychecksInMonth(payConfig, d.getFullYear(), d.getMonth());
     return paychecks.reduce((s, p) => s + p.net, 0);
   }, [payConfig]);
   const remainingIncome = useMemo(() => getRemainingIncomeThisMonth(payConfig), [payConfig]);
@@ -355,7 +356,8 @@ export default function BudgetControl() {
   const nextPayday = useMemo(() => getNextPaycheckDate(payConfig), [payConfig]);
 
   const monthlyGross = useMemo(() => {
-    const paychecks = getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth());
+    const d = new Date();
+    const paychecks = getPaychecksInMonth(payConfig, d.getFullYear(), d.getMonth());
     return paychecks.reduce((s, p) => s + p.gross, 0);
   }, [payConfig]);
   const annualGross = weeklyGross * 52;
