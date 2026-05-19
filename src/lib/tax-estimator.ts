@@ -86,6 +86,20 @@ export const STATE_TAX_RATES: Record<string, number> = {
   DC: 0.070,
 };
 
+/** Returns estimated federal tax owed (after standard deduction + CTC). Use as default federalWithheld when the user hasn't entered their actual withholding, so the default refund is ~$0. */
+export function estimateFederalOwed(annualGrossIncome: number, filingStatus: FilingStatus, dependentsUnder17 = 0): number {
+  const stdDed = STANDARD_DEDUCTIONS[filingStatus];
+  const federalTaxable = Math.max(0, annualGrossIncome - stdDed);
+  let owed = calcBracketTax(federalTaxable, BRACKETS[filingStatus]);
+  if (dependentsUnder17 > 0) {
+    const phaseout = CTC_PHASEOUT[filingStatus];
+    const reduction = Math.ceil(Math.max(0, annualGrossIncome - phaseout) / 1000) * 50;
+    const ctc = Math.max(0, dependentsUnder17 * CHILD_TAX_CREDIT - reduction);
+    owed = Math.max(0, owed - ctc);
+  }
+  return Math.round(owed);
+}
+
 function calcBracketTax(taxableIncome: number, brackets: Bracket[]): number {
   let tax = 0;
   for (const b of brackets) {
