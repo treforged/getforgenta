@@ -86,18 +86,36 @@ export const STATE_TAX_RATES: Record<string, number> = {
   DC: 0.070,
 };
 
-/** Returns estimated federal tax owed (after standard deduction + CTC). Use as default federalWithheld when the user hasn't entered their actual withholding, so the default refund is ~$0. */
-export function estimateFederalOwed(annualGrossIncome: number, filingStatus: FilingStatus, dependentsUnder17 = 0): number {
-  const stdDed = STANDARD_DEDUCTIONS[filingStatus];
-  const federalTaxable = Math.max(0, annualGrossIncome - stdDed);
-  let owed = calcBracketTax(federalTaxable, BRACKETS[filingStatus]);
-  if (dependentsUnder17 > 0) {
-    const phaseout = CTC_PHASEOUT[filingStatus];
-    const reduction = Math.ceil(Math.max(0, annualGrossIncome - phaseout) / 1000) * 50;
-    const ctc = Math.max(0, dependentsUnder17 * CHILD_TAX_CREDIT - reduction);
-    owed = Math.max(0, owed - ctc);
-  }
-  return Math.round(owed);
+/**
+ * Typical combined effective withholding rates (federal + state) for a standard W-4 single
+ * filer at middle income (~$65-80k). Federal component ≈ 14% across all states; state
+ * component mirrors STATE_TAX_RATES. Used to produce a realistic default refund estimate
+ * when the user hasn't entered their actual withholding amount.
+ */
+export const STATE_TOTAL_WITHHOLDING_RATES: Record<string, number> = {
+  AL: 0.180, AK: 0.140, AZ: 0.165, AR: 0.184, CA: 0.200,
+  CO: 0.184, CT: 0.190, DE: 0.195, FL: 0.140, GA: 0.195,
+  HI: 0.210, ID: 0.198, IL: 0.190, IN: 0.171, IA: 0.184,
+  KS: 0.192, KY: 0.180, LA: 0.182, ME: 0.200, MD: 0.198,
+  MA: 0.190, MI: 0.183, MN: 0.208, MS: 0.187, MO: 0.188,
+  MT: 0.199, NE: 0.190, NV: 0.140, NH: 0.140, NJ: 0.190,
+  NM: 0.189, NY: 0.205, NC: 0.190, ND: 0.154, OH: 0.175,
+  OK: 0.188, OR: 0.220, PA: 0.171, RI: 0.188, SC: 0.200,
+  SD: 0.140, TN: 0.140, TX: 0.140, UT: 0.187, VT: 0.190,
+  VA: 0.198, WA: 0.140, WV: 0.190, WI: 0.193, WY: 0.140,
+  DC: 0.210,
+};
+
+/**
+ * Returns a realistic default federal withholding for use when the user hasn't entered their
+ * actual withholding. Derives the federal portion from the state's combined withholding rate
+ * minus the state's income tax rate, giving a typical W-4 standard single-filer refund.
+ */
+export function getDefaultFederalWithheld(annualGrossIncome: number, stateCode: string): number {
+  const totalRate = STATE_TOTAL_WITHHOLDING_RATES[stateCode] ?? 0.14;
+  const stateRate = STATE_TAX_RATES[stateCode] ?? 0;
+  const federalRate = Math.max(0, totalRate - stateRate);
+  return Math.round(annualGrossIncome * federalRate);
 }
 
 function calcBracketTax(taxableIncome: number, brackets: Bracket[]): number {
