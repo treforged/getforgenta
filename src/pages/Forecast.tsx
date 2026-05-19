@@ -727,7 +727,8 @@ export default function Forecast() {
       .filter((c: any) => c.phase === 'saving')
       .map((c: any) => {
         const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
-        const contrib = rem > 0 ? Math.min(rem / 12, 500) : 0;
+        // No projected contribution when linked to an account — balance is already in liquidBal
+        const contrib = c.linked_account ? 0 : (rem > 0 ? Math.min(rem / 12, 500) : 0);
         let purchaseMonthIdx: number;
         if (c.planned_purchase_date) {
           const parts = (c.planned_purchase_date as string).split('-').map(Number);
