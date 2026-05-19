@@ -55,7 +55,6 @@ export type CarFund = {
   actual_monthly_payment: number;
   linked_account: string | null;
   linked_rule_id: string | null;
-  planned_purchase_date: string | null;
   created_at: string;
 };
 

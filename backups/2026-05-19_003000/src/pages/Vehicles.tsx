@@ -9,7 +9,7 @@ import { buildAmortizationSchedule, getActiveCarLoanPayments } from '@/lib/vehic
 import { useCarFunds, useAccounts, useRecurringRules } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { CarFund } from '@/lib/types';
@@ -23,7 +23,7 @@ const toMonthly = (amount: number, freq: string) =>
 const emptySavingForm = {
   vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', current_saved: '',
   monthly_insurance: '', expected_apr: '', loan_term_months: '60',
-  linked_account: '', linked_rule_id: '', planned_purchase_date: '',
+  linked_account: '', linked_rule_id: '',
 };
 
 const emptyLoanForm = {
@@ -32,13 +32,7 @@ const emptyLoanForm = {
   monthly_insurance: '',
 };
 
-function fmtDate(iso: string | null | undefined) {
-  if (!iso) return null;
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-}
-
-function estimateSavingCompletion(downGoal: number, saved: number, monthly: number, plannedDate: string | null | undefined): string {
-  if (plannedDate) return fmtDate(plannedDate) ?? 'Set';
+function estimateSavingCompletion(downGoal: number, saved: number, monthly: number): string {
   const rem = downGoal - saved;
   if (rem <= 0) return 'Reached';
   if (monthly <= 0) return 'Set contribution';
@@ -51,14 +45,14 @@ function estimateSavingCompletion(downGoal: number, saved: number, monthly: numb
 function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib }:
   { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean;
     linkedAccountName?: string | null; monthlyContrib?: number }) {
-  const pct = cf.down_payment_goal > 0 ? (cf.current_saved / cf.down_payment_goal) * 100 : 0;
+  const effectiveSaved = cf.current_saved;
+  const pct = cf.down_payment_goal > 0 ? (effectiveSaved / cf.down_payment_goal) * 100 : 0;
   const monthlyEst = calculateMonthlyPayment(
     cf.target_price + cf.tax_fees - cf.down_payment_goal,
     cf.expected_apr,
     cf.loan_term_months,
   );
   const monthly = monthlyContrib ?? 0;
-  const completionLabel = estimateSavingCompletion(cf.down_payment_goal, cf.current_saved, monthly, cf.planned_purchase_date);
   return (
     <div className="card-forged p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -82,26 +76,17 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         </div>
       </div>
 
-      {cf.planned_purchase_date && (
-        <div className="flex items-center gap-1.5 px-2 py-1.5 bg-primary/5 border border-primary/15 text-xs" style={{ borderRadius: 'var(--radius)' }}>
-          <CalendarClock size={12} className="text-primary shrink-0" />
-          <span className="text-primary/90 font-medium">Planned purchase: {fmtDate(cf.planned_purchase_date)}</span>
-        </div>
-      )}
-
       <div>
         <div className="flex justify-between text-xs mb-1">
           <span className="text-muted-foreground">Down payment progress</span>
-          <span className="font-medium">{formatCurrency(cf.current_saved, false)} / {formatCurrency(cf.down_payment_goal, false)}</span>
+          <span className="font-medium">{formatCurrency(effectiveSaved, false)} / {formatCurrency(cf.down_payment_goal, false)}</span>
         </div>
         <ProgressBar value={Math.min(pct, 100)} max={100} />
         <p className="text-[10px] text-muted-foreground mt-1">
-          {Math.round(pct)}%{' '}
-          {cf.planned_purchase_date
-            ? `· Planned: ${fmtDate(cf.planned_purchase_date)}`
-            : monthly > 0
-              ? `· Est. ready ${completionLabel}`
-              : linkedAccountName ? '· Balance auto-synced from account' : '· Set a transfer rule to estimate completion'}
+          {Math.round(pct)}% ·{' '}
+          {monthly > 0
+            ? `Est. ready ${estimateSavingCompletion(cf.down_payment_goal, effectiveSaved, monthly)}`
+            : linkedAccountName ? 'Balance auto-synced from account' : 'Set a transfer rule to estimate completion'}
         </p>
       </div>
 
@@ -122,7 +107,8 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
 
       {monthly > 0 && (
         <p className="text-[10px] text-primary/70 text-center">
-          {formatCurrency(monthly, false)}/mo contribution{linkedAccountName ? ' · via transfer rule' : ''}
+          {formatCurrency(monthly, false)}/mo contribution
+          {linkedAccountName ? ' · via transfer rule' : ''}
         </p>
       )}
 
@@ -137,8 +123,8 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
   );
 }
 
-function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm }:
-  { cf: CarFund; onEdit: () => void; onDelete: () => void; onUndo: () => void; deleteConfirm: boolean; undoConfirm: boolean }) {
+function LoanCard({ cf, onEdit, onDelete, deleteConfirm }:
+  { cf: CarFund; onEdit: () => void; onDelete: () => void; deleteConfirm: boolean }) {
   const proj = useMemo(() => {
     if (!cf.payment_start_date || !cf.loan_start_date) return null;
     return buildAmortizationSchedule({
@@ -176,14 +162,6 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm }:
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           <span className="text-[10px] bg-success/15 text-success px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>Active Loan</span>
-          <button
-            onClick={onUndo}
-            className={`icon-btn text-xs flex items-center gap-1 px-1.5 ${undoConfirm ? 'text-amber-400' : 'text-muted-foreground hover:text-amber-400'}`}
-            title={undoConfirm ? 'Click again to confirm undo' : 'Undo purchase — revert to saving phase'}
-          >
-            <Undo2 size={13} />
-            {undoConfirm && <span className="text-[10px] font-medium">Confirm?</span>}
-          </button>
           <button onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
           <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
         </div>
@@ -289,7 +267,7 @@ function BuyItDialog({ cf, onConfirm, onClose }:
     loan_amount: String(loanAmountDefault),
     expected_apr: String(cf.expected_apr),
     loan_term_months: String(cf.loan_term_months),
-    loan_start_date: cf.planned_purchase_date ?? today,
+    loan_start_date: today,
     payment_start_date: nextMonth,
     interest_start_date: nextMonth,
     actual_monthly_payment: '',
@@ -389,7 +367,6 @@ export default function Vehicles() {
   const [savingForm, setSavingForm] = useState(emptySavingForm);
   const [loanForm, setLoanForm] = useState(emptyLoanForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [undoConfirm, setUndoConfirm] = useState<string | null>(null);
 
   const savingVehicles = useMemo(() => carFunds.filter((c: any) => (c.phase ?? 'saving') === 'saving'), [carFunds]);
   const loanVehicles = useMemo(() => carFunds.filter((c: any) => c.phase === 'loan'), [carFunds]);
@@ -424,7 +401,6 @@ export default function Vehicles() {
       { key: 'target_price', label: 'Target Price', type: 'number', placeholder: '28000', step: '0.01' },
       { key: 'tax_fees', label: 'Tax & Fees', type: 'number', placeholder: '2000', step: '0.01' },
       { key: 'down_payment_goal', label: 'Down Payment Goal', type: 'number', placeholder: '5600', step: '0.01' },
-      { key: 'planned_purchase_date', label: 'Planned Purchase Date (optional)', type: 'date' },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
       { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync contribution)', type: 'select', options: transferRuleOptions },
     ];
@@ -454,7 +430,6 @@ export default function Vehicles() {
       loan_term_months: String(cf.loan_term_months),
       linked_account: cf.linked_account ?? '',
       linked_rule_id: cf.linked_rule_id ?? '',
-      planned_purchase_date: cf.planned_purchase_date ?? '',
     });
     setEditId(cf.id); setShowSavingForm(true);
   };
@@ -490,7 +465,6 @@ export default function Vehicles() {
       loan_term_months: parseInt(savingForm.loan_term_months) || 60,
       linked_account: linkedAccount,
       linked_rule_id: linkedRule?.id ?? null,
-      planned_purchase_date: savingForm.planned_purchase_date || null,
       phase: 'saving' as const,
       loan_amount: 0, loan_start_date: null, payment_start_date: null,
       interest_start_date: null, actual_monthly_payment: 0,
@@ -514,7 +488,7 @@ export default function Vehicles() {
       monthly_insurance: parseFloat(loanForm.monthly_insurance) || 0,
       phase: 'loan' as const,
       target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0,
-      linked_account: null, linked_rule_id: null, planned_purchase_date: null,
+      linked_account: null, linked_rule_id: null,
     };
     if (editId) update.mutate({ id: editId, ...payload });
     else add.mutate(payload);
@@ -534,34 +508,6 @@ export default function Vehicles() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
-  const handleUndo = (cf: CarFund) => {
-    if (undoConfirm === cf.id) {
-      update.mutate({
-        id: cf.id,
-        phase: 'saving',
-        loan_amount: 0,
-        loan_start_date: null,
-        payment_start_date: null,
-        interest_start_date: null,
-        actual_monthly_payment: 0,
-        // restore original saving-phase fields
-        target_price: cf.target_price,
-        tax_fees: cf.tax_fees,
-        down_payment_goal: cf.down_payment_goal,
-        current_saved: cf.current_saved,
-        monthly_insurance: cf.monthly_insurance,
-        expected_apr: cf.expected_apr,
-        loan_term_months: cf.loan_term_months,
-      });
-      setUndoConfirm(null);
-      setActiveTab('saving');
-      toast.success('Reverted to saving phase');
-    } else {
-      setUndoConfirm(cf.id);
-      setTimeout(() => setUndoConfirm(null), 3000);
-    }
-  };
-
   if (loading) return <PageSkeleton />;
 
   return (
@@ -571,13 +517,13 @@ export default function Vehicles() {
           <div className="flex items-center gap-2">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Vehicles</h1>
             <InstructionsModal pageTitle="Vehicles Guide" sections={[
-              { title: 'Two phases', body: 'Saving phase: track your down payment goal and preview loan costs. Set a planned purchase date to anchor the Forecast transition. Loan phase: enter your actual loan terms and track full amortization to payoff.' },
-              { title: 'Planned Purchase Date', body: 'Set the month you plan to buy. In the Forecast, saving contributions stop that month, the down payment is shown as an outflow, and the projected loan payment starts the following month. Estimated values are used until you hit "I bought it."' },
+              { title: 'Two phases', body: 'Saving phase: track your down payment goal and preview loan costs. Link a savings account to auto-sync your balance, and a transfer rule to track contributions. Loan phase: enter your actual loan terms and track the full amortization until payoff.' },
               { title: 'Linked Account', body: 'Link your savings account to auto-pull the current balance as your down payment progress. When linked, "Current Saved" in the form is skipped — the live balance is used instead.' },
-              { title: 'Transfer Rule', body: 'Link a recurring transfer rule to auto-sync the monthly contribution amount for the estimated completion date.' },
-              { title: 'I bought it', body: 'Hit "I bought it" to enter your real loan amount, APR, start date, first payment date, and interest start date. If you clicked by accident, use the undo button on the loan card.' },
-              { title: 'Undo Purchase', body: 'The undo button (↩) on a loan card reverts back to saving phase. Click once to see "Confirm?", click again to revert. Your saving-phase details are preserved.' },
-              { title: 'Connects to Forecast', body: 'Active loan payments appear as "Car Loan Payments" in the Forecast drawer. Projected loans for saving-phase vehicles appear as "Est. Car Loan (projected)" starting the month after the planned purchase date.' },
+              { title: 'Transfer Rule', body: 'Link a recurring transfer rule to auto-sync the monthly contribution amount. The transfer amount and frequency are used for the estimated completion date.' },
+              { title: 'I bought it', body: 'Hit "I bought it" on a saving-phase card to enter your real loan amount, APR, start date, first payment date, and interest start date.' },
+              { title: 'Deferred interest', body: 'If your dealer offers deferred interest (e.g. 90 days same as cash), set interest_start_date to when it actually starts. Interest is zero until that date.' },
+              { title: 'Connects to Forecast', body: 'Active loan payments appear as "Car Loan Payments" in the Forecast row drawer — separate from credit card debt payments.' },
+              { title: 'Connects to Debt Payoff', body: 'Active loans appear under the Auto Loans tab in Debt Payoff for a full picture of all fixed obligations.' },
             ]} />
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Track every vehicle from saving to payoff</p>
@@ -610,7 +556,7 @@ export default function Vehicles() {
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
               <p className="text-xs font-semibold text-foreground">Vehicles — save for the down payment, then track the loan to payoff</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Jordan has a planned purchase date set for the Civic — the Forecast shows the down payment outflow that month and projected loan payments starting the following month.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Jordan is saving for a Honda Civic while tracking a RAV4 they already bought. The RAV4 loan feeds into Forecast and Debt Payoff automatically.</p>
             </div>
           </div>
           <div className="mt-2 flex justify-end">
@@ -632,6 +578,7 @@ export default function Vehicles() {
         </div>
       )}
 
+      {/* Tabs */}
       <div className="flex gap-2">
         <button onClick={() => setActiveTab('saving')}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'saving' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
@@ -690,9 +637,7 @@ export default function Vehicles() {
               cf={cf}
               onEdit={() => openEditLoan(cf)}
               onDelete={() => handleDelete(cf.id)}
-              onUndo={() => handleUndo(cf)}
               deleteConfirm={deleteConfirm === cf.id}
-              undoConfirm={undoConfirm === cf.id}
             />
           ))}
           {loanVehicles.length === 0 && (
