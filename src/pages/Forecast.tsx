@@ -716,8 +716,11 @@ export default function Forecast() {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
-    // Fixed monthly obligation for active auto loans — separate from CC debt engine
-    const carLoanMonthly = getTotalCarLoanMonthly(carFunds as any[]);
+    // Active loan payments per month — stops when each loan pays off within the 36-month window
+    const activeCarLoanByMonth = Array.from({ length: 36 }, (_, i) => {
+      const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 15);
+      return getTotalCarLoanMonthly(carFunds as any[], md);
+    });
 
     const nowDate = new Date();
 
@@ -742,12 +745,12 @@ export default function Forecast() {
         const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
           ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
           : 0;
-        return { contrib, purchaseMonthIdx, projPayment, downPayment: Number(c.down_payment_goal), insurance: Number(c.monthly_insurance) };
+        return { contrib, purchaseMonthIdx, projPayment, downPayment: Number(c.down_payment_goal), insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months) };
       });
     const getMonthCarContrib = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (i < v.purchaseMonthIdx ? v.contrib : 0), 0);
     const getMonthProjLoan = (i: number) => vehicleProjections.reduce(
-      (s, v) => s + (isFinite(v.purchaseMonthIdx) && i > v.purchaseMonthIdx ? v.projPayment : 0), 0);
+      (s, v) => s + (isFinite(v.purchaseMonthIdx) && i > v.purchaseMonthIdx && i <= v.purchaseMonthIdx + v.termMonths ? v.projPayment : 0), 0);
     const getMonthDownPayment = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i === v.purchaseMonthIdx ? v.downPayment : 0), 0);
     const getMonthVehicleInsurance = (i: number) => vehicleProjections.reduce(
@@ -999,7 +1002,7 @@ export default function Forecast() {
       let bal = liquidBal;
       for (let i = 0; i < 36; i++) {
         const b = baseData[i];
-        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + getMonthDownPayment(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + b.monthTransfers;
+        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i] + getMonthDownPayment(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + b.monthTransfers;
         bal += b.netIncome - totalOut + b.oneTimeNet;
         // Simulate PASS 3 redirect: pin to monthMinSafe in normal months (not save-up months)
         if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > b.monthMinSafe) {
@@ -1053,6 +1056,7 @@ export default function Forecast() {
       let monthDebtPayment = debtPayments[i];
       const startingCash = Math.round(finalLiquid);
       const carContribThisMonth = getMonthCarContrib(i);
+      const carLoanThisMonth = activeCarLoanByMonth[i];
       const projLoanThisMonth = getMonthProjLoan(i);
       const downPaymentThisMonth = getMonthDownPayment(i);
       const vehicleInsuranceThisMonth = getMonthVehicleInsurance(i);
@@ -1065,7 +1069,7 @@ export default function Forecast() {
       // Step 1: savings + transfers + fixed car loan payments apply first as regular outflows
       const savingsOut = b.monthlySavingsContrib + carContribThisMonth;
       const transfersOut = b.monthTransfers;
-      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanMonthly - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - transfersOut + b.oneTimeNet;
+      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - transfersOut + b.oneTimeNet;
 
       // Step 2: debt gets what's available above floor — never causes floor breach
       const availableForDebt = Math.max(0, cashPreDebt - b.monthMinSafe);
@@ -1094,7 +1098,7 @@ export default function Forecast() {
       retireBal += b.paycheckRetireContrib + xferRetireAmt;
       retireBal *= (1 + monthlyRetireGrowth);
 
-      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanMonthly + downPaymentThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + actualTransfers;
+      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + downPaymentThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + actualTransfers;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       const endingCash = Math.round(finalLiquid);
@@ -1153,7 +1157,7 @@ export default function Forecast() {
         baseExpenses: Math.round(b.baseExpenses),
         savingsContrib: Math.round(actualGoalsSavings),
         carContrib: Math.round(actualCarSavings),
-        carLoanPayment: Math.round(carLoanMonthly),
+        carLoanPayment: Math.round(carLoanThisMonth),
         vehicleDownPayment: Math.round(downPaymentThisMonth),
         vehicleInsurance: Math.round(vehicleInsuranceThisMonth),
         projectedCarLoan: Math.round(projLoanThisMonth),
