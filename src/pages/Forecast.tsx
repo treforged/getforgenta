@@ -711,6 +711,8 @@ export default function Forecast() {
       return d401kMode === 'pct' ? paycheckGrossForForecast * (d401kVal / 100) : d401kVal;
     })();
 
+    const nowDate = new Date();
+
     const monthlyCarContrib = pauseSavings ? 0 : carFunds.reduce((s: number, c: any) => {
       if (c.phase === 'loan') return s;
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
@@ -721,8 +723,6 @@ export default function Forecast() {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 15);
       return getTotalCarLoanMonthly(carFunds as any[], md);
     });
-
-    const nowDate = new Date();
 
     // Month-aware projections for saving-phase vehicles: contrib stops at purchase month,
     // projected loan payment starts at purchase month
