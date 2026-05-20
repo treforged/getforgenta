@@ -470,6 +470,39 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* Display Preferences */}
+      <div className="card-forged p-5 space-y-4">
+        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-muted-foreground uppercase">Currency</label>
+            <select value={currency} onChange={e => { setCurrency(e.target.value); markDirty(); }}
+              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground uppercase">Budget Start Day</label>
+            <input type="number" min={1} max={28} value={startDay} onChange={e => { setStartDay(e.target.value); markDirty(); }}
+              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs">Show cents</span>
+          <button onClick={() => { setShowCents(!showCents); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${showCents ? 'bg-primary' : 'bg-secondary'} relative`}>
+            <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${showCents ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs">Auto-generate recurring entries</span>
+          <button onClick={() => { setAutoGenerateRecurring(!autoGenerateRecurring); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${autoGenerateRecurring ? 'bg-primary' : 'bg-secondary'} relative`}>
+            <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${autoGenerateRecurring ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+      </div>
+
       {/* Profile */}
       <div className="card-forged p-5 space-y-4">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Profile</h2>
@@ -831,39 +864,6 @@ export default function SettingsPage() {
           )}
         </div>
       )}
-
-      {/* Display Preferences */}
-      <div className="card-forged p-5 space-y-4">
-        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs text-muted-foreground uppercase">Currency</label>
-            <select value={currency} onChange={e => { setCurrency(e.target.value); markDirty(); }}
-              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground uppercase">Budget Start Day</label>
-            <input type="number" min={1} max={28} value={startDay} onChange={e => { setStartDay(e.target.value); markDirty(); }}
-              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs">Show cents</span>
-          <button onClick={() => { setShowCents(!showCents); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${showCents ? 'bg-primary' : 'bg-secondary'} relative`}>
-            <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${showCents ? 'translate-x-4' : 'translate-x-0.5'}`} />
-          </button>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-xs">Auto-generate recurring entries</span>
-          <button onClick={() => { setAutoGenerateRecurring(!autoGenerateRecurring); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${autoGenerateRecurring ? 'bg-primary' : 'bg-secondary'} relative`}>
-            <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${autoGenerateRecurring ? 'translate-x-4' : 'translate-x-0.5'}`} />
-          </button>
-        </div>
-      </div>
 
       {/* Invite a Friend */}
       {!isDemo && user && (
