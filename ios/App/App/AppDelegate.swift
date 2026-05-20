@@ -36,43 +36,44 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // system overlays. Show the cover immediately so app content is never captured
     // in the iOS App Switcher screenshot.
     func applicationWillResignActive(_ application: UIApplication) {
+        debugLog("RESIGN didBg=\(didEnterBackground)")
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = nil
         showNativeCover()
     }
 
     func applicationDidEnterBackground(_ application: UIApplication) {
+        debugLog("ENTER_BG")
         didEnterBackground = true
     }
 
-    func applicationWillEnterForeground(_ application: UIApplication) {}
+    func applicationWillEnterForeground(_ application: UIApplication) {
+        debugLog("WILL_FOREGROUND")
+    }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
+        debugLog("BECOME_ACTIVE oauth=\(oAuthSessionPending) didBg=\(didEnterBackground) wvKilled=\(webViewProcessTerminated)")
         defer {
             didEnterBackground = false
             webViewProcessTerminated = false
         }
 
         if oAuthSessionPending {
-            // OAuth sheet just closed. React will fire SIGNED_IN and navigate routes —
-            // give it 2 s to finish before revealing the WebView.
             oAuthSessionPending = false
+            debugLog("COVER_BRANCH:oauth → schedule 2.0s")
             scheduleNativeCoverDismiss(after: 2.0)
 
         } else if !didEnterBackground {
-            // Brief interruption (Control Center, Face ID, call banner, etc.).
-            // WebView did not suspend; dismiss the cover quickly.
+            debugLog("COVER_BRANCH:brief → schedule 0.3s")
             scheduleNativeCoverDismiss(after: 0.3)
 
         } else if webViewProcessTerminated {
-            // Content process was killed; WebView is reloading from network.
-            // Poll document.readyState — allow up to 10 s for the full reload.
-            pollWebViewReady(maxAttempts: 50)   // 50 × 200 ms = 10 s
+            debugLog("COVER_BRANCH:poll_reload maxAttempts=50")
+            pollWebViewReady(maxAttempts: 50)
 
         } else {
-            // Normal background → foreground. Poll until WebView is repainted.
-            // For a live WebView this resolves on the first poll (< 200 ms).
-            pollWebViewReady(maxAttempts: 20)   // 20 × 200 ms = 4 s
+            debugLog("COVER_BRANCH:poll_normal maxAttempts=20")
+            pollWebViewReady(maxAttempts: 20)
         }
     }
 
@@ -190,6 +191,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private func webViewForPolling() -> WKWebView? {
         guard let vc = keyWindow()?.rootViewController as? CAPBridgeViewController else { return nil }
         return vc.bridge?.webView
+    }
+
+    // MARK: - Debug Logging
+
+    private func debugLog(_ event: String) {
+        let ts = Int(Date().timeIntervalSince1970 * 1000)
+        let entry = "\(ts)|\(event)"
+        let key = "forged:debug_log"
+        let existing = UserDefaults.standard.string(forKey: key) ?? ""
+        var lines = existing.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        if lines.count >= 200 { lines = Array(lines.suffix(199)) }
+        lines.append(entry)
+        UserDefaults.standard.set(lines.joined(separator: "\n"), forKey: key)
     }
 }
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
+import { debugLog } from '@/lib/debugLog';
 
 export type LockType = 'pin' | 'biometric';
 
@@ -123,6 +124,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     if (!isNative) { setReady(true); return; }
 
     async function init() {
+      debugLog('INIT_START');
       // Set before first await — Supabase fires SIGNED_IN as a macrotask after
       // onAuthStateChange is registered. The flag prevents treating a session-restore
       // SIGNED_IN as a fresh sign-in (which would clear an existing lock).
@@ -133,16 +135,20 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       const lockIsEnabled = enabled === '1';
       setLockEnabled(lockIsEnabled);
       setLockTypeState((type ?? 'pin') as LockType);
+      debugLog(`INIT_LOCK:${lockIsEnabled ? 1 : 0}`);
 
       if (!lockIsEnabled) {
         skipLockClearOnSignIn.current = false;
       } else {
         const ts = localStorage.getItem(LS_UNLOCKED_AT);
         const withinGrace = !!ts && (Date.now() - parseInt(ts)) < INIT_GRACE_MS;
+        debugLog(`INIT_GRACE:${withinGrace ? 'yes' : 'no'}`);
         if (!withinGrace) {
           const { data: { session } } = await supabase.auth.getSession();
+          debugLog(`INIT_SESSION:${session ? 'yes' : 'no'}`);
           if (!session) skipLockClearOnSignIn.current = false;
           setIsLocked(!!session);
+          debugLog(`INIT_LOCKED:${!!session}`);
         } else {
           skipLockClearOnSignIn.current = false;
         }
@@ -160,6 +166,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       }
 
       setReady(true);
+      debugLog('INIT_DONE');
     }
 
     init();
@@ -173,6 +180,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
+        debugLog(`AUTH_SIGNED_IN skip=${skipLockClearOnSignIn.current} locked=${isLockedRef.current}`);
         if (skipLockClearOnSignIn.current) {
           skipLockClearOnSignIn.current = false;
           return;
@@ -185,6 +193,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
           setupTimer = setTimeout(() => setShowSetupModal(true), 800);
         }
       } else if (event === 'SIGNED_OUT') {
+        debugLog('AUTH_SIGNED_OUT');
         skipLockClearOnSignIn.current = false;
         await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted)]);
         localStorage.removeItem(LS_UNLOCKED_AT);
