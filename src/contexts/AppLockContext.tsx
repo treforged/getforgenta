@@ -159,13 +159,17 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
 
-  const bgAt              = useRef<number | null>(null);
-  const idleAtBgRef       = useRef<number>(0);   // idle ms when app was last backgrounded
-  const lastActivityAt    = useRef<number>(Date.now());
-  const isLockedRef       = useRef(false);
-  const lockEnabledRef    = useRef(false);
-  const skipNextBgLock    = useRef(false);
-  const coverTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bgAt                   = useRef<number | null>(null);
+  const idleAtBgRef            = useRef<number>(0);
+  const lastActivityAt         = useRef<number>(Date.now());
+  const isLockedRef            = useRef(false);
+  const lockEnabledRef         = useRef(false);
+  const skipNextBgLock         = useRef(false);
+  const coverTimerRef          = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Supabase fires SIGNED_IN on session restore (WebView reload) as well as on fresh sign-in.
+  // We pre-set this flag before calling getSession() in init() so the SIGNED_IN handler
+  // knows NOT to clear a lock that was set by an existing session.
+  const skipLockClearOnSignIn  = useRef(false);
 
   useEffect(() => { isLockedRef.current    = isLocked;     }, [isLocked]);
   useEffect(() => { lockEnabledRef.current = lockEnabled;  }, [lockEnabled]);
@@ -187,11 +191,14 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
       if (lockIsEnabled) {
         const ts = localStorage.getItem(LS_UNLOCKED_AT);
-        // Short grace window prevents locking on component re-mounts during sign-in flow
         const withinGrace = !!ts && (Date.now() - parseInt(ts)) < INIT_GRACE_MS;
         if (!withinGrace) {
-          // Only lock if the user has an active session — don't block the sign-in screen
+          // Pre-set flag BEFORE getSession() — Supabase fires SIGNED_IN synchronously
+          // during session restore, which would otherwise call setIsLocked(false) and
+          // wipe out the lock we're about to set.
+          skipLockClearOnSignIn.current = true;
           const { data: { session } } = await supabase.auth.getSession();
+          if (!session) skipLockClearOnSignIn.current = false; // no session → no lock
           setIsLocked(!!session);
         }
       }
@@ -272,19 +279,25 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
-        bgAt.current = null;           // cancel any background re-lock from OAuth browser return
-        skipNextBgLock.current = true; // suppress next background lock check
+        if (skipLockClearOnSignIn.current) {
+          // Supabase fired SIGNED_IN for session restore (WebView reload), not a fresh login.
+          // Do NOT clear the lock — the user must authenticate first.
+          skipLockClearOnSignIn.current = false;
+          return;
+        }
+        // Fresh sign-in (user just authenticated via OAuth/email after being signed out)
+        bgAt.current = null;
+        skipNextBgLock.current = true;
         setTimeout(() => { skipNextBgLock.current = false; }, 2000);
-        // Fresh Supabase auth clears the local lock
         setIsLocked(false);
         lastActivityAt.current = Date.now();
         localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
-        // Delay so the modal appears after navigation to dashboard, not on auth page
         const prompted = await pGet(P.setupPrompted);
         if (!prompted) {
           setupTimer = setTimeout(() => setShowSetupModal(true), 800);
         }
       } else if (event === 'SIGNED_OUT') {
+        skipLockClearOnSignIn.current = false;
         setIsLocked(false);
         setShowSetupModal(false);
         clearTimeout(setupTimer);
