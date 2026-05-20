@@ -134,7 +134,11 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       if (lockIsEnabled) {
         const ts = localStorage.getItem(LS_UNLOCKED_AT);
         const withinGrace = !!ts && (Date.now() - parseInt(ts)) < BG_LOCK_AFTER_MS;
-        setIsLocked(!withinGrace);
+        if (!withinGrace) {
+          // Only lock if the user has an active session — don't block the sign-in screen
+          const { data: { session } } = await supabase.auth.getSession();
+          setIsLocked(!!session);
+        }
       }
 
       const fails = parseInt(localStorage.getItem(LS_FAILED) ?? '0', 10);
@@ -174,7 +178,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       if (duration < BG_LOCK_AFTER_MS) return;
 
       const enabled = await pGet(P.enabled);
-      if (enabled === '1') setIsLocked(true);
+      if (enabled !== '1') return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) setIsLocked(true);
     }).then(h => {
       listenerHandle = h;
     });
@@ -182,14 +188,22 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     return () => { listenerHandle?.remove(); };
   }, [isNative, ready]);
 
-  // Show setup modal on first sign-in (native only)
+  // Auth state: unlock on fresh sign-in, clear on sign-out, show setup modal once
   useEffect(() => {
     if (!isNative) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
-      if (event !== 'SIGNED_IN') return;
-      const prompted = await pGet(P.setupPrompted);
-      if (!prompted) setShowSetupModal(true);
+      if (event === 'SIGNED_IN') {
+        // Fresh authentication always clears the local lock
+        setIsLocked(false);
+        localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
+        const prompted = await pGet(P.setupPrompted);
+        if (!prompted) setShowSetupModal(true);
+      } else if (event === 'SIGNED_OUT') {
+        // No session — lock screen has nothing to protect
+        setIsLocked(false);
+        setShowSetupModal(false);
+      }
     });
 
     return () => subscription.unsubscribe();
