@@ -740,6 +740,15 @@ export default function Forecast() {
       return getTotalCarLoanMonthly(carFunds as any[], md);
     });
 
+    // Mortgage — hard floor deduction before CC payoff (same priority as car loans)
+    const mortgageAccountNames = new Set(
+      (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
+        .map((a: any) => (a.name as string).toLowerCase())
+    );
+    const mortgageMonthlyPayment = debts
+      .filter((d: any) => mortgageAccountNames.has((d.name as string).toLowerCase()))
+      .reduce((s: number, d: any) => s + Number(d.target_payment || d.min_payment || 0), 0);
+
     // Month-aware projections for saving-phase vehicles: contrib stops at purchase month,
     // projected loan payment starts at purchase month
     const vehicleProjections = pauseSavings ? [] : (carFunds as any[])
@@ -1071,7 +1080,7 @@ export default function Forecast() {
       let bal = liquidBal;
       for (let i = 0; i < 36; i++) {
         const b = baseData[i];
-        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i] + getMonthDownPayment(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + b.monthTransfers;
+        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i] + getMonthDownPayment(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment + b.monthTransfers;
         bal += b.netIncome - totalOut + b.oneTimeNet;
         // Simulate PASS 3 redirect: pin to monthMinSafe in normal months (not save-up months)
         if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > b.monthMinSafe) {
@@ -1138,7 +1147,7 @@ export default function Forecast() {
       // Step 1: savings + transfers + fixed car loan payments apply first as regular outflows
       const savingsOut = b.monthlySavingsContrib + carContribThisMonth;
       const transfersOut = b.monthTransfers;
-      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - transfersOut + b.oneTimeNet;
+      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut + b.oneTimeNet;
 
       // Step 2: debt gets what's available above floor — never causes floor breach
       const availableForDebt = Math.max(0, cashPreDebt - b.monthMinSafe);
@@ -1167,7 +1176,7 @@ export default function Forecast() {
       retireBal += b.paycheckRetireContrib + xferRetireAmt;
       retireBal *= (1 + monthlyRetireGrowth);
 
-      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + downPaymentThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + actualTransfers;
+      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + downPaymentThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + mortgageMonthlyPayment + actualTransfers;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       const endingCash = Math.round(finalLiquid);
@@ -1230,6 +1239,7 @@ export default function Forecast() {
         vehicleDownPayment: Math.round(downPaymentThisMonth),
         vehicleInsurance: Math.round(vehicleInsuranceThisMonth),
         projectedCarLoan: Math.round(projLoanThisMonth),
+        mortgagePayment: Math.round(mortgageMonthlyPayment),
         transfersTotal: Math.round(actualTransfers),
         businessContrib: Math.round(b.monthBusinessContrib),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
@@ -1928,6 +1938,7 @@ export default function Forecast() {
                     { label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' },
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
+                    ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
                     ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, false), op: '−' }] : []),
                     ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: '  Vehicle Down Payment', value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
                     ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, false), op: '−' }] : []),

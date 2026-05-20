@@ -38,14 +38,27 @@ export default function DebtPayoff() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'cards' | 'other' | 'auto'>('cards');
+  const [activeTab, setActiveTab] = useState<'cards' | 'other' | 'auto' | 'mortgage' | 'student'>('cards');
 
-  // Filter debts to non-credit-card items
-  const ccAccountNames = useMemo(() => {
-    return new Set(accounts?.filter((a: any) => a.account_type === 'credit_card').map((a: any) => a.name.toLowerCase()) ?? []);
-  }, [accounts]);
+  const ccAccountNames = useMemo(() => new Set(
+    accounts?.filter((a: any) => a.account_type === 'credit_card').map((a: any) => a.name.toLowerCase()) ?? []
+  ), [accounts]);
 
-  const otherDebts = useMemo(() => debts?.filter(d => !ccAccountNames.has(d.name.toLowerCase())) ?? [], [debts, ccAccountNames]);
+  const mortgageAccountNames = useMemo(() => new Set(
+    accounts?.filter((a: any) => a.account_type === 'mortgage').map((a: any) => a.name.toLowerCase()) ?? []
+  ), [accounts]);
+
+  const studentAccountNames = useMemo(() => new Set(
+    accounts?.filter((a: any) => a.account_type === 'student_loan').map((a: any) => a.name.toLowerCase()) ?? []
+  ), [accounts]);
+
+  const mortgageDebts = useMemo(() => debts?.filter(d => mortgageAccountNames.has(d.name.toLowerCase())) ?? [], [debts, mortgageAccountNames]);
+  const studentDebts = useMemo(() => debts?.filter(d => studentAccountNames.has(d.name.toLowerCase())) ?? [], [debts, studentAccountNames]);
+  const otherDebts = useMemo(() => debts?.filter(d =>
+    !ccAccountNames.has(d.name.toLowerCase()) &&
+    !mortgageAccountNames.has(d.name.toLowerCase()) &&
+    !studentAccountNames.has(d.name.toLowerCase())
+  ) ?? [], [debts, ccAccountNames, mortgageAccountNames, studentAccountNames]);
 
   const totalBalance = otherDebts.reduce((s, d) => s + Number(d.balance), 0);
   const totalMinPayment = otherDebts.reduce((s, d) => s + Number(d.min_payment), 0);
@@ -144,7 +157,7 @@ export default function DebtPayoff() {
             { title: 'Overrides', body: 'Click any monthly payment to override the recommended amount. Use "Revert" to return to the calculated recommendation.' },
           ]} />
         </div>
-        {activeTab === 'other' && (
+        {(activeTab === 'other' || activeTab === 'mortgage' || activeTab === 'student') && (
           (isPremium || isDemo || otherDebts.length < 3) ? (
             <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0" style={{ borderRadius: 'var(--radius)' }}>
               <Plus size={12} /> Add Debt
@@ -202,6 +215,16 @@ export default function DebtPayoff() {
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'auto' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{activeAutoLoans.length}</span>}
+        </button>
+        <button onClick={() => setActiveTab('mortgage')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'mortgage' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Landmark size={13} /> Mortgage {mortgageDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{mortgageDebts.length}</span>}
+        </button>
+        <button onClick={() => setActiveTab('student')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'student' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{studentDebts.length}</span>}
         </button>
       </div>
 
@@ -280,7 +303,7 @@ export default function DebtPayoff() {
         </div>
       )}
 
-      {activeTab === 'cards' ? (
+      {activeTab === 'cards' && (
         <CreditCardEngine
           accounts={accounts} transactions={transactions} rules={rules} debts={debts} profile={profile}
           goals={goals ?? []} carFunds={carFunds ?? []}
@@ -298,16 +321,15 @@ export default function DebtPayoff() {
           taxReturnAmountOverride={forecastAssumptions.taxReturnAmountOverride}
           taxReturnMonth={forecastAssumptions.taxReturnMonth}
         />
-      ) : (
+      )}
+
+      {activeTab === 'other' && (
         <>
-          {/* Other Debts Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Owed</p><p className="text-lg font-display font-bold text-destructive">{formatCurrency(totalBalance, false)}</p></div>
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment, false)}</p></div>
             <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Target Payment</p><p className="text-lg font-display font-bold text-primary">{formatCurrency(totalTargetPayment, false)}</p></div>
           </div>
-
-          {/* Debt Cards */}
           <div className="space-y-3">
             {otherDebts.map(d => {
               const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
@@ -336,8 +358,6 @@ export default function DebtPayoff() {
             })}
             {otherDebts.length === 0 && <div className="card-forged p-12 text-center"><p className="text-sm text-muted-foreground">No other debts tracked yet.</p></div>}
           </div>
-
-          {/* Strategy simulation */}
           {otherDebts.length > 1 && (
             <div className="grid md:grid-cols-2 gap-4">
               {([
@@ -366,9 +386,7 @@ export default function DebtPayoff() {
                       return (
                         <div key={d.id} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                           <div>
-                            <span className="text-xs">
-                              <span className="text-primary font-semibold mr-1.5">#{i + 1}</span>{d.name}
-                            </span>
+                            <span className="text-xs"><span className="text-primary font-semibold mr-1.5">#{i + 1}</span>{d.name}</span>
                             <p className="text-[9px] text-muted-foreground ml-4">{orderLabel(d)}</p>
                           </div>
                           {result && (
@@ -386,6 +404,111 @@ export default function DebtPayoff() {
             </div>
           )}
         </>
+      )}
+
+      {activeTab === 'mortgage' && (
+        <div className="space-y-4">
+          <div className="p-3 bg-primary/5 border border-primary/20 text-xs text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
+            Mortgage payments are deducted from your cash floor before credit card payoff — they always take priority. Add your mortgage as a debt entry matching the name of your mortgage account in Accounts.
+          </div>
+          {mortgageDebts.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="card-forged p-4 text-center">
+                <p className="text-xs text-muted-foreground uppercase">Total Owed</p>
+                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(mortgageDebts.reduce((s, d) => s + Number(d.balance), 0), false)}</p>
+              </div>
+              <div className="card-forged p-4 text-center">
+                <p className="text-xs text-muted-foreground uppercase">Monthly Payment</p>
+                <p className="text-lg font-display font-bold text-primary">{formatCurrency(mortgageDebts.reduce((s, d) => s + Number(d.target_payment), 0), false)}</p>
+              </div>
+            </div>
+          )}
+          <div className="space-y-3">
+            {mortgageDebts.map(d => {
+              const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
+              const months = calculatePayoffMonths(bal, apr, tp);
+              const interest = calculateTotalInterest(bal, apr, tp);
+              return (
+                <div key={d.id} className="card-forged p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">{d.name}</h3>
+                      <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment), false)}/mo</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-display font-bold text-destructive">{formatCurrency(bal, false)}</p>
+                      <button onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div><p className="text-xs text-muted-foreground">Monthly Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
+                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
+                  </div>
+                </div>
+              );
+            })}
+            {mortgageDebts.length === 0 && (
+              <div className="card-forged p-12 text-center">
+                <Landmark size={28} className="text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">No mortgage tracked yet.</p>
+                <p className="text-xs text-muted-foreground mt-1">Add a mortgage account in Accounts, then add a matching debt entry here.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'student' && (
+        <div className="space-y-4">
+          {studentDebts.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="card-forged p-4 text-center">
+                <p className="text-xs text-muted-foreground uppercase">Total Owed</p>
+                <p className="text-lg font-display font-bold text-destructive">{formatCurrency(studentDebts.reduce((s, d) => s + Number(d.balance), 0), false)}</p>
+              </div>
+              <div className="card-forged p-4 text-center">
+                <p className="text-xs text-muted-foreground uppercase">Monthly Payment</p>
+                <p className="text-lg font-display font-bold text-primary">{formatCurrency(studentDebts.reduce((s, d) => s + Number(d.target_payment), 0), false)}</p>
+              </div>
+            </div>
+          )}
+          <div className="space-y-3">
+            {studentDebts.map(d => {
+              const bal = Number(d.balance), apr = Number(d.apr), tp = Number(d.target_payment);
+              const months = calculatePayoffMonths(bal, apr, tp);
+              const interest = calculateTotalInterest(bal, apr, tp);
+              return (
+                <div key={d.id} className="card-forged p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="text-sm font-semibold">{d.name}</h3>
+                      <p className="text-xs text-muted-foreground">{apr}% APR · Min {formatCurrency(Number(d.min_payment), false)}/mo</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-display font-bold text-destructive">{formatCurrency(bal, false)}</p>
+                      <button onClick={() => openEdit(d)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
+                      <button onClick={() => handleDelete(d.id)} className={`icon-btn ${deleteConfirm === d.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div><p className="text-xs text-muted-foreground">Target Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(tp, false)}/mo</p></div>
+                    <div><p className="text-xs text-muted-foreground">Payoff In</p><p className="text-xs font-semibold">{bal <= 0 ? 'Paid' : months === Infinity ? '—' : `${months} months`}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{interest === Infinity ? '—' : formatCurrency(interest, false)}</p></div>
+                  </div>
+                </div>
+              );
+            })}
+            {studentDebts.length === 0 && (
+              <div className="card-forged p-12 text-center">
+                <Landmark size={28} className="text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">No student loans tracked yet.</p>
+                <p className="text-xs text-muted-foreground mt-1">Add a student loan account in Accounts, then add a matching debt entry here.</p>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {showForm && (
