@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
-import { Preferences } from '@capacitor/preferences';
 import { supabase } from '@/lib/supabase';
 
 export type LockType = 'pin' | 'biometric';
@@ -26,29 +25,40 @@ async function sha256(text: string): Promise<string> {
 }
 
 // Storage helpers: Preferences on native (iOS Keychain / Android EncryptedSharedPrefs),
-// localStorage on web.
+// localStorage on web. Dynamic import so missing package doesn't break web dev server.
 async function pGet(key: string): Promise<string | null> {
   if (Capacitor.isNativePlatform()) {
-    const { value } = await Preferences.get({ key });
-    return value;
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      const { value } = await Preferences.get({ key });
+      return value;
+    } catch {
+      return localStorage.getItem(key);
+    }
   }
   return localStorage.getItem(key);
 }
 
 async function pSet(key: string, value: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    await Preferences.set({ key, value });
-  } else {
-    localStorage.setItem(key, value);
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      await Preferences.set({ key, value });
+      return;
+    } catch { /* fall through to localStorage */ }
   }
+  localStorage.setItem(key, value);
 }
 
 async function pDel(key: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
-    await Preferences.remove({ key });
-  } else {
-    localStorage.removeItem(key);
+    try {
+      const { Preferences } = await import('@capacitor/preferences');
+      await Preferences.remove({ key });
+      return;
+    } catch { /* fall through to localStorage */ }
   }
+  localStorage.removeItem(key);
 }
 
 interface AppLockContextType {
