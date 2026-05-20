@@ -66,6 +66,7 @@ async function pDel(key: string): Promise<void> {
 interface AppLockContextType {
   ready: boolean;
   isLocked: boolean;
+  isCovering: boolean;
   lockEnabled: boolean;
   lockType: LockType;
   biometricAvailable: boolean;
@@ -86,6 +87,7 @@ interface AppLockContextType {
 const AppLockContext = createContext<AppLockContextType>({
   ready: false,
   isLocked: false,
+  isCovering: false,
   lockEnabled: false,
   lockType: 'pin',
   biometricAvailable: false,
@@ -110,6 +112,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
   const [ready, setReady] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [isCovering, setIsCovering] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [lockType, setLockTypeState] = useState<LockType>('pin');
   const [biometricAvailable, setBiometricAvailable] = useState(false);
@@ -121,6 +124,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const isLockedRef       = useRef(false);
   const lockEnabledRef    = useRef(false);
   const skipNextBgLock    = useRef(false);
+  const coverTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { isLockedRef.current    = isLocked;     }, [isLocked]);
   useEffect(() => { lockEnabledRef.current = lockEnabled;  }, [lockEnabled]);
@@ -177,18 +181,26 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     CapApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) {
         bgAt.current = Date.now();
+        setIsCovering(true); // hide WebView content while backgrounded
         return;
       }
       // App came to foreground
       const backgroundedAt = bgAt.current;
       bgAt.current = null;
-      if (backgroundedAt === null) return;
+      lastActivityAt.current = Date.now(); // reset inactivity on resume
+      if (backgroundedAt === null) { setIsCovering(false); return; }
 
       const duration = Date.now() - backgroundedAt;
-      if (duration < BG_LOCK_AFTER_MS) return;
+      if (duration < BG_LOCK_AFTER_MS) {
+        // Brief switch — dismiss cover after WebView repaints
+        if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
+        coverTimerRef.current = setTimeout(() => setIsCovering(false), 350);
+        return;
+      }
 
-      if (skipNextBgLock.current) { skipNextBgLock.current = false; return; }
-      if (!lockEnabledRef.current || isLockedRef.current) return;
+      if (skipNextBgLock.current) { skipNextBgLock.current = false; setIsCovering(false); return; }
+      if (!lockEnabledRef.current || isLockedRef.current) { setIsCovering(false); return; }
+      setIsCovering(false); // lock screen takes over
       setIsLocked(true);
     }).then(h => {
       listenerHandle = h;
@@ -371,6 +383,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     <AppLockContext.Provider value={{
       ready,
       isLocked,
+      isCovering,
       lockEnabled,
       lockType,
       biometricAvailable,
