@@ -10,6 +10,7 @@ import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import { AppLockProvider } from "@/contexts/AppLockContext";
 import AppLockScreen from "@/components/shared/AppLockScreen";
 import AppLockSetupModal from "@/components/shared/AppLockSetupModal";
+import BlackScreenDebug from "@/components/debug/BlackScreenDebug";
 import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
@@ -227,6 +228,7 @@ const App = () => (
                 <AppRoutes />
                 <AppLockScreen />
                 <AppLockSetupModal />
+                <BlackScreenDebug />
               </SubscriptionProvider>
             </AppLockProvider>
           </AuthProvider>
