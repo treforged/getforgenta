@@ -7,15 +7,14 @@ import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, 
 import FormModal from '@/components/shared/FormModal';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
-import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, CreditCard, Landmark, Crown, Car } from 'lucide-react';
-import { buildAmortizationSchedule, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
+import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
+import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
 export default function DebtPayoff() {
-  const { data: debts, add, update, remove } = useDebts();
+  const { data: debts, update, remove } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: transactions } = useTransactions();
@@ -23,7 +22,6 @@ export default function DebtPayoff() {
   const { data: profile } = useProfile();
   const { data: goals } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();
-  const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
 
   const [pauseSavings, setPauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
@@ -38,7 +36,7 @@ export default function DebtPayoff() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'cards' | 'other' | 'auto' | 'mortgage' | 'student'>('cards');
+  const [activeTab, setActiveTab] = useState<'cards' | 'auto' | 'mortgage' | 'student' | 'other'>('cards');
 
   const ccAccountNames = useMemo(() => new Set(
     accounts?.filter((a: any) => a.account_type === 'credit_card').map((a: any) => a.name.toLowerCase()) ?? []
@@ -90,7 +88,6 @@ export default function DebtPayoff() {
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
-  const openAdd = () => { setForm(emptyForm); setEditId(null); setShowForm(true); };
   const openEdit = (d: any) => {
     setForm({ name: d.name, balance: String(d.balance), apr: String(d.apr), min_payment: String(d.min_payment), target_payment: String(d.target_payment), credit_limit: String(d.credit_limit || '') });
     setEditId(d.id); setShowForm(true);
@@ -103,23 +100,20 @@ export default function DebtPayoff() {
       name: form.name, balance, apr: parseFloat(form.apr) || 0, min_payment: parseFloat(form.min_payment) || 0,
       target_payment: parseFloat(form.target_payment) || parseFloat(form.min_payment) || 0, credit_limit: parseFloat(form.credit_limit) || 0,
     };
-    if (editId) {
-      const existingDebt = debts?.find((d: any) => d.id === editId);
-      const projectedBalance = existingDebt ? Number(existingDebt.balance) : balance;
-      const delta = balance - projectedBalance;
-      update.mutate({ id: editId, ...payload });
-      if (delta !== 0) {
-        addReconciliation.mutate({
-          account_id: editId,
-          source_table: 'debts',
-          effective_date: new Date().toISOString().split('T')[0],
-          delta,
-          actual_balance: balance,
-          projected_balance: projectedBalance,
-        });
-      }
-    } else {
-      add.mutate(payload);
+    if (!editId) return;
+    const existingDebt = debts?.find((d: any) => d.id === editId);
+    const projectedBalance = existingDebt ? Number(existingDebt.balance) : balance;
+    const delta = balance - projectedBalance;
+    update.mutate({ id: editId, ...payload });
+    if (delta !== 0) {
+      addReconciliation.mutate({
+        account_id: editId,
+        source_table: 'debts',
+        effective_date: new Date().toISOString().split('T')[0],
+        delta,
+        actual_balance: balance,
+        projected_balance: projectedBalance,
+      });
     }
     setShowForm(false);
   };
@@ -133,6 +127,7 @@ export default function DebtPayoff() {
 
   const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds as any[]), [carFunds]);
   const loanVehicles = useMemo(() => (carFunds as any[]).filter((c: any) => c.phase === 'loan'), [carFunds]);
+  const savingVehicles = useMemo(() => (carFunds as any[]).filter((c: any) => c.phase === 'saving'), [carFunds]);
 
   if (accountsLoading) return <PageSkeleton />;
 
@@ -157,17 +152,13 @@ export default function DebtPayoff() {
             { title: 'Overrides', body: 'Click any monthly payment to override the recommended amount. Use "Revert" to return to the calculated recommendation.' },
           ]} />
         </div>
-        {(activeTab === 'other' || activeTab === 'mortgage' || activeTab === 'student') && (
-          (isPremium || isDemo || otherDebts.length < 3) ? (
-            <button onClick={openAdd} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0" style={{ borderRadius: 'var(--radius)' }}>
-              <Plus size={12} /> Add Debt
-            </button>
-          ) : (
-            <Link to="/premium" className="flex items-center gap-1.5 bg-primary/20 text-primary px-3 py-1.5 text-xs font-medium btn-press hover:bg-primary/30 transition-colors shrink-0" style={{ borderRadius: 'var(--radius)' }}>
-              <Crown size={12} /> Add Debt
-            </Link>
-          )
-        )}
+        <Link
+          to="/accounts?new=1"
+          className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0"
+          style={{ borderRadius: 'var(--radius)' }}
+        >
+          <Plus size={12} /> Add Account
+        </Link>
       </div>
 
       {isDemo && (
@@ -206,11 +197,6 @@ export default function DebtPayoff() {
           style={{ borderRadius: 'var(--radius)' }}>
           <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{accounts?.filter((a: any) => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
         </button>
-        <button onClick={() => setActiveTab('other')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'other' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
-          style={{ borderRadius: 'var(--radius)' }}>
-          <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{otherDebts.length}</span>}
-        </button>
         <button onClick={() => setActiveTab('auto')}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'auto' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
           style={{ borderRadius: 'var(--radius)' }}>
@@ -225,6 +211,11 @@ export default function DebtPayoff() {
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'student' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{studentDebts.length}</span>}
+        </button>
+        <button onClick={() => setActiveTab('other')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'other' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{otherDebts.length}</span>}
         </button>
       </div>
 
@@ -291,7 +282,7 @@ export default function DebtPayoff() {
                 </div>
               );
             })}
-            {loanVehicles.length === 0 && (
+            {loanVehicles.length === 0 && savingVehicles.length === 0 && (
               <div className="card-forged p-12 text-center">
                 <Car size={28} className="text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No active auto loans.</p>
@@ -299,6 +290,48 @@ export default function DebtPayoff() {
               </div>
             )}
           </div>
+
+          {savingVehicles.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Planned Loans — Estimate</p>
+              {savingVehicles.map((cf: any) => {
+                const loanPrincipal = Math.max(0, Number(cf.target_price || 0) + Number(cf.tax_fees || 0) - Number(cf.down_payment_goal || 0));
+                const termMonths = Number(cf.loan_term_months) || 60;
+                const apr = Number(cf.expected_apr) || 0;
+                const payment = calculateScheduledPayment(loanPrincipal, apr, termMonths);
+                const totalInterest = payment * termMonths - loanPrincipal;
+                let payoffDesc = `~${termMonths} months after purchase`;
+                if (cf.planned_purchase_date) {
+                  const parts = (cf.planned_purchase_date as string).split('-').map(Number);
+                  const payoff = new Date(parts[0], parts[1] - 1 + termMonths, 1);
+                  payoffDesc = payoff.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                }
+                return (
+                  <div key={cf.id} className="card-forged p-4 border-dashed opacity-80">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Car size={15} className="text-muted-foreground shrink-0" />
+                        <div>
+                          <h3 className="text-sm font-semibold">{cf.vehicle_name}</h3>
+                          <p className="text-xs text-muted-foreground">{apr}% APR · {termMonths} mo loan · Saving phase</p>
+                        </div>
+                      </div>
+                      <p className="text-lg font-display font-bold text-muted-foreground">{formatCurrency(loanPrincipal, false)}</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                      <div><p className="text-xs text-muted-foreground">Est. Payment</p><p className="text-xs font-semibold text-primary">{formatCurrency(payment, false)}/mo</p></div>
+                      <div><p className="text-xs text-muted-foreground">Payoff Est.</p><p className="text-xs font-semibold">{payoffDesc}</p></div>
+                      <div><p className="text-xs text-muted-foreground">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(Math.max(0, totalInterest), false)}</p></div>
+                    </div>
+                    <Link to="/vehicles" className="mt-3 text-[10px] text-muted-foreground hover:text-primary underline-offset-2 hover:underline block">
+                      Edit on Vehicles page →
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <p className="text-xs text-muted-foreground">Auto loans are managed on the <Link to="/vehicles" className="text-primary hover:underline">Vehicles page</Link>. Monthly payments automatically flow into Forecast.</p>
         </div>
       )}
@@ -526,7 +559,7 @@ export default function DebtPayoff() {
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
           onClose={() => setShowForm(false)}
-          saving={add.isPending || update.isPending}
+          saving={update.isPending}
           saveLabel={editId ? 'Update Debt' : 'Add Debt'}
         />
       )}
