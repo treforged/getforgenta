@@ -116,11 +116,14 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
 
-  const bgAt           = useRef<number | null>(null);
-  const lastActivityAt = useRef<number>(Date.now());
-  const isLockedRef    = useRef(false);
+  const bgAt              = useRef<number | null>(null);
+  const lastActivityAt    = useRef<number>(Date.now());
+  const isLockedRef       = useRef(false);
+  const lockEnabledRef    = useRef(false);
+  const skipNextBgLock    = useRef(false);
 
-  useEffect(() => { isLockedRef.current = isLocked; }, [isLocked]);
+  useEffect(() => { isLockedRef.current    = isLocked;     }, [isLocked]);
+  useEffect(() => { lockEnabledRef.current = lockEnabled;  }, [lockEnabled]);
 
   // Initialize from persistent storage on mount
   useEffect(() => {
@@ -171,7 +174,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
     let listenerHandle: { remove: () => void } | null = null;
 
-    CapApp.addListener('appStateChange', async ({ isActive }) => {
+    CapApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) {
         bgAt.current = Date.now();
         return;
@@ -184,10 +187,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       const duration = Date.now() - backgroundedAt;
       if (duration < BG_LOCK_AFTER_MS) return;
 
-      const enabled = await pGet(P.enabled);
-      if (enabled !== '1') return;
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) setIsLocked(true);
+      if (skipNextBgLock.current) { skipNextBgLock.current = false; return; }
+      if (!lockEnabledRef.current || isLockedRef.current) return;
+      setIsLocked(true);
     }).then(h => {
       listenerHandle = h;
     });
@@ -203,6 +205,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
+        bgAt.current = null;           // cancel any background re-lock from OAuth browser return
+        skipNextBgLock.current = true; // suppress next background lock check
+        setTimeout(() => { skipNextBgLock.current = false; }, 2000);
         // Fresh Supabase auth clears the local lock
         setIsLocked(false);
         lastActivityAt.current = Date.now();
