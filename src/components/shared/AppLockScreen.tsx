@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Fingerprint, Delete, AlertTriangle } from 'lucide-react';
 import { useAppLock, MAX_FAILED_ATTEMPTS } from '@/hooks/useAppLock';
+import ForgentaLogo from '@/components/shared/ForgentaLogo';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -9,7 +10,7 @@ const PIN_LENGTH = 6;
 
 export default function AppLockScreen() {
   const {
-    isLocked, lockType, failedAttempts,
+    ready, isLocked, lockType, failedAttempts,
     unlockWithPin, unlockWithBiometric,
   } = useAppLock();
 
@@ -71,6 +72,27 @@ export default function AppLockScreen() {
     setSigningOut(true);
     await supabase.auth.signOut();
   };
+
+  // While lock context is initializing show a branded skeleton to prevent
+  // a flash of app content before the lock state is determined
+  if (!ready) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-6">
+        <div className="animate-pulse">
+          <ForgentaLogo size="lg" showWordmark={false} />
+        </div>
+        <div className="flex gap-1.5">
+          {[0, 1, 2].map(i => (
+            <span
+              key={i}
+              className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 animate-bounce"
+              style={{ animationDelay: `${i * 150}ms` }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!isLocked) return null;
 
