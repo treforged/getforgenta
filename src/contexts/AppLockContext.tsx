@@ -261,6 +261,19 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       setTimeout(() => { skipNextBgLock.current = false; }, 2000);
     }).then(h => { urlOpenHandle = h; });
 
+    // Check if AppDelegate wrote the phone-lock flag during background.
+    // Called on every foreground return where we haven't already triggered a lock.
+    // pGet reads from UserDefaults.standard (same store @capacitor/preferences uses).
+    const checkAndApplyPhoneLock = () => {
+      pGet('forged:phone_locked').then(async val => {
+        if (val !== '1') return;
+        await pDel('forged:phone_locked');
+        if (lockEnabledRef.current && !isLockedRef.current) {
+          setIsLocked(true);
+        }
+      });
+    };
+
     CapApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) {
         // Cancel any pending cover-dismiss timer before going to background.
@@ -281,6 +294,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       if (backgroundedAt === null) {
         // No recorded background timestamp — dismiss cover with a short buffer
         // so the WebView has time to repaint before we reveal content.
+        checkAndApplyPhoneLock();
         if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
         coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1500);
         return;
@@ -288,6 +302,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
       if (skipNextBgLock.current) {
         skipNextBgLock.current = false;
+        checkAndApplyPhoneLock();
         if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
         coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1500);
         return;
@@ -308,7 +323,10 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // No lock — dismiss cover after WebView finishes repainting
+      // No time-based lock — check if phone was locked while backgrounded
+      checkAndApplyPhoneLock();
+
+      // Dismiss cover after WebView finishes repainting
       if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
       coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1500);
     }).then(h => {
