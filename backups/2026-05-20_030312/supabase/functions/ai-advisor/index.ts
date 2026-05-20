@@ -50,47 +50,6 @@ interface ConversationTurn {
   nextMove: string;
 }
 
-interface CreditCardDetail {
-  name: string;
-  balance: number;
-  limit: number;
-  apr: number;
-  paymentPreference: string | null;
-}
-
-interface LoanDetail {
-  name: string;
-  type: string;
-  balance: number;
-  apr: number;
-  monthlyPayment: number;
-}
-
-interface InvestmentDetail {
-  name: string;
-  type: string;
-  balance: number;
-}
-
-interface CarFundDetail {
-  vehicleName: string;
-  phase: string;
-  loanAmount: number;
-  monthlyPayment: number;
-  apr: number;
-  loanTermMonths: number;
-  plannedPurchaseDate: string | null;
-  currentSaved?: number;
-  downPaymentGoal?: number;
-}
-
-interface RecurringObligation {
-  name: string;
-  amount: number;
-  frequency: string;
-  category: string;
-}
-
 interface FinancialSnapshot {
   monthlyIncome: number;
   monthlyExpenses: number;
@@ -103,11 +62,6 @@ interface FinancialSnapshot {
   topCategories: { category: string; amount: number }[];
   debtDetails: DebtDetail[];
   savingsGoals: SavingsGoalDetail[];
-  creditCards?: CreditCardDetail[];
-  loans?: LoanDetail[];
-  investments?: InvestmentDetail[];
-  carFunds?: CarFundDetail[];
-  recurringObligations?: RecurringObligation[];
   debtStrategy?: 'avalanche' | 'snowball';
   paymentMode?: 'variable' | 'consistent';
   question?: string;
@@ -166,47 +120,6 @@ function buildPrompt(body: FinancialSnapshot): string {
         .join("\n")
     : "  (no category data this month)";
 
-  const creditCardSection = (body.creditCards?.length ?? 0) > 0
-    ? body.creditCards!.map(c => {
-        const util = c.limit > 0 ? ` (${((c.balance / c.limit) * 100).toFixed(0)}% utilization)` : '';
-        const pref = c.paymentPreference === 'full' ? ', pay full balance' : c.paymentPreference === 'statement' ? ', pay statement balance' : '';
-        return `  - ${c.name}: $${c.balance.toFixed(0)} balance / $${c.limit.toFixed(0)} limit${util}, ${c.apr.toFixed(1)}% APR${pref}`;
-      }).join("\n")
-    : null;
-
-  const carFundSection = (body.carFunds?.length ?? 0) > 0
-    ? body.carFunds!.map(cf => {
-        if (cf.phase === 'loan') {
-          return `  - ${cf.vehicleName} (active loan): $${cf.loanAmount.toFixed(0)} balance, ${cf.apr.toFixed(1)}% APR, $${cf.monthlyPayment.toFixed(0)}/mo payment, ${cf.loanTermMonths} month term`;
-        }
-        const pct = cf.downPaymentGoal && cf.downPaymentGoal > 0 ? ` (${(((cf.currentSaved ?? 0) / cf.downPaymentGoal) * 100).toFixed(0)}% saved)` : '';
-        return `  - ${cf.vehicleName} (saving phase): $${(cf.currentSaved ?? 0).toFixed(0)} saved of $${(cf.downPaymentGoal ?? 0).toFixed(0)} down payment${pct}${cf.plannedPurchaseDate ? `, target ${cf.plannedPurchaseDate}` : ''}`;
-      }).join("\n")
-    : null;
-
-  const loanSection = (body.loans?.length ?? 0) > 0
-    ? body.loans!.map(l => {
-        const typeLabel = l.type === 'mortgage' ? 'Mortgage' : l.type === 'auto_loan' ? 'Auto Loan' : l.type === 'student_loan' ? 'Student Loan' : l.type === 'personal_loan' ? 'Personal Loan' : 'Loan';
-        return `  - ${l.name} (${typeLabel}): $${l.balance.toFixed(0)} balance${l.apr > 0 ? `, ${l.apr.toFixed(1)}% APR` : ''}${l.monthlyPayment > 0 ? `, $${l.monthlyPayment.toFixed(0)}/mo` : ''}`;
-      }).join("\n")
-    : null;
-
-  const investmentSection = (body.investments?.length ?? 0) > 0
-    ? body.investments!.map(inv => {
-        const typeLabel = inv.type === '401k' ? '401(k)' : inv.type === 'roth_ira' ? 'Roth IRA' : inv.type === 'ira' ? 'IRA' : inv.type === 'brokerage' ? 'Brokerage' : inv.type === 'hsa' ? 'HSA' : inv.type;
-        return `  - ${inv.name} (${typeLabel}): $${inv.balance.toFixed(0)}`;
-      }).join("\n")
-    : null;
-
-  const recurringSection = (body.recurringObligations?.length ?? 0) > 0
-    ? body.recurringObligations!
-        .filter(r => r.amount > 0)
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 10)
-        .map(r => `  - ${r.name}: $${r.amount.toFixed(0)} (${r.frequency}, ${r.category})`)
-        .join("\n")
-    : null;
-
   const debtPayments = body.monthlyDebtPayments ?? 0;
   const surplus = body.monthlyIncome - body.monthlyExpenses - debtPayments;
 
@@ -256,11 +169,7 @@ Cash Position
 - Checking / liquid cash: $${body.cashOnHand.toFixed(0)}
 - Savings account balance: $${body.savingsBalance.toFixed(0)}
 - Net worth: $${body.netWorth.toFixed(0)}
-${investmentSection ? `\nInvestment & Retirement Accounts\n${investmentSection}` : ''}
-${creditCardSection ? `\nCredit Cards (detail)\n${creditCardSection}` : ''}
-${loanSection ? `\nLoans & Mortgages\n${loanSection}` : ''}
-${carFundSection ? `\nVehicles / Car Funds\n${carFundSection}` : ''}
-${recurringSection ? `\nFixed Monthly Obligations\n${recurringSection}` : ''}
+
 Top Spending Categories This Month
 ${categorySection}
 
