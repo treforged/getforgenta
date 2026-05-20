@@ -10,7 +10,7 @@ const PIN_LENGTH = 6;
 
 export default function AppLockScreen() {
   const {
-    ready, isLocked, lockType, failedAttempts,
+    ready, isLocked, isCovering, lockType, failedAttempts,
     unlockWithPin, unlockWithBiometric,
   } = useAppLock();
 
@@ -97,6 +97,15 @@ export default function AppLockScreen() {
             />
           ))}
         </div>
+      </div>
+    );
+  }
+
+  // Brief cover hides WebView repaint flash on app resume (dismissed after 350ms)
+  if (isCovering && !isLocked) {
+    return (
+      <div className="fixed inset-0 z-[9998] bg-background flex items-center justify-center">
+        <ForgentaLogo size="lg" showWordmark={false} />
       </div>
     );
   }
