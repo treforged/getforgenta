@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
@@ -111,6 +112,7 @@ export default function Accounts() {
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const qc = useQueryClient();
+  const [searchParams] = useSearchParams();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -252,6 +254,10 @@ export default function Accounts() {
   }, [accounts, filterType]);
 
   const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
+
+  useEffect(() => {
+    if (searchParams.get('new') === '1') openAdd();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
   const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
   const [editingPlaidAprSynced, setEditingPlaidAprSynced] = useState(false);
