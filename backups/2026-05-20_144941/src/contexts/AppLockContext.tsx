@@ -189,15 +189,6 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     if (!isNative) { setReady(true); return; }
 
     async function init() {
-      // Set SYNCHRONOUSLY before the first await — Supabase fires SIGNED_IN as a
-      // macrotask after onAuthStateChange is registered (in the auth effect below).
-      // That macrotask can fire during any of our awaits here. By setting this now
-      // we ensure the SIGNED_IN handler treats the initial session-restore event as
-      // a no-op (not a fresh sign-in) regardless of lock state. Fresh sign-ins only
-      // happen AFTER init() completes (the user goes through the auth screen first),
-      // at which point this flag will already have been cleared.
-      skipLockClearOnSignIn.current = true;
-
       const [enabled, type] = await Promise.all([
         pGet(P.enabled),
         pGet(P.type),
@@ -208,18 +199,17 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       setLockEnabled(lockIsEnabled);
       setLockTypeState(lockTypeVal);
 
-      if (!lockIsEnabled) {
-        // No lock — session-restore SIGNED_IN can run normally on next sign-in.
-        skipLockClearOnSignIn.current = false;
-      } else {
+      if (lockIsEnabled) {
         const ts = localStorage.getItem(LS_UNLOCKED_AT);
         const withinGrace = !!ts && (Date.now() - parseInt(ts)) < INIT_GRACE_MS;
         if (!withinGrace) {
+          // Pre-set flag BEFORE getSession() — Supabase fires SIGNED_IN synchronously
+          // during session restore, which would otherwise call setIsLocked(false) and
+          // wipe out the lock we're about to set.
+          skipLockClearOnSignIn.current = true;
           const { data: { session } } = await supabase.auth.getSession();
-          if (!session) skipLockClearOnSignIn.current = false;
+          if (!session) skipLockClearOnSignIn.current = false; // no session → no lock
           setIsLocked(!!session);
-        } else {
-          skipLockClearOnSignIn.current = false; // within grace, no lock needed
         }
       }
 
@@ -252,11 +242,12 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     let listenerHandle: { remove: () => void } | null = null;
     let urlOpenHandle: { remove: () => void } | null = null;
 
-    // appUrlOpen fires when the app returns from an OAuth browser session (Google/Apple).
-    // Do NOT clear bgAt — let the normal foreground handler run with the real timestamp
-    // so the 1500ms cover timer fires (and gives the WebView time to repaint).
-    // Set skipNextBgLock so we skip the lock check on OAuth return.
+    // appUrlOpen fires when the app returns from an OAuth browser session.
+    // Clear the background timestamp here so the foreground handler doesn't
+    // trigger a lock, and set skipNextBgLock so the 1-second cover timer runs
+    // instead of a lock check. SIGNED_IN fires after this — we guard that separately.
     CapApp.addListener('appUrlOpen', () => {
+      bgAt.current = null;
       skipNextBgLock.current = true;
       setTimeout(() => { skipNextBgLock.current = false; }, 2000);
     }).then(h => { urlOpenHandle = h; });
@@ -278,13 +269,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       const backgroundedAt = bgAt.current;
       bgAt.current = null;
       lastActivityAt.current = Date.now();
-      if (backgroundedAt === null) {
-        // No recorded background timestamp — dismiss cover with a short buffer
-        // so the WebView has time to repaint before we reveal content.
-        if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
-        coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1500);
-        return;
-      }
+      if (backgroundedAt === null) { hideCoverDOM(); setIsCovering(false); return; }
 
       if (skipNextBgLock.current) {
         skipNextBgLock.current = false;
@@ -301,10 +286,8 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
       if (lockEnabledRef.current && !isLockedRef.current && (bgTooLong || screenLockish)) {
         setIsLocked(true);
-        // Hold DOM cover long enough for React to render the lock screen and for
-        // the WKWebView to repaint — 2 rAF (~33ms) was too short on second+ switches.
-        if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
-        coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1500);
+        // Hold DOM cover until the React lock screen has had 2 frames to paint
+        requestAnimationFrame(() => requestAnimationFrame(() => { hideCoverDOM(); setIsCovering(false); }));
         return;
       }
 
@@ -345,15 +328,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         }
       } else if (event === 'SIGNED_OUT') {
         skipLockClearOnSignIn.current = false;
-        // Wipe all lock data — the PIN belongs to this user's session.
-        // Covers both normal sign-out and "sign out everywhere".
-        await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted)]);
-        localStorage.removeItem(LS_UNLOCKED_AT);
-        localStorage.removeItem(LS_FAILED);
-        setLockEnabled(false);
-        lockEnabledRef.current = false;
         setIsLocked(false);
-        setFailedAttempts(0);
         setShowSetupModal(false);
         clearTimeout(setupTimer);
       }
