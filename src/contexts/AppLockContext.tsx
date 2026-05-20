@@ -16,7 +16,9 @@ const P = {
 const LS_UNLOCKED_AT = 'forged:lock_unlocked_at';
 const LS_FAILED      = 'forged:lock_failed';
 
-const BG_LOCK_AFTER_MS = 30_000; // lock after 30 s in background
+const INIT_GRACE_MS      = 3_000;           // prevents locking on React re-mounts right after unlock
+const BG_LOCK_AFTER_MS   = 0;               // lock immediately when app is backgrounded/closed
+const INACTIVITY_LOCK_MS = 5 * 60 * 1_000; // lock after 5 min of no user interaction
 export const MAX_FAILED_ATTEMPTS = 5;
 
 async function sha256(text: string): Promise<string> {
@@ -114,7 +116,11 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
 
-  const bgAt = useRef<number | null>(null);
+  const bgAt           = useRef<number | null>(null);
+  const lastActivityAt = useRef<number>(Date.now());
+  const isLockedRef    = useRef(false);
+
+  useEffect(() => { isLockedRef.current = isLocked; }, [isLocked]);
 
   // Initialize from persistent storage on mount
   useEffect(() => {
@@ -133,7 +139,8 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
       if (lockIsEnabled) {
         const ts = localStorage.getItem(LS_UNLOCKED_AT);
-        const withinGrace = !!ts && (Date.now() - parseInt(ts)) < BG_LOCK_AFTER_MS;
+        // Short grace window prevents locking on component re-mounts during sign-in flow
+        const withinGrace = !!ts && (Date.now() - parseInt(ts)) < INIT_GRACE_MS;
         if (!withinGrace) {
           // Only lock if the user has an active session — don't block the sign-in screen
           const { data: { session } } = await supabase.auth.getSession();
@@ -192,26 +199,56 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isNative) return;
 
+    let setupTimer: ReturnType<typeof setTimeout>;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_IN') {
-        // Fresh authentication always clears the local lock
+        // Fresh Supabase auth clears the local lock
         setIsLocked(false);
+        lastActivityAt.current = Date.now();
         localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
+        // Delay so the modal appears after navigation to dashboard, not on auth page
         const prompted = await pGet(P.setupPrompted);
-        if (!prompted) setShowSetupModal(true);
+        if (!prompted) {
+          setupTimer = setTimeout(() => setShowSetupModal(true), 800);
+        }
       } else if (event === 'SIGNED_OUT') {
-        // No session — lock screen has nothing to protect
         setIsLocked(false);
         setShowSetupModal(false);
+        clearTimeout(setupTimer);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => { subscription.unsubscribe(); clearTimeout(setupTimer); };
   }, [isNative]);
 
+  // Inactivity lock — reset on any user touch/click; check every 30 s
+  useEffect(() => {
+    if (!isNative || !lockEnabled) return;
+
+    const resetActivity = () => { lastActivityAt.current = Date.now(); };
+    const events = ['touchstart', 'touchmove', 'click'] as const;
+    events.forEach(e => window.addEventListener(e, resetActivity, { passive: true }));
+
+    const interval = setInterval(async () => {
+      if (isLockedRef.current) return;
+      const idle = Date.now() - lastActivityAt.current;
+      if (idle < INACTIVITY_LOCK_MS) return;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) setIsLocked(true);
+    }, 30_000);
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetActivity));
+      clearInterval(interval);
+    };
+  }, [isNative, lockEnabled]);
+
   const markUnlocked = useCallback(() => {
-    localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
+    const now = Date.now();
+    localStorage.setItem(LS_UNLOCKED_AT, String(now));
     localStorage.setItem(LS_FAILED, '0');
+    lastActivityAt.current = now;
     setFailedAttempts(0);
   }, []);
 
