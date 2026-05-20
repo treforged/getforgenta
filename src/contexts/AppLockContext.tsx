@@ -22,33 +22,43 @@ const IDLE_SCREEN_LOCK_MS  = 3 * 60 * 1_000; // if idle 3+ min before background
 const INACTIVITY_LOCK_MS   = 5 * 60 * 1_000; // lock after 5 min of no user interaction
 export const MAX_FAILED_ATTEMPTS = 5;
 
-// Synchronous DOM cover — shown/hidden directly so iOS captures it in the app snapshot
-// before React's setState batch can update the VDOM. Module-level so it persists across renders.
+// Synchronous DOM cover — lives in the GPU compositing layer at all times so that:
+// (a) iOS captures it in the WKWebView snapshot before React setState batches, and
+// (b) showing it on second+ switches is a pure compositor opacity update, not a
+//     layout/paint pass the suspending rendering process might miss.
+// NEVER set display:none — opacity:0 + pointer-events:none keeps the layer promoted.
 let _coverEl: HTMLDivElement | null = null;
+let _hideTimer: ReturnType<typeof setTimeout> | null = null;
 
-function showCoverDOM() {
-  if (!_coverEl) {
-    _coverEl = document.createElement('div');
-    _coverEl.style.cssText = [
-      'position:fixed', 'inset:0', 'z-index:99999',
-      'display:flex', 'align-items:center', 'justify-content:center',
-      'background-color:hsl(240,10%,3.9%)',
-      'opacity:1', 'transition:opacity 0.35s ease',
-    ].join(';');
-    const img = document.createElement('img');
-    img.src = '/logo.png';
-    img.style.cssText = 'width:88px;height:88px;object-fit:contain;';
-    _coverEl.appendChild(img);
-    document.body.appendChild(_coverEl);
-  } else {
-    // Cancel any in-progress fade-out and snap back to visible
-    _coverEl.style.transition = 'none';
-    _coverEl.style.opacity = '1';
-    _coverEl.style.display = 'flex';
-  }
+function initCoverDOM() {
+  if (_coverEl || typeof document === 'undefined') return;
+  _coverEl = document.createElement('div');
+  _coverEl.setAttribute('aria-hidden', 'true');
+  _coverEl.style.cssText = [
+    'position:fixed', 'inset:0', 'z-index:99999',
+    'display:flex', 'align-items:center', 'justify-content:center',
+    'background-color:hsl(240,10%,3.9%)',
+    'opacity:0', 'pointer-events:none',
+    'will-change:opacity', 'transform:translateZ(0)',
+  ].join(';');
+  const img = document.createElement('img');
+  img.src = '/logo.png';
+  img.style.cssText = 'width:88px;height:88px;object-fit:contain;';
+  _coverEl.appendChild(img);
+  document.body.appendChild(_coverEl);
 }
 
-let _hideTimer: ReturnType<typeof setTimeout> | null = null;
+function showCoverDOM() {
+  initCoverDOM();
+  if (!_coverEl) return;
+  if (_hideTimer) { clearTimeout(_hideTimer); _hideTimer = null; }
+  _coverEl.style.transition = 'none';
+  _coverEl.style.opacity = '1';
+  _coverEl.style.pointerEvents = 'auto';
+  // Force a synchronous layout flush so the GPU compositor captures opacity:1
+  // before this call stack returns (critical when WKWebView is about to suspend).
+  void _coverEl.offsetHeight;
+}
 
 function hideCoverDOM() {
   if (!_coverEl) return;
@@ -56,7 +66,7 @@ function hideCoverDOM() {
   _coverEl.style.transition = 'opacity 0.35s ease';
   _coverEl.style.opacity = '0';
   _hideTimer = setTimeout(() => {
-    if (_coverEl && _coverEl.style.opacity === '0') _coverEl.style.display = 'none';
+    if (_coverEl) _coverEl.style.pointerEvents = 'none';
     _hideTimer = null;
   }, 370);
 }
@@ -224,6 +234,11 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isNative || !ready) return;
 
+    // Pre-create and promote the cover element to the GPU compositor layer NOW,
+    // before any background/foreground events fire. Showing it later is then a
+    // pure compositor property change (opacity) with no layout or paint required.
+    initCoverDOM();
+
     let listenerHandle: { remove: () => void } | null = null;
     let urlOpenHandle: { remove: () => void } | null = null;
 
@@ -259,7 +274,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       if (skipNextBgLock.current) {
         skipNextBgLock.current = false;
         if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
-        coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1000);
+        coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1500);
         return;
       }
 
@@ -278,7 +293,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
       // No lock — dismiss cover after WebView finishes repainting
       if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
-      coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1000);
+      coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1500);
     }).then(h => {
       listenerHandle = h;
     });
