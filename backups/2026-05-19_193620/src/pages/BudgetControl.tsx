@@ -25,7 +25,7 @@ import { useTransactions } from '@/hooks/useSupabaseData';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
-  due_day: '1', due_month: '', category: 'Other', payment_source: '', deposit_account: '', notes: '', start_date: '', end_date: '',
+  due_day: '1', due_month: '', category: 'Other', payment_source: '', deposit_account: '', notes: '', start_date: '',
 };
 
 const DEFAULT_STARTER_RULES = [
@@ -148,7 +148,7 @@ export default function BudgetControl() {
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   // Dynamic paycheck deductions
-  const [deductions, setDeductions] = useState<PaycheckDeduction[]>([]);
+  const [deductions, setDeductions] = useState<PaycheckDeduction[]>(DEFAULT_DEDUCTIONS);
   const [showCatalog, setShowCatalog] = useState(false);
   const [deductionsCollapsed, setDeductionsCollapsed] = usePersistedState<boolean>('tre:budget:deductions-collapsed', false);
   const [incomeSectionCollapsed, setIncomeSectionCollapsed] = usePersistedState<boolean>('tre:budget:income-section-collapsed', false);
@@ -183,7 +183,7 @@ export default function BudgetControl() {
       } else {
         const migrated = migrateOldDeductions(profile);
         if (migrated) setDeductions(migrated);
-        // else keep empty — user adds deductions manually
+        // else keep DEFAULT_DEDUCTIONS
       }
       // Load the designated paycheck rule ID
       setPaycheckRuleId((profile as any).paycheck_rule_id ?? null);
@@ -256,21 +256,6 @@ export default function BudgetControl() {
                 due_day: pd,
               });
             }
-          } else if (wg > 0 && netPerPaycheck > 0) {
-            // No income rule exists yet — auto-create one from the entered gross income.
-            // The rule list invalidates after insert; the next doAutoSave will find and lock it in.
-            addRule.mutate({
-              name: 'Paycheck',
-              rule_type: 'income',
-              amount: Math.round(netPerPaycheck * 100) / 100,
-              frequency: pf,
-              due_day: pd,
-              active: true,
-              due_month: null,
-              payment_source: null,
-              deposit_account: null,
-              notes: '',
-            } as any);
           }
           // Sync savings goal monthly_contribution for any linked deduction
           deds.forEach(d => {
@@ -285,7 +270,7 @@ export default function BudgetControl() {
         onError: () => setAutoSaveStatus('idle'),
       });
     }, 800);
-  }, [isDemo, updateProfile, rules, addRule, updateRule, paycheckRuleId, setPaycheckRuleId, updateGoal]);
+  }, [isDemo, updateProfile, rules, updateRule, paycheckRuleId, setPaycheckRuleId, updateGoal]);
 
   const handleWeeklyGrossBlur = () => {
     const parsed = parseFloat(weeklyGrossInput);
@@ -597,7 +582,7 @@ export default function BudgetControl() {
       name: r.name, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
       payment_source: r.payment_source || '', deposit_account: r.deposit_account || '', notes: r.notes || '',
-      start_date: r.start_date || '', end_date: r.end_date || '',
+      start_date: r.start_date || '',
     });
     setEditId(r.id);
     setShowForm(true);
@@ -612,7 +597,6 @@ export default function BudgetControl() {
       category: form.category, payment_source: form.payment_source || null,
       deposit_account: form.deposit_account || null, notes: form.notes, active: true,
       start_date: form.start_date || null,
-      end_date: form.end_date || null,
     };
     if (editId) {
       updateRule.mutate({ id: editId, ...payload });
@@ -651,9 +635,10 @@ export default function BudgetControl() {
     }
     fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
     
-    fields.push({ key: 'start_date', label: 'Start Date (optional)', type: 'date' });
-    fields.push({ key: 'end_date', label: 'End Date (optional)', type: 'date' });
-
+    if (form.rule_type === 'transfer' || form.rule_type === 'investment') {
+      fields.push({ key: 'start_date', label: 'Start Date', type: 'date' });
+    }
+    
     if (form.rule_type === 'income') {
       fields.push({ key: 'deposit_account', label: 'Deposit Into', type: 'select', options: depositAccountOptions });
     } else if (form.rule_type === 'debt_payment' || form.rule_type === 'transfer' || form.rule_type === 'investment') {
@@ -672,7 +657,7 @@ export default function BudgetControl() {
       name: `${r.name} (Copy)`, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
       payment_source: r.payment_source || '', deposit_account: r.deposit_account || '', notes: r.notes || '',
-      start_date: r.start_date || '', end_date: r.end_date || '',
+      start_date: r.start_date || '',
     });
     setEditId(null);
     setShowForm(true);
@@ -807,7 +792,6 @@ export default function BudgetControl() {
       {freqLabel(r.frequency)} · Day {r.due_day}
       {r.due_month ? ` / Month ${r.due_month}` : ''}
       {r.start_date ? ` · Starts ${r.start_date}` : ''}
-      {r.end_date ? ` · Ends ${r.end_date}` : ''}
       {r.payment_source ? ` · From: ${getAccountName(r.payment_source)}` : ''}
       {r.deposit_account ? ` · To: ${getAccountName(r.deposit_account)}` : ''}
     </p>
@@ -1011,7 +995,7 @@ export default function BudgetControl() {
                         className="flex-1 min-w-0 bg-transparent text-xs font-semibold text-foreground outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors"
                       />
                     )}
-                    <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 p-1.5 -mr-1.5"><X size={14} /></button>
+                    <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 mt-0.5"><X size={11} /></button>
                   </div>
                   {/* Value input */}
                   <input

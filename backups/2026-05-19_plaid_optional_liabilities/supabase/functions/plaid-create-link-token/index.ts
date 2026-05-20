@@ -123,10 +123,8 @@ Deno.serve(async (req) => {
       linkTokenBody.access_token = plaidItem.access_token;
       linkTokenBody.additional_consented_products = ["liabilities"];
     } else {
-      // New link — transactions required; liabilities optional so institutions
-      // without liability accounts (checking-only banks, credit unions, etc.) still connect.
-      linkTokenBody.products = ["transactions"];
-      linkTokenBody.optional_products = ["liabilities"];
+      // New link — include transactions + liabilities products
+      linkTokenBody.products = ["transactions", "liabilities"];
     }
 
     const res = await fetch(`${plaidBase}/link/token/create`, {
