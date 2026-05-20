@@ -7,9 +7,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
-import { AppLockProvider } from "@/contexts/AppLockContext";
-import AppLockScreen from "@/components/shared/AppLockScreen";
-import AppLockSetupModal from "@/components/shared/AppLockSetupModal";
 import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
@@ -221,14 +218,10 @@ const App = () => (
         <MemoryRouter initialEntries={['/auth']}>
           <DemoProvider>
           <AuthProvider>
-            <AppLockProvider>
-              <SubscriptionProvider>
-                <DeepLinkHandler />
-                <AppRoutes />
-                <AppLockScreen />
-                <AppLockSetupModal />
-              </SubscriptionProvider>
-            </AppLockProvider>
+            <SubscriptionProvider>
+              <DeepLinkHandler />
+              <AppRoutes />
+            </SubscriptionProvider>
           </AuthProvider>
           </DemoProvider>
         </MemoryRouter>
