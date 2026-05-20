@@ -67,9 +67,10 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                   value={values[f.key] || ''}
                   onChange={e => onChange(f.key, e.target.value)}
                   disabled={f.disabled}
-                  className={`w-full mt-1 bg-secondary border border-border px-3 py-3 text-sm text-foreground ${f.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`w-full mt-1 bg-secondary border border-border px-3 py-3 text-sm ${!values[f.key] ? 'text-muted-foreground' : 'text-foreground'} ${f.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{ borderRadius: 'var(--radius)' }}
                 >
+                  {f.required && <option value="" disabled>{f.placeholder || 'Select…'}</option>}
                   {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               ) : (
