@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
-import { useTransactions, useDebts, useSavingsGoals, useAccounts, useRecurringRules, useCarFunds } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useAccounts, useRecurringRules } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions } from '@/lib/pay-schedule';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/lib/supabase';
@@ -571,12 +571,11 @@ export default function AiAdvisor() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
-  const { data: rawTxns = [] }  = useTransactions();
-  const { data: rules = [] }    = useRecurringRules();
-  const { data: debts = [] }    = useDebts();
-  const { data: goals = [] }    = useSavingsGoals();
+  const { data: rawTxns = [] } = useTransactions();
+  const { data: rules = [] }   = useRecurringRules();
+  const { data: debts = [] }   = useDebts();
+  const { data: goals = [] }   = useSavingsGoals();
   const { data: accounts = [] } = useAccounts();
-  const { data: carFunds = [] } = useCarFunds();
 
   const allTxns = useMemo(
     () => mergeWithGeneratedTransactions(rawTxns, rules, accounts),
@@ -634,57 +633,18 @@ export default function AiAdvisor() {
       .filter((t: any) => t.type === 'expense' && t.category !== 'Balance Adjustment' && !isDebtTx(t))
       .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
 
-    const activeAccounts = accounts.filter((a: any) => a.active !== false);
+    const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance ?? 0), 0);
 
-    // Credit cards from accounts table
-    const creditCards = activeAccounts
-      .filter((a: any) => a.account_type === 'credit_card')
-      .map((a: any) => ({
-        name: String(a.name ?? 'Credit Card'),
-        balance: Number(a.balance ?? 0),
-        limit: Number(a.credit_limit ?? 0),
-        apr: Number(a.apr ?? 0),
-        paymentPreference: (a as any).payment_preference ?? null,
-      }));
-
-    const ccDebt = creditCards.reduce((s: number, c) => s + c.balance, 0);
-
-    // Loan accounts (mortgage, auto, etc.)
-    const LOAN_TYPES = ['loan', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
-    const loans = activeAccounts
-      .filter((a: any) => LOAN_TYPES.includes(a.account_type))
-      .map((a: any) => ({
-        name: String(a.name ?? 'Loan'),
-        type: String(a.account_type ?? 'loan'),
-        balance: Number(a.balance ?? 0),
-        apr: Number(a.apr ?? 0),
-        monthlyPayment: Number((a as any).monthly_payment ?? 0),
-      }));
-
-    // Investment & retirement accounts
-    const INVESTMENT_TYPES = ['brokerage', '401k', 'roth_ira', 'ira', 'hsa', 'crypto'];
-    const investments = activeAccounts
-      .filter((a: any) => INVESTMENT_TYPES.includes(a.account_type))
-      .map((a: any) => ({
-        name: String(a.name ?? 'Investment'),
-        type: String(a.account_type ?? 'investment'),
-        balance: Number(a.balance ?? 0),
-      }));
-
-    // Total debt = structured debts + credit card balances
-    const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance ?? 0), 0) + ccDebt;
-
-    const savingsBalance = activeAccounts
+    const savingsBalance = accounts
       .filter((a: any) => ['savings', 'high_yield_savings'].includes(a.account_type))
       .reduce((s: number, a: any) => s + Number(a.balance ?? 0), 0);
 
-    const cashOnHand = activeAccounts
+    const cashOnHand = accounts
       .filter((a: any) => ['checking', 'cash'].includes(a.account_type))
       .reduce((s: number, a: any) => s + Number(a.balance ?? 0), 0);
 
-    const LIABILITY_TYPES = ['credit_card', 'loan', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
-    const totalAssets = activeAccounts
-      .filter((a: any) => !LIABILITY_TYPES.includes(a.account_type))
+    const totalAssets = accounts
+      .filter((a: any) => !['credit_card', 'loan'].includes(a.account_type))
       .reduce((s: number, a: any) => s + Number(a.balance ?? 0), 0);
     const netWorth = totalAssets - totalDebt;
 
@@ -728,37 +688,8 @@ export default function AiAdvisor() {
       targetDate: g.target_date ?? null,
     }));
 
-    const carFundDetails = (carFunds as any[]).map((cf: any) => ({
-      vehicleName: String(cf.vehicle_name ?? 'Vehicle'),
-      phase: String(cf.phase ?? 'saving'),
-      loanAmount: Number(cf.loan_amount ?? 0),
-      monthlyPayment: Number(cf.actual_monthly_payment ?? 0),
-      apr: Number(cf.expected_apr ?? 0),
-      loanTermMonths: Number(cf.loan_term_months ?? 60),
-      plannedPurchaseDate: cf.planned_purchase_date ?? null,
-      currentSaved: Number(cf.current_saved ?? 0),
-      downPaymentGoal: Number(cf.down_payment_goal ?? 0),
-    }));
-
-    // Recurring expense obligations for context
-    const recurringObligations = (rules as any[])
-      .filter((r: any) => r.active && r.rule_type === 'expense')
-      .map((r: any) => ({
-        name: String(r.name ?? 'Unknown'),
-        amount: Number(r.amount ?? 0),
-        frequency: String(r.frequency ?? 'monthly'),
-        category: String(r.category ?? 'Other'),
-      }));
-
-    return {
-      monthlyIncome, monthlyExpenses, monthlyDebtPayments, totalDebt,
-      savingsBalance, cashOnHand, netWorth, savingsRate,
-      topCategories, debtDetails, savingsGoals,
-      creditCards, loans, investments,
-      carFunds: carFundDetails,
-      recurringObligations,
-    };
-  }, [allTxns, debts, goals, accounts, carFunds, rules]);
+    return { monthlyIncome, monthlyExpenses, monthlyDebtPayments, totalDebt, savingsBalance, cashOnHand, netWorth, savingsRate, topCategories, debtDetails, savingsGoals };
+  }, [allTxns, debts, goals, accounts]);
 
   // Make this page fill the layout's content area exactly so only the
   // chat thread scrolls — not the outer main element.
@@ -1285,6 +1216,23 @@ export default function AiAdvisor() {
           <div ref={bottomRef} />
         </div>
 
+        {/* Quick chips — shown after first response */}
+        {activeEntries.length > 0 && !loading && (
+          <div className="px-4 lg:px-6 pt-2 pb-1 flex flex-wrap gap-1.5 border-t border-border/20 shrink-0 overflow-x-hidden">
+            {QUICK_QUESTIONS.map(q => (
+              <button
+                key={q}
+                onClick={() => handleAsk(q)}
+                disabled={blocked}
+                className="text-xs px-2.5 py-1 bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press disabled:opacity-40 whitespace-nowrap"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* ── Input bar ── */}
         <div
           className="px-4 pt-3 border-t border-border/40 shrink-0"
@@ -1293,7 +1241,7 @@ export default function AiAdvisor() {
           <div className="flex gap-2">
             <textarea
               ref={inputRef}
-              rows={2}
+              rows={1}
               value={question}
               onChange={e => {
                 setQuestion(e.target.value);
@@ -1308,7 +1256,7 @@ export default function AiAdvisor() {
               }}
               placeholder={atLimit ? `Daily limit reached (${limitDay}/day) — resets midnight UTC` : (activeEntries.length > 0 ? 'Ask a follow-up…' : 'Ask anything about your finances…')}
               maxLength={500}
-              className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50 min-w-0 resize-none overflow-y-auto leading-snug"
+              className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50 min-w-0 resize-none overflow-hidden leading-snug"
               style={{ borderRadius: 'var(--radius)' }}
               disabled={blocked}
             />
