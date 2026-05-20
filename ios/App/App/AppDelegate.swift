@@ -7,14 +7,46 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
 
+    // Native privacy cover — lives above WKWebView in the UIWindow hierarchy.
+    // Shown synchronously in applicationWillResignActive (before iOS screenshots
+    // the app for the switcher and before the rendering process suspends).
+    // Hidden 2 s after applicationDidBecomeActive to give WKWebView time to repaint.
+    private var nativeCover: UIView?
+    private var nativeCoverHideTimer: Timer?
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Notify JS layer when the device screen is locked (power button).
+        // UIApplication.protectedDataWillBecomeUnavailableNotification fires on lock;
+        // regular app-switching does NOT trigger it. JS reads and clears the flag on
+        // the next foreground return to decide whether to lock the app.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handlePhoneLocked),
+            name: UIApplication.protectedDataWillBecomeUnavailableNotification,
+            object: nil
+        )
         return true
     }
 
-    func applicationWillResignActive(_ application: UIApplication) {}
+    // Called immediately when the app loses foreground (before it actually backgrounds).
+    // Fires for: app switches, Control Center, Notification Center, incoming calls,
+    // ASWebAuthenticationSession sheets, and any system overlay.
+    func applicationWillResignActive(_ application: UIApplication) {
+        // Cancel any pending hide — a new resignation always forces the cover back.
+        nativeCoverHideTimer?.invalidate()
+        nativeCoverHideTimer = nil
+        showNativeCover()
+    }
+
     func applicationDidEnterBackground(_ application: UIApplication) {}
+
     func applicationWillEnterForeground(_ application: UIApplication) {}
-    func applicationDidBecomeActive(_ application: UIApplication) {}
+
+    // Called when the app returns to full foreground after any resignation.
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        scheduleNativeCoverDismiss()
+    }
+
     func applicationWillTerminate(_ application: UIApplication) {}
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
@@ -23,6 +55,72 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, continue userActivity: NSUserActivity, restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void) -> Bool {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
+    }
+
+    // MARK: - Native Cover
+
+    private func showNativeCover() {
+        guard let window = keyWindow() else { return }
+        // If cover already exists, bring it to front (handles rapid resign/active cycles).
+        if let existing = nativeCover {
+            existing.alpha = 1
+            window.bringSubviewToFront(existing)
+            return
+        }
+        let cover = UIView(frame: window.bounds)
+        // Match app background: hsl(240,10%,3.9%) ≈ #09090b
+        cover.backgroundColor = UIColor(red: 9/255, green: 9/255, blue: 11/255, alpha: 1)
+        cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        // Add app icon centered in the cover (UIImage(named:"AppIcon") resolves from appiconset)
+        if let logoImage = UIImage(named: "AppIcon") {
+            let logoView = UIImageView(image: logoImage)
+            logoView.contentMode = .scaleAspectFit
+            logoView.frame = CGRect(x: 0, y: 0, width: 88, height: 88)
+            logoView.center = CGPoint(x: cover.bounds.midX, y: cover.bounds.midY)
+            logoView.layer.cornerRadius = 20
+            logoView.layer.masksToBounds = true
+            logoView.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin,
+                                         .flexibleTopMargin, .flexibleBottomMargin]
+            cover.addSubview(logoView)
+        }
+        window.addSubview(cover)
+        nativeCover = cover
+    }
+
+    private func scheduleNativeCoverDismiss() {
+        nativeCoverHideTimer?.invalidate()
+        nativeCoverHideTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: false) { [weak self] _ in
+            self?.hideNativeCover()
+        }
+    }
+
+    private func hideNativeCover() {
+        guard let cover = nativeCover else { return }
+        nativeCoverHideTimer?.invalidate()
+        nativeCoverHideTimer = nil
+        UIView.animate(withDuration: 0.35, animations: {
+            cover.alpha = 0
+        }, completion: { [weak self] _ in
+            cover.removeFromSuperview()
+            self?.nativeCover = nil
+        })
+    }
+
+    private func keyWindow() -> UIWindow? {
+        return UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })
+    }
+
+    // MARK: - Phone Lock Detection
+
+    @objc private func handlePhoneLocked() {
+        // Write flag for JS layer — @capacitor/preferences uses UserDefaults.standard
+        // under the hood with the key stored verbatim, so pGet('forged:phone_locked')
+        // in AppLockContext.tsx reads this value directly.
+        UserDefaults.standard.set("1", forKey: "forged:phone_locked")
+        UserDefaults.standard.synchronize()
     }
 }
 
