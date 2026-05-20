@@ -1840,7 +1840,7 @@ export default function Forecast() {
               {chartMode === 'combo' ? (
                 <ComposedChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tick={{ ...tickStyle, textAnchor: 'end' }} angle={-45} height={50} interval={xInterval} />
+                  <XAxis dataKey="month" tick={tickStyle} interval={xInterval} />
                   <YAxis tick={tickStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip content={<ForecastTooltip />} />
                   <Legend onClick={e => toggleSeries(e.dataKey as string)} formatter={(value, entry) => (
@@ -1855,7 +1855,7 @@ export default function Forecast() {
               ) : (
                 <LineChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
-                  <XAxis dataKey="month" tick={{ ...tickStyle, textAnchor: 'end' }} angle={-45} height={50} interval={xInterval} />
+                  <XAxis dataKey="month" tick={tickStyle} interval={xInterval} />
                   <YAxis tick={tickStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
                   <Tooltip content={<ForecastTooltip />} />
                   <Legend onClick={e => toggleSeries(e.dataKey as string)} formatter={(value, entry) => (

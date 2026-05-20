@@ -17,7 +17,7 @@ const LS_UNLOCKED_AT = 'forged:lock_unlocked_at';
 const LS_FAILED      = 'forged:lock_failed';
 
 const INIT_GRACE_MS      = 3_000;           // prevents locking on React re-mounts right after unlock
-const BG_LOCK_AFTER_MS   = 30_000;          // lock after 30s in background (not on brief switches)
+const BG_LOCK_AFTER_MS   = 0;               // lock immediately when app is backgrounded/closed
 const INACTIVITY_LOCK_MS = 5 * 60 * 1_000; // lock after 5 min of no user interaction
 export const MAX_FAILED_ATTEMPTS = 5;
 
