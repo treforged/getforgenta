@@ -25,7 +25,7 @@ import { useTransactions } from '@/hooks/useSupabaseData';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
-  due_day: '1', due_month: '', category: 'Other', payment_source: '', deposit_account: '', notes: '', start_date: '', end_date: '',
+  due_day: '1', due_month: '', category: 'Other', payment_source: '', deposit_account: '', notes: '', start_date: '',
 };
 
 const DEFAULT_STARTER_RULES = [
@@ -597,7 +597,7 @@ export default function BudgetControl() {
       name: r.name, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
       payment_source: r.payment_source || '', deposit_account: r.deposit_account || '', notes: r.notes || '',
-      start_date: r.start_date || '', end_date: r.end_date || '',
+      start_date: r.start_date || '',
     });
     setEditId(r.id);
     setShowForm(true);
@@ -612,7 +612,6 @@ export default function BudgetControl() {
       category: form.category, payment_source: form.payment_source || null,
       deposit_account: form.deposit_account || null, notes: form.notes, active: true,
       start_date: form.start_date || null,
-      end_date: form.end_date || null,
     };
     if (editId) {
       updateRule.mutate({ id: editId, ...payload });
@@ -651,9 +650,10 @@ export default function BudgetControl() {
     }
     fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
     
-    fields.push({ key: 'start_date', label: 'Start Date (optional)', type: 'date' });
-    fields.push({ key: 'end_date', label: 'End Date (optional)', type: 'date' });
-
+    if (form.rule_type === 'transfer' || form.rule_type === 'investment') {
+      fields.push({ key: 'start_date', label: 'Start Date', type: 'date' });
+    }
+    
     if (form.rule_type === 'income') {
       fields.push({ key: 'deposit_account', label: 'Deposit Into', type: 'select', options: depositAccountOptions });
     } else if (form.rule_type === 'debt_payment' || form.rule_type === 'transfer' || form.rule_type === 'investment') {
@@ -672,7 +672,7 @@ export default function BudgetControl() {
       name: `${r.name} (Copy)`, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
       payment_source: r.payment_source || '', deposit_account: r.deposit_account || '', notes: r.notes || '',
-      start_date: r.start_date || '', end_date: r.end_date || '',
+      start_date: r.start_date || '',
     });
     setEditId(null);
     setShowForm(true);
@@ -807,7 +807,6 @@ export default function BudgetControl() {
       {freqLabel(r.frequency)} · Day {r.due_day}
       {r.due_month ? ` / Month ${r.due_month}` : ''}
       {r.start_date ? ` · Starts ${r.start_date}` : ''}
-      {r.end_date ? ` · Ends ${r.end_date}` : ''}
       {r.payment_source ? ` · From: ${getAccountName(r.payment_source)}` : ''}
       {r.deposit_account ? ` · To: ${getAccountName(r.deposit_account)}` : ''}
     </p>
