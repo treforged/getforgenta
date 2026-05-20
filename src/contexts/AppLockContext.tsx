@@ -16,9 +16,10 @@ const P = {
 const LS_UNLOCKED_AT = 'forged:lock_unlocked_at';
 const LS_FAILED      = 'forged:lock_failed';
 
-const INIT_GRACE_MS      = 3_000;           // prevents locking on React re-mounts right after unlock
-const BG_LOCK_AFTER_MS   = 30_000;          // lock after 30s in background (not on brief switches)
-const INACTIVITY_LOCK_MS = 5 * 60 * 1_000; // lock after 5 min of no user interaction
+const INIT_GRACE_MS        = 3_000;
+const BG_LOCK_AFTER_MS     = 5 * 60 * 1_000; // lock after 5 min in background (matches inactivity)
+const IDLE_SCREEN_LOCK_MS  = 3 * 60 * 1_000; // if idle 3+ min before backgrounding, lock immediately on return
+const INACTIVITY_LOCK_MS   = 5 * 60 * 1_000; // lock after 5 min of no user interaction
 export const MAX_FAILED_ATTEMPTS = 5;
 
 // Synchronous DOM cover — shown/hidden directly so iOS captures it in the app snapshot
@@ -31,20 +32,33 @@ function showCoverDOM() {
     _coverEl.style.cssText = [
       'position:fixed', 'inset:0', 'z-index:99999',
       'display:flex', 'align-items:center', 'justify-content:center',
-      'background-color:hsl(240,10%,3.9%)', // zinc-950 — matches dark bg-background
+      'background-color:hsl(240,10%,3.9%)',
+      'opacity:1', 'transition:opacity 0.35s ease',
     ].join(';');
     const img = document.createElement('img');
     img.src = '/logo.png';
-    img.style.cssText = 'width:80px;height:80px;object-fit:contain;';
+    img.style.cssText = 'width:88px;height:88px;object-fit:contain;';
     _coverEl.appendChild(img);
     document.body.appendChild(_coverEl);
   } else {
+    // Cancel any in-progress fade-out and snap back to visible
+    _coverEl.style.transition = 'none';
+    _coverEl.style.opacity = '1';
     _coverEl.style.display = 'flex';
   }
 }
 
+let _hideTimer: ReturnType<typeof setTimeout> | null = null;
+
 function hideCoverDOM() {
-  if (_coverEl) _coverEl.style.display = 'none';
+  if (!_coverEl) return;
+  if (_hideTimer) clearTimeout(_hideTimer);
+  _coverEl.style.transition = 'opacity 0.35s ease';
+  _coverEl.style.opacity = '0';
+  _hideTimer = setTimeout(() => {
+    if (_coverEl && _coverEl.style.opacity === '0') _coverEl.style.display = 'none';
+    _hideTimer = null;
+  }, 370);
 }
 
 async function sha256(text: string): Promise<string> {
@@ -146,6 +160,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const [failedAttempts, setFailedAttempts] = useState(0);
 
   const bgAt              = useRef<number | null>(null);
+  const idleAtBgRef       = useRef<number>(0);   // idle ms when app was last backgrounded
   const lastActivityAt    = useRef<number>(Date.now());
   const isLockedRef       = useRef(false);
   const lockEnabledRef    = useRef(false);
@@ -206,30 +221,42 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
     CapApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) {
+        idleAtBgRef.current = Date.now() - lastActivityAt.current;
         bgAt.current = Date.now();
-        showCoverDOM(); // synchronous — DOM updated before iOS takes the app snapshot
+        showCoverDOM(); // synchronous DOM write — cover in place before iOS snapshots
         setIsCovering(true);
         return;
       }
+
       // App came to foreground
       const backgroundedAt = bgAt.current;
       bgAt.current = null;
-      lastActivityAt.current = Date.now(); // reset inactivity on resume
+      lastActivityAt.current = Date.now();
       if (backgroundedAt === null) { hideCoverDOM(); setIsCovering(false); return; }
 
-      const duration = Date.now() - backgroundedAt;
-      if (duration < BG_LOCK_AFTER_MS) {
-        // Brief switch — hold cover until WebView repaints, then dismiss both layers
+      if (skipNextBgLock.current) {
+        skipNextBgLock.current = false;
         if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
-        coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 800);
+        coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1000);
         return;
       }
 
-      if (skipNextBgLock.current) { skipNextBgLock.current = false; hideCoverDOM(); setIsCovering(false); return; }
-      if (!lockEnabledRef.current || isLockedRef.current) { hideCoverDOM(); setIsCovering(false); return; }
-      // Lock needed — keep DOM cover up until React lock screen has painted, then remove
-      setIsLocked(true);
-      requestAnimationFrame(() => requestAnimationFrame(() => { hideCoverDOM(); setIsCovering(false); }));
+      const duration = Date.now() - backgroundedAt;
+      // Lock if: 5+ min in background, OR user was already idle 3+ min when they backgrounded
+      // (the latter approximates "screen lock" — user was done with app before locking phone)
+      const bgTooLong     = duration >= BG_LOCK_AFTER_MS;
+      const screenLockish = idleAtBgRef.current >= IDLE_SCREEN_LOCK_MS && duration >= 5_000;
+
+      if (lockEnabledRef.current && !isLockedRef.current && (bgTooLong || screenLockish)) {
+        setIsLocked(true);
+        // Hold DOM cover until the React lock screen has had 2 frames to paint
+        requestAnimationFrame(() => requestAnimationFrame(() => { hideCoverDOM(); setIsCovering(false); }));
+        return;
+      }
+
+      // No lock — dismiss cover after WebView finishes repainting
+      if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
+      coverTimerRef.current = setTimeout(() => { hideCoverDOM(); setIsCovering(false); }, 1000);
     }).then(h => {
       listenerHandle = h;
     });
