@@ -101,7 +101,7 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
   return { text: `Updated ${lastSync.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: missedSync };
 }
 
-const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '', apr_start_date: '' };
+const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '', apr_start_date: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 export default function Accounts() {
@@ -253,10 +253,10 @@ export default function Accounts() {
     return accounts;
   }, [accounts, filterType]);
 
-  const openAdd = () => { setForm(emptyForm); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
+  const openAdd = (preType?: string) => { setForm({ ...emptyForm, account_type: preType ?? '' }); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
 
   useEffect(() => {
-    if (searchParams.get('new') === '1') openAdd();
+    if (searchParams.get('new') === '1') openAdd(searchParams.get('type') ?? undefined);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
   const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
@@ -514,7 +514,7 @@ export default function Accounts() {
           </div>
           <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>
         </div>
-        <button onClick={openAdd} className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
+        <button onClick={() => openAdd()} className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
           <Plus size={14} /> Add Account
         </button>
       </div>
@@ -858,7 +858,7 @@ export default function Accounts() {
           title={editId ? 'Edit Account' : 'Add Account'}
           fields={[
             { key: 'name', label: 'Account Name', type: 'text', placeholder: 'e.g., Chase Checking', required: true, disabled: editingPlaidLinked },
-            { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES },
+            { key: 'account_type', label: 'Account Type', type: 'select', options: ACCOUNT_TYPES, required: true, placeholder: 'Select account type…' },
             { key: 'institution', label: 'Institution', type: 'text', placeholder: 'e.g., Chase, Fidelity', disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Managed by Plaid' : undefined },
             { key: 'balance', label: 'Current Balance', type: 'number' as const, placeholder: '0.00', step: '0.01', required: true, disabled: editingPlaidLinked, hint: editingPlaidLinked ? 'Balance is managed by Plaid auto-sync' : undefined },
             ...(form.account_type === 'credit_card' ? [

@@ -153,7 +153,13 @@ export default function DebtPayoff() {
           ]} />
         </div>
         <Link
-          to="/accounts?new=1"
+          to={`/accounts?new=1&type=${
+            activeTab === 'cards' ? 'credit_card'
+            : activeTab === 'auto' ? 'auto_loan'
+            : activeTab === 'mortgage' ? 'mortgage'
+            : activeTab === 'student' ? 'student_loan'
+            : 'other_liability'
+          }`}
           className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press shrink-0"
           style={{ borderRadius: 'var(--radius)' }}
         >
