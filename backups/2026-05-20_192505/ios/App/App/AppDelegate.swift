@@ -60,25 +60,20 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         if oAuthSessionPending {
             oAuthSessionPending = false
-            // Reload so React picks up the new session from storage cleanly.
-            debugLog("COVER_BRANCH:oauth → reload + poll 25")
-            reloadThenPoll(maxAttempts: 25)
+            debugLog("COVER_BRANCH:oauth → schedule 2.0s")
+            scheduleNativeCoverDismiss(after: 2.0)
 
         } else if !didEnterBackground {
             debugLog("COVER_BRANCH:brief → schedule 0.3s")
             scheduleNativeCoverDismiss(after: 0.3)
 
         } else if webViewProcessTerminated {
-            // webViewWebContentProcessDidTerminate already called webView.reload().
-            debugLog("COVER_BRANCH:wv_killed → poll 50")
+            debugLog("COVER_BRANCH:poll_reload maxAttempts=50")
             pollWebViewReady(maxAttempts: 50)
 
         } else {
-            // Full background: iOS may have reclaimed the WKWebView backing store.
-            // document.readyState still returns 'complete' in that state, so polling
-            // alone can't detect it. Always reload to guarantee fresh visual output.
-            debugLog("COVER_BRANCH:bg_reload → reload + poll 30")
-            reloadThenPoll(maxAttempts: 30)
+            debugLog("COVER_BRANCH:poll_normal maxAttempts=20")
+            pollWebViewReady(maxAttempts: 20)
         }
     }
 
@@ -198,29 +193,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return vc.bridge?.webView
     }
 
-    private func reloadThenPoll(maxAttempts: Int) {
-        guard let webView = webViewForPolling() else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.pollWebViewReady(maxAttempts: maxAttempts)
-            }
-            return
-        }
-        debugLog("RELOAD_TRIGGERED")
-        webView.reload()
-        // Wait for reload to start before polling readyState.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.pollWebViewReady(maxAttempts: maxAttempts)
-        }
-    }
-
     // MARK: - Debug Logging
 
     private func debugLog(_ event: String) {
         let ts = Int(Date().timeIntervalSince1970 * 1000)
         let entry = "\(ts)|\(event)"
-        // Capacitor Preferences plugin prefixes all keys with "CapacitorStorage."
-        // so Swift must use the same prefix for the JS debug panel to read the log.
-        let key = "CapacitorStorage.forged:debug_log"
+        let key = "forged:debug_log"
         let existing = UserDefaults.standard.string(forKey: key) ?? ""
         var lines = existing.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
         if lines.count >= 200 { lines = Array(lines.suffix(199)) }
