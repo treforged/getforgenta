@@ -19,6 +19,7 @@ export default function AppLockScreen() {
   const [checking, setChecking] = useState(false);
   const [showPinFallback, setShowPinFallback] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [startupDone, setStartupDone] = useState(false);
 
   const activeType = showPinFallback ? 'pin' : lockType;
   const tooManyAttempts = failedAttempts >= MAX_FAILED_ATTEMPTS;
@@ -28,6 +29,12 @@ export default function AppLockScreen() {
     const ok = await unlockWithBiometric();
     if (!ok) toast.error('Biometric authentication failed — use your PIN instead');
   }, [lockType, unlockWithBiometric]);
+
+  // Enforce 2-second minimum startup splash on mount (resets if WebView is killed and reloaded)
+  useEffect(() => {
+    const t = setTimeout(() => setStartupDone(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
 
   // Auto-trigger biometric on mount / when lock screen appears
   useEffect(() => {
@@ -75,7 +82,7 @@ export default function AppLockScreen() {
 
   // While lock context is initializing show a branded skeleton to prevent
   // a flash of app content before the lock state is determined
-  if (!ready) {
+  if (!ready || !startupDone) {
     return (
       <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-6">
         <div className="animate-pulse">

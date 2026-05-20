@@ -194,7 +194,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       if (duration < BG_LOCK_AFTER_MS) {
         // Brief switch — dismiss cover after WebView repaints
         if (coverTimerRef.current) clearTimeout(coverTimerRef.current);
-        coverTimerRef.current = setTimeout(() => setIsCovering(false), 350);
+        coverTimerRef.current = setTimeout(() => setIsCovering(false), 800);
         return;
       }
 
