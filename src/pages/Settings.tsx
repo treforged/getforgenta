@@ -832,60 +832,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Income & Paycheck */}
-      <div className="card-forged p-5 space-y-4">
-        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Income & Paycheck</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs text-muted-foreground uppercase">Weekly Gross Income</label>
-            <input type="number" value={weeklyGrossIncome} onChange={e => { setWeeklyGrossIncome(e.target.value); markDirty(); }}
-              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground uppercase">Tax Rate %</label>
-            <input type="number" value={taxRate} onChange={e => { setTaxRate(e.target.value); markDirty(); }}
-              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground uppercase">Pay Frequency</label>
-            <select value={paycheckFrequency} onChange={e => { setPaycheckFrequency(e.target.value); markDirty(); }}
-              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
-              <option value="weekly">Weekly</option>
-              <option value="biweekly">Biweekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground uppercase">{paycheckFrequency === 'monthly' ? 'Pay Day of Month' : `Paycheck Day (${getDayName(paycheckDay !== '' ? parseInt(paycheckDay) : 5)})`}</label>
-            {paycheckFrequency === 'monthly' ? (
-              <input type="number" min={1} max={31} value={paycheckDay} onChange={e => { setPaycheckDay(e.target.value); markDirty(); }}
-                className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
-            ) : (
-              <select value={paycheckDay} onChange={e => { setPaycheckDay(e.target.value); markDirty(); }}
-                className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
-                {[0,1,2,3,4,5,6].map(d => <option key={d} value={d}>{getDayName(d)}</option>)}
-              </select>
-            )}
-          </div>
-          {paycheckFrequency === 'biweekly' && (
-            <div>
-              <label className="text-xs text-muted-foreground uppercase">Pay Cycle Anchor Date</label>
-              <p className="text-[9px] text-muted-foreground mt-0.5 mb-1">Any past paycheck date — used to determine which biweekly Fridays are pay days.</p>
-              <input type="date" value={paycheckStartDate} onChange={e => { setPaycheckStartDate(e.target.value); markDirty(); }}
-                className="w-full bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
-            </div>
-          )}
-        </div>
-        <div>
-          <label className="text-xs text-muted-foreground uppercase">Default Deposit Account</label>
-          <select value={defaultDepositAccount} onChange={e => { setDefaultDepositAccount(e.target.value); markDirty(); }}
-            className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
-            <option value="">Auto-detect (first checking)</option>
-            {depositAccounts.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-        </div>
-      </div>
-
       {/* Display Preferences */}
       <div className="card-forged p-5 space-y-4">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
@@ -916,16 +862,6 @@ export default function SettingsPage() {
           <button onClick={() => { setAutoGenerateRecurring(!autoGenerateRecurring); markDirty(); }} className={`w-8 h-4 rounded-full transition-colors ${autoGenerateRecurring ? 'bg-primary' : 'bg-secondary'} relative`}>
             <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background transition-transform ${autoGenerateRecurring ? 'translate-x-4' : 'translate-x-0.5'}`} />
           </button>
-        </div>
-      </div>
-
-      {/* Financial Defaults */}
-      <div className="card-forged p-5 space-y-4">
-        <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cash Management</h2>
-        <div>
-          <label className="text-xs text-muted-foreground uppercase">Minimum Cash Floor / Reserve</label>
-          <input type="number" value={cashFloor} onChange={e => { setCashFloor(e.target.value); markDirty(); }} onBlur={() => { if (dirty) handleSave(); }} className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
-          <p className="text-xs text-muted-foreground mt-1">Cash-protected mode: extra card payments only when cash stays above this floor</p>
         </div>
       </div>
 
