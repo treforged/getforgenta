@@ -225,24 +225,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     if (!isNative || !ready) return;
 
     let listenerHandle: { remove: () => void } | null = null;
-    let urlOpenHandle: { remove: () => void } | null = null;
-
-    // appUrlOpen fires when the app returns from an OAuth browser session.
-    // Clear the background timestamp here so the foreground handler doesn't
-    // trigger a lock, and set skipNextBgLock so the 1-second cover timer runs
-    // instead of a lock check. SIGNED_IN fires after this — we guard that separately.
-    CapApp.addListener('appUrlOpen', () => {
-      bgAt.current = null;
-      skipNextBgLock.current = true;
-      setTimeout(() => { skipNextBgLock.current = false; }, 2000);
-    }).then(h => { urlOpenHandle = h; });
 
     CapApp.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) {
-        // Cancel any pending cover-dismiss timer before going to background.
-        // If it fires while backgrounded it hides the cover, so the next foreground
-        // return finds no cover and the WebView renders black.
-        if (coverTimerRef.current) { clearTimeout(coverTimerRef.current); coverTimerRef.current = null; }
         idleAtBgRef.current = Date.now() - lastActivityAt.current;
         bgAt.current = Date.now();
         showCoverDOM(); // synchronous DOM write — cover in place before iOS snapshots
@@ -283,7 +268,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
       listenerHandle = h;
     });
 
-    return () => { listenerHandle?.remove(); urlOpenHandle?.remove(); };
+    return () => { listenerHandle?.remove(); };
   }, [isNative, ready]);
 
   // Auth state: unlock on fresh sign-in, clear on sign-out, show setup modal once
@@ -300,10 +285,10 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
           skipLockClearOnSignIn.current = false;
           return;
         }
-        // Fresh sign-in (user just authenticated via OAuth/email after being signed out).
-        // Don't clear an active lock — TOKEN_REFRESHED can also fire SIGNED_IN and we
-        // must not unlock the PIN screen from under the user.
-        if (isLockedRef.current) return;
+        // Fresh sign-in (user just authenticated via OAuth/email after being signed out)
+        bgAt.current = null;
+        skipNextBgLock.current = true;
+        setTimeout(() => { skipNextBgLock.current = false; }, 2000);
         setIsLocked(false);
         lastActivityAt.current = Date.now();
         localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
