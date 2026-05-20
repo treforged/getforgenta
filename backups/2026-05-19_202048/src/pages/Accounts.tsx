@@ -37,7 +37,6 @@ const ACCOUNT_TYPES = [
   { value: '401k', label: '401k / Retirement' },
   { value: 'cash', label: 'Cash' },
   { value: 'credit_card', label: 'Credit Card' },
-  { value: 'mortgage', label: 'Mortgage' },
   { value: 'student_loan', label: 'Student Loan' },
   { value: 'auto_loan', label: 'Auto Loan' },
   { value: 'other_liability', label: 'Other Liability' },
@@ -45,8 +44,7 @@ const ACCOUNT_TYPES = [
 ];
 
 const ASSET_TYPES = ['checking', 'savings', 'high_yield_savings', 'hsa', 'business_checking', 'brokerage', 'roth_ira', '401k', 'cash', 'other_asset'];
-const LIABILITY_TYPES = ['credit_card', 'mortgage', 'student_loan', 'auto_loan', 'other_liability'];
-const LOAN_TYPES = ['mortgage', 'student_loan', 'auto_loan', 'other_liability'];
+const LIABILITY_TYPES = ['credit_card', 'student_loan', 'auto_loan', 'other_liability'];
 const LIQUID_TYPES = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'];
 const INVESTMENT_TYPES = ['brokerage'];
 const RETIREMENT_TYPES = ['roth_ira', '401k'];
@@ -58,7 +56,7 @@ const TYPE_ICONS: Record<string, any> = {
   checking: Building2, savings: PiggyBank, high_yield_savings: PiggyBank,
   hsa: PiggyBank, business_checking: Building2, brokerage: TrendingUp,
   roth_ira: TrendingUp, '401k': TrendingUp, cash: DollarSign,
-  credit_card: CreditCard, mortgage: Landmark, student_loan: Landmark, auto_loan: Landmark,
+  credit_card: CreditCard, student_loan: Landmark, auto_loan: Landmark,
   other_liability: TrendingDown, other_asset: Wallet,
 };
 
@@ -100,7 +98,7 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
   return { text: `Updated ${lastSync.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: missedSync };
 }
 
-const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '', apr_start_date: '' };
+const emptyForm = { name: '', account_type: 'checking', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 export default function Accounts() {
@@ -274,7 +272,6 @@ export default function Accounts() {
         : (matchDebt ? String(matchDebt.min_payment) : ''),
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
-      apr_start_date: a.apr_start_date || '',
     });
     setEditingPlaidLinked(!!a.plaid_account_id);
     setEditingPlaidLiability(plaidLiability);
@@ -294,7 +291,6 @@ export default function Accounts() {
       notes: form.notes, active: true,
       apy_rate: APY_TYPES.includes(form.account_type) && form.apy_rate !== '' ? parseFloat(form.apy_rate) : null,
       ...(form.account_type === 'credit_card' ? { payment_due_day: dueDayVal } : {}),
-      apr_start_date: LOAN_TYPES.includes(form.account_type) && form.apr_start_date ? form.apr_start_date : null,
     };
     // Never overwrite Plaid-managed balance — it is owned by the sync job
     if (!editingPlaidLinked) payload.balance = balance;
@@ -621,7 +617,6 @@ export default function Accounts() {
                     {TYPE_LABELS[a.account_type] || a.account_type}
                     {a.institution ? ` · ${a.institution}` : ''}
                     {a.apr ? ` · ${a.apr}% APR` : ''}
-                    {a.apr_start_date ? ` · Since ${a.apr_start_date}` : ''}
                     {a.apy_rate != null ? ` · ${a.apy_rate}% APY` : ''}
                     {a.credit_limit ? ` · Limit ${formatCurrency(Number(a.credit_limit), false)}` : ''}
                     {a.account_type === 'credit_card' && a.payment_due_day ? ` · Due ${a.payment_due_day}th` : ''}
@@ -865,9 +860,6 @@ export default function Accounts() {
             ] : []),
             ...(LIABILITY_TYPES.includes(form.account_type) ? [
               { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01', disabled: editingPlaidMinSynced, hint: editingPlaidMinSynced ? 'Managed by Plaid' : undefined },
-            ] : []),
-            ...(LOAN_TYPES.includes(form.account_type) ? [
-              { key: 'apr_start_date', label: 'Interest Start Date (optional)', type: 'date' as const, hint: 'Date interest began accruing — used for total interest calculations.' },
             ] : []),
             { key: 'notes', label: 'Notes (optional)', type: 'text' as const, placeholder: 'Any details...' },
           ]}
