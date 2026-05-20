@@ -13,33 +13,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private var nativeCover: UIView?
     private var nativeCoverHideTimer: Timer?
 
-    // Tracks whether we actually entered background (vs brief interruptions like
-    // Control Center, Face ID prompts, incoming call banners, etc.)
+    // Distinguishes full background transitions from brief interruptions
+    // (Control Center, Face ID prompts, incoming call banners).
     private var didEnterBackground = false
 
     // Set by ViewController when WKWebView content process terminates.
-    // Means the WebView needs a full network reload before we reveal it.
+    // Means the WebView needs a full network reload before we can reveal it.
     private var webViewProcessTerminated = false
 
     // Set by AuthSessionPlugin before ASWebAuthenticationSession launches.
     // iOS 13+ does not fire applicationWillResignActive for ASWebAuthenticationSession,
-    // so we must show the cover ourselves before the sheet opens.
+    // so the cover must be shown before the sheet opens from the plugin.
     private var oAuthSessionPending = false
 
     // MARK: - Lifecycle
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handlePhoneLocked),
-            name: UIApplication.protectedDataWillBecomeUnavailableNotification,
-            object: nil
-        )
         return true
     }
 
     // Fires for every interruption: background, Control Center, Face ID, call banners,
-    // ASWebAuthenticationSession (on older iOS), and system overlays.
+    // system overlays. Show the cover immediately so app content is never captured
+    // in the iOS App Switcher screenshot.
     func applicationWillResignActive(_ application: UIApplication) {
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = nil
@@ -59,8 +54,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
 
         if oAuthSessionPending {
-            // OAuth sheet just closed. React will fire SIGNED_IN and navigate —
-            // give it 2 s to complete before revealing the WebView.
+            // OAuth sheet just closed. React will fire SIGNED_IN and navigate routes —
+            // give it 2 s to finish before revealing the WebView.
             oAuthSessionPending = false
             scheduleNativeCoverDismiss(after: 2.0)
 
@@ -71,12 +66,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         } else if webViewProcessTerminated {
             // Content process was killed; WebView is reloading from network.
-            // Poll document.readyState — allow up to 10 s for the reload.
+            // Poll document.readyState — allow up to 10 s for the full reload.
             pollWebViewReady(maxAttempts: 50)   // 50 × 200 ms = 10 s
 
         } else {
             // Normal background → foreground. Poll until WebView is repainted.
-            // Typically resolves on the first poll (< 200 ms).
+            // For a live WebView this resolves on the first poll (< 200 ms).
             pollWebViewReady(maxAttempts: 20)   // 20 × 200 ms = 4 s
         }
     }
@@ -93,7 +88,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     // MARK: - Called by ViewController
 
-    /// ViewController calls this when WKWebView content process terminates.
+    /// Called when the WKWebView content process terminates.
     func handleWebViewProcessTerminated() {
         webViewProcessTerminated = true
     }
@@ -101,7 +96,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Called by AuthSessionPlugin
 
     /// Call BEFORE launching ASWebAuthenticationSession.
-    /// Shows the privacy cover immediately so it is up throughout the OAuth flow.
+    /// Shows the cover immediately so it is up during the OAuth flow and while
+    /// React processes SIGNED_IN and navigates after auth completes.
     func oAuthSessionWillStart() {
         oAuthSessionPending = true
         showNativeCover()
@@ -122,19 +118,21 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         cover.backgroundColor = UIColor(red: 9/255, green: 9/255, blue: 11/255, alpha: 1)
         cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
-        // Text label is always renderable — UIImage(named:"AppIcon") reliably returns
-        // nil because the AppIcon.appiconset is the system icon set, not a named asset.
-        let label = UILabel()
-        label.text = "Forgenta"
-        label.textColor = UIColor.white.withAlphaComponent(0.85)
-        label.font = UIFont.systemFont(ofSize: 22, weight: .semibold)
-        label.sizeToFit()
-        label.center = CGPoint(x: cover.bounds.midX, y: cover.bounds.midY)
-        label.autoresizingMask = [
-            .flexibleLeftMargin, .flexibleRightMargin,
-            .flexibleTopMargin,  .flexibleBottomMargin,
-        ]
-        cover.addSubview(label)
+        // Logo.imageset is a named image set that references the app icon PNG,
+        // so UIImage(named:) resolves it reliably at runtime.
+        if let logoImage = UIImage(named: "Logo") {
+            let logoView = UIImageView(image: logoImage)
+            logoView.contentMode = .scaleAspectFit
+            logoView.frame = CGRect(x: 0, y: 0, width: 88, height: 88)
+            logoView.center = CGPoint(x: cover.bounds.midX, y: cover.bounds.midY)
+            logoView.layer.cornerRadius = 20
+            logoView.layer.masksToBounds = true
+            logoView.autoresizingMask = [
+                .flexibleLeftMargin, .flexibleRightMargin,
+                .flexibleTopMargin,  .flexibleBottomMargin,
+            ]
+            cover.addSubview(logoView)
+        }
 
         window.addSubview(cover)
         nativeCover = cover
@@ -147,15 +145,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
     }
 
-    /// Polls document.readyState on the WKWebView every 200 ms.
-    /// Dismisses the cover 0.4 s after the first 'complete' result, or after
-    /// maxAttempts polls (whichever comes first).
+    /// Polls document.readyState every 200 ms.
+    /// Dismisses cover 0.4 s after the first 'complete' result, or after maxAttempts.
     private func pollWebViewReady(maxAttempts: Int, attempt: Int = 0) {
         guard nativeCover != nil else { return }
-        guard attempt < maxAttempts else {
-            hideNativeCover()
-            return
-        }
+        guard attempt < maxAttempts else { hideNativeCover(); return }
         guard let webView = webViewForPolling() else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
                 self?.pollWebViewReady(maxAttempts: maxAttempts, attempt: attempt + 1)
@@ -165,7 +159,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView.evaluateJavaScript("document.readyState") { [weak self] result, _ in
             DispatchQueue.main.async {
                 if (result as? String) == "complete" {
-                    // Grace period: let React finish its paint pass before revealing.
                     self?.scheduleNativeCoverDismiss(after: 0.4)
                 } else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -197,13 +190,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private func webViewForPolling() -> WKWebView? {
         guard let vc = keyWindow()?.rootViewController as? CAPBridgeViewController else { return nil }
         return vc.bridge?.webView
-    }
-
-    // MARK: - Phone Lock Detection
-
-    @objc private func handlePhoneLocked() {
-        UserDefaults.standard.set("1", forKey: "forged:phone_locked")
-        UserDefaults.standard.synchronize()
     }
 }
 
