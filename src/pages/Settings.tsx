@@ -3,8 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useAppLock } from '@/hooks/useAppLock';
+import { Capacitor } from '@capacitor/core';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Fingerprint, KeyRound, Delete } from 'lucide-react';
 
 interface TrustedDevice {
   device_id: string;
@@ -95,12 +97,54 @@ function PaymentUpdateForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
   );
 }
 
+// ── Inline PIN numpad for Settings ────────────────────────────────────────────
+const PIN_DIGITS = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+const PIN_LEN = 6;
+
+function SettingsPinPad({ onComplete, label }: { onComplete: (pin: string) => void; label: string }) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleDigit = (d: string) => {
+    if (d === '⌫') { setPin(p => p.slice(0, -1)); setError(false); return; }
+    if (d === '' || pin.length >= PIN_LEN) return;
+    const next = pin + d;
+    setPin(next);
+    if (next.length === PIN_LEN) onComplete(next);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="flex gap-2">
+        {Array.from({ length: PIN_LEN }).map((_, i) => (
+          <div key={i} className={`w-2.5 h-2.5 rounded-full border-2 transition-all ${i < pin.length ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`} />
+        ))}
+      </div>
+      <div className="grid grid-cols-3 gap-2 w-52">
+        {PIN_DIGITS.map((d, i) => (
+          <button key={i} disabled={d === ''} onClick={() => handleDigit(d)}
+            className={`h-12 flex items-center justify-center text-base font-medium transition-colors btn-press disabled:opacity-30 ${d === '' ? 'invisible' : d === '⌫' ? 'text-muted-foreground' : 'bg-secondary border border-border hover:border-primary/40 hover:text-primary'}`}
+            style={{ borderRadius: 'var(--radius)' }}>
+            {d === '⌫' ? <Delete size={14} /> : d}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const { data: profile, loading, update } = useProfile();
   const { data: accounts } = useAccounts();
   const { subscription, isPremium, hasStripeCustomer, isLoading: subLoading, refetch: refetchSub } = useSubscription();
+  const isNative = Capacitor.isNativePlatform();
+  const {
+    lockEnabled, lockType, biometricAvailable,
+    setupPin, setupBiometricWithPin, enableBiometric, disableBiometric, changePin, disableLock, lockNow,
+  } = useAppLock();
   const [cancelLoading, setCancelLoading] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [referralCount, setReferralCount] = useState<number | null>(null);
@@ -112,6 +156,12 @@ export default function SettingsPage() {
   const [deleteStep, setDeleteStep] = useState<'hidden' | 'confirm'>('hidden');
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // App Lock state (native only)
+  type LockUiStep = 'idle' | 'enable-pin' | 'enable-pin-confirm' | 'change-pin' | 'change-pin-confirm';
+  const [lockUiStep, setLockUiStep] = useState<LockUiStep>('idle');
+  const [lockNewPin, setLockNewPin] = useState('');
+  const [lockBusy, setLockBusy] = useState(false);
 
   const [displayName, setDisplayName] = useState('');
   const [currency, setCurrency] = useState('USD');
@@ -643,6 +693,144 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* App Lock — native only */}
+      {isNative && !isDemo && (
+        <div className="card-forged p-5 space-y-5">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">App Lock</h2>
+
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Lock size={13} className="text-muted-foreground" />
+                <span className="text-xs font-medium">Require unlock on resume</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground pl-5">
+                {lockEnabled
+                  ? `Secured with ${lockType === 'biometric' ? 'Face ID + PIN fallback' : 'PIN'}. Locks after 30 s in background.`
+                  : 'Protect your data when you switch away from the app.'}
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                if (lockEnabled) { setLockBusy(true); await disableLock(); setLockBusy(false); setLockUiStep('idle'); }
+                else setLockUiStep('enable-pin');
+              }}
+              disabled={lockBusy}
+              className={`shrink-0 w-10 h-5 rounded-full transition-colors relative ${lockEnabled ? 'bg-primary' : 'bg-secondary border border-border'}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-background border border-border/50 transition-transform ${lockEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+            </button>
+          </div>
+
+          {/* Enable PIN flow */}
+          {lockUiStep === 'enable-pin' && (
+            <div className="border-t border-border pt-4">
+              <SettingsPinPad
+                label="Enter a 6-digit PIN"
+                onComplete={pin => { setLockNewPin(pin); setLockUiStep('enable-pin-confirm'); }}
+              />
+            </div>
+          )}
+          {lockUiStep === 'enable-pin-confirm' && (
+            <div className="border-t border-border pt-4">
+              <SettingsPinPad
+                label="Confirm your PIN"
+                onComplete={async pin => {
+                  if (pin !== lockNewPin) { toast.error("PINs don't match — try again"); setLockUiStep('enable-pin'); setLockNewPin(''); return; }
+                  setLockBusy(true);
+                  await setupPin(pin);
+                  setLockBusy(false);
+                  setLockUiStep('idle');
+                  setLockNewPin('');
+                  toast.success('PIN lock enabled');
+                }}
+              />
+            </div>
+          )}
+
+          {/* Management (when lock is enabled) */}
+          {lockEnabled && lockUiStep === 'idle' && (
+            <>
+              <div className="border-t border-border" />
+
+              {/* Biometric toggle (iOS only when available) */}
+              {biometricAvailable && (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Fingerprint size={13} className="text-muted-foreground" />
+                    <span className="text-xs font-medium">
+                      {lockType === 'biometric' ? 'Face ID enabled' : 'Enable Face ID'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setLockBusy(true);
+                      if (lockType === 'biometric') {
+                        await disableBiometric();
+                        toast.success('Switched to PIN only');
+                      } else {
+                        const ok = await enableBiometric();
+                        if (ok) toast.success('Face ID enabled');
+                        else toast.error('Face ID setup failed — try again');
+                      }
+                      setLockBusy(false);
+                    }}
+                    disabled={lockBusy}
+                    className={`shrink-0 w-10 h-5 rounded-full transition-colors relative ${lockType === 'biometric' ? 'bg-primary' : 'bg-secondary border border-border'}`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-background border border-border/50 transition-transform ${lockType === 'biometric' ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+              )}
+
+              {/* Change PIN */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <KeyRound size={13} className="text-muted-foreground" />
+                  <span className="text-xs font-medium">Change PIN</span>
+                </div>
+                <button
+                  onClick={() => setLockUiStep('change-pin')}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Change
+                </button>
+              </div>
+
+              {/* Change PIN flow */}
+              {lockUiStep === 'change-pin' && (
+                <SettingsPinPad
+                  label="Enter new PIN"
+                  onComplete={pin => { setLockNewPin(pin); setLockUiStep('change-pin-confirm'); }}
+                />
+              )}
+              {lockUiStep === 'change-pin-confirm' && (
+                <SettingsPinPad
+                  label="Confirm new PIN"
+                  onComplete={async pin => {
+                    if (pin !== lockNewPin) { toast.error("PINs don't match — try again"); setLockUiStep('change-pin'); setLockNewPin(''); return; }
+                    setLockBusy(true);
+                    await changePin(pin);
+                    setLockBusy(false);
+                    setLockUiStep('idle');
+                    setLockNewPin('');
+                    toast.success('PIN updated');
+                  }}
+                />
+              )}
+
+              {/* Lock now */}
+              <button
+                onClick={() => lockNow()}
+                className="w-full sm:w-auto flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors btn-press"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <Lock size={12} /> Lock app now
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Income & Paycheck */}
       <div className="card-forged p-5 space-y-4">
