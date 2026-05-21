@@ -96,10 +96,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             pollWebViewReady(maxAttempts: 50)
 
         } else {
-            // Normal home-button background. Poll readyState without reloading
-            // so React does NOT remount — no init(), no accidental app lock.
-            debugLog("COVER_BRANCH:bg_poll → poll 20")
-            pollWebViewReady(maxAttempts: 20)
+            // Normal home-button background. Reload to fix WKWebView backing
+            // store reclamation, but set the bg_reload flag so JS init() skips
+            // the lock check — only a real app open (kill+reopen) should lock.
+            debugLog("COVER_BRANCH:bg_reload → reload + poll 30")
+            reloadThenPoll(maxAttempts: 30, isBgReload: true)
         }
     }
 
@@ -219,14 +220,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return vc.bridge?.webView
     }
 
-    private func reloadThenPoll(maxAttempts: Int) {
+    private func reloadThenPoll(maxAttempts: Int, isBgReload: Bool = false) {
         guard let webView = webViewForPolling() else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.pollWebViewReady(maxAttempts: maxAttempts)
             }
             return
         }
-        debugLog("RELOAD_TRIGGERED")
+        if isBgReload {
+            // Signal JS init() to skip lock check. Lock only applies on a real
+            // app open (kill+reopen, phone lock). Clears itself at start of init().
+            UserDefaults.standard.set("1", forKey: "CapacitorStorage.forged:bg_reload")
+        }
+        debugLog("RELOAD_TRIGGERED bgReload=\(isBgReload)")
         webView.reload()
         // Wait for reload to start before polling readyState.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
