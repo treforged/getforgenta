@@ -202,7 +202,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   let totalInterest = 0;
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
-  const simMonths = Math.max(months, 120); // run past display window for accurate totals
+  const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
   // Grace period: true when last payment covered full statement balance, so new purchases don't accrue interest
   let inGrace = card.paymentPreference === 'statement' && card.balance <= card.monthlyNewPurchases + 0.01;
 
@@ -273,7 +273,7 @@ export function projectCardVariable(
   let totalInterest = 0;
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
-  const simMonths = Math.max(months, 120); // run past display window for accurate totals
+  const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
   let inGrace = card.paymentPreference === 'statement' && card.balance <= card.monthlyNewPurchases + 0.01;
 
   for (let m = 1; m <= simMonths; m++) {
