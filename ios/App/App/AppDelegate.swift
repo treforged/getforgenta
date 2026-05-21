@@ -76,9 +76,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
         if oAuthSessionPending {
             oAuthSessionPending = false
-            // Reload so React picks up the new session from storage cleanly.
-            debugLog("COVER_BRANCH:oauth → reload + poll 25")
-            reloadThenPoll(maxAttempts: 25)
+            // ASWebAuthenticationSession does NOT trigger resign/background so
+            // the backing store is intact — no reload needed. Fixed delay gives
+            // JS time to exchange the auth code and navigate to the dashboard.
+            debugLog("COVER_BRANCH:oauth → schedule 2.0s")
+            scheduleNativeCoverDismiss(after: 2.0)
 
         } else if !didEnterBackground {
             debugLog("COVER_BRANCH:brief → schedule 0.3s")
