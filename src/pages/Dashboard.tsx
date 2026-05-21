@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import AppLockSetupModal from '@/components/shared/AppLockSetupModal';
 import MetricCard from '@/components/shared/MetricCard';
 import AppTour from '@/components/shared/AppTour';
 import ProgressBar from '@/components/shared/ProgressBar';
@@ -936,7 +935,6 @@ export default function Dashboard() {
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
-      <AppLockSetupModal />
       {founderNoteVisible && <FounderNoteModal onDismiss={handleFounderNoteDismiss} />}
       {wizardVisible && <OnboardingWizard onComplete={() => setWizardVisible(false)} onDismiss={() => setWizardVisible(false)} />}
       {!isDemo && <AppTour variant="new-user" />}
