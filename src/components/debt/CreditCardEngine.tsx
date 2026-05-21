@@ -11,7 +11,7 @@ import {
   mergeWithGeneratedTransactions, generateMonthTransactionsFromRules,
   type TransactionLineItem,
 } from '@/lib/pay-schedule';
-import { generateScheduledEvents } from '@/lib/scheduling';
+import { generateScheduledEvents, countWeekdayInMonth } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -493,7 +493,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
         if (tr.deposit_account) activeTransferDests.add(tr.deposit_account);
         const amt = Number(tr.amount);
-        if (tr.frequency === 'weekly') monthTransfers += amt * 4.33;
+        if (tr.frequency === 'weekly') monthTransfers += amt * countWeekdayInMonth(d.getFullYear(), d.getMonth(), tr.due_day ?? 5);
         else if (tr.frequency === 'yearly') monthTransfers += amt / 12;
         else monthTransfers += amt;
       }
