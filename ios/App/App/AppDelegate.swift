@@ -101,9 +101,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         } else if isFirstLaunch {
             // Fresh process start (iOS killed and restarted the app in background,
             // or first ever launch). Cover was shown in didFinishLaunchingWithOptions;
-            // poll until the WebView finishes loading.
-            debugLog("COVER_BRANCH:first_launch → poll 50")
-            pollWebViewReady(maxAttempts: 50)
+            // poll until React has mounted (window.__forgenta_app_ready === true).
+            // readyState/rAF fire on the bare HTML skeleton (~200ms) before React
+            // renders, causing a black-screen flash. The app_ready flag is set by
+            // the AppReadySignal component in App.tsx, which only mounts after
+            // the full React tree has rendered.
+            debugLog("COVER_BRANCH:first_launch → poll app ready")
+            pollAppReady(maxAttempts: 50)
 
         } else if !willEnterForeground {
             // Brief interruption: Control Center, Face ID, call banner, etc.
@@ -225,6 +229,33 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 } else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         self?.pollDashboardReady(maxAttempts: maxAttempts, attempt: attempt + 1)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Polls window.__forgenta_app_ready every 200 ms.
+    /// Set by AppReadySignal in App.tsx on first React mount — fires after the full
+    /// component tree has rendered, not just when the HTML document is parsed.
+    /// This prevents cover dismissal on the bare black WebView skeleton on fresh launch.
+    private func pollAppReady(maxAttempts: Int, attempt: Int = 0) {
+        guard nativeCover != nil else { return }
+        guard attempt < maxAttempts else { hideNativeCover(); return }
+        guard let webView = webViewForPolling() else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.pollAppReady(maxAttempts: maxAttempts, attempt: attempt + 1)
+            }
+            return
+        }
+        webView.evaluateJavaScript("window.__forgenta_app_ready === true") { [weak self] result, _ in
+            DispatchQueue.main.async {
+                if (result as? Bool) == true {
+                    self?.debugLog("APP_READY flag=true")
+                    self?.waitForPaintThenDismiss(webView)
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        self?.pollAppReady(maxAttempts: maxAttempts, attempt: attempt + 1)
                     }
                 }
             }
