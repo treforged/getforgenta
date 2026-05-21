@@ -466,57 +466,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       return getTotalCarLoanMonthly(carFunds as any[], d);
     });
 
-    // Savings goals + transfer rules + saving-phase car contributions — mirrors what
-    // Forecast's cardProjectionData simulationMonthEvents adds on top of forecastMonthEvents.
-    // These are absent from monthEvents because:
-    //   goals → separate DB table, not in rules
-    //   transfer/investment rules → type !== 'expense', filtered out of monthEvents
-    //   saving-phase car → from carFunds, not rules
-    const simRetireIds = new Set<string>(
-      (accounts as any[]).filter((a: any) =>
-        a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)
-      ).map((a: any) => a.id),
-    );
-    const simTransferRules = (rules as any[]).filter((r: any) =>
-      r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'),
-    );
-
-    const extraExpensesByMonth = Array.from({ length: 36 }, (_, m) => {
-      if (m === 0) return 0; // month 0 handled by month0Expenses
-      const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-      const simMonthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-
-      const activeTransferDests = new Set<string>();
-      let monthTransfers = 0;
-      for (const tr of simTransferRules) {
-        if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > simMonthEnd) continue;
-        if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
-        if (tr.deposit_account) activeTransferDests.add(tr.deposit_account);
-        const amt = Number(tr.amount);
-        if (tr.frequency === 'weekly') monthTransfers += amt * 4.33;
-        else if (tr.frequency === 'yearly') monthTransfers += amt / 12;
-        else monthTransfers += amt;
-      }
-
-      const monthSavings = pauseSavings ? 0 : (goals as any[]).reduce((s: number, g: any) => {
-        if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
-        if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
-        if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
-        return s + Number(g.monthly_contribution);
-      }, 0);
-
-      const monthCarSaving = pauseSavings ? 0 : (carFunds as any[]).reduce((s: number, c: any) => {
-        if (c.phase === 'loan') return s;
-        const rem = Number(c.down_payment_goal) - Number(c.current_saved);
-        return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
-      }, 0);
-
-      return monthTransfers + monthSavings + monthCarSaving;
-    });
-
     const carAdjustedMonthEvents = growthAdjustedMonthEvents.map((ev, m) => ({
       ...ev,
-      expenses: ev.expenses + activeCarLoanByMonth[m] + extraExpensesByMonth[m],
+      expenses: ev.expenses + activeCarLoanByMonth[m],
     }));
 
     // ── Per-month safe floor (mirrors Forecast monthMinSafe) ─────────────────────
@@ -613,7 +565,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
-      rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings]);
+      rules, payConfig, fundingAccountId, carFunds]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
