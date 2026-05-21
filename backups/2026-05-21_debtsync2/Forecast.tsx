@@ -548,22 +548,11 @@ export default function Forecast() {
       }, 0),
     );
 
-    // Per-card planned payment amounts — used by the popup to show each card separately.
-    const perCardPayments = cards.map(c => ({
-      name: c.name,
-      id: c.id,
-      payments: Array.from({ length: 36 }, (_, i) => {
-        const pays = sim.monthlyPayments.get(c.id);
-        return Math.round(pays?.[i] ?? 0);
-      }),
-    }));
-
     return {
       data,
       cards: projs.map(p => ({ name: p.card.name, color: p.card.color })),
       debtPaymentTotals,
       allPaymentTotals,
-      perCardPayments,
     };
   } catch (e) {
     console.error('Forecast projection failed:', e);
@@ -1946,12 +1935,7 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown when available; fallback to aggregate total
-                    ...(cardProjectionData?.perCardPayments && cardProjectionData.perCardPayments.some(c => (c.payments[absoluteI] ?? 0) > 0)
-                      ? cardProjectionData.perCardPayments
-                          .filter(c => (c.payments[absoluteI] ?? 0) > 0)
-                          .map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI], false), op: '−' }))
-                      : [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' }]),
+                    { label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' },
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
