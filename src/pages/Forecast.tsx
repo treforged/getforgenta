@@ -422,6 +422,10 @@ export default function Forecast() {
     const m0Income = getRemainingTransactionIncomeByDay(allTxnsForM0, 31);
     const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true, debtFundingSources, CC_DEFAULT_CATEGORIES);
     const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, forecastFundingAccountId, new Date());
+    const cashFloorByMonth = Array.from({ length: 36 }, (_, m) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+      return getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, forecastFundingAccountId, d);
+    });
 
     // For months > 0: forecastMonthEvents.income only contains income rules (e.g. GF rent $500).
     // The simulation fallback monthlyTakeHome would be bypassed when income > 0, using $500 as total
@@ -490,6 +494,8 @@ export default function Forecast() {
       m0Expenses,
       oneTimeArr,
       m0SafeFloor,
+      undefined,       // maxDebtPaymentByMonth — look-ahead pre-pass not run in Forecast
+      cashFloorByMonth,
     );
 
     const projs = cards.map(c => {
