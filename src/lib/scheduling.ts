@@ -115,6 +115,15 @@ export function generateScheduledEvents(
   return events.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+// Count how many times a given weekday (0=Sun…6=Sat) falls in a calendar month
+export function countWeekdayInMonth(year: number, month: number, dayOfWeek: number): number {
+  const d = new Date(year, month, 1);
+  while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
+  let count = 0;
+  while (d.getMonth() === month) { count++; d.setDate(d.getDate() + 7); }
+  return count;
+}
+
 // Get upcoming events within the next N days
 export function getUpcomingEvents(events: ScheduledEvent[], days: number = 7): ScheduledEvent[] {
   const now = new Date();
