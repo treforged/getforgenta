@@ -47,9 +47,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             name: UIApplication.protectedDataWillBecomeUnavailableNotification,
             object: nil
         )
-        // Show cover immediately on fresh launch so the black WebView loading
-        // period is hidden. applicationDidBecomeActive will poll and dismiss.
-        DispatchQueue.main.async { [weak self] in self?.showNativeCover() }
+        // No cover shown on fresh launch — capacitor.config ios.backgroundColor (#09090b)
+        // makes the bare WKWebView background match the app's dark theme, so no
+        // black flash is visible while React loads. The cover is only needed for
+        // background→foreground transitions (shown in applicationWillResignActive).
         return true
     }
 
@@ -99,15 +100,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
 
         } else if isFirstLaunch {
-            // Fresh process start (iOS killed and restarted the app in background,
-            // or first ever launch). Cover was shown in didFinishLaunchingWithOptions;
-            // poll until React has mounted (window.__forgenta_app_ready === true).
-            // readyState/rAF fire on the bare HTML skeleton (~200ms) before React
-            // renders, causing a black-screen flash. The app_ready flag is set by
-            // the AppReadySignal component in App.tsx, which only mounts after
-            // the full React tree has rendered.
-            debugLog("COVER_BRANCH:first_launch → poll app ready")
-            pollAppReady(maxAttempts: 50)
+            // Fresh process start. No cover is shown on launch (ios.backgroundColor
+            // handles the loading period). If a cover somehow exists, dismiss quickly.
+            debugLog("COVER_BRANCH:first_launch → no cover, dismiss")
+            scheduleNativeCoverDismiss(after: 0.0)
 
         } else if !willEnterForeground {
             // Brief interruption: Control Center, Face ID, call banner, etc.
