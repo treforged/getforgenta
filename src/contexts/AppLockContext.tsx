@@ -127,10 +127,31 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
     async function init() {
       debugLog('INIT_START');
-      // Set before first await — Supabase fires SIGNED_IN as a macrotask after
-      // onAuthStateChange is registered. The flag prevents treating a session-restore
-      // SIGNED_IN as a fresh sign-in (which would clear an existing lock).
       skipLockClearOnSignIn.current = true;
+
+      // AppDelegate sets this flag before reloading the WebView to fix backing
+      // store reclamation on a normal background/foreground cycle. We skip the
+      // full lock check so the user isn't prompted on every app switch.
+      const bgReload = await pGet('forged:bg_reload');
+      await pDel('forged:bg_reload'); // always clear regardless of value
+      if (bgReload === '1') {
+        debugLog('INIT_BGRELOAD');
+        const { data: { session } } = await supabase.auth.getSession();
+        // Keep skipLockClearOnSignIn=true only if there's an active session so
+        // that the SIGNED_IN session-restore event is absorbed. If no session,
+        // allow a fresh sign-in to proceed normally through the handler.
+        if (!session) skipLockClearOnSignIn.current = false;
+        const fails = parseInt(localStorage.getItem(LS_FAILED) ?? '0', 10);
+        setFailedAttempts(fails);
+        try {
+          const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
+          const info = await BiometricAuth.checkBiometry();
+          setBiometricAvailable(info.isAvailable);
+        } catch { setBiometricAvailable(false); }
+        setReady(true);
+        debugLog('INIT_DONE');
+        return;
+      }
 
       const [enabled, type] = await Promise.all([pGet(P.enabled), pGet(P.type)]);
 
@@ -201,7 +222,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         setIsLocked(false);
         localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
         const prompted = await pGet(P.setupPrompted);
-        if (!prompted) {
+        if (!prompted && !lockEnabledRef.current) {
           setupTimer = setTimeout(() => setShowSetupModal(true), 800);
         }
         // Start inactivity logout timer for users who haven't set up a lock.
@@ -219,11 +240,12 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
           clearTimeout(inactivityTimerRef.current);
           inactivityTimerRef.current = null;
         }
-        await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted)]);
+        // Preserve lock credentials (PIN hash, type, enabled) so the user does
+        // not lose their lock configuration after a session expiry or sign-out.
+        // Only clear the prompted flag so the setup modal can re-evaluate.
+        await pDel(P.setupPrompted);
         localStorage.removeItem(LS_UNLOCKED_AT);
         localStorage.removeItem(LS_FAILED);
-        setLockEnabled(false);
-        lockEnabledRef.current = false;
         setIsLocked(false);
         setFailedAttempts(0);
         setShowSetupModal(false);
