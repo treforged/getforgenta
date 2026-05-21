@@ -230,8 +230,8 @@ export function projectCard(card: CardData, months = 36): CardProjection {
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment, endBalance: Math.round(bal * 100) / 100, utilization });
     if (payoffMonth === null && startBal > 0) {
       if (card.paymentPreference === 'statement') {
-        // "interest-free" = carried balance (excl. new purchases) fully cleared
-        if (bal <= card.monthlyNewPurchases + 0.01 && startBal > card.monthlyNewPurchases) payoffMonth = m;
+        // "interest-free" = carried balance fully cleared; balance at or below rolling purchases
+        if (bal <= card.monthlyNewPurchases + 0.01) payoffMonth = m;
       } else if (bal <= 0) {
         payoffMonth = m;
       }
@@ -304,7 +304,7 @@ export function projectCardVariable(
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
     if (payoffMonth === null && startBal > 0) {
       if (card.paymentPreference === 'statement') {
-        if (bal <= card.monthlyNewPurchases + 0.01 && startBal > card.monthlyNewPurchases) payoffMonth = m;
+        if (bal <= card.monthlyNewPurchases + 0.01) payoffMonth = m;
       } else if (bal <= 0) {
         payoffMonth = m;
       }
