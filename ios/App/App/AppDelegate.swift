@@ -206,7 +206,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     /// Polls window.__forgenta_dashboard_ready every 200 ms.
-    /// Used after OAuth sign-in to confirm the dashboard has mounted before
+    /// Set by Dashboard (existing users) and Onboarding (new users) on mount.
+    /// Used after OAuth to confirm the post-auth destination has rendered before
     /// lifting the cover. Falls back to hiding after maxAttempts (6 s).
     private func pollDashboardReady(maxAttempts: Int, attempt: Int = 0) {
         guard nativeCover != nil else { return }
