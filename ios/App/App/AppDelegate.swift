@@ -96,11 +96,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             pollWebViewReady(maxAttempts: 50)
 
         } else {
-            // Normal home-button background. Reload to fix WKWebView backing
-            // store reclamation, but set the bg_reload flag so JS init() skips
-            // the lock check — only a real app open (kill+reopen) should lock.
-            debugLog("COVER_BRANCH:bg_reload → reload + poll 30")
-            reloadThenPoll(maxAttempts: 30, isBgReload: true)
+            debugLog("COVER_BRANCH:bg_poll → poll 20")
+            pollWebViewReady(maxAttempts: 20)
         }
     }
 
