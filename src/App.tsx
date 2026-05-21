@@ -57,6 +57,16 @@ if (Capacitor.isNativePlatform()) {
   document.documentElement.classList.add('native');
 }
 
+// Sets window.__forgenta_app_ready when React has mounted.
+// AppDelegate polls this flag on fresh process start before lifting the cover.
+function AppReadySignal() {
+  useEffect(() => {
+    (window as any).__forgenta_app_ready = true;
+    return () => { (window as any).__forgenta_app_ready = false; };
+  }, []);
+  return null;
+}
+
 function PageLoader() {
   return (
     <div className="flex items-center justify-center min-h-[50vh]">
@@ -220,6 +230,7 @@ const App = () => (
       <Sonner />
       {Capacitor.isNativePlatform() ? (
         <MemoryRouter initialEntries={['/auth']}>
+          <AppReadySignal />
           <DemoProvider>
           <AuthProvider>
             <AppLockProvider>
