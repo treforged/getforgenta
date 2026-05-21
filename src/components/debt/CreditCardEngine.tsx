@@ -12,6 +12,7 @@ import {
   type TransactionLineItem,
 } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -458,6 +459,18 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       return { income: ev.income * incMult + bonusTaxInc, expenses: ev.expenses * expMult };
     });
 
+    // Per-month car loan payments from carFunds (mirrors Forecast's activeCarLoanByMonth).
+    // Car loans live outside rules so they are absent from monthEvents; add them explicitly.
+    const activeCarLoanByMonth = Array.from({ length: 36 }, (_, m) => {
+      const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+      return getTotalCarLoanMonthly(carFunds as any[], d);
+    });
+
+    const carAdjustedMonthEvents = growthAdjustedMonthEvents.map((ev, m) => ({
+      ...ev,
+      expenses: ev.expenses + activeCarLoanByMonth[m],
+    }));
+
     // ── Per-month safe floor (mirrors Forecast monthMinSafe) ─────────────────────
     // getMinSafeCash = max(cashFloor, prePaycheckNextMonthBills) for that specific month.
     // Month 0 is already handled by month0SafeFloor in the sim call.
@@ -482,8 +495,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       // Month 0 uses fundingBalance; months 1+ approximate PASS 3 (start at floor)
       const simDebtPay: number[] = [];
       for (let m = 0; m < 36; m++) {
-        const mInc = m === 0 ? month0Income : (growthAdjustedMonthEvents[m]?.income ?? monthlyTakeHome);
-        const mExp = m === 0 ? month0Expenses : (growthAdjustedMonthEvents[m]?.expenses ?? monthlyRecurringExpenses);
+        const mInc = m === 0 ? month0Income : (carAdjustedMonthEvents[m]?.income ?? monthlyTakeHome);
+        const mExp = m === 0 ? month0Expenses : (carAdjustedMonthEvents[m]?.expenses ?? monthlyRecurringExpenses);
         const mFloor = cashFloorByMonth[m];
         const startBal = m === 0 ? fundingBalance : mFloor;
         const available = Math.max(0, startBal + mInc - mExp - mFloor);
@@ -494,8 +507,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         let bal = fundingBalance;
         const cash: number[] = [];
         for (let m = 0; m < 36; m++) {
-          const mInc = m === 0 ? month0Income : (growthAdjustedMonthEvents[m]?.income ?? monthlyTakeHome);
-          const mExp = m === 0 ? month0Expenses : (growthAdjustedMonthEvents[m]?.expenses ?? monthlyRecurringExpenses);
+          const mInc = m === 0 ? month0Income : (carAdjustedMonthEvents[m]?.income ?? monthlyTakeHome);
+          const mExp = m === 0 ? month0Expenses : (carAdjustedMonthEvents[m]?.expenses ?? monthlyRecurringExpenses);
           const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeByMonth[m] ?? { income: 0, expenses: 0 });
           const mFloor = cashFloorByMonth[m];
           const availForDebt = Math.max(0, bal + mInc - mExp - mFloor);
@@ -537,7 +550,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const sim = simulateVariablePayoff(
       cards, fundingBalance, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, 36,
-      growthAdjustedMonthEvents, undefined, augmentedCCPurchases,
+      carAdjustedMonthEvents, undefined, augmentedCCPurchases,
       month0Income, month0Expenses,
       oneTimeByMonth,
       Math.max(cashFloor, prePaycheckBills.total), // month0SafeFloor — match recommendations
@@ -552,7 +565,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
-      rules, payConfig, fundingAccountId]);
+      rules, payConfig, fundingAccountId, carFunds]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
