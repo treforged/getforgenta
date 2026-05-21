@@ -39,7 +39,10 @@ function parse(raw: string): { time: string; source: 'SWIFT' | 'JS'; event: stri
 }
 
 const root: CSSProperties = {
-  position: 'fixed', bottom: 88, left: 12, zIndex: 99990,
+  position: 'fixed',
+  bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))',
+  left: 'calc(12px + env(safe-area-inset-left, 0px))',
+  zIndex: 99990,
 };
 
 const triggerBtn: CSSProperties = {
@@ -58,17 +61,24 @@ const overlay: CSSProperties = {
 };
 
 const header: CSSProperties = {
-  display: 'flex', gap: 6, padding: '10px 14px',
-  borderBottom: '1px solid #1e293b', alignItems: 'center', flexShrink: 0,
+  display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0,
+  padding: '10px 14px',
+  paddingTop: 'calc(10px + env(safe-area-inset-top, 0px))',
+  paddingLeft: 'calc(14px + env(safe-area-inset-left, 0px))',
+  paddingRight: 'calc(14px + env(safe-area-inset-right, 0px))',
+  borderBottom: '1px solid #1e293b',
 };
 
 const legend: CSSProperties = {
   padding: '3px 14px', fontSize: 10, color: '#475569',
+  paddingLeft: 'calc(14px + env(safe-area-inset-left, 0px))',
+  paddingRight: 'calc(14px + env(safe-area-inset-right, 0px))',
   borderBottom: '1px solid #0f172a', flexShrink: 0,
 };
 
 const list: CSSProperties = {
   flex: 1, overflowY: 'auto', padding: '4px 0',
+  paddingBottom: 'calc(4px + env(safe-area-inset-bottom, 0px))',
 };
 
 function Btn({ color, onClick, children }: { color: string; onClick: () => void; children: React.ReactNode }) {

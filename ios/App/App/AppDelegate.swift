@@ -184,7 +184,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         webView.evaluateJavaScript("document.readyState") { [weak self] result, _ in
             DispatchQueue.main.async {
                 if (result as? String) == "complete" {
-                    self?.scheduleNativeCoverDismiss(after: 0.4)
+                    self?.waitForPaintThenDismiss(webView)
                 } else {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                         self?.pollWebViewReady(maxAttempts: maxAttempts, attempt: attempt + 1)
@@ -215,6 +215,39 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private func webViewForPolling() -> WKWebView? {
         guard let vc = keyWindow()?.rootViewController as? CAPBridgeViewController else { return nil }
         return vc.bridge?.webView
+    }
+
+    /// Waits for two requestAnimationFrame callbacks before dismissing the cover.
+    /// rAF only fires when the WebView is actively painting, so two callbacks
+    /// guarantee the backing store has been repopulated after iOS reclaimed it.
+    /// Falls back to a fixed 0.4 s delay on iOS < 14 or if the JS call hangs.
+    private func waitForPaintThenDismiss(_ webView: WKWebView) {
+        guard #available(iOS 14.0, *) else {
+            scheduleNativeCoverDismiss(after: 0.4)
+            return
+        }
+        // Safety net: if callAsyncJavaScript never completes, dismiss anyway.
+        var completed = false
+        let fallback = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: false) { [weak self] _ in
+            guard !completed else { return }
+            completed = true
+            self?.debugLog("RAF_TIMEOUT → fallback dismiss")
+            self?.scheduleNativeCoverDismiss(after: 0.0)
+        }
+        webView.callAsyncJavaScript(
+            "await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))",
+            arguments: [:],
+            in: nil,
+            in: WKContentWorld.defaultClient
+        ) { [weak self] _ in
+            DispatchQueue.main.async {
+                guard !completed else { return }
+                completed = true
+                fallback.invalidate()
+                self?.debugLog("RAF_PAINT_READY")
+                self?.scheduleNativeCoverDismiss(after: 0.1)
+            }
+        }
     }
 
     private func reloadThenPoll(maxAttempts: Int, isBgReload: Bool = false) {
