@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Crown, Check, RotateCcw, Loader2, AlertCircle, Tag, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Crown, Check, RotateCcw, Loader2, AlertCircle, Tag } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { toast } from 'sonner';
 import type { PurchasesOfferings, PurchasesPackage } from '@revenuecat/purchases-capacitor';
@@ -24,8 +24,6 @@ const FEATURE_LIST = [
 
 const isAndroid = Capacitor.getPlatform() === 'android';
 
-type RedeemPhase = 'idle' | 'instructions' | 'returning' | 'manual-restore';
-
 export default function NativePaywall() {
   const { isPremium, refetch } = useSubscription();
   const [offerings, setOfferings] = useState<PurchasesOfferings | null>(null);
@@ -34,7 +32,6 @@ export default function NativePaywall() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [redeemPhase, setRedeemPhase] = useState<RedeemPhase>('idle');
 
   useEffect(() => {
     let cancelled = false;
@@ -58,14 +55,14 @@ export default function NativePaywall() {
     return () => { cancelled = true; };
   }, []);
 
-  // Polls Supabase waiting for the RevenueCat webhook to land.
+  // Polls Supabase up to 5× (7.5 s) waiting for the RevenueCat webhook to land.
   // Returns true if premium is confirmed, false if the window expires.
-  const pollUntilPremium = async (attempts = 10, intervalMs = 2000): Promise<boolean> => {
-    for (let i = 0; i < attempts; i++) {
+  const pollUntilPremium = async (): Promise<boolean> => {
+    for (let i = 0; i < 5; i++) {
       const result = await refetch();
       const sub = result.data as any;
       if (sub?.plan === 'premium' && ['active', 'trialing'].includes(sub?.subscription_status ?? '')) return true;
-      await new Promise(r => setTimeout(r, intervalMs));
+      await new Promise(r => setTimeout(r, 1500));
     }
     return false;
   };
@@ -108,47 +105,37 @@ export default function NativePaywall() {
     }
   };
 
-  const handleOpenPlayStoreRedeem = async () => {
-    try {
-      const { App } = await import('@capacitor/app');
-      let hasLeftApp = false;
-      const listener = await App.addListener('appStateChange', async ({ isActive }) => {
-        if (!isActive) { hasLeftApp = true; return; }
-        if (isActive && hasLeftApp) {
-          await listener.remove();
-          setRedeemPhase('returning');
-          setRestoring(true);
-          try {
-            const info = await restorePurchases();
-            if (info) {
-              // Give the RevenueCat → webhook → Supabase chain up to 20s
-              const activated = await pollUntilPremium(10, 2000);
-              if (activated) {
-                setRedeemPhase('idle');
-                toast.success('Welcome to Forgenta Premium!');
-              } else {
-                setRedeemPhase('manual-restore');
-              }
-            } else {
-              setRedeemPhase('manual-restore');
-            }
-          } catch {
-            setRedeemPhase('manual-restore');
-          } finally {
-            setRestoring(false);
-          }
-        }
-      });
-      await openAndroidOfferRedemption();
-    } catch (e: unknown) {
-      setRedeemPhase('idle');
-      toast.error(e instanceof Error ? e.message : 'Could not open Play Store redemption.');
-    }
-  };
-
   const handleRedeemCode = async () => {
     if (isAndroid) {
-      setRedeemPhase('instructions');
+      try {
+        const { App } = await import('@capacitor/app');
+        let hasLeftApp = false;
+        const listener = await App.addListener('appStateChange', async ({ isActive }) => {
+          if (!isActive) { hasLeftApp = true; return; }
+          if (isActive && hasLeftApp) {
+            await listener.remove();
+            setRestoring(true);
+            try {
+              const info = await restorePurchases();
+              if (info) {
+                const activated = await pollUntilPremium();
+                if (activated) {
+                  toast.success('Welcome to Forgenta Premium!');
+                } else {
+                  toast.info('Subscription syncing — tap Restore purchases if Premium isn\'t active in a moment.');
+                }
+              }
+            } catch {
+              // user can tap Restore purchases manually if needed
+            } finally {
+              setRestoring(false);
+            }
+          }
+        });
+        await openAndroidOfferRedemption();
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : 'Could not open Play Store redemption.');
+      }
     } else {
       try {
         await presentCodeRedemptionSheet();
@@ -310,119 +297,31 @@ export default function NativePaywall() {
         )}
       </button>
 
-      {/* Android: instruction panel / returning state / manual-restore prompt */}
-      {isAndroid && redeemPhase === 'instructions' && (
-        <div className="border border-border rounded-lg p-4 space-y-3 bg-card">
-          <p className="text-xs font-semibold">How to redeem your promo code</p>
-          <ol className="space-y-2">
-            {[
-              'Tap "Open Google Play" below — you\'ll be taken to the Play Store redemption page.',
-              'Enter your promo code and tap Redeem.',
-              'Return to this app — your Premium access will activate automatically.',
-              'If it doesn\'t activate within 30 seconds, tap "Restore purchases."',
-            ].map((step, i) => (
-              <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
-                <span className="shrink-0 w-4 h-4 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center mt-0.5">
-                  {i + 1}
-                </span>
-                {step}
-              </li>
-            ))}
-          </ol>
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={handleOpenPlayStoreRedeem}
-              className="flex-1 bg-primary text-primary-foreground py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Open Google Play <ExternalLink size={12} />
-            </button>
-            <button
-              onClick={() => setRedeemPhase('idle')}
-              className="px-3 py-2.5 text-xs text-muted-foreground border border-border hover:text-foreground transition-colors"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {isAndroid && redeemPhase === 'returning' && (
-        <div className="border border-border rounded-lg p-4 flex items-center gap-3 bg-card">
-          <Loader2 size={16} className="animate-spin text-primary shrink-0" />
-          <div>
-            <p className="text-xs font-semibold">Activating your subscription…</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">This can take up to 30 seconds.</p>
-          </div>
-        </div>
-      )}
-
-      {isAndroid && redeemPhase === 'manual-restore' && (
-        <div className="border border-amber-500/30 rounded-lg p-4 space-y-2.5 bg-amber-500/5">
-          <p className="text-xs font-semibold">Almost there — one more step</p>
-          <p className="text-[11px] text-muted-foreground">
-            Your Play Store redemption was successful but Premium hasn't synced yet. Tap below to pull in your subscription.
-          </p>
-          <button
-            onClick={async () => {
-              setRestoring(true);
-              try {
-                const info = await restorePurchases();
-                if (info) {
-                  const activated = await pollUntilPremium(6, 3000);
-                  if (activated) {
-                    setRedeemPhase('idle');
-                    toast.success('Welcome to Forgenta Premium!');
-                  } else {
-                    toast.info('Still syncing. Wait a moment and tap Restore again, or contact support.');
-                  }
-                }
-              } catch (e: unknown) {
-                toast.error(e instanceof Error ? e.message : 'Restore failed. Please try again.');
-              } finally {
-                setRestoring(false);
-              }
-            }}
-            disabled={restoring}
-            className="w-full bg-primary text-primary-foreground py-2.5 text-xs font-semibold flex items-center justify-center gap-1.5"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            {restoring ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
-            Restore purchases
-          </button>
-        </div>
-      )}
-
-      {/* Redeem code — all platforms (hidden while Android instruction panels are active) */}
-      {!(isAndroid && redeemPhase !== 'idle') && (
-        <div className="text-center">
-          <button
-            onClick={handleRedeemCode}
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
-          >
-            <Tag size={14} />
-            {isAndroid ? 'Redeem promo code' : 'Redeem code'}
-          </button>
-        </div>
-      )}
+      {/* Redeem code — all platforms */}
+      <div className="text-center">
+        <button
+          onClick={handleRedeemCode}
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+        >
+          <Tag size={14} />
+          {isAndroid ? 'Redeem promo code' : 'Redeem code'}
+        </button>
+      </div>
 
       {/* Restore purchases + legal — grouped to stay above fold */}
       <div className="flex flex-col items-center gap-1.5">
-        {redeemPhase === 'idle' && (
-          <button
-            onClick={handleRestore}
-            disabled={restoring}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
-          >
-            {restoring ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <RotateCcw size={12} />
-            )}
-            Restore purchases
-          </button>
-        )}
+        <button
+          onClick={handleRestore}
+          disabled={restoring}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1.5"
+        >
+          {restoring ? (
+            <Loader2 size={12} className="animate-spin" />
+          ) : (
+            <RotateCcw size={12} />
+          )}
+          Restore purchases
+        </button>
         <p className="text-[10px] text-muted-foreground text-center px-4">
           {isAndroid
             ? 'Auto-renews. Cancel anytime in Google Play settings.'
