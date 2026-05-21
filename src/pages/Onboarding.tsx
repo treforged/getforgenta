@@ -163,6 +163,14 @@ export default function Onboarding() {
   });
   const [saving, setSaving] = useState(false);
 
+  // Signal Swift cover that a post-auth page has mounted (same flag as Dashboard).
+  // New users land here after OAuth sign-up; without this the cover waits the full
+  // 6s fallback before dismissing.
+  useEffect(() => {
+    (window as any).__forgenta_dashboard_ready = true;
+    return () => { (window as any).__forgenta_dashboard_ready = false; };
+  }, []);
+
   // Auto-skip for existing accounts that already have profile data
   useEffect(() => {
     if (!user) return;
