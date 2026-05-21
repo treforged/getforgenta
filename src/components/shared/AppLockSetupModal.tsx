@@ -136,8 +136,8 @@ export default function AppLockSetupModal() {
               <p className="font-semibold text-sm">A PIN is required</p>
               <p className="text-xs text-muted-foreground">
                 {isIos && biometricAvailable
-                  ? 'Set up Face ID or a PIN to keep your session active. Without one, you\'ll be signed out after 10 minutes of inactivity.'
-                  : 'Set a PIN to keep your session active. Without one, you\'ll be signed out after 10 minutes of inactivity.'}
+                  ? 'Set up Face ID or a PIN to protect your account when the app is closed or your screen turns off.'
+                  : 'Set a PIN to protect your account when the app is closed or your screen turns off.'}
               </p>
             </div>
 
@@ -166,7 +166,7 @@ export default function AppLockSetupModal() {
                 onClick={handleDismiss}
                 className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground"
               >
-                Skip — sign me out after 10 min of inactivity
+                Skip for now
               </button>
             </div>
           </>
