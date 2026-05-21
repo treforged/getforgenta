@@ -193,6 +193,12 @@ export default function Dashboard() {
 
   const { layout, setLayout, visibleWidgets, isCustomizing, setCustomizing, resetLayout } = useDashboardLayout();
 
+  // Signal Swift cover that the dashboard has mounted and is ready to paint.
+  useEffect(() => {
+    (window as any).__forgenta_dashboard_ready = true;
+    return () => { (window as any).__forgenta_dashboard_ready = false; };
+  }, []);
+
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
