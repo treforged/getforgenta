@@ -12,6 +12,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     private var nativeCover: UIView?
     private var nativeCoverHideTimer: Timer?
+    private var phoneLockTimer: Timer?
 
     // Distinguishes full background transitions from brief interruptions
     // (Control Center, Face ID prompts, incoming call banners).
@@ -52,6 +53,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // in the iOS App Switcher screenshot.
     func applicationWillResignActive(_ application: UIApplication) {
         debugLog("RESIGN didBg=\(didEnterBackground)")
+        phoneLockTimer?.invalidate()
+        phoneLockTimer = nil
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = nil
         showNativeCover()
@@ -87,10 +90,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             scheduleNativeCoverDismiss(after: 0.3)
 
         } else if phoneLocked {
-            // Device was locked via power button. Reload forces a fresh React
-            // init() which will apply the app lock if the user has it enabled.
-            debugLog("COVER_BRANCH:phone_lock → reload + poll 30")
-            reloadThenPoll(maxAttempts: 30)
+            // Device was locked via power button. Poll normally so the cover
+            // lifts as usual, then schedule a reload 30 s later — this gives
+            // the user a 30-second grace period before init() applies the lock.
+            debugLog("COVER_BRANCH:phone_lock → poll 20, lock reload in 30s")
+            pollWebViewReady(maxAttempts: 20)
+            phoneLockTimer?.invalidate()
+            phoneLockTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+                self?.debugLog("PHONE_LOCK_RELOAD_TRIGGERED")
+                self?.showNativeCover()
+                self?.reloadThenPoll(maxAttempts: 30)
+            }
 
         } else if webViewProcessTerminated {
             // webViewWebContentProcessDidTerminate already called webView.reload().
