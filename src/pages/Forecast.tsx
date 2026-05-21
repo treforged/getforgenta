@@ -468,7 +468,9 @@ export default function Forecast() {
 
       return {
         ...e,
-        income: normalizedBasePaycheck + e.nonPaycheckIncome,
+        // Use rule-based income when paycheck is tracked in income rules (e.income > nonPaycheckIncome),
+        // otherwise fall back to payConfig estimate (covers users whose paycheck deposits to non-liquid accounts)
+        income: e.income > e.nonPaycheckIncome ? e.income : normalizedBasePaycheck + e.nonPaycheckIncome,
         expenses: e.expenses + (pauseSavings ? 0 : monthSavings + simCarMonthly) + monthTransfers,
       };
     });
