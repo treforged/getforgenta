@@ -211,17 +211,16 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
         const prompted = await pGet(P.setupPrompted);
         if (!prompted && !lockEnabledRef.current) {
-          setupTimer = setTimeout(() => setShowSetupModal(true), 800);
+          setupTimer = setTimeout(() => setShowSetupModal(true), 3000);
         }
       } else if (event === 'SIGNED_OUT') {
         debugLog('AUTH_SIGNED_OUT');
         skipLockClearOnSignIn.current = false;
-        // Preserve lock credentials (PIN hash, type, enabled) so the user does
-        // not lose their lock configuration after a session expiry or sign-out.
-        // Only clear the prompted flag so the setup modal can re-evaluate.
-        await pDel(P.setupPrompted);
+        await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted)]);
         localStorage.removeItem(LS_UNLOCKED_AT);
         localStorage.removeItem(LS_FAILED);
+        setLockEnabled(false);
+        setLockTypeState('pin');
         setIsLocked(false);
         setFailedAttempts(0);
         setShowSetupModal(false);
