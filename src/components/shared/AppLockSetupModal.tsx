@@ -162,12 +162,6 @@ export default function AppLockSetupModal() {
               >
                 <KeyRound size={16} /> Set a PIN
               </button>
-              <button
-                onClick={handleDismiss}
-                className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground"
-              >
-                Skip for now
-              </button>
             </div>
           </>
         )}
