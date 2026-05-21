@@ -1142,18 +1142,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
                 {/* Payment preference selector */}
                 <div className="px-3 sm:px-4 pb-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Payment type</p>
+                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1.5">Pay amount (when it's this card's turn)</p>
                   <div className="flex gap-2">
                     {([
-                      ['Min Balance', null, 'Pay minimum required each month — strategy routes surplus to priority cards'],
-                      ['Statement Bal.', 'statement', 'Pay carried balance + interest only — new purchases carry to next cycle'],
-                      ['Full Balance', 'full', 'Pay entire balance + new purchases each month, as cash allows'],
-                    ] as [string, 'statement' | 'full' | null, string][]).map(([label, key, desc]) => {
+                      { key: 'statement', label: 'Statement Bal.', desc: 'Pay carried balance + interest only — new purchases carry to next cycle' },
+                      { key: 'full', label: 'Full Balance', desc: 'Pay entire balance + new purchases each month, as cash allows' },
+                    ] as const).map(({ key, label, desc }) => {
                       const active = proj.card.paymentPreference === key;
                       return (
                         <button
-                          key={label}
-                          onClick={() => { if (!active) updateAccount.mutate({ id: proj.card.id, payment_preference: key } as any); }}
+                          key={key}
+                          onClick={() => updateAccount.mutate({ id: proj.card.id, payment_preference: active ? null : key } as any)}
                           className={`flex-1 py-1.5 text-[10px] font-medium border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
                           style={{ borderRadius: 'var(--radius)' }}
                           aria-pressed={active}
@@ -1165,7 +1164,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     })}
                   </div>
                   <p className="text-[9px] text-muted-foreground mt-1">
-                    {proj.card.paymentPreference === null && 'Strategy routes surplus to this card when it is the priority target'}
+                    {proj.card.paymentPreference === null && 'Avalanche/snowball pushes as much surplus as possible to this card down to the cash floor'}
                     {proj.card.paymentPreference === 'statement' && 'Pay carried balance + interest — new purchases carry to next cycle'}
                     {proj.card.paymentPreference === 'full' && 'Pay entire balance + new purchases — as cash allows above floor'}
                   </p>
@@ -1196,7 +1195,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {proj.card.balance <= 0 && (
                       <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={14} className="shrink-0" />
-                        <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.monthlyNewPurchases, false)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : proj.card.paymentPreference === 'statement' ? 'statement balance' : 'minimum'} — as cash allows.</span>
+                        <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.monthlyNewPurchases, false)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : 'statement balance'} — as cash allows.</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
