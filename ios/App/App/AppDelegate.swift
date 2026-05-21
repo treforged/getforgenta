@@ -26,10 +26,25 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // so the cover must be shown before the sheet opens from the plugin.
     private var oAuthSessionPending = false
 
+    // Set by protectedDataWillBecomeUnavailableNotification, which fires ONLY
+    // on a real device lock (power button), not on home-button backgrounds.
+    private var phoneLocked = false
+
     // MARK: - Lifecycle
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleDeviceLock),
+            name: UIApplication.protectedDataWillBecomeUnavailableNotification,
+            object: nil
+        )
         return true
+    }
+
+    @objc private func handleDeviceLock() {
+        debugLog("PHONE_LOCK")
+        phoneLocked = true
     }
 
     // Fires for every interruption: background, Control Center, Face ID, call banners,
@@ -56,6 +71,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         defer {
             didEnterBackground = false
             webViewProcessTerminated = false
+            phoneLocked = false
         }
 
         if oAuthSessionPending {
@@ -68,17 +84,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             debugLog("COVER_BRANCH:brief → schedule 0.3s")
             scheduleNativeCoverDismiss(after: 0.3)
 
+        } else if phoneLocked {
+            // Device was locked via power button. Reload forces a fresh React
+            // init() which will apply the app lock if the user has it enabled.
+            debugLog("COVER_BRANCH:phone_lock → reload + poll 30")
+            reloadThenPoll(maxAttempts: 30)
+
         } else if webViewProcessTerminated {
             // webViewWebContentProcessDidTerminate already called webView.reload().
             debugLog("COVER_BRANCH:wv_killed → poll 50")
             pollWebViewReady(maxAttempts: 50)
 
         } else {
-            // Full background: iOS may have reclaimed the WKWebView backing store.
-            // document.readyState still returns 'complete' in that state, so polling
-            // alone can't detect it. Always reload to guarantee fresh visual output.
-            debugLog("COVER_BRANCH:bg_reload → reload + poll 30")
-            reloadThenPoll(maxAttempts: 30)
+            // Normal home-button background. Poll readyState without reloading
+            // so React does NOT remount — no init(), no accidental app lock.
+            debugLog("COVER_BRANCH:bg_poll → poll 20")
+            pollWebViewReady(maxAttempts: 20)
         }
     }
 
