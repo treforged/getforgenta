@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Fingerprint, Delete, AlertTriangle } from 'lucide-react';
 import { useAppLock, MAX_FAILED_ATTEMPTS } from '@/hooks/useAppLock';
-import ForgentaLogo from '@/components/shared/ForgentaLogo';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
 
@@ -19,7 +18,6 @@ export default function AppLockScreen() {
   const [checking, setChecking] = useState(false);
   const [showPinFallback, setShowPinFallback] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-  const [startupDone, setStartupDone] = useState(false);
 
   const activeType = showPinFallback ? 'pin' : lockType;
   const tooManyAttempts = failedAttempts >= MAX_FAILED_ATTEMPTS;
@@ -29,12 +27,6 @@ export default function AppLockScreen() {
     const ok = await unlockWithBiometric();
     if (!ok) toast.error('Biometric authentication failed — use your PIN instead');
   }, [lockType, unlockWithBiometric]);
-
-  // Enforce 2-second minimum startup splash on mount (resets if WebView is killed and reloaded)
-  useEffect(() => {
-    const t = setTimeout(() => setStartupDone(true), 2000);
-    return () => clearTimeout(t);
-  }, []);
 
   // Auto-trigger biometric on mount / when lock screen appears
   useEffect(() => {
@@ -80,28 +72,7 @@ export default function AppLockScreen() {
     await supabase.auth.signOut();
   };
 
-  // While lock context is initializing show a branded skeleton to prevent
-  // a flash of app content before the lock state is determined
-  if (!ready || !startupDone) {
-    return (
-      <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-6">
-        <div className="animate-pulse">
-          <ForgentaLogo size="lg" showWordmark={false} />
-        </div>
-        <div className="flex gap-1.5">
-          {[0, 1, 2].map(i => (
-            <span
-              key={i}
-              className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 animate-bounce"
-              style={{ animationDelay: `${i * 150}ms` }}
-            />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (!isLocked) return null;
+  if (!ready || !isLocked) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-8 px-8">
