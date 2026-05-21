@@ -16,6 +16,7 @@ const LS_UNLOCKED_AT = 'forged:lock_unlocked_at';
 const LS_FAILED      = 'forged:lock_failed';
 
 const INIT_GRACE_MS = 3_000;
+const INACTIVITY_LOGOUT_MS = 10 * 60 * 1000;
 export const MAX_FAILED_ATTEMPTS = 5;
 
 async function sha256(text: string): Promise<string> {
@@ -111,9 +112,10 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const [showSetupModal, setShowSetupModal] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
 
-  const isLockedRef           = useRef(false);
-  const lockEnabledRef        = useRef(false);
-  const skipLockClearOnSignIn = useRef(false);
+  const isLockedRef            = useRef(false);
+  const lockEnabledRef         = useRef(false);
+  const skipLockClearOnSignIn  = useRef(false);
+  const inactivityTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { isLockedRef.current    = isLocked;    }, [isLocked]);
   useEffect(() => { lockEnabledRef.current = lockEnabled; }, [lockEnabled]);
@@ -139,6 +141,16 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
       if (!lockIsEnabled) {
         skipLockClearOnSignIn.current = false;
+        // Check for existing session so the inactivity timer starts on app reopen,
+        // not just on fresh sign-in (SIGNED_IN fires with skip=true on session restore).
+        const { data: { session: existingSession } } = await supabase.auth.getSession();
+        if (existingSession) {
+          if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+          inactivityTimerRef.current = setTimeout(async () => {
+            debugLog('INACTIVITY_LOGOUT');
+            await supabase.auth.signOut();
+          }, INACTIVITY_LOGOUT_MS);
+        }
       } else {
         const ts = localStorage.getItem(LS_UNLOCKED_AT);
         const withinGrace = !!ts && (Date.now() - parseInt(ts)) < INIT_GRACE_MS;
@@ -192,9 +204,21 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         if (!prompted) {
           setupTimer = setTimeout(() => setShowSetupModal(true), 800);
         }
+        // Start inactivity logout timer for users who haven't set up a lock.
+        if (!lockEnabledRef.current) {
+          if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+          inactivityTimerRef.current = setTimeout(async () => {
+            debugLog('INACTIVITY_LOGOUT');
+            await supabase.auth.signOut();
+          }, INACTIVITY_LOGOUT_MS);
+        }
       } else if (event === 'SIGNED_OUT') {
         debugLog('AUTH_SIGNED_OUT');
         skipLockClearOnSignIn.current = false;
+        if (inactivityTimerRef.current) {
+          clearTimeout(inactivityTimerRef.current);
+          inactivityTimerRef.current = null;
+        }
         await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted)]);
         localStorage.removeItem(LS_UNLOCKED_AT);
         localStorage.removeItem(LS_FAILED);
@@ -209,6 +233,29 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
 
     return () => { subscription.unsubscribe(); clearTimeout(setupTimer); };
   }, [isNative]);
+
+  // Reset the inactivity timer on any touch (only when timer is running).
+  useEffect(() => {
+    if (!isNative) return;
+    const handler = () => {
+      if (inactivityTimerRef.current === null) return;
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = setTimeout(async () => {
+        debugLog('INACTIVITY_LOGOUT');
+        await supabase.auth.signOut();
+      }, INACTIVITY_LOGOUT_MS);
+    };
+    document.addEventListener('touchstart', handler, { passive: true });
+    return () => document.removeEventListener('touchstart', handler);
+  }, [isNative]);
+
+  // Cancel the inactivity timer the moment the user sets up a lock.
+  useEffect(() => {
+    if (lockEnabled && inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current);
+      inactivityTimerRef.current = null;
+    }
+  }, [lockEnabled]);
 
   const markUnlocked = useCallback(() => {
     localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));

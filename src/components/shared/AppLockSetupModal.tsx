@@ -133,11 +133,11 @@ export default function AppLockSetupModal() {
               <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <KeyRound size={22} className="text-primary" />
               </div>
-              <p className="font-semibold text-sm">Secure your Forgenta data</p>
+              <p className="font-semibold text-sm">A PIN is required</p>
               <p className="text-xs text-muted-foreground">
                 {isIos && biometricAvailable
-                  ? 'Protect your finances with Face ID or a PIN — you can change this anytime in Settings.'
-                  : 'Set a PIN to protect your financial data when you\'re away from the app.'}
+                  ? 'Set up Face ID or a PIN to keep your session active. Without one, you\'ll be signed out after 10 minutes of inactivity.'
+                  : 'Set a PIN to keep your session active. Without one, you\'ll be signed out after 10 minutes of inactivity.'}
               </p>
             </div>
 
@@ -166,7 +166,7 @@ export default function AppLockSetupModal() {
                 onClick={handleDismiss}
                 className="w-full py-2.5 text-xs text-muted-foreground hover:text-foreground"
               >
-                Skip for now
+                Skip — sign me out after 10 min of inactivity
               </button>
             </div>
           </>
@@ -214,7 +214,7 @@ export default function AppLockSetupModal() {
                 {flow === 'biometric' ? 'Face ID lock enabled' : 'PIN lock enabled'}
               </p>
               <p className="text-xs text-muted-foreground">
-                Forgenta will lock automatically after {isIos ? '30 seconds' : '30 seconds'} in the background.
+                Your account locks when the app is closed or your screen turns off.
                 You can manage this in Settings.
               </p>
             </div>
