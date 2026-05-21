@@ -14,9 +14,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     private var nativeCoverHideTimer: Timer?
     private var phoneLockTimer: Timer?
 
-    // Distinguishes full background transitions from brief interruptions
-    // (Control Center, Face ID prompts, incoming call banners).
-    private var didEnterBackground = false
+    // True only between applicationWillEnterForeground and applicationDidBecomeActive.
+    // applicationWillEnterForeground fires ONLY for user-initiated foreground transitions,
+    // NOT for brief interruptions (Control Center, Face ID) or fresh process starts.
+    // This is more reliable than didEnterBackground, which can be stale when iOS kills
+    // and restarts the app process in the background.
+    private var willEnterForeground = false
+
+    // True until the first applicationDidBecomeActive completes.
+    // Identifies a fresh process start so the cover can poll instead of dismissing in 0.3s.
+    private var isFirstLaunch = true
 
     // Set by ViewController when WKWebView content process terminates.
     // Means the WebView needs a full network reload before we can reveal it.
@@ -40,6 +47,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             name: UIApplication.protectedDataWillBecomeUnavailableNotification,
             object: nil
         )
+        // Show cover immediately on fresh launch so the black WebView loading
+        // period is hidden. applicationDidBecomeActive will poll and dismiss.
+        DispatchQueue.main.async { [weak self] in self?.showNativeCover() }
         return true
     }
 
@@ -52,7 +62,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // system overlays. Show the cover immediately so app content is never captured
     // in the iOS App Switcher screenshot.
     func applicationWillResignActive(_ application: UIApplication) {
-        debugLog("RESIGN didBg=\(didEnterBackground)")
+        debugLog("RESIGN fromBg=\(willEnterForeground)")
         phoneLockTimer?.invalidate()
         phoneLockTimer = nil
         nativeCoverHideTimer?.invalidate()
@@ -62,17 +72,18 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidEnterBackground(_ application: UIApplication) {
         debugLog("ENTER_BG")
-        didEnterBackground = true
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
         debugLog("WILL_FOREGROUND")
+        willEnterForeground = true
     }
 
     func applicationDidBecomeActive(_ application: UIApplication) {
-        debugLog("BECOME_ACTIVE oauth=\(oAuthSessionPending) didBg=\(didEnterBackground) wvKilled=\(webViewProcessTerminated)")
+        debugLog("BECOME_ACTIVE oauth=\(oAuthSessionPending) fromBg=\(willEnterForeground) firstLaunch=\(isFirstLaunch) wvKilled=\(webViewProcessTerminated)")
         defer {
-            didEnterBackground = false
+            isFirstLaunch = false
+            willEnterForeground = false
             webViewProcessTerminated = false
             phoneLocked = false
         }
@@ -87,7 +98,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 self?.pollDashboardReady(maxAttempts: 30)
             }
 
-        } else if !didEnterBackground {
+        } else if isFirstLaunch {
+            // Fresh process start (iOS killed and restarted the app in background,
+            // or first ever launch). Cover was shown in didFinishLaunchingWithOptions;
+            // poll until the WebView finishes loading.
+            debugLog("COVER_BRANCH:first_launch → poll 50")
+            pollWebViewReady(maxAttempts: 50)
+
+        } else if !willEnterForeground {
+            // Brief interruption: Control Center, Face ID, call banner, etc.
+            // applicationWillEnterForeground was NOT called, so this is not a
+            // real background→foreground transition.
             debugLog("COVER_BRANCH:brief → schedule 0.3s")
             scheduleNativeCoverDismiss(after: 0.3)
 
