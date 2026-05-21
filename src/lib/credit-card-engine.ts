@@ -284,7 +284,9 @@ export function projectCardVariable(
     const startBal = bal;
     const newPurchases = purchasesPerMonth?.[m - 1] !== undefined
       ? purchasesPerMonth[m - 1]
-      : (m === 1 && skipFirstMonthPurchases) ? 0 : card.monthlyNewPurchases;
+      : (m === 1 && skipFirstMonthPurchases) ? 0
+      : m > monthlyPayments.length ? 0 // beyond sim range: track carried balance only; new purchases assumed paid in-cycle
+      : card.monthlyNewPurchases;
 
     if (card.autopayFullBalance && bal <= 0) {
       if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment: newPurchases, endBalance: 0, utilization: 0 });
