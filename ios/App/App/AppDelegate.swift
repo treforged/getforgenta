@@ -80,10 +80,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if oAuthSessionPending {
             oAuthSessionPending = false
             // ASWebAuthenticationSession does NOT trigger resign/background so
-            // the backing store is intact — no reload needed. Fixed delay gives
-            // JS time to exchange the auth code and navigate to the dashboard.
-            debugLog("COVER_BRANCH:oauth → schedule 2.0s")
-            scheduleNativeCoverDismiss(after: 2.0)
+            // the backing store is intact — no reload needed. Wait 2.5 s minimum
+            // for the code exchange, then poll until Dashboard sets the JS flag.
+            debugLog("COVER_BRANCH:oauth → wait 2.5s then poll dashboard ready")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                self?.pollDashboardReady(maxAttempts: 30)
+            }
 
         } else if !didEnterBackground {
             debugLog("COVER_BRANCH:brief → schedule 0.3s")
@@ -179,6 +181,32 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         nativeCoverHideTimer?.invalidate()
         nativeCoverHideTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
             self?.hideNativeCover()
+        }
+    }
+
+    /// Polls window.__forgenta_dashboard_ready every 200 ms.
+    /// Used after OAuth sign-in to confirm the dashboard has mounted before
+    /// lifting the cover. Falls back to hiding after maxAttempts (6 s).
+    private func pollDashboardReady(maxAttempts: Int, attempt: Int = 0) {
+        guard nativeCover != nil else { return }
+        guard attempt < maxAttempts else { hideNativeCover(); return }
+        guard let webView = webViewForPolling() else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                self?.pollDashboardReady(maxAttempts: maxAttempts, attempt: attempt + 1)
+            }
+            return
+        }
+        webView.evaluateJavaScript("window.__forgenta_dashboard_ready === true") { [weak self] result, _ in
+            DispatchQueue.main.async {
+                if (result as? Bool) == true {
+                    self?.debugLog("DASHBOARD_READY flag=true")
+                    self?.waitForPaintThenDismiss(webView)
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        self?.pollDashboardReady(maxAttempts: maxAttempts, attempt: attempt + 1)
+                    }
+                }
+            }
         }
     }
 
