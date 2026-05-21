@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Fingerprint, Delete, AlertTriangle } from 'lucide-react';
 import { useAppLock, MAX_FAILED_ATTEMPTS } from '@/hooks/useAppLock';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +13,7 @@ export default function AppLockScreen() {
     ready, isLocked, lockType, failedAttempts,
     unlockWithPin, unlockWithBiometric,
   } = useAppLock();
+  const navigate = useNavigate();
 
   const [pin, setPin] = useState('');
   const [error, setError] = useState(false);
@@ -72,10 +74,16 @@ export default function AppLockScreen() {
     await supabase.auth.signOut();
   };
 
+  const handleGoToSignIn = async () => {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    navigate('/auth', { replace: true });
+  };
+
   if (!ready || !isLocked) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-8 px-8">
+    <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-8 px-8" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Branding */}
       <div className="text-center space-y-1">
         <p className="font-display font-bold text-xl tracking-tight">Forgenta</p>
@@ -177,6 +185,43 @@ export default function AppLockScreen() {
             Use Face ID instead
           </button>
         )}
+      </div>
+
+      {/* Footer: sign-in escape, legal links, copyright */}
+      <div
+        className="absolute left-0 right-0 flex flex-col items-center gap-2"
+        style={{ bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
+      >
+        <button
+          onClick={handleGoToSignIn}
+          disabled={signingOut}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          {signingOut ? 'Signing out…' : 'Sign in with a different account'}
+        </button>
+        <div className="flex items-center justify-center gap-2">
+          <Link
+            to="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            Privacy Policy
+          </Link>
+          <Link
+            to="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-xs text-muted-foreground border border-border hover:text-foreground hover:bg-secondary/40 transition-colors"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            Terms of Service
+          </Link>
+        </div>
+        <p className="text-[10px] text-muted-foreground text-center">
+          &copy; {new Date().getFullYear()} Forgenta&#8482; by TRE Forged LLC. All rights reserved.
+        </p>
       </div>
     </div>
   );
