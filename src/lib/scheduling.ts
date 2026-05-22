@@ -124,6 +124,46 @@ export function countWeekdayInMonth(year: number, month: number, dayOfWeek: numb
   return count;
 }
 
+/**
+ * Count how many times a recurring rule fires in a given calendar month.
+ * Biweekly uses the same cycle anchor as generateScheduledEvents — max(today, rule.start_date),
+ * advance to first matching dayOfWeek, then every 14 days — so both systems agree.
+ * Returns 1/12 for yearly (amortized). Returns 0 if rule is outside start/end bounds.
+ */
+export function countRuleOccurrencesInMonth(
+  rule: { frequency: string; due_day?: number | null; start_date?: string | null; end_date?: string | null },
+  year: number,
+  month: number,
+  today: Date = new Date(),
+): number {
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+  if (rule.start_date && new Date(rule.start_date + 'T00:00:00') > monthEnd) return 0;
+  if (rule.end_date && new Date(rule.end_date + 'T00:00:00') < monthStart) return 0;
+  if (rule.frequency === 'monthly') return 1;
+  if (rule.frequency === 'semi_monthly') return 2;
+  if (rule.frequency === 'yearly') return 1 / 12;
+  const dayOfWeek = rule.due_day ?? 5;
+  if (rule.frequency === 'weekly') return countWeekdayInMonth(year, month, dayOfWeek);
+  if (rule.frequency === 'biweekly') {
+    const ruleStart = rule.start_date ? new Date(rule.start_date + 'T00:00:00') : today;
+    const ref = new Date(Math.max(today.getTime(), ruleStart.getTime()));
+    while (ref.getDay() !== dayOfWeek) ref.setDate(ref.getDate() + 1);
+    // Advance ref to first occurrence on or after monthStart
+    if (ref < monthStart) {
+      const diffDays = Math.floor((monthStart.getTime() - ref.getTime()) / 86400000);
+      ref.setDate(ref.getDate() + Math.floor(diffDays / 14) * 14);
+      if (ref < monthStart) ref.setDate(ref.getDate() + 14);
+    }
+    if (ref > monthEnd) return 0;
+    let count = 0;
+    const d = new Date(ref);
+    while (d <= monthEnd) { count++; d.setDate(d.getDate() + 14); }
+    return count;
+  }
+  return 0;
+}
+
 // Get upcoming events within the next N days
 export function getUpcomingEvents(events: ScheduledEvent[], days: number = 7): ScheduledEvent[] {
   const now = new Date();
