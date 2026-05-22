@@ -98,7 +98,7 @@ export const CATEGORIES = [
   'Groceries', 'Gas', 'Dining', 'Shopping', 'Entertainment',
   'Subscriptions', 'Health', 'Personal', 'Travel', 'Car',
   'Education', 'Pets', 'Clothing', 'Gifts',
-  'Savings', 'Investing', 'Business', 'Debt Payments',
+  'Savings', 'Investing', 'Business', 'Business Contributions', 'Debt Payments',
   'Income', 'Other',
 ] as const;
 
