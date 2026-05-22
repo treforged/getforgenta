@@ -962,6 +962,7 @@ export default function Forecast() {
       ccDebtBalance: number; otherDebtBalance: number; monthMinSafe: number; monthlySavingsContrib: number;
       paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
       paycheckRetireContrib: number; fullMonth401kContrib: number;
+      transferBreakdown: { name: string; amount: number }[];
     }[] = [];
     let incomeMultiplier = 1;
     let expenseMultiplier = 1;
@@ -1098,6 +1099,7 @@ export default function Forecast() {
       let monthRetireContrib = 0;
       let monthBusinessContrib = 0;
       const activeTransferDestIds = new Set<string>();
+      const transferBreakdown: { name: string; amount: number }[] = [];
       for (const tr of transferRulesAll) {
         if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > monthEnd) continue;
         if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
@@ -1113,13 +1115,19 @@ export default function Forecast() {
         const destType = destAcct?.account_type || '';
         if (['roth_ira', '401k', 'ira', 'hsa'].includes(destType)) {
           monthRetireContrib += monthAmt;
+          transferBreakdown.push({ name: tr.name, amount: monthAmt });
         } else if (destType === 'brokerage') {
           monthBrokerageContrib += monthAmt;
+          transferBreakdown.push({ name: tr.name, amount: monthAmt });
         } else if (
           destType === 'business_checking' ||
           (destType === 'checking' && forecastFundingAccountId != null && destAcct?.id !== forecastFundingAccountId)
         ) {
           monthBusinessContrib += monthAmt;
+          // business transfers have their own popup line — excluded from transferBreakdown
+        } else {
+          // generic investment/transfer — include
+          transferBreakdown.push({ name: tr.name, amount: monthAmt });
         }
       }
 
@@ -1165,7 +1173,7 @@ export default function Forecast() {
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
         monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
-        paycheckRetireContrib: month401kContrib, fullMonth401kContrib,
+        paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown,
       });
 
       expenseMultiplier *= (1 + monthlyExpenseGrowth);
@@ -1362,6 +1370,7 @@ export default function Forecast() {
         projectedCarLoan: Math.round(projLoanThisMonth),
         mortgagePayment: Math.round(mortgageMonthlyPayment),
         transfersTotal: Math.round(actualTransfers),
+        transferBreakdown: b.transferBreakdown,
         businessContrib: Math.round(b.monthBusinessContrib),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
         ccDebtBalance: Math.round(b.ccDebtBalance),
@@ -2069,9 +2078,9 @@ export default function Forecast() {
                     ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: '  Vehicle Down Payment', value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
                     ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, false), op: '−' }] : []),
                     ...((row.projectedCarLoan ?? 0) > 0 ? [{ label: '  Est. Car Loan (projected)', value: formatCurrency(row.projectedCarLoan, false), op: '−' }] : []),
-                    ...(((row.transfersTotal ?? 0) - (row.businessContrib ?? 0)) > 0
-                      ? [{ label: '  Investment & Retirement Transfers', value: formatCurrency((row.transfersTotal ?? 0) - (row.businessContrib ?? 0), false), op: '−' }]
-                      : []),
+                    ...((row.transferBreakdown ?? [])
+                      .filter((t: { name: string; amount: number }) => t.amount > 0)
+                      .map((t: { name: string; amount: number }) => ({ label: `  ${t.name}`, value: formatCurrency(t.amount, false), op: '−' as const }))),
                     ...((row.businessContrib ?? 0) > 0
                       ? [{ label: '  Business Contributions', value: formatCurrency(row.businessContrib, false), op: '−' }]
                       : []),
