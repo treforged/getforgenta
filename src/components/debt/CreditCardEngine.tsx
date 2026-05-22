@@ -331,6 +331,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       const cardPurchases: { [cardId: string]: number } = {};
       if (i > 0) {
         for (const card of cards) {
+          if (card.startDate) {
+            const startD = new Date(card.startDate + 'T00:00:00');
+            if (d < startD) continue; // no purchases before card's start date
+          }
           const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
           cardPurchases[card.id] = eventsInMonth
             .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
@@ -681,6 +685,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         month: d.toLocaleString('en', { month: 'short', year: 'numeric' }),
       };
       for (const p of projections) {
+        if (p.card.startDate) {
+          const startD = new Date(p.card.startDate + 'T00:00:00');
+          if (d < startD) continue; // no line before card's start date
+        }
         const m = p.months[i];
         if (m) {
           row[p.card.name] = Math.round(m.endBalance);
