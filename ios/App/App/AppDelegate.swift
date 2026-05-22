@@ -47,10 +47,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             name: UIApplication.protectedDataWillBecomeUnavailableNotification,
             object: nil
         )
-        // No cover shown on fresh launch — capacitor.config ios.backgroundColor (#09090b)
-        // makes the bare WKWebView background match the app's dark theme, so no
-        // black flash is visible while React loads. The cover is only needed for
-        // background→foreground transitions (shown in applicationWillResignActive).
+        // Show cover immediately so the WKWebView reload on fresh process start
+        // (including iOS process kills after short backgrounds) is hidden.
+        // applicationDidBecomeActive polls window.__forgenta_dashboard_ready and
+        // drops the cover once Auth/Onboarding/Dashboard has rendered.
+        DispatchQueue.main.async { [weak self] in self?.showNativeCover() }
         return true
     }
 
@@ -100,10 +101,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             }
 
         } else if isFirstLaunch {
-            // Fresh process start. No cover is shown on launch (ios.backgroundColor
-            // handles the loading period). If a cover somehow exists, dismiss quickly.
-            debugLog("COVER_BRANCH:first_launch → no cover, dismiss")
-            scheduleNativeCoverDismiss(after: 0.0)
+            // Fresh process start (or iOS process kill+restart after short background).
+            // Cover was shown in didFinishLaunchingWithOptions; poll until Auth,
+            // Onboarding, or Dashboard sets window.__forgenta_dashboard_ready.
+            // Auth sets it immediately (unauthenticated launch) so it resolves fast.
+            // Authenticated sessions take 2–5 s for auth restore + dashboard mount.
+            debugLog("COVER_BRANCH:first_launch → poll dashboard ready (max 50)")
+            pollDashboardReady(maxAttempts: 50)
 
         } else if !willEnterForeground {
             // Brief interruption: Control Center, Face ID, call banner, etc.
@@ -160,6 +164,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     /// React processes SIGNED_IN and navigates after auth completes.
     func oAuthSessionWillStart() {
         oAuthSessionPending = true
+        // Auth page sets __forgenta_dashboard_ready = true. Reset it now so that
+        // pollDashboardReady (called after OAuth returns) waits for Dashboard or
+        // Onboarding to mount rather than firing instantly on the stale Auth flag.
+        webViewForPolling()?.evaluateJavaScript(
+            "window.__forgenta_dashboard_ready = false", completionHandler: nil)
         showNativeCover()
     }
 
