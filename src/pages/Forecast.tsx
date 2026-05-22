@@ -2080,13 +2080,6 @@ export default function Forecast() {
                     { label: '', value: '' },
                     { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
                     { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
-                    { label: '401k Contribution', value: (row.fullMonth401kContrib ?? row.paycheckRetireContrib ?? 0) > 0 ? formatCurrency(row.fullMonth401kContrib ?? row.paycheckRetireContrib, false) : '—' },
-                    ...((((row.retireContrib ?? 0) - (row.fullMonth401kContrib ?? row.paycheckRetireContrib ?? 0)) > 0)
-                      ? [{ label: 'Roth / Retirement Transfers', value: formatCurrency((row.retireContrib ?? 0) - (row.fullMonth401kContrib ?? row.paycheckRetireContrib ?? 0), false) }]
-                      : []),
-                    ...((row.brokerageContrib ?? 0) > 0
-                      ? [{ label: 'Brokerage Contributions', value: formatCurrency(row.brokerageContrib, false) }]
-                      : []),
                     { label: '401k Balance', value: formatCurrency(row.retirementBalance, false) },
                     { label: 'Brokerage Balance', value: formatCurrency(row.investmentBalance, false) },
                     { label: 'Savings Balance', value: formatCurrency(row.savingsBalance, false) },
