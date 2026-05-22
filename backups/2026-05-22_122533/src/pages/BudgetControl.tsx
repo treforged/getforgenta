@@ -641,8 +641,7 @@ export default function BudgetControl() {
   const formFields = useMemo(() => {
     const fields: any[] = [
       { key: 'name', label: 'Name', type: 'text', placeholder: 'e.g., Rent, Paycheck', required: true },
-      { key: 'amount', label: 'Amount', type: 'number', placeholder: '0.00', step: '0.01', required: true,
-        ...(editId === paycheckRuleId && weeklyGross > 0 ? { disabled: true, hint: 'Controlled by gross income in Income & Tax settings' } : {}) },
+      { key: 'amount', label: 'Amount', type: 'number', placeholder: '0.00', step: '0.01', required: true },
       { key: 'rule_type', label: 'Type', type: 'select', options: ruleTypeOptions },
       { key: 'frequency', label: 'Frequency', type: 'select', options: [{ value: 'weekly', label: 'Weekly' }, { value: 'biweekly', label: 'Biweekly' }, { value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly' }] },
       { key: 'due_day', label: form.frequency === 'weekly' || form.frequency === 'biweekly' ? 'Day of Week (0=Sun, 5=Fri)' : 'Due Day of Month', type: 'number' },
@@ -665,7 +664,7 @@ export default function BudgetControl() {
     }
     fields.push({ key: 'notes', label: 'Notes', type: 'text', placeholder: 'Optional' });
     return fields;
-  }, [form.frequency, form.rule_type, allAccountOptions, depositAccountOptions, editId, paycheckRuleId, weeklyGross]);
+  }, [form.frequency, form.rule_type, allAccountOptions, depositAccountOptions]);
 
   const handleDuplicate = (r: any) => {
     if (r.isSub || r.isDebtSync) return;
