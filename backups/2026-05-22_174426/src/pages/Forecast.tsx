@@ -10,8 +10,7 @@ import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, 
 import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
-import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
+import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
@@ -1490,45 +1489,6 @@ export default function Forecast() {
   // Helper to check visibility — a series is visible if NOT in hiddenSeries
   const isVisible = (key: string) => !hiddenSeries.includes(key);
 
-  const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
-  const DEFAULT_APY_FORECAST = 7;
-
-  const retirementProjections = useMemo(() => {
-    const prof = profile as any;
-    const retireAccounts = accounts.filter((a: any) => a.active && RETIRE_TYPES_FORECAST.includes(a.account_type));
-    if (retireAccounts.length === 0) return [];
-
-    const paycheckGross = getPaycheckGross(payConfig);
-    const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
-
-    const deductions: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
-      Array.isArray(prof?.paycheck_deductions) ? prof.paycheck_deductions : [];
-
-    const retireIds = new Set(retireAccounts.map((a: any) => a.id as string));
-    const transferContribByAccount: Record<string, number> = {};
-    for (const r of (rules || [])) {
-      if (!r.active) continue;
-      if (r.rule_type !== 'transfer' && r.rule_type !== 'investment') continue;
-      const destId = r.deposit_account as string | undefined;
-      if (!destId || !retireIds.has(destId)) continue;
-      const amt = Number(r.amount);
-      const monthly = r.frequency === 'weekly' ? amt * 4.33
-        : r.frequency === 'biweekly' ? amt * 2.167
-        : r.frequency === 'yearly' ? amt / 12
-        : amt;
-      transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + monthly;
-    }
-
-    return retireAccounts.map((a: any) => {
-      const apyRate = a.apy_rate != null ? Number(a.apy_rate) : DEFAULT_APY_FORECAST;
-      const fromDeductions = monthlyContribForAccount(deductions, a.id, paycheckGross, paychecksPerYear);
-      const fromTransfers = transferContribByAccount[a.id] || 0;
-      const monthlyContrib = fromDeductions > 0 ? fromDeductions : fromTransfers;
-      const milestones = projectMilestones(Number(a.balance), monthlyContrib, apyRate);
-      return { account: a, apyRate, monthlyContrib, milestones };
-    });
-  }, [accounts, profile, rules, payConfig]);
-
   const freePreview = !isPremium && !isDemo;
   const displayData = freePreview ? filteredData.slice(0, 3) : filteredData;
 
@@ -2186,49 +2146,6 @@ export default function Forecast() {
                 </span>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Retirement & Investment Growth Projections ─────────────────── */}
-      {retirementProjections.length > 0 && (
-        <div className="card-forged p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp size={14} className="text-primary" />
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Retirement & Investment Growth Projections</h3>
-          </div>
-          <div className="space-y-4">
-            {retirementProjections.map(({ account, apyRate, monthlyContrib, milestones }) => (
-              <div key={account.id} className="border border-border/40 rounded-sm p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">{account.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {account.account_type.toUpperCase().replace('_', ' ')} · {apyRate}% APY
-                      {monthlyContrib > 0 && ` · +${formatCurrency(monthlyContrib, false)}/mo contributions`}
-                    </p>
-                  </div>
-                  <span className="text-xs font-bold font-display text-foreground">{formatCurrency(Number(account.balance), false)}</span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {([['1yr', milestones.year1], ['5yr', milestones.year5], ['10yr', milestones.year10], ['20yr', milestones.year20]] as [string, number][]).map(([label, val]) => (
-                    <div key={label} className="bg-muted/30 border border-border/30 px-2 py-1.5 text-center rounded-sm">
-                      <p className="text-[9px] text-muted-foreground uppercase">{label}</p>
-                      <p className="text-xs font-bold font-display text-success">{formatCurrency(val, false)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-            {retirementProjections.length > 1 && (
-              <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                <p className="text-xs text-muted-foreground font-medium">Combined projected retirement (10yr)</p>
-                <p className="text-sm font-bold font-display text-success">
-                  {formatCurrency(retirementProjections.reduce((s, p) => s + p.milestones.year10, 0), false)}
-                </p>
-              </div>
-            )}
-            <p className="text-[9px] text-muted-foreground">Projections use your configured APY rates and paycheck deductions. Actual growth will vary with market conditions.</p>
           </div>
         </div>
       )}
