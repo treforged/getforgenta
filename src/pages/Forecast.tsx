@@ -2126,6 +2126,7 @@ export default function Forecast() {
                       : []),
                     { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
                     { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
+                    { label: 'Cash Floor', value: formatCurrency(row.monthMinSafe, false) },
                     { label: '', value: '' },
                     { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
                     { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
