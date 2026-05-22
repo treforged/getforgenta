@@ -28,7 +28,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         // Mark as a background transition so that if the WebView reloads while
         // the app is paused or the process is suspended, init() skips the lock
