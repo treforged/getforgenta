@@ -6,10 +6,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useAppLock } from '@/hooks/useAppLock';
 import { Capacitor } from '@capacitor/core';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Fingerprint, KeyRound, Delete, Terminal } from 'lucide-react';
-
-const DEV_EMAIL = 'tre@treforged.com';
-const DEV_DEBUG_KEY = 'forged:dev_debug';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Fingerprint, KeyRound, Delete } from 'lucide-react';
 
 interface TrustedDevice {
   device_id: string;
@@ -180,7 +177,6 @@ export default function SettingsPage() {
   const [defaultDepositAccount, setDefaultDepositAccount] = useState('');
   const [autoGenerateRecurring, setAutoGenerateRecurring] = useState(true);
   const [dirty, setDirty] = useState(false);
-  const [devDebug, setDevDebug] = useState(() => localStorage.getItem(DEV_DEBUG_KEY) === '1');
 
   const [forceSignOutLoading, setForceSignOutLoading] = useState(false);
   const [forceSignOutConfirm, setForceSignOutConfirm] = useState(false);
@@ -1214,38 +1210,6 @@ export default function SettingsPage() {
               </Link>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Developer — only visible to tre@treforged.com */}
-      {isNative && user?.email === DEV_EMAIL && (
-        <div className="card-forged p-5 space-y-4">
-          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <Terminal size={12} /> Developer
-          </h2>
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <Bug size={13} className="text-muted-foreground" />
-                <span className="text-xs font-medium">Black Screen Debug Panel</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground pl-5">
-                Shows the DBG button overlay for inspecting Swift/JS lifecycle events.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                const next = !devDebug;
-                setDevDebug(next);
-                if (next) localStorage.setItem(DEV_DEBUG_KEY, '1');
-                else localStorage.removeItem(DEV_DEBUG_KEY);
-                window.dispatchEvent(new CustomEvent('forgenta:dev-debug'));
-              }}
-              className={`shrink-0 w-10 h-5 rounded-full transition-colors relative ${devDebug ? 'bg-primary' : 'bg-secondary border border-border'}`}
-            >
-              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-background border border-border/50 transition-transform ${devDebug ? 'translate-x-5' : 'translate-x-0.5'}`} />
-            </button>
-          </div>
         </div>
       )}
     </div>
