@@ -112,7 +112,7 @@ function AppRoutes() {
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><DebtPayoff /></ErrorBoundary></Suspense>} />
         <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SavingsGoals /></ErrorBoundary></Suspense>} />
         <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Vehicles /></ErrorBoundary></Suspense>} />
-        <Route path="/net-worth" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><NetWorth /></ErrorBoundary></Suspense>} />
+        <Route path="/net-worth" element={<Navigate to="/accounts" replace />} />
         <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Forecast /></ErrorBoundary></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SettingsPage /></ErrorBoundary></Suspense>} />
         <Route path="/ai" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><AiAdvisor /></ErrorBoundary></Suspense>} />

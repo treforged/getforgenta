@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
-import { useAccounts, useDebts, useAccountReconciliations } from '@/hooks/useSupabaseData';
+import { useAccounts, useDebts, useAccountReconciliations, useNetWorthSnapshots } from '@/hooks/useSupabaseData';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
@@ -19,6 +19,20 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip,
+} from 'recharts';
+import { ArrowUpRight } from 'lucide-react';
+
+function NWTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
+      <p className="font-medium">{payload[0].payload.month}</p>
+      <p className="text-primary font-semibold">{formatCurrency(payload[0].value, false)}</p>
+    </div>
+  );
+}
 
 interface MatchEntry {
   plaidAccount: PlaidSyncedAccount & { plaid_account_id?: string };
@@ -111,6 +125,7 @@ export default function Accounts() {
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
+  const { data: snapshots, loading: snapshotsLoading } = useNetWorthSnapshots();
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const [showForm, setShowForm] = useState(false);
@@ -246,6 +261,30 @@ export default function Accounts() {
     const netWorth = totalAssets - totalLiabilities;
     return { liquidCash, investments, retirement, ccDebt, totalLiabilities, totalAssets, netWorth };
   }, [activeAccounts]);
+
+  const netWorthTrend = useMemo(() => {
+    if (snapshots.length === 0) {
+      const now = new Date();
+      return [{ month: now.toLocaleString('en', { month: 'short' }), value: summary.netWorth }];
+    }
+    return snapshots.map((s: any) => ({
+      month: new Date(s.snapshot_date).toLocaleString('en', { month: 'short', day: 'numeric' }),
+      value: Number(s.net_worth),
+    }));
+  }, [snapshots, summary.netWorth]);
+
+  const monthlyChange = useMemo((): number | null => {
+    if (snapshots.length < 2) return null;
+    const latest = snapshots[snapshots.length - 1];
+    for (let i = snapshots.length - 2; i >= 0; i--) {
+      const older = snapshots[i];
+      const daysBetween = Math.floor(
+        (new Date(latest.snapshot_date).getTime() - new Date(older.snapshot_date).getTime()) / 86400000,
+      );
+      if (daysBetween >= 25) return Number(latest.net_worth) - Number(older.net_worth);
+    }
+    return null;
+  }, [snapshots]);
 
   const filteredAccounts = useMemo(() => {
     if (filterType === 'assets') return accounts.filter((a: any) => ASSET_TYPES.includes(a.account_type));
@@ -554,7 +593,7 @@ export default function Accounts() {
 
       {/* Summary Stats */}
       <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
-        <div className="grid grid-cols-3 gap-4 sm:gap-6 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 text-center">
           <div>
             <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Net Worth</p>
             <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${summary.netWorth >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(summary.netWorth, false)}</p>
@@ -566,6 +605,15 @@ export default function Accounts() {
           <div>
             <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Total Liabilities</p>
             <p className="text-lg sm:text-2xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(summary.totalLiabilities, false)}</p>
+          </div>
+          <div>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium flex items-center justify-center gap-1">
+              <ArrowUpRight size={9} /> Monthly Change
+            </p>
+            <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${monthlyChange === null ? 'text-muted-foreground' : monthlyChange >= 0 ? 'text-success' : 'text-destructive'}`}>
+              {monthlyChange !== null ? (monthlyChange >= 0 ? '+' : '') + formatCurrency(monthlyChange, false) : '—'}
+            </p>
+            {monthlyChange === null && <p className="text-[9px] text-muted-foreground">no history yet</p>}
           </div>
         </div>
         <div className="border-t border-border/40" />
@@ -587,6 +635,59 @@ export default function Accounts() {
             <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-destructive">{formatCurrency(summary.ccDebt, false)}</p>
           </div>
         </div>
+      </div>
+
+      {/* Net Worth History Chart — 2nd position */}
+      <div className="card-forged p-5">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">
+          {snapshots.length > 1 ? 'Net Worth History' : 'Current Net Worth'}
+        </h3>
+        {snapshotsLoading ? (
+          <div className="h-[200px] flex items-end gap-2 px-2 pb-4 animate-pulse">
+            {[40, 55, 48, 62, 70, 58, 75, 80].map((h, i) => (
+              <div key={i} className="flex-1 bg-muted/40 rounded-sm" style={{ height: `${h}%` }} />
+            ))}
+          </div>
+        ) : netWorthTrend.length <= 1 ? (
+          <div className="flex flex-col items-center justify-center h-[160px] text-center">
+            <Wallet size={24} className="text-primary mb-3" />
+            <p className="text-2xl font-display font-bold text-primary whitespace-nowrap">{formatCurrency(summary.netWorth, false)}</p>
+            <p className="text-xs text-muted-foreground mt-2">
+              {snapshots.length > 0
+                ? 'First snapshot saved — chart will populate over the coming weeks.'
+                : 'Historical chart appears once monthly snapshots are saved. See Forecast for projected trends.'}
+            </p>
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={netWorthTrend} margin={{ left: 0, right: 8, top: 5, bottom: 24 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
+              <XAxis
+                dataKey="month"
+                tick={{ fontSize: 10, fill: 'hsl(240, 4%, 46%)' }}
+                axisLine={false}
+                tickLine={false}
+                interval={Math.max(0, Math.ceil(netWorthTrend.length / 8) - 1)}
+                angle={-35}
+                textAnchor="end"
+                height={48}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+              />
+              <Tooltip content={<NWTooltip />} />
+              <Line
+                dataKey="value"
+                stroke="hsl(43, 56%, 52%)"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: 'hsl(43, 56%, 52%)', strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
       </div>
 
       {/* Filter */}
