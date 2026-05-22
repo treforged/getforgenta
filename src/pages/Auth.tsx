@@ -81,6 +81,16 @@ export default function Auth() {
   const [totpCountdown, setTotpCountdown] = useState(0);
   const [mfaError, setMfaError] = useState('');
 
+  // Signal Swift cover that the auth page has mounted and is visible.
+  // Fresh launches where the user is not signed in land here; without this
+  // pollDashboardReady would wait the full 10s fallback before dropping the cover.
+  // The flag is reset to false by oAuthSessionWillStart() before OAuth begins,
+  // so it doesn't fire prematurely during the post-OAuth dashboard poll.
+  useEffect(() => {
+    (window as any).__forgenta_dashboard_ready = true;
+    return () => { (window as any).__forgenta_dashboard_ready = false; };
+  }, []);
+
   useEffect(() => {
     const hash = window.location.hash;
 
