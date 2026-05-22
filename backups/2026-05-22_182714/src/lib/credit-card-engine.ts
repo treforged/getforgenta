@@ -202,8 +202,6 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
   // Grace period: true when last payment covered full statement balance, so new purchases don't accrue interest
   let inGrace = card.paymentPreference === 'statement' && card.balance <= card.monthlyNewPurchases + 0.01;
-  // Billing cycle deferred payment: autopay card charges in month m are paid in month m+1.
-  let prevMonthPurchases = 0;
 
   for (let m = 1; m <= simMonths; m++) {
     if (payoffMonth !== null) break;
@@ -214,9 +212,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
     const newPurchases = card.monthlyNewPurchases;
 
     if (card.autopayFullBalance && bal <= 0) {
-      const payment = prevMonthPurchases;
-      prevMonthPurchases = newPurchases;
-      if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment, endBalance: 0, utilization: 0 });
+      if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment: newPurchases, endBalance: 0, utilization: 0 });
       continue;
     }
 
@@ -290,9 +286,7 @@ export function projectCardVariable(
       : card.monthlyNewPurchases;
 
     if (card.autopayFullBalance && bal <= 0) {
-      // Use simulation's deferred payment (monthlyPayments already reflects billing cycle delay).
-      const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
-      if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment, endBalance: 0, utilization: 0 });
+      if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment: newPurchases, endBalance: 0, utilization: 0 });
       continue;
     }
 
@@ -482,10 +476,6 @@ export function simulateVariablePayoff(
     cards.map(c => [c.id, c.paymentPreference === 'statement' && c.balance <= c.monthlyNewPurchases + 0.01]),
   );
 
-  // Billing cycle deferred purchases: a paid-off card's charges in month m are paid
-  // in month m+1 (statement closes at month-end, payment due ~25 days into next month).
-  const paidOffDeferredPurchases = new Map<string, number>(cards.map(c => [c.id, 0]));
-
   for (let m = 0; m < months; m++) {
 
     // ── Income / expenses for this month ───────────────────────
@@ -533,16 +523,13 @@ export function simulateVariablePayoff(
     // ── Step 2 — Handle paid-off cards: pay purchases, capped by cash above floor ──
     // These cards stay at $0 permanently. Purchase cost is a cash outflow
     // but does NOT create a balance that accrues interest (grace period model).
-    // Payments are deferred by one billing cycle: charges from month m are paid
-    // in month m+1 (statement closes month-end, payment due ~25 days later).
     // Cap total paid-off payments so currentCash never drops below effectiveFloor.
     const tentativeAvailAboveFloor = Math.max(0, currentCash + monthIncome - monthExpenses + oneTimeNet - effectiveFloor);
     let paidOffPool = tentativeAvailAboveFloor;
     let paidOffCashCost = 0;
     for (const card of cards) {
       if (!paidOffCards.has(card.id)) continue;
-      // Pay PREVIOUS month's deferred charges (billing cycle delay).
-      const purchases = paidOffDeferredPurchases.get(card.id) ?? 0;
+      const purchases = cardPurchasesThisMonth(card);
       const pay = Math.round(Math.min(purchases, paidOffPool) * 100) / 100;
       paidOffPool -= pay;
       monthlyPayments.get(card.id)!.push(pay);
@@ -555,8 +542,6 @@ export function simulateVariablePayoff(
           type: 'debt_payoff', projected: true,
         });
       }
-      // Defer this month's charges to next month's payment.
-      paidOffDeferredPurchases.set(card.id, cardPurchasesThisMonth(card));
     }
 
     // Cards still carrying debt (exclude pre-start cards — they already got 0 pushed above)
