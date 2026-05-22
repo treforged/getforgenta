@@ -438,16 +438,48 @@ export default function Forecast() {
       (accounts as any[]).filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
     );
     const simTransferRules = (rules as any[]).filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
-    const simCarMonthly = (carFunds as any[]).reduce((s: number, c: any) => {
-      if (c.phase === 'loan') return s;
-      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
-      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
-    }, 0) + getTotalCarLoanMonthly(carFunds as any[]);
+
+    // ── Growth/bonus/raise multipliers — mirrors CC Engine growthAdjustedMonthEvents ──
+    const monthlyExpGrowthRate = Math.pow(1 + assumptions.expenseGrowth / 100, 1 / 12) - 1;
+    let simIncMult = 1;
+    const simFirstBonusIdx = (!assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0)
+      ? (() => {
+          for (let k = 1; k < 36; k++) {
+            const kd = new Date(now.getFullYear(), now.getMonth() + k, 1);
+            if (kd.getMonth() + 1 === assumptions.bonusMonth) return k;
+          }
+          return -1;
+        })()
+      : -1;
 
     const simulationMonthEvents = forecastMonthEvents.map((e, idx) => {
       if (idx === 0) return e;
       const d = new Date(now.getFullYear(), now.getMonth() + idx, 1);
       const simMonthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+
+      // Income growth — raise applied in configured month each year (accumulates via simIncMult)
+      if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
+        if ((assumptions as any).raiseMode === 'flat') {
+          const currentAnnual = monthlyTakeHome * 12 * simIncMult;
+          if (currentAnnual > 0) simIncMult *= (1 + assumptions.incomeGrowth / currentAnnual);
+        } else {
+          simIncMult *= (1 + assumptions.incomeGrowth / 100);
+        }
+      }
+      const expMult = Math.pow(1 + monthlyExpGrowthRate, idx);
+
+      // Bonus + tax return injected into income (same slot as CC Engine)
+      let bonusTaxInc = 0;
+      if (assumptions.bonusEnabled && assumptions.bonusAmount > 0 && d.getMonth() + 1 === assumptions.bonusMonth) {
+        if (assumptions.bonusRecurring || idx === simFirstBonusIdx) {
+          bonusTaxInc += assumptions.bonusMode === 'pct'
+            ? monthlyTakeHome * 12 * simIncMult * (assumptions.bonusAmount / 100)
+            : assumptions.bonusAmount;
+        }
+      }
+      if (assumptions.taxReturnEnabled && (assumptions.taxReturnAmountOverride ?? 0) > 0 && d.getMonth() + 1 === assumptions.taxReturnMonth) {
+        bonusTaxInc += assumptions.taxReturnAmountOverride;
+      }
 
       // Transfer/investment rules active this month — builds dest set for savings dedup
       const simActiveTransferDests = new Set<string>();
@@ -468,14 +500,85 @@ export default function Forecast() {
         return s + Number(g.monthly_contribution);
       }, 0);
 
+      // Per-month car values — date-aware so future loans phase in correctly (mirrors CC Engine)
+      const carLoanThisMonth = getTotalCarLoanMonthly(carFunds as any[], d);
+      const monthCarSaving = (carFunds as any[]).reduce((s: number, c: any) => {
+        if (c.phase === 'loan') return s;
+        const rem = Number(c.down_payment_goal) - Number(c.current_saved);
+        return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
+      }, 0);
+
+      const rawIncome = e.income > e.nonPaycheckIncome ? e.income : normalizedBasePaycheck + e.nonPaycheckIncome;
       return {
         ...e,
-        // Use rule-based income when paycheck is tracked in income rules (e.income > nonPaycheckIncome),
-        // otherwise fall back to payConfig estimate (covers users whose paycheck deposits to non-liquid accounts)
-        income: e.income > e.nonPaycheckIncome ? e.income : normalizedBasePaycheck + e.nonPaycheckIncome,
-        expenses: e.expenses + (pauseSavings ? 0 : monthSavings + simCarMonthly) + monthTransfers,
+        income: rawIncome * simIncMult + bonusTaxInc,
+        expenses: e.expenses * expMult + (pauseSavings ? 0 : monthSavings + monthCarSaving) + monthTransfers + carLoanThisMonth,
       };
     });
+
+    // ── Look-ahead pre-pass (mirrors CC Engine exactly) ──────────────────────
+    // Caps debt payments in months before large future one-time cash expenses so the
+    // cash floor is never breached. Runs only when there are future one-time expenses.
+    const ccMinTotal = cards
+      .filter(c => !c.autopayFullBalance && c.balance > 0)
+      .reduce((s, c) => s + c.minPayment, 0);
+
+    const maxDebtPaymentByMonth: number[] = Array(36).fill(Infinity);
+
+    if (ccMinTotal > 0 && oneTimeArr.some((o, i) => i > 0 && o.expenses > 0)) {
+      const saveUpMonths = new Set<number>();
+      const simDebtPay: number[] = [];
+      for (let m = 0; m < 36; m++) {
+        const mInc = m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome);
+        const mExp = m === 0 ? m0Expenses : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses);
+        const mFloor = cashFloorByMonth[m];
+        const startBal = m === 0 ? debtFundingBalance : mFloor;
+        simDebtPay.push(Math.max(ccMinTotal, Math.max(0, startBal + mInc - mExp - mFloor)));
+      }
+
+      const recomputeSimCash = (): number[] => {
+        let bal = debtFundingBalance;
+        const cash: number[] = [];
+        for (let m = 0; m < 36; m++) {
+          const mInc = m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome);
+          const mExp = m === 0 ? m0Expenses : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses);
+          const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeArr[m] ?? { income: 0, expenses: 0 });
+          const mFloor = cashFloorByMonth[m];
+          const availForDebt = Math.max(0, bal + mInc - mExp - mFloor);
+          const effectivePay = Math.min(simDebtPay[m], availForDebt + ccMinTotal);
+          bal += mInc - mExp - effectivePay;
+          if (!saveUpMonths.has(m) && bal > mFloor) bal = mFloor;
+          bal += oneTime.income - oneTime.expenses;
+          cash.push(bal);
+        }
+        return cash;
+      };
+
+      for (let pass = 0; pass < 20; pass++) {
+        const simCash = recomputeSimCash();
+        let anyFixed = false;
+        for (let i = 0; i < 36; i++) {
+          if (simCash[i] >= cashFloorByMonth[i]) continue;
+          const shortfall = cashFloorByMonth[i] - simCash[i];
+          let toRecover = shortfall;
+          for (let j = i; j >= 0 && toRecover > 0; j--) {
+            const canReduce = Math.max(0, Math.min(simDebtPay[j] - ccMinTotal, toRecover));
+            if (canReduce > 0) {
+              simDebtPay[j] -= canReduce;
+              toRecover -= canReduce;
+              if (j < i && (oneTimeArr[i]?.expenses ?? 0) > 0) saveUpMonths.add(j);
+              anyFixed = true;
+            }
+          }
+          if (anyFixed) break;
+        }
+        if (!anyFixed) break;
+      }
+
+      for (const m of saveUpMonths) {
+        maxDebtPaymentByMonth[m] = ccMinTotal;
+      }
+    }
 
     const sim = simulateVariablePayoff(
       cards,
@@ -492,7 +595,7 @@ export default function Forecast() {
       m0Expenses,
       oneTimeArr,
       m0SafeFloor,
-      undefined,       // maxDebtPaymentByMonth — look-ahead pre-pass not run in Forecast
+      maxDebtPaymentByMonth,
       cashFloorByMonth,
     );
 
@@ -591,6 +694,7 @@ export default function Forecast() {
   forecastFundingAccountId,
   debtStrategy,
   persistedDebtFundingId,
+  assumptions,
 ]);
 
   // One-time manual transactions for forecast.
