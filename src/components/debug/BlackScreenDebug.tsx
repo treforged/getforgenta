@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, CSSProperties } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { useAuth } from '@/contexts/AuthContext';
+
+const DEV_EMAIL = 'tre@treforged.com';
+const DEV_DEBUG_KEY = 'forged:dev_debug';
 
 const LOG_KEY = 'forged:debug_log';
 
@@ -98,9 +102,19 @@ function Btn({ color, onClick, children }: { color: string; onClick: () => void;
 }
 
 export default function BlackScreenDebug() {
-  if (!Capacitor.isNativePlatform()) return null;
-
+  const { user } = useAuth();
+  const [enabled, setEnabled] = useState(() => localStorage.getItem(DEV_DEBUG_KEY) === '1');
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setEnabled(localStorage.getItem(DEV_DEBUG_KEY) === '1');
+    window.addEventListener('forgenta:dev-debug', handler);
+    return () => window.removeEventListener('forgenta:dev-debug', handler);
+  }, []);
+
+  if (!Capacitor.isNativePlatform()) return null;
+  if (user?.email !== DEV_EMAIL) return null;
+  if (!enabled) return null;
   const [entries, setEntries] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
