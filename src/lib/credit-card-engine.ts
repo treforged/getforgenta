@@ -4,6 +4,7 @@ import {
   getRemainingIncomeByDay, getRemainingExpensesByDay, getRemainingNonPaycheckIncomeByDay,
   buildPayConfig, getPrePaycheckNextMonthBills, getMonthNetIncome,
 } from './pay-schedule';
+import { countRuleOccurrencesInMonth } from './scheduling';
 
 export type CardData = {
   id: string;
@@ -139,26 +140,18 @@ export function buildCardData(
 
     const recurringExplicit = rules
       .filter((r: any) => r.active && r.rule_type === 'expense' && (r.payment_source === acctKey || r.payment_source === acct.id))
-      .reduce((s: number, r: any) => {
-        const amt = Number(r.amount);
-        if (r.frequency === 'weekly') return s + amt * 4.33;
-        if (r.frequency === 'biweekly') return s + amt * 2.167;
-        if (r.frequency === 'yearly') return s + amt / 12;
-        return s + amt;
-      }, 0);
+      .reduce((s: number, r: any) =>
+        s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now),
+      0);
 
     const highestAprCard = [...ccAccounts].sort((a: any, b: any) => (Number(b.apr) || 0) - (Number(a.apr) || 0))[0];
     const isDefaultCard = highestAprCard?.id === acct.id;
 
     const recurringDefault = isDefaultCard ? rules
       .filter((r: any) => r.active && r.rule_type === 'expense' && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
-      .reduce((s: number, r: any) => {
-        const amt = Number(r.amount);
-        if (r.frequency === 'weekly') return s + amt * 4.33;
-        if (r.frequency === 'biweekly') return s + amt * 2.167;
-        if (r.frequency === 'yearly') return s + amt / 12;
-        return s + amt;
-      }, 0) : 0;
+      .reduce((s: number, r: any) =>
+        s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now),
+      0) : 0;
 
     const monthlyNewPurchases = Math.max(monthPurchases, recurringExplicit + recurringDefault);
 
@@ -1003,10 +996,7 @@ function buildCurrentMonthRecommendationSummary(
     return true;
   }).reduce((s: number, r: any) => {
     const amt = Number(r.amount);
-    if (r.frequency === 'weekly') return s + amt * 4.33;
-    if (r.frequency === 'biweekly') return s + amt * 2.167;
-    if (r.frequency === 'yearly') return s + amt / 12;
-    return s + amt;
+    return s + amt * countRuleOccurrencesInMonth(r, now0.getFullYear(), now0.getMonth(), now0);
   }, 0);
 
   const defaultId = profile?.default_deposit_account || null;

@@ -7,7 +7,7 @@ import { formatCurrency } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions } from '@/hooks/useSupabaseData';
-import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth } from '@/lib/scheduling';
+import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay } from '@/lib/pay-schedule';
@@ -457,9 +457,7 @@ export default function Forecast() {
         if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
         if (tr.deposit_account) simActiveTransferDests.add(tr.deposit_account);
         const amt = Number(tr.amount);
-        if (tr.frequency === 'weekly') monthTransfers += amt * countWeekdayInMonth(d.getFullYear(), d.getMonth(), tr.due_day ?? 5);
-        else if (tr.frequency === 'yearly') monthTransfers += amt / 12;
-        else monthTransfers += amt;
+        monthTransfers += amt * countRuleOccurrencesInMonth(tr, d.getFullYear(), d.getMonth(), now);
       }
 
       // Savings goals active this month — exclude retirement-linked and transfer-funded (avoid double count)
