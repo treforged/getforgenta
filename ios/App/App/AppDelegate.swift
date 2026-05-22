@@ -41,6 +41,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     // MARK: - Lifecycle
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Cold start: clear any bgReload flag left over from the previous session.
+        // applicationDidEnterBackground sets this flag so WebView reloads in the
+        // background skip the lock check. A new process start is a real cold open
+        // and must run the full lock check — so we wipe the flag immediately.
+        UserDefaults.standard.removeObject(forKey: "CapacitorStorage.forged:bg_reload")
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleDeviceLock),
@@ -74,6 +80,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func applicationDidEnterBackground(_ application: UIApplication) {
         debugLog("ENTER_BG")
+        // Pre-emptively mark this as a background transition so that if the
+        // WKWebView content process is killed and React reloads while the app is
+        // in the background, init() skips the lock check. Cleared on the next
+        // cold start (didFinishLaunchingWithOptions). The phoneLocked 30-second
+        // reload also passes isBgReload:true so the lock is not re-triggered.
+        UserDefaults.standard.set("1", forKey: "CapacitorStorage.forged:bg_reload")
     }
 
     func applicationWillEnterForeground(_ application: UIApplication) {
@@ -126,7 +138,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             phoneLockTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
                 self?.debugLog("PHONE_LOCK_RELOAD_TRIGGERED")
                 self?.showNativeCover()
-                self?.reloadThenPoll(maxAttempts: 30)
+                self?.reloadThenPoll(maxAttempts: 30, isBgReload: true)
             }
 
         } else if webViewProcessTerminated {
