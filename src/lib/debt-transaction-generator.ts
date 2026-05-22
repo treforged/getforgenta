@@ -2,30 +2,33 @@
 // Generates monthly debt payment transactions from the Debt Payoff schedule
 
 import { buildCardData, projectCard, projectCardVariable, simulateVariablePayoff, CardData, CC_DEFAULT_CATEGORIES } from './credit-card-engine';
+import { countRuleOccurrencesInMonth } from './scheduling';
+import { buildPayConfig, getMonthNetIncome } from './pay-schedule';
 
-/** Cash-only monthly expense scalar — excludes CC-tagged rules to avoid double-counting with Step 2.5.
+/** Cash-only expense total for a specific month — excludes CC-tagged rules to avoid double-counting.
  *  Includes transfer/investment rules since those are real liquid-cash outflows that reduce debt surplus. */
-function calcCashOnlyMonthlyExpenses(rules: any[], cards: CardData[], asOfDate: Date = new Date()): number {
+function calcCashOnlyMonthlyExpenses(
+  rules: any[], cards: CardData[], year?: number, month?: number, today: Date = new Date(),
+): number {
+  const yr = year ?? today.getFullYear();
+  const mo = month ?? today.getMonth();
+  const monthStart = new Date(yr, mo, 1);
+  const monthEnd = new Date(yr, mo + 1, 0);
   const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
   return rules.filter((r: any) => {
     if (!r.active) return false;
     if (r.rule_type === 'transfer' || r.rule_type === 'investment') {
-      // Only include if the rule is already active (start_date in the past or unset)
-      if (r.start_date && new Date(r.start_date + 'T00:00:00') > asOfDate) return false;
-      if (r.end_date && new Date(r.end_date + 'T00:00:00') < asOfDate) return false;
+      if (r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) return false;
+      if (r.end_date && new Date(r.end_date + 'T00:00:00') < monthStart) return false;
       return true;
     }
     if (r.rule_type !== 'expense') return false;
     if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
     if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
     return true;
-  }).reduce((s: number, r: any) => {
-    const amt = Number(r.amount);
-    if (r.frequency === 'weekly') return s + amt * 4.33;
-    if (r.frequency === 'biweekly') return s + amt * 2.167;
-    if (r.frequency === 'yearly') return s + amt / 12;
-    return s + amt;
-  }, 0);
+  }).reduce((s: number, r: any) =>
+    s + Number(r.amount) * countRuleOccurrencesInMonth(r, yr, mo, today),
+  0);
 }
 
 export type DebtPaymentTransaction = {
@@ -68,30 +71,33 @@ export function generateDebtPaymentTransactions(
   const liquidCash = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type))
     .reduce((s: number, a: any) => s + Number(a.balance), 0);
 
-  const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
-  const taxRate = Number(profile?.tax_rate) || 22;
-  const paycheckIncome = weeklyGross * (1 - taxRate / 100) * 4.33;
-  const nonPaycheckIncome = rules
-    .filter((r: any) =>
-      r.active &&
-      r.rule_type === 'income' &&
-      !['paycheck', 'salary', 'wages', 'pay'].some((kw: string) => r.name?.toLowerCase().includes(kw))
-    )
-    .reduce((s: number, r: any) => {
-      const amt = Number(r.amount);
-      if (r.frequency === 'weekly') return s + amt * 4.33;
-      if (r.frequency === 'biweekly') return s + amt * 2.167;
-      if (r.frequency === 'yearly') return s + amt / 12;
-      return s + amt;
-    }, 0);
-  const monthlyTakeHome = paycheckIncome + nonPaycheckIncome;
-
+  const now = new Date();
+  const payConfig = buildPayConfig(profile);
+  const payCheckKeywords = ['paycheck', 'salary', 'wages', 'pay'];
+  const nonPaycheckRules = rules.filter((r: any) =>
+    r.active && r.rule_type === 'income' &&
+    !payCheckKeywords.some((kw: string) => r.name?.toLowerCase().includes(kw)),
+  );
+  // Scalar fallbacks for consistent-mode sim (monthEvents is passed for variable mode)
+  const monthlyTakeHome = getMonthNetIncome(payConfig, now.getFullYear(), now.getMonth())
+    + nonPaycheckRules.reduce((s: number, r: any) =>
+      s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now), 0);
   const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards);
 
-  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, monthsAhead);
+  // Per-month events for variable-mode sim
+  const monthEvents: { income: number; expenses: number }[] = Array.from({ length: monthsAhead }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const yr = d.getFullYear(), mo = d.getMonth();
+    const income = getMonthNetIncome(payConfig, yr, mo)
+      + nonPaycheckRules.reduce((s: number, r: any) =>
+        s + Number(r.amount) * countRuleOccurrencesInMonth(r, yr, mo, now), 0);
+    const expenses = calcCashOnlyMonthlyExpenses(rules, cards, yr, mo, now);
+    return { income, expenses };
+  });
+
+  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, monthsAhead, undefined, undefined, monthEvents);
 
   const result: DebtPaymentTransaction[] = [];
-  const now = new Date();
 
   // Use selected funding account or default checking
   const fundingAccountId = options.fundingAccountId;
@@ -181,12 +187,13 @@ function getCardProjections(
   months: number,
   oneTimeByMonth?: { income: number; expenses: number }[],
   cardPurchasesPerMonth?: { [cardId: string]: number }[],
+  monthEvents?: { income: number; expenses: number }[],
 ) {
   if (options.paymentMode === 'variable') {
     const sim = simulateVariablePayoff(
       cards, liquidCash, options.cashFloor, options.strategy,
       monthlyTakeHome, monthlyExpenses, months,
-      undefined, undefined, cardPurchasesPerMonth, undefined, undefined,
+      monthEvents, undefined, cardPurchasesPerMonth, undefined, undefined,
       oneTimeByMonth,
     );
     return cards.map(c => {
@@ -229,24 +236,29 @@ export function getDebtPaymentsByMonth(
   const liquidTypes = ['checking', 'business_checking', 'cash'];
   const liquidCash = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type))
     .reduce((s: number, a: any) => s + Number(a.balance), 0);
-  const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
-  const taxRate = Number(profile?.tax_rate) || 22;
-  const paycheckIncome = weeklyGross * (1 - taxRate / 100) * 4.33;
-  const nonPaycheckIncome = rules
-    .filter((r: any) =>
-      r.active &&
-      r.rule_type === 'income' &&
-      !['paycheck', 'salary', 'wages', 'pay'].some((kw: string) => r.name?.toLowerCase().includes(kw))
-    )
-    .reduce((s: number, r: any) => {
-      const amt = Number(r.amount);
-      if (r.frequency === 'weekly') return s + amt * 4.33;
-      if (r.frequency === 'biweekly') return s + amt * 2.167;
-      if (r.frequency === 'yearly') return s + amt / 12;
-      return s + amt;
-    }, 0);
-  const monthlyTakeHome = paycheckIncome + nonPaycheckIncome;
+
+  const now = new Date();
+  const payConfig = buildPayConfig(profile);
+  const payCheckKeywords = ['paycheck', 'salary', 'wages', 'pay'];
+  const nonPaycheckRules = rules.filter((r: any) =>
+    r.active && r.rule_type === 'income' &&
+    !payCheckKeywords.some((kw: string) => r.name?.toLowerCase().includes(kw)),
+  );
+  const monthlyTakeHome = getMonthNetIncome(payConfig, now.getFullYear(), now.getMonth())
+    + nonPaycheckRules.reduce((s: number, r: any) =>
+      s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now), 0);
   const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards);
+
+  // Per-month events for variable-mode sim — actual paycheck counts + real occurrence counts
+  const monthEvents: { income: number; expenses: number }[] = Array.from({ length: months }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const yr = d.getFullYear(), mo = d.getMonth();
+    const income = getMonthNetIncome(payConfig, yr, mo)
+      + nonPaycheckRules.reduce((s: number, r: any) =>
+        s + Number(r.amount) * countRuleOccurrencesInMonth(r, yr, mo, now), 0);
+    const expenses = calcCashOnlyMonthlyExpenses(rules, cards, yr, mo, now);
+    return { income, expenses };
+  });
 
   // Pass one-time INCOME windfalls to the debt sim so it can accelerate payoff.
   // One-time CASH EXPENSES are intentionally excluded: the debt sim's running currentCash
@@ -254,7 +266,6 @@ export function getDebtPaymentsByMonth(
   // after a large one-time expense appear cash-poor and producing low debt payments in
   // those months. Forecast PASS 2 already handles floor enforcement for one-time cash
   // outflows by reducing prior months' debt payments — no need to duplicate that logic here.
-  const now = new Date();
   const oneTimeByMonth: { income: number; expenses: number }[] = Array.from({ length: months }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -270,7 +281,7 @@ export function getDebtPaymentsByMonth(
   // Do NOT pass one-time CC purchases to the payment sim — they just add to the CC balance
   // and get paid off gradually. Passing them inflates that month's payment and triggers
   // look-ahead save-up in Forecast for months with CC purchases, which is undesired.
-  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth);
+  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth, undefined, monthEvents);
   const byMonth: Record<string, number> = {};
 
   for (const proj of projections) {
@@ -310,26 +321,30 @@ export function getDebtBalancesByMonth(
   const liquidTypes = ['checking', 'business_checking', 'cash'];
   const liquidCash = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type))
     .reduce((s: number, a: any) => s + Number(a.balance), 0);
-  const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
-  const taxRate = Number(profile?.tax_rate) || 22;
-  const paycheckIncome = weeklyGross * (1 - taxRate / 100) * 4.33;
-  const nonPaycheckIncome = rules
-    .filter((r: any) =>
-      r.active &&
-      r.rule_type === 'income' &&
-      !['paycheck', 'salary', 'wages', 'pay'].some((kw: string) => r.name?.toLowerCase().includes(kw))
-    )
-    .reduce((s: number, r: any) => {
-      const amt = Number(r.amount);
-      if (r.frequency === 'weekly') return s + amt * 4.33;
-      if (r.frequency === 'biweekly') return s + amt * 2.167;
-      if (r.frequency === 'yearly') return s + amt / 12;
-      return s + amt;
-    }, 0);
-  const monthlyTakeHome = paycheckIncome + nonPaycheckIncome;
-  const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards);
 
   const now = new Date();
+  const payConfig = buildPayConfig(profile);
+  const payCheckKeywords = ['paycheck', 'salary', 'wages', 'pay'];
+  const nonPaycheckRules = rules.filter((r: any) =>
+    r.active && r.rule_type === 'income' &&
+    !payCheckKeywords.some((kw: string) => r.name?.toLowerCase().includes(kw)),
+  );
+  const monthlyTakeHome = getMonthNetIncome(payConfig, now.getFullYear(), now.getMonth())
+    + nonPaycheckRules.reduce((s: number, r: any) =>
+      s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now), 0);
+  const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards);
+
+  // Per-month events for variable-mode sim
+  const monthEvents: { income: number; expenses: number }[] = Array.from({ length: months }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const yr = d.getFullYear(), mo = d.getMonth();
+    const income = getMonthNetIncome(payConfig, yr, mo)
+      + nonPaycheckRules.reduce((s: number, r: any) =>
+        s + Number(r.amount) * countRuleOccurrencesInMonth(r, yr, mo, now), 0);
+    const expenses = calcCashOnlyMonthlyExpenses(rules, cards, yr, mo, now);
+    return { income, expenses };
+  });
+
   const ccSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
   const oneTimeByMonth: { income: number; expenses: number }[] = Array.from({ length: months }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
@@ -344,7 +359,7 @@ export function getDebtBalancesByMonth(
     return { income, expenses };
   });
 
-  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth);
+  const projections = getCardProjections(cards, liquidCash, options, monthlyTakeHome, monthlyExpenses, months, oneTimeByMonth, undefined, monthEvents);
   const result: { monthKey: string; totalBalance: number; totalInterest: number }[] = [];
 
   for (let i = 0; i < months; i++) {
