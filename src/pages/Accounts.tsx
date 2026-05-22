@@ -101,7 +101,7 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
   return { text: `Updated ${lastSync.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: missedSync };
 }
 
-const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '', apr_start_date: '' };
+const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 export default function Accounts() {
@@ -281,6 +281,7 @@ export default function Accounts() {
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
       apr_start_date: a.apr_start_date || '',
+      card_start_date: (a as any).card_start_date || '',
     });
     setEditingPlaidLinked(!!a.plaid_account_id);
     setEditingPlaidLiability(plaidLiability);
@@ -299,7 +300,10 @@ export default function Accounts() {
       credit_limit: parseFloat(form.credit_limit) || null, apr: parseFloat(form.apr) || null,
       notes: form.notes, active: true,
       apy_rate: APY_TYPES.includes(form.account_type) && form.apy_rate !== '' ? parseFloat(form.apy_rate) : null,
-      ...(form.account_type === 'credit_card' ? { payment_due_day: dueDayVal } : {}),
+      ...(form.account_type === 'credit_card' ? {
+        payment_due_day: dueDayVal,
+        card_start_date: (form as any).card_start_date || null,
+      } : {}),
       apr_start_date: LOAN_TYPES.includes(form.account_type) && form.apr_start_date ? form.apr_start_date : null,
     };
     // Never overwrite Plaid-managed balance — it is owned by the sync job
@@ -864,6 +868,7 @@ export default function Accounts() {
             ...(form.account_type === 'credit_card' ? [
               { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidLiability, hint: editingPlaidLiability ? 'Managed by Plaid' : undefined },
               { key: 'payment_due_day', label: 'Payment Due Day (1–28)', type: 'number' as const, placeholder: 'e.g. 15', step: '1', hint: 'Day of month your payment is due. Max 28 — not all months have 29–31.' },
+              { key: 'card_start_date', label: 'Start Date (future cards)', type: 'date' as const, hint: 'Leave blank for existing cards. Set a future date to begin purchases from that month.' },
             ] : []),
             { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidAprSynced, hint: editingPlaidAprSynced ? 'Managed by Plaid' : undefined },
             ...(APY_TYPES.includes(form.account_type) ? [

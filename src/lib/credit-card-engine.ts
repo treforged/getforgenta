@@ -20,6 +20,7 @@ export type CardData = {
   paymentPreference: 'statement' | 'full' | null;
   autopayFullBalance: boolean;
   dueDay: number | null;
+  startDate?: string;
 };
 
 export type CardMonthRow = {
@@ -186,6 +187,7 @@ export function buildCardData(
       color: getCardColor(colorStartIndex + i),
       paymentPreference, autopayFullBalance,
       dueDay: (acct as any).payment_due_day ?? null,
+      startDate: (acct as any).card_start_date || undefined,
     };
   });
 }
@@ -455,6 +457,15 @@ export function simulateVariablePayoff(
 
   const now = new Date();
 
+  // Month index (0 = current month) at which each card becomes active.
+  // Cards with a future startDate are excluded from the simulation until their start month.
+  const cardStartMonths = new Map<string, number>(cards.map(c => {
+    if (!c.startDate) return [c.id, 0];
+    const startD = new Date(c.startDate + 'T00:00:00');
+    const diff = (startD.getFullYear() - now.getFullYear()) * 12 + (startD.getMonth() - now.getMonth());
+    return [c.id, Math.max(0, diff)];
+  }));
+
   // Tracks cards that have reached $0 — one-way transition, never re-enters debt mode.
   const paidOffCards = new Set<string>();
 
@@ -483,8 +494,11 @@ export function simulateVariablePayoff(
 
     // Per-card CC purchases this month.
     // Month 0 = 0: live card.balance already includes today's purchases.
-    const cardPurchasesThisMonth = (c: CardData): number =>
-      cardPurchasesPerMonth?.[m]?.[c.id] ?? (m === 0 ? 0 : c.monthlyNewPurchases);
+    // Returns 0 for cards that haven't reached their start month yet.
+    const cardPurchasesThisMonth = (c: CardData): number => {
+      if ((cardStartMonths.get(c.id) ?? 0) > m) return 0;
+      return cardPurchasesPerMonth?.[m]?.[c.id] ?? (m === 0 ? 0 : c.monthlyNewPurchases);
+    };
 
     // Floor and one-time items — computed once per month, shared by Steps 2 and 5.
     const effectiveFloor = (m === 0 && month0SafeFloor !== undefined)
@@ -493,8 +507,14 @@ export function simulateVariablePayoff(
     const oneTimeNet = m === 0 ? 0
       : (oneTimeByMonth?.[m]?.income ?? 0) - (oneTimeByMonth?.[m]?.expenses ?? 0);
 
+    // Push 0 for cards that haven't reached their start month — keeps payment arrays aligned.
+    for (const card of cards) {
+      if ((cardStartMonths.get(card.id) ?? 0) > m) monthlyPayments.get(card.id)!.push(0);
+    }
+
     // ── Step 1 — Mark newly paid-off cards (one-way transition) ──
     for (const card of cards) {
+      if ((cardStartMonths.get(card.id) ?? 0) > m) continue; // not active yet
       if (!paidOffCards.has(card.id) && (balances.get(card.id) ?? 0) <= 0) {
         paidOffCards.add(card.id);
       }
@@ -524,8 +544,8 @@ export function simulateVariablePayoff(
       }
     }
 
-    // Cards still carrying debt
-    const debtCards = cards.filter(c => !paidOffCards.has(c.id));
+    // Cards still carrying debt (exclude pre-start cards — they already got 0 pushed above)
+    const debtCards = cards.filter(c => !paidOffCards.has(c.id) && (cardStartMonths.get(c.id) ?? 0) <= m);
 
     // All cards paid off — just advance cash and continue
     if (debtCards.length === 0) {
