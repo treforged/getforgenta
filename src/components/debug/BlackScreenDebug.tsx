@@ -105,17 +105,13 @@ export default function BlackScreenDebug() {
   const { user } = useAuth();
   const [enabled, setEnabled] = useState(() => localStorage.getItem(DEV_DEBUG_KEY) === '1');
   const [open, setOpen] = useState(false);
+  const [entries, setEntries] = useState<string[]>([]);
 
   useEffect(() => {
     const handler = () => setEnabled(localStorage.getItem(DEV_DEBUG_KEY) === '1');
     window.addEventListener('forgenta:dev-debug', handler);
     return () => window.removeEventListener('forgenta:dev-debug', handler);
   }, []);
-
-  if (!Capacitor.isNativePlatform()) return null;
-  if (user?.email !== DEV_EMAIL) return null;
-  if (!enabled) return null;
-  const [entries, setEntries] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     setEntries(await readLog());
@@ -127,6 +123,10 @@ export default function BlackScreenDebug() {
     const id = setInterval(refresh, 2000);
     return () => clearInterval(id);
   }, [open, refresh]);
+
+  if (!Capacitor.isNativePlatform()) return null;
+  if (user?.email !== DEV_EMAIL) return null;
+  if (!enabled) return null;
 
   return (
     <div style={root}>
