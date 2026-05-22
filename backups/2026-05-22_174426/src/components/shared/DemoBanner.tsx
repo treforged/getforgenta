@@ -8,6 +8,7 @@ const routeDescriptions: Record<string, string> = {
   '/transactions': 'One-time income and expenses feed directly into the debt payoff engine',
   '/debt':         'Avalanche engine computes the fastest payoff path using every dollar above your cash floor',
   '/goals':        'Goals track progress and link to real account balances automatically',
+  '/net-worth':    'Weekly snapshots show wealth momentum over time',
   '/forecast':     '36-month projection: debt payoff, savings growth, and cash flow in one view',
   '/settings':     'Cash floor, income settings, and pay schedule drive every calculation',
 };
