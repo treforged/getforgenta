@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
@@ -194,7 +195,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!user || isDemo) return;
+    // Native apps use PIN/biometric lock for security — no idle timeout needed.
+    if (!user || isDemo || Capacitor.isNativePlatform()) return;
 
     // Seed the key if not yet set so the timer starts from login
     if (!localStorage.getItem(LAST_ACTIVITY_KEY)) {
