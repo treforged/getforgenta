@@ -214,9 +214,12 @@ export function projectCard(card: CardData, months = 36): CardProjection {
     const newPurchases = card.monthlyNewPurchases;
 
     if (card.autopayFullBalance && bal <= 0) {
-      const payment = prevMonthPurchases;
+      const startBal = prevMonthPurchases; // previous month's unpaid charges
+      const payment = prevMonthPurchases;  // payment clears last month's statement
       prevMonthPurchases = newPurchases;
-      if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment, endBalance: 0, utilization: 0 });
+      const endBal = newPurchases; // this month's charges, paid next cycle
+      const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
+      if (m <= months) rows.push({ month: m, label, startBalance: startBal, newPurchases, interest: 0, payment, endBalance: endBal, utilization });
       continue;
     }
 
@@ -290,9 +293,13 @@ export function projectCardVariable(
       : card.monthlyNewPurchases;
 
     if (card.autopayFullBalance && bal <= 0) {
-      // Use simulation's deferred payment (monthlyPayments already reflects billing cycle delay).
+      // Payment = previous month's deferred charges (billing cycle delay).
+      // endBalance = this month's new charges (will be paid next cycle).
       const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
-      if (m <= months) rows.push({ month: m, label, startBalance: 0, newPurchases, interest: 0, payment, endBalance: 0, utilization: 0 });
+      const startBal = payment; // previous month's end balance = this month's payment
+      const endBal = Math.round(newPurchases * 100) / 100;
+      const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
+      if (m <= months) rows.push({ month: m, label, startBalance: startBal, newPurchases, interest: 0, payment, endBalance: endBal, utilization });
       continue;
     }
 
