@@ -288,7 +288,7 @@ export function getDebtPaymentsByMonth(
     for (let i = 0; i < proj.months.length; i++) {
       const row = proj.months[i];
       if (row.payment <= 0) continue;
-      if (row.startBalance <= 0) continue; // autopay mode — card paid off, not actual debt payment
+      if (proj.card.autopayFullBalance) continue; // pay-in-full card — not revolving debt payment
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       byMonth[key] = (byMonth[key] || 0) + row.payment;
@@ -370,7 +370,7 @@ export function getDebtBalancesByMonth(
     for (const proj of projections) {
       const row = proj.months[i];
       if (row) {
-        totalBal += Math.max(0, row.endBalance);
+        if (!proj.card.autopayFullBalance) totalBal += Math.max(0, row.endBalance);
         totalInt += row.interest;
       }
     }

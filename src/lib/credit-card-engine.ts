@@ -544,7 +544,14 @@ export function simulateVariablePayoff(
     // in month m+1 (statement closes month-end, payment due ~25 days later).
     // Cap total paid-off payments so currentCash never drops below effectiveFloor.
     const tentativeAvailAboveFloor = Math.max(0, currentCash + monthIncome - monthExpenses + oneTimeNet - effectiveFloor);
-    let paidOffPool = tentativeAvailAboveFloor;
+    // Reserve revolving-card minimums before giving cash to autopay cards.
+    // Without this, large deferred purchases (e.g. Venture X) drain the pool
+    // entirely, leaving revolving cards (Prime, Discover) with nothing beyond
+    // the minimum — causing balances to grow instead of paying down.
+    const reservedForRevolving = cards
+      .filter(c => !paidOffCards.has(c.id) && (cardStartMonths.get(c.id) ?? 0) <= m && (balances.get(c.id) ?? 0) > 0)
+      .reduce((s, c) => s + c.minPayment, 0);
+    let paidOffPool = Math.max(0, tentativeAvailAboveFloor - reservedForRevolving);
     let paidOffCashCost = 0;
     for (const card of cards) {
       if (!paidOffCards.has(card.id)) continue;
