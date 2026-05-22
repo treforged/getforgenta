@@ -5,12 +5,16 @@ import { buildCardData, projectCard, projectCardVariable, simulateVariablePayoff
 
 /** Cash-only monthly expense scalar — excludes CC-tagged rules to avoid double-counting with Step 2.5.
  *  Includes transfer/investment rules since those are real liquid-cash outflows that reduce debt surplus. */
-function calcCashOnlyMonthlyExpenses(rules: any[], cards: CardData[]): number {
+function calcCashOnlyMonthlyExpenses(rules: any[], cards: CardData[], asOfDate: Date = new Date()): number {
   const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
   return rules.filter((r: any) => {
     if (!r.active) return false;
-    // Savings transfers and investment contributions come out of liquid cash every month
-    if (r.rule_type === 'transfer' || r.rule_type === 'investment') return true;
+    if (r.rule_type === 'transfer' || r.rule_type === 'investment') {
+      // Only include if the rule is already active (start_date in the past or unset)
+      if (r.start_date && new Date(r.start_date + 'T00:00:00') > asOfDate) return false;
+      if (r.end_date && new Date(r.end_date + 'T00:00:00') < asOfDate) return false;
+      return true;
+    }
     if (r.rule_type !== 'expense') return false;
     if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
     if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;

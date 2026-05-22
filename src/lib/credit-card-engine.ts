@@ -142,6 +142,7 @@ export function buildCardData(
       .reduce((s: number, r: any) => {
         const amt = Number(r.amount);
         if (r.frequency === 'weekly') return s + amt * 4.33;
+        if (r.frequency === 'biweekly') return s + amt * 2.167;
         if (r.frequency === 'yearly') return s + amt / 12;
         return s + amt;
       }, 0);
@@ -154,6 +155,7 @@ export function buildCardData(
       .reduce((s: number, r: any) => {
         const amt = Number(r.amount);
         if (r.frequency === 'weekly') return s + amt * 4.33;
+        if (r.frequency === 'biweekly') return s + amt * 2.167;
         if (r.frequency === 'yearly') return s + amt / 12;
         return s + amt;
       }, 0) : 0;
@@ -306,7 +308,12 @@ export function projectCardVariable(
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
     if (payoffMonth === null && startBal > 0) {
       if (card.paymentPreference === 'statement') {
-        if (bal <= card.monthlyNewPurchases + 0.01) payoffMonth = m;
+        // inGrace = payment covered opening balance + interest this cycle,
+        // meaning only new purchases remain → card is interest-free going forward.
+        // This is correct regardless of whether purchasesPerMonth differs from
+        // monthlyNewPurchases, and avoids false positives beyond the sim window
+        // where newPurchases drops to 0.
+        if (inGrace) payoffMonth = m;
       } else if (bal <= 0) {
         payoffMonth = m;
       }
@@ -981,9 +988,14 @@ function buildCurrentMonthRecommendationSummary(
   const pc = buildPayConfig(profile);
   const monthlyTakeHome = getMonthNetIncome(pc, new Date().getFullYear(), new Date().getMonth());
   const ccPaymentSources = new Set(cards.flatMap((c: CardData) => [c.id, `account:${c.id}`]));
+  const now0 = new Date();
   const monthlyExpenses = rules.filter((r: any) => {
     if (!r.active) return false;
-    if (r.rule_type === 'transfer' || r.rule_type === 'investment') return true;
+    if (r.rule_type === 'transfer' || r.rule_type === 'investment') {
+      if (r.start_date && new Date(r.start_date + 'T00:00:00') > now0) return false;
+      if (r.end_date && new Date(r.end_date + 'T00:00:00') < now0) return false;
+      return true;
+    }
     if (r.rule_type !== 'expense') return false;
     if (ccPaymentSources.size === 0) return true;
     if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
