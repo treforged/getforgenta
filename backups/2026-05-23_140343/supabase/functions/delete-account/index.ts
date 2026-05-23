@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@22.1.1";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import {
   checkRateLimit,
   getClientIp,
@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
         attributes: { "peer.service": "stripe" },
       });
       try {
-        const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+        const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
         const status = userSub.subscription_status;
         // Only cancel if actually active — don't error on already-cancelled subs
         if (status === "active" || status === "trialing" || status === "past_due") {

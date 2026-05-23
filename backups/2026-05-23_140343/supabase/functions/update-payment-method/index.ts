@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@22.1.1";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { z } from "https://esm.sh/zod@3.25.76";
 import {
   checkRateLimit,
   getClientIp,
@@ -11,6 +12,10 @@ import { createTracer, hashId } from "../_shared/tracer.ts";
 
 const RATE_LIMIT: RateLimitConfig = { windowMs: 60_000, max: 10 };
 
+const bodySchema = z.object({
+  payment_method_id: z.string().startsWith("pm_").max(100),
+}).strict();
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -19,8 +24,8 @@ Deno.serve(async (req) => {
   }
 
   const incomingTraceId = req.headers.get("x-trace-id") ?? undefined;
-  const tracer = createTracer("create-setup-intent", incomingTraceId);
-  const rootSpan = tracer.startSpan("fn.create-setup-intent", {
+  const tracer = createTracer("update-payment-method", incomingTraceId);
+  const rootSpan = tracer.startSpan("fn.update-payment-method", {
     kind: "SERVER",
     attributes: { "http.method": req.method },
   });
@@ -31,7 +36,7 @@ Deno.serve(async (req) => {
   );
 
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(supabase, `${ip}:create-setup-intent`, RATE_LIMIT);
+  const rl = await checkRateLimit(supabase, `${ip}:update-payment-method`, RATE_LIMIT);
   if (!rl.allowed) {
     rootSpan.end("ERROR", new Error("rate_limit_exceeded"));
     return rateLimitedResponse(corsHeaders, RATE_LIMIT, rl.resetAt);
@@ -67,7 +72,28 @@ Deno.serve(async (req) => {
     const userId = authUser.id;
     const userHash = await hashId(userId);
 
-    // ── DB: get Stripe customer ID ────────────────────────────────────────
+    // Parse and validate body
+    let parsed: { payment_method_id: string };
+    try {
+      const json = await req.json();
+      const result = bodySchema.safeParse(json);
+      if (!result.success) {
+        rootSpan.end("ERROR", new Error("validation_error"));
+        return new Response(
+          JSON.stringify({ error: result.error.issues[0].message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      parsed = result.data;
+    } catch {
+      rootSpan.end("ERROR", new Error("invalid_json"));
+      return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── DB: get customer + subscription IDs ───────────────────────────────
     const dbSelectSpan = tracer.startSpan("db.user_subscriptions.select", {
       parentSpanId: rootSpan.spanId,
       kind: "CLIENT",
@@ -75,7 +101,7 @@ Deno.serve(async (req) => {
     });
     const { data: userSub } = await supabase
       .from("user_subscriptions")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, stripe_subscription_id")
       .eq("user_id", userId)
       .maybeSingle();
     dbSelectSpan.end("OK");
@@ -88,38 +114,52 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Stripe: create SetupIntent ────────────────────────────────────────
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
+    const pmId = parsed.payment_method_id;
 
-    const stripeSpan = tracer.startSpan("stripe.setupIntents.create", {
+    // ── Stripe: set customer's default invoice payment method ─────────────
+    // This makes the PM the default for all future invoices on this customer.
+    const customerSpan = tracer.startSpan("stripe.customers.update", {
       parentSpanId: rootSpan.spanId,
       kind: "CLIENT",
       attributes: { "peer.service": "stripe" },
     });
-    let setupIntent: Stripe.SetupIntent;
     try {
-      setupIntent = await stripe.setupIntents.create({
-        customer: userSub.stripe_customer_id,
-        // 'off_session' = this payment method will be charged later without the customer present
-        usage: "off_session",
-        automatic_payment_methods: { enabled: true, allow_redirects: "never" },
+      await stripe.customers.update(userSub.stripe_customer_id, {
+        invoice_settings: { default_payment_method: pmId },
       });
-      stripeSpan.end("OK");
+      customerSpan.end("OK");
     } catch (stripeErr) {
-      stripeSpan.end("ERROR", stripeErr);
+      customerSpan.end("ERROR", stripeErr);
       throw stripeErr;
     }
 
-    rootSpan.end("OK");
-    return new Response(
-      JSON.stringify({ client_secret: setupIntent.client_secret }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json", "x-trace-id": tracer.traceId },
+    // ── Stripe: also set it explicitly on the subscription ────────────────
+    // Subscription-level default PM takes precedence over customer default.
+    if (userSub.stripe_subscription_id) {
+      const subSpan = tracer.startSpan("stripe.subscriptions.update", {
+        parentSpanId: rootSpan.spanId,
+        kind: "CLIENT",
+        attributes: { "peer.service": "stripe" },
+      });
+      try {
+        await stripe.subscriptions.update(userSub.stripe_subscription_id, {
+          default_payment_method: pmId,
+        });
+        subSpan.end("OK");
+      } catch (stripeErr) {
+        subSpan.end("ERROR", stripeErr);
+        throw stripeErr;
       }
-    );
+    }
+
+    rootSpan.end("OK");
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json", "x-trace-id": tracer.traceId },
+    });
   } catch (error) {
-    console.error("create-setup-intent error:", error);
+    console.error("update-payment-method error:", error);
     rootSpan.end("ERROR", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
