@@ -67,7 +67,8 @@ function toISO(unixSeconds: number | null | undefined): string | null {
 
 /**
  * Extract current_period_end from a Stripe Subscription.
- * Cast via `unknown` to avoid `any` — the field may not appear in all SDK type versions.
+ * The field is typed as `number` in the Stripe SDK but the `2025-08-27.basil`
+ * API version renamed several period fields — cast via `unknown` to avoid `any`.
  */
 function getPeriodEnd(sub: Stripe.Subscription): number | null {
   return (sub as unknown as { current_period_end?: number }).current_period_end ?? null;
@@ -93,7 +94,7 @@ Deno.serve(async (req) => {
     const STRIPE_WEBHOOK_SECRET = Deno.env.get("STRIPE_WEBHOOK_SECRET");
     if (!STRIPE_WEBHOOK_SECRET) throw new Error("STRIPE_WEBHOOK_SECRET not configured");
 
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27" });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
     const body = await req.text();
     const signature = req.headers.get("stripe-signature");
     if (!signature) throw new Error("Missing stripe-signature header");
