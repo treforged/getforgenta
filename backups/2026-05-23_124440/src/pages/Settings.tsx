@@ -385,6 +385,15 @@ export default function SettingsPage() {
 
       localStorage.setItem('forged:signin_passkey', JSON.stringify({ credId, email: user.email }));
 
+      // Store current session tokens so the passkey can restore the session
+      const { data: sess } = await supabase.auth.getSession();
+      if (sess.session) {
+        localStorage.setItem('forged:signin_passkey_tokens', JSON.stringify({
+          access_token: sess.session.access_token,
+          refresh_token: sess.session.refresh_token,
+        }));
+      }
+
       setHasSigninPasskey(true);
       toast.success('Sign-in passkey registered — use it on the login page');
     } catch (err: unknown) {
