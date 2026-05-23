@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@22.1.1";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { z } from "https://esm.sh/zod@3.25.76";
 import {
   checkRateLimit,
@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
     }
 
     // Retrieve the checkout session from Stripe with subscription expanded
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
 
     const stripeRetrieveSpan = tracer.startSpan("stripe.checkout.sessions.retrieve", {
       parentSpanId: rootSpan.spanId,

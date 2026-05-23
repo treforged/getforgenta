@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@18.5.0";
+import Stripe from "https://esm.sh/stripe@22.1.1";
 import { z } from "https://esm.sh/zod@3.25.76";
 import {
   checkRateLimit,
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Stripe: update subscription ───────────────────────────────────────
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
     const cancelAtPeriodEnd = parsed.action === "cancel";
 
     const stripeSpan = tracer.startSpan("stripe.subscriptions.update", {

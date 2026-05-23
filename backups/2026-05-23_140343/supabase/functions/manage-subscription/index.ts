@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@22.1.1";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { z } from "https://esm.sh/zod@3.25.76";
 import {
   checkRateLimit,
@@ -13,8 +13,13 @@ import { createTracer, hashId } from "../_shared/tracer.ts";
 const RATE_LIMIT: RateLimitConfig = { windowMs: 60_000, max: 10 };
 
 const bodySchema = z.object({
-  payment_method_id: z.string().startsWith("pm_").max(100),
+  action: z.enum(["cancel", "resume"]),
 }).strict();
+
+/** Extract current_period_end from a Stripe Subscription. */
+function getPeriodEnd(sub: Stripe.Subscription): number | null {
+  return (sub as unknown as { current_period_end?: number }).current_period_end ?? null;
+}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -24,8 +29,8 @@ Deno.serve(async (req) => {
   }
 
   const incomingTraceId = req.headers.get("x-trace-id") ?? undefined;
-  const tracer = createTracer("update-payment-method", incomingTraceId);
-  const rootSpan = tracer.startSpan("fn.update-payment-method", {
+  const tracer = createTracer("manage-subscription", incomingTraceId);
+  const rootSpan = tracer.startSpan("fn.manage-subscription", {
     kind: "SERVER",
     attributes: { "http.method": req.method },
   });
@@ -36,7 +41,7 @@ Deno.serve(async (req) => {
   );
 
   const ip = getClientIp(req);
-  const rl = await checkRateLimit(supabase, `${ip}:update-payment-method`, RATE_LIMIT);
+  const rl = await checkRateLimit(supabase, `${ip}:manage-subscription`, RATE_LIMIT);
   if (!rl.allowed) {
     rootSpan.end("ERROR", new Error("rate_limit_exceeded"));
     return rateLimitedResponse(corsHeaders, RATE_LIMIT, rl.resetAt);
@@ -73,7 +78,7 @@ Deno.serve(async (req) => {
     const userHash = await hashId(userId);
 
     // Parse and validate body
-    let parsed: { payment_method_id: string };
+    let parsed: { action: "cancel" | "resume" };
     try {
       const json = await req.json();
       const result = bodySchema.safeParse(json);
@@ -93,7 +98,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── DB: get customer + subscription IDs ───────────────────────────────
+    // ── DB: get subscription ──────────────────────────────────────────────
     const dbSelectSpan = tracer.startSpan("db.user_subscriptions.select", {
       parentSpanId: rootSpan.spanId,
       kind: "CLIENT",
@@ -101,65 +106,74 @@ Deno.serve(async (req) => {
     });
     const { data: userSub } = await supabase
       .from("user_subscriptions")
-      .select("stripe_customer_id, stripe_subscription_id")
+      .select("stripe_subscription_id, stripe_customer_id")
       .eq("user_id", userId)
       .maybeSingle();
     dbSelectSpan.end("OK");
 
-    if (!userSub?.stripe_customer_id) {
-      rootSpan.end("ERROR", new Error("no_customer_found"));
-      return new Response(JSON.stringify({ error: "No Stripe customer found" }), {
+    if (!userSub?.stripe_subscription_id) {
+      rootSpan.end("ERROR", new Error("no_subscription_found"));
+      return new Response(JSON.stringify({ error: "No active subscription found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
-    const pmId = parsed.payment_method_id;
+    // ── Stripe: update subscription ───────────────────────────────────────
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
+    const cancelAtPeriodEnd = parsed.action === "cancel";
 
-    // ── Stripe: set customer's default invoice payment method ─────────────
-    // This makes the PM the default for all future invoices on this customer.
-    const customerSpan = tracer.startSpan("stripe.customers.update", {
+    const stripeSpan = tracer.startSpan("stripe.subscriptions.update", {
       parentSpanId: rootSpan.spanId,
       kind: "CLIENT",
-      attributes: { "peer.service": "stripe" },
+      attributes: {
+        "peer.service": "stripe",
+        "stripe.action": parsed.action,
+      },
     });
+    let sub: Stripe.Subscription;
     try {
-      await stripe.customers.update(userSub.stripe_customer_id, {
-        invoice_settings: { default_payment_method: pmId },
+      sub = await stripe.subscriptions.update(userSub.stripe_subscription_id, {
+        cancel_at_period_end: cancelAtPeriodEnd,
       });
-      customerSpan.end("OK");
+      stripeSpan.end("OK");
     } catch (stripeErr) {
-      customerSpan.end("ERROR", stripeErr);
+      stripeSpan.end("ERROR", stripeErr);
       throw stripeErr;
     }
 
-    // ── Stripe: also set it explicitly on the subscription ────────────────
-    // Subscription-level default PM takes precedence over customer default.
-    if (userSub.stripe_subscription_id) {
-      const subSpan = tracer.startSpan("stripe.subscriptions.update", {
-        parentSpanId: rootSpan.spanId,
-        kind: "CLIENT",
-        attributes: { "peer.service": "stripe" },
-      });
-      try {
-        await stripe.subscriptions.update(userSub.stripe_subscription_id, {
-          default_payment_method: pmId,
-        });
-        subSpan.end("OK");
-      } catch (stripeErr) {
-        subSpan.end("ERROR", stripeErr);
-        throw stripeErr;
-      }
+    // ── DB: persist the new cancel_at_period_end flag ─────────────────────
+    const dbUpdateSpan = tracer.startSpan("db.user_subscriptions.update", {
+      parentSpanId: rootSpan.spanId,
+      kind: "CLIENT",
+      attributes: { "db.table": "user_subscriptions", "db.operation": "update" },
+    });
+    const { error: dbErr } = await supabase.from("user_subscriptions").update({
+      cancel_at_period_end: cancelAtPeriodEnd,
+      subscription_status: sub.status,
+    }).eq("user_id", userId);
+    if (dbErr) {
+      dbUpdateSpan.end("ERROR", new Error(dbErr.message));
+      // Non-fatal: the webhook will eventually sync this, but log it.
+      console.error("manage-subscription DB update error:", dbErr.message);
+    } else {
+      dbUpdateSpan.end("OK");
     }
 
     rootSpan.end("OK");
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json", "x-trace-id": tracer.traceId },
-    });
+    return new Response(
+      JSON.stringify({
+        cancel_at_period_end: cancelAtPeriodEnd,
+        subscription_status: sub.status,
+        current_period_end: getPeriodEnd(sub),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "x-trace-id": tracer.traceId },
+      }
+    );
   } catch (error) {
-    console.error("update-payment-method error:", error);
+    console.error("manage-subscription error:", error);
     rootSpan.end("ERROR", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
