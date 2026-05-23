@@ -54,7 +54,6 @@ function LumpSumPanel({
   withLumpsPayoffDate,
   onAdd,
   onRemove,
-  onUpdate,
   label = 'Planned Extra Payments',
   liquidCash,
 }: {
@@ -66,16 +65,12 @@ function LumpSumPanel({
   withLumpsPayoffDate: string;
   onAdd: (ls: LumpSumPayment) => void;
   onRemove: (id: string) => void;
-  onUpdate: (ls: LumpSumPayment) => void;
   label?: string;
   liquidCash?: number;
 }) {
   const [adding, setAdding] = useState(false);
   const [newDate, setNewDate] = useState('');
   const [newAmount, setNewAmount] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDate, setEditDate] = useState('');
-  const [editAmount, setEditAmount] = useState('');
 
   const getBalanceBefore = (dateStr: string) => {
     const month = dateStr.substring(0, 7);
@@ -87,20 +82,6 @@ function LumpSumPanel({
     if (!newDate || !amount || amount <= 0) return;
     onAdd({ id: crypto.randomUUID(), date: newDate, amount });
     setNewDate(''); setNewAmount(''); setAdding(false);
-  };
-
-  const startEdit = (ls: LumpSumPayment) => {
-    setEditingId(ls.id);
-    setEditDate(ls.date);
-    setEditAmount(String(ls.amount));
-    setAdding(false);
-  };
-
-  const handleSaveEdit = (id: string) => {
-    const amount = parseFloat(editAmount);
-    if (!editDate || !amount || amount <= 0) return;
-    onUpdate({ id, date: editDate, amount });
-    setEditingId(null);
   };
 
   const baseD = new Date(basePayoffDate + 'T00:00:00');
@@ -169,24 +150,6 @@ function LumpSumPanel({
           {lumpSums.map(ls => {
             const bal = getBalanceBefore(ls.date);
             const dateLabel = new Date(ls.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            if (editingId === ls.id) {
-              return (
-                <div key={ls.id} className="flex flex-wrap gap-2 items-end p-2 bg-secondary/30 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] text-muted-foreground">Date</p>
-                    <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="bg-secondary border border-border text-sm text-foreground px-2 py-1.5" style={{ borderRadius: 'var(--radius)', colorScheme: 'dark' }} />
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] text-muted-foreground">Amount</p>
-                    <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className="w-28 bg-background border border-border text-xs px-2 py-1" style={{ borderRadius: 'var(--radius)' }} />
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => setEditingId(null)} className="text-[10px] px-2 py-1.5 border border-border hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
-                    <button onClick={() => handleSaveEdit(ls.id)} className="text-[10px] px-2 py-1.5 bg-primary text-primary-foreground" style={{ borderRadius: 'var(--radius)' }}>Save</button>
-                  </div>
-                </div>
-              );
-            }
             return (
               <div key={ls.id} className="flex items-center justify-between py-1 px-2 bg-secondary/20 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
@@ -194,10 +157,7 @@ function LumpSumPanel({
                   <span className="text-[10px] text-primary font-semibold shrink-0">{formatCurrency(ls.amount, false)}</span>
                   {bal !== null && <span className="text-[10px] text-muted-foreground">Balance before: {formatCurrency(bal, false)}</span>}
                 </div>
-                <div className="flex items-center gap-1 ml-2 shrink-0">
-                  <button onClick={() => startEdit(ls)} className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
-                  <button onClick={() => onRemove(ls.id)} className="text-muted-foreground hover:text-destructive"><X size={11} /></button>
-                </div>
+                <button onClick={() => onRemove(ls.id)} className="text-muted-foreground hover:text-destructive ml-2 shrink-0"><X size={11} /></button>
               </div>
             );
           })}
@@ -272,7 +232,6 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
 
   const handleAddLump = (ls: LumpSumPayment) => onSaveLumpSums([...lumpSums, ls]);
   const handleRemoveLump = (id: string) => onSaveLumpSums(lumpSums.filter(l => l.id !== id));
-  const handleUpdateLump = (ls: LumpSumPayment) => onSaveLumpSums(lumpSums.map(l => l.id === ls.id ? ls : l));
   return (
     <div className="card-forged p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -360,7 +319,6 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
           withLumpsPayoffDate={projectedWithLumps?.payoffDate ?? projectedBase.payoffDate}
           onAdd={handleAddLump}
           onRemove={handleRemoveLump}
-          onUpdate={handleUpdateLump}
           label="Projected Extra Payments"
           liquidCash={liquidCash}
         />
@@ -402,7 +360,6 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
 
   const handleAddLump = (ls: LumpSumPayment) => onSaveLumpSums([...lumpSums, ls]);
   const handleRemoveLump = (id: string) => onSaveLumpSums(lumpSums.filter(l => l.id !== id));
-  const handleUpdateLump = (ls: LumpSumPayment) => onSaveLumpSums(lumpSums.map(l => l.id === ls.id ? ls : l));
 
   if (!proj) return null;
 
@@ -502,7 +459,6 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
         withLumpsPayoffDate={projWithLumps?.payoffDate ?? proj.payoffDate}
         onAdd={handleAddLump}
         onRemove={handleRemoveLump}
-        onUpdate={handleUpdateLump}
         liquidCash={liquidCash}
       />
 

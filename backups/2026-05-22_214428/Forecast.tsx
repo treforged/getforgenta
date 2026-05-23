@@ -859,21 +859,13 @@ export default function Forecast() {
     // Active loan payments per month — stops when each loan pays off within the 36-month window
     const activeCarLoanByMonth = Array.from({ length: 36 }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 15);
-      const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
+      const monthKey = md.toISOString().substring(0, 7);
       const regular = getTotalCarLoanMonthly(carFunds as any[], md);
       const lumpTotal = (carFunds as any[])
         .filter((cf: any) => cf.phase === 'loan')
-        .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
+        .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === monthKey))
         .reduce((s: number, ls: any) => s + ls.amount, 0);
       return regular + lumpTotal;
-    });
-    const activeCarLoanLumpSumByMonth = Array.from({ length: 36 }, (_, i) => {
-      const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
-      const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
-      return (carFunds as any[])
-        .filter((cf: any) => cf.phase === 'loan')
-        .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
-        .reduce((s: number, ls: any) => s + ls.amount, 0);
     });
 
     // Mortgage — hard floor deduction before CC payoff (same priority as car loans)
@@ -906,7 +898,7 @@ export default function Forecast() {
         const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
           ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
           : 0;
-        return { contrib, purchaseMonthIdx, projPayment, downPayment: Number(c.down_payment_goal), insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[] };
+        return { contrib, purchaseMonthIdx, projPayment, downPayment: Number(c.down_payment_goal), insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months) };
       });
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(36).fill(0);
@@ -955,29 +947,15 @@ export default function Forecast() {
         for (let i = purchaseMonthIdx; i < 36 && bal > 0; i++) {
           carLoanBalanceByMonth[i] += Math.round(bal);
           const interest = r > 0 ? bal * r : 0;
-          const calD = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
-          const calMk = `${calD.getFullYear()}-${String(calD.getMonth() + 1).padStart(2, '0')}`;
-          const lumpAmt = i > purchaseMonthIdx
-            ? (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === calMk).reduce((s: number, ls: any) => s + ls.amount, 0)
-            : 0;
-          bal = Math.max(0, bal + interest - Math.min(scheduled + lumpAmt, bal + interest));
+          bal = Math.max(0, bal + interest - Math.min(scheduled, bal + interest));
         }
       }
     }
 
     const getMonthCarContrib = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (i < v.purchaseMonthIdx ? v.contrib : 0), 0);
-    const getMonthProjLoanRegular = (i: number) => vehicleProjections.reduce(
+    const getMonthProjLoan = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i > v.purchaseMonthIdx && i <= v.purchaseMonthIdx + v.termMonths ? v.projPayment : 0), 0);
-    const getMonthProjLumpSum = (i: number) => {
-      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
-      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      return vehicleProjections.reduce((s, v) => {
-        if (!isFinite(v.purchaseMonthIdx) || i <= v.purchaseMonthIdx || i > v.purchaseMonthIdx + v.termMonths) return s;
-        return s + v.lumpSumPayments.filter((ls: any) => ls.date.substring(0, 7) === mk).reduce((ls_s: number, ls: any) => ls_s + ls.amount, 0);
-      }, 0);
-    };
-    const getMonthProjLoan = (i: number) => getMonthProjLoanRegular(i) + getMonthProjLumpSum(i);
     const getMonthDownPayment = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i === v.purchaseMonthIdx ? v.downPayment : 0), 0);
     const getMonthVehicleInsurance = (i: number) => vehicleProjections.reduce(
@@ -1294,9 +1272,7 @@ export default function Forecast() {
       const startingCash = Math.round(finalLiquid);
       const carContribThisMonth = getMonthCarContrib(i);
       const carLoanThisMonth = activeCarLoanByMonth[i];
-      const projLumpThisMonth = getMonthProjLumpSum(i);
       const projLoanThisMonth = getMonthProjLoan(i);
-      const carLoanLumpThisMonth = activeCarLoanLumpSumByMonth[i] + projLumpThisMonth;
       const downPaymentThisMonth = getMonthDownPayment(i);
       const vehicleInsuranceThisMonth = getMonthVehicleInsurance(i);
 
@@ -1396,11 +1372,10 @@ export default function Forecast() {
         baseExpenses: Math.round(b.baseExpenses),
         savingsContrib: Math.round(actualGoalsSavings),
         carContrib: Math.round(actualCarSavings),
-        carLoanPayment: Math.round(carLoanThisMonth - activeCarLoanLumpSumByMonth[i]),
+        carLoanPayment: Math.round(carLoanThisMonth),
         vehicleDownPayment: Math.round(downPaymentThisMonth),
         vehicleInsurance: Math.round(vehicleInsuranceThisMonth),
-        projectedCarLoan: Math.round(projLoanThisMonth - projLumpThisMonth),
-        carLoanExtraPayment: Math.round(carLoanLumpThisMonth),
+        projectedCarLoan: Math.round(projLoanThisMonth),
         mortgagePayment: Math.round(mortgageMonthlyPayment),
         transfersTotal: Math.round(actualTransfers),
         transferBreakdown: b.transferBreakdown,
@@ -2150,7 +2125,6 @@ export default function Forecast() {
                     ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: '  Vehicle Down Payment', value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
                     ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, false), op: '−' }] : []),
                     ...((row.projectedCarLoan ?? 0) > 0 ? [{ label: '  Est. Car Loan (projected)', value: formatCurrency(row.projectedCarLoan, false), op: '−' }] : []),
-                    ...((row.carLoanExtraPayment ?? 0) > 0 ? [{ label: '  Car Loan Extra Payment', value: formatCurrency(row.carLoanExtraPayment, false), op: '−' }] : []),
                     ...((row.transferBreakdown ?? [])
                       .filter((t: { name: string; amount: number }) => t.amount > 0)
                       .map((t: { name: string; amount: number }) => ({ label: `  ${t.name}`, value: formatCurrency(t.amount, false), op: '−' as const }))),
