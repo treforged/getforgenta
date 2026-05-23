@@ -31,6 +31,7 @@ export type SavingsGoal = {
   current_amount: number;
   monthly_contribution: number;
   target_date: string;
+  lump_sum_payments: { id: string; date: string; amount: number }[];
   created_at: string;
 };
 

@@ -182,8 +182,8 @@ export const demoDebts: (Omit<Debt, 'id' | 'user_id' | 'created_at'> & { credit_
 // ── Demo Savings Goals ─────────────────────────────────────
 // Emergency Fund linked to Marcus HYS (d3) so balance auto-pulls from the account.
 export const demoSavingsGoals: (Omit<SavingsGoal, 'id' | 'user_id' | 'created_at'> & { linked_account?: string; goal_type?: string })[] = [
-  { name: 'Emergency Fund', target_amount: 15000, current_amount: 5800, monthly_contribution: 300, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund' },
-  { name: 'Vacation Fund',  target_amount:  3000, current_amount:  850, monthly_contribution: 150, target_date: d(1, 15), goal_type: 'Custom' },
+  { name: 'Emergency Fund', target_amount: 15000, current_amount: 5800, monthly_contribution: 300, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund', lump_sum_payments: [] },
+  { name: 'Vacation Fund',  target_amount:  3000, current_amount:  850, monthly_contribution: 150, target_date: d(1, 15), goal_type: 'Custom', lump_sum_payments: [] },
 ];
 
 // ── Demo Car Funds ─────────────────────────────────────────

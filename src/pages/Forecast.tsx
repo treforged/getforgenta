@@ -6,7 +6,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions, useLumpSumTransfers } from '@/hooks/useSupabaseData';
+import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions } from '@/hooks/useSupabaseData';
 import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
@@ -89,7 +89,6 @@ export default function Forecast() {
   const { data: profile } = useProfile();
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
-  const { data: lumpSumTransfers } = useLumpSumTransfers();
 
   const [assumptions, setAssumptions] = usePersistedState('tre:forecast:assumptions', {
     incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
@@ -877,17 +876,25 @@ export default function Forecast() {
         .reduce((s: number, ls: any) => s + ls.amount, 0);
     });
 
-    // Lump sum transfers (savings/brokerage/roth_ira) — one-time future contributions
+    // Lump sum contributions from savings goals — one-time future transfers
+    // Destination type inferred from the goal's linked account type
+    const retireAccountTypes = new Set(['401k', 'roth_ira', 'ira', 'hsa']);
+    const brokerageAccountTypes = new Set(['brokerage', 'investment']);
+    const activeAccountMap = Object.fromEntries((accounts as any[]).filter((a: any) => a.active !== false).map((a: any) => [a.id, a]));
     const lumpTransferByMonth = Array.from({ length: 36 }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
-      const rows = (lumpSumTransfers as any[]).filter(t => t.date.substring(0, 7) === mk);
-      return {
-        savings: rows.filter(t => t.destination_type === 'savings').reduce((s: number, t: any) => s + Number(t.amount), 0),
-        brokerage: rows.filter(t => t.destination_type === 'brokerage').reduce((s: number, t: any) => s + Number(t.amount), 0),
-        roth_ira: rows.filter(t => t.destination_type === 'roth_ira').reduce((s: number, t: any) => s + Number(t.amount), 0),
-        total: rows.reduce((s: number, t: any) => s + Number(t.amount), 0),
-      };
+      let savings = 0, brokerage = 0, roth_ira = 0;
+      for (const g of (goals as any[])) {
+        const lumps: any[] = Array.isArray(g.lump_sum_payments) ? g.lump_sum_payments : [];
+        const monthTotal = lumps.filter((ls: any) => ls.date.substring(0, 7) === mk).reduce((s: number, ls: any) => s + Number(ls.amount), 0);
+        if (monthTotal === 0) continue;
+        const acctType = g.linked_account ? (activeAccountMap[g.linked_account]?.account_type ?? '') : '';
+        if (retireAccountTypes.has(acctType) || (g.goal_type ?? '').toLowerCase() === 'retirement') roth_ira += monthTotal;
+        else if (brokerageAccountTypes.has(acctType)) brokerage += monthTotal;
+        else savings += monthTotal;
+      }
+      return { savings, brokerage, roth_ira, total: savings + brokerage + roth_ira };
     });
 
     // Mortgage — hard floor deduction before CC payoff (same priority as car loans)
@@ -1436,7 +1443,7 @@ export default function Forecast() {
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, lumpSumTransfers]);
+  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
