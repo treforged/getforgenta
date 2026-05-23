@@ -474,13 +474,21 @@ export default function BudgetControl() {
 
   // Rules by category
   const incomeRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'income'), [rules]);
+  // cost_type override takes priority over category-based classification.
+  // cost_type = 'fixed' → fixed bucket; 'variable' → variable bucket; null → category default.
+  const isFixedRule = (r: any): boolean => {
+    if (r.cost_type === 'fixed') return true;
+    if (r.cost_type === 'variable') return false;
+    return ['Bills', 'Subscriptions', 'Debt Payments'].includes(r.category);
+  };
+
   const fixedRules = useMemo(() => {
-    const fixed = rules.filter((r: any) => r.rule_type === 'expense' && ['Bills', 'Subscriptions', 'Debt Payments'].includes(r.category));
+    const fixed = rules.filter((r: any) => r.rule_type === 'expense' && isFixedRule(r));
     const ruleNames = new Set(fixed.map((r: any) => r.name.toLowerCase()));
     const uniqueSubs = subsAsRules.filter(s => !ruleNames.has(s.name.toLowerCase()));
     return [...fixed, ...uniqueSubs];
   }, [rules, subsAsRules]);
-  const variableRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'expense' && !['Bills', 'Subscriptions', 'Debt Payments'].includes(r.category)), [rules]);
+  const variableRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'expense' && !isFixedRule(r)), [rules]);
   
   const manualDebtRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'debt_payment' || (r.rule_type === 'expense' && r.category === 'Debt Payments')), [rules]);
   const debtRules = useMemo(() => {
@@ -627,6 +635,12 @@ export default function BudgetControl() {
   const toggleActive = (r: any) => {
     if (r.isSub || r.isDebtSync) return;
     updateRule.mutate({ id: r.id, active: !r.active });
+  };
+
+  const toggleCostType = (r: any) => {
+    if (r.isSub || r.isDebtSync) return;
+    const nextType = isFixedRule(r) ? 'variable' : 'fixed';
+    updateRule.mutate({ id: r.id, cost_type: nextType });
   };
 
   const handleDelete = (id: string) => {
@@ -826,6 +840,20 @@ export default function BudgetControl() {
 
     {!r.isSub && !r.isDebtSync && (
       <div className="flex flex-wrap items-center gap-1">
+        {r.rule_type === 'expense' && (
+          <button
+            onClick={() => toggleCostType(r)}
+            title="Toggle fixed / variable"
+            className={`text-[9px] px-1.5 py-0.5 border font-medium shrink-0 ${
+              isFixedRule(r)
+                ? 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
+                : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+            }`}
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            {isFixedRule(r) ? 'Fixed' : 'Variable'}
+          </button>
+        )}
         <button onClick={() => handleDuplicate(r)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate">
           <Copy size={13} />
         </button>

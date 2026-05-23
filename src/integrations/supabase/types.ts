@@ -186,9 +186,9 @@ export type Database = {
         Relationships: []
       }
       recurring_rules: {
-        Row: { active: boolean; amount: number; category: string; created_at: string; deposit_account: string | null; due_day: number; due_month: number | null; end_date: string | null; frequency: string; id: string; name: string; notes: string | null; payment_source: string | null; rule_type: string; start_date: string | null; updated_at: string; user_id: string }
-        Insert: { active?: boolean; amount?: number; category?: string; created_at?: string; deposit_account?: string | null; due_day?: number; due_month?: number | null; end_date?: string | null; frequency?: string; id?: string; name: string; notes?: string | null; payment_source?: string | null; rule_type?: string; start_date?: string | null; updated_at?: string; user_id: string }
-        Update: { active?: boolean; amount?: number; category?: string; created_at?: string; deposit_account?: string | null; due_day?: number; due_month?: number | null; end_date?: string | null; frequency?: string; id?: string; name?: string; notes?: string | null; payment_source?: string | null; rule_type?: string; start_date?: string | null; updated_at?: string; user_id?: string }
+        Row: { active: boolean; amount: number; category: string; cost_type: string | null; created_at: string; deposit_account: string | null; due_day: number; due_month: number | null; end_date: string | null; frequency: string; id: string; name: string; notes: string | null; payment_source: string | null; rule_type: string; start_date: string | null; updated_at: string; user_id: string }
+        Insert: { active?: boolean; amount?: number; category?: string; cost_type?: string | null; created_at?: string; deposit_account?: string | null; due_day?: number; due_month?: number | null; end_date?: string | null; frequency?: string; id?: string; name: string; notes?: string | null; payment_source?: string | null; rule_type?: string; start_date?: string | null; updated_at?: string; user_id: string }
+        Update: { active?: boolean; amount?: number; category?: string; cost_type?: string | null; created_at?: string; deposit_account?: string | null; due_day?: number; due_month?: number | null; end_date?: string | null; frequency?: string; id?: string; name?: string; notes?: string | null; payment_source?: string | null; rule_type?: string; start_date?: string | null; updated_at?: string; user_id?: string }
         Relationships: []
       }
       savings_goals: {
