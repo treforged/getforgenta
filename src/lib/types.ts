@@ -57,6 +57,7 @@ export type CarFund = {
   linked_rule_id: string | null;
   planned_purchase_date: string | null;
   gift_contribution: number;
+  lump_sum_payments: { id: string; date: string; amount: number; label?: string }[];
   created_at: string;
 };
 
