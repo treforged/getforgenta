@@ -57,12 +57,6 @@ if (Capacitor.isNativePlatform()) {
   document.documentElement.classList.add('native');
 }
 
-// One-time purge of orphaned passkey session tokens written by an older code path.
-// Runs at module load so it executes before any auth flow, on every platform.
-(['forged:signin_passkey_tokens', 'forgenta:signin_passkey_tokens'] as const).forEach(k =>
-  localStorage.removeItem(k)
-);
-
 // Sets window.__forgenta_app_ready when React has mounted.
 // AppDelegate polls this flag on fresh process start before lifting the cover.
 function AppReadySignal() {
