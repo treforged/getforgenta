@@ -145,6 +145,8 @@ export default function Auth() {
 
   // Clean up legacy auth localStorage keys
   useEffect(() => {
+    localStorage.removeItem('forged:signin_passkey');
+    localStorage.removeItem('forged:signin_passkey_tokens');
     localStorage.removeItem('forgenta:signin_passkey');
     localStorage.removeItem('forgenta:signin_passkey_tokens');
   }, []);
