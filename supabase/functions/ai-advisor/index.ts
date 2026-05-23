@@ -115,6 +115,10 @@ interface FinancialSnapshot {
   conversationHistory?: ConversationTurn[];
 }
 
+function sanitizeName(s: string): string {
+  return String(s ?? '').slice(0, 80).replace(/[<>"`]/g, '');
+}
+
 function buildPrompt(body: FinancialSnapshot): string {
   const hasDebts = body.debtDetails.length > 0;
   const hasGoals = body.savingsGoals.length > 0;
@@ -132,7 +136,7 @@ function buildPrompt(body: FinancialSnapshot): string {
     ? body.debtDetails
         .sort((a, b) => b.balance - a.balance)
         .map(d => {
-          let line = `  - ${d.name}: $${d.balance.toFixed(0)} balance`;
+          let line = `  - ${sanitizeName(d.name)}: $${d.balance.toFixed(0)} balance`;
           if (d.apr > 0) line += `, ${d.apr.toFixed(1)}% APR`;
           if (d.minPayment > 0) line += `, $${d.minPayment.toFixed(0)}/mo minimum`;
           if (d.targetPayment > d.minPayment) line += `, $${d.targetPayment.toFixed(0)}/mo targeted`;
@@ -151,7 +155,7 @@ function buildPrompt(body: FinancialSnapshot): string {
     ? body.savingsGoals
         .map(g => {
           const pct = g.targetAmount > 0 ? ((g.currentAmount / g.targetAmount) * 100).toFixed(0) : 0;
-          let line = `  - ${g.name}: $${g.currentAmount.toFixed(0)} saved of $${g.targetAmount.toFixed(0)} (${pct}% complete)`;
+          let line = `  - ${sanitizeName(g.name)}: $${g.currentAmount.toFixed(0)} saved of $${g.targetAmount.toFixed(0)} (${pct}% complete)`;
           if (g.monthlyContribution > 0) line += `, contributing $${g.monthlyContribution.toFixed(0)}/mo`;
           if (g.targetDate) line += `, target date ${g.targetDate}`;
           return line;
@@ -170,31 +174,31 @@ function buildPrompt(body: FinancialSnapshot): string {
     ? body.creditCards!.map(c => {
         const util = c.limit > 0 ? ` (${((c.balance / c.limit) * 100).toFixed(0)}% utilization)` : '';
         const pref = c.paymentPreference === 'full' ? ', pay full balance' : c.paymentPreference === 'statement' ? ', pay statement balance' : '';
-        return `  - ${c.name}: $${c.balance.toFixed(0)} balance / $${c.limit.toFixed(0)} limit${util}, ${c.apr.toFixed(1)}% APR${pref}`;
+        return `  - ${sanitizeName(c.name)}: $${c.balance.toFixed(0)} balance / $${c.limit.toFixed(0)} limit${util}, ${c.apr.toFixed(1)}% APR${pref}`;
       }).join("\n")
     : null;
 
   const carFundSection = (body.carFunds?.length ?? 0) > 0
     ? body.carFunds!.map(cf => {
         if (cf.phase === 'loan') {
-          return `  - ${cf.vehicleName} (active loan): $${cf.loanAmount.toFixed(0)} balance, ${cf.apr.toFixed(1)}% APR, $${cf.monthlyPayment.toFixed(0)}/mo payment, ${cf.loanTermMonths} month term`;
+          return `  - ${sanitizeName(cf.vehicleName)} (active loan): $${cf.loanAmount.toFixed(0)} balance, ${cf.apr.toFixed(1)}% APR, $${cf.monthlyPayment.toFixed(0)}/mo payment, ${cf.loanTermMonths} month term`;
         }
         const pct = cf.downPaymentGoal && cf.downPaymentGoal > 0 ? ` (${(((cf.currentSaved ?? 0) / cf.downPaymentGoal) * 100).toFixed(0)}% saved)` : '';
-        return `  - ${cf.vehicleName} (saving phase): $${(cf.currentSaved ?? 0).toFixed(0)} saved of $${(cf.downPaymentGoal ?? 0).toFixed(0)} down payment${pct}${cf.plannedPurchaseDate ? `, target ${cf.plannedPurchaseDate}` : ''}`;
+        return `  - ${sanitizeName(cf.vehicleName)} (saving phase): $${(cf.currentSaved ?? 0).toFixed(0)} saved of $${(cf.downPaymentGoal ?? 0).toFixed(0)} down payment${pct}${cf.plannedPurchaseDate ? `, target ${cf.plannedPurchaseDate}` : ''}`;
       }).join("\n")
     : null;
 
   const loanSection = (body.loans?.length ?? 0) > 0
     ? body.loans!.map(l => {
         const typeLabel = l.type === 'mortgage' ? 'Mortgage' : l.type === 'auto_loan' ? 'Auto Loan' : l.type === 'student_loan' ? 'Student Loan' : l.type === 'personal_loan' ? 'Personal Loan' : 'Loan';
-        return `  - ${l.name} (${typeLabel}): $${l.balance.toFixed(0)} balance${l.apr > 0 ? `, ${l.apr.toFixed(1)}% APR` : ''}${l.monthlyPayment > 0 ? `, $${l.monthlyPayment.toFixed(0)}/mo` : ''}`;
+        return `  - ${sanitizeName(l.name)} (${typeLabel}): $${l.balance.toFixed(0)} balance${l.apr > 0 ? `, ${l.apr.toFixed(1)}% APR` : ''}${l.monthlyPayment > 0 ? `, $${l.monthlyPayment.toFixed(0)}/mo` : ''}`;
       }).join("\n")
     : null;
 
   const investmentSection = (body.investments?.length ?? 0) > 0
     ? body.investments!.map(inv => {
         const typeLabel = inv.type === '401k' ? '401(k)' : inv.type === 'roth_ira' ? 'Roth IRA' : inv.type === 'ira' ? 'IRA' : inv.type === 'brokerage' ? 'Brokerage' : inv.type === 'hsa' ? 'HSA' : inv.type;
-        return `  - ${inv.name} (${typeLabel}): $${inv.balance.toFixed(0)}`;
+        return `  - ${sanitizeName(inv.name)} (${typeLabel}): $${inv.balance.toFixed(0)}`;
       }).join("\n")
     : null;
 
@@ -203,7 +207,7 @@ function buildPrompt(body: FinancialSnapshot): string {
         .filter(r => r.amount > 0)
         .sort((a, b) => b.amount - a.amount)
         .slice(0, 10)
-        .map(r => `  - ${r.name}: $${r.amount.toFixed(0)} (${r.frequency}, ${r.category})`)
+        .map(r => `  - ${sanitizeName(r.name)}: $${r.amount.toFixed(0)} (${r.frequency}, ${r.category})`)
         .join("\n")
     : null;
 

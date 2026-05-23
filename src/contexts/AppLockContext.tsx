@@ -139,7 +139,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         // that the SIGNED_IN session-restore event is absorbed. If no session,
         // allow a fresh sign-in to proceed normally through the handler.
         if (!session) skipLockClearOnSignIn.current = false;
-        const fails = parseInt(localStorage.getItem(LS_FAILED) ?? '0', 10);
+        const fails = parseInt((await pGet(LS_FAILED)) ?? '0', 10);
         setFailedAttempts(fails);
         try {
           const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
@@ -175,7 +175,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      const fails = parseInt(localStorage.getItem(LS_FAILED) ?? '0', 10);
+      const fails = parseInt((await pGet(LS_FAILED)) ?? '0', 10);
       setFailedAttempts(fails);
 
       try {
@@ -218,7 +218,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
         skipLockClearOnSignIn.current = false;
         await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(P.setupPrompted)]);
         localStorage.removeItem(LS_UNLOCKED_AT);
-        localStorage.removeItem(LS_FAILED);
+        await pDel(LS_FAILED);
         setLockEnabled(false);
         setLockTypeState('pin');
         setIsLocked(false);
@@ -231,9 +231,9 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     return () => { subscription.unsubscribe(); clearTimeout(setupTimer); };
   }, [isNative]);
 
-  const markUnlocked = useCallback(() => {
+  const markUnlocked = useCallback(async () => {
     localStorage.setItem(LS_UNLOCKED_AT, String(Date.now()));
-    localStorage.setItem(LS_FAILED, '0');
+    await pSet(LS_FAILED, '0');
     setFailedAttempts(0);
   }, []);
 
@@ -243,11 +243,11 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     const hash = await sha256(pin);
     if (hash !== stored) {
       const next = failedAttempts + 1;
-      localStorage.setItem(LS_FAILED, String(next));
+      await pSet(LS_FAILED, String(next));
       setFailedAttempts(next);
       return false;
     }
-    markUnlocked();
+    await markUnlocked();
     setIsLocked(false);
     return true;
   }, [failedAttempts, markUnlocked]);
@@ -257,7 +257,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     try {
       const { BiometricAuth } = await import('@aparajita/capacitor-biometric-auth');
       await BiometricAuth.authenticate({ reason: 'Unlock Forgenta' });
-      markUnlocked();
+      await markUnlocked();
       setIsLocked(false);
       return true;
     } catch {
@@ -270,7 +270,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     await Promise.all([pSet(P.pinHash, hash), pSet(P.type, 'pin'), pSet(P.enabled, '1')]);
     setLockEnabled(true);
     setLockTypeState('pin');
-    markUnlocked();
+    await markUnlocked();
   }, [markUnlocked]);
 
   const setupBiometricWithPin = useCallback(async (pin: string): Promise<boolean> => {
@@ -285,7 +285,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
     await Promise.all([pSet(P.pinHash, hash), pSet(P.type, 'biometric'), pSet(P.enabled, '1')]);
     setLockEnabled(true);
     setLockTypeState('biometric');
-    markUnlocked();
+    await markUnlocked();
     return true;
   }, [biometricAvailable, markUnlocked]);
 
@@ -310,13 +310,12 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const changePin = useCallback(async (newPin: string): Promise<void> => {
     const hash = await sha256(newPin);
     await pSet(P.pinHash, hash);
-    markUnlocked();
+    await markUnlocked();
   }, [markUnlocked]);
 
   const disableLock = useCallback(async (): Promise<void> => {
-    await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash)]);
+    await Promise.all([pDel(P.enabled), pDel(P.type), pDel(P.pinHash), pDel(LS_FAILED)]);
     localStorage.removeItem(LS_UNLOCKED_AT);
-    localStorage.removeItem(LS_FAILED);
     setLockEnabled(false);
     setIsLocked(false);
     setFailedAttempts(0);
