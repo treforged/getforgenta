@@ -859,7 +859,13 @@ export default function Forecast() {
     // Active loan payments per month — stops when each loan pays off within the 36-month window
     const activeCarLoanByMonth = Array.from({ length: 36 }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 15);
-      return getTotalCarLoanMonthly(carFunds as any[], md);
+      const monthKey = md.toISOString().substring(0, 7);
+      const regular = getTotalCarLoanMonthly(carFunds as any[], md);
+      const lumpTotal = (carFunds as any[])
+        .filter((cf: any) => cf.phase === 'loan')
+        .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === monthKey))
+        .reduce((s: number, ls: any) => s + ls.amount, 0);
+      return regular + lumpTotal;
     });
 
     // Mortgage — hard floor deduction before CC payoff (same priority as car loans)
@@ -907,6 +913,7 @@ export default function Forecast() {
             paymentStartDate: cf.payment_start_date,
             interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
             actualMonthlyPayment: Number(cf.actual_monthly_payment),
+            lumpSumPayments: cf.lump_sum_payments ?? [],
           }, nowDate);
           for (let i = 0; i < 36; i++) {
             const schedIdx = proj.monthsElapsed - 1 + i;
