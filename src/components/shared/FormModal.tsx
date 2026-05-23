@@ -81,7 +81,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                   onChange={e => !f.disabled && onChange(f.key, e.target.value)}
                   readOnly={f.disabled}
                   className={`w-full mt-1 bg-secondary border border-border px-3 py-3 text-sm text-foreground ${f.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  style={{ borderRadius: 'var(--radius)' }}
+                  style={{ borderRadius: 'var(--radius)', ...(f.type === 'date' ? { colorScheme: 'dark' } : {}) }}
                   placeholder={f.placeholder}
                 />
               )}
