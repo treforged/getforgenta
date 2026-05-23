@@ -55,7 +55,6 @@ function LumpSumPanel({
   onAdd,
   onRemove,
   label = 'Planned Extra Payments',
-  liquidCash,
 }: {
   schedule: { date: string; startBalance: number }[];
   lumpSums: LumpSumPayment[];
@@ -66,7 +65,6 @@ function LumpSumPanel({
   onAdd: (ls: LumpSumPayment) => void;
   onRemove: (id: string) => void;
   label?: string;
-  liquidCash?: number;
 }) {
   const [adding, setAdding] = useState(false);
   const [newDate, setNewDate] = useState('');
@@ -128,16 +126,6 @@ function LumpSumPanel({
             <button onClick={() => setAdding(false)} className="text-[10px] px-2 py-1.5 border border-border hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
             <button onClick={handleAdd} className="text-[10px] px-2 py-1.5 bg-primary text-primary-foreground" style={{ borderRadius: 'var(--radius)' }}>Add</button>
           </div>
-          {newDate && (() => {
-            const prevBal = getBalanceBefore(newDate);
-            if (prevBal === null && liquidCash === undefined) return null;
-            return (
-              <div className="basis-full pt-1.5 flex flex-wrap gap-4 text-[10px] text-muted-foreground border-t border-border/20">
-                {prevBal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(prevBal, false)}</span></span>}
-                {liquidCash !== undefined && <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash, false)}</span></span>}
-              </div>
-            );
-          })()}
         </div>
       )}
 
@@ -190,9 +178,9 @@ function estimateSavingCompletion(downGoal: number, saved: number, monthly: numb
   return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib, onSaveLumpSums, liquidCash }:
+function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib, onSaveLumpSums }:
   { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean;
-    linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number }) {
+    linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void }) {
   const gift = Number(cf.gift_contribution) || 0;
   const personalGoal = Math.max(0, cf.down_payment_goal - gift);
   const pct = personalGoal > 0 ? Math.min((cf.current_saved / personalGoal) * 100, 100) : 100;
@@ -320,7 +308,6 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
           onAdd={handleAddLump}
           onRemove={handleRemoveLump}
           label="Projected Extra Payments"
-          liquidCash={liquidCash}
         />
       )}
 
@@ -335,8 +322,8 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
   );
 }
 
-function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, onSaveLumpSums, liquidCash }:
-  { cf: CarFund; onEdit: () => void; onDelete: () => void; onUndo: () => void; deleteConfirm: boolean; undoConfirm: boolean; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number }) {
+function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, onSaveLumpSums }:
+  { cf: CarFund; onEdit: () => void; onDelete: () => void; onUndo: () => void; deleteConfirm: boolean; undoConfirm: boolean; onSaveLumpSums: (lumps: LumpSumPayment[]) => void }) {
   const lumpSums: LumpSumPayment[] = Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [];
 
   const baseInput = useMemo(() => {
@@ -459,7 +446,6 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
         withLumpsPayoffDate={projWithLumps?.payoffDate ?? proj.payoffDate}
         onAdd={handleAddLump}
         onRemove={handleRemoveLump}
-        liquidCash={liquidCash}
       />
 
       <button
@@ -615,13 +601,6 @@ export default function Vehicles() {
 
   const activeLoans = useMemo(() => getActiveCarLoanPayments(carFunds as CarFund[]), [carFunds]);
   const totalMonthlyLoanPayments = activeLoans.reduce((s, l) => s + l.payment, 0);
-
-  const liquidCash = useMemo(() =>
-    (accounts as any[])
-      .filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance), 0),
-    [accounts]
-  );
 
   const accountMap = useMemo(() => {
     const map: Record<string, any> = {};
@@ -952,7 +931,6 @@ export default function Vehicles() {
                 linkedAccountName={linkedAccount?.name ?? null}
                 monthlyContrib={monthlyContrib}
                 onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps })}
-                liquidCash={liquidCash}
               />
             );
           })}
@@ -977,7 +955,6 @@ export default function Vehicles() {
               deleteConfirm={deleteConfirm === cf.id}
               undoConfirm={undoConfirm === cf.id}
               onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps })}
-              liquidCash={liquidCash}
             />
           ))}
           {loanVehicles.length === 0 && (
