@@ -107,8 +107,8 @@ function LumpSumPanel({
               type="date"
               value={newDate}
               onChange={e => setNewDate(e.target.value)}
-              className="bg-background border border-border text-xs px-2 py-1"
-              style={{ borderRadius: 'var(--radius)' }}
+              className="bg-secondary border border-border text-sm text-foreground px-2 py-1.5"
+              style={{ borderRadius: 'var(--radius)', colorScheme: 'dark' }}
             />
           </div>
           <div className="space-y-0.5">
