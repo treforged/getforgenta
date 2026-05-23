@@ -78,7 +78,7 @@ function LumpSumPanel({
   const handleAdd = () => {
     const amount = parseFloat(newAmount);
     if (!newDate || !amount || amount <= 0) return;
-    onAdd({ id: crypto.randomUUID(), date: newDate + '-01', amount });
+    onAdd({ id: crypto.randomUUID(), date: newDate, amount });
     setNewDate(''); setNewAmount(''); setAdding(false);
   };
 
@@ -102,9 +102,9 @@ function LumpSumPanel({
       {adding && (
         <div className="flex flex-wrap gap-2 items-end p-2 bg-secondary/30 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
           <div className="space-y-0.5">
-            <p className="text-[10px] text-muted-foreground">Month</p>
+            <p className="text-[10px] text-muted-foreground">Date</p>
             <input
-              type="month"
+              type="date"
               value={newDate}
               onChange={e => setNewDate(e.target.value)}
               className="bg-background border border-border text-xs px-2 py-1"
