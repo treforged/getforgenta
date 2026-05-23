@@ -1,5 +1,12 @@
 import type { CarFund } from './types';
 
+export interface LumpSumPayment {
+  id: string;
+  date: string; // YYYY-MM-DD (matched to schedule by year+month)
+  amount: number;
+  label?: string;
+}
+
 export interface LoanInput {
   loanAmount: number;
   apr: number;
@@ -8,6 +15,7 @@ export interface LoanInput {
   paymentStartDate: string;
   interestStartDate: string;
   actualMonthlyPayment: number;
+  lumpSumPayments?: LumpSumPayment[];
 }
 
 export interface LoanMonthRow {
@@ -19,6 +27,7 @@ export interface LoanMonthRow {
   principal: number;
   endBalance: number;
   deferred: boolean;
+  lumpSum: number;
 }
 
 export interface LoanProjection {
@@ -57,7 +66,7 @@ export function calculateScheduledPayment(loanAmount: number, apr: number, termM
 }
 
 export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanProjection {
-  const { loanAmount, apr, termMonths, loanStartDate, paymentStartDate, interestStartDate, actualMonthlyPayment } = input;
+  const { loanAmount, apr, termMonths, loanStartDate, paymentStartDate, interestStartDate, actualMonthlyPayment, lumpSumPayments } = input;
   const r = apr / 100 / 12;
   const scheduled = calculateScheduledPayment(loanAmount, apr, termMonths);
   const effectivePmt = actualMonthlyPayment > 0 ? actualMonthlyPayment : scheduled;
@@ -75,11 +84,21 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
     const deferred = rowDate < interestStartDate;
     const interest = deferred ? 0 : Math.round(balance * r * 100) / 100;
 
+    // Extra principal from any lump sum scheduled this month
+    const rowMonth = rowDate.substring(0, 7);
+    const lumpSumThisMonth = (lumpSumPayments ?? [])
+      .filter(ls => ls.date.substring(0, 7) === rowMonth)
+      .reduce((s, ls) => s + ls.amount, 0);
+
     let payment = effectivePmt;
     const maxPmt = balance + interest;
     if (payment > maxPmt) payment = Math.round(maxPmt * 100) / 100;
 
-    const principal = Math.round((payment - interest) * 100) / 100;
+    // Lump sum is additional principal; cap so balance never goes below 0
+    const lumpSum = Math.round(Math.min(lumpSumThisMonth, Math.max(0, maxPmt - payment)) * 100) / 100;
+    const totalPayment = Math.round((payment + lumpSum) * 100) / 100;
+
+    const principal = Math.round((totalPayment - interest) * 100) / 100;
     if (principal < 0) {
       isNegativeAmortization = true;
       // balance grows — cap schedule to avoid infinite loop
@@ -88,7 +107,7 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
 
     const endBalance = Math.max(0, Math.round((balance - principal) * 100) / 100);
 
-    schedule.push({ month, date: rowDate, startBalance: balance, interest, payment, principal, endBalance, deferred });
+    schedule.push({ month, date: rowDate, startBalance: balance, interest, payment: totalPayment, principal, endBalance, deferred, lumpSum });
     balance = endBalance;
   }
 
