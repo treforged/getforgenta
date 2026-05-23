@@ -61,6 +61,16 @@ export type CarFund = {
   created_at: string;
 };
 
+export type LumpSumTransfer = {
+  id: string;
+  user_id: string;
+  date: string; // YYYY-MM-DD
+  amount: number;
+  label: string | null;
+  destination_type: 'savings' | 'brokerage' | 'roth_ira';
+  created_at: string;
+};
+
 export type Profile = {
   id: string;
   display_name: string;

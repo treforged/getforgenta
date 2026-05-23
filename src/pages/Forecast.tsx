@@ -6,7 +6,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions } from '@/hooks/useSupabaseData';
+import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions, useLumpSumTransfers } from '@/hooks/useSupabaseData';
 import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
@@ -89,6 +89,7 @@ export default function Forecast() {
   const { data: profile } = useProfile();
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
+  const { data: lumpSumTransfers } = useLumpSumTransfers();
 
   const [assumptions, setAssumptions] = usePersistedState('tre:forecast:assumptions', {
     incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
@@ -876,6 +877,19 @@ export default function Forecast() {
         .reduce((s: number, ls: any) => s + ls.amount, 0);
     });
 
+    // Lump sum transfers (savings/brokerage/roth_ira) — one-time future contributions
+    const lumpTransferByMonth = Array.from({ length: 36 }, (_, i) => {
+      const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
+      const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
+      const rows = (lumpSumTransfers as any[]).filter(t => t.date.substring(0, 7) === mk);
+      return {
+        savings: rows.filter(t => t.destination_type === 'savings').reduce((s: number, t: any) => s + Number(t.amount), 0),
+        brokerage: rows.filter(t => t.destination_type === 'brokerage').reduce((s: number, t: any) => s + Number(t.amount), 0),
+        roth_ira: rows.filter(t => t.destination_type === 'roth_ira').reduce((s: number, t: any) => s + Number(t.amount), 0),
+        total: rows.reduce((s: number, t: any) => s + Number(t.amount), 0),
+      };
+    });
+
     // Mortgage — hard floor deduction before CC payoff (same priority as car loans)
     const mortgageAccountNames = new Set(
       (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
@@ -1239,7 +1253,7 @@ export default function Forecast() {
       let bal = liquidBal;
       for (let i = 0; i < 36; i++) {
         const b = baseData[i];
-        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i] + getMonthDownPayment(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment + b.monthTransfers;
+        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i] + getMonthDownPayment(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment + b.monthTransfers + lumpTransferByMonth[i].total;
         bal += b.netIncome - totalOut + b.oneTimeNet;
         // Simulate PASS 3 redirect: pin to monthMinSafe in normal months (not save-up months)
         if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > b.monthMinSafe) {
@@ -1308,7 +1322,8 @@ export default function Forecast() {
       // Step 1: savings + transfers + fixed car loan payments apply first as regular outflows
       const savingsOut = b.monthlySavingsContrib + carContribThisMonth;
       const transfersOut = b.monthTransfers;
-      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut + b.oneTimeNet;
+      const lumpTransferThisMonth = lumpTransferByMonth[i].total;
+      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
 
       // Step 2: debt gets what's available above floor — never causes floor breach
       const availableForDebt = Math.max(0, cashPreDebt - b.monthMinSafe);
@@ -1330,14 +1345,14 @@ export default function Forecast() {
       const xferRetireAmt = b.monthTransfers > 0 ? (b.monthRetireContrib - b.paycheckRetireContrib) / b.monthTransfers * actualTransfers : 0;
       const xferBrokerageAmt = b.monthTransfers > 0 ? b.monthBrokerageContrib / b.monthTransfers * actualTransfers : 0;
 
-      savingsBal += actualGoalsSavings;
+      savingsBal += actualGoalsSavings + lumpTransferByMonth[i].savings;
       savingsBal *= (1 + monthlySavingsInterest);
-      investBal += xferBrokerageAmt;
+      investBal += xferBrokerageAmt + lumpTransferByMonth[i].brokerage;
       investBal *= (1 + monthlyInvestGrowth);
-      retireBal += b.paycheckRetireContrib + xferRetireAmt;
+      retireBal += b.paycheckRetireContrib + xferRetireAmt + lumpTransferByMonth[i].roth_ira;
       retireBal *= (1 + monthlyRetireGrowth);
 
-      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + downPaymentThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + mortgageMonthlyPayment + actualTransfers;
+      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + downPaymentThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + mortgageMonthlyPayment + actualTransfers + lumpTransferThisMonth;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       const endingCash = Math.round(finalLiquid);
@@ -1404,6 +1419,9 @@ export default function Forecast() {
         mortgagePayment: Math.round(mortgageMonthlyPayment),
         transfersTotal: Math.round(actualTransfers),
         transferBreakdown: b.transferBreakdown,
+        lumpSumSavings: Math.round(lumpTransferByMonth[i].savings),
+        lumpSumBrokerage: Math.round(lumpTransferByMonth[i].brokerage),
+        lumpSumRothIra: Math.round(lumpTransferByMonth[i].roth_ira),
         businessContrib: Math.round(b.monthBusinessContrib),
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
         ccDebtBalance: Math.round(b.ccDebtBalance),
@@ -1418,7 +1436,7 @@ export default function Forecast() {
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings]);
+  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, lumpSumTransfers]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
@@ -2151,6 +2169,9 @@ export default function Forecast() {
                     ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, false), op: '−' }] : []),
                     ...((row.projectedCarLoan ?? 0) > 0 ? [{ label: '  Est. Car Loan (projected)', value: formatCurrency(row.projectedCarLoan, false), op: '−' }] : []),
                     ...((row.carLoanExtraPayment ?? 0) > 0 ? [{ label: '  Car Loan Extra Payment', value: formatCurrency(row.carLoanExtraPayment, false), op: '−' }] : []),
+                    ...((row.lumpSumSavings ?? 0) > 0 ? [{ label: '  Lump Sum → Savings', value: formatCurrency(row.lumpSumSavings, false), op: '−' }] : []),
+                    ...((row.lumpSumBrokerage ?? 0) > 0 ? [{ label: '  Lump Sum → Brokerage', value: formatCurrency(row.lumpSumBrokerage, false), op: '−' }] : []),
+                    ...((row.lumpSumRothIra ?? 0) > 0 ? [{ label: '  Lump Sum → Roth IRA', value: formatCurrency(row.lumpSumRothIra, false), op: '−' }] : []),
                     ...((row.transferBreakdown ?? [])
                       .filter((t: { name: string; amount: number }) => t.amount > 0)
                       .map((t: { name: string; amount: number }) => ({ label: `  ${t.name}`, value: formatCurrency(t.amount, false), op: '−' as const }))),

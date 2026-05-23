@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
-import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts } from '@/hooks/useSupabaseData';
+import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts, useLumpSumTransfers } from '@/hooks/useSupabaseData';
 import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -18,6 +18,9 @@ import { toast } from 'sonner';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
+const ROTH_IRA_LIMIT = 7000;
+const DEST_LABELS: Record<string, string> = { savings: 'HYS / Savings', brokerage: 'Brokerage', roth_ira: 'Roth IRA' };
+const emptyTransferForm = { date: '', amount: '', label: '', destination_type: 'savings' };
 const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '', linked_rule_id: '' };
 
 const toMonthly = (amount: number, freq: string) =>
@@ -74,14 +77,28 @@ export default function SavingsGoals() {
   const { data: profile } = useProfile();
   const { data: txns } = useTransactions();
   const { data: debts } = useDebts();
+  const { data: transfers, add: addTransfer, update: updateTransfer, remove: removeTransfer } = useLumpSumTransfers();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [showTransferForm, setShowTransferForm] = useState(false);
+  const [editTransferId, setEditTransferId] = useState<string | null>(null);
+  const [transferForm, setTransferForm] = useState(emptyTransferForm);
+  const [deleteTransferConfirm, setDeleteTransferConfirm] = useState<string | null>(null);
   const cashFloor = Number((profile as any)?.cash_floor) || 1000;
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
+
+  const rothByYear = useMemo(() => {
+    const map: Record<number, number> = {};
+    (transfers as any[]).filter(t => t.destination_type === 'roth_ira').forEach(t => {
+      const year = parseInt(t.date.substring(0, 4), 10);
+      map[year] = (map[year] || 0) + Number(t.amount);
+    });
+    return map;
+  }, [transfers]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
@@ -236,6 +253,33 @@ export default function SavingsGoals() {
   const handleDelete = (id: string) => {
     if (deleteConfirm === id) { remove.mutate(id); setDeleteConfirm(null); }
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
+  };
+
+  const openAddTransfer = () => { setTransferForm(emptyTransferForm); setEditTransferId(null); setShowTransferForm(true); };
+  const openEditTransfer = (t: any) => {
+    setTransferForm({ date: t.date, amount: String(t.amount), label: t.label || '', destination_type: t.destination_type });
+    setEditTransferId(t.id); setShowTransferForm(true);
+  };
+  const handleSaveTransfer = () => {
+    const amount = parseFloat(transferForm.amount);
+    if (!transferForm.date || isNaN(amount) || amount <= 0) return;
+    if (transferForm.destination_type === 'roth_ira') {
+      const year = parseInt(transferForm.date.substring(0, 4), 10);
+      const existingTotal = rothByYear[year] || 0;
+      const alreadyCounted = editTransferId ? Number((transfers as any[]).find(t => t.id === editTransferId)?.amount ?? 0) : 0;
+      if (existingTotal - alreadyCounted + amount > ROTH_IRA_LIMIT) {
+        toast.error(`Exceeds $${ROTH_IRA_LIMIT.toLocaleString()} Roth IRA limit for ${year}`);
+        return;
+      }
+    }
+    const payload = { date: transferForm.date, amount, label: transferForm.label || null, destination_type: transferForm.destination_type };
+    if (editTransferId) { updateTransfer.mutate({ id: editTransferId, ...payload }); }
+    else { addTransfer.mutate(payload); }
+    setShowTransferForm(false);
+  };
+  const handleDeleteTransfer = (id: string) => {
+    if (deleteTransferConfirm === id) { removeTransfer.mutate(id); setDeleteTransferConfirm(null); }
+    else { setDeleteTransferConfirm(id); setTimeout(() => setDeleteTransferConfirm(null), 3000); }
   };
 
   function estimateCompletion(g: any): string {
@@ -398,6 +442,95 @@ export default function SavingsGoals() {
 
       {allGoals.length === 0 && (
         <div className="card-forged p-12 text-center"><p className="text-sm text-muted-foreground">No savings goals yet.</p><p className="text-xs text-muted-foreground mt-1">Set a target. Build discipline.</p></div>
+      )}
+
+      {/* Planned Contributions */}
+      {!isDemo && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-sm font-semibold">Planned Contributions</h2>
+              <p className="text-xs text-muted-foreground">One-time future transfers to savings, brokerage, or retirement</p>
+            </div>
+            <button onClick={openAddTransfer} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+              <Plus size={12} /> Add Transfer
+            </button>
+          </div>
+
+          {Object.keys(rothByYear).length > 0 && (
+            <div className="card-forged p-4 space-y-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Roth IRA Contribution Limit</p>
+              {Object.entries(rothByYear).sort(([a], [b]) => Number(a) - Number(b)).map(([yearStr, total]) => {
+                const year = Number(yearStr);
+                const pct = Math.min((total / ROTH_IRA_LIMIT) * 100, 100);
+                const over = total > ROTH_IRA_LIMIT;
+                const warn = !over && pct >= 80;
+                const barColor = over ? 'hsl(0, 84%, 60%)' : warn ? 'hsl(38, 92%, 50%)' : 'hsl(43, 56%, 52%)';
+                return (
+                  <div key={year} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground font-medium">{year}</span>
+                      <span className={over ? 'text-destructive font-semibold' : warn ? 'text-amber-400' : 'text-muted-foreground'}>
+                        {formatCurrency(total, false)} / {formatCurrency(ROTH_IRA_LIMIT, false)}{over ? ' — over limit!' : ''}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-secondary overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
+                      <div className="h-full transition-all duration-500 ease-out" style={{ width: `${pct}%`, background: barColor, borderRadius: 'var(--radius)' }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {(transfers as any[]).length > 0 ? (
+            <div className="space-y-2">
+              {[...(transfers as any[])].sort((a, b) => a.date.localeCompare(b.date)).map(t => (
+                <div key={t.id} className="card-forged p-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-medium text-foreground">{formatCurrency(Number(t.amount), false)}</span>
+                      <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary" style={{ borderRadius: 'var(--radius)' }}>{DEST_LABELS[t.destination_type] || t.destination_type}</span>
+                      {t.label && <span className="text-xs text-muted-foreground truncate">{t.label}</span>}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(t.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => openEditTransfer(t)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={13} /></button>
+                    <button onClick={() => handleDeleteTransfer(t.id)} className={`icon-btn ${deleteTransferConfirm === t.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card-forged p-6 text-center">
+              <p className="text-xs text-muted-foreground">No planned contributions yet.</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Schedule a one-time transfer to savings, brokerage, or Roth IRA.</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showTransferForm && (
+        <FormModal
+          title={editTransferId ? 'Edit Transfer' : 'Plan a Transfer'}
+          fields={[
+            { key: 'date', label: 'Transfer Date', type: 'date' },
+            { key: 'amount', label: 'Amount', type: 'number', placeholder: '1000', step: '0.01' },
+            { key: 'destination_type', label: 'Destination', type: 'select', options: [
+              { value: 'savings', label: 'HYS / Savings' },
+              { value: 'brokerage', label: 'Brokerage' },
+              { value: 'roth_ira', label: `Roth IRA ($${ROTH_IRA_LIMIT.toLocaleString()}/yr limit)` },
+            ]},
+            { key: 'label', label: 'Label (optional)', type: 'text', placeholder: 'e.g., Tax refund to Roth' },
+          ]}
+          values={transferForm}
+          onChange={(k, v) => setTransferForm(prev => ({ ...prev, [k]: v }))}
+          onSave={handleSaveTransfer}
+          onClose={() => setShowTransferForm(false)}
+          saving={addTransfer.isPending || updateTransfer.isPending}
+          saveLabel={editTransferId ? 'Update Transfer' : 'Plan Transfer'}
+        />
       )}
 
       {showForm && (

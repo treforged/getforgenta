@@ -404,6 +404,50 @@ export function useCarFunds() {
   return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
 }
 
+// ─── Lump Sum Transfers ───────────────────────────────────
+export function useLumpSumTransfers() {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: ['lump_sum_transfers', isDemo ? 'demo' : user?.id],
+    enabled: !isDemo && !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.from('lump_sum_transfers').select('*').eq('user_id', user!.id).order('date');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const add = useMutation({
+    mutationFn: async (item: { date: string; amount: number; label?: string | null; destination_type: string }) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase.from('lump_sum_transfers').insert(sanitizePayload({ ...item, user_id: user.id }));
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lump_sum_transfers'] }); toast.success('Transfer planned'); },
+    onError: (e) => toast.error(e.message),
+  });
+  const update = useMutation({
+    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase.from('lump_sum_transfers').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lump_sum_transfers'] }); toast.success('Transfer updated'); },
+    onError: (e) => toast.error(e.message),
+  });
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase.from('lump_sum_transfers').delete().eq('id', id).eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['lump_sum_transfers'] }); toast.success('Transfer removed'); },
+    onError: (e) => toast.error(e.message),
+  });
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
+}
+
 // ─── Transactions ─────────────────────────────────────────
 export function useTransactions() {
   const { user } = useAuth();

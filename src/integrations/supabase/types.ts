@@ -137,6 +137,12 @@ export type Database = {
         Update: { actual_monthly_payment?: number; created_at?: string; current_saved?: number; down_payment_goal?: number; expected_apr?: number; gift_contribution?: number; id?: string; interest_start_date?: string | null; linked_account?: string | null; linked_rule_id?: string | null; loan_amount?: number; loan_start_date?: string | null; loan_term_months?: number; lump_sum_payments?: { id: string; date: string; amount: number; label?: string }[]; monthly_insurance?: number; payment_start_date?: string | null; phase?: string; planned_purchase_date?: string | null; target_price?: number; tax_fees?: number; updated_at?: string; user_id?: string; vehicle_name?: string }
         Relationships: []
       }
+      lump_sum_transfers: {
+        Row: { id: string; user_id: string; date: string; amount: number; label: string | null; destination_type: string; created_at: string; updated_at: string }
+        Insert: { id?: string; user_id: string; date: string; amount: number; label?: string | null; destination_type: string; created_at?: string; updated_at?: string }
+        Update: { id?: string; user_id?: string; date?: string; amount?: number; label?: string | null; destination_type?: string; created_at?: string; updated_at?: string }
+        Relationships: []
+      }
       debts: {
         Row: { apr: number; balance: number; created_at: string; credit_limit: number | null; id: string; min_payment: number; name: string; target_payment: number; updated_at: string; user_id: string }
         Insert: { apr?: number; balance?: number; created_at?: string; credit_limit?: number | null; id?: string; min_payment?: number; name: string; target_payment?: number; updated_at?: string; user_id: string }
