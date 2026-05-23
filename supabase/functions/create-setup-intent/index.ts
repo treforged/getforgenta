@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import Stripe from "https://esm.sh/stripe@18.5.0";
+import Stripe from "https://esm.sh/stripe@22.1.1";
 import {
   checkRateLimit,
   getClientIp,
@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Stripe: create SetupIntent ────────────────────────────────────────
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2025-08-27.basil" });
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2026-02-25.clover" });
 
     const stripeSpan = tracer.startSpan("stripe.setupIntents.create", {
       parentSpanId: rootSpan.spanId,
