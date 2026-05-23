@@ -6,11 +6,11 @@ import InstructionsModal from '@/components/shared/InstructionsModal';
 import FormModal from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
-import { buildAmortizationSchedule, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
+import { buildAmortizationSchedule, getActiveCarLoanPayments, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
 import { useCarFunds, useAccounts, useRecurringRules } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X } from 'lucide-react';
 import PremiumGate from '@/components/shared/PremiumGate';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -34,9 +34,137 @@ const emptyLoanForm = {
   monthly_insurance: '',
 };
 
+function addMonthsStr(dateStr: string, n: number): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setMonth(d.getMonth() + n);
+  return d.toISOString().split('T')[0];
+}
+
 function fmtDate(iso: string | null | undefined) {
   if (!iso) return null;
   return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function LumpSumPanel({
+  schedule,
+  lumpSums,
+  baseTotalInterest,
+  withLumpsTotalInterest,
+  basePayoffDate,
+  withLumpsPayoffDate,
+  onAdd,
+  onRemove,
+  label = 'Planned Extra Payments',
+}: {
+  schedule: { date: string; startBalance: number }[];
+  lumpSums: LumpSumPayment[];
+  baseTotalInterest: number;
+  withLumpsTotalInterest: number;
+  basePayoffDate: string;
+  withLumpsPayoffDate: string;
+  onAdd: (ls: LumpSumPayment) => void;
+  onRemove: (id: string) => void;
+  label?: string;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+
+  const getBalanceBefore = (dateStr: string) => {
+    const month = dateStr.substring(0, 7);
+    return schedule.find(r => r.date.substring(0, 7) === month)?.startBalance ?? null;
+  };
+
+  const handleAdd = () => {
+    const amount = parseFloat(newAmount);
+    if (!newDate || !amount || amount <= 0) return;
+    onAdd({ id: crypto.randomUUID(), date: newDate + '-01', amount });
+    setNewDate(''); setNewAmount(''); setAdding(false);
+  };
+
+  const baseD = new Date(basePayoffDate + 'T00:00:00');
+  const newD = new Date(withLumpsPayoffDate + 'T00:00:00');
+  const monthsSaved = (baseD.getFullYear() - newD.getFullYear()) * 12 + (baseD.getMonth() - newD.getMonth());
+  const interestSaved = Math.max(0, Math.round((baseTotalInterest - withLumpsTotalInterest) * 100) / 100);
+  const hasLumps = lumpSums.length > 0;
+
+  return (
+    <div className="space-y-2 border-t border-border/30 pt-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">{label}</span>
+        {!adding && (
+          <button onClick={() => setAdding(true)} className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80">
+            <Plus size={10} /> Add
+          </button>
+        )}
+      </div>
+
+      {adding && (
+        <div className="flex flex-wrap gap-2 items-end p-2 bg-secondary/30 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
+          <div className="space-y-0.5">
+            <p className="text-[10px] text-muted-foreground">Month</p>
+            <input
+              type="month"
+              value={newDate}
+              onChange={e => setNewDate(e.target.value)}
+              className="bg-background border border-border text-xs px-2 py-1"
+              style={{ borderRadius: 'var(--radius)' }}
+            />
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-[10px] text-muted-foreground">Amount</p>
+            <input
+              type="number"
+              placeholder="0"
+              value={newAmount}
+              onChange={e => setNewAmount(e.target.value)}
+              className="w-28 bg-background border border-border text-xs px-2 py-1"
+              style={{ borderRadius: 'var(--radius)' }}
+            />
+          </div>
+          <div className="flex gap-1">
+            <button onClick={() => setAdding(false)} className="text-[10px] px-2 py-1.5 border border-border hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
+            <button onClick={handleAdd} className="text-[10px] px-2 py-1.5 bg-primary text-primary-foreground" style={{ borderRadius: 'var(--radius)' }}>Add</button>
+          </div>
+        </div>
+      )}
+
+      {!hasLumps && !adding && (
+        <p className="text-[10px] text-muted-foreground">No extra payments planned. Add one to see how it shortens your payoff.</p>
+      )}
+
+      {hasLumps && (
+        <div className="space-y-1">
+          {lumpSums.map(ls => {
+            const bal = getBalanceBefore(ls.date);
+            const dateLabel = new Date(ls.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            return (
+              <div key={ls.id} className="flex items-center justify-between py-1 px-2 bg-secondary/20 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                  <span className="text-[10px] font-medium shrink-0">{dateLabel}</span>
+                  <span className="text-[10px] text-primary font-semibold shrink-0">{formatCurrency(ls.amount, false)}</span>
+                  {bal !== null && <span className="text-[10px] text-muted-foreground">Balance before: {formatCurrency(bal, false)}</span>}
+                </div>
+                <button onClick={() => onRemove(ls.id)} className="text-muted-foreground hover:text-destructive ml-2 shrink-0"><X size={11} /></button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {hasLumps && (monthsSaved > 0 || interestSaved > 0) && (
+        <div className="p-2 bg-success/5 border border-success/20 text-[10px] space-y-0.5" style={{ borderRadius: 'var(--radius)' }}>
+          <p className="text-success font-semibold">Impact of extra payments:</p>
+          <div className="flex flex-wrap gap-3">
+            <span>Payoff: {new Date(withLumpsPayoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              {monthsSaved > 0 && <span className="text-muted-foreground"> ({monthsSaved} mo earlier)</span>}
+            </span>
+            {interestSaved > 0 && <span className="text-success">saves {formatCurrency(interestSaved, false)} interest</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function estimateSavingCompletion(downGoal: number, saved: number, monthly: number, plannedDate: string | null | undefined): string {
@@ -50,9 +178,9 @@ function estimateSavingCompletion(downGoal: number, saved: number, monthly: numb
   return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib }:
+function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib, onSaveLumpSums }:
   { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean;
-    linkedAccountName?: string | null; monthlyContrib?: number }) {
+    linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void }) {
   const gift = Number(cf.gift_contribution) || 0;
   const personalGoal = Math.max(0, cf.down_payment_goal - gift);
   const pct = personalGoal > 0 ? Math.min((cf.current_saved / personalGoal) * 100, 100) : 100;
@@ -63,6 +191,35 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
   );
   const monthly = monthlyContrib ?? 0;
   const completionLabel = estimateSavingCompletion(personalGoal, cf.current_saved, monthly, cf.planned_purchase_date);
+
+  const lumpSums: LumpSumPayment[] = Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [];
+
+  // Project the future loan so lump sums can be planned against it
+  const projectedBase = useMemo(() => {
+    if (!cf.planned_purchase_date) return null;
+    const loanAmt = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
+    if (loanAmt <= 0 || cf.loan_term_months <= 0) return null;
+    const payStart = addMonthsStr(cf.planned_purchase_date, 1);
+    return buildAmortizationSchedule({
+      loanAmount: loanAmt, apr: cf.expected_apr, termMonths: cf.loan_term_months,
+      loanStartDate: cf.planned_purchase_date, paymentStartDate: payStart, interestStartDate: payStart,
+      actualMonthlyPayment: 0,
+    });
+  }, [cf]);
+
+  const projectedWithLumps = useMemo(() => {
+    if (!projectedBase || lumpSums.length === 0) return projectedBase;
+    const loanAmt = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
+    const payStart = addMonthsStr(cf.planned_purchase_date!, 1);
+    return buildAmortizationSchedule({
+      loanAmount: loanAmt, apr: cf.expected_apr, termMonths: cf.loan_term_months,
+      loanStartDate: cf.planned_purchase_date!, paymentStartDate: payStart, interestStartDate: payStart,
+      actualMonthlyPayment: 0, lumpSumPayments: lumpSums,
+    });
+  }, [projectedBase, lumpSums, cf]);
+
+  const handleAddLump = (ls: LumpSumPayment) => onSaveLumpSums([...lumpSums, ls]);
+  const handleRemoveLump = (id: string) => onSaveLumpSums(lumpSums.filter(l => l.id !== id));
   return (
     <div className="card-forged p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -140,6 +297,20 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         </p>
       )}
 
+      {projectedBase && (
+        <LumpSumPanel
+          schedule={projectedWithLumps?.schedule ?? projectedBase.schedule}
+          lumpSums={lumpSums}
+          baseTotalInterest={projectedBase.totalInterest}
+          withLumpsTotalInterest={projectedWithLumps?.totalInterest ?? projectedBase.totalInterest}
+          basePayoffDate={projectedBase.payoffDate}
+          withLumpsPayoffDate={projectedWithLumps?.payoffDate ?? projectedBase.payoffDate}
+          onAdd={handleAddLump}
+          onRemove={handleRemoveLump}
+          label="Projected Extra Payments"
+        />
+      )}
+
       <button
         onClick={onBuyIt}
         className="w-full flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press"
@@ -151,22 +322,31 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
   );
 }
 
-function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm }:
-  { cf: CarFund; onEdit: () => void; onDelete: () => void; onUndo: () => void; deleteConfirm: boolean; undoConfirm: boolean }) {
-  const proj = useMemo(() => {
+function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, onSaveLumpSums }:
+  { cf: CarFund; onEdit: () => void; onDelete: () => void; onUndo: () => void; deleteConfirm: boolean; undoConfirm: boolean; onSaveLumpSums: (lumps: LumpSumPayment[]) => void }) {
+  const lumpSums: LumpSumPayment[] = Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [];
+
+  const baseInput = useMemo(() => {
     if (!cf.payment_start_date || !cf.loan_start_date) return null;
-    return buildAmortizationSchedule({
-      loanAmount: cf.loan_amount,
-      apr: cf.expected_apr,
-      termMonths: cf.loan_term_months,
-      loanStartDate: cf.loan_start_date,
-      paymentStartDate: cf.payment_start_date,
+    return {
+      loanAmount: cf.loan_amount, apr: cf.expected_apr, termMonths: cf.loan_term_months,
+      loanStartDate: cf.loan_start_date, paymentStartDate: cf.payment_start_date,
       interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
       actualMonthlyPayment: cf.actual_monthly_payment,
-    });
+    };
   }, [cf]);
 
+  const proj = useMemo(() => baseInput ? buildAmortizationSchedule(baseInput) : null, [baseInput]);
+
+  const projWithLumps = useMemo(() => {
+    if (!baseInput || lumpSums.length === 0) return proj;
+    return buildAmortizationSchedule({ ...baseInput, lumpSumPayments: lumpSums });
+  }, [baseInput, lumpSums, proj]);
+
   const [showSchedule, setShowSchedule] = useState(false);
+
+  const handleAddLump = (ls: LumpSumPayment) => onSaveLumpSums([...lumpSums, ls]);
+  const handleRemoveLump = (id: string) => onSaveLumpSums(lumpSums.filter(l => l.id !== id));
 
   if (!proj) return null;
 
@@ -256,6 +436,17 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm }:
           </LineChart>
         </ResponsiveContainer>
       )}
+
+      <LumpSumPanel
+        schedule={projWithLumps?.schedule ?? proj.schedule}
+        lumpSums={lumpSums}
+        baseTotalInterest={proj.totalInterest}
+        withLumpsTotalInterest={projWithLumps?.totalInterest ?? proj.totalInterest}
+        basePayoffDate={proj.payoffDate}
+        withLumpsPayoffDate={projWithLumps?.payoffDate ?? proj.payoffDate}
+        onAdd={handleAddLump}
+        onRemove={handleRemoveLump}
+      />
 
       <button
         onClick={() => setShowSchedule(v => !v)}
@@ -739,6 +930,7 @@ export default function Vehicles() {
                 deleteConfirm={deleteConfirm === cf.id}
                 linkedAccountName={linkedAccount?.name ?? null}
                 monthlyContrib={monthlyContrib}
+                onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps })}
               />
             );
           })}
@@ -762,6 +954,7 @@ export default function Vehicles() {
               onUndo={() => handleUndo(cf)}
               deleteConfirm={deleteConfirm === cf.id}
               undoConfirm={undoConfirm === cf.id}
+              onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps })}
             />
           ))}
           {loanVehicles.length === 0 && (
