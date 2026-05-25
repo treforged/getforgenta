@@ -5,7 +5,7 @@ import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Capacitor } from '@capacitor/core';
 import { Link } from 'react-router-dom';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Terminal } from 'lucide-react';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Terminal } from 'lucide-react';
 
 const DEV_EMAIL = 'tre@treforged.com';
 const DEV_DEBUG_KEY = 'forged:dev_debug';
