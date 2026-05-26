@@ -664,7 +664,7 @@ export default function Forecast() {
       // For statement/full cards in grace (sim balance = 0), show monthly purchases
       // as the statement balance — that amount will be due on the next due date.
       row.totalCCBalance = Math.round(Math.max(0,
-        cards.reduce((s, c) => s + (sim.monthlyBalances.get(c.id)?.[i] ?? 0), 0),
+        cards.reduce((s, c) => s + (sim.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
       ));
       let displayBal = 0;
       for (const card of cards) {
