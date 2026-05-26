@@ -139,10 +139,16 @@ export function buildCardData(
       )
       .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
+    // Use next month (full month, no today-cutoff) so monthlyNewPurchases represents a
+    // complete billing cycle. The current month is partial — most recurring bills already
+    // fired and are baked into the live balance, so using it understates future monthly
+    // spending and causes the projection to flatline at whatever charges remain this month.
+    const projRef = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
     const recurringExplicit = rules
       .filter((r: any) => r.active && r.rule_type === 'expense' && (r.payment_source === acctKey || r.payment_source === acct.id))
       .reduce((s: number, r: any) =>
-        s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now),
+        s + Number(r.amount) * countRuleOccurrencesInMonth(r, projRef.getFullYear(), projRef.getMonth()),
       0);
 
     const highestAprCard = [...ccAccounts].sort((a: any, b: any) => (Number(b.apr) || 0) - (Number(a.apr) || 0))[0];
@@ -151,7 +157,7 @@ export function buildCardData(
     const recurringDefault = isDefaultCard ? rules
       .filter((r: any) => r.active && r.rule_type === 'expense' && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
       .reduce((s: number, r: any) =>
-        s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now),
+        s + Number(r.amount) * countRuleOccurrencesInMonth(r, projRef.getFullYear(), projRef.getMonth()),
       0) : 0;
 
     const monthlyNewPurchases = Math.max(monthPurchases, recurringExplicit + recurringDefault);
