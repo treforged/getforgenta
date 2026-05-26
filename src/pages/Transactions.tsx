@@ -6,8 +6,8 @@ import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, 
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
-import { mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
-import { generateScheduledEvents } from '@/lib/scheduling';
+import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
+import { generateScheduledEvents, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
 import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal, Crown, Download } from 'lucide-react';
 import { exportTransactionsCsv } from '@/lib/exportCsv';
@@ -140,10 +140,10 @@ export default function Transactions() {
       .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
     // Scalar fallbacks for months 1+ (only month 0 matters here)
-    const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
-    const taxRate = Number(profile?.tax_rate) || 22;
-    const monthlyTakeHome = weeklyGross * (1 - taxRate / 100) * 4.33;
+    const payConfig = buildPayConfig(profile);
+    const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
     const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
+    const _now = new Date();
     const monthlyExpenses = rules.filter((r: any) => {
       if (!r.active || r.rule_type !== 'expense') return false;
       if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
@@ -151,9 +151,7 @@ export default function Transactions() {
       return true;
     }).reduce((s: number, r: any) => {
       const amt = Number(r.amount);
-      if (r.frequency === 'weekly') return s + amt * 4.33;
-      if (r.frequency === 'yearly') return s + amt / 12;
-      return s + amt;
+      return s + amt * countRuleOccurrencesInMonth(r, _now.getFullYear(), _now.getMonth());
     }, 0);
 
     const sim = simulateVariablePayoff(
@@ -221,15 +219,13 @@ export default function Transactions() {
       .reduce((s: number, a: any) => s + Number(a.balance), 0);
     const cashFloor = Number(profile?.cash_floor) || 1000;
     // Scalar fallbacks
-    const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
-    const taxRate = Number(profile?.tax_rate) || 22;
-    const monthlyTakeHome = weeklyGross * (1 - taxRate / 100) * 4.33;
+    const payConfig2 = buildPayConfig(profile);
+    const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig2);
+    const _now2 = new Date();
     const monthlyExpenses = rules.filter((r: any) => r.active && r.rule_type === 'expense')
       .reduce((s: number, r: any) => {
         const amt = Number(r.amount);
-        if (r.frequency === 'weekly') return s + amt * 4.33;
-        if (r.frequency === 'yearly') return s + amt / 12;
-        return s + amt;
+        return s + amt * countRuleOccurrencesInMonth(r, _now2.getFullYear(), _now2.getMonth());
       }, 0);
 
     const schedEvts = generateScheduledEvents(rules, accounts, 36);

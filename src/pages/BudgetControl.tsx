@@ -17,7 +17,7 @@ import {
   Wallet, TrendingDown, DollarSign, PiggyBank, Plus, Edit2, Trash2, Copy,
   CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, Info, X, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { getDayName } from '@/lib/scheduling';
+import { getDayName, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { CATEGORIES } from '@/lib/types';
 import { generateRecommendations, getCurrentMonthDebtRecommendations } from '@/lib/credit-card-engine';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
@@ -537,13 +537,6 @@ export default function BudgetControl() {
   const billsRules = useMemo(() => fixedRules.filter((r: any) => !r.isSub && r.category !== 'Subscriptions'), [fixedRules]);
   const subscriptionRules = useMemo(() => fixedRules.filter((r: any) => r.isSub || r.category === 'Subscriptions'), [fixedRules]);
 
-  const toMonthly = (r: any) => {
-    const amt = Number(r.amount);
-    if (r.frequency === 'weekly') return amt * 4.33;
-    if (r.frequency === 'biweekly') return amt * 26 / 12;
-    if (r.frequency === 'yearly') return amt / 12;
-    return amt;
-  };
 
   const currentMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   
@@ -564,22 +557,7 @@ export default function BudgetControl() {
       return amt * count;
     }
     if (r.frequency === 'biweekly') {
-      if (r.start_date) {
-        const anchor = new Date(r.start_date + 'T12:00:00');
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        const d = new Date(anchor);
-        const msPerDay = 86400000;
-        const daysToStart = Math.floor((monthStart.getTime() - d.getTime()) / msPerDay);
-        if (daysToStart > 0) d.setDate(d.getDate() + Math.floor(daysToStart / 14) * 14);
-        let count = 0;
-        while (d <= monthEnd) {
-          if (d >= monthStart) count++;
-          d.setDate(d.getDate() + 14);
-        }
-        return amt * count;
-      }
-      return amt * 26 / 12;
+      return amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
     }
     if (r.frequency === 'yearly') {
       const dueMonth = (r.due_month ?? 1) - 1;
@@ -891,7 +869,7 @@ export default function BudgetControl() {
         {formatCurrency(Number(r.amount), false)}
       </span>
       <span className="text-xs sm:text-sm text-muted-foreground">
-        /mo {formatCurrency(toMonthly(r), false)}
+        /mo {formatCurrency(toCurrentMonthAmount(r), false)}
       </span>
     </div>
 

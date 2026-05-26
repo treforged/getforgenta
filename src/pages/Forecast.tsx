@@ -340,15 +340,11 @@ export default function Forecast() {
       ? new Set([resolvedDebtFundingId, `account:${resolvedDebtFundingId}`])
       : new Set<string>();
     // Scalar fallbacks (used only when monthEvents not provided by legacy callers)
-    const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
-    const taxRate = Number(profile?.tax_rate) || 22;
-    const monthlyTakeHome = weeklyGross * (1 - taxRate / 100) * 4.33;
+    const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
     const monthlyExpenses = rules.filter((r: any) => r.active && r.rule_type === 'expense')
       .reduce((s: number, r: any) => {
         const amt = Number(r.amount);
-        if (r.frequency === 'weekly') return s + amt * 4.33;
-        if (r.frequency === 'yearly') return s + amt / 12;
-        return s + amt;
+        return s + amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
       }, 0);
 
     // ── Build cardPurchasesPerMonth using shared forecastMonthEvents ──
@@ -1600,10 +1596,8 @@ export default function Forecast() {
       const destId = r.deposit_account as string | undefined;
       if (!destId || !retireIds.has(destId)) continue;
       const amt = Number(r.amount);
-      const monthly = r.frequency === 'weekly' ? amt * 4.33
-        : r.frequency === 'biweekly' ? amt * 2.167
-        : r.frequency === 'yearly' ? amt / 12
-        : amt;
+      const now = new Date();
+      const monthly = amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
       transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + monthly;
     }
 

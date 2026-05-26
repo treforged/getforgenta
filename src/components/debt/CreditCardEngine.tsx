@@ -5,7 +5,7 @@ import {
   simulateVariablePayoff, CardData, CardProjection, RecommendationSummary, CC_DEFAULT_CATEGORIES,
 } from '@/lib/credit-card-engine';
 import {
-  buildPayConfig, getPrePaycheckNextMonthBills, getMinSafeCash,
+  buildPayConfig, getNormalizedMonthNetIncome, getPrePaycheckNextMonthBills, getMinSafeCash,
   getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
   getRemainingTransactionIncomeItemsByDay, getRemainingTransactionExpenseItemsByDay,
   mergeWithGeneratedTransactions, generateMonthTransactionsFromRules,
@@ -143,9 +143,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [fundingAccountId, defaultFunding]);
 
   const monthlyTakeHome = useMemo(() => {
-    const weeklyGross = Number(profile?.weekly_gross_income) || 1875;
-    const taxRate = Number(profile?.tax_rate) || 22;
-    const paycheckIncome = weeklyGross * (1 - taxRate / 100) * 4.33;
+    const now = new Date();
+    const paycheckIncome = getNormalizedMonthNetIncome(payConfig);
     const nonPaycheckIncome = rules
       .filter((r: any) =>
         r.active &&
@@ -154,13 +153,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       )
       .reduce((s: number, r: any) => {
         const amt = Number(r.amount);
-        if (r.frequency === 'weekly') return s + amt * 4.33;
-        if (r.frequency === 'biweekly') return s + amt * 2.167;
-        if (r.frequency === 'yearly') return s + amt / 12;
-        return s + amt;
+        const count = countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
+        return s + amt * count;
       }, 0);
     return paycheckIncome + nonPaycheckIncome;
-  }, [profile, rules]);
+  }, [payConfig, rules]);
 
   const cards: CardData[] = useMemo(() => buildCardData(accounts, transactions, rules, debts), [accounts, transactions, rules, debts]);
 
@@ -198,9 +195,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       return true;
     }).reduce((s: number, r: any) => {
       const amt = Number(r.amount);
-      if (r.frequency === 'weekly') return s + amt * 4.33;
-      if (r.frequency === 'yearly') return s + amt / 12;
-      return s + amt;
+      const now = new Date();
+      return s + amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
     }, 0);
   }, [rules, cards, accounts, pauseSavings]);
 
