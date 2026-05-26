@@ -638,7 +638,6 @@ export default function Forecast() {
         const m = p.months[i];
         if (m) {
           row[p.card.name] = Math.round(m.endBalance);
-          row.totalCCBalance += m.endBalance;
           row.displayCCBalance += m.endBalance;
           row.totalInterest += m.interest;
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
@@ -652,7 +651,14 @@ export default function Forecast() {
         }
       }
 
-      row.totalCCBalance = Math.round(Math.max(0, row.totalCCBalance));
+      // Use the simulation's actual per-card balances as the authoritative source for
+      // totalCCBalance. projectCardVariable's interest timing can diverge from the
+      // simulation once a card enters grace, causing a phantom carried balance that
+      // keeps PASS 3 redirecting surplus to debt indefinitely. The simulation's balances
+      // track exactly what was paid and what remains, so they correctly reach 0 after payoff.
+      row.totalCCBalance = Math.round(Math.max(0,
+        cards.reduce((s, c) => s + (sim.monthlyBalances.get(c.id)?.[i] ?? 0), 0),
+      ));
       row.displayCCBalance = Math.round(Math.max(0, row.displayCCBalance));
       row.totalInterest = Math.round(row.totalInterest);
       row.utilization = totalLimit > 0 ? Math.round((row.totalCCBalance / totalLimit) * 100) : 0;
