@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
@@ -86,17 +86,39 @@ export default function Forecast() {
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: subs } = useSubscriptions();
   const { data: budgetItems } = useBudgetItems();
-  const { data: profile } = useProfile();
+  const { data: profile, update: updateProfile } = useProfile();
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
 
-  const [assumptions, setAssumptions] = usePersistedState('tre:forecast:assumptions', {
+  const defaultAssumptions = {
     incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
     investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5, taxOverride: 0,
     bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
     taxReturnEnabled: false, taxReturnFilingStatus: 'single' as FilingStatus, taxReturnDependents: 0,
     taxReturnState: 'FL', taxReturnFederalWithheld: 0, taxReturnMonth: 2, taxReturnAmountOverride: 0,
-  });
+  };
+  const [assumptions, setAssumptionsState] = useState(defaultAssumptions);
+  const assumptionsLoaded = useRef(false);
+  const assumptionsSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (profile && !assumptionsLoaded.current) {
+      const saved = (profile as any).forecast_assumptions;
+      if (saved && typeof saved === 'object') {
+        setAssumptionsState(prev => ({ ...prev, ...saved }));
+      }
+      assumptionsLoaded.current = true;
+    }
+  }, [profile]);
+  const setAssumptions = useCallback((val: typeof defaultAssumptions | ((prev: typeof defaultAssumptions) => typeof defaultAssumptions)) => {
+    setAssumptionsState(prev => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      if (assumptionsSaveTimer.current) clearTimeout(assumptionsSaveTimer.current);
+      assumptionsSaveTimer.current = setTimeout(() => {
+        updateProfile.mutate({ forecast_assumptions: next } as any);
+      }, 800);
+      return next;
+    });
+  }, [updateProfile]);
   const [showAssumptions, setShowAssumptions] = useState(false);
   const [assumptionsTutorialSeen, setAssumptionsTutorialSeen] = usePersistedState('tre:forecast:assumptionsTutorialSeen', false);
   const [filterYear, setFilterYear] = usePersistedState<'all' | '1' | '2' | '3'>('tre:forecast:filterYear', 'all');
@@ -806,12 +828,17 @@ export default function Forecast() {
     let totalLiabilityBal = active.filter((a: any) => liabilityTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
 
     const accountMap = new Map(accounts.map((a: any) => [a.id, a]));
+    const goalLinkedAccountIds = new Set(goals.filter((g: any) => g.linked_account).map((g: any) => g.linked_account as string));
     let savingsBal = goals.reduce((s: number, g: any) => {
       if (g.linked_account && accountMap.has(g.linked_account)) {
         return s + Number(accountMap.get(g.linked_account).balance);
       }
       return s + Number(g.current_amount);
     }, 0);
+    // Add savings/HYSA account balances not already counted via a linked goal
+    savingsBal += active
+      .filter((a: any) => ['savings', 'high_yield_savings'].includes(a.account_type) && !goalLinkedAccountIds.has(a.id))
+      .reduce((s: number, a: any) => s + Number(a.balance), 0);
 
     const monthlyInvestGrowth = Math.pow(1 + assumptions.investmentGrowth / 100, 1 / 12) - 1;
     const monthlySavingsInterest = Math.pow(1 + assumptions.savingsInterest / 100, 1 / 12) - 1;
@@ -1009,7 +1036,7 @@ export default function Forecast() {
     // ═══ PASS 1: Compute base values without debt payment adjustments ═══
     const baseData: {
       monthLabel: string; monthKey: string; netIncome: number; baseExpenses: number;
-      rawDebtPayment: number; monthTransfers: number; monthBrokerageContrib: number; monthRetireContrib: number; monthBusinessContrib: number; oneTimeNet: number;
+      rawDebtPayment: number; monthTransfers: number; monthBrokerageContrib: number; monthRetireContrib: number; monthBusinessContrib: number; monthSavingsTransferContrib: number; oneTimeNet: number;
       ccDebtBalance: number; otherDebtBalance: number; monthMinSafe: number; monthlySavingsContrib: number;
       paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
       paycheckRetireContrib: number; fullMonth401kContrib: number;
@@ -1149,6 +1176,7 @@ export default function Forecast() {
       let monthBrokerageContrib = 0;
       let monthRetireContrib = 0;
       let monthBusinessContrib = 0;
+      let monthSavingsTransferContrib = 0;
       const activeTransferDestIds = new Set<string>();
       const transferBreakdown: { name: string; amount: number }[] = [];
       for (const tr of transferRulesAll) {
@@ -1169,6 +1197,9 @@ export default function Forecast() {
           transferBreakdown.push({ name: tr.name, amount: monthAmt });
         } else if (destType === 'brokerage') {
           monthBrokerageContrib += monthAmt;
+          transferBreakdown.push({ name: tr.name, amount: monthAmt });
+        } else if (['savings', 'high_yield_savings'].includes(destType)) {
+          monthSavingsTransferContrib += monthAmt;
           transferBreakdown.push({ name: tr.name, amount: monthAmt });
         } else if (
           destType === 'business_checking' ||
@@ -1222,7 +1253,7 @@ export default function Forecast() {
 
       baseData.push({
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
-        monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
+        monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, monthSavingsTransferContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown,
       });
@@ -1352,7 +1383,7 @@ export default function Forecast() {
       const xferRetireAmt = b.monthTransfers > 0 ? (b.monthRetireContrib - b.paycheckRetireContrib) / b.monthTransfers * actualTransfers : 0;
       const xferBrokerageAmt = b.monthTransfers > 0 ? b.monthBrokerageContrib / b.monthTransfers * actualTransfers : 0;
 
-      savingsBal += actualGoalsSavings + lumpTransferByMonth[i].savings;
+      savingsBal += actualGoalsSavings + b.monthSavingsTransferContrib + lumpTransferByMonth[i].savings;
       savingsBal *= (1 + monthlySavingsInterest);
       investBal += xferBrokerageAmt + lumpTransferByMonth[i].brokerage;
       investBal *= (1 + monthlyInvestGrowth);

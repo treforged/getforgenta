@@ -150,8 +150,24 @@ export default function BudgetControl() {
   // Dynamic paycheck deductions
   const [deductions, setDeductions] = useState<PaycheckDeduction[]>([]);
   const [showCatalog, setShowCatalog] = useState(false);
-  const [deductionsCollapsed, setDeductionsCollapsed] = usePersistedState<boolean>('tre:budget:deductions-collapsed', false);
-  const [incomeSectionCollapsed, setIncomeSectionCollapsed] = usePersistedState<boolean>('tre:budget:income-section-collapsed', false);
+  const [deductionsCollapsed, setDeductionsCollapsedState] = useState<boolean>(false);
+  const [incomeSectionCollapsed, setIncomeSectionCollapsedState] = useState<boolean>(false);
+  const uiPrefsLoaded = useRef(false);
+  const uiPrefsSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveUiPrefs = useCallback((prefs: Record<string, boolean>) => {
+    if (uiPrefsSaveTimer.current) clearTimeout(uiPrefsSaveTimer.current);
+    uiPrefsSaveTimer.current = setTimeout(() => {
+      updateProfile.mutate({ ui_preferences: prefs } as any);
+    }, 600);
+  }, [updateProfile]);
+  const setDeductionsCollapsed = (v: boolean) => {
+    setDeductionsCollapsedState(v);
+    saveUiPrefs({ deductionsCollapsed: v, incomeSectionCollapsed });
+  };
+  const setIncomeSectionCollapsed = (v: boolean) => {
+    setIncomeSectionCollapsedState(v);
+    saveUiPrefs({ deductionsCollapsed, incomeSectionCollapsed: v });
+  };
   const [customLabel, setCustomLabel] = useState('');
 
   // Paycheck rule lock — ID of the single income rule auto-synced by income settings
@@ -171,11 +187,13 @@ export default function BudgetControl() {
   useEffect(() => {
     if (profile) {
       const wg = Number((profile as any).weekly_gross_income) || 1875;
+      const pf = ((profile as any).paycheck_frequency as PayFrequency) || 'weekly';
+      const perPaycheck = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
       setWeeklyGross(wg);
-      setWeeklyGrossInput(String(wg));
+      setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
       setTaxRate(Number((profile as any).tax_rate) || 22);
       setPaycheckDay((profile as any).paycheck_day != null ? Number((profile as any).paycheck_day) : 5);
-      setPayFrequency(((profile as any).paycheck_frequency as PayFrequency) || 'weekly');
+      setPayFrequency(pf);
       // Load deductions: prefer new JSONB column, migrate from legacy columns if needed
       const jsonDeds = (profile as any).paycheck_deductions as PaycheckDeduction[] | null;
       if (jsonDeds && jsonDeds.length > 0) {
@@ -187,6 +205,15 @@ export default function BudgetControl() {
       }
       // Load the designated paycheck rule ID
       setPaycheckRuleId((profile as any).paycheck_rule_id ?? null);
+      // Load UI preferences (collapse states) — only on first profile load
+      if (!uiPrefsLoaded.current) {
+        const uiPrefs = (profile as any).ui_preferences;
+        if (uiPrefs && typeof uiPrefs === 'object') {
+          if (typeof uiPrefs.deductionsCollapsed === 'boolean') setDeductionsCollapsedState(uiPrefs.deductionsCollapsed);
+          if (typeof uiPrefs.incomeSectionCollapsed === 'boolean') setIncomeSectionCollapsedState(uiPrefs.incomeSectionCollapsed);
+        }
+        uiPrefsLoaded.current = true;
+      }
       profileLoaded.current = true;
     }
   }, [profile]);
@@ -290,15 +317,22 @@ export default function BudgetControl() {
   const handleWeeklyGrossBlur = () => {
     const parsed = parseFloat(weeklyGrossInput);
     if (!isNaN(parsed) && parsed > 0) {
-      setWeeklyGross(parsed);
-      doAutoSave(parsed, taxRate, paycheckDay, payFrequency, deductions);
+      const wg = payFrequency === 'biweekly' ? parsed / 2 : payFrequency === 'monthly' ? parsed * 12 / 52 : parsed;
+      setWeeklyGross(wg);
+      doAutoSave(wg, taxRate, paycheckDay, payFrequency, deductions);
     } else {
-      setWeeklyGrossInput(String(weeklyGross));
+      const perPaycheck = payFrequency === 'biweekly' ? weeklyGross * 2 : payFrequency === 'monthly' ? weeklyGross * 52 / 12 : weeklyGross;
+      setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
     }
   };
   const setTaxRateAuto = (v: number) => { setTaxRate(v); doAutoSave(weeklyGross, v, paycheckDay, payFrequency, deductions); };
   const setPaycheckDayAuto = (v: number) => { setPaycheckDay(v); doAutoSave(weeklyGross, taxRate, v, payFrequency, deductions); };
-  const setPayFrequencyAuto = (v: PayFrequency) => { setPayFrequency(v); doAutoSave(weeklyGross, taxRate, paycheckDay, v, deductions); };
+  const setPayFrequencyAuto = (v: PayFrequency) => {
+    setPayFrequency(v);
+    const perPaycheck = v === 'biweekly' ? weeklyGross * 2 : v === 'monthly' ? weeklyGross * 52 / 12 : weeklyGross;
+    setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
+    doAutoSave(weeklyGross, taxRate, paycheckDay, v, deductions);
+  };
 
   // Deduction CRUD — each mutates and auto-saves
   const updateDeduction = (id: string, patch: Partial<PaycheckDeduction>) => {
@@ -506,6 +540,7 @@ export default function BudgetControl() {
   const toMonthly = (r: any) => {
     const amt = Number(r.amount);
     if (r.frequency === 'weekly') return amt * 4.33;
+    if (r.frequency === 'biweekly') return amt * 26 / 12;
     if (r.frequency === 'yearly') return amt / 12;
     return amt;
   };
@@ -527,6 +562,24 @@ export default function BudgetControl() {
       while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
       while (d <= monthEnd) { count++; d.setDate(d.getDate() + 7); }
       return amt * count;
+    }
+    if (r.frequency === 'biweekly') {
+      if (r.start_date) {
+        const anchor = new Date(r.start_date + 'T12:00:00');
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const d = new Date(anchor);
+        const msPerDay = 86400000;
+        const daysToStart = Math.floor((monthStart.getTime() - d.getTime()) / msPerDay);
+        if (daysToStart > 0) d.setDate(d.getDate() + Math.floor(daysToStart / 14) * 14);
+        let count = 0;
+        while (d <= monthEnd) {
+          if (d >= monthStart) count++;
+          d.setDate(d.getDate() + 14);
+        }
+        return amt * count;
+      }
+      return amt * 26 / 12;
     }
     if (r.frequency === 'yearly') {
       const dueMonth = (r.due_month ?? 1) - 1;
@@ -614,6 +667,10 @@ export default function BudgetControl() {
   const handleSave = () => {
     const amount = parseFloat(form.amount);
     if (!form.name || isNaN(amount)) return;
+    if (form.rule_type === 'income' && !form.start_date) {
+      toast.error('Income rules require a Start Date');
+      return;
+    }
     const payload: any = {
       name: form.name, amount, rule_type: form.rule_type, frequency: form.frequency,
       due_day: parseInt(form.due_day) || 1, due_month: form.due_month ? parseInt(form.due_month) : null,
@@ -666,7 +723,7 @@ export default function BudgetControl() {
     }
     fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
     
-    fields.push({ key: 'start_date', label: 'Start Date (optional)', type: 'date' });
+    fields.push({ key: 'start_date', label: form.rule_type === 'income' ? 'Start Date (required)' : 'Start Date (optional)', type: 'date', ...(form.rule_type === 'income' ? { required: true } : {}) });
     fields.push({ key: 'end_date', label: 'End Date (optional)', type: 'date' });
 
     if (form.rule_type === 'income') {
@@ -927,7 +984,7 @@ export default function BudgetControl() {
       <div className="card-forged p-3 sm:p-5 space-y-3 sm:space-y-4">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
           <button
-            onClick={() => setIncomeSectionCollapsed(c => !c)}
+            onClick={() => setIncomeSectionCollapsed(!incomeSectionCollapsed)}
             className="flex items-center gap-2 text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider shrink-0 hover:text-foreground transition-colors"
           >
             <span className={`flex items-center justify-center w-5 h-5 rounded bg-secondary border border-border transition-colors ${!incomeSectionCollapsed ? 'border-primary/30 text-primary' : ''}`}>
@@ -981,7 +1038,7 @@ export default function BudgetControl() {
         <div className="space-y-2">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <button
-              onClick={() => setDeductionsCollapsed(c => !c)}
+              onClick={() => setDeductionsCollapsed(!deductionsCollapsed)}
               className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
             >
               <span className={`flex items-center justify-center w-5 h-5 rounded bg-secondary border border-border transition-colors ${!deductionsCollapsed ? 'border-primary/30 text-primary' : ''}`}>
