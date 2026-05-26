@@ -643,16 +643,12 @@ export default function Forecast() {
       for (const p of projs) {
         const m = p.months[i];
         if (m) {
+          // Keep per-card values for the chart lines; totalInterest for display
           row[p.card.name] = Math.round(m.endBalance);
           row.totalInterest += m.interest;
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
-          // Card paid off — statement/full cards cycle purchases each month in grace period
-          if (p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement') {
-            const monthPurchases = cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases;
-            row[p.card.name] = Math.round(monthPurchases);
-          } else {
-            row[p.card.name] = 0;
-          }
+          // Card paid off before this month — flatline at 0 so chart line doesn't disappear
+          row[p.card.name] = 0;
         }
       }
 
