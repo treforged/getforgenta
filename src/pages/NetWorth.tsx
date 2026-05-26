@@ -11,7 +11,6 @@ import PremiumGate from '@/components/shared/PremiumGate';
 import FormModal from '@/components/shared/FormModal';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { buildPayConfig, getPaycheckGross } from '@/lib/pay-schedule';
-import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import {
   Wallet, TrendingUp, TrendingDown, ArrowUpRight,
   Plus, Trash2, Edit2, Building2,
@@ -149,17 +148,15 @@ export default function NetWorth() {
       const destId = r.deposit_account as string | undefined;
       if (!destId || !retireIds.has(destId)) continue;
       const amt = Number(r.amount);
-      const _now = new Date();
-      const monthly = amt * countRuleOccurrencesInMonth(r, _now.getFullYear(), _now.getMonth());
-      transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + monthly;
+      const annualCount = r.frequency === 'weekly' ? 52 : r.frequency === 'biweekly' ? 26 : r.frequency === 'yearly' ? 1 : 12;
+      transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + amt * annualCount / 12;
     }
 
     return retireAccounts.map((a: any) => {
       const apyRate = a.apy_rate != null ? Number(a.apy_rate) : DEFAULT_APY;
       const fromDeductions = monthlyContribForAccount(deductions, a.id, paycheckGross, paychecksPerYear);
       const fromTransfers = transferContribByAccount[a.id] || 0;
-      // Avoid double-counting: if a deduction links to this account, use deduction amount as authoritative
-      const monthlyContrib = fromDeductions > 0 ? fromDeductions : fromTransfers;
+      const monthlyContrib = fromDeductions + fromTransfers;
       const milestones = projectMilestones(Number(a.balance), monthlyContrib, apyRate);
       return { account: a, apyRate, monthlyContrib, milestones };
     });
