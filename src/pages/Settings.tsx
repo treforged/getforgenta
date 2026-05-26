@@ -1046,9 +1046,9 @@ export default function SettingsPage() {
                 else localStorage.removeItem(DEV_DEBUG_KEY);
                 window.dispatchEvent(new CustomEvent('forgenta:dev-debug'));
               }}
-              className={`shrink-0 w-10 h-5 rounded-full transition-colors relative ${devDebug ? 'bg-primary' : 'bg-secondary border border-border'}`}
+              className={`shrink-0 w-10 h-5 rounded-full transition-colors relative overflow-hidden ${devDebug ? 'bg-primary' : 'bg-secondary border border-border'}`}
             >
-              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-background border border-border/50 transition-transform ${devDebug ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-background border border-border/50 transition-transform ${devDebug ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
           </div>
         </div>
