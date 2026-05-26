@@ -24,7 +24,7 @@ const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_con
 type GoalLumpSum = { id: string; date: string; amount: number };
 
 function GoalLumpSumPanel({
-  lumpSums, onSave, liquidCash, currentAmount, monthlyContrib, isRothIra, apyRate = 0,
+  lumpSums, onSave, liquidCash, currentAmount, monthlyContrib, isRothIra,
 }: {
   lumpSums: GoalLumpSum[];
   onSave: (lumps: GoalLumpSum[]) => void;
@@ -32,7 +32,6 @@ function GoalLumpSumPanel({
   currentAmount: number;
   monthlyContrib: number;
   isRothIra?: boolean;
-  apyRate?: number;
 }) {
   const [adding, setAdding] = useState(false);
   const [newDate, setNewDate] = useState('');
@@ -45,9 +44,7 @@ function GoalLumpSumPanel({
     const today = new Date();
     const target = new Date(dateStr + 'T00:00:00');
     const months = Math.max(0, (target.getFullYear() - today.getFullYear()) * 12 + (target.getMonth() - today.getMonth()));
-    const r = apyRate / 12 / 100;
-    if (r <= 0 || months === 0) return currentAmount + monthlyContrib * months;
-    return currentAmount * Math.pow(1 + r, months) + monthlyContrib * (Math.pow(1 + r, months) - 1) / r;
+    return currentAmount + monthlyContrib * months;
   };
 
   const rothByYear = useMemo(() => {
@@ -232,14 +229,7 @@ function SavingsGrowthChart({ goals }: { goals: any[] }) {
           const j = (start.getFullYear() - todayYear) * 12 + (start.getMonth() - todayMonth);
           if (j > 0) monthsContributed = Math.max(0, i - (j - 1));
         }
-        const r = Number((g as any).effective_apy || 0) / 12 / 100;
-        const pv = Number(g.current_amount);
-        const pmt = Number(g.monthly_contribution);
-        const n = monthsContributed;
-        const fv = r > 0 && n > 0
-          ? pv * Math.pow(1 + r, n) + pmt * (Math.pow(1 + r, n) - 1) / r
-          : pv + pmt * n;
-        entry[g.name] = Math.min(fv, Number(g.target_amount));
+        entry[g.name] = Math.min(Number(g.current_amount) + Number(g.monthly_contribution) * monthsContributed, Number(g.target_amount));
       });
       months.push(entry);
     }
@@ -356,11 +346,6 @@ export default function SavingsGoals() {
       const linkedRule = (g as any).linked_rule_id
         ? rules.find((r: any) => r.id === (g as any).linked_rule_id)
         : null;
-      const linkedAcct = (g as any).linked_account ? accountMap[(g as any).linked_account] : null;
-      const rawRate = Number(linkedAcct?.apy_rate ?? linkedAcct?.apr ?? 0);
-      const typeDefault = (['savings', 'high_yield_savings'].includes(linkedAcct?.account_type ?? '') ? 4.5
-        : ['brokerage', 'roth_ira', '401k', 'ira', 'hsa'].includes(linkedAcct?.account_type ?? '') ? 7 : 0);
-      const effective_apy = rawRate > 0 ? rawRate : typeDefault;
       return {
         ...g,
         goal_type: (g as any).goal_type || 'Custom',
@@ -375,7 +360,6 @@ export default function SavingsGoals() {
           : Number(g.monthly_contribution),
         contribution_start_date: linkedRule?.start_date ?? (g as any).contribution_start_date ?? null,
         linked_rule: linkedRule || null,
-        effective_apy,
       };
     });
   }, [goals, accountMap, rules, cashFloor]);
@@ -617,7 +601,6 @@ export default function SavingsGoals() {
                   currentAmount={Number(g.current_amount)}
                   monthlyContrib={Number(g.monthly_contribution)}
                   isRothIra={isRothIra}
-                  apyRate={(g as any).effective_apy || 0}
                 />
               )}
             </div>
