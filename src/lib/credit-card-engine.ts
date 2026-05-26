@@ -444,6 +444,7 @@ export function simulateVariablePayoff(
   cashFloorByMonth?: number[],
 ): {
   monthlyPayments: Map<string, number[]>;
+  monthlyBalances: Map<string, number[]>;
   projectedPayoffMonths: number;
   cashFloorBreaches: { month: number; endingCash: number }[];
   flags: SimulationFlag[];
@@ -454,6 +455,7 @@ export function simulateVariablePayoff(
   if (cards.length === 0) {
     return {
       monthlyPayments: new Map(),
+      monthlyBalances: new Map(),
       projectedPayoffMonths: 0,
       cashFloorBreaches: [],
       flags: [],
@@ -466,6 +468,7 @@ export function simulateVariablePayoff(
   // ── Step 1 — Initialise ────────────────────────────────────
   const balances = new Map<string, number>(cards.map(c => [c.id, c.balance]));
   const monthlyPayments = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  const monthlyBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
   let currentCash = liquidCash;
   let projectedPayoffMonths = 0;
   const cashFloorBreaches: { month: number; endingCash: number }[] = [];
@@ -530,9 +533,12 @@ export function simulateVariablePayoff(
     const oneTimeNet = m === 0 ? 0
       : (oneTimeByMonth?.[m]?.income ?? 0) - (oneTimeByMonth?.[m]?.expenses ?? 0);
 
-    // Push 0 for cards that haven't reached their start month — keeps payment arrays aligned.
+    // Push 0 for cards that haven't reached their start month — keeps arrays aligned.
     for (const card of cards) {
-      if ((cardStartMonths.get(card.id) ?? 0) > m) monthlyPayments.get(card.id)!.push(0);
+      if ((cardStartMonths.get(card.id) ?? 0) > m) {
+        monthlyPayments.get(card.id)!.push(0);
+        monthlyBalances.get(card.id)!.push(0);
+      }
     }
 
     // ── Step 1 — Mark newly paid-off cards (one-way transition) ──
@@ -584,6 +590,9 @@ export function simulateVariablePayoff(
 
     // All cards paid off — just advance cash and continue
     if (debtCards.length === 0) {
+      for (const card of cards) {
+        if ((cardStartMonths.get(card.id) ?? 0) <= m) monthlyBalances.get(card.id)!.push(0);
+      }
       currentCash += monthIncome - monthExpenses - paidOffCashCost;
       const oneTime = oneTimeByMonth?.[m];
       if (oneTime && (oneTime.income > 0 || oneTime.expenses > 0)) {
@@ -752,6 +761,13 @@ export function simulateVariablePayoff(
       }
     }
 
+    // Record end-of-month balance for all active cards (paid-off cards have balances = 0)
+    for (const card of cards) {
+      if ((cardStartMonths.get(card.id) ?? 0) <= m) {
+        monthlyBalances.get(card.id)!.push(balances.get(card.id) ?? 0);
+      }
+    }
+
     // Payoff ETA = last month where any card still carried debt
     projectedPayoffMonths = m + 1;
 
@@ -767,6 +783,7 @@ export function simulateVariablePayoff(
 
   return {
     monthlyPayments,
+    monthlyBalances,
     projectedPayoffMonths,
     cashFloorBreaches,
     flags,
