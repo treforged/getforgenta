@@ -1596,8 +1596,8 @@ export default function Forecast() {
       const destId = r.deposit_account as string | undefined;
       if (!destId || !retireIds.has(destId)) continue;
       const amt = Number(r.amount);
-      const now = new Date();
-      const monthly = amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
+      const annualCount = r.frequency === 'weekly' ? 52 : r.frequency === 'biweekly' ? 26 : r.frequency === 'yearly' ? 1 : 12;
+      const monthly = amt * annualCount / 12;
       transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + monthly;
     }
 
@@ -1605,7 +1605,7 @@ export default function Forecast() {
       const apyRate = a.apy_rate != null ? Number(a.apy_rate) : DEFAULT_APY_FORECAST;
       const fromDeductions = monthlyContribForAccount(deductions, a.id, paycheckGross, paychecksPerYear);
       const fromTransfers = transferContribByAccount[a.id] || 0;
-      const monthlyContrib = fromDeductions > 0 ? fromDeductions : fromTransfers;
+      const monthlyContrib = fromDeductions + fromTransfers;
       const milestones = projectMilestones(Number(a.balance), monthlyContrib, apyRate);
       return { account: a, apyRate, monthlyContrib, milestones };
     });
