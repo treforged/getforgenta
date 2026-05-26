@@ -11,7 +11,6 @@ import PremiumGate from '@/components/shared/PremiumGate';
 import FormModal from '@/components/shared/FormModal';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { buildPayConfig, getPaycheckGross } from '@/lib/pay-schedule';
-import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import {
   Wallet, TrendingUp, TrendingDown, ArrowUpRight,
   Plus, Trash2, Edit2, Building2,
@@ -149,8 +148,10 @@ export default function NetWorth() {
       const destId = r.deposit_account as string | undefined;
       if (!destId || !retireIds.has(destId)) continue;
       const amt = Number(r.amount);
-      const _now = new Date();
-      const monthly = amt * countRuleOccurrencesInMonth(r, _now.getFullYear(), _now.getMonth());
+      const monthly = r.frequency === 'weekly' ? amt * 4.33
+        : r.frequency === 'biweekly' ? amt * 2.167
+        : r.frequency === 'yearly' ? amt / 12
+        : amt;
       transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + monthly;
     }
 
