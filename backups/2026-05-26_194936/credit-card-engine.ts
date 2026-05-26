@@ -445,7 +445,6 @@ export function simulateVariablePayoff(
 ): {
   monthlyPayments: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
-  monthlyRevolvingBalances: Map<string, number[]>;
   projectedPayoffMonths: number;
   cashFloorBreaches: { month: number; endingCash: number }[];
   flags: SimulationFlag[];
@@ -457,7 +456,6 @@ export function simulateVariablePayoff(
     return {
       monthlyPayments: new Map(),
       monthlyBalances: new Map(),
-      monthlyRevolvingBalances: new Map(),
       projectedPayoffMonths: 0,
       cashFloorBreaches: [],
       flags: [],
@@ -471,7 +469,6 @@ export function simulateVariablePayoff(
   const balances = new Map<string, number>(cards.map(c => [c.id, c.balance]));
   const monthlyPayments = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
-  const monthlyRevolvingBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
   let currentCash = liquidCash;
   let projectedPayoffMonths = 0;
   const cashFloorBreaches: { month: number; endingCash: number }[] = [];
@@ -541,7 +538,6 @@ export function simulateVariablePayoff(
       if ((cardStartMonths.get(card.id) ?? 0) > m) {
         monthlyPayments.get(card.id)!.push(0);
         monthlyBalances.get(card.id)!.push(0);
-        monthlyRevolvingBalances.get(card.id)!.push(0);
       }
     }
 
@@ -595,10 +591,7 @@ export function simulateVariablePayoff(
     // All cards paid off — just advance cash and continue
     if (debtCards.length === 0) {
       for (const card of cards) {
-        if ((cardStartMonths.get(card.id) ?? 0) <= m) {
-          monthlyBalances.get(card.id)!.push(0);
-          monthlyRevolvingBalances.get(card.id)!.push(0);
-        }
+        if ((cardStartMonths.get(card.id) ?? 0) <= m) monthlyBalances.get(card.id)!.push(0);
       }
       currentCash += monthIncome - monthExpenses - paidOffCashCost;
       const oneTime = oneTimeByMonth?.[m];
@@ -771,12 +764,7 @@ export function simulateVariablePayoff(
     // Record end-of-month balance for all active cards (paid-off cards have balances = 0)
     for (const card of cards) {
       if ((cardStartMonths.get(card.id) ?? 0) <= m) {
-        const endBal = balances.get(card.id) ?? 0;
-        monthlyBalances.get(card.id)!.push(endBal);
-        // Statement-pref cards in grace next month have no revolving (interest-bearing) debt —
-        // their balance is just upcoming statement purchases, not carried revolving debt.
-        const inGraceNextMonth = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
-        monthlyRevolvingBalances.get(card.id)!.push(inGraceNextMonth ? 0 : endBal);
+        monthlyBalances.get(card.id)!.push(balances.get(card.id) ?? 0);
       }
     }
 
@@ -796,7 +784,6 @@ export function simulateVariablePayoff(
   return {
     monthlyPayments,
     monthlyBalances,
-    monthlyRevolvingBalances,
     projectedPayoffMonths,
     cashFloorBreaches,
     flags,
