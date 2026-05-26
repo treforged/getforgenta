@@ -983,7 +983,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
           {recommendations.cashWarning && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Estimated liquid cash is below the safe minimum ({formatCurrency(recommendedSafeMinimum, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(recommendations.totalAvailableCash, false)}) is less than minimum payments due ({formatCurrency(recommendations.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
             </div>
           )}
 
@@ -1078,12 +1078,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <p className="font-semibold mb-1">Safe to Pay (today → due date {primaryDueDay}th):</p>
                 <div className="space-y-0.5">
                   <div className="flex justify-between gap-3"><span>Est. Liquid Cash</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
+                  {bd.remainingExpenses > 0 && <div className="flex justify-between gap-3"><span>− Upcoming Bills</span><span>{formatCurrency(bd.remainingExpenses, false)}</span></div>}
                   <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
                   {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
                   <hr className="my-1 border-border/50" />
                   <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
                 </div>
-                <p className="text-muted-foreground mt-2">Safe Minimum already reserves for upcoming bills. Safe to Pay is the amount available above that reserve for debt payments.</p>
+                <p className="text-muted-foreground mt-2">Upcoming Bills = expenses due before month-end. Safe Minimum reserves pre-paycheck bills + your cash floor. Safe to Pay is what remains for debt payments.</p>
               </TooltipContent>
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
