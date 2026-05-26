@@ -16,16 +16,16 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
 } from 'recharts';
-import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown, ChevronRight } from 'lucide-react';
+import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
 
-function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
+function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))', zIndex }} onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))' }} onClick={onClose}>
       <div
         className="card-forged w-full max-w-sm sm:max-w-md flex flex-col"
         style={{ maxHeight: 'min(85vh, calc(100dvh - 2rem))' }}
@@ -45,15 +45,10 @@ function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolea
         {/* Scrollable body */}
         <div className="overflow-y-auto px-4 sm:px-6 py-4 space-y-2">
           {lines.map((l, i) => (
-            <div
-              key={i}
-              className={`flex items-start justify-between py-1.5 border-b border-border/30 last:border-0 gap-2 ${l.onClick ? 'cursor-pointer hover:bg-secondary/40 rounded px-1 -mx-1' : ''}`}
-              onClick={l.onClick ? (e) => { e.stopPropagation(); l.onClick!(); } : undefined}
-            >
-              <span className="text-xs flex items-start gap-1.5 min-w-0 flex-1" style={{ color: l.onClick ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))' }}>
+            <div key={i} className="flex items-start justify-between py-1.5 border-b border-border/30 last:border-0 gap-2">
+              <span className="text-xs text-muted-foreground flex items-start gap-1.5 min-w-0 flex-1">
                 {l.op && <span className="text-primary font-bold shrink-0 mt-px">{l.op}</span>}
-                <span className={`break-words ${l.onClick ? 'underline decoration-dotted underline-offset-2' : ''}`}>{l.label}</span>
-                {l.onClick && <ChevronRight size={11} className="shrink-0 mt-px text-muted-foreground" />}
+                <span className="break-words">{l.label}</span>
               </span>
               <span className="text-xs font-display font-bold text-foreground whitespace-nowrap shrink-0">{l.value}</span>
             </div>
@@ -130,8 +125,7 @@ export default function Forecast() {
   const [chartMode, setChartMode] = usePersistedState<'combo' | 'line'>('tre:forecast:chartMode', 'combo');
   const [viewMode, setViewMode] = usePersistedState<'monthly' | 'detailed'>('tre:forecast:viewMode', 'monthly');
   const [hiddenSeries, setHiddenSeries] = usePersistedState<string[]>('tre:forecast:hidden', []);
-  const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[] } | null>(null);
-  const [floorCalcDrawer, setFloorCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
+  const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
   const [persistedDebtFundingId] = usePersistedState<string>('tre:debt:fundingAccount', '');
@@ -643,36 +637,29 @@ export default function Forecast() {
       for (const p of projs) {
         const m = p.months[i];
         if (m) {
-          // Keep per-card values for the chart lines; totalInterest for display
           row[p.card.name] = Math.round(m.endBalance);
+          row.displayCCBalance += m.endBalance;
           row.totalInterest += m.interest;
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
           // Card paid off before this month — flatline at 0 so chart line doesn't disappear
           row[p.card.name] = 0;
+          // Preference cards (full/statement) still incur monthly purchases after initial debt payoff;
+          // show those as an ongoing statement balance so the popup doesn't read $0 forever.
+          if (p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement') {
+            row.displayCCBalance += p.card.monthlyNewPurchases;
+          }
         }
       }
 
       // Use the simulation's actual per-card balances as the authoritative source for
-      // both totalCCBalance (used by PASS 3 to decide when debt payoff ends) and
-      // displayCCBalance (shown in the popup). projectCardVariable's interest timing
-      // diverges from the sim once a card enters grace, producing a phantom growing
-      // balance that keeps PASS 3 redirecting surplus forever.
-      // For statement/full cards in grace (sim balance = 0), show monthly purchases
-      // as the statement balance — that amount will be due on the next due date.
+      // totalCCBalance. projectCardVariable's interest timing can diverge from the
+      // simulation once a card enters grace, causing a phantom carried balance that
+      // keeps PASS 3 redirecting surplus to debt indefinitely. The simulation's balances
+      // track exactly what was paid and what remains, so they correctly reach 0 after payoff.
       row.totalCCBalance = Math.round(Math.max(0,
         cards.reduce((s, c) => s + (sim.monthlyBalances.get(c.id)?.[i] ?? 0), 0),
       ));
-      let displayBal = 0;
-      for (const card of cards) {
-        const simBal = sim.monthlyBalances.get(card.id)?.[i] ?? 0;
-        if (simBal > 0) {
-          displayBal += simBal;
-        } else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') {
-          // In grace — current-month purchases are the outstanding statement balance
-          displayBal += card.monthlyNewPurchases;
-        }
-      }
-      row.displayCCBalance = Math.round(Math.max(0, displayBal));
+      row.displayCCBalance = Math.round(Math.max(0, row.displayCCBalance));
       row.totalInterest = Math.round(row.totalInterest);
       row.utilization = totalLimit > 0 ? Math.round((row.totalCCBalance / totalLimit) * 100) : 0;
       return row;
@@ -1056,8 +1043,6 @@ export default function Forecast() {
       paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
       paycheckRetireContrib: number; fullMonth401kContrib: number;
       transferBreakdown: { name: string; amount: number }[];
-      floorItems: { name: string; amount: number; dueDay: number }[];
-      prePaycheckBillsTotal: number;
     }[] = [];
     let incomeMultiplier = 1;
     let expenseMultiplier = 1;
@@ -1257,8 +1242,7 @@ export default function Forecast() {
         .reduce((s: number, dd: any) => s + Number(dd.target_payment), 0);
       const otherDebtBalance = Math.max(0, nonCCLiabilities - otherDebtPayments * i);
 
-      const { total: prePaycheckBillsTotal, items: floorItems } = getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId, d);
-      const monthMinSafe = Math.max(cashFloor, prePaycheckBillsTotal);
+      const monthMinSafe = getMinSafeCash(rules, payConfig, cashFloor, forecastFundingAccountId, d);
 
       // Respect contribution_start_date; exclude goals linked to retirement accounts (paycheck deduction)
       // and goals whose linked account is funded by an active transfer rule this month (avoid double count)
@@ -1274,7 +1258,6 @@ export default function Forecast() {
         monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, monthSavingsTransferContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown,
-        floorItems, prePaycheckBillsTotal,
       });
 
       expenseMultiplier *= (1 + monthlyExpenseGrowth);
@@ -1489,9 +1472,6 @@ export default function Forecast() {
         taxReturnIncome: Math.round(b.taxReturnIncome),
         isRaiseMonth: b.isRaiseMonth,
         recommendedDebtPayment: Math.round(b.rawDebtPayment),
-        floorItems: b.floorItems ?? [],
-        prePaycheckBillsTotal: Math.round(b.prePaycheckBillsTotal ?? 0),
-        settingsCashFloor: cashFloor,
       });
     }
 
@@ -2238,43 +2218,13 @@ export default function Forecast() {
                       : []),
                     { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
                     { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
-                    {
-                      label: 'Cash Floor',
-                      value: formatCurrency(row.monthMinSafe, false),
-                      onClick: () => {
-                        const items: { name: string; amount: number; dueDay?: number }[] = row.floorItems ?? [];
-                        const preTotal = row.prePaycheckBillsTotal ?? 0;
-                        const settingsFloor = row.settingsCashFloor ?? 0;
-                        setFloorCalcDrawer({
-                          title: `${row.month} — Cash Floor`,
-                          lines: [
-                            { label: 'Settings floor', value: formatCurrency(settingsFloor, false) },
-                            { label: '', value: '' },
-                            ...(items.length > 0
-                              ? [
-                                  { label: 'Bills before 1st paycheck (next mo.):', value: '' },
-                                  ...items.map((it: any) => ({
-                                    label: `  ${it.name}${it.dueDay ? ` (day ${it.dueDay})` : ''}`,
-                                    value: formatCurrency(it.amount, false),
-                                    op: '+' as const,
-                                  })),
-                                  { label: 'Pre-paycheck subtotal', value: formatCurrency(preTotal, false), op: '=' },
-                                ]
-                              : [{ label: 'No pre-paycheck bills this month', value: '' }]),
-                            { label: '', value: '' },
-                            { label: 'Cash Floor (higher of above)', value: formatCurrency(row.monthMinSafe, false), op: '=' },
-                          ],
-                        });
-                      },
-                    },
+                    { label: 'Cash Floor', value: formatCurrency(row.monthMinSafe, false) },
                     { label: '', value: '' },
                     { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
                     { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
                     { label: '401k Balance', value: formatCurrency(row.retirementBalance, false) },
                     { label: 'Brokerage Balance', value: formatCurrency(row.investmentBalance, false) },
                     { label: 'Savings Balance', value: formatCurrency(row.savingsBalance, false) },
-                    { label: 'Total Assets', value: formatCurrency(row.totalAssets, false) },
-                    { label: 'Total Liabilities', value: formatCurrency(row.totalLiabilities, false) },
                     { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
                   ],
                 });
@@ -2381,13 +2331,6 @@ export default function Forecast() {
         onClose={() => setCalcDrawer(null)}
         title={calcDrawer?.title || ''}
         lines={calcDrawer?.lines || []}
-      />
-      <CalcDrawer
-        open={!!floorCalcDrawer}
-        onClose={() => setFloorCalcDrawer(null)}
-        title={floorCalcDrawer?.title || ''}
-        lines={floorCalcDrawer?.lines || []}
-        zIndex={70}
       />
     </div>
   );
