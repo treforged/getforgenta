@@ -773,10 +773,13 @@ export function simulateVariablePayoff(
       if ((cardStartMonths.get(card.id) ?? 0) <= m) {
         const endBal = balances.get(card.id) ?? 0;
         monthlyBalances.get(card.id)!.push(endBal);
-        // Statement-pref cards in grace next month have no revolving (interest-bearing) debt —
-        // their balance is just upcoming statement purchases, not carried revolving debt.
-        const inGraceNextMonth = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
-        monthlyRevolvingBalances.get(card.id)!.push(inGraceNextMonth ? 0 : endBal);
+        // For statement-preference cards, the balance always includes upcoming monthly purchases
+        // (they cycle as grace-period charges). Only the carry-over above those purchases is
+        // interest-bearing revolving debt. Subtracting monthlyNewPurchases isolates that portion.
+        const revolvingBal = card.paymentPreference === 'statement'
+          ? Math.max(0, endBal - card.monthlyNewPurchases)
+          : endBal;
+        monthlyRevolvingBalances.get(card.id)!.push(revolvingBal);
       }
     }
 
