@@ -1394,6 +1394,25 @@ export default function Forecast() {
     const data: any[] = [];
     const milestones: { month: string; event: string }[] = [];
 
+    // PASS 3 tracks its own CC revolving balance so step 3 doesn't depend on the CC
+    // sim's payoff schedule (CC sim can pay off debt faster due to different starting
+    // cash, causing premature ccDebtBalance=0 and green months instead of yellow).
+    const p3SimCards = cardProjectionData?.simCards ?? [];
+    const p3InitialCCBal = p3SimCards.reduce((s, c) => {
+      const rev = c.paymentPreference === 'statement'
+        ? Math.max(0, c.balance - c.monthlyNewPurchases)
+        : c.balance;
+      return s + Math.max(0, rev);
+    }, 0);
+    const p3BlendedRate = p3InitialCCBal > 0
+      ? p3SimCards.reduce((s, c) => {
+          const rev = c.paymentPreference === 'statement'
+            ? Math.max(0, c.balance - c.monthlyNewPurchases) : c.balance;
+          return s + (c.apr / 100 / 12) * Math.max(0, rev) / p3InitialCCBal;
+        }, 0)
+      : 0;
+    let p3CCBal = p3InitialCCBal;
+
     for (let i = 0; i < 36; i++) {
       const b = baseData[i];
       let monthDebtPayment = debtPayments[i];
@@ -1422,12 +1441,16 @@ export default function Forecast() {
       monthDebtPayment = Math.min(monthDebtPayment, availableForDebt);
       finalLiquid = cashPreDebt - monthDebtPayment;
 
-      // Step 3: redirect surplus above floor to debt (save-up months excluded)
-      if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && finalLiquid > b.monthMinSafe) {
+      // Step 3: redirect surplus above floor to debt (save-up months excluded).
+      // Uses p3CCBal (PASS 3's own running balance) — not the CC sim's ccDebtBalance,
+      // which can reach 0 too early if CC sim has different starting cash than PASS 3.
+      if (!saveUpMonths.has(i) && p3CCBal > 0 && finalLiquid > b.monthMinSafe) {
         const surplus = finalLiquid - b.monthMinSafe;
         monthDebtPayment += surplus;
         finalLiquid -= surplus;
       }
+      // Update PASS 3's running CC balance with this month's actual payment + interest
+      p3CCBal = Math.max(0, p3CCBal * (1 + p3BlendedRate) - monthDebtPayment);
 
       // Step 4: balance tracking — savings/transfers always apply at full amounts
       const actualGoalsSavings = b.monthlySavingsContrib;
