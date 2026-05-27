@@ -518,7 +518,7 @@ export default function Forecast() {
       }
 
       // Savings goals active this month — exclude retirement-linked and transfer-funded (avoid double count)
-      const monthSavings = (goals as any[]).reduce((s: number, g: any) => {
+      const monthSavings = ((goals ?? []) as any[]).reduce((s: number, g: any) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
         if (g.linked_account && simActiveTransferDests.has(g.linked_account)) return s;
@@ -526,8 +526,8 @@ export default function Forecast() {
       }, 0);
 
       // Per-month car values — date-aware so future loans phase in correctly (mirrors CC Engine)
-      const carLoanThisMonth = getTotalCarLoanMonthly(carFunds as any[], d);
-      const monthCarSaving = (carFunds as any[]).reduce((s: number, c: any) => {
+      const carLoanThisMonth = getTotalCarLoanMonthly((carFunds ?? []) as any[], d);
+      const monthCarSaving = ((carFunds ?? []) as any[]).reduce((s: number, c: any) => {
         if (c.phase === 'loan') return s;
         const rem = Number(c.down_payment_goal) - Number(c.current_saved);
         return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);

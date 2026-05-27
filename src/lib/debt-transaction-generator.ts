@@ -370,7 +370,14 @@ export function getDebtBalancesByMonth(
     for (const proj of projections) {
       const row = proj.months[i];
       if (row) {
-        if (!proj.card.autopayFullBalance) totalBal += Math.max(0, row.endBalance);
+        if (!proj.card.autopayFullBalance) {
+          // Strip cycling-only purchases from statement-pref cards in grace — those
+          // aren't revolving debt, mirroring the monthlyRevolvingBalances logic in simulateVariablePayoff.
+          const revolving = proj.card.paymentPreference === 'statement'
+            ? Math.max(0, row.endBalance - proj.card.monthlyNewPurchases)
+            : row.endBalance;
+          totalBal += Math.max(0, revolving);
+        }
         totalInt += row.interest;
       }
     }
