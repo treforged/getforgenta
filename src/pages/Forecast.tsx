@@ -2248,12 +2248,25 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown when available; fallback to aggregate total
-                    ...(cardProjectionData?.perCardPayments && cardProjectionData.perCardPayments.some(c => (c.payments[absoluteI] ?? 0) > 0)
-                      ? cardProjectionData.perCardPayments
-                          .filter(c => (c.payments[absoluteI] ?? 0) > 0)
-                          .map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI], false), op: '−' }))
-                      : [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' }]),
+                    // Per-card debt breakdown — scale CC sim proportions to match PASS 3 actual total
+                    ...(() => {
+                      const actualTotal = row.displayDebtPayment ?? row.debtPayment ?? 0;
+                      const perCard = cardProjectionData?.perCardPayments;
+                      if (perCard) {
+                        const simAmounts = perCard.map(c => c.payments[absoluteI] ?? 0);
+                        const simTotal = simAmounts.reduce((s, a) => s + a, 0);
+                        if (simTotal > 0 && actualTotal > 0) {
+                          const scale = actualTotal / simTotal;
+                          return perCard
+                            .map((c, idx) => ({ ...c, scaled: Math.round(simAmounts[idx] * scale) }))
+                            .filter(c => c.scaled > 0)
+                            .map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.scaled, false), op: '−' }));
+                        }
+                      }
+                      return actualTotal > 0
+                        ? [{ label: '  Debt Payments', value: formatCurrency(actualTotal, false), op: '−' }]
+                        : [];
+                    })(),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
