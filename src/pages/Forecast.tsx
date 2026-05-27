@@ -10,7 +10,7 @@ import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, 
 import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
+import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, getFirstPaycheckInMonth, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -20,7 +20,7 @@ import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, 
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, getActiveCarLoanPayments, calculateScheduledPayment, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
 
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
   if (!open) return null;
@@ -453,9 +453,8 @@ export default function Forecast() {
     });
 
     // For months > 0: forecastMonthEvents.income only contains income rules (e.g. GF rent $500).
-    // The simulation fallback monthlyTakeHome would be bypassed when income > 0, using $500 as total
-    // monthly income instead of $3,500. Fix: add normalized paycheck to rule-based income for months > 0.
-    const normalizedBasePaycheck = getNormalizedMonthNetIncome(payConfig);
+    // Use actual per-month paycheck (4-Fri vs 5-Fri aware) so the CC sim uses the same
+    // income basis as PASS 3, keeping allPaymentTotals and ccDebtBalance in sync.
 
     // Pre-compute retirement account IDs so savings goals linked to them are excluded
     // (those contributions come from the paycheck deduction, not a cash outflow).
@@ -533,7 +532,8 @@ export default function Forecast() {
         return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
       }, 0);
 
-      const rawIncome = e.income > e.nonPaycheckIncome ? e.income : normalizedBasePaycheck + e.nonPaycheckIncome;
+      const actualMonthPaycheck = getMonthNetIncome(payConfig, d.getFullYear(), d.getMonth());
+      const rawIncome = e.income > e.nonPaycheckIncome ? e.income : actualMonthPaycheck + e.nonPaycheckIncome;
       return {
         ...e,
         income: rawIncome * simIncMult + bonusTaxInc,
@@ -712,9 +712,11 @@ export default function Forecast() {
     return {
       data,
       cards: projs.map(p => ({ name: p.card.name, color: p.card.color })),
+      simCards: cards,
       debtPaymentTotals,
       allPaymentTotals,
       perCardPayments,
+      monthlyRevolvingBalances: sim.monthlyRevolvingBalances,
     };
   } catch (e) {
     console.error('Forecast projection failed:', e);
@@ -1261,7 +1263,36 @@ export default function Forecast() {
         .reduce((s: number, dd: any) => s + Number(dd.target_payment), 0);
       const otherDebtBalance = Math.max(0, nonCCLiabilities - otherDebtPayments * i);
 
-      const { total: prePaycheckBillsTotal, items: floorItems } = getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId, d);
+      const prePaycheckResult = getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId, d);
+      let prePaycheckBillsTotal = prePaycheckResult.total;
+      const floorItems: { name: string; amount: number; dueDay: number }[] = [...prePaycheckResult.items];
+
+      // Augment floor with items not in rules: car loans and CC cycling payments due before first paycheck
+      const nextMonthDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      const firstPaycheckNext = getFirstPaycheckInMonth(payConfig, nextMonthDate.getFullYear(), nextMonthDate.getMonth());
+      const fpDay = firstPaycheckNext ? firstPaycheckNext.getDate() : 1;
+
+      for (const cf of (carFunds ?? []) as any[]) {
+        if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
+        const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
+        if (loanDueDay >= fpDay) continue;
+        const carPayments = getActiveCarLoanPayments([cf], d);
+        for (const cp of carPayments) {
+          prePaycheckBillsTotal += cp.payment;
+          floorItems.push({ name: cf.vehicle_name + ' loan', amount: cp.payment, dueDay: loanDueDay });
+        }
+      }
+
+      for (const card of (cardProjectionData?.simCards ?? [])) {
+        if (card.paymentPreference !== 'statement' && !card.autopayFullBalance) continue;
+        if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
+        if (card.dueDay >= fpDay) continue;
+        const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[i] ?? 1;
+        if (revBal > 0) continue;
+        prePaycheckBillsTotal += card.monthlyNewPurchases;
+        floorItems.push({ name: card.name + ' cycling', amount: card.monthlyNewPurchases, dueDay: card.dueDay });
+      }
+
       const monthMinSafe = Math.max(cashFloor, prePaycheckBillsTotal);
 
       // Respect contribution_start_date; exclude goals linked to retirement accounts (paycheck deduction)
