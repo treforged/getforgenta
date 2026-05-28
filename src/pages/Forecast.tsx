@@ -360,11 +360,19 @@ export default function Forecast() {
 
     // Scalar fallbacks (used only when monthEvents not provided by legacy callers)
     const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
-    const monthlyExpenses = rules.filter((r: any) => r.active && r.rule_type === 'expense')
-      .reduce((s: number, r: any) => {
-        const amt = Number(r.amount);
-        return s + amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
-      }, 0);
+    // Mirror CreditCardEngine's monthlyRecurringExpenses: exclude CC-tagged rules so the
+    // scalar doesn't double-count spending that flows through cardPurchasesPerMonth.
+    const ccSourceIdsForScalar = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
+    const monthlyExpenses = rules.filter((r: any) => {
+      if (!r.active || r.rule_type !== 'expense') return false;
+      if (r.payment_source && ccSourceIdsForScalar.has(r.payment_source)) return false;
+      if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
+      if (pauseSavings && (r.category === 'Savings' || r.category === 'Investing')) return false;
+      return true;
+    }).reduce((s: number, r: any) => {
+      const amt = Number(r.amount);
+      return s + amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
+    }, 0);
 
     // Default-card rules: no payment_source, category in CC_DEFAULT_CATEGORIES
     // These go to the highest-APR card by convention
@@ -438,12 +446,13 @@ export default function Forecast() {
       );
 
       const inc = txns
-        .filter((t: any) => t.type === 'income')
+        .filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment')
         .reduce((s: number, t: any) => s + Number(t.amount), 0);
 
       const exp = txns
         .filter((t: any) => {
           if (t.type !== 'expense') return false;
+          if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
           if (t.payment_source && ccSourceIds.has(t.payment_source)) return false;
           return true;
         })
@@ -455,10 +464,10 @@ export default function Forecast() {
     const allTxnsForM0 = mergeWithGeneratedTransactions(transactions, rules, accounts);
     const m0Income = getRemainingTransactionIncomeByDay(allTxnsForM0, 31);
     const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true, debtFundingSources, CC_DEFAULT_CATEGORIES);
-    const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, forecastFundingAccountId, new Date());
+    const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, new Date());
     const cashFloorByMonth = Array.from({ length: 36 }, (_, m) => {
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-      return getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, forecastFundingAccountId, d);
+      return getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, d);
     });
 
     // For months > 0: forecastMonthEvents.income only contains income rules (e.g. GF rent $500).
