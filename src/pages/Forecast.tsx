@@ -2303,13 +2303,19 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown: show sim amounts directly — these match Debt Payoff tab.
+                    // Per-card breakdown: show sim amounts directly (match Debt Payoff tab).
+                    // If PASS 3 redirected surplus above the sim total, show it as a separate line
+                    // so the popup math (Starting + Income − Out = Ending) always reconciles.
                     ...((() => {
                       const perCard = cardProjectionData?.perCardPayments;
                       if (!perCard) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
                       const filtered = perCard.filter(c => (c.payments[absoluteI] ?? 0) > 0);
                       if (filtered.length === 0) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
-                      return filtered.map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI] ?? 0, false), op: '−' as const }));
+                      const lines: { label: string; value: string; op: '−' }[] = filtered.map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI] ?? 0, false), op: '−' as const }));
+                      const simTotal = filtered.reduce((s, c) => s + (c.payments[absoluteI] ?? 0), 0);
+                      const step3Surplus = Math.round((row.debtPayment ?? 0) - simTotal);
+                      if (step3Surplus > 1) lines.push({ label: '  Surplus → Debt', value: formatCurrency(step3Surplus, false), op: '−' as const });
+                      return lines;
                     })()),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
