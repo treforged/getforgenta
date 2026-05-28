@@ -26,6 +26,7 @@ import { useTransactions } from '@/hooks/useSupabaseData';
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
   due_day: '1', due_month: '', category: 'Other', payment_source: '', deposit_account: '', notes: '', start_date: '', end_date: '',
+  tax_rate: '',
 };
 
 const DEFAULT_STARTER_RULES = [
@@ -143,12 +144,14 @@ export default function BudgetControl() {
   const [weeklyGross, setWeeklyGross] = useState(1875);
   const [weeklyGrossInput, setWeeklyGrossInput] = useState('1875');
   const [taxRate, setTaxRate] = useState(22);
+  const [taxRateStr, setTaxRateStr] = useState('22');
   const [paycheckDay, setPaycheckDay] = useState(5);
   const [payFrequency, setPayFrequency] = useState<PayFrequency>('weekly');
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   // Dynamic paycheck deductions
   const [deductions, setDeductions] = useState<PaycheckDeduction[]>([]);
+  const [dedDisplayValues, setDedDisplayValues] = useState<Record<string, string>>({});
   const [showCatalog, setShowCatalog] = useState(false);
   const [deductionsCollapsed, setDeductionsCollapsedState] = useState<boolean>(false);
   const [incomeSectionCollapsed, setIncomeSectionCollapsedState] = useState<boolean>(false);
@@ -191,16 +194,22 @@ export default function BudgetControl() {
       const perPaycheck = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
       setWeeklyGross(wg);
       setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
-      setTaxRate(Number((profile as any).tax_rate) || 22);
+      const loadedTr = (profile as any).tax_rate ?? 22;
+      setTaxRate(loadedTr);
+      setTaxRateStr(String(loadedTr));
       setPaycheckDay((profile as any).paycheck_day != null ? Number((profile as any).paycheck_day) : 5);
       setPayFrequency(pf);
       // Load deductions: prefer new JSONB column, migrate from legacy columns if needed
       const jsonDeds = (profile as any).paycheck_deductions as PaycheckDeduction[] | null;
       if (jsonDeds && jsonDeds.length > 0) {
         setDeductions(jsonDeds);
+        setDedDisplayValues(Object.fromEntries(jsonDeds.map(d => [d.id, String(d.value)])));
       } else {
         const migrated = migrateOldDeductions(profile);
-        if (migrated) setDeductions(migrated);
+        if (migrated) {
+          setDeductions(migrated);
+          setDedDisplayValues(Object.fromEntries(migrated.map(d => [d.id, String(d.value)])));
+        }
         // else keep empty — user adds deductions manually
       }
       // Load the designated paycheck rule ID
@@ -349,12 +358,14 @@ export default function BudgetControl() {
   const removeDeduction = (id: string) => {
     const next = deductions.filter(d => d.id !== id);
     setDeductions(next);
+    setDedDisplayValues(prev => { const { [id]: _, ...rest } = prev; return rest; });
     doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, next);
   };
   const addDeductionFromCatalog = (item: { label: string; mode: 'flat' | 'pct'; preTax: boolean }) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const next = [...deductions, { id, label: item.label, value: 0, mode: item.mode, preTax: item.preTax }];
     setDeductions(next);
+    setDedDisplayValues(prev => ({ ...prev, [id]: '0' }));
     doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, next);
     setShowCatalog(false);
     setCustomLabel('');
@@ -598,7 +609,7 @@ export default function BudgetControl() {
 
   const remainingCashOnHand = fundingAccountBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt;
 
-  const cashFloor = useMemo(() => Number((profile as any)?.cash_floor) || 1000, [profile]);
+  const cashFloor = useMemo(() => { const v = Number((profile as any)?.cash_floor); return isNaN(v) ? 1000 : v; }, [profile]);
   const prePaycheckBillsTotal = useMemo(() =>
     getPrePaycheckNextMonthBills(rules, payConfig, fundingAccount?.id || null).total,
     [rules, payConfig, fundingAccount]);
@@ -637,6 +648,7 @@ export default function BudgetControl() {
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
       payment_source: r.payment_source || '', deposit_account: r.deposit_account || '', notes: r.notes || '',
       start_date: r.start_date || '', end_date: r.end_date || '',
+      tax_rate: r.tax_rate != null ? String(r.tax_rate) : '',
     });
     setEditId(r.id);
     setShowForm(true);
@@ -649,6 +661,7 @@ export default function BudgetControl() {
       toast.error('Income rules require a Start Date');
       return;
     }
+    const parsedTaxRate = parseFloat(form.tax_rate);
     const payload: any = {
       name: form.name, amount, rule_type: form.rule_type, frequency: form.frequency,
       due_day: parseInt(form.due_day) || 1, due_month: form.due_month ? parseInt(form.due_month) : null,
@@ -656,6 +669,7 @@ export default function BudgetControl() {
       deposit_account: form.deposit_account || null, notes: form.notes, active: true,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
+      tax_rate: form.rule_type === 'income' && form.tax_rate.trim() !== '' && !isNaN(parsedTaxRate) ? parsedTaxRate : null,
     };
     if (editId) {
       updateRule.mutate({ id: editId, ...payload });
@@ -706,6 +720,9 @@ export default function BudgetControl() {
 
     if (form.rule_type === 'income') {
       fields.push({ key: 'deposit_account', label: 'Deposit Into', type: 'select', options: depositAccountOptions });
+      if (editId !== paycheckRuleId) {
+        fields.push({ key: 'tax_rate', label: 'Tax Rate % (optional)', type: 'number', placeholder: '0', hint: 'Leave blank for no tax withheld', step: '0.1' });
+      }
     } else if (form.rule_type === 'debt_payment' || form.rule_type === 'transfer' || form.rule_type === 'investment') {
       fields.push({ key: 'payment_source', label: 'Paid From', type: 'select', options: allAccountOptions });
       fields.push({ key: 'deposit_account', label: 'Apply To / Deposit Into', type: 'select', options: allAccountOptions });
@@ -723,6 +740,7 @@ export default function BudgetControl() {
       due_day: String(r.due_day), due_month: String(r.due_month || ''), category: r.category,
       payment_source: r.payment_source || '', deposit_account: r.deposit_account || '', notes: r.notes || '',
       start_date: r.start_date || '', end_date: r.end_date || '',
+      tax_rate: r.tax_rate != null ? String(r.tax_rate) : '',
     });
     setEditId(null);
     setShowForm(true);
@@ -1080,8 +1098,9 @@ export default function BudgetControl() {
                   {/* Value input */}
                   <input
                     type="number" min={0} max={d.mode === 'pct' ? 100 : undefined} step={d.mode === 'pct' ? 0.5 : 1}
-                    value={d.value}
-                    onChange={e => updateDeduction(d.id, { value: parseFloat(e.target.value) || 0 })}
+                    value={dedDisplayValues[d.id] ?? String(d.value)}
+                    onChange={e => setDedDisplayValues(prev => ({ ...prev, [d.id]: e.target.value }))}
+                    onBlur={e => { const v = parseFloat(e.target.value); const n = isNaN(v) ? 0 : v; setDedDisplayValues(prev => ({ ...prev, [d.id]: String(n) })); updateDeduction(d.id, { value: n }); }}
                     className="w-full bg-secondary border border-border px-2 py-1.5 text-sm text-foreground font-display font-bold text-right min-w-0"
                     style={{ borderRadius: 'var(--radius)' }}
                   />
@@ -1202,7 +1221,9 @@ export default function BudgetControl() {
           ) : (
             <div>
               <label className="text-xs sm:text-sm text-muted-foreground uppercase">Tax Rate (%)</label>
-              <input type="number" value={taxRate} onChange={e => setTaxRateAuto(parseFloat(e.target.value) || 0)}
+              <input type="number" value={taxRateStr}
+                onChange={e => setTaxRateStr(e.target.value)}
+                onBlur={() => { const v = parseFloat(taxRateStr); const n = isNaN(v) ? 0 : v; setTaxRateStr(String(n)); setTaxRateAuto(n); }}
                 className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
             </div>
           )}

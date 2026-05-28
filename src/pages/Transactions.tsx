@@ -118,7 +118,7 @@ export default function Transactions() {
       .reduce((s: number, a: any) => s + Number(a.balance), 0);
     const fundingAcct = accounts.find((a: any) => a.id === fundingAccountId && a.active);
     const fundingBalance = fundingAcct ? Number(fundingAcct.balance) : liquidCash;
-    const cashFloor = Number(profile?.cash_floor) || 1000;
+    const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
 
     const ccIds = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
     const nowDate = new Date();
@@ -217,7 +217,7 @@ export default function Transactions() {
     const liquidTypes = ['checking', 'business_checking', 'cash'];
     const liquidCash = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type))
       .reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const cashFloor = Number(profile?.cash_floor) || 1000;
+    const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
     // Scalar fallbacks
     const payConfig2 = buildPayConfig(profile);
     const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig2);

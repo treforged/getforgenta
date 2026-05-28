@@ -161,8 +161,8 @@ export default function SettingsPage() {
       setStartDay(String((profile as any).budget_start_day || 1));
       setShowCents((profile as any).show_cents ?? true);
       setCompactMode((profile as any).compact_mode ?? false);
-      setTaxRate(String((profile as any).tax_rate || 22));
-      setCashFloor(String((profile as any).cash_floor || 1000));
+      setTaxRate(String((profile as any).tax_rate ?? 22));
+      setCashFloor(String((profile as any).cash_floor ?? 1000));
       setPaycheckFrequency((profile as any).paycheck_frequency || 'weekly');
       setPaycheckDay(String((profile as any).paycheck_day ?? 5));
       setPaycheckStartDate((profile as any).paycheck_start_date || '');
@@ -184,9 +184,9 @@ export default function SettingsPage() {
 
   // FIX #10: Save ALL profile fields including derived fields so they propagate everywhere
   const handleSave = () => {
-    const wgi = parseFloat(weeklyGrossIncome) || 1875;
-    const tr = parseFloat(taxRate) || 22;
-    const cf = parseFloat(cashFloor) || 1000;
+    const _wgi = parseFloat(weeklyGrossIncome); const wgi = isNaN(_wgi) ? 1875 : _wgi;
+    const _tr = parseFloat(taxRate); const tr = isNaN(_tr) ? 22 : _tr;
+    const _cf = parseFloat(cashFloor); const cf = isNaN(_cf) ? 1000 : _cf;
     const pd = parseInt(paycheckDay);
 
     update.mutate({

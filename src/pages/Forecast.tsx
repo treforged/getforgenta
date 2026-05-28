@@ -97,7 +97,7 @@ export default function Forecast() {
 
   const defaultAssumptions = {
     incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
-    investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5, taxOverride: 0,
+    investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5,
     bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
     taxReturnEnabled: false, taxReturnFilingStatus: 'single' as FilingStatus, taxReturnDependents: 0,
     taxReturnState: 'FL', taxReturnFederalWithheld: 0, taxReturnMonth: 2, taxReturnAmountOverride: 0,
@@ -109,7 +109,8 @@ export default function Forecast() {
     if (profile && !assumptionsLoaded.current) {
       const saved = (profile as any).forecast_assumptions;
       if (saved && typeof saved === 'object') {
-        setAssumptionsState(prev => ({ ...prev, ...saved }));
+        const { taxOverride: _dropped, ...migrated } = { ...saved };
+        setAssumptionsState(prev => ({ ...prev, ...migrated }));
       }
       assumptionsLoaded.current = true;
     }
@@ -144,7 +145,7 @@ export default function Forecast() {
   }, [setHiddenSeries]);
 
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
-  const cashFloor = useMemo(() => Number((profile as any)?.cash_floor) || 1000, [profile]);
+  const cashFloor = useMemo(() => { const cf = (profile as any)?.cash_floor; return cf != null ? Number(cf) : 1000; }, [profile]);
 
   // Annualize the "Federal Withholding" deduction from Budget Control, if the user has set one.
   // Takes priority over the state-rate default so the estimate reflects their actual W-4 setup.
@@ -314,9 +315,17 @@ export default function Forecast() {
 
       // nonPaycheckIncome excludes the paycheck rule so PASS 1 / simulationMonthEvents can
       // add fallbackTakeHome (computed gross→net) without double-counting the paycheck.
+      // Each non-paycheck income rule may have its own tax_rate; default is 0 (no tax).
+      const ruleTaxRateMap = new Map<string, number>(
+        rules.filter((r: any) => r.rule_type === 'income' && r.tax_rate != null)
+          .map((r: any) => [r.id, Number(r.tax_rate)]),
+      );
       const nonPaycheckIncome = eventsInMonth
         .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId) && !paycheckRuleIds.has(e.ruleId))
-        .reduce((s, e) => s + e.amount, 0);
+        .reduce((s, e) => {
+          const tr = e.ruleId ? (ruleTaxRateMap.get(e.ruleId) ?? 0) : 0;
+          return s + e.amount * (1 - tr / 100);
+        }, 0);
 
       const expenses = eventsInMonth
         .filter(e =>
@@ -825,7 +834,8 @@ export default function Forecast() {
   }, [accounts, rules, scheduledEvents]);
 
   const projections = useMemo(() => {
-    const taxRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
+    const _profTr = (profile as any)?.tax_rate;
+    const taxRate = _profTr != null ? Number(_profTr) : 22;
 
     const active = accounts.filter((a: any) => a.active);
     // FIX: Aligned with debt engine — only checking/business_checking/cash are "liquid"
@@ -1611,7 +1621,8 @@ export default function Forecast() {
     if (!payConfig) return [];
     const nowDate = new Date();
     let multiplier = 1;
-    const txRate = assumptions.taxOverride || Number((profile as any)?.tax_rate) || 22;
+    const _profTr2 = (profile as any)?.tax_rate;
+    const txRate = _profTr2 != null ? Number(_profTr2) : 22;
     const results: { year: number; monthlyTakeHome: number; bonus: number; taxReturn: number; raiseApplied: boolean }[] = [];
 
     for (let i = 1; i <= 36; i++) {
@@ -1906,7 +1917,6 @@ export default function Forecast() {
                 { key: 'investmentGrowth', label: 'Investment %' },
                 { key: 'savingsInterest', label: 'Savings Interest %' },
                 { key: 'expenseGrowth', label: 'Expense Inflation %' },
-                { key: 'taxOverride', label: 'Tax Override %' },
               ].map(({ key, label }) => (
                 <div key={key}>
                   <label className="text-[9px] text-muted-foreground uppercase">{label}</label>

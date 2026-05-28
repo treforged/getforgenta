@@ -110,8 +110,8 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
   return <label className="text-[10px] text-muted-foreground uppercase tracking-wider">{children}</label>;
 }
 
-function Input({ value, onChange, placeholder, type = 'text', prefix }: {
-  value: string; onChange: (v: string) => void; placeholder?: string;
+function Input({ value, onChange, onBlur, placeholder, type = 'text', prefix }: {
+  value: string; onChange: (v: string) => void; onBlur?: () => void; placeholder?: string;
   type?: string; prefix?: string;
 }) {
   return (
@@ -124,6 +124,7 @@ function Input({ value, onChange, placeholder, type = 'text', prefix }: {
         inputMode={type === 'number' ? 'decimal' : undefined}
         value={value}
         onChange={e => onChange(e.target.value)}
+        onBlur={onBlur}
         placeholder={placeholder}
         className={`w-full bg-secondary border border-border py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${prefix ? 'pl-7 pr-3' : 'px-3'}`}
         style={{ borderRadius: 'var(--radius)' }}
@@ -203,7 +204,7 @@ export default function Onboarding() {
     setSaving(true);
     try {
       const wg = parseFloat(data.weeklyGross) || 0;
-      const tr = parseFloat(data.taxRate) || 22;
+      const _tr = parseFloat(data.taxRate); const tr = isNaN(_tr) ? 0 : _tr;
       const gross = data.paycheckFrequency === 'biweekly' ? wg * 26 / 12 : wg * 52 / 12;
 
       const refCode = sessionStorage.getItem('forged:ref') || null;
@@ -307,7 +308,7 @@ export default function Onboarding() {
 
   const monthly = useCallback(() => {
     const wg = parseFloat(data.weeklyGross) || 0;
-    const tr = parseFloat(data.taxRate) || 22;
+    const _tr2 = parseFloat(data.taxRate); const tr = isNaN(_tr2) ? 0 : _tr2;
     const gross = data.paycheckFrequency === 'biweekly' ? wg * 26 / 12 : wg * 52 / 12;
     return (gross * (1 - tr / 100)).toFixed(0);
   }, [data.weeklyGross, data.taxRate, data.paycheckFrequency]);
@@ -393,7 +394,7 @@ export default function Onboarding() {
                 </div>
                 <div className="space-y-1">
                   <FieldLabel>Tax Rate (%)</FieldLabel>
-                  <Input value={data.taxRate} onChange={v => update('taxRate', v)} placeholder="22" type="number" />
+                  <Input value={data.taxRate} onChange={v => update('taxRate', v)} onBlur={() => { if (!data.taxRate.trim()) update('taxRate', '0'); }} placeholder="22" type="number" />
                 </div>
               </div>
               {data.weeklyGross && (

@@ -65,7 +65,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const { isDemo } = useDemo();
   const [strategy, setStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
   const [paymentMode, setPaymentMode] = usePersistedState<'variable' | 'consistent'>('tre:debt:paymentMode', 'variable');
-  const [cashFloor, setCashFloorLocal] = useState(() => Number(profile?.cash_floor) || 1000);
+  const [cashFloor, setCashFloorLocal] = useState(() => profile?.cash_floor != null ? Number(profile.cash_floor) : 1000);
   useEffect(() => {
     if (profile?.cash_floor != null) setCashFloorLocal(Number(profile.cash_floor));
   }, [profile?.cash_floor]);
