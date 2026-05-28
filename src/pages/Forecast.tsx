@@ -2303,19 +2303,13 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown when available; fallback to aggregate total.
-                    // Scale CC sim per-card amounts proportionally to match PASS 3's actual
-                    // monthDebtPayment (sim and PASS 3 can differ due to month 0 overrides).
+                    // Per-card breakdown: show sim amounts directly — these match Debt Payoff tab.
                     ...((() => {
                       const perCard = cardProjectionData?.perCardPayments;
                       if (!perCard) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
-                      const simTotal = perCard.reduce((s, c) => s + (c.payments[absoluteI] ?? 0), 0);
-                      if (simTotal <= 0) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
-                      const pass3Total = row.displayDebtPayment ?? row.debtPayment;
-                      const scale = pass3Total > 0 ? Math.min(pass3Total / simTotal, 2) : 1;
-                      return perCard
-                        .filter(c => (c.payments[absoluteI] ?? 0) > 0)
-                        .map(c => ({ label: `  ${c.name}`, value: formatCurrency(Math.round((c.payments[absoluteI] ?? 0) * scale), false), op: '−' as const }));
+                      const filtered = perCard.filter(c => (c.payments[absoluteI] ?? 0) > 0);
+                      if (filtered.length === 0) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
+                      return filtered.map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI] ?? 0, false), op: '−' as const }));
                     })()),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
