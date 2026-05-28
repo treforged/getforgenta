@@ -77,6 +77,7 @@ export const recurringRuleSchema = z.object({
   due_day: z.number().int().min(1).max(31).optional().nullable(),
   category: z.string().max(50).optional(),
   notes: z.string().max(500).optional(),
+  tax_rate: z.number().min(0).max(100).nullable().optional(),
 });
 
 // ── Transactions ──────────────────────────────────────────────────────────────
