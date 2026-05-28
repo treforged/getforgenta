@@ -354,6 +354,10 @@ export default function Forecast() {
     const debtFundingSources = resolvedDebtFundingId
       ? new Set([resolvedDebtFundingId, `account:${resolvedDebtFundingId}`])
       : new Set<string>();
+    // ── Build cardPurchasesPerMonth using shared forecastMonthEvents ──
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
     // Scalar fallbacks (used only when monthEvents not provided by legacy callers)
     const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
     const monthlyExpenses = rules.filter((r: any) => r.active && r.rule_type === 'expense')
@@ -361,10 +365,6 @@ export default function Forecast() {
         const amt = Number(r.amount);
         return s + amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
       }, 0);
-
-    // ── Build cardPurchasesPerMonth using shared forecastMonthEvents ──
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
 
     // Default-card rules: no payment_source, category in CC_DEFAULT_CATEGORIES
     // These go to the highest-APR card by convention
