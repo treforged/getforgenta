@@ -1065,7 +1065,7 @@ function buildCurrentMonthRecommendationSummary(
   const liquidTypes = ['checking', 'business_checking', 'cash'];
   const liquidAccounts = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type));
   const liquidCash = liquidAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
-  const cashFloor = Number(profile?.cash_floor) || 1000;
+  const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
   const pc = buildPayConfig(profile);
   const monthlyTakeHome = getMonthNetIncome(pc, new Date().getFullYear(), new Date().getMonth());
   const ccPaymentSources = new Set(cards.flatMap((c: CardData) => [c.id, `account:${c.id}`]));

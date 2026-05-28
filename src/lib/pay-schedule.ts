@@ -158,7 +158,7 @@ export function buildPayConfig(profile: any): PayScheduleConfig {
 
   return {
     weeklyGross: wg,
-    taxRate: taxDedActive ? 0 : (Number(profile?.tax_rate) || 22),
+    taxRate: taxDedActive ? 0 : (profile?.tax_rate != null ? Number(profile.tax_rate) : 22),
     paycheckDay: Number(profile?.paycheck_day) || 5,
     frequency: pf,
     paycheckStartDate: profile?.paycheck_start_date || undefined,

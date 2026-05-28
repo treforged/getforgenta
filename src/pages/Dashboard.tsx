@@ -463,7 +463,7 @@ export default function Dashboard() {
   const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true), [allMonthTransactions]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
 
-  const cashFloor = Number(profile?.cash_floor) || 1000;
+  const cashFloor = (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000;
 
   const minSafeCash = useMemo(
     () => getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId),

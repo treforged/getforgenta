@@ -278,7 +278,7 @@ export default function SavingsGoals() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const cashFloor = Number((profile as any)?.cash_floor) || 1000;
+  const cashFloor = (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000;
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
 
   const liquidCash = useMemo(() =>
