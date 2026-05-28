@@ -728,7 +728,8 @@ export default function Forecast() {
       monthlyRevolvingBalances: sim.monthlyRevolvingBalances,
     };
   } catch (e) {
-    console.error('Forecast projection failed:', e);
+    console.error('[cardProjectionData] Forecast projection failed — check stack for root cause:', e);
+    if (e instanceof Error) console.error('[cardProjectionData] Error message:', e.message, '\nStack:', e.stack);
     return null;
   }
 }, [
@@ -1408,38 +1409,14 @@ export default function Forecast() {
     // sim's payoff schedule (CC sim can pay off debt faster due to different starting
     // cash, causing premature ccDebtBalance=0 and green months instead of yellow).
     const p3SimCards = cardProjectionData?.simCards ?? [];
-    const p3InitialCCBal = p3SimCards.reduce((s, c) => {
-      const rev = c.paymentPreference === 'statement'
-        ? Math.max(0, c.balance - c.monthlyNewPurchases)
-        : c.balance;
-      return s + Math.max(0, rev);
-    }, 0);
+    // Use full card.balance (not minus purchases) — CC engine uses card.balance as startBal month 0.
+    // Subtracting monthlyNewPurchases understates the initial balance for statement-pref cards,
+    // causing simRevolvingPaymentsByMonth to return 0 for months where purchases exceed payment.
+    const p3InitialCCBal = p3SimCards.reduce((s, c) => s + Math.max(0, c.balance), 0);
     const p3BlendedRate = p3InitialCCBal > 0
-      ? p3SimCards.reduce((s, c) => {
-          const rev = c.paymentPreference === 'statement'
-            ? Math.max(0, c.balance - c.monthlyNewPurchases) : c.balance;
-          return s + (c.apr / 100 / 12) * Math.max(0, rev) / p3InitialCCBal;
-        }, 0)
+      ? p3SimCards.reduce((s, c) => s + (c.apr / 100 / 12) * Math.max(0, c.balance) / p3InitialCCBal, 0)
       : 0;
     let p3CCBal = p3InitialCCBal;
-
-    // Per-month revolving-only payment amounts derived from CC sim's monthlyRevolvingBalances.
-    // Used to update p3CCBal without counting post-payoff cycling pass-throughs (autopay/statement
-    // cards cycle purchases after payoff, but those aren't revolving debt reduction).
-    const p3RevBals = cardProjectionData?.monthlyRevolvingBalances;
-    const simRevolvingPaymentsByMonth: number[] = Array.from({ length: 36 }, (_, mi) => {
-      if (!p3RevBals || p3SimCards.length === 0) return 0;
-      return p3SimCards.reduce((total, card) => {
-        const revBefore = mi === 0
-          ? (card.paymentPreference === 'statement'
-              ? Math.max(0, card.balance - card.monthlyNewPurchases)
-              : card.balance)
-          : (p3RevBals.get(card.id)?.[mi - 1] ?? 0);
-        const revAfter = p3RevBals.get(card.id)?.[mi] ?? 0;
-        // Revolving payment = balance-before + interest - balance-after (what the sim paid toward revolving)
-        return total + Math.max(0, revBefore * (1 + card.apr / 100 / 12) - revAfter);
-      }, 0);
-    });
 
     for (let i = 0; i < 36; i++) {
       const b = baseData[i];
@@ -1477,19 +1454,26 @@ export default function Forecast() {
         monthDebtPayment += surplus;
         finalLiquid -= surplus;
       }
-      // Update PASS 3's revolving CC balance — use revolving-only payment amount so
-      // post-payoff cycling pass-throughs don't prematurely drain p3CCBal to 0.
-      // simRevolvingPaymentsByMonth[i] = what the CC sim paid toward revolving debt this month.
-      // Any PASS 3 excess above the CC sim total (step 3 surplus) goes entirely to revolving.
-      // Shortfalls (PASS 2 save-up) proportionally reduce the revolving portion (scale ≤ 1).
-      const simRevForMonth = simRevolvingPaymentsByMonth[i];
+      // Update PASS 3's revolving CC balance.
+      // p3CCBal grows each month by new CC purchases for cards still carrying revolving debt
+      // (month 0 skipped — current balance already includes any current-month purchases).
+      // It shrinks by the revolving-only payment (debtPaymentTotals), proportionally scaled
+      // when PASS 3 pays less than CC sim total (save-up months). Any PASS 3 surplus above
+      // the CC sim total (step 3 redirect) is treated as excess revolving payment.
+      const p3MonthPurchases = i === 0 ? 0 : p3SimCards
+        .filter(c => !c.autopayFullBalance)
+        .reduce((s, c) => {
+          const prevRevBal = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i - 1] ?? 1;
+          return prevRevBal > 0 ? s + c.monthlyNewPurchases : s;
+        }, 0);
+      const simRevForMonth = cardProjectionData?.debtPaymentTotals?.[i] ?? 0;
       const simAllForMonth = cardProjectionData?.allPaymentTotals?.[i] ?? 0;
       const excessPmt = Math.max(0, monthDebtPayment - simAllForMonth);
       const scaledRevolving = simAllForMonth > 0
         ? simRevForMonth * Math.min(monthDebtPayment / simAllForMonth, 1)
         : 0;
       const p3RevolvingPayment = scaledRevolving + excessPmt;
-      p3CCBal = Math.max(0, p3CCBal * (1 + p3BlendedRate) - p3RevolvingPayment);
+      p3CCBal = Math.max(0, p3CCBal * (1 + p3BlendedRate) + p3MonthPurchases - p3RevolvingPayment);
 
       // Step 4: balance tracking — savings/transfers always apply at full amounts
       const actualGoalsSavings = b.monthlySavingsContrib;
@@ -2310,12 +2294,20 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown when available; fallback to aggregate total
-                    ...(cardProjectionData?.perCardPayments && cardProjectionData.perCardPayments.some(c => (c.payments[absoluteI] ?? 0) > 0)
-                      ? cardProjectionData.perCardPayments
-                          .filter(c => (c.payments[absoluteI] ?? 0) > 0)
-                          .map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI], false), op: '−' }))
-                      : [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' }]),
+                    // Per-card breakdown when available; fallback to aggregate total.
+                    // Scale CC sim per-card amounts proportionally to match PASS 3's actual
+                    // monthDebtPayment (sim and PASS 3 can differ due to month 0 overrides).
+                    ...((() => {
+                      const perCard = cardProjectionData?.perCardPayments;
+                      if (!perCard) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
+                      const simTotal = perCard.reduce((s, c) => s + (c.payments[absoluteI] ?? 0), 0);
+                      if (simTotal <= 0) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
+                      const pass3Total = row.displayDebtPayment ?? row.debtPayment;
+                      const scale = pass3Total > 0 ? Math.min(pass3Total / simTotal, 2) : 1;
+                      return perCard
+                        .filter(c => (c.payments[absoluteI] ?? 0) > 0)
+                        .map(c => ({ label: `  ${c.name}`, value: formatCurrency(Math.round((c.payments[absoluteI] ?? 0) * scale), false), op: '−' as const }));
+                    })()),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
