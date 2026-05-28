@@ -1414,9 +1414,12 @@ export default function Forecast() {
     const data: any[] = [];
     const milestones: { month: string; event: string }[] = [];
 
-    // Step 3 gate uses b.ccDebtBalance (same signal as PASS 2 at recomputeSimCash and the
-    // "CC Debt Free!" milestone). This avoids the oscillation caused by per-card revolving
-    // balance arrays that can intermittently hit 0 for cards still carrying monthly purchases.
+    // Step 3 uses the CC sim's per-card revolving balances as the "is there still debt?" gate.
+    // The 4-input alignment fixes (oneTimeArr, cashFloor, monthlyExpenses, fundingId) ensure
+    // Forecast's cash flows match CreditCardEngine's, so the sim's payoff schedule is authoritative.
+    const p3SimCards = cardProjectionData?.simCards ?? [];
+    const p3RevolvingCards = p3SimCards.filter((c: any) => !c.autopayFullBalance);
+    const p3InitialRevBal = p3RevolvingCards.reduce((s: number, c: any) => s + Math.max(0, c.balance), 0);
 
     for (let i = 0; i < 36; i++) {
       const b = baseData[i];
@@ -1447,7 +1450,14 @@ export default function Forecast() {
       finalLiquid = cashPreDebt - monthDebtPayment;
 
       // Step 3: redirect surplus above floor to debt (save-up months excluded).
-      if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && finalLiquid > b.monthMinSafe) {
+      // Gate uses sim's start-of-month revolving balance: month 0 uses initial card balances,
+      // month i>0 uses sim's end-of-prev-month revolving balance (monthlyRevolvingBalances[i-1]).
+      // This is authoritative because the sim's inputs are now aligned with PASS 3's cash flows.
+      const simRevolvingBalSoM = i === 0
+        ? p3InitialRevBal
+        : p3RevolvingCards.reduce((s: number, c: any) =>
+            s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i - 1] ?? 0), 0);
+      if (!saveUpMonths.has(i) && simRevolvingBalSoM > 0 && finalLiquid > b.monthMinSafe) {
         const surplus = finalLiquid - b.monthMinSafe;
         monthDebtPayment += surplus;
         finalLiquid -= surplus;
@@ -2272,13 +2282,19 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown: show sim amounts directly — these match Debt Payoff tab.
+                    // Per-card breakdown: show sim amounts directly (match Debt Payoff tab).
+                    // If PASS 3 redirected surplus above the sim total, show it as a separate line
+                    // so the popup math (Starting + Income − Out = Ending) always reconciles.
                     ...((() => {
                       const perCard = cardProjectionData?.perCardPayments;
                       if (!perCard) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
                       const filtered = perCard.filter(c => (c.payments[absoluteI] ?? 0) > 0);
                       if (filtered.length === 0) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
-                      return filtered.map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI] ?? 0, false), op: '−' as const }));
+                      const lines: { label: string; value: string; op: '−' }[] = filtered.map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI] ?? 0, false), op: '−' as const }));
+                      const simTotal = filtered.reduce((s, c) => s + (c.payments[absoluteI] ?? 0), 0);
+                      const step3Surplus = Math.round((row.debtPayment ?? 0) - simTotal);
+                      if (step3Surplus > 1) lines.push({ label: '  Surplus → Debt', value: formatCurrency(step3Surplus, false), op: '−' as const });
+                      return lines;
                     })()),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
