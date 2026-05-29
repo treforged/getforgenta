@@ -508,16 +508,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
       const monthCarSaving = pauseSavings ? 0 : (carFunds as any[]).reduce((s: number, c: any) => {
         if (c.phase !== 'saving') return s;
-        if (c.linked_account) return s; // balance is live in current_saved — no monthly checking deduction
         const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
-        if (rem <= 0) return s;
-        let purchaseMonthIdx = 12;
-        if (c.planned_purchase_date) {
-          const parts = (c.planned_purchase_date as string).split('-').map(Number);
-          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-          purchaseMonthIdx = Math.max(1, (pd.getFullYear() - d.getFullYear()) * 12 + (pd.getMonth() - d.getMonth()));
-        }
-        return s + Math.min(rem / purchaseMonthIdx, rem);
+        return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
       }, 0);
 
       return monthTransfers + monthSavings + monthCarSaving;
@@ -685,13 +677,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       );
       if (paymentMode === 'variable') {
         const basePays = variableSim.monthlyPayments.get(c.id) || [];
-        let payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
-        // Override month 0 with the Forecast-aligned value when no user override exists.
-        // month0.perCardAdjusted comes from useCardProjection (same sim path as Forecast).
-        if (month0?.perCardAdjusted && cardOverrides[0] === undefined) {
-          const adj = month0.perCardAdjusted.find(x => x.id === c.id);
-          if (adj != null) payments = [adj.payment, ...payments.slice(1)];
-        }
+        const payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
         return projectCardVariable(c, payments, 36, true, cardPurchases);
       }
       if (Object.keys(cardOverrides).length > 0) {
@@ -702,7 +688,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, month0]);
+  }, [cards, paymentMode, variableSim, overrides]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
