@@ -340,30 +340,22 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         .reduce((s, c) => s + c.minPayment, 0);
 
       // ── Car down-payment amounts per month (for combined look-ahead) ──────────
-      // effectiveDP = what must still come from checking in the purchase month after monthly
-      // savings have accumulated. When monthly savings cover all of `rem`, this is 0 — no
-      // lump-sum shock in the purchase month and no save-up needed for that car event.
       const carDownPaymentByMonth = Array.from({ length: 36 }, (_, i) => {
         return (carFunds as any[]).reduce((s: number, c: any) => {
           if (c.phase !== 'saving') return s;
-          const rem = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.current_saved || 0) - Number(c.gift_contribution || 0));
-          if (rem <= 0) return s;
+          const downPayment = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.gift_contribution || 0));
+          if (downPayment <= 0) return s;
           let purchaseMonthIdx: number;
           if (c.planned_purchase_date) {
             const parts = (c.planned_purchase_date as string).split('-').map(Number);
             const pd = new Date(parts[0], parts[1] - 1, parts[2]);
             purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
           } else {
-            const contrib0 = rem > 0 ? Math.min(rem / 12, 500) : 0;
-            purchaseMonthIdx = contrib0 > 0 ? Math.ceil(rem / contrib0) : 999;
+            const rem = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.current_saved || 0) - Number(c.gift_contribution || 0));
+            const contrib = rem > 0 ? Math.min(rem / 12, 500) : 0;
+            purchaseMonthIdx = contrib > 0 ? Math.ceil(rem / contrib) : 999;
           }
-          const contrib = rem > 0 && isFinite(purchaseMonthIdx) && purchaseMonthIdx > 0
-            ? Math.min(rem / purchaseMonthIdx, rem)
-            : 0;
-          // Monthly savings of contrib×purchaseMonthIdx cover all of rem → effectiveDP = 0.
-          // Only when purchasing immediately (purchaseMonthIdx = 0) does the full rem hit checking.
-          const effectiveDP = Math.max(0, rem - contrib * purchaseMonthIdx);
-          return s + (isFinite(purchaseMonthIdx) && i === purchaseMonthIdx ? effectiveDP : 0);
+          return s + (isFinite(purchaseMonthIdx) && i === purchaseMonthIdx ? downPayment : 0);
         }, 0);
       });
 
