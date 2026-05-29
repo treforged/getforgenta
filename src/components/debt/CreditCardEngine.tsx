@@ -646,6 +646,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     }, 0);
     const carTotal = (carFunds as any[]).reduce((s: number, c: any) => {
       if (c.phase === 'loan') return s;
+      if (c.linked_account) return s; // savings are in the checking pool — no separate monthly reservation
       const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
       const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
       if (rem <= 0) return s;
@@ -685,13 +686,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       );
       if (paymentMode === 'variable') {
         const basePays = variableSim.monthlyPayments.get(c.id) || [];
-        let payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
-        // Override month 0 with the Forecast-aligned value when no user override exists.
-        // month0.perCardAdjusted comes from useCardProjection (same sim path as Forecast).
-        if (month0?.perCardAdjusted && cardOverrides[0] === undefined) {
-          const adj = month0.perCardAdjusted.find(x => x.id === c.id);
-          if (adj != null) payments = [adj.payment, ...payments.slice(1)];
-        }
+        const payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
         return projectCardVariable(c, payments, 36, true, cardPurchases);
       }
       if (Object.keys(cardOverrides).length > 0) {
@@ -702,7 +697,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, month0]);
+  }, [cards, paymentMode, variableSim, overrides]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
@@ -715,7 +710,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       for (const p of projections) {
         if (p.card.startDate) {
           const startD = new Date(p.card.startDate + 'T00:00:00');
-          if (d < startD) { row[p.card.name] = null; continue; } // null creates a gap, not a $0 line
+          const startMonth = new Date(startD.getFullYear(), startD.getMonth(), 1);
+          if (d < startMonth) { row[p.card.name] = null; continue; } // null creates a gap, not a $0 line
         }
         const m = p.months[i];
         if (m) {
