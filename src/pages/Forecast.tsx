@@ -1304,8 +1304,9 @@ export default function Forecast() {
         if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
         const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[i] ?? 1;
         if (revBal > 0) continue;
-        prePaycheckBillsTotal += card.monthlyNewPurchases;
-        floorItems.push({ name: card.name + ' cycling', amount: card.monthlyNewPurchases, dueDay: card.dueDay });
+        const cyclingAmt = cardProjectionData?.perCardPayments?.find(p => p.id === card.id)?.payments[i + 1] ?? card.monthlyNewPurchases;
+        prePaycheckBillsTotal += cyclingAmt;
+        floorItems.push({ name: card.name + ' cycling', amount: cyclingAmt, dueDay: card.dueDay });
       }
 
       const monthMinSafe = Math.max(cashFloor, prePaycheckBillsTotal);
@@ -1436,9 +1437,14 @@ export default function Forecast() {
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
       const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
 
-      // Step 2: debt gets what's available above floor — never causes floor breach
-      const availableForDebt = Math.max(0, cashPreDebt - b.monthMinSafe);
-      monthDebtPayment = Math.min(monthDebtPayment, availableForDebt);
+      // Step 2: cycling portion (paid-off cards, autopay) is non-negotiable — treated like rent.
+      // Only revolving debt paydown is subject to the floor constraint.
+      const simAllPayments = cardProjectionData?.allPaymentTotals?.[i] ?? monthDebtPayment;
+      const simRevolvingPayment = cardProjectionData?.debtPaymentTotals?.[i] ?? monthDebtPayment;
+      const cyclingPayment = Math.max(0, simAllPayments - simRevolvingPayment);
+      const availableForRevolving = Math.max(0, cashPreDebt - cyclingPayment - b.monthMinSafe);
+      const revolvingPayment = Math.min(simRevolvingPayment, availableForRevolving);
+      monthDebtPayment = cyclingPayment + revolvingPayment;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
       // Step 3: redirect surplus above floor to debt (save-up months excluded).
@@ -2267,13 +2273,36 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown: show sim amounts directly — these match Debt Payoff tab.
+                    // Per-card breakdown: cycling cards always show full sim amount; revolving cards
+                    // are scaled proportionally to what PASS 3 actually paid (may be less than sim).
                     ...((() => {
                       const perCard = cardProjectionData?.perCardPayments;
-                      if (!perCard) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
+                      const fallback = [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
+                      if (!perCard) return fallback;
                       const filtered = perCard.filter(c => (c.payments[absoluteI] ?? 0) > 0);
-                      if (filtered.length === 0) return [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
-                      return filtered.map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.payments[absoluteI] ?? 0, false), op: '−' as const }));
+                      if (filtered.length === 0) return fallback;
+
+                      const simCyclingTotal = filtered.reduce((s, c) => {
+                        const cycling = (cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[absoluteI] ?? 1) === 0;
+                        return s + (cycling ? (c.payments[absoluteI] ?? 0) : 0);
+                      }, 0);
+                      const simRevolvingTotal = filtered.reduce((s, c) => {
+                        const cycling = (cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[absoluteI] ?? 1) === 0;
+                        return s + (cycling ? 0 : (c.payments[absoluteI] ?? 0));
+                      }, 0);
+                      const actualRevolvingPayment = Math.max(0, (row.debtPayment ?? 0) - simCyclingTotal);
+                      const revolvingScale = simRevolvingTotal > 0 ? Math.min(1, actualRevolvingPayment / simRevolvingTotal) : 1;
+
+                      const lines: { label: string; value: string; op: '−' }[] = [];
+                      for (const c of filtered) {
+                        const simAmt = c.payments[absoluteI] ?? 0;
+                        const cycling = (cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[absoluteI] ?? 1) === 0;
+                        const displayAmt = cycling ? simAmt : Math.round(simAmt * revolvingScale);
+                        if (displayAmt > 0) {
+                          lines.push({ label: `  ${c.name}`, value: formatCurrency(displayAmt, false), op: '−' as const });
+                        }
+                      }
+                      return lines.length > 0 ? lines : fallback;
                     })()),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
