@@ -645,7 +645,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }
       return s + Math.min(rem / monthsToGoal, rem);
     }, 0);
-    return savingsTotal + carTotal;
+    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
+    return savingsTotal + carTotal + carLoanTotal;
   }, [goals, carFunds, accounts, rules, pauseSavings]);
 
   const recommendations: RecommendationSummary = useMemo(

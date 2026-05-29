@@ -2320,6 +2320,12 @@ export default function Forecast() {
                           lines.push({ label: `  ${c.name}`, value: formatCurrency(displayAmt, false), op: '−' as const });
                         }
                       }
+                      // Step 3 redirects surplus above floor to CC debt — show the extra paydown
+                      // so popup arithmetic matches the actual ending cash.
+                      const surplusRedirect = Math.round(actualRevolvingPayment - simRevolvingTotal);
+                      if (surplusRedirect > 1) {
+                        lines.push({ label: '  Extra CC Paydown', value: formatCurrency(surplusRedirect, false), op: '−' as const });
+                      }
                       return lines.length > 0 ? lines : fallback;
                     })()),
                     ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
