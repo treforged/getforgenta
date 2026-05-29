@@ -172,10 +172,11 @@ export function buildCardData(
     const apr = Number(acct.apr) || 0;
     const creditLimit = Number(acct.credit_limit) || 0;
     // Prefer accounts.min_payment (Plaid-synced or set via Accounts tab) when
-    // present; fall back to debts table only if accounts has no value yet.
-    const minPay = acct.min_payment != null
-      ? Number(acct.min_payment)
-      : matchDebt
+    // present and non-zero; a stored 0 means "not set" — fall back to debts table or calcMinPayment.
+    const acctMin = acct.min_payment != null ? Number(acct.min_payment) : null;
+    const minPay = (acctMin != null && acctMin > 0)
+      ? acctMin
+      : matchDebt && Number(matchDebt.min_payment) > 0
         ? Number(matchDebt.min_payment)
         : calcMinPayment(balance, apr);
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
