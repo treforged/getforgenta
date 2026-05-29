@@ -235,7 +235,24 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
     linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number }) {
   const gift = Number(cf.gift_contribution) || 0;
   const personalGoal = Math.max(0, cf.down_payment_goal - gift);
-  const pct = personalGoal > 0 ? Math.min((cf.current_saved / personalGoal) * 100, 100) : 100;
+  // Simulated position = current_saved + this month's sim allocation (remaining / months_to_goal).
+  // For linked accounts, contrib is 0 (balance is live); non-linked cars add the monthly reserve.
+  const simMonthlyContrib = (() => {
+    if (cf.linked_account) return 0;
+    const rem = Math.max(0, personalGoal - cf.current_saved);
+    if (rem <= 0) return 0;
+    let monthsToGoal = 12;
+    if (cf.planned_purchase_date) {
+      const parts = cf.planned_purchase_date.split('-').map(Number);
+      const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+      const now = new Date();
+      const diff = (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth());
+      monthsToGoal = Math.max(1, diff);
+    }
+    return Math.min(rem / monthsToGoal, rem);
+  })();
+  const simulatedSaved = Math.min(personalGoal, cf.current_saved + simMonthlyContrib);
+  const pct = personalGoal > 0 ? Math.min((simulatedSaved / personalGoal) * 100, 100) : 100;
   const monthlyEst = calculateMonthlyPayment(
     cf.target_price + cf.tax_fees - cf.down_payment_goal,
     cf.expected_apr,
@@ -307,7 +324,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         <div className="flex justify-between text-xs mb-1">
           <span className="text-muted-foreground">Down payment progress</span>
           <span className="font-medium">
-            {formatCurrency(cf.current_saved, false)} / {formatCurrency(personalGoal, false)}
+            {formatCurrency(simulatedSaved, false)} / {formatCurrency(personalGoal, false)}
             {gift > 0 && <span className="text-muted-foreground"> · {formatCurrency(cf.down_payment_goal, false)} total</span>}
           </span>
         </div>

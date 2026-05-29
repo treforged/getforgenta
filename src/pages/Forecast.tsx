@@ -596,7 +596,11 @@ export default function Forecast() {
           ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
           : 0;
         // Gift arrives at purchase — user only brings down_payment_goal minus the gift from their own cash.
-        return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[] };
+        // effectiveDP = what still needs to come from checking in the purchase month after monthly
+        // savings have accumulated. When monthly savings fully cover `rem`, effectiveDP = 0 so the
+        // cash sim sees no lump-sum shock in the purchase month (the savings handled it month-by-month).
+        const effectiveDP = Math.max(0, rem - contrib * purchaseMonthIdx);
+        return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[] };
       });
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(36).fill(0);
@@ -670,6 +674,9 @@ export default function Forecast() {
     const getMonthProjLoan = (i: number) => getMonthProjLoanRegular(i) + getMonthProjLumpSum(i);
     const getMonthDownPayment = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i === v.purchaseMonthIdx ? v.downPayment : 0), 0);
+    // For cash-flow math only: uses effectiveDP (0 when monthly savings already cover the remaining).
+    const getMonthEffectiveDP = (i: number) => vehicleProjections.reduce(
+      (s, v) => s + (isFinite(v.purchaseMonthIdx) && i === v.purchaseMonthIdx ? v.effectiveDP : 0), 0);
     const getMonthVehicleInsurance = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i >= v.purchaseMonthIdx ? v.insurance : 0), 0);
 
@@ -971,7 +978,7 @@ export default function Forecast() {
       let bal = liquidBal;
       for (let i = 0; i < 36; i++) {
         const b = baseData[i];
-        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i] + getMonthDownPayment(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment + b.monthTransfers + lumpTransferByMonth[i].total;
+        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i] + getMonthEffectiveDP(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment + b.monthTransfers + lumpTransferByMonth[i].total;
         bal += b.netIncome - totalOut + b.oneTimeNet;
         // Simulate PASS 3 redirect: pin to monthMinSafe in normal months (not save-up months)
         if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > b.monthMinSafe) {
@@ -1002,7 +1009,7 @@ export default function Forecast() {
           if (canReduce > 0) {
             debtPayments[j] -= canReduce;
             toRecover -= canReduce;
-            if (j < i && (baseData[i].oneTimeNet < 0 || getMonthDownPayment(i) > 0)) saveUpMonths.add(j);
+            if (j < i && (baseData[i].oneTimeNet < 0 || getMonthEffectiveDP(i) > 0)) saveUpMonths.add(j);
             anyFixed = true;
           }
         }
@@ -1044,7 +1051,8 @@ export default function Forecast() {
       const projLumpThisMonth = getMonthProjLumpSum(i);
       const projLoanThisMonth = getMonthProjLoan(i);
       const carLoanLumpThisMonth = activeCarLoanLumpSumByMonth[i] + projLumpThisMonth;
-      const downPaymentThisMonth = getMonthDownPayment(i);
+      const downPaymentThisMonth = getMonthDownPayment(i); // display only (full goal - gift)
+      const effectiveDPThisMonth = getMonthEffectiveDP(i); // cash math (0 when monthly savings cover it)
       const vehicleInsuranceThisMonth = getMonthVehicleInsurance(i);
 
       totalLiabilityBal = b.ccDebtBalance + b.otherDebtBalance + carLoanBalanceByMonth[i];
@@ -1056,7 +1064,7 @@ export default function Forecast() {
       const savingsOut = b.monthlySavingsContrib + carContribThisMonth;
       const transfersOut = b.monthTransfers;
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
-      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
+      const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
 
       // Step 2: cycling payments are non-negotiable (like rent).
       // Revolving payments and minimums only apply while p3RevBal shows remaining debt.
@@ -1098,7 +1106,7 @@ export default function Forecast() {
       retireBal += b.paycheckRetireContrib + xferRetireAmt + lumpTransferByMonth[i].roth_ira;
       retireBal *= (1 + monthlyRetireGrowth);
 
-      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + downPaymentThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + mortgageMonthlyPayment + actualTransfers + lumpTransferThisMonth;
+      const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + effectiveDPThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + mortgageMonthlyPayment + actualTransfers + lumpTransferThisMonth;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
       const endingCash = Math.round(finalLiquid);
@@ -1158,7 +1166,7 @@ export default function Forecast() {
         savingsContrib: Math.round(actualGoalsSavings),
         carContrib: Math.round(actualCarSavings),
         carLoanPayment: Math.round(carLoanThisMonth - activeCarLoanLumpSumByMonth[i]),
-        vehicleDownPayment: Math.round(downPaymentThisMonth),
+        vehicleDownPayment: Math.round(effectiveDPThisMonth),
         vehicleInsurance: Math.round(vehicleInsuranceThisMonth),
         projectedCarLoan: Math.round(projLoanThisMonth - projLumpThisMonth),
         carLoanExtraPayment: Math.round(carLoanLumpThisMonth),
@@ -1911,31 +1919,21 @@ export default function Forecast() {
                       const filtered = perCard.filter(c => (c.payments[absoluteI] ?? 0) > 0);
                       if (filtered.length === 0) return fallback;
 
-                      const simCyclingTotal = filtered.reduce((s, c) => {
-                        const cycling = (cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[absoluteI] ?? 1) === 0;
-                        return s + (cycling ? (c.payments[absoluteI] ?? 0) : 0);
-                      }, 0);
-                      const simRevolvingTotal = filtered.reduce((s, c) => {
-                        const cycling = (cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[absoluteI] ?? 1) === 0;
-                        return s + (cycling ? 0 : (c.payments[absoluteI] ?? 0));
-                      }, 0);
-                      const actualRevolvingPayment = Math.max(0, (row.debtPayment ?? 0) - simCyclingTotal);
-                      const revolvingScale = simRevolvingTotal > 0 ? Math.min(1, actualRevolvingPayment / simRevolvingTotal) : 1;
+                      // Scale all cards proportionally to what PASS 3 actually paid.
+                      // Avoids the asymmetric cycling/revolving classification bug where a card
+                      // that pays down to cycling-balance in the sim gets shown at full sim amount
+                      // while the remaining revolving cards scale to $0.
+                      const simTotal = filtered.reduce((s, c) => s + (c.payments[absoluteI] ?? 0), 0);
+                      const actualTotal = row.debtPayment ?? 0;
+                      const scale = simTotal > 0 ? Math.min(1, actualTotal / simTotal) : 1;
 
                       const lines: { label: string; value: string; op: '−' }[] = [];
                       for (const c of filtered) {
                         const simAmt = c.payments[absoluteI] ?? 0;
-                        const cycling = (cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[absoluteI] ?? 1) === 0;
-                        const displayAmt = cycling ? simAmt : Math.round(simAmt * revolvingScale);
+                        const displayAmt = Math.round(simAmt * scale);
                         if (displayAmt > 0) {
                           lines.push({ label: `  ${c.name}`, value: formatCurrency(displayAmt, false), op: '−' as const });
                         }
-                      }
-                      // Step 3 redirects surplus above floor to CC debt — show the extra paydown
-                      // so popup arithmetic matches the actual ending cash.
-                      const surplusRedirect = Math.round(actualRevolvingPayment - simRevolvingTotal);
-                      if (surplusRedirect > 1) {
-                        lines.push({ label: '  Extra CC Paydown', value: formatCurrency(surplusRedirect, false), op: '−' as const });
                       }
                       return lines.length > 0 ? lines : fallback;
                     })()),
