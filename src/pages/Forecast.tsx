@@ -917,8 +917,8 @@ export default function Forecast() {
             floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
           }
         } else {
-          // Paid off / cycling — floor for statement or full-balance cards only.
-          if (card.paymentPreference !== 'statement' && !card.autopayFullBalance) continue;
+          // Paid off / cycling — floor for statement or full-balance preference cards only.
+          if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
           // No floor item for cards with no recurring purchases (e.g., Discover post-payoff).
           if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
           prePaycheckBillsTotal += card.monthlyNewPurchases;
@@ -1166,7 +1166,8 @@ export default function Forecast() {
         savingsContrib: Math.round(actualGoalsSavings),
         carContrib: Math.round(actualCarSavings),
         carLoanPayment: Math.round(carLoanThisMonth - activeCarLoanLumpSumByMonth[i]),
-        vehicleDownPayment: Math.round(effectiveDPThisMonth),
+        vehicleDownPayment: Math.round(downPaymentThisMonth), // full personal obligation (display)
+        vehicleSavedPortion: Math.round(Math.max(0, downPaymentThisMonth - effectiveDPThisMonth)), // already in savings
         vehicleInsurance: Math.round(vehicleInsuranceThisMonth),
         projectedCarLoan: Math.round(projLoanThisMonth - projLumpThisMonth),
         carLoanExtraPayment: Math.round(carLoanLumpThisMonth),
@@ -1941,7 +1942,7 @@ export default function Forecast() {
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
                     ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, false), op: '−' }] : []),
-                    ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: '  Vehicle Down Payment', value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
+                    ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: `  Vehicle Down Payment${(row.vehicleSavedPortion ?? 0) > 0 ? ` (${formatCurrency(row.vehicleSavedPortion, false)} from savings)` : ''}`, value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
                     ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, false), op: '−' }] : []),
                     ...((row.projectedCarLoan ?? 0) > 0 ? [{ label: '  Est. Car Loan (projected)', value: formatCurrency(row.projectedCarLoan, false), op: '−' }] : []),
                     ...((row.carLoanExtraPayment ?? 0) > 0 ? [{ label: '  Car Loan Extra Payment', value: formatCurrency(row.carLoanExtraPayment, false), op: '−' }] : []),

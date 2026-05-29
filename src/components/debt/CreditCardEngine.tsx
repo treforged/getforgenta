@@ -650,9 +650,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       // Linked-account cars keep savings in the same checking pool used for CC payments.
       // For purchases within 12 months, reserve the full gift-adjusted down payment spread
       // over months-to-goal so safe-to-pay properly accounts for the upcoming cash event.
-      const reserve = (c.linked_account && monthsToGoal <= 12)
-        ? Math.min(giftAdjDownPmt / monthsToGoal, giftAdjDownPmt)
-        : Math.min(rem / monthsToGoal, rem);
+      // Always use rem (remaining after current_saved) to avoid overstating the monthly reserve.
+      const reserve = Math.min(rem / monthsToGoal, rem);
       return s + reserve;
     }, 0);
     const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
@@ -696,13 +695,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const now = new Date();
     return Array.from({ length: 36 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const row: Record<string, number | string> = {
+      const row: Record<string, number | string | null> = {
         month: d.toLocaleString('en', { month: 'short', year: 'numeric' }),
       };
       for (const p of projections) {
         if (p.card.startDate) {
           const startD = new Date(p.card.startDate + 'T00:00:00');
-          if (d < startD) continue; // no line before card's start date
+          if (d < startD) { row[p.card.name] = null; continue; } // null creates a gap, not a $0 line
         }
         const m = p.months[i];
         if (m) {
@@ -1136,28 +1135,47 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
 
           <div className="space-y-2">
-            {recommendations.recommendations.map(r => (
-              <div key={r.cardId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 flex-wrap gap-1" style={{ borderRadius: 'var(--radius)' }}>
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                  <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: r.color }} />
-                  <span className="text-[10px] sm:text-xs font-medium">{r.cardName}</span>
-                  {r.reason === 'Autopay Full Balance' ? (
-                    <span className="text-[9px] sm:text-[10px] text-success bg-success/10 px-1.5 py-0.5 flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
-                      <CheckCircle2 size={9} /> autopay
-                    </span>
-                  ) : r.isMinimumOnly ? (
-                    <span className="text-[9px] sm:text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>min</span>
-                  ) : (
-                    <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>priority</span>
-                  )}
-                  <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate">{r.reason}</span>
-                  {r.dueDay && (
-                    <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><CalendarDays size={8} /> Due {r.dueDay}th</span>
-                  )}
+            {recommendations.recommendations.map(r => {
+              const adj = month0?.perCardAdjusted?.find(x => x.id === r.cardId);
+              const displayPayment = adj != null ? adj.payment : r.payment;
+              const isReduced = adj != null && adj.maxPayment > adj.payment && month0 != null && month0.holdback > 0;
+              return (
+                <div key={r.cardId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 flex-wrap gap-1" style={{ borderRadius: 'var(--radius)' }}>
+                  <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
+                    <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: r.color }} />
+                    <span className="text-[10px] sm:text-xs font-medium">{r.cardName}</span>
+                    {r.reason === 'Autopay Full Balance' ? (
+                      <span className="text-[9px] sm:text-[10px] text-success bg-success/10 px-1.5 py-0.5 flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
+                        <CheckCircle2 size={9} /> autopay
+                      </span>
+                    ) : r.isMinimumOnly ? (
+                      <span className="text-[9px] sm:text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>min</span>
+                    ) : (
+                      <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>priority</span>
+                    )}
+                    <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate">{r.reason}</span>
+                    {r.dueDay && (
+                      <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><CalendarDays size={8} /> Due {r.dueDay}th</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {isReduced && month0?.holdbackEvent && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-[9px] sm:text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5 cursor-pointer" style={{ borderRadius: 'var(--radius)' }}>
+                            max {formatCurrency(adj!.maxPayment, false)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[260px] text-xs">
+                          Payment reduced from max {formatCurrency(adj!.maxPayment, false)} to save {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}).
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    <span className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(displayPayment, false)}</span>
+                  </div>
                 </div>
-                <span className="text-xs sm:text-sm font-display font-bold text-primary shrink-0">{formatCurrency(r.payment, false)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {recommendations.utilizationMilestones.length > 0 && (

@@ -7,7 +7,8 @@ import FormModal from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
-import { useCarFunds, useAccounts, useRecurringRules } from '@/hooks/useSupabaseData';
+import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile } from '@/hooks/useSupabaseData';
+import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X } from 'lucide-react';
@@ -230,13 +231,12 @@ function estimateSavingCompletion(downGoal: number, saved: number, monthly: numb
   return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib, onSaveLumpSums, liquidCash }:
+function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib, onSaveLumpSums, liquidCash, availableAboveFloor }:
   { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean;
-    linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number }) {
+    linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number; availableAboveFloor?: number }) {
   const gift = Number(cf.gift_contribution) || 0;
   const personalGoal = Math.max(0, cf.down_payment_goal - gift);
-  // Simulated position = current_saved + this month's sim allocation (remaining / months_to_goal).
-  // For linked accounts, contrib is 0 (balance is live); non-linked cars add the monthly reserve.
+  // simMonthlyContrib is used for completion-date estimation only.
   const simMonthlyContrib = (() => {
     if (cf.linked_account) return 0;
     const rem = Math.max(0, personalGoal - cf.current_saved);
@@ -251,7 +251,9 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
     }
     return Math.min(rem / monthsToGoal, rem);
   })();
-  const simulatedSaved = Math.min(personalGoal, cf.current_saved + simMonthlyContrib);
+  // Use availableAboveFloor (checking surplus today→EOM above cash floor) when provided;
+  // fall back to simMonthlyContrib for non-linked cars when the data is unavailable.
+  const simulatedSaved = Math.min(personalGoal, cf.current_saved + (availableAboveFloor ?? simMonthlyContrib));
   const pct = personalGoal > 0 ? Math.min((simulatedSaved / personalGoal) * 100, 100) : 100;
   const monthlyEst = calculateMonthlyPayment(
     cf.target_price + cf.tax_fees - cf.down_payment_goal,
@@ -658,6 +660,8 @@ export default function Vehicles() {
   const { data: carFunds, add, update, remove, loading } = useCarFunds();
   const { data: accounts } = useAccounts();
   const { data: rules } = useRecurringRules();
+  const { data: transactions } = useTransactions();
+  const { data: profile } = useProfile();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
 
@@ -682,6 +686,23 @@ export default function Vehicles() {
       .filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
       .reduce((s: number, a: any) => s + Number(a.balance), 0),
     [accounts]
+  );
+
+  const cashFloor = useMemo(() => { const v = Number((profile as any)?.cash_floor); return isNaN(v) ? 1000 : v; }, [profile]);
+
+  const allMonthTransactions = useMemo(() =>
+    mergeWithGeneratedTransactions(transactions || [], rules, accounts),
+    [transactions, rules, accounts],
+  );
+
+  const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
+  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true), [allMonthTransactions]);
+  const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
+
+  // Available cash above floor today→EOM — mirrors Forecast month 0 surplus.
+  const availableAboveFloor = useMemo(() =>
+    Math.max(0, liquidCash + remainingTxIncome - remainingTxExpenses - remainingTxDebt - cashFloor),
+    [liquidCash, remainingTxIncome, remainingTxExpenses, remainingTxDebt, cashFloor],
   );
 
   const accountMap = useMemo(() => {
@@ -1014,6 +1035,7 @@ export default function Vehicles() {
                 monthlyContrib={monthlyContrib}
                 onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps })}
                 liquidCash={liquidCash}
+                availableAboveFloor={availableAboveFloor}
               />
             );
           })}
