@@ -1425,9 +1425,20 @@ export default function Forecast() {
     const data: any[] = [];
     const milestones: { month: string; event: string }[] = [];
 
-    // Step 3 gate uses b.ccDebtBalance (same signal as PASS 2 at recomputeSimCash and the
-    // "CC Debt Free!" milestone). This avoids the oscillation caused by per-card revolving
-    // balance arrays that can intermittently hit 0 for cards still carrying monthly purchases.
+    // p3RevBal tracks the actual revolving CC balance forward through PASS 3.
+    // The CC sim's b.ccDebtBalance projects balances using only target/min payments,
+    // running far too long (e.g. Discover at $97/mo takes 45 months). PASS 3 sends
+    // large surpluses to CC debt each month, zeroing it in ~2-4 months. Using the CC
+    // sim's projection as the gate would pin ending cash to the floor long after all
+    // debt is actually paid. p3RevBal uses live account balances as the starting point
+    // and deducts the actual revolving payments + surplus each month.
+    const liveRevolvingBal = (cardProjectionData?.simCards ?? []).reduce((s: number, c: any) => {
+      const revBal0 = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[0] ?? 1;
+      if (revBal0 === 0) return s; // cycling card — paid in full each month, not revolving
+      const acct = active.find((a: any) => a.id === c.id);
+      return s + (acct ? Number(acct.balance || 0) : 0);
+    }, 0);
+    let p3RevBal = liveRevolvingBal;
 
     for (let i = 0; i < 36; i++) {
       const b = baseData[i];
@@ -1452,25 +1463,30 @@ export default function Forecast() {
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
       const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
 
-      // Step 2: cycling + CC minimums are non-negotiable (like rent).
-      // Only extra revolving paydown above the minimum is subject to the floor constraint.
+      // Step 2: cycling payments are non-negotiable (like rent).
+      // Revolving payments and minimums only apply while p3RevBal shows remaining debt.
       const simAllPayments = cardProjectionData?.allPaymentTotals?.[i] ?? monthDebtPayment;
       const simRevolvingPayment = cardProjectionData?.debtPaymentTotals?.[i] ?? monthDebtPayment;
       const cyclingPayment = Math.max(0, simAllPayments - simRevolvingPayment);
-      // Minimum CC payments must always be paid — floor cannot zero them out.
-      // Use min(ccMinTotal, simRevolving) so paid-off months don't over-pay.
-      const ccMinForMonth = b.ccDebtBalance > 0 ? Math.min(ccMinTotal, simRevolvingPayment) : 0;
-      const availableForRevolving = Math.max(ccMinForMonth, Math.max(0, cashPreDebt - cyclingPayment - b.monthMinSafe));
-      const revolvingPayment = Math.min(simRevolvingPayment, availableForRevolving);
+      // Gate minimum and revolving payment on p3RevBal — once debt is zeroed, skip both.
+      const ccMinForMonth = p3RevBal > 0 ? Math.min(ccMinTotal, simRevolvingPayment) : 0;
+      const availableForRevolving = p3RevBal > 0
+        ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - cyclingPayment - b.monthMinSafe))
+        : 0;
+      const revolvingPayment = p3RevBal > 0 ? Math.min(simRevolvingPayment, availableForRevolving) : 0;
       monthDebtPayment = cyclingPayment + revolvingPayment;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
-      // Step 3: redirect surplus above floor to debt (save-up months excluded).
-      if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && finalLiquid > b.monthMinSafe) {
-        const surplus = finalLiquid - b.monthMinSafe;
+      // Step 3: redirect surplus above floor to debt — capped at remaining p3RevBal so
+      // surplus stops once CC debt is actually paid (not just when the CC sim thinks it is).
+      if (!saveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
+        const surplus = Math.min(finalLiquid - b.monthMinSafe, p3RevBal);
         monthDebtPayment += surplus;
         finalLiquid -= surplus;
+        p3RevBal = Math.max(0, p3RevBal - surplus);
       }
+      // Deduct revolving payment from tracker after Step 3
+      p3RevBal = Math.max(0, p3RevBal - revolvingPayment);
 
       // Step 4: balance tracking — savings/transfers always apply at full amounts
       const actualGoalsSavings = b.monthlySavingsContrib;

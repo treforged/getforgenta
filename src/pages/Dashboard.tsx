@@ -335,7 +335,8 @@ export default function Dashboard() {
     }, 0);
     const carTotal = (carFunds as any[]).reduce((s: number, c: any) => {
       if (c.phase === 'loan') return s;
-      const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
+      const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
+      const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
       if (rem <= 0) return s;
       let monthsToGoal = 12;
       if (c.planned_purchase_date) {
@@ -343,7 +344,13 @@ export default function Dashboard() {
         const pd = new Date(parts[0], parts[1] - 1, parts[2]);
         monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
       }
-      return s + Math.min(rem / monthsToGoal, rem);
+      // Linked-account cars keep savings in the same checking pool used for CC payments.
+      // For purchases within 12 months, reserve the full gift-adjusted down payment spread
+      // over months-to-goal so available-to-deploy properly accounts for the upcoming cash event.
+      const reserve = (c.linked_account && monthsToGoal <= 12)
+        ? Math.min(giftAdjDownPmt / monthsToGoal, giftAdjDownPmt)
+        : Math.min(rem / monthsToGoal, rem);
+      return s + reserve;
     }, 0);
     const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
     return savingsTotal + carTotal + carLoanTotal;
