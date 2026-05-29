@@ -87,6 +87,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
 
+      const accountMap = new Map<string, any>(accounts.map((a: any) => [a.id, a]));
+
       // ── Funding account resolution (mirrors cardProjectionData) ──────────────
       const liquidTypes = ['checking', 'business_checking', 'cash'];
       const liquidCash = accounts
@@ -354,7 +356,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carDownPaymentByMonth = Array.from({ length: 36 }, (_, i) => {
         return (carFunds as any[]).reduce((s: number, c: any) => {
           if (c.phase !== 'saving') return s;
-          const rem = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.current_saved || 0) - Number(c.gift_contribution || 0));
+          const liveSaved = c.linked_account
+            ? Number(accountMap.get(c.linked_account)?.balance ?? c.current_saved ?? 0)
+            : Number(c.current_saved || 0);
+          const rem = Math.max(0, Number(c.down_payment_goal || 0) - liveSaved - Number(c.gift_contribution || 0));
           if (rem <= 0) return s;
           let purchaseMonthIdx: number;
           if (c.planned_purchase_date) {
