@@ -1452,12 +1452,15 @@ export default function Forecast() {
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
       const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - downPaymentThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
 
-      // Step 2: cycling portion (paid-off cards, autopay) is non-negotiable — treated like rent.
-      // Only revolving debt paydown is subject to the floor constraint.
+      // Step 2: cycling + CC minimums are non-negotiable (like rent).
+      // Only extra revolving paydown above the minimum is subject to the floor constraint.
       const simAllPayments = cardProjectionData?.allPaymentTotals?.[i] ?? monthDebtPayment;
       const simRevolvingPayment = cardProjectionData?.debtPaymentTotals?.[i] ?? monthDebtPayment;
       const cyclingPayment = Math.max(0, simAllPayments - simRevolvingPayment);
-      const availableForRevolving = Math.max(0, cashPreDebt - cyclingPayment - b.monthMinSafe);
+      // Minimum CC payments must always be paid — floor cannot zero them out.
+      // Use min(ccMinTotal, simRevolving) so paid-off months don't over-pay.
+      const ccMinForMonth = b.ccDebtBalance > 0 ? Math.min(ccMinTotal, simRevolvingPayment) : 0;
+      const availableForRevolving = Math.max(ccMinForMonth, Math.max(0, cashPreDebt - cyclingPayment - b.monthMinSafe));
       const revolvingPayment = Math.min(simRevolvingPayment, availableForRevolving);
       monthDebtPayment = cyclingPayment + revolvingPayment;
       finalLiquid = cashPreDebt - monthDebtPayment;
