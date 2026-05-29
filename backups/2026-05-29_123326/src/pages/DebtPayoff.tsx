@@ -10,9 +10,6 @@ import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
-import { buildPayConfig } from '@/lib/pay-schedule';
-import { generateScheduledEvents } from '@/lib/scheduling';
-import { useCardProjection } from '@/hooks/useCardProjection';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -84,66 +81,6 @@ export default function DebtPayoff() {
     () => simulateDebtPayoff(debtInputs, 'avalanche', totalTargetPayment),
     [debtInputs, totalTargetPayment],
   );
-
-  // ── month0 computation via shared hook (mirrors Forecast PASS 3 Step 2) ──────
-  const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
-  const [persistedDebtFundingId] = usePersistedState<string>('tre:debt:fundingAccount', '');
-  const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
-  const cashFloor = useMemo(
-    () => (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000,
-    [profile],
-  );
-  const forecastFundingAccountId = useMemo((): string | null => {
-    const defaultId = (profile as any)?.default_deposit_account;
-    if (defaultId) {
-      const acct = (accounts ?? []).find((a: any) => a.id === defaultId && a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type));
-      if (acct) return acct.id as string;
-    }
-    const checking = (accounts ?? []).find((a: any) => a.active && a.account_type === 'checking');
-    return (checking?.id as string) ?? null;
-  }, [accounts, profile]);
-  const scheduledEvents = useMemo(
-    () => generateScheduledEvents(rules ?? [], accounts ?? [], 36),
-    [rules, accounts],
-  );
-  const debtPayoffOptions = useMemo(() => ({
-    strategy: debtStrategy,
-    paymentMode: 'variable' as const,
-    cashFloor,
-    overrides: {} as Record<string, Record<number, number>>,
-  }), [cashFloor, debtStrategy]);
-  const projectionAssumptions = useMemo(() => ({
-    incomeGrowthEnabled: forecastAssumptions.incomeGrowthEnabled,
-    incomeGrowth: forecastAssumptions.incomeGrowth,
-    raiseMonth: forecastAssumptions.raiseMonth,
-    raiseMode: forecastAssumptions.raiseMode,
-    expenseGrowth: forecastAssumptions.expenseGrowth,
-    bonusEnabled: forecastAssumptions.bonusEnabled,
-    bonusAmount: forecastAssumptions.bonusAmount,
-    bonusMode: forecastAssumptions.bonusMode,
-    bonusMonth: forecastAssumptions.bonusMonth,
-    bonusRecurring: forecastAssumptions.bonusRecurring,
-    taxReturnEnabled: forecastAssumptions.taxReturnEnabled,
-    taxReturnAmountOverride: forecastAssumptions.taxReturnAmountOverride ?? 0,
-    taxReturnMonth: forecastAssumptions.taxReturnMonth,
-  }), [forecastAssumptions]);
-  const cardProjection = useCardProjection({
-    accounts: accounts ?? [],
-    transactions: transactions ?? [],
-    rules: rules ?? [],
-    debts: debts ?? [],
-    goals: goals ?? [],
-    carFunds: carFunds ?? [],
-    profile,
-    debtPayoffOptions,
-    payConfig,
-    scheduledEvents,
-    pauseSavings,
-    forecastFundingAccountId,
-    debtStrategy,
-    persistedDebtFundingId,
-    assumptions: projectionAssumptions,
-  });
 
   const debtFreeDate = (months: number) => {
     const d = new Date();
@@ -422,7 +359,6 @@ export default function DebtPayoff() {
           taxReturnEnabled={forecastAssumptions.taxReturnEnabled}
           taxReturnAmountOverride={forecastAssumptions.taxReturnAmountOverride}
           taxReturnMonth={forecastAssumptions.taxReturnMonth}
-          month0={cardProjection?.month0 ?? null}
         />
       )}
 
