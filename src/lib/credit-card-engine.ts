@@ -446,6 +446,8 @@ export function simulateVariablePayoff(
   monthlyPayments: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
   monthlyRevolvingBalances: Map<string, number[]>;
+  /** Per-card per-month minimum payment based on projected balance — shrinks as debt is paid. */
+  perCardMinPayments: Map<string, number[]>;
   projectedPayoffMonths: number;
   cashFloorBreaches: { month: number; endingCash: number }[];
   flags: SimulationFlag[];
@@ -458,6 +460,7 @@ export function simulateVariablePayoff(
       monthlyPayments: new Map(),
       monthlyBalances: new Map(),
       monthlyRevolvingBalances: new Map(),
+      perCardMinPayments: new Map(),
       projectedPayoffMonths: 0,
       cashFloorBreaches: [],
       flags: [],
@@ -472,6 +475,7 @@ export function simulateVariablePayoff(
   const monthlyPayments = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyRevolvingBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  const perCardMinPayments = new Map<string, number[]>(cards.map(c => [c.id, []]));
   let currentCash = liquidCash;
   let projectedPayoffMonths = 0;
   const cashFloorBreaches: { month: number; endingCash: number }[] = [];
@@ -537,11 +541,18 @@ export function simulateVariablePayoff(
       : (oneTimeByMonth?.[m]?.income ?? 0) - (oneTimeByMonth?.[m]?.expenses ?? 0);
 
     // Push 0 for cards that haven't reached their start month — keeps arrays aligned.
+    // Also collect balance-sensitive minimum for each card this month (Option A).
     for (const card of cards) {
       if ((cardStartMonths.get(card.id) ?? 0) > m) {
         monthlyPayments.get(card.id)!.push(0);
         monthlyBalances.get(card.id)!.push(0);
         monthlyRevolvingBalances.get(card.id)!.push(0);
+        perCardMinPayments.get(card.id)!.push(0);
+      } else if (paidOffCards.has(card.id)) {
+        perCardMinPayments.get(card.id)!.push(0);
+      } else {
+        const bal = balances.get(card.id) ?? 0;
+        perCardMinPayments.get(card.id)!.push(bal > 0 ? calcMinPayment(bal, card.apr) : 0);
       }
     }
 
@@ -800,6 +811,7 @@ export function simulateVariablePayoff(
     monthlyPayments,
     monthlyBalances,
     monthlyRevolvingBalances,
+    perCardMinPayments,
     projectedPayoffMonths,
     cashFloorBreaches,
     flags,

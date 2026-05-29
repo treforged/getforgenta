@@ -41,6 +41,7 @@ import {
   getPaychecksInMonth,
 } from '@/lib/pay-schedule';
 import { getCurrentMonthDebtRecommendations, getMonthlyDebtBreakdown, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
+import { useCardProjection } from '@/hooks/useCardProjection';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -482,6 +483,47 @@ export default function Dashboard() {
 
   const cashFloor = (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000;
 
+  // ── month0 via shared hook (mirrors Forecast PASS 3 Step 2) ─────────────────
+  const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
+  const [persistedDebtFundingId] = usePersistedState<string>('tre:debt:fundingAccount', '');
+  const [forecastAssumptions] = usePersistedState('tre:forecast:assumptions', {
+    incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
+    expenseGrowth: 2.5,
+    bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
+    taxReturnEnabled: false, taxReturnAmountOverride: 0, taxReturnMonth: 2,
+  });
+  const scheduledEvents36 = useMemo(
+    () => generateScheduledEvents(rules, accounts, 36),
+    [rules, accounts],
+  );
+  const debtPayoffOptions = useMemo(() => ({
+    strategy: debtStrategy,
+    paymentMode: 'variable' as const,
+    cashFloor,
+    overrides: {} as Record<string, Record<number, number>>,
+  }), [cashFloor, debtStrategy]);
+  const projectionAssumptions = useMemo(() => ({
+    incomeGrowthEnabled: forecastAssumptions.incomeGrowthEnabled,
+    incomeGrowth: forecastAssumptions.incomeGrowth,
+    raiseMonth: forecastAssumptions.raiseMonth,
+    raiseMode: forecastAssumptions.raiseMode,
+    expenseGrowth: forecastAssumptions.expenseGrowth,
+    bonusEnabled: forecastAssumptions.bonusEnabled,
+    bonusAmount: forecastAssumptions.bonusAmount,
+    bonusMode: forecastAssumptions.bonusMode,
+    bonusMonth: forecastAssumptions.bonusMonth,
+    bonusRecurring: forecastAssumptions.bonusRecurring,
+    taxReturnEnabled: forecastAssumptions.taxReturnEnabled,
+    taxReturnAmountOverride: forecastAssumptions.taxReturnAmountOverride ?? 0,
+    taxReturnMonth: forecastAssumptions.taxReturnMonth,
+  }), [forecastAssumptions]);
+  const cardProjection = useCardProjection({
+    accounts, transactions, rules, debts, goals, carFunds: carFunds as any[],
+    profile, debtPayoffOptions, payConfig, scheduledEvents: scheduledEvents36,
+    pauseSavings, forecastFundingAccountId: fundingAccountId, debtStrategy,
+    persistedDebtFundingId, assumptions: projectionAssumptions,
+  });
+
   const minSafeCash = useMemo(
     () => getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId),
     [rules, payConfig, cashFloor, fundingAccountId],
@@ -684,7 +726,7 @@ export default function Dashboard() {
             expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
             projectedSurplus={monthEndCash}
             cashFloor={cashFloor}
-            availableToDeploy={debtBreakdown.totalAvailableCash}
+            availableToDeploy={cardProjection?.month0?.safeToPayTotal ?? debtBreakdown.totalAvailableCash}
             onCalcClick={openMonthEndCalc}
           />
         );

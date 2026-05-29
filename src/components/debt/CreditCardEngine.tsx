@@ -13,6 +13,7 @@ import {
 } from '@/lib/pay-schedule';
 import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
+import { type Month0Result } from '@/hooks/useCardProjection';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -44,6 +45,8 @@ type Props = {
   taxReturnEnabled?: boolean;
   taxReturnAmountOverride?: number;
   taxReturnMonth?: number;
+  /** When provided, overrides recommendations.totalAvailableCash with the full-simulation result. */
+  month0?: Month0Result | null;
 };
 
 const STRATEGY_TIPS = {
@@ -56,7 +59,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0 }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -997,11 +1000,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </span>
           </div>
 
-          {recommendations.cashWarning && (
-            <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(recommendations.totalAvailableCash, false)}) is less than minimum payments due ({formatCurrency(recommendations.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
-            </div>
-          )}
+          {(() => {
+            const safeToPay = month0 != null ? month0.safeToPayTotal : recommendations.totalAvailableCash;
+            return safeToPay < recommendations.totalMinimumsdue ? (
+              <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(safeToPay, false)}) is less than minimum payments due ({formatCurrency(recommendations.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
+              </div>
+            ) : null;
+          })()}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3 sm:mb-4">
             <Tooltip open={liquidCashOpen} onOpenChange={setLiquidCashOpen}>
@@ -1086,21 +1092,37 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setSafeToPayOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
-                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(month0 != null ? month0.safeToPayTotal : recommendations.totalAvailableCash, false)}</p>
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[320px] text-xs">
                 <p className="font-semibold mb-1">Safe to Pay (today → due date {primaryDueDay}th):</p>
-                <div className="space-y-0.5">
-                  <div className="flex justify-between gap-3"><span>Est. Liquid Cash</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
-                  {bd.remainingExpenses > 0 && <div className="flex justify-between gap-3"><span>− Upcoming Bills</span><span>{formatCurrency(bd.remainingExpenses, false)}</span></div>}
-                  <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
-                  {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
-                  <hr className="my-1 border-border/50" />
-                  <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
-                </div>
-                <p className="text-muted-foreground mt-2">Upcoming Bills = expenses due before month-end. Safe Minimum reserves pre-paycheck bills + your cash floor. Safe to Pay is what remains for debt payments.</p>
+                {month0 != null ? (
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between gap-3"><span>Max Capacity</span><span>{formatCurrency(month0.maxCapacity, false)}</span></div>
+                    {month0.holdback > 0 && month0.holdbackEvent && (
+                      <div className="flex justify-between gap-3 text-amber-400">
+                        <span>− Held for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
+                        <span>{formatCurrency(month0.holdback, false)}</span>
+                      </div>
+                    )}
+                    <hr className="my-1 border-border/50" />
+                    <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(month0.safeToPayTotal, false)}</span></div>
+                    {month0.cyclingPayment > 0 && <div className="flex justify-between gap-3 text-muted-foreground"><span>&nbsp;&nbsp;Cycling (statement/full)</span><span>{formatCurrency(month0.cyclingPayment, false)}</span></div>}
+                    {month0.revolvingPayment > 0 && <div className="flex justify-between gap-3 text-muted-foreground"><span>&nbsp;&nbsp;Toward debt payoff</span><span>{formatCurrency(month0.revolvingPayment, false)}</span></div>}
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    <div className="flex justify-between gap-3"><span>Est. Liquid Cash</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
+                    {bd.remainingExpenses > 0 && <div className="flex justify-between gap-3"><span>− Upcoming Bills</span><span>{formatCurrency(bd.remainingExpenses, false)}</span></div>}
+                    <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
+                    {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
+                    <hr className="my-1 border-border/50" />
+                    <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
+                  </div>
+                )}
+                <p className="text-muted-foreground mt-2">Safe to Pay is the amount available for CC payments this month after reserving cash floor, upcoming bills, and any future event holdbacks.</p>
               </TooltipContent>
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
