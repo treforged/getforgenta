@@ -224,8 +224,15 @@ export default function Forecast() {
       }, 0);
       const carTotal = carFunds.reduce((s: number, c: any) => {
         if (c.phase === 'loan') return s;
-        const rem = Number(c.down_payment_goal) - Number(c.current_saved);
-        return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
+        const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
+        if (rem <= 0) return s;
+        let monthsToGoal = 12;
+        if (c.planned_purchase_date) {
+          const parts = (c.planned_purchase_date as string).split('-').map(Number);
+          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+          monthsToGoal = Math.max(1, (pd.getFullYear() - now0.getFullYear()) * 12 + (pd.getMonth() - now0.getMonth()));
+        }
+        return s + Math.min(rem / monthsToGoal, rem);
       }, 0);
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
       const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal);
@@ -545,8 +552,8 @@ export default function Forecast() {
       // Per-month car values — date-aware so future loans phase in correctly (mirrors CC Engine)
       const carLoanThisMonth = getTotalCarLoanMonthly((carFunds ?? []) as any[], d);
       const monthCarSaving = ((carFunds ?? []) as any[]).reduce((s: number, c: any) => {
-        if (c.phase === 'loan') return s;
-        const rem = Number(c.down_payment_goal) - Number(c.current_saved);
+        if (c.phase !== 'saving') return s;
+        const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
         return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
       }, 0);
 
@@ -980,22 +987,30 @@ export default function Forecast() {
       .filter((c: any) => c.phase === 'saving')
       .map((c: any) => {
         const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
-        // No projected contribution when linked to an account — balance is already in liquidBal
-        const contrib = c.linked_account ? 0 : (rem > 0 ? Math.min(rem / 12, 500) : 0);
+        // Determine purchase month first — needed for timeline-aware contribution calculation.
         let purchaseMonthIdx: number;
         if (c.planned_purchase_date) {
           const parts = (c.planned_purchase_date as string).split('-').map(Number);
           const pd = new Date(parts[0], parts[1] - 1, parts[2]); // local time — avoid UTC off-by-one
-          const diff = (pd.getFullYear() - nowDate.getFullYear()) * 12 + (pd.getMonth() - nowDate.getMonth());
-          purchaseMonthIdx = Math.max(0, diff);
+          purchaseMonthIdx = Math.max(0, (pd.getFullYear() - nowDate.getFullYear()) * 12 + (pd.getMonth() - nowDate.getMonth()));
+        } else if (rem > 0) {
+          const bootstrapContrib = Math.min(rem / 12, 500);
+          purchaseMonthIdx = bootstrapContrib > 0 ? Math.ceil(rem / bootstrapContrib) : Infinity;
         } else {
-          purchaseMonthIdx = contrib > 0 ? Math.ceil(rem / contrib) : Infinity;
+          purchaseMonthIdx = 0;
         }
+        // Timeline-aware: spread the remaining amount evenly over months to goal.
+        // No contribution when linked to an account — balance is already in liquidBal.
+        const contrib = c.linked_account ? 0
+          : (rem > 0 && isFinite(purchaseMonthIdx) && purchaseMonthIdx > 0
+            ? Math.min(rem / purchaseMonthIdx, rem)
+            : 0);
         const loanPrincipal = Math.max(0, Number(c.target_price) + Number(c.tax_fees) - Number(c.down_payment_goal));
         const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
           ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
           : 0;
-        return { contrib, purchaseMonthIdx, projPayment, downPayment: Number(c.down_payment_goal), insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[] };
+        // Gift arrives at purchase — user only brings down_payment_goal minus the gift from their own cash.
+        return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[] };
       });
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(36).fill(0);
