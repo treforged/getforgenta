@@ -312,7 +312,12 @@ export function projectCardVariable(
     const interest = (card.paymentPreference === 'statement' && inGrace)
       ? 0
       : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
-    const availablePayment = monthlyPayments[m - 1] ?? card.minPayment;
+    // Past the sim window, a cycling statement card uses purchases as the payment proxy
+    // (the card pays its balance in full each cycle). Without this, minPayment=0 causes
+    // 300+ months of compounding interest on the cycling balance → inflated totalInterest.
+    const availablePayment = m > monthlyPayments.length && payoffMonth !== null
+      ? card.monthlyNewPurchases
+      : (monthlyPayments[m - 1] ?? card.minPayment);
     const payment = bal <= 0 ? 0 : Math.min(availablePayment, bal + newPurchases + interest);
     if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
     bal = startBal + newPurchases + interest - payment;
