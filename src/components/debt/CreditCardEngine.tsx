@@ -504,8 +504,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }, 0);
 
       const monthCarSaving = pauseSavings ? 0 : (carFunds as any[]).reduce((s: number, c: any) => {
-        if (c.phase === 'loan') return s;
-        const rem = Number(c.down_payment_goal) - Number(c.current_saved);
+        if (c.phase !== 'saving') return s;
+        const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
         return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
       }, 0);
 
@@ -634,8 +634,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       return s + Number(g.monthly_contribution);
     }, 0);
     const carTotal = (carFunds as any[]).reduce((s: number, c: any) => {
-      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
-      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
+      if (c.phase === 'loan') return s;
+      const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
+      if (rem <= 0) return s;
+      let monthsToGoal = 12;
+      if (c.planned_purchase_date) {
+        const parts = (c.planned_purchase_date as string).split('-').map(Number);
+        const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+        monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+      }
+      return s + Math.min(rem / monthsToGoal, rem);
     }, 0);
     return savingsTotal + carTotal;
   }, [goals, carFunds, accounts, rules, pauseSavings]);
