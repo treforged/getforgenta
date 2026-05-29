@@ -315,7 +315,7 @@ export default function Accounts() {
       apr: String(a.apr || ''),
       notes: a.notes || '',
       min_payment: plaidLiability
-        ? (a.min_payment != null && Number(a.min_payment) > 0 ? String(a.min_payment) : '')
+        ? (a.min_payment != null ? String(a.min_payment) : '')
         : (matchDebt ? String(matchDebt.min_payment) : ''),
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
@@ -350,14 +350,8 @@ export default function Accounts() {
     // Always write min_payment to the accounts row for credit cards so the
     // debt engine reads a consistent value from accounts (not the debts table).
     if (form.account_type === 'credit_card') {
-      const userMinPay = form.min_payment ? parseFloat(form.min_payment) : NaN;
-      if (!isNaN(userMinPay) && userMinPay > 0) {
-        // User explicitly entered a value — use it and release Plaid ownership so
-        // future syncs don't overwrite the override.
-        payload.min_payment = userMinPay;
-        payload.min_payment_plaid_synced = false;
-      } else if (editingPlaidLiability) {
-        // Plaid-linked, no user input — compute from APR as fallback.
+      if (editingPlaidLiability) {
+        // APR corrected on a Plaid account — recalculate the estimate.
         const existingAcct = accounts.find((a: any) => a.id === editId);
         const acctBalance = existingAcct ? Number(existingAcct.balance) : balance;
         const newApr = parseFloat(form.apr);
@@ -365,6 +359,8 @@ export default function Accounts() {
           const monthly = (acctBalance * (newApr / 100)) / 12;
           payload.min_payment = Math.max(25, Math.ceil(acctBalance * 0.01 + monthly));
         }
+      } else if (form.min_payment) {
+        payload.min_payment = parseFloat(form.min_payment) || null;
       }
     }
     if (editId) {
@@ -980,7 +976,7 @@ export default function Accounts() {
               { key: 'apy_rate', label: 'APY % (annual growth rate)', type: 'number' as const, placeholder: '7.0', step: '0.1' },
             ] : []),
             ...(LIABILITY_TYPES.includes(form.account_type) ? [
-              { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01', hint: editingPlaidMinSynced ? 'Plaid-synced — enter a value here to override' : undefined },
+              { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01', disabled: editingPlaidMinSynced, hint: editingPlaidMinSynced ? 'Managed by Plaid' : undefined },
             ] : []),
             ...(LOAN_TYPES.includes(form.account_type) ? [
               { key: 'apr_start_date', label: 'Interest Start Date (optional)', type: 'date' as const, hint: 'Date interest began accruing — used for total interest calculations.' },
