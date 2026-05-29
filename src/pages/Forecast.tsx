@@ -10,7 +10,7 @@ import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, 
 import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { simulateVariablePayoff, buildCardData, projectCardVariable, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, getFirstPaycheckInMonth, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
+import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -1287,15 +1287,11 @@ export default function Forecast() {
       let prePaycheckBillsTotal = prePaycheckResult.total;
       const floorItems: { name: string; amount: number; dueDay: number }[] = [...prePaycheckResult.items];
 
-      // Augment floor with items not in rules: car loans and CC cycling payments due before first paycheck
-      const nextMonthDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-      const firstPaycheckNext = getFirstPaycheckInMonth(payConfig, nextMonthDate.getFullYear(), nextMonthDate.getMonth());
-      const fpDay = firstPaycheckNext ? firstPaycheckNext.getDate() : 1;
-
+      // Augment floor with items not in rules: car loans and CC cycling payments.
+      // All included regardless of paycheck timing — floor covers every fixed monthly obligation.
       for (const cf of (carFunds ?? []) as any[]) {
         if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
         const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
-        if (loanDueDay >= fpDay) continue;
         const carPayments = getActiveCarLoanPayments([cf], d);
         for (const cp of carPayments) {
           prePaycheckBillsTotal += cp.payment;
@@ -1306,7 +1302,6 @@ export default function Forecast() {
       for (const card of (cardProjectionData?.simCards ?? [])) {
         if (card.paymentPreference !== 'statement' && !card.autopayFullBalance) continue;
         if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
-        if (card.dueDay >= fpDay) continue;
         const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[i] ?? 1;
         if (revBal > 0) continue;
         prePaycheckBillsTotal += card.monthlyNewPurchases;
@@ -2143,13 +2138,13 @@ export default function Forecast() {
         </div>
       )}
 
-      {/* Safe minimum override notice — shown when pre-paycheck bills exceed user cash floor */}
+      {/* Safe minimum override notice — shown when fixed monthly obligations exceed user cash floor */}
       {prePaycheckBillsInfo.total > debtPayoffOptions.cashFloor && (
         <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/20 px-3 py-2.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
           <Info size={13} className="text-primary shrink-0 mt-0.5" />
           <div className="min-w-0">
             <p className="font-medium text-foreground">
-              Cash floor raised to {formatCurrency(Math.max(debtPayoffOptions.cashFloor, prePaycheckBillsInfo.total), false)} — pre-paycheck bills exceed your {formatCurrency(debtPayoffOptions.cashFloor, false)} floor.
+              Cash floor raised to {formatCurrency(Math.max(debtPayoffOptions.cashFloor, prePaycheckBillsInfo.total), false)} — monthly obligations exceed your {formatCurrency(debtPayoffOptions.cashFloor, false)} floor setting.
             </p>
             {prePaycheckBillsInfo.items.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
@@ -2313,15 +2308,15 @@ export default function Forecast() {
                             { label: '', value: '' },
                             ...(items.length > 0
                               ? [
-                                  { label: 'Bills before 1st paycheck (next mo.):', value: '' },
+                                  { label: 'Fixed monthly obligations (next mo.):', value: '' },
                                   ...items.map((it: any) => ({
                                     label: `  ${it.name}${it.dueDay ? ` (day ${it.dueDay})` : ''}`,
                                     value: formatCurrency(it.amount, false),
                                     op: '+' as const,
                                   })),
-                                  { label: 'Pre-paycheck subtotal', value: formatCurrency(preTotal, false), op: '=' },
+                                  { label: 'Obligations total', value: formatCurrency(preTotal, false), op: '=' },
                                 ]
-                              : [{ label: 'No pre-paycheck bills this month', value: '' }]),
+                              : [{ label: 'No fixed obligations this month', value: '' }]),
                             { label: '', value: '' },
                             { label: 'Cash Floor (higher of above)', value: formatCurrency(row.monthMinSafe, false), op: '=' },
                           ],

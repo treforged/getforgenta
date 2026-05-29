@@ -605,14 +605,13 @@ export function getPrePaycheckNextMonthBills(
 ): { total: number; items: { name: string; amount: number; dueDay: number }[] } {
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-  const firstPaycheck = getFirstPaycheckInMonth(config, nextMonthStart.getFullYear(), nextMonthStart.getMonth());
-  
-  // If no paycheck found, reserve for entire month (conservative)
-  const cutoffDate = firstPaycheck || nextMonthEnd;
-  
+  // All rule types use the full next-month window — the floor must cover every fixed
+  // obligation for the month regardless of when paychecks arrive.
+  const fullMonthCutoff = new Date(nextMonthEnd.getTime() + 86400000);
+
   let total = 0;
   const items: { name: string; amount: number; dueDay: number }[] = [];
-  
+
   for (const r of rules) {
     if (!r.active || r.rule_type === 'income') continue;
 
@@ -630,9 +629,7 @@ export function getPrePaycheckNextMonthBills(
     }
 
     const amt = Number(r.amount);
-    // Transfers/investments must be fully funded before they fire — use entire next month as window
-    const isTransfer = r.rule_type === 'transfer' || r.rule_type === 'investment';
-    const effectiveCutoff = isTransfer ? new Date(nextMonthEnd.getTime() + 86400000) : cutoffDate;
+    const effectiveCutoff = fullMonthCutoff;
 
     if (r.frequency === 'weekly') {
       // Count weekly occurrences between month start and cutoff
