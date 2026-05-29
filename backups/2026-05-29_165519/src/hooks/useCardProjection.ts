@@ -322,16 +322,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const carLoanThisMonth = getTotalCarLoanMonthly((carFunds ?? []) as any[], d);
         const monthCarSaving = ((carFunds ?? []) as any[]).reduce((s: number, c: any) => {
           if (c.phase !== 'saving') return s;
-          if (c.linked_account) return s; // savings already in linked account (current_saved is live balance)
           const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
-          if (rem <= 0) return s;
-          let purchaseMonthIdx = 12;
-          if (c.planned_purchase_date) {
-            const parts = (c.planned_purchase_date as string).split('-').map(Number);
-            const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-            purchaseMonthIdx = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
-          }
-          return s + Math.min(rem / purchaseMonthIdx, rem);
+          return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
         }, 0);
         const actualMonthPaycheck = getMonthNetIncome(payConfig, d.getFullYear(), d.getMonth());
         const rawIncome = e.income > e.nonPaycheckIncome ? e.income : actualMonthPaycheck + e.nonPaycheckIncome;
@@ -365,14 +357,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             const contrib0 = rem > 0 ? Math.min(rem / 12, 500) : 0;
             purchaseMonthIdx = contrib0 > 0 ? Math.ceil(rem / contrib0) : 999;
           }
-          // Linked-account funds: savings are in a separate account (current_saved is live balance).
-          // No monthly checking deduction → full rem is the lump-sum obligation in the purchase month.
-          // Non-linked: monthly contrib spread over purchaseMonthIdx months covers rem exactly → effectiveDP = 0.
-          const contrib = c.linked_account ? 0
-            : (rem > 0 && isFinite(purchaseMonthIdx) && purchaseMonthIdx > 0
-              ? Math.min(rem / purchaseMonthIdx, rem)
-              : 0);
-          // effectiveDP = 0 for non-linked (monthly savings cover it); = rem for linked (lump sum from checking).
+          const contrib = rem > 0 && isFinite(purchaseMonthIdx) && purchaseMonthIdx > 0
+            ? Math.min(rem / purchaseMonthIdx, rem)
+            : 0;
+          // Monthly savings of contrib×purchaseMonthIdx cover all of rem → effectiveDP = 0.
+          // Only when purchasing immediately (purchaseMonthIdx = 0) does the full rem hit checking.
           const effectiveDP = Math.max(0, rem - contrib * purchaseMonthIdx);
           return s + (isFinite(purchaseMonthIdx) && i === purchaseMonthIdx ? effectiveDP : 0);
         }, 0);
@@ -579,9 +568,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const pd = new Date(parts[0], parts[1] - 1, parts[2]);
           monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
         }
-        // Always use rem (remaining after current_saved) regardless of linked_account.
-        // Using giftAdjDownPmt would ignore savings already accumulated, overstating the reserve.
-        const reserve = Math.min(rem / monthsToGoal, rem);
+        const reserve = (c.linked_account && monthsToGoal <= 12)
+          ? Math.min(giftAdjDownPmt / monthsToGoal, giftAdjDownPmt)
+          : Math.min(rem / monthsToGoal, rem);
         return s + reserve;
       }, 0);
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
