@@ -477,9 +477,22 @@ export default function Dashboard() {
 
   const utilization = accountSummary.ccLimit > 0 ? (accountSummary.ccDebt / accountSummary.ccLimit) * 100 : 0;
 
-  const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
-  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true), [allMonthTransactions]);
-  const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
+  // Mirror Forecast's syncCutoffDate: use funding account's Plaid last_synced_at so remaining
+  // transactions roll over at 9am ET when accounts update, not at midnight.
+  const syncCutoffDate = useMemo((): string => {
+    const today = new Date();
+    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (!fundingAccountId) return localDate;
+    const fundingAcct = accounts.find((a: any) => a.id === fundingAccountId);
+    if (!fundingAcct?.plaid_item_id) return localDate;
+    const plaidItem = plaidItems.find((pi: any) => pi.plaid_item_id === fundingAcct.plaid_item_id);
+    if (!plaidItem?.last_synced_at) return localDate;
+    return plaidItem.last_synced_at.split('T')[0];
+  }, [fundingAccountId, accounts, plaidItems]);
+
+  const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
+  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
+  const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
 
   const cashFloor = (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000;
 
