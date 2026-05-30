@@ -330,7 +330,7 @@ export default function Forecast() {
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
       const eventsInMonth = scheduledEvents.filter(e =>
-        e.date.startsWith(monthKey) && (i > 0 || e.date >= todayStr),
+        e.date.startsWith(monthKey) && (i > 0 || e.date > todayStr),
       );
 
       const income = eventsInMonth
@@ -446,7 +446,7 @@ export default function Forecast() {
         .filter(e =>
           e.type === 'expense' &&
           e.date.startsWith(monthKey) &&
-          (i > 0 || e.date >= todayStr) &&
+          (i > 0 || e.date > todayStr) &&
           e.ruleId && ccRuleIds.has(e.ruleId),
         )
         .reduce((s, e) => s + e.amount, 0);
@@ -761,9 +761,12 @@ export default function Forecast() {
       let paycheckIncome: number;
       let otherIncome: number;
       let netIncome: number;
-      if (i === 0 && scheduledIncome > 0) {
-        paycheckIncome = Math.min(scheduledIncome, fallbackTakeHome);
-        otherIncome = Math.max(0, scheduledIncome - fallbackTakeHome);
+      if (i === 0) {
+        // Month 0: scheduledIncome only includes events strictly after syncCutoffDate.
+        // Paychecks/income already deposited are in liquidBal — don't add them again.
+        const nonPayRemaining = forecastMonthEvents[0]?.nonPaycheckIncome ?? 0;
+        paycheckIncome = Math.max(0, scheduledIncome - nonPayRemaining);
+        otherIncome = nonPayRemaining;
         netIncome = scheduledIncome + bonusIncome;
       } else {
         paycheckIncome = fallbackTakeHome;
@@ -853,9 +856,33 @@ export default function Forecast() {
         if (tr.deposit_account) activeTransferDestIds.add(tr.deposit_account);
         const amt = Number(tr.amount);
         let monthAmt = amt;
-        if (tr.frequency === 'weekly') monthAmt = amt * countWeekdayInMonth(d.getFullYear(), d.getMonth(), tr.due_day ?? 5);
-        else if (tr.frequency === 'yearly') monthAmt = amt / 12;
+        if (i === 0) {
+          // Month 0: only count transfer occurrences that haven't cleared yet.
+          // The balance already reflects transfers on or before syncCutoffDate.
+          const syncDay = parseInt(syncCutoffDate.split('-')[2]);
+          if (tr.frequency === 'weekly') {
+            let weekCount = 0;
+            const firstD = new Date(d.getFullYear(), d.getMonth(), 1);
+            const dow = tr.due_day ?? 5;
+            while (firstD.getDay() !== dow) firstD.setDate(firstD.getDate() + 1);
+            while (firstD <= monthEnd) {
+              if (firstD.getDate() > syncDay) weekCount++;
+              firstD.setDate(firstD.getDate() + 7);
+            }
+            monthAmt = amt * weekCount;
+          } else if (tr.frequency === 'monthly') {
+            const dueDay = Math.min(tr.due_day || 1, monthEnd.getDate());
+            monthAmt = dueDay > syncDay ? amt : 0;
+          } else if (tr.frequency === 'yearly') {
+            monthAmt = amt / 12;
+          }
+          // biweekly: leave monthAmt = amt (conservative; at most once per month)
+        } else {
+          if (tr.frequency === 'weekly') monthAmt = amt * countWeekdayInMonth(d.getFullYear(), d.getMonth(), tr.due_day ?? 5);
+          else if (tr.frequency === 'yearly') monthAmt = amt / 12;
+        }
         monthTransfers += monthAmt;
+        if (monthAmt === 0) continue; // cleared — skip categorization
 
         // Categorize by destination account type
         const destAcct = tr.deposit_account ? accountMap.get(tr.deposit_account) : null;
@@ -881,9 +908,14 @@ export default function Forecast() {
         }
       }
 
-      // Add paycheck 401k deduction — month 0 uses remaining paychecks only (past ones already in balance)
+      // Add paycheck 401k deduction — month 0 uses only paychecks strictly after syncCutoffDate.
+      // Paychecks on or before the sync date are already reflected in liquidBal.
       const paychecksThisMonth = i === 0
-        ? getRemainingPaychecksThisMonth(adjustedConfig).length
+        ? getPaychecksInMonth(adjustedConfig, d.getFullYear(), d.getMonth())
+            .filter(p => {
+              const pStr = `${p.date.getFullYear()}-${String(p.date.getMonth() + 1).padStart(2, '0')}-${String(p.date.getDate()).padStart(2, '0')}`;
+              return pStr > syncCutoffDate;
+            }).length
         : getPaychecksInMonth(adjustedConfig, d.getFullYear(), d.getMonth()).length;
       const month401kContrib = payConfig ? perCheck401k * paychecksThisMonth : 0;
       // Full month paychecks — used for display only (popup shows full month total, not remaining)
@@ -1211,7 +1243,7 @@ export default function Forecast() {
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings]);
+  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
