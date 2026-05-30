@@ -78,7 +78,7 @@ const TYPE_ICONS: Record<string, any> = {
 };
 
 // Plaid sync runs Mon/Wed/Fri at 13:00 UTC (9 AM ET).
-const PLAID_SYNC_DAYS = new Set([1, 3, 5, 6]); // Mon, Wed, Fri, Sat UTC day-of-week
+const PLAID_SYNC_DAYS = new Set([1, 3, 5]); // Mon, Wed, Fri UTC day-of-week
 const PLAID_SYNC_HOUR_UTC = 13;
 
 function getLastScheduledSyncTime(from: Date): Date {
@@ -794,8 +794,8 @@ export default function Accounts() {
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-yellow-500'}`} />
                 {mostRecent
-                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs Mon, Wed, Fri & Sat at 9 AM ET`
-                  : 'Not yet synced · Syncs Mon, Wed, Fri & Sat at 9 AM ET'}
+                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs Mon, Wed & Fri at 9 AM ET`
+                  : 'Not yet synced · Syncs Mon, Wed & Fri at 9 AM ET'}
               </div>
             );
           })()}

@@ -7,7 +7,6 @@ import { formatCurrency } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions } from '@/hooks/useSupabaseData';
-import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { useCardProjection } from '@/hooks/useCardProjection';
@@ -96,7 +95,6 @@ export default function Forecast() {
   const { data: profile, update: updateProfile } = useProfile();
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
-  const { items: plaidItems } = usePlaidItems();
 
   const defaultAssumptions = {
     incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
@@ -179,20 +177,6 @@ export default function Forecast() {
     return (checking?.id as string) ?? null;
   }, [accounts, profile]);
 
-  // Balance cutoff: use the funding account's Plaid last_synced_at date so the exclusion
-  // boundary matches the actual snapshot in the account balance, not an arbitrary clock.
-  // Falls back to today's local date for manual (non-Plaid) accounts.
-  const syncCutoffDate = useMemo((): string => {
-    const today = new Date();
-    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    if (!forecastFundingAccountId) return localDate;
-    const fundingAcct = accounts.find((a: any) => a.id === forecastFundingAccountId);
-    if (!fundingAcct?.plaid_item_id) return localDate;
-    const plaidItem = plaidItems.find((pi: any) => pi.plaid_item_id === fundingAcct.plaid_item_id);
-    if (!plaidItem?.last_synced_at) return localDate;
-    return plaidItem.last_synced_at.split('T')[0];
-  }, [forecastFundingAccountId, accounts, plaidItems]);
-
   const prePaycheckBillsInfo = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId), [rules, payConfig, forecastFundingAccountId]);
   const scheduledEvents = useMemo(() => generateScheduledEvents(rules, accounts, 36), [rules, accounts]);
   const monthlyAggregates = useMemo(() => aggregateByMonth(scheduledEvents), [scheduledEvents]);
@@ -265,7 +249,7 @@ export default function Forecast() {
   // payments after cards are paid off.
   const forecastMonthEvents = useMemo((): { income: number; nonPaycheckIncome: number; expenses: number }[] => {
     const now = new Date();
-    const todayStr = syncCutoffDate;
+    const todayStr = now.toISOString().split('T')[0];
 
     const liquidAccountIds = new Set<string>(
       accounts
@@ -361,7 +345,7 @@ export default function Forecast() {
 
       return { income, nonPaycheckIncome, expenses };
     });
-  }, [accounts, rules, scheduledEvents, pauseSavings, profile, syncCutoffDate]);
+  }, [accounts, rules, scheduledEvents, pauseSavings, profile]);
 
   const cardProjectionData = useCardProjection({
     accounts, transactions, rules, debts, goals, carFunds, profile,
@@ -380,22 +364,21 @@ export default function Forecast() {
         .filter((a: any) => a.account_type === 'credit_card' && a.active)
         .flatMap((a: any) => [a.id, `account:${a.id}`]),
     );
-    const today = new Date();
-    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentMonthKey = todayStr.substring(0, 7);
     for (const t of transactions) {
       if ((t as any).isGenerated) continue;
       const monthKey = t.date?.substring(0, 7);
       if (!monthKey) continue;
-      // Exclude transactions on or before the last Plaid sync date — the account balance
-      // already reflects them. Uses syncCutoffDate (sync-aligned) so the boundary matches
-      // the actual balance snapshot, not the UTC clock.
-      if (monthKey === currentMonthKey && t.date && t.date <= syncCutoffDate) continue;
+      // Exclude today and past transactions in the current month — the live account balance
+      // already reflects them, so projecting them again would double-deduct.
+      if (monthKey === currentMonthKey && t.date && t.date <= todayStr) continue;
       if (!result[monthKey]) result[monthKey] = { income: 0, expense: 0 };
       if (t.type === 'income') result[monthKey].income += Number(t.amount);
       else if (!t.payment_source || !ccSources.has(t.payment_source)) result[monthKey].expense += Number(t.amount);
     }
     return result;
-  }, [transactions, accounts, syncCutoffDate]);
+  }, [transactions, accounts]);
 
   // CC-only one-time purchases per month — display-only, does NOT affect cash floor math.
   // Past transactions in the current month are excluded — starting cash already reflects them.
@@ -406,19 +389,19 @@ export default function Forecast() {
         .filter((a: any) => a.account_type === 'credit_card' && a.active)
         .flatMap((a: any) => [a.id, `account:${a.id}`]),
     );
-    const today = new Date();
-    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const currentMonthKey = todayStr.substring(0, 7);
     for (const t of transactions) {
       if ((t as any).isGenerated) continue;
       if (t.type !== 'expense') continue;
       if (!t.payment_source || !ccSources.has(t.payment_source)) continue;
       const monthKey = t.date?.substring(0, 7);
       if (!monthKey) continue;
-      if (monthKey === currentMonthKey && t.date && t.date <= syncCutoffDate) continue;
+      if (monthKey === currentMonthKey && t.date && t.date <= todayStr) continue;
       result[monthKey] = (result[monthKey] || 0) + Number(t.amount);
     }
     return result;
-  }, [transactions, accounts, syncCutoffDate]);
+  }, [transactions, accounts]);
 
   // Scheduled CC rule purchases per month — the recurring spend on credit cards.
   // Combined with ccOneTimeByMonth to show total CC purchases in the popup.
@@ -438,7 +421,7 @@ export default function Forecast() {
       ).map((r: any) => r.id),
     );
     const now = new Date();
-    const todayStr = syncCutoffDate;
+    const todayStr = now.toISOString().split('T')[0];
     return Array.from({ length: 36 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -451,7 +434,7 @@ export default function Forecast() {
         )
         .reduce((s, e) => s + e.amount, 0);
     });
-  }, [accounts, rules, scheduledEvents, syncCutoffDate]);
+  }, [accounts, rules, scheduledEvents]);
 
   const projections = useMemo(() => {
     const _profTr = (profile as any)?.tax_rate;
