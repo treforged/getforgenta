@@ -1952,7 +1952,7 @@ export default function Forecast() {
                   lines: [
                     ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
                     ...(row.isRaiseMonth ? [{ label: `⬆ Raise applied — new ${freqLabel} paycheck: ${formatCurrency(perPaycheck, false)}`, value: '' }] : []),
-                    { label: 'Starting Cash', value: formatCurrency(row.startingCash, false) },
+                    { label: isCurrentMonth ? 'Current Cash' : 'Starting Cash', value: formatCurrency(row.startingCash, false) },
                     { label: 'Paycheck', value: formatCurrency(row.paycheckIncome ?? row.takeHome, false), op: '+' },
                     ...((row.otherIncome ?? 0) > 0 ? [{ label: 'Other Income', value: formatCurrency(row.otherIncome, false), op: '+' }] : []),
                     ...((row.bonusIncome ?? 0) > 0 ? [{ label: 'Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
