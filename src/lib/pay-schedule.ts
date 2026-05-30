@@ -303,7 +303,7 @@ export function getRemainingOneTimeExpensesByDay(
  * Does NOT double-count with Budget Control rules.
  */
 export function getRemainingTransactionIncomeByDay(
-  transactions: any[], dueDay: number = 31
+  transactions: any[], dueDay: number = 31, cutoffDate?: string
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -326,7 +326,8 @@ export function getRemainingTransactionIncomeByDay(
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
-      if (txDay >= today && txDay <= effectiveDueDay) total += Number(t.amount);
+      const afterCutoff = cutoffDate ? t.date > cutoffDate : txDay >= today;
+      if (afterCutoff && txDay <= effectiveDueDay) total += Number(t.amount);
     } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
       // Include next-month income through the actual upcoming due day
       const txDay = parseInt(t.date.split('-')[2]);
@@ -347,6 +348,7 @@ export function getRemainingTransactionExpensesByDay(
   excludeDebtPayments = false,
   fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
+  cutoffDate?: string,
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -374,7 +376,8 @@ export function getRemainingTransactionExpensesByDay(
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
-      if (txDay >= today && txDay <= effectiveDueDay) total += Number(t.amount);
+      const afterCutoff = cutoffDate ? t.date > cutoffDate : txDay >= today;
+      if (afterCutoff && txDay <= effectiveDueDay) total += Number(t.amount);
     } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
       if (txDay >= 1 && txDay <= dueDay) total += Number(t.amount);
@@ -392,7 +395,7 @@ export interface TransactionLineItem {
 
 /** Returns each income transaction in the due-date window as a line item (same filter as getRemainingTransactionIncomeByDay). */
 export function getRemainingTransactionIncomeItemsByDay(
-  transactions: any[], dueDay: number = 31
+  transactions: any[], dueDay: number = 31, cutoffDate?: string
 ): TransactionLineItem[] {
   const now = new Date();
   const today = now.getDate();
@@ -413,7 +416,8 @@ export function getRemainingTransactionIncomeItemsByDay(
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
-      if (txDay >= today && txDay <= effectiveDueDay) {
+      const afterCutoff = cutoffDate ? t.date > cutoffDate : txDay >= today;
+      if (afterCutoff && txDay <= effectiveDueDay) {
         items.push({ date: t.date, note: t.note || t.category || 'Income', amount: Number(t.amount), isGenerated: !!t.isGenerated });
       }
     } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
@@ -433,6 +437,7 @@ export function getRemainingTransactionExpenseItemsByDay(
   excludeDebtPayments = false,
   fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
+  cutoffDate?: string,
 ): TransactionLineItem[] {
   const now = new Date();
   const today = now.getDate();
@@ -456,7 +461,8 @@ export function getRemainingTransactionExpenseItemsByDay(
     if (!t.date) continue;
     if (t.date.startsWith(monthStr)) {
       const txDay = parseInt(t.date.split('-')[2]);
-      if (txDay >= today && txDay <= effectiveDueDay) {
+      const afterCutoff = cutoffDate ? t.date > cutoffDate : txDay >= today;
+      if (afterCutoff && txDay <= effectiveDueDay) {
         items.push({ date: t.date, note: t.note || t.category || 'Expense', amount: Number(t.amount), isGenerated: !!t.isGenerated });
       }
     } else if (dueAlreadyPassed && t.date.startsWith(nextMonthStr)) {
