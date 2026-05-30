@@ -47,6 +47,8 @@ type Props = {
   taxReturnMonth?: number;
   /** When provided, overrides recommendations.totalAvailableCash with the full-simulation result. */
   month0?: Month0Result | null;
+  /** Full 36-month payment arrays from useCardProjection — when provided, projections use Forecast's sim instead of the internal variableSim. */
+  perCardPayments?: { id: string; payments: number[] }[] | null;
 };
 
 const STRATEGY_TIPS = {
@@ -59,7 +61,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0 }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -685,7 +687,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
-        const basePays = variableSim.monthlyPayments.get(c.id) || [];
+        const forecastPays = perCardPayments?.find(x => x.id === c.id)?.payments;
+        const basePays = forecastPays ?? variableSim.monthlyPayments.get(c.id) ?? [];
         const payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
         return projectCardVariable(c, payments, 36, true, cardPurchases);
       }
@@ -697,7 +700,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides]);
+  }, [cards, paymentMode, variableSim, overrides, perCardPayments]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
