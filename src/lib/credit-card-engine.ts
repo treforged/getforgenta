@@ -171,14 +171,15 @@ export function buildCardData(
     const balance = Number(acct.balance);
     const apr = Number(acct.apr) || 0;
     const creditLimit = Number(acct.credit_limit) || 0;
-    // Prefer accounts.min_payment (Plaid-synced or set via Accounts tab) when
-    // present and non-zero; a stored 0 means "not set" — fall back to debts table or calcMinPayment.
+    // Use accounts.min_payment (Plaid-synced or user-set via Accounts tab) as source of truth.
+    // Fall back to debts table, then $25 if neither has a stored value.
+    // Never recalculate from balance — the stored static value is what's actually due.
     const acctMin = acct.min_payment != null ? Number(acct.min_payment) : null;
     const minPay = (acctMin != null && acctMin > 0)
       ? acctMin
       : matchDebt && Number(matchDebt.min_payment) > 0
         ? Number(matchDebt.min_payment)
-        : calcMinPayment(balance, apr);
+        : 25;
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
     const pref = (acct as any).payment_preference;
@@ -558,7 +559,7 @@ export function simulateVariablePayoff(
         perCardMinPayments.get(card.id)!.push(0);
       } else {
         const bal = balances.get(card.id) ?? 0;
-        perCardMinPayments.get(card.id)!.push(bal > 0 ? calcMinPayment(bal, card.apr) : 0);
+        perCardMinPayments.get(card.id)!.push(bal > 0 ? Math.min(card.minPayment, bal) : 0);
       }
     }
 

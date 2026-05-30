@@ -423,6 +423,7 @@ export default function DebtPayoff() {
           taxReturnAmountOverride={forecastAssumptions.taxReturnAmountOverride}
           taxReturnMonth={forecastAssumptions.taxReturnMonth}
           month0={cardProjection?.month0 ?? null}
+          perCardPayments={cardProjection?.perCardPayments ?? null}
         />
       )}
 
