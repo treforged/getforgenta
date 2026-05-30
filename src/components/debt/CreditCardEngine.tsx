@@ -18,6 +18,7 @@ import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDebts, useAccounts, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
+import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -65,6 +66,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
+  const { items: plaidItems } = usePlaidItems();
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
@@ -128,6 +130,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const resolvedFundingId = fundingAccountId || defaultFunding;
   const fundingAccount = liquidAccounts.find((a: any) => a.id === resolvedFundingId);
   const fundingBalance = fundingAccount ? Number(fundingAccount.balance) : liquidCash;
+
+  // Use Plaid last_synced_at as cutoff so estimated liquid cash rolls over at 9am ET
+  // when accounts update, not at midnight. Mirrors Dashboard/Forecast syncCutoffDate logic.
+  const syncCutoffDate = useMemo((): string => {
+    const today = new Date();
+    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    if (!fundingAccount?.plaid_item_id) return localDate;
+    const plaidItem = plaidItems.find((pi: any) => pi.plaid_item_id === fundingAccount.plaid_item_id);
+    if (!plaidItem?.last_synced_at) return localDate;
+    return plaidItem.last_synced_at.split('T')[0];
+  }, [fundingAccount, plaidItems]);
 
   // Persist defaultFunding to localStorage the first time accounts load so future
   // reloads initialize fundingAccountId correctly without needing a navigation.
@@ -220,17 +233,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   // Computed income/expense breakdown for display — uses merged Transactions as single source of truth
   const cashBreakdown = useMemo(() => {
-    const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, primaryDueDay);
-    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
+    const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, primaryDueDay, syncCutoffDate);
+    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
     return { transactionIncome, transactionExpenses };
-  }, [allTransactionsWithNextMonth, primaryDueDay, fundingAccountSources]);
+  }, [allTransactionsWithNextMonth, primaryDueDay, fundingAccountSources, syncCutoffDate]);
 
   // Line-item breakdown so the tooltip can show exactly what's included
   const cashBreakdownItems = useMemo(() => {
-    const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, primaryDueDay);
-    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
+    const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, primaryDueDay, syncCutoffDate);
+    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
     return { incomeItems, expenseItems };
-  }, [allTransactionsWithNextMonth, primaryDueDay, fundingAccountSources]);
+  }, [allTransactionsWithNextMonth, primaryDueDay, fundingAccountSources, syncCutoffDate]);
 
   // Estimated liquid cash: funding balance + transaction income through due date
   // Expenses are NOT deducted here — the safe minimum already reserves for upcoming bills.
@@ -243,11 +256,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const result: Record<string, number> = {};
     for (const card of cards) {
       const dueDay = card.dueDay || 31;
-      const incByDue = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, dueDay);
+      const incByDue = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, dueDay, syncCutoffDate);
       result[card.id] = fundingBalance + incByDue;
     }
     return result;
-  }, [cards, fundingBalance, allTransactionsWithNextMonth]);
+  }, [cards, fundingBalance, allTransactionsWithNextMonth, syncCutoffDate]);
 
   // ── Event-based monthEvents + cardPurchasesPerMonth ──────────────────────────
   // Uses actual scheduled income/expense occurrences instead of flat scalars so
@@ -357,13 +370,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // double-counting income already reflected in the live account balance.
     const now = new Date();
 
-    const month0Income = getRemainingTransactionIncomeByDay(allTransactions, 31);
+    const month0Income = getRemainingTransactionIncomeByDay(allTransactions, 31, syncCutoffDate);
 
     // Use the same expense calculation as the recommendations panel so month 0 payments
     // are consistent. getRemainingTransactionExpensesByDay excludes Debt Payments and
     // Balance Adjustments but INCLUDES CC-tagged expenses — this matches estLiquidCash
     // and keeps the simulation conservative (those CC charges will need paying next month).
-    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true, fundingAccountSources, CC_DEFAULT_CATEGORIES);
+    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
 
     // CC account IDs used to exclude CC-charged one-time expenses from future cash-flow months.
     const ccIds = new Set(
@@ -624,7 +637,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
-      rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings]);
+      rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate, fundingAccountSources]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
