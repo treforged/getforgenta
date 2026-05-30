@@ -1090,6 +1090,7 @@ export default function Forecast() {
       return s + (acct ? Number(acct.balance || 0) : 0);
     }, 0);
     let p3RevBal = liveRevolvingBal;
+    let prevP3RevBal = p3RevBal;
 
     for (let i = 0; i < 36; i++) {
       const b = baseData[i];
@@ -1170,7 +1171,7 @@ export default function Forecast() {
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
       const netWorth = totalAssets - totalLiabilityBal;
 
-      if (b.ccDebtBalance <= 0 && i > 0 && (data[data.length - 1]?.debtBalance || 0) > 0) {
+      if (p3RevBal <= 0 && prevP3RevBal > 0) {
         milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
       }
       goals.forEach((g: any) => {
@@ -1240,6 +1241,7 @@ export default function Forecast() {
         prePaycheckBillsTotal: Math.round(b.prePaycheckBillsTotal ?? 0),
         settingsCashFloor: cashFloor,
       });
+      prevP3RevBal = p3RevBal;
     }
 
     return { data, milestones };
