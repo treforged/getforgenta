@@ -473,7 +473,7 @@ export function getRemainingTransactionExpenseItemsByDay(
  * Get ALL remaining income from Transactions for the rest of the current month.
  * Single source of truth for Budget Control Remaining Cash On Hand.
  */
-export function getRemainingTransactionIncomeThisMonth(transactions: any[]): number {
+export function getRemainingTransactionIncomeThisMonth(transactions: any[], cutoffDate?: string): number {
   const now = new Date();
   const today = now.getDate();
   const year = now.getFullYear();
@@ -485,10 +485,8 @@ export function getRemainingTransactionIncomeThisMonth(transactions: any[]): num
     if (t.type !== 'income') continue;
     if (t.category === 'Balance Adjustment') continue;
     if (!t.date || !t.date.startsWith(monthStr)) continue;
-    const txDay = parseInt(t.date.split('-')[2]);
-    if (txDay >= today) {
-      total += Number(t.amount);
-    }
+    const included = cutoffDate ? t.date > cutoffDate : parseInt(t.date.split('-')[2]) >= today;
+    if (included) total += Number(t.amount);
   }
   return total;
 }
@@ -497,7 +495,7 @@ export function getRemainingTransactionIncomeThisMonth(transactions: any[]): num
  * Get ALL remaining expenses from Transactions for the rest of the current month.
  * Single source of truth for Budget Control Remaining Cash On Hand.
  */
-export function getRemainingTransactionExpensesThisMonth(transactions: any[], excludeDebtPayments = false): number {
+export function getRemainingTransactionExpensesThisMonth(transactions: any[], excludeDebtPayments = false, cutoffDate?: string): number {
   const now = new Date();
   const today = now.getDate();
   const year = now.getFullYear();
@@ -510,10 +508,8 @@ export function getRemainingTransactionExpensesThisMonth(transactions: any[], ex
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
     if (!t.date || !t.date.startsWith(monthStr)) continue;
-    const txDay = parseInt(t.date.split('-')[2]);
-    if (txDay >= today) {
-      total += Number(t.amount);
-    }
+    const included = cutoffDate ? t.date > cutoffDate : parseInt(t.date.split('-')[2]) >= today;
+    if (included) total += Number(t.amount);
   }
   return total;
 }
@@ -521,7 +517,7 @@ export function getRemainingTransactionExpensesThisMonth(transactions: any[], ex
 /**
  * Get remaining debt payment transactions for the rest of the current month.
  */
-export function getRemainingTransactionDebtPaymentsThisMonth(transactions: any[]): number {
+export function getRemainingTransactionDebtPaymentsThisMonth(transactions: any[], cutoffDate?: string): number {
   const now = new Date();
   const today = now.getDate();
   const year = now.getFullYear();
@@ -532,10 +528,8 @@ export function getRemainingTransactionDebtPaymentsThisMonth(transactions: any[]
   for (const t of transactions) {
     if (t.type !== 'expense' || t.category !== 'Debt Payments') continue;
     if (!t.date || !t.date.startsWith(monthStr)) continue;
-    const txDay = parseInt(t.date.split('-')[2]);
-    if (txDay >= today) {
-      total += Number(t.amount);
-    }
+    const included = cutoffDate ? t.date > cutoffDate : parseInt(t.date.split('-')[2]) >= today;
+    if (included) total += Number(t.amount);
   }
   return total;
 }
