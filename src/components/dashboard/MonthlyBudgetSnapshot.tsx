@@ -12,6 +12,7 @@ type Props = {
   cashFloor: number;
   availableToDeploy?: number;
   onCalcClick?: () => void;
+  onFloorClick?: () => void;
 };
 
 const C = {
@@ -31,6 +32,7 @@ export default function MonthlyBudgetSnapshot({
   cashFloor,
   availableToDeploy,
   onCalcClick,
+  onFloorClick,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const surplusAmt   = Math.max(0, projectedSurplus);
@@ -49,27 +51,22 @@ export default function MonthlyBudgetSnapshot({
 
   const activeSlice = activeIdx !== null ? pieData[activeIdx] : null;
 
-  // Correct three-line breakdown: balance + remaining income − bills still coming = remaining
-  // "Spent so far" is already reflected in fundingBalance (current account balance), so it is
-  // shown in the pie for context but NOT deducted again in the arithmetic rows.
-  // "Available to deploy" when provided comes from the debt engine (same as Safe to Pay on Debt tab)
-  // and is shown as a separate total — it is not derived from the rows above to avoid confusion.
-  const rows = availableToDeploy !== undefined
-    ? [
-        { label: 'Balance on hand',      value: fundingBalance,            sign: ' ', colorClass: 'text-foreground' },
-        { label: 'Income still coming',  value: remainingIncome,           sign: '+', colorClass: 'text-success' },
-        { label: 'Bills still coming',   value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
-        { label: 'Projected remaining',  value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
-        { label: 'Available to deploy',  value: availableToDeploy,         sign: '=', colorClass: availableToDeploy >= 0 ? 'text-success' : 'text-destructive' },
-      ]
-    : [
-        { label: 'Balance on hand',      value: fundingBalance,            sign: ' ', colorClass: 'text-foreground' },
-        { label: 'Income still coming',  value: remainingIncome,           sign: '+', colorClass: 'text-success' },
-        { label: 'Bills still coming',   value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
-        { label: 'Projected remaining',  value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
-        { label: 'Cash floor',           value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground' },
-        { label: 'Available to deploy',  value: projectedSurplus - cashFloor, sign: '=', colorClass: (projectedSurplus - cashFloor) >= 0 ? 'text-success' : 'text-destructive' },
-      ];
+  // Balance + remaining income − bills still coming = projected remaining.
+  // Cash floor is always shown so the derivation is transparent.
+  // When availableToDeploy is provided (from the debt engine) the floor is implied as
+  // projectedSurplus − availableToDeploy; otherwise it uses the passed cashFloor prop.
+  const floorValue    = availableToDeploy !== undefined ? projectedSurplus - availableToDeploy : cashFloor;
+  const deployedValue = availableToDeploy !== undefined ? availableToDeploy : projectedSurplus - cashFloor;
+
+  type Row = { label: string; value: number; sign: string; colorClass: string; onClick?: () => void };
+  const rows: Row[] = [
+    { label: 'Balance on hand',     value: fundingBalance,            sign: ' ', colorClass: 'text-foreground' },
+    { label: 'Income still coming', value: remainingIncome,           sign: '+', colorClass: 'text-success' },
+    { label: 'Bills still coming',  value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
+    { label: 'Projected remaining', value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
+    { label: 'Cash floor',          value: floorValue,                sign: '−', colorClass: 'text-muted-foreground', onClick: onFloorClick },
+    { label: 'Available to deploy', value: deployedValue,             sign: '=', colorClass: deployedValue >= 0 ? 'text-success' : 'text-destructive' },
+  ];
 
   return (
     <div className="card-forged p-5">
@@ -169,7 +166,19 @@ export default function MonthlyBudgetSnapshot({
                   <span className="font-mono text-[10px] font-bold text-muted-foreground/50 w-3 shrink-0 text-center">
                     {row.sign}
                   </span>
-                  <span className={isTotal ? 'text-foreground font-semibold' : ''}>{row.label}</span>
+                  {row.onClick ? (
+                    <button
+                      onClick={row.onClick}
+                      className={cn(
+                        'text-left underline underline-offset-2 hover:text-foreground transition-colors',
+                        isTotal ? 'text-foreground font-semibold' : '',
+                      )}
+                    >
+                      {row.label}
+                    </button>
+                  ) : (
+                    <span className={isTotal ? 'text-foreground font-semibold' : ''}>{row.label}</span>
+                  )}
                 </div>
                 <span className={cn('font-display font-bold shrink-0 ml-3', row.colorClass)}>
                   {formatCurrency(Math.abs(row.value), false)}

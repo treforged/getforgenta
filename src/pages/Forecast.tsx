@@ -2016,6 +2016,7 @@ export default function Forecast() {
                         const items: { name: string; amount: number; dueDay?: number }[] = row.floorItems ?? [];
                         const preTotal = row.prePaycheckBillsTotal ?? 0;
                         const settingsFloor = row.settingsCashFloor ?? 0;
+                        const savingCarFunds = ((carFunds ?? []) as any[]).filter((cf: any) => cf.phase === 'saving');
                         setFloorCalcDrawer({
                           title: `${row.month} — Cash Floor`,
                           lines: [
@@ -2034,6 +2035,16 @@ export default function Forecast() {
                               : [{ label: 'No fixed obligations this month', value: '' }]),
                             { label: '', value: '' },
                             { label: 'Cash Floor (higher of above)', value: formatCurrency(row.monthMinSafe, false), op: '=' },
+                            ...(savingCarFunds.length > 0
+                              ? [
+                                  { label: '', value: '' },
+                                  { label: 'Saving toward vehicle purchase:', value: '' },
+                                  ...savingCarFunds.map((cf: any) => ({
+                                    label: `  ${cf.vehicle_name ?? 'Vehicle'}${cf.planned_purchase_date ? ` — target ${new Date(cf.planned_purchase_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}`,
+                                    value: '',
+                                  })),
+                                ]
+                              : []),
                           ],
                         });
                       },
