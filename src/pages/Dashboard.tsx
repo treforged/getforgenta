@@ -49,6 +49,7 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
+import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, DollarSign, CreditCard,
@@ -1159,6 +1160,14 @@ export default function Dashboard() {
               </div>
             </div>
           </PremiumGate>
+        );
+
+      case 'debt_recommendations':
+        return (
+          <DebtRecommendationsWidget
+            key="debt_recommendations"
+            debtBreakdown={debtBreakdown}
+          />
         );
 
       default:
