@@ -4,7 +4,7 @@ import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts } from '@/hooks/useSupabaseData';
 import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal from '@/components/shared/FormModal';
@@ -254,7 +254,7 @@ function SavingsGrowthChart({ goals }: { goals: any[] }) {
         <LineChart data={chartData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)', textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} interval={window.innerWidth < 640 ? Math.ceil(chartData.length / 5) : 0} />
-          <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+          <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
           <Tooltip contentStyle={{ background: 'hsl(0, 0%, 8%)', border: '1px solid hsl(0, 0%, 15%)', borderRadius: 'var(--radius)', fontSize: 12 }} formatter={(value: number) => formatCurrency(value, false)} />
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
           {goals.map((g, i) => <Line key={g.id} dataKey={g.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={{ r: 3 }} />)}
