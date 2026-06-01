@@ -42,7 +42,7 @@ import {
 } from '@/lib/pay-schedule';
 import { getCurrentMonthDebtRecommendations, getMonthlyDebtBreakdown, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
 import { useCardProjection } from '@/hooks/useCardProjection';
-import { getTotalCarLoanMonthly, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
   Line, CartesianGrid, ComposedChart,
@@ -547,45 +547,6 @@ export default function Dashboard() {
     [rules, payConfig, fundingAccountId],
   );
 
-  // Forecast-equivalent cash floor for month 0: pre-paycheck bills + car loans + CC minimums.
-  // Used to make the floor row in MonthlyBudgetSnapshot match Forecast's floor exactly.
-  const forecastFloor0 = useMemo((): {
-    monthMinSafe: number;
-    floorItems: { name: string; amount: number; dueDay?: number }[];
-    prePaycheckBillsTotal: number;
-  } => {
-    let prePaycheckBillsTotal = prePaycheckBills.total;
-    const floorItems: { name: string; amount: number; dueDay?: number }[] = [...prePaycheckBills.items];
-
-    for (const cf of (carFunds ?? []) as any[]) {
-      if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
-      const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
-      const carPayments = getActiveCarLoanPayments([cf], new Date());
-      for (const cp of carPayments) {
-        prePaycheckBillsTotal += cp.payment;
-        floorItems.push({ name: cf.vehicle_name + ' loan', amount: cp.payment, dueDay: loanDueDay });
-      }
-    }
-
-    for (const card of (cardProjection?.simCards ?? [])) {
-      const revBal = cardProjection?.monthlyRevolvingBalances?.get(card.id)?.[0] ?? 1;
-      if (revBal > 0) {
-        const minPay = cardProjection?.perCardMinPayments?.get(card.id)?.[0] ?? 0;
-        if (minPay > 0 && card.dueDay) {
-          prePaycheckBillsTotal += minPay;
-          floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
-        }
-      } else {
-        if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
-        if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
-        prePaycheckBillsTotal += card.monthlyNewPurchases;
-        floorItems.push({ name: card.name + ' purchases', amount: card.monthlyNewPurchases, dueDay: card.dueDay });
-      }
-    }
-
-    return { monthMinSafe: Math.max(cashFloor, prePaycheckBillsTotal), floorItems, prePaycheckBillsTotal };
-  }, [prePaycheckBills, carFunds, cardProjection, cashFloor]);
-
   const fundingBalance = useMemo(() => {
     const fundAcct = accounts.find((a: any) => a.id === fundingAccountId);
     if (fundAcct) return Number(fundAcct.balance);
@@ -764,28 +725,6 @@ export default function Dashboard() {
     setCalcDrawer({ title: 'Liquid Cash', lines });
   };
 
-  const openFloorCalc = () => {
-    const { floorItems, prePaycheckBillsTotal, monthMinSafe } = forecastFloor0;
-    const lines: { label: string; value: string; op?: string }[] = [
-      { label: 'Settings floor', value: formatCurrency(cashFloor, false) },
-      { label: '', value: '' },
-      ...(floorItems.length > 0
-        ? [
-            { label: 'Fixed monthly obligations (next mo.):', value: '' },
-            ...floorItems.map(it => ({
-              label: `  ${it.name}${it.dueDay ? ` (day ${it.dueDay})` : ''}`,
-              value: formatCurrency(it.amount, false),
-              op: '+' as const,
-            })),
-            { label: 'Obligations total', value: formatCurrency(prePaycheckBillsTotal, false), op: '=' as const },
-          ]
-        : [{ label: 'No fixed obligations', value: '' }]),
-      { label: '', value: '' },
-      { label: 'Cash Floor (higher of above)', value: formatCurrency(monthMinSafe, false), op: '=' as const },
-    ];
-    setCalcDrawer({ title: 'Cash Floor', lines });
-  };
-
   // ─── Widget renderer ──────────────────────────────────────────────────────
 
   const renderWidget = (id: WidgetId) => {
@@ -799,10 +738,9 @@ export default function Dashboard() {
             spentSoFar={summary.expenses + totalDebtPayments}
             expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
             projectedSurplus={monthEndCash}
-            cashFloor={forecastFloor0.monthMinSafe}
+            cashFloor={cashFloor}
             availableToDeploy={debtBreakdown.totalAvailableCash}
             onCalcClick={openMonthEndCalc}
-            onFloorClick={openFloorCalc}
           />
         );
 
