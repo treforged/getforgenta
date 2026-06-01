@@ -289,7 +289,12 @@ export function projectCardVariable(
   let inGrace = card.paymentPreference === 'statement' && card.balance <= card.monthlyNewPurchases + 0.01;
 
   for (let m = 1; m <= simMonths; m++) {
-    if (bal <= 0 && payoffMonth !== null) break;
+    if (bal <= 0 && payoffMonth !== null) {
+      // Null-preference non-autopay cards: stop — balance is $0 and nothing more to project.
+      // Preference cards (full/statement): transition to cycling mode and continue showing rows.
+      if (card.paymentPreference === null && !card.autopayFullBalance) break;
+      if (m > months) break; // stop after the display window to avoid 360 cycling iterations
+    }
     const d = new Date();
     d.setMonth(d.getMonth() + m - 1);
     const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
@@ -300,7 +305,7 @@ export function projectCardVariable(
       : m > monthlyPayments.length ? 0 // beyond sim range: track carried balance only; new purchases assumed paid in-cycle
       : card.monthlyNewPurchases;
 
-    if (card.autopayFullBalance && bal <= 0) {
+    if ((card.autopayFullBalance || card.paymentPreference !== null) && bal <= 0) {
       // Payment = previous month's deferred charges (billing cycle delay).
       // endBalance = this month's new charges (will be paid next cycle).
       const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
@@ -773,7 +778,13 @@ export function simulateVariablePayoff(
 
       const bbp = balBeforePayment.get(card.id) ?? 0; // startBal + interest + purchases
       const endBal = Math.max(0, bbp - pay);
-      balances.set(card.id, endBal < 1 ? 0 : endBal); // clear sub-dollar dust
+      const finalBal = endBal < 1 ? 0 : endBal; // clear sub-dollar dust
+      balances.set(card.id, finalBal);
+      // When the revolving balance just reached $0, pre-seed deferred purchases so the
+      // first paidOff month pays monthlyNewPurchases instead of $0 (billing-delay artifact).
+      if (finalBal === 0 && !paidOffCards.has(card.id)) {
+        paidOffDeferredPurchases.set(card.id, cardPurchasesThisMonth(card));
+      }
 
       // Update grace state: grace applies next month if this month's payment covered
       // the full statement balance (startBal + interest), i.e., nothing carried over.
