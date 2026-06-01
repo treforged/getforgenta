@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useAccounts, useAssets, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -358,7 +358,7 @@ export default function NetWorth() {
                 textAnchor="end"
                 height={48}
               />
-              <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+              <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
               <Tooltip content={<CustomTooltip />} />
               <Line dataKey="value" stroke="hsl(43, 56%, 52%)" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(43, 56%, 52%)', strokeWidth: 0 }} />
             </LineChart>

@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import FormModal from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
-import { formatCurrency, calculateMonthlyPayment } from '@/lib/calculations';
+import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
 import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
@@ -505,7 +505,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
           <LineChart data={chartData} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(0,0%,15%)" />
             <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240,4%,46%)' }} axisLine={false} tickLine={false} label={{ value: 'Payment #', position: 'insideBottom', offset: -2, fontSize: 10, fill: 'hsl(240,4%,46%)' }} />
-            <YAxis tick={{ fontSize: 10, fill: 'hsl(240,4%,46%)' }} axisLine={false} tickLine={false} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+            <YAxis tick={{ fontSize: 10, fill: 'hsl(240,4%,46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
             <Tooltip contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,15%)', borderRadius: 'var(--radius)', fontSize: 11 }} formatter={(v: number) => [formatCurrency(v, false), 'Remaining']} />
             <Line dataKey="balance" stroke="hsl(43,56%,52%)" strokeWidth={2} dot={false} />
           </LineChart>
