@@ -18,6 +18,7 @@ type Props = {
 const C = {
   spent:    'hsl(0, 73%, 35%)',
   expected: 'hsl(30, 85%, 48%)',
+  floor:    'hsl(220, 15%, 32%)',
   surplus:  'hsl(142, 50%, 40%)',
   shortfall:'hsl(0, 73%, 45%)',
   empty:    'hsl(0, 0%, 12%)',
@@ -35,26 +36,25 @@ export default function MonthlyBudgetSnapshot({
   onFloorClick,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
-  const surplusAmt   = Math.max(0, projectedSurplus);
   const shortfallAmt = projectedSurplus < 0 ? Math.abs(projectedSurplus) : 0;
+  // Cash floor segment: capped at projectedSurplus so it never exceeds what's actually there
+  const floorSegAmt  = projectedSurplus > 0 ? Math.min(cashFloor, projectedSurplus) : 0;
+  const deployAmt    = Math.max(0, projectedSurplus - cashFloor);
 
   const pieData = useMemo(() => {
     const segments = [
-      spentSoFar > 0             && { name: 'Spent so far',         value: spentSoFar,                color: C.spent },
-      expectedRemainingExpenses > 0 && { name: 'Bills still coming', value: expectedRemainingExpenses, color: C.expected },
-      surplusAmt > 0             && { name: 'Remaining',             value: surplusAmt,                color: C.surplus },
-      shortfallAmt > 0           && { name: 'Shortfall',             value: shortfallAmt,              color: C.shortfall },
+      spentSoFar > 0                && { name: 'Spent so far',        value: spentSoFar,                color: C.spent },
+      expectedRemainingExpenses > 0 && { name: 'Bills still coming',  value: expectedRemainingExpenses, color: C.expected },
+      floorSegAmt > 0               && { name: 'Cash floor',          value: floorSegAmt,               color: C.floor },
+      deployAmt > 0                 && { name: 'Available to deploy', value: deployAmt,                 color: C.surplus },
+      shortfallAmt > 0              && { name: 'Shortfall',           value: shortfallAmt,              color: C.shortfall },
     ].filter(Boolean) as { name: string; value: number; color: string }[];
 
     return segments.length > 0 ? segments : [{ name: 'No data', value: 1, color: C.empty }];
-  }, [spentSoFar, expectedRemainingExpenses, surplusAmt, shortfallAmt]);
+  }, [spentSoFar, expectedRemainingExpenses, floorSegAmt, deployAmt, shortfallAmt]);
 
   const activeSlice = activeIdx !== null ? pieData[activeIdx] : null;
 
-  // Balance + remaining income − bills still coming = projected remaining.
-  // Cash floor is always shown so the derivation is transparent.
-  // When availableToDeploy is provided (from the debt engine) the floor is implied as
-  // projectedSurplus − availableToDeploy; otherwise it uses the passed cashFloor prop.
   const floorValue    = cashFloor;
   const deployedValue = projectedSurplus - cashFloor;
 
@@ -126,17 +126,32 @@ export default function MonthlyBudgetSnapshot({
                   {formatCurrency(activeSlice.value, false)}
                 </span>
               </>
+            ) : deployAmt > 0 ? (
+              <>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">
+                  Available
+                </span>
+                <span className="text-2xl font-display font-bold leading-tight text-success">
+                  {formatCurrency(deployAmt, false)}
+                </span>
+                <span className="text-[9px] text-muted-foreground leading-none">to deploy</span>
+              </>
+            ) : projectedSurplus >= 0 ? (
+              <>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">
+                  At Floor
+                </span>
+                <span className="text-2xl font-display font-bold leading-tight text-muted-foreground">
+                  {formatCurrency(projectedSurplus, false)}
+                </span>
+                <span className="text-[9px] text-muted-foreground leading-none">reserved</span>
+              </>
             ) : (
               <>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">
-                  {projectedSurplus >= 0 ? 'Remaining' : 'Shortfall'}
+                  Shortfall
                 </span>
-                <span
-                  className={cn(
-                    'text-2xl font-display font-bold leading-tight',
-                    projectedSurplus >= 0 ? 'text-primary' : 'text-destructive',
-                  )}
-                >
+                <span className="text-2xl font-display font-bold leading-tight text-destructive">
                   {formatCurrency(Math.abs(projectedSurplus), false)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">projected</span>
@@ -194,7 +209,8 @@ export default function MonthlyBudgetSnapshot({
         {[
           { label: 'Spent',         color: C.spent },
           { label: 'Bills coming',  color: C.expected },
-          { label: 'Remaining',     color: C.surplus },
+          { label: 'Floor',         color: C.floor },
+          { label: 'Available',     color: C.surplus },
         ].map(l => (
           <div key={l.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: l.color }} />
