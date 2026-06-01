@@ -1963,27 +1963,18 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown: cycling cards always show full sim amount; revolving cards
-                    // are scaled proportionally to what PASS 3 actually paid (may be less than sim).
+                    // Per-card breakdown: uses pass-3-constrained amounts from useCardProjection
+                    // so Forecast tooltip and Debt Payoff dropdown are guaranteed to match.
                     ...((() => {
-                      const perCard = cardProjectionData?.perCardPayments;
+                      const perCard = cardProjectionData?.perCardPaymentsScaled ?? cardProjectionData?.perCardPayments;
                       const fallback = [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
                       if (!perCard) return fallback;
                       const filtered = perCard.filter(c => (c.payments[absoluteI] ?? 0) > 0);
                       if (filtered.length === 0) return fallback;
 
-                      // Scale all cards proportionally to what PASS 3 actually paid.
-                      // Avoids the asymmetric cycling/revolving classification bug where a card
-                      // that pays down to cycling-balance in the sim gets shown at full sim amount
-                      // while the remaining revolving cards scale to $0.
-                      const simTotal = filtered.reduce((s, c) => s + (c.payments[absoluteI] ?? 0), 0);
-                      const actualTotal = row.debtPayment ?? 0;
-                      const scale = simTotal > 0 ? Math.min(1, actualTotal / simTotal) : 1;
-
                       const lines: { label: string; value: string; op: '−' }[] = [];
                       for (const c of filtered) {
-                        const simAmt = c.payments[absoluteI] ?? 0;
-                        const displayAmt = Math.round(simAmt * scale);
+                        const displayAmt = c.payments[absoluteI] ?? 0;
                         if (displayAmt > 0) {
                           lines.push({ label: `  ${c.name}`, value: formatCurrency(displayAmt, false), op: '−' as const });
                         }
