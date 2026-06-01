@@ -36,11 +36,12 @@ import {
   getRemainingTransactionDebtPaymentsThisMonth,
   mergeWithGeneratedTransactions,
   generateCurrentMonthTransactionsFromRules,
+  generateMonthTransactionsFromRules,
   createDebtPaymentTransactions,
   mergeDebtPaymentsIntoStream,
   getPaychecksInMonth,
 } from '@/lib/pay-schedule';
-import { getCurrentMonthDebtRecommendations, getMonthlyDebtBreakdown, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
+import { buildCardData, generateRecommendations, getMonthlyDebtBreakdown, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
 import { useCardProjection } from '@/hooks/useCardProjection';
 import { getTotalCarLoanMonthly, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import {
@@ -358,6 +359,11 @@ export default function Dashboard() {
     return savingsTotal + carTotal + carLoanTotal;
   }, [pauseSavings, goals, carFunds, accounts, rules]);
 
+  const debtCards = useMemo(
+    () => buildCardData(accounts, baseTxns, rules, debts),
+    [accounts, baseTxns, rules, debts],
+  );
+
   const debtBreakdown = useMemo<MonthlyDebtBreakdown>(
     () => getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar),
     [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar],
@@ -598,6 +604,45 @@ export default function Dashboard() {
     [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt],
   );
 
+  // Debt recommendations for Dashboard widget — uses syncCutoffDate, allTransactionsWithNextMonth,
+  // and the augmented floor (forecastFloor0.monthMinSafe) to match Debt Payoff tab's computation.
+  const dashboardDebtRecs = useMemo<MonthlyDebtBreakdown>(() => {
+    if (!debtCards.length) {
+      return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
+    }
+    const now = new Date();
+    const today = now.getDate();
+    const hasEarlyDueCard = debtCards.some(c => !c.autopayFullBalance && c.balance > 0 && (c.dueDay || 31) < today);
+    const txns = hasEarlyDueCard ? (() => {
+      const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+      const nextMonth = (now.getMonth() + 1) % 12;
+      return [...baseTxns, ...generateMonthTransactionsFromRules(rules, accounts, nextYear, nextMonth)];
+    })() : baseTxns;
+    const revolving = debtCards.filter(c => !c.autopayFullBalance && c.balance > 0);
+    const primaryDueDay = revolving.length > 0 ? Math.min(...revolving.map(c => c.dueDay || 31)) : 31;
+    const liquidCash = accounts.filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
+    const summary = generateRecommendations(
+      debtCards, liquidCash, cashFloor, debtStrategy, getMonthlyNetIncome(payConfig), 0,
+      'variable', payConfig, rules, fundingAccountId,
+      forecastFloor0.monthMinSafe, fundingBalance,
+      undefined, undefined, txns, primaryDueDay, monthlySavingsAndCar,
+      syncCutoffDate,
+    );
+    return {
+      recommendations: summary.recommendations.map(r => ({
+        cardId: r.cardId, cardName: r.cardName, color: r.color,
+        payment: r.payment, dueDay: r.dueDay || null,
+        reason: r.reason, isMinimumOnly: r.isMinimumOnly,
+      })),
+      totalMinimumsDue: summary.totalMinimumsdue,
+      totalRecommended: summary.recommendations.reduce((s, r) => s + r.payment, 0),
+      totalAvailableCash: summary.totalAvailableCash,
+      strategyLabel: summary.strategyLabel,
+      cashWarning: summary.cashWarning,
+      interestAvoided: summary.interestAvoided,
+    };
+  }, [debtCards, accounts, fundingAccountId, payConfig, cashFloor, debtStrategy, forecastFloor0, baseTxns, rules, monthlySavingsAndCar, syncCutoffDate, fundingBalance]);
+
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
 
   const categoryData = useMemo(
@@ -673,8 +718,8 @@ export default function Dashboard() {
   // ─── Calc drawer openers ──────────────────────────────────────────────────
 
   const openMonthEndCalc = () => {
-    const engineMinimums = debtBreakdown.totalMinimumsDue;
-    const engineTotal = debtBreakdown.totalRecommended;
+    const engineMinimums = dashboardDebtRecs.totalMinimumsDue;
+    const engineTotal = dashboardDebtRecs.totalRecommended;
     const engineExtra = Math.max(0, engineTotal - engineMinimums);
     const lines: { label: string; value: string; op?: string }[] = [
       { label: 'Funding Account Balance', value: formatCurrency(fundingBalance, false) },
@@ -689,10 +734,10 @@ export default function Dashboard() {
       { label: '', value: '' },
       { label: 'Your Cash Floor Setting', value: formatCurrency(cashFloor, false) },
       { label: `Pre-paycheck bills (${prePaycheckBills.items.length} items)`, value: formatCurrency(prePaycheckBills.total, false) },
-      { label: 'Effective Cash Floor (used in debt payoff)', value: formatCurrency(minSafeCash, false), op: '≥' },
+      { label: 'Effective Cash Floor (used in debt payoff)', value: formatCurrency(forecastFloor0.monthMinSafe, false), op: '≥' },
       { label: '', value: '' },
       {
-        label: monthEndCash >= minSafeCash
+        label: monthEndCash >= forecastFloor0.monthMinSafe
           ? '✅ Cash is above safety threshold'
           : '⚠️ Cash is below safety threshold — debt payments may need adjustment',
         value: '',
@@ -1166,7 +1211,7 @@ export default function Dashboard() {
         return (
           <DebtRecommendationsWidget
             key="debt_recommendations"
-            debtBreakdown={debtBreakdown}
+            debtBreakdown={dashboardDebtRecs}
           />
         );
 

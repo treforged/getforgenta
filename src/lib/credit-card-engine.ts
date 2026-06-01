@@ -895,16 +895,15 @@ export function generateRecommendations(
     : new Set<string>();
 
   if (transactions && transactions.length > 0) {
-    remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, effectivePrimaryDueDay, syncCutoffDate);
-    // Use end-of-month (31) so ALL remaining monthly outflows are counted regardless of
-    // when they fall relative to the CC due date. Income stays windowed to the due date
-    // because post-due-date paychecks aren't available for this billing cycle.
+    // Use full month (31) for both income and expenses so Est. Liquid Cash matches
+    // Dashboard's Projected Remaining (fundBal + full-month income − full-month expenses).
+    remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, 31, syncCutoffDate);
     remainingTransactionExpenses = getRemainingTransactionExpensesByDay(
       transactions, 31, true, fundSources, CC_DEFAULT_CATEGORIES, syncCutoffDate,
     );
   } else if (payConfig && rules) {
-    remainingTransactionIncome = getRemainingIncomeByDay(payConfig, effectivePrimaryDueDay)
-      + getRemainingNonPaycheckIncomeByDay(rules, effectivePrimaryDueDay, fundingAccountId || null);
+    remainingTransactionIncome = getRemainingIncomeByDay(payConfig, 31)
+      + getRemainingNonPaycheckIncomeByDay(rules, 31, fundingAccountId || null);
     remainingTransactionExpenses = getRemainingExpensesByDay(rules, 31, fundingAccountId || null);
   } else {
     remainingTransactionIncome = monthlyTakeHome;

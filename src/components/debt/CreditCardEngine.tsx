@@ -246,24 +246,25 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return Math.min(...dueDays);
   }, [cards]);
 
-  // Computed income/expense breakdown for display — uses merged Transactions as single source of truth
+  // Computed income/expense breakdown for display — full month (day 31) so Est. Liquid Cash
+  // matches Dashboard's Projected Remaining (fundBal + full-month income − full-month expenses).
   const cashBreakdown = useMemo(() => {
-    const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, primaryDueDay, syncCutoffDate);
-    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
+    const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, 31, syncCutoffDate);
+    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, 31, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
     return { transactionIncome, transactionExpenses };
-  }, [allTransactionsWithNextMonth, primaryDueDay, fundingAccountSources, syncCutoffDate]);
+  }, [allTransactionsWithNextMonth, fundingAccountSources, syncCutoffDate]);
 
   // Line-item breakdown so the tooltip can show exactly what's included
   const cashBreakdownItems = useMemo(() => {
-    const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, primaryDueDay, syncCutoffDate);
-    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, primaryDueDay, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
+    const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, 31, syncCutoffDate);
+    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, 31, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
     return { incomeItems, expenseItems };
-  }, [allTransactionsWithNextMonth, primaryDueDay, fundingAccountSources, syncCutoffDate]);
+  }, [allTransactionsWithNextMonth, fundingAccountSources, syncCutoffDate]);
 
-  // Estimated liquid cash: funding balance + transaction income through due date
-  // Expenses are NOT deducted here — the safe minimum already reserves for upcoming bills.
+  // Estimated liquid cash: funding balance + full-month income − full-month expenses.
+  // Matches Dashboard's Projected Remaining so both displays show the same net cash.
   const estLiquidCash = useMemo(() => {
-    return fundingBalance + cashBreakdown.transactionIncome;
+    return fundingBalance + cashBreakdown.transactionIncome - cashBreakdown.transactionExpenses;
   }, [fundingBalance, cashBreakdown]);
 
   // Estimated liquid cash per card by due date (no expense deduction — safe minimum covers bills)
@@ -1076,10 +1077,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     const [,m,day] = d.split('-');
                     return `${MONTHS[parseInt(m)-1]} ${parseInt(day)}`;
                   };
-                  const windowEndMonth = primaryDueDay < today
-                    ? MONTHS[(now.getMonth() + 1) % 12]
-                    : MONTHS[now.getMonth()];
-                  const windowLabel = `today → ${windowEndMonth} ${primaryDueDay}`;
+                  const windowLabel = 'remaining this month';
                   const hasProjected = cashBreakdownItems.incomeItems.some(i => i.isGenerated) || cashBreakdownItems.expenseItems.some(i => i.isGenerated);
                   const hasTodayItems = [...cashBreakdownItems.incomeItems, ...cashBreakdownItems.expenseItems].some(i => i.date.split('-')[2] === String(today).padStart(2,'0'));
                   return (
@@ -1103,9 +1101,23 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       {cashBreakdownItems.incomeItems.length === 0 && (
                         <p className="text-muted-foreground mb-2 italic">No income scheduled in window</p>
                       )}
+                      {cashBreakdown.transactionExpenses > 0 && (
+                        <div className="mb-2">
+                          <p className="text-[10px] text-destructive/80 uppercase tracking-wider mb-1">− Upcoming expenses</p>
+                          {cashBreakdownItems.expenseItems.slice(0, 6).map((item: TransactionLineItem, i: number) => (
+                            <div key={i} className="flex justify-between gap-3">
+                              <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
+                              <span className="text-destructive/80 shrink-0">−{formatCurrency(item.amount, false)}</span>
+                            </div>
+                          ))}
+                          {cashBreakdownItems.expenseItems.length > 6 && (
+                            <p className="text-muted-foreground text-[10px]">+{cashBreakdownItems.expenseItems.length - 6} more expense items</p>
+                          )}
+                        </div>
+                      )}
                       <hr className="my-1 border-border/50" />
                       <div className="flex justify-between gap-3 font-bold mb-2">
-                        <span>= Est. Liquid Cash</span>
+                        <span>= Est. Liquid Cash (net)</span>
                         <span>{formatCurrency(estLiquidCash, false)}</span>
                       </div>
                       {(() => {
@@ -1146,10 +1158,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[320px] text-xs">
-                <p className="font-semibold mb-1">Safe to Pay (today → due date {primaryDueDay}th):</p>
+                <p className="font-semibold mb-1">Safe to Pay (remaining this month):</p>
                 <div className="space-y-0.5">
-                  <div className="flex justify-between gap-3"><span>Est. Liquid Cash</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
-                  {bd.remainingExpenses > 0 && <div className="flex justify-between gap-3"><span>− Upcoming Bills</span><span>{formatCurrency(bd.remainingExpenses, false)}</span></div>}
+                  <div className="flex justify-between gap-3"><span>Est. Liquid Cash (net of expenses)</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
                   <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
                   {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
                   <hr className="my-1 border-border/50" />
@@ -1160,7 +1171,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     </div>
                   )}
                 </div>
-                <p className="text-muted-foreground mt-2">Safe to Pay is the amount available for CC payments this month after reserving cash floor, upcoming bills, and any future event holdbacks.</p>
+                <p className="text-muted-foreground mt-2">Safe to Pay is the amount available for CC payments this month after reserving the cash floor and any future event holdbacks. Expenses are already netted into Est. Liquid Cash.</p>
               </TooltipContent>
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
