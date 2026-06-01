@@ -7,6 +7,14 @@ export function formatCurrency(amount: number, showCents = true, currency = 'USD
   }).format(amount);
 }
 
+export function formatYAxisTick(v: number): string {
+  const abs = Math.abs(v);
+  const sign = v < 0 ? '-' : '';
+  if (abs < 1000) return `${sign}$${abs}`;
+  if (abs < 10000) return `${sign}$${(abs / 1000).toFixed(1)}k`;
+  return `${sign}$${(abs / 1000).toFixed(0)}k`;
+}
+
 export function calculateMonthlyPayment(principal: number, apr: number, termMonths: number): number {
   if (apr === 0) return principal / termMonths;
   const r = apr / 100 / 12;

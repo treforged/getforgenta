@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useAccounts, useDebts, useAccountReconciliations, useNetWorthSnapshots } from '@/hooks/useSupabaseData';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -680,7 +680,7 @@ export default function Accounts() {
                 tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                tickFormatter={formatYAxisTick}
               />
               <Tooltip content={<NWTooltip />} />
               <Line

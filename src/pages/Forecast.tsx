@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions } from '@/hooks/useSupabaseData';
@@ -1869,7 +1869,7 @@ export default function Forecast() {
                 <ComposedChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tick={{ ...tickStyle, textAnchor: 'end' }} angle={-45} height={50} interval={xInterval} />
-                  <YAxis tick={tickStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                  <YAxis tick={tickStyle} tickFormatter={formatYAxisTick} />
                   <Tooltip content={<ForecastTooltip />} />
                   <Legend onClick={e => toggleSeries(e.dataKey as string)} formatter={(value, entry) => (
                     <span style={{ color: hiddenSeries.includes(entry.dataKey as string) ? '#555' : entry.color, cursor: 'pointer', fontSize: 10 }}>{value}</span>
@@ -1884,7 +1884,7 @@ export default function Forecast() {
                 <LineChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
                   <XAxis dataKey="month" tick={{ ...tickStyle, textAnchor: 'end' }} angle={-45} height={50} interval={xInterval} />
-                  <YAxis tick={tickStyle} tickFormatter={v => `$${(v / 1000).toFixed(0)}k`} />
+                  <YAxis tick={tickStyle} tickFormatter={formatYAxisTick} />
                   <Tooltip content={<ForecastTooltip />} />
                   <Legend onClick={e => toggleSeries(e.dataKey as string)} formatter={(value, entry) => (
                     <span style={{ color: hiddenSeries.includes(entry.dataKey as string) ? '#555' : entry.color, cursor: 'pointer', fontSize: 10 }}>{value}</span>
