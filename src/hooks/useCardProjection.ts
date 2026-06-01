@@ -52,6 +52,7 @@ export interface UseCardProjectionParams {
   /** Pre-computed scheduled events from generateScheduledEvents(rules, accounts, 36) */
   scheduledEvents: any[];
   pauseSavings: boolean;
+  syncCutoffDate?: string;
   forecastFundingAccountId: string | null;
   debtStrategy: 'avalanche' | 'snowball';
   persistedDebtFundingId: string | null;
@@ -77,6 +78,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
+    syncCutoffDate,
   } = params;
 
   return useMemo(() => {
@@ -190,8 +192,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       // ── Month 0 income / expenses / floor ─────────────────────────────────────
       const allTxnsForM0 = mergeWithGeneratedTransactions(transactions, rules, accounts);
-      const m0Income = getRemainingTransactionIncomeByDay(allTxnsForM0, 31);
-      const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true, debtFundingSources, CC_DEFAULT_CATEGORIES);
+      const m0Income = getRemainingTransactionIncomeByDay(allTxnsForM0, 31, syncCutoffDate);
+      const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true, debtFundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
       const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, now);
       const cashFloorByMonth = Array.from({ length: 36 }, (_, m) => {
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
@@ -673,5 +675,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
+    syncCutoffDate,
   ]);
 }

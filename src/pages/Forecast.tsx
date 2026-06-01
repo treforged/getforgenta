@@ -367,6 +367,7 @@ export default function Forecast() {
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
+    syncCutoffDate,
   });
 
   // One-time manual transactions for forecast.

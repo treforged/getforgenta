@@ -13,6 +13,7 @@ import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduled
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import { useCardProjection } from '@/hooks/useCardProjection';
+import { usePlaidItems } from '@/hooks/usePlaidItems';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -20,6 +21,7 @@ export default function DebtPayoff() {
   const { data: debts, update, remove } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
   const { data: accounts, loading: accountsLoading } = useAccounts();
+  const { items: plaidItems } = usePlaidItems();
   const { data: transactions } = useTransactions();
   const { data: rules } = useRecurringRules();
   const { data: profile } = useProfile();
@@ -102,6 +104,16 @@ export default function DebtPayoff() {
     const checking = (accounts ?? []).find((a: any) => a.active && a.account_type === 'checking');
     return (checking?.id as string) ?? null;
   }, [accounts, profile]);
+  const syncCutoffDate = useMemo((): string => {
+    const today = new Date();
+    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const fundingAcct = (accounts ?? []).find((a: any) => a.id === forecastFundingAccountId);
+    if (!fundingAcct?.plaid_item_id) return localDate;
+    const plaidItem = plaidItems.find((pi: any) => pi.plaid_item_id === fundingAcct.plaid_item_id);
+    if (!plaidItem?.last_synced_at) return localDate;
+    return plaidItem.last_synced_at.split('T')[0];
+  }, [forecastFundingAccountId, accounts, plaidItems]);
+
   const scheduledEvents = useMemo(
     () => generateScheduledEvents(rules ?? [], accounts ?? [], 36),
     [rules, accounts],
@@ -143,6 +155,7 @@ export default function DebtPayoff() {
     debtStrategy,
     persistedDebtFundingId,
     assumptions: projectionAssumptions,
+    syncCutoffDate,
   });
 
   const debtFreeDate = (months: number) => {
