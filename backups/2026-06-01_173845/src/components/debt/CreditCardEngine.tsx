@@ -223,8 +223,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Pre-paycheck next-month bills
   const prePaycheckBills = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, fundingAccountId || null), [rules, payConfig, fundingAccountId]);
 
-  // recommendedSafeMinimum is computed after variableSim below so it can use the sim's
-  // monthlyRevolvingBalances and perCardMinPayments to exactly match Forecast month 0.
+  // Augmented safe minimum — mirrors Forecast's monthMinSafe formula:
+  // max(cashFloor, prePaycheckBills + car loan payments + CC revolving minimums).
+  // Car loans and CC minimums are fixed monthly obligations that must be covered
+  // regardless of paycheck timing, so they are added to the pre-paycheck floor.
+  const recommendedSafeMinimum = useMemo(() => {
+    const now = new Date();
+    const ccMins = cards
+      .filter(c => !c.autopayFullBalance && c.balance > 0)
+      .reduce((s, c) => s + c.minPayment, 0);
+    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[], now);
+    const augmented = prePaycheckBills.total + ccMins + carLoanTotal;
+    return Math.max(cashFloor, augmented);
+  }, [cashFloor, prePaycheckBills.total, cards, carFunds]);
 
   // Use the earliest card due day as the default window for the top-level display
   const primaryDueDay = useMemo(() => {
@@ -643,27 +654,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
       rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate, fundingAccountSources]);
-
-  // Exact Forecast month 0 floor formula: prePaycheckBills + carLoans + sim-based CC obligations.
-  // Uses variableSim.monthlyRevolvingBalances[0] to distinguish revolving from paid/autopay cards,
-  // matching forecastFloor0.monthMinSafe in Dashboard.tsx exactly.
-  const recommendedSafeMinimum = useMemo(() => {
-    const now = new Date();
-    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[], now);
-    let ccFloor = 0;
-    for (const card of cards) {
-      const revBal = variableSim.monthlyRevolvingBalances?.get(card.id)?.[0] ?? 1;
-      if (revBal > 0) {
-        const minPay = variableSim.perCardMinPayments?.get(card.id)?.[0] ?? 0;
-        if (minPay > 0) ccFloor += minPay;
-      } else {
-        if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
-        if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
-        ccFloor += card.monthlyNewPurchases;
-      }
-    }
-    return Math.max(cashFloor, prePaycheckBills.total + ccFloor + carLoanTotal);
-  }, [cashFloor, prePaycheckBills.total, cards, carFunds, variableSim]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
