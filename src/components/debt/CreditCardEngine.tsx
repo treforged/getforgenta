@@ -702,8 +702,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
-        const forecastPays = (perCardPaymentsScaled ?? perCardPayments)?.find(x => x.id === c.id)?.payments;
-        const basePays = forecastPays ?? variableSim.monthlyPayments.get(c.id) ?? [];
+        // Use the simulation's own payment stream directly — perCardPaymentsScaled applies a
+        // PASS-3 scaling that is calibrated for the month-0 recommendation panel only.
+        // Feeding scaled payments back into projectCardVariable creates a running-balance
+        // divergence: month-0 payments are slightly under-allocated, compounding through
+        // interest so the final payoff payment no longer zeroes the balance.
+        const basePays = variableSim.monthlyPayments.get(c.id) ?? [];
         const payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
         return projectCardVariable(c, payments, 36, true, cardPurchases);
       }
@@ -715,7 +719,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, perCardPaymentsScaled, perCardPayments]);
+  }, [cards, paymentMode, variableSim, overrides]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
