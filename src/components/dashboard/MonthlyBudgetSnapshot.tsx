@@ -11,7 +11,6 @@ type Props = {
   projectedSurplus: number;
   cashFloor: number;
   availableToDeploy?: number;
-  onCalcClick?: () => void;
   onFloorClick?: () => void;
 };
 
@@ -32,7 +31,6 @@ export default function MonthlyBudgetSnapshot({
   projectedSurplus,
   cashFloor,
   availableToDeploy,
-  onCalcClick,
   onFloorClick,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
@@ -74,14 +72,6 @@ export default function MonthlyBudgetSnapshot({
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Monthly Budget Snapshot
         </h3>
-        {onCalcClick && (
-          <button
-            onClick={onCalcClick}
-            className="text-xs text-muted-foreground hover:text-primary transition-colors"
-          >
-            Details
-          </button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
