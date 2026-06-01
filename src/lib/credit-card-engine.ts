@@ -1086,10 +1086,13 @@ export function generateRecommendations(
  * the same debt payment values that Debt Payoff displays.
  */
 export type MonthlyDebtBreakdown = {
-  recommendations: { cardId: string; cardName: string; payment: number; dueDay: number | null; reason: string }[];
+  recommendations: { cardId: string; cardName: string; color: string; payment: number; dueDay: number | null; reason: string; isMinimumOnly: boolean }[];
   totalMinimumsDue: number;
   totalRecommended: number;
   totalAvailableCash: number;
+  strategyLabel: string;
+  cashWarning: boolean;
+  interestAvoided: number;
 };
 
 function buildCurrentMonthRecommendationSummary(
@@ -1165,18 +1168,23 @@ export function getMonthlyDebtBreakdown(
   monthlySavingsAndCar?: number,
 ): MonthlyDebtBreakdown {
   const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar);
-  if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0 };
+  if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
   return {
     recommendations: summary.recommendations.map(r => ({
       cardId: r.cardId,
       cardName: r.cardName,
+      color: r.color,
       payment: r.payment,
       dueDay: r.dueDay || null,
       reason: r.reason,
+      isMinimumOnly: r.isMinimumOnly,
     })),
     totalMinimumsDue: summary.totalMinimumsdue,
     totalRecommended: summary.recommendations.reduce((s, r) => s + r.payment, 0),
     totalAvailableCash: summary.totalAvailableCash,
+    strategyLabel: summary.strategyLabel,
+    cashWarning: summary.cashWarning,
+    interestAvoided: summary.interestAvoided,
   };
 }
 
