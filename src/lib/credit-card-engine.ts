@@ -865,6 +865,7 @@ export function generateRecommendations(
   transactions?: any[],
   primaryDueDay?: number,
   monthlySavingsAndCar?: number,
+  syncCutoffDate?: string,
 ): RecommendationSummary {
   const preferenceCards = cards.filter(c => c.autopayFullBalance); // balance <= 0 already encoded
   const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
@@ -894,12 +895,12 @@ export function generateRecommendations(
     : new Set<string>();
 
   if (transactions && transactions.length > 0) {
-    remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, effectivePrimaryDueDay);
+    remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, effectivePrimaryDueDay, syncCutoffDate);
     // Use end-of-month (31) so ALL remaining monthly outflows are counted regardless of
     // when they fall relative to the CC due date. Income stays windowed to the due date
     // because post-due-date paychecks aren't available for this billing cycle.
     remainingTransactionExpenses = getRemainingTransactionExpensesByDay(
-      transactions, 31, true, fundSources, CC_DEFAULT_CATEGORIES,
+      transactions, 31, true, fundSources, CC_DEFAULT_CATEGORIES, syncCutoffDate,
     );
   } else if (payConfig && rules) {
     remainingTransactionIncome = getRemainingIncomeByDay(payConfig, effectivePrimaryDueDay)
@@ -956,7 +957,7 @@ export function generateRecommendations(
   for (const card of revolvingCards) {
     const dueDay = card.dueDay || 31;
     if (transactions && transactions.length > 0) {
-      const incByDue = getRemainingTransactionIncomeByDay(transactions, dueDay);
+      const incByDue = getRemainingTransactionIncomeByDay(transactions, dueDay, syncCutoffDate);
       cardEstimatedCash.set(card.id, effectiveFundingBalance + incByDue);
     } else {
       cardEstimatedCash.set(card.id, effectiveFundingBalance + totalRemainingIncome);

@@ -605,9 +605,15 @@ export function getPrePaycheckNextMonthBills(
 ): { total: number; items: { name: string; amount: number; dueDay: number }[] } {
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
-  // All rule types use the full next-month window — the floor must cover every fixed
-  // obligation for the month regardless of when paychecks arrive.
   const fullMonthCutoff = new Date(nextMonthEnd.getTime() + 86400000);
+
+  // Use first paycheck of next month as the cutoff — only bills due before that paycheck
+  // arrives need to be reserved from current cash. Falls back to full-month if no paychecks.
+  const firstPaycheck = getFirstPaycheckInMonth(config, nextMonthStart.getFullYear(), nextMonthStart.getMonth());
+  // Include bills due ON the first paycheck day (paycheck arrives same day those bills are due).
+  const effectiveCutoff = firstPaycheck
+    ? new Date(firstPaycheck.getFullYear(), firstPaycheck.getMonth(), firstPaycheck.getDate() + 1)
+    : fullMonthCutoff;
 
   let total = 0;
   const items: { name: string; amount: number; dueDay: number }[] = [];
@@ -629,10 +635,8 @@ export function getPrePaycheckNextMonthBills(
     }
 
     const amt = Number(r.amount);
-    const effectiveCutoff = fullMonthCutoff;
 
     if (r.frequency === 'weekly') {
-      // Count weekly occurrences between month start and cutoff
       const dayOfWeek = r.due_day ?? 5;
       const d = new Date(nextMonthStart);
       while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
@@ -660,7 +664,7 @@ export function getPrePaycheckNextMonthBills(
       }
     }
   }
-  
+
   return { total, items };
 }
 
