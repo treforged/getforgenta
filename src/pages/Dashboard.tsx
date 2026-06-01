@@ -801,7 +801,6 @@ export default function Dashboard() {
             projectedSurplus={monthEndCash}
             cashFloor={forecastFloor0.monthMinSafe}
             availableToDeploy={debtBreakdown.totalAvailableCash}
-            onCalcClick={openMonthEndCalc}
             onFloorClick={openFloorCalc}
           />
         );
