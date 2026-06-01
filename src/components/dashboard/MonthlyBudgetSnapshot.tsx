@@ -56,7 +56,7 @@ export default function MonthlyBudgetSnapshot({
   // When availableToDeploy is provided (from the debt engine) the floor is implied as
   // projectedSurplus − availableToDeploy; otherwise it uses the passed cashFloor prop.
   const floorValue    = cashFloor;
-  const deployedValue = availableToDeploy !== undefined ? availableToDeploy : projectedSurplus - cashFloor;
+  const deployedValue = projectedSurplus - cashFloor;
 
   type Row = { label: string; value: number; sign: string; colorClass: string; onClick?: () => void };
   const rows: Row[] = [
