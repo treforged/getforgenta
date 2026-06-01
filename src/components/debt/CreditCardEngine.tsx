@@ -222,7 +222,20 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   // Pre-paycheck next-month bills
   const prePaycheckBills = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, fundingAccountId || null), [rules, payConfig, fundingAccountId]);
-  const recommendedSafeMinimum = useMemo(() => Math.max(cashFloor, prePaycheckBills.total), [cashFloor, prePaycheckBills.total]);
+
+  // Augmented safe minimum — mirrors Forecast's monthMinSafe formula:
+  // max(cashFloor, prePaycheckBills + car loan payments + CC revolving minimums).
+  // Car loans and CC minimums are fixed monthly obligations that must be covered
+  // regardless of paycheck timing, so they are added to the pre-paycheck floor.
+  const recommendedSafeMinimum = useMemo(() => {
+    const now = new Date();
+    const ccMins = cards
+      .filter(c => !c.autopayFullBalance && c.balance > 0)
+      .reduce((s, c) => s + c.minPayment, 0);
+    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[], now);
+    const augmented = prePaycheckBills.total + ccMins + carLoanTotal;
+    return Math.max(cashFloor, augmented);
+  }, [cashFloor, prePaycheckBills.total, cards, carFunds]);
 
   // Use the earliest card due day as the default window for the top-level display
   const primaryDueDay = useMemo(() => {
@@ -687,10 +700,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const recommendations: RecommendationSummary = useMemo(
     () => generateRecommendations(
       cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyRecurringExpenses,
-      paymentMode, payConfig, rules, fundingAccountId, prePaycheckBills.total, fundingBalance,
-      undefined, undefined, allTransactions, primaryDueDay, monthlySavingsAndCar,
+      paymentMode, payConfig, rules, fundingAccountId,
+      // Pass the already-augmented safe minimum so the internal floor matches the display tile.
+      // Using allTransactionsWithNextMonth (includes next-month events when due date passed)
+      // and syncCutoffDate so income base matches estLiquidCash exactly.
+      recommendedSafeMinimum, fundingBalance,
+      undefined, undefined, allTransactionsWithNextMonth, primaryDueDay, monthlySavingsAndCar,
+      syncCutoffDate,
     ),
-    [cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyRecurringExpenses, paymentMode, payConfig, rules, fundingAccountId, prePaycheckBills.total, fundingBalance, allTransactions, primaryDueDay, monthlySavingsAndCar],
+    [cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyRecurringExpenses, paymentMode, payConfig, rules, fundingAccountId, recommendedSafeMinimum, fundingBalance, allTransactionsWithNextMonth, primaryDueDay, monthlySavingsAndCar, syncCutoffDate],
   );
 
   const projections: CardProjection[] = useMemo(() => {
