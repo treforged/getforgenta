@@ -739,7 +739,7 @@ export default function Dashboard() {
             expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
             projectedSurplus={monthEndCash}
             cashFloor={cashFloor}
-            availableToDeploy={cardProjection?.month0?.safeToPayTotal ?? debtBreakdown.totalAvailableCash}
+            availableToDeploy={debtBreakdown.totalAvailableCash}
             onCalcClick={openMonthEndCalc}
           />
         );

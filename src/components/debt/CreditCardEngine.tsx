@@ -1026,7 +1026,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
 
           {(() => {
-            const safeToPay = month0 != null ? month0.safeToPayTotal : recommendations.totalAvailableCash;
+            const safeToPay = recommendations.totalAvailableCash;
             return safeToPay < recommendations.totalMinimumsdue ? (
               <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
                 <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(safeToPay, false)}) is less than minimum payments due ({formatCurrency(recommendations.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
@@ -1117,36 +1117,25 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setSafeToPayOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
-                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(month0 != null ? month0.safeToPayTotal : recommendations.totalAvailableCash, false)}</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</p>
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[320px] text-xs">
                 <p className="font-semibold mb-1">Safe to Pay (today → due date {primaryDueDay}th):</p>
-                {month0 != null ? (
-                  <div className="space-y-0.5">
-                    <div className="flex justify-between gap-3"><span>Max Capacity</span><span>{formatCurrency(month0.maxCapacity, false)}</span></div>
-                    {month0.holdback > 0 && month0.holdbackEvent && (
-                      <div className="flex justify-between gap-3 text-amber-400">
-                        <span>− Held for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
-                        <span>{formatCurrency(month0.holdback, false)}</span>
-                      </div>
-                    )}
-                    <hr className="my-1 border-border/50" />
-                    <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(month0.safeToPayTotal, false)}</span></div>
-                    {month0.cyclingPayment > 0 && <div className="flex justify-between gap-3 text-muted-foreground"><span>&nbsp;&nbsp;Cycling (statement/full)</span><span>{formatCurrency(month0.cyclingPayment, false)}</span></div>}
-                    {month0.revolvingPayment > 0 && <div className="flex justify-between gap-3 text-muted-foreground"><span>&nbsp;&nbsp;Toward debt payoff</span><span>{formatCurrency(month0.revolvingPayment, false)}</span></div>}
-                  </div>
-                ) : (
-                  <div className="space-y-0.5">
-                    <div className="flex justify-between gap-3"><span>Est. Liquid Cash</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
-                    {bd.remainingExpenses > 0 && <div className="flex justify-between gap-3"><span>− Upcoming Bills</span><span>{formatCurrency(bd.remainingExpenses, false)}</span></div>}
-                    <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
-                    {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
-                    <hr className="my-1 border-border/50" />
-                    <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
-                  </div>
-                )}
+                <div className="space-y-0.5">
+                  <div className="flex justify-between gap-3"><span>Est. Liquid Cash</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
+                  {bd.remainingExpenses > 0 && <div className="flex justify-between gap-3"><span>− Upcoming Bills</span><span>{formatCurrency(bd.remainingExpenses, false)}</span></div>}
+                  <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
+                  {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
+                  <hr className="my-1 border-border/50" />
+                  <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
+                  {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
+                    <div className="flex justify-between gap-3 text-amber-400 text-[10px] mt-1">
+                      <span>Forecast reserves {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
+                    </div>
+                  )}
+                </div>
                 <p className="text-muted-foreground mt-2">Safe to Pay is the amount available for CC payments this month after reserving cash floor, upcoming bills, and any future event holdbacks.</p>
               </TooltipContent>
             </Tooltip>
@@ -1163,8 +1152,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           <div className="space-y-2">
             {recommendations.recommendations.map(r => {
               const adj = month0?.perCardAdjusted?.find(x => x.id === r.cardId);
-              const displayPayment = adj != null ? adj.payment : r.payment;
-              const isReduced = adj != null && adj.maxPayment > adj.payment && month0 != null && month0.holdback > 0;
+              const card = cards.find(c => c.id === r.cardId);
+              const isCycling = card?.autopayFullBalance ?? false;
+              const displayPayment = (adj != null && !isCycling) ? adj.payment : r.payment;
+              const isReduced = adj != null && !isCycling && adj.maxPayment > adj.payment && month0 != null && month0.holdback > 0;
               return (
                 <div key={r.cardId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 flex-wrap gap-1" style={{ borderRadius: 'var(--radius)' }}>
                   <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
