@@ -704,12 +704,17 @@ export function simulateVariablePayoff(
       }
 
     } else {
-      // Sort by strategy: avalanche = highest APR first, snowball = lowest balance first
-      const strategyOrder = [...debtCards].sort((a, b) =>
-        strategy === 'avalanche'
+      // Sort by strategy: preference cards ('full'/'statement') always move to the front so
+      // they receive their desired payment before the general avalanche/snowball cascade.
+      // Within each tier the original strategy order is preserved.
+      const strategyOrder = [...debtCards].sort((a, b) => {
+        const aPref = a.paymentPreference !== null ? 0 : 1;
+        const bPref = b.paymentPreference !== null ? 0 : 1;
+        if (aPref !== bPref) return aPref - bPref;
+        return strategy === 'avalanche'
           ? b.apr - a.apr
-          : (balBeforePayment.get(a.id) ?? 0) - (balBeforePayment.get(b.id) ?? 0),
-      );
+          : (balBeforePayment.get(a.id) ?? 0) - (balBeforePayment.get(b.id) ?? 0);
+      });
 
       // ── Step 5a — Pay minimums ─────────────────────────────
       let remaining = availableCash;
@@ -850,8 +855,11 @@ export function generateRecommendations(
   primaryDueDay?: number,
   monthlySavingsAndCar?: number,
 ): RecommendationSummary {
-  const preferenceCards = cards.filter(c => c.autopayFullBalance); // balance <= 0 already encoded
-  const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
+  // Preference cards = cycling cards (balance = 0) + any card with an explicit payment
+  // preference while still carrying a balance.  These are allocated from the pool first
+  // so the user's stated intent takes priority over the avalanche/snowball cascade.
+  const preferenceCards = cards.filter(c => c.autopayFullBalance || (c.paymentPreference !== null && c.balance > 0));
+  const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0 && c.paymentPreference === null);
 
   const totalMinDue = revolvingCards.reduce((s, c) => s + c.minPayment, 0);
 
@@ -917,7 +925,9 @@ export function generateRecommendations(
   for (const card of preferenceCards) {
     const desired = card.paymentPreference === 'full'
       ? Math.max(0, card.balance) + card.monthlyNewPurchases
-      : card.monthlyNewPurchases;
+      : card.balance > 0
+        ? Math.max(0, card.balance)   // statement with revolving balance: pay balance, not new purchases
+        : card.monthlyNewPurchases;   // statement cycling (balance = 0): pay new purchases
     const actual = Math.round(Math.min(desired, preferencePool) * 100) / 100;
     preferencePool -= actual;
     autopayTotal += actual;
@@ -999,8 +1009,11 @@ export function generateRecommendations(
     }
   }
 
-  const interestMinOnly = revolvingCards.reduce((s, c) => s + (c.balance * (c.apr / 100 / 12)), 0);
-  const interestWithRecs = revolvingCards.reduce((s, c) => {
+  // Include ALL cards with a revolving balance in interest projections — preference cards are
+  // now in preferenceRecs (not revolvingCards) but their interest savings still count.
+  const allCarryingBalance = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
+  const interestMinOnly = allCarryingBalance.reduce((s, c) => s + (c.balance * (c.apr / 100 / 12)), 0);
+  const interestWithRecs = allCarryingBalance.reduce((s, c) => {
     const rec = recs.find(r => r.cardId === c.id);
     const afterPayment = Math.max(0, c.balance - (rec?.payment || 0) + c.monthlyNewPurchases);
     return s + afterPayment * (c.apr / 100 / 12);
