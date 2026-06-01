@@ -8,7 +8,8 @@ export type WidgetId =
   | 'cash_flow_chart'
   | 'transactions_spending'
   | 'goal_progress'
-  | 'advanced_analytics';
+  | 'advanced_analytics'
+  | 'debt_recommendations';
 
 export interface WidgetConfig {
   id: WidgetId;
@@ -71,6 +72,11 @@ export const WIDGET_META: WidgetMeta[] = [
     id: 'advanced_analytics',
     label: 'Advanced Analytics',
     description: 'Debt-to-income, annual savings projection, emergency runway, avg monthly spend',
+  },
+  {
+    id: 'debt_recommendations',
+    label: 'Debt Recommendations',
+    description: 'Recommended debt payments this month — safe to pay, minimums, and per-card breakdown',
   },
 ];
 
