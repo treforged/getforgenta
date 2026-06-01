@@ -29,6 +29,7 @@ export interface CardProjectionResult {
   debtPaymentTotals: number[];
   allPaymentTotals: number[];
   perCardPayments: { name: string; id: string; payments: number[] }[];
+  perCardPaymentsScaled: { name: string; id: string; payments: number[] }[];
   monthlyRevolvingBalances: Map<string, number[]>;
   perCardMinPayments: Map<string, number[]>;
   m0Income: number;
@@ -594,6 +595,64 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
       const monthlySavingsAndCar = goalContrib + carReserve + carLoanTotal;
 
+      // ── PASS-3 equivalent: constrain per-card payments to cash-floor model ─────
+      // Mirrors Forecast PASS 3 steps 2+3: tracks rolling cash and revolving balance,
+      // clips revolving payments when cash would drop below the floor, redirects surplus.
+      const p3RevBal0 = cards.reduce((s, c) => {
+        if ((sim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1) === 0) return s;
+        const acct = (accounts as any[]).find((a: any) => a.id === c.id);
+        return s + (acct ? Number(acct.balance || 0) : 0);
+      }, 0);
+
+      const pass3RevTotals: number[] = [];
+      let p3Cash = debtFundingBalance;
+      let p3RevBal = p3RevBal0;
+
+      for (let m = 0; m < 36; m++) {
+        const mInc   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
+        const mExp   = m === 0 ? m0Expenses + monthlySavingsAndCar : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses);
+        const mFloor = cashFloorByMonth[m];
+        const simRevTotal = debtPaymentTotals[m];
+        const simCycTotal = Math.max(0, allPaymentTotals[m] - simRevTotal);
+
+        const ccMinForM = p3RevBal > 0
+          ? cards.reduce((s, c) => {
+              if ((sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0) <= 0) return s;
+              return s + (sim.perCardMinPayments.get(c.id)?.[m] ?? c.minPayment);
+            }, 0)
+          : 0;
+
+        const cashPreDebt = p3Cash + mInc - mExp;
+        const availForRev = p3RevBal > 0
+          ? Math.max(ccMinForM, Math.max(0, cashPreDebt - simCycTotal - mFloor))
+          : 0;
+        const revPay = Math.min(simRevTotal, availForRev);
+
+        p3Cash = cashPreDebt - simCycTotal - revPay;
+        p3RevBal = Math.max(0, p3RevBal - revPay);
+
+        let surplus = 0;
+        if (!saveUpMonths.has(m) && p3RevBal > 0 && p3Cash > mFloor) {
+          surplus = Math.min(p3Cash - mFloor, p3RevBal);
+          p3Cash -= surplus;
+          p3RevBal = Math.max(0, p3RevBal - surplus);
+        }
+
+        pass3RevTotals.push(Math.round(revPay + surplus));
+      }
+
+      // Scale per-card: cycling cards keep full sim amount; revolving cards scale to pass-3 totals.
+      const perCardPaymentsScaled = cards.map(c => ({
+        name: c.name, id: c.id,
+        payments: Array.from({ length: 36 }, (_, m) => {
+          const simAmt = Math.round(sim.monthlyPayments.get(c.id)?.[m] ?? 0);
+          if ((sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0) === 0) return simAmt;
+          const simRevTotal = debtPaymentTotals[m];
+          const scale = simRevTotal > 0 ? Math.min(1, pass3RevTotals[m] / simRevTotal) : 1;
+          return Math.round(simAmt * scale);
+        }),
+      }));
+
       // ── month0 computation ────────────────────────────────────────────────────
       const cyclingPayment = Math.max(0, allPaymentTotals[0] - debtPaymentTotals[0]);
       const simRevolvingTotal = debtPaymentTotals[0];
@@ -650,6 +709,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         debtPaymentTotals,
         allPaymentTotals,
         perCardPayments,
+        perCardPaymentsScaled,
         monthlyRevolvingBalances: sim.monthlyRevolvingBalances,
         perCardMinPayments: sim.perCardMinPayments,
         m0Income,
