@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { formatCurrency } from '@/lib/calculations';
+import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
   buildCardData, projectCard, projectCardVariable, generateRecommendations,
   simulateVariablePayoff, CardData, CardProjection, RecommendationSummary, CC_DEFAULT_CATEGORIES,
@@ -887,7 +887,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <LineChart data={debtChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid stroke="hsl(0, 0%, 18%)" strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)', textAnchor: 'end' }} angle={-45} height={50} interval={5} />
-                <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={v => `$${(Number(v) / 1000).toFixed(0)}k`} />
+                <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={formatYAxisTick} />
                 <RechartsTooltip formatter={(v: number, name: string) => [`$${Number(v).toLocaleString()}`, name]} labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} itemStyle={{ fontSize: 13 }} contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
                 {projections.map(p => (
