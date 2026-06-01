@@ -235,26 +235,23 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return Math.min(...dueDays);
   }, [cards]);
 
-  // Computed income/expense breakdown for display — full month (day 31).
-  // No source filter: all expense transactions are counted regardless of payment source,
-  // matching Dashboard's getRemainingTransactionExpensesThisMonth which applies no source filter.
-  // Debt Payments are excluded here because estLiquidCash is pre-debt cash (feeds Safe to Pay).
+  // Computed income/expense breakdown for display — full month (day 31) so Est. Liquid Cash
+  // matches Dashboard's Projected Remaining (fundBal + full-month income − full-month expenses).
   const cashBreakdown = useMemo(() => {
     const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, 31, syncCutoffDate);
-    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, 31, true, new Set(), new Set(), syncCutoffDate);
+    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, 31, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
     return { transactionIncome, transactionExpenses };
-  }, [allTransactionsWithNextMonth, syncCutoffDate]);
+  }, [allTransactionsWithNextMonth, fundingAccountSources, syncCutoffDate]);
 
   // Line-item breakdown so the tooltip can show exactly what's included
   const cashBreakdownItems = useMemo(() => {
     const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, 31, syncCutoffDate);
-    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, 31, true, new Set(), new Set(), syncCutoffDate);
+    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, 31, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
     return { incomeItems, expenseItems };
-  }, [allTransactionsWithNextMonth, syncCutoffDate]);
+  }, [allTransactionsWithNextMonth, fundingAccountSources, syncCutoffDate]);
 
-  // Estimated liquid cash: funding balance + full-month income − full-month non-debt expenses.
-  // Pre-debt-payment cash — feeds Safe to Pay (estLiquidCash − safeMinimum − autopay).
-  // Dashboard's Month-End Cash is lower by the debt payment amounts (post-debt metric).
+  // Estimated liquid cash: funding balance + full-month income − full-month expenses.
+  // Matches Dashboard's Projected Remaining so both displays show the same net cash.
   const estLiquidCash = useMemo(() => {
     return fundingBalance + cashBreakdown.transactionIncome - cashBreakdown.transactionExpenses;
   }, [fundingBalance, cashBreakdown]);
