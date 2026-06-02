@@ -534,10 +534,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return row;
       });
 
+      // Only count payments where the card is carrying actual revolving debt.
+      // Cycling-mode rows (autopay cards, statement-pref cards after revolving clears) set
+      // startBalance = payment as a display artifact — their revolving balance is 0.
+      // Including them inflates simRevTotal in pass-3, making p3RevBal hit 0 too early,
+      // which scales all subsequent revolving payments to 0.
       const debtPaymentTotals = Array.from({ length: 36 }, (_, i) =>
         projs.reduce((total, proj) => {
           const m = proj.months[i];
           if (!m || m.startBalance <= 0) return total;
+          const revBal = sim.monthlyRevolvingBalances.get(proj.card.id)?.[i] ?? 0;
+          if (revBal <= 0) return total;
           return total + m.payment;
         }, 0),
       );

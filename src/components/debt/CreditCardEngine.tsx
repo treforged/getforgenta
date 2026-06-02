@@ -773,7 +773,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         }
         const m = p.months[i];
         if (m) {
-          row[p.card.name] = p.card.autopayFullBalance ? 0 : Math.round(m.endBalance);
+          row[p.card.name] = Math.round(m.endBalance);
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
           row[p.card.name] = p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement'
             ? Math.round(p.card.monthlyNewPurchases)
