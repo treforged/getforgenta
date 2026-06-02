@@ -1199,7 +1199,9 @@ export default function Forecast() {
         startingCash,
         takeHome: Math.round(b.netIncome), totalExpenses: Math.round(totalMonthlyOut),
         debtPayment: Math.round(monthDebtPayment),
-        displayDebtPayment: i === 0 && currentMonthRecommendedDebt !== null ? currentMonthRecommendedDebt.safeToPayTotal : undefined,
+        displayDebtPayment: i === 0
+          ? (cardProjectionData?.month0?.safeToPayTotal ?? (currentMonthRecommendedDebt?.safeToPayTotal ?? undefined))
+          : undefined,
         plannedDebtPayment: cardProjectionData?.allPaymentTotals?.[i] ?? Math.round(monthDebtPayment),
 
         brokerageContrib: Math.round(xferBrokerageAmt),
@@ -1968,11 +1970,11 @@ export default function Forecast() {
                     // Dashboard widget and Debt Payoff summary list). Months 1+ use simulation.
                     ...((() => {
                       const fallback = [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
-                      // Month 0: use engine per-card amounts from currentMonthRecommendedDebt
-                      if (absoluteI === 0 && currentMonthRecommendedDebt?.recommendations) {
-                        const engineRecs = currentMonthRecommendedDebt.recommendations.filter(r => r.payment > 0);
+                      // Month 0: use pass-3 per-card amounts (same source as Debt Payoff tab)
+                      if (absoluteI === 0 && cardProjectionData?.month0?.perCardAdjusted) {
+                        const engineRecs = cardProjectionData.month0.perCardAdjusted.filter(r => r.payment > 0);
                         if (engineRecs.length > 0) {
-                          return engineRecs.map(r => ({ label: `  ${r.cardName}`, value: formatCurrency(r.payment, false), op: '−' as const }));
+                          return engineRecs.map(r => ({ label: `  ${r.name}`, value: formatCurrency(r.payment, false), op: '−' as const }));
                         }
                         return fallback;
                       }

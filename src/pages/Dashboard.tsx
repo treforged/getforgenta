@@ -591,11 +591,9 @@ export default function Dashboard() {
       }
     }
 
-    const monthMinSafe = cardProjection?.month0?.m0SafeFloor != null
-      ? Math.max(cardProjection.month0.m0SafeFloor, prePaycheckBillsTotal)
-      : Math.max(cashFloor, prePaycheckBillsTotal);
+    const monthMinSafe = Math.max(cashFloor, prePaycheckBillsTotal);
     return { monthMinSafe, floorItems, prePaycheckBillsTotal };
-  }, [prePaycheckBills, carFunds, cardProjection, cashFloor]);
+  }, [prePaycheckBills, carFunds, cashFloor]);
 
   const fundingBalance = useMemo(() => {
     const fundAcct = accounts.find((a: any) => a.id === fundingAccountId);
@@ -628,10 +626,10 @@ export default function Dashboard() {
       const card = simCards.find(c => c.id === item.id);
       let reason = '';
       let isMinimumOnly = false;
-      if (card?.autopayFullBalance) {
-        reason = 'Autopay Full Balance';
-      } else if (card && card.balance <= 0) {
-        reason = card.paymentPreference === 'statement' ? 'Statement balance' : 'Full balance';
+      if (card?.autopayFullBalance || (card && card.balance <= 0)) {
+        if (card?.paymentPreference === 'statement') reason = 'Statement balance';
+        else if (card?.paymentPreference === 'full') reason = 'Full balance';
+        else reason = 'Autopay Full Balance';
       } else {
         const min = Math.min(card?.minPayment ?? 0, card?.balance ?? 0);
         isMinimumOnly = item.payment <= min + 0.01;

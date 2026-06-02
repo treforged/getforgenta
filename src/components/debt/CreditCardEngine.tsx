@@ -719,10 +719,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       const card = cards.find(c => c.id === item.id);
       let reason = '';
       let isMinimumOnly = false;
-      if (card?.autopayFullBalance) {
-        reason = 'Autopay Full Balance';
-      } else if (card && card.balance <= 0) {
-        reason = card.paymentPreference === 'statement' ? 'Statement balance' : 'Full balance';
+      if (card?.autopayFullBalance || (card && card.balance <= 0)) {
+        // Cycling / zero-balance card — show preference-aware label
+        if (card?.paymentPreference === 'statement') reason = 'Statement balance';
+        else if (card?.paymentPreference === 'full') reason = 'Full balance';
+        else reason = 'Autopay Full Balance';
       } else {
         const min = Math.min(card?.minPayment ?? 0, card?.balance ?? 0);
         isMinimumOnly = item.payment <= min + 0.01;
@@ -747,21 +748,23 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [month0, cards, strategy]);
 
   const projections: CardProjection[] = useMemo(() => {
-    // All months including month 0 use the Forecast pass-3 simulation (perCardPaymentsScaled)
-    // when available — it accounts for variable income, paycheck dates, save-up reserves,
-    // bonuses, and tax returns. Falls back to local variableSim when Forecast data is absent.
+    // Month 0: use pass-3 constrained amount (matches "Recommended This Month" panel).
+    // Months 1-35: use unscaled sim amounts so the payoff trajectory reflects what the
+    // simulation actually pays — avoids the chart showing cards stuck near-zero when
+    // pass-3 scaling reduces Discover's payments due to cycling-card cost reallocation.
     const baseProjs = cards.map(c => {
       const cardOverrides = overrides[c.id] || {};
       const cardPurchases = variableSim.augmentedCCPurchases.map(
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
-        const forecastPays = perCardPaymentsScaled?.find(p => p.id === c.id)?.payments;
+        const forecastPays = perCardPayments?.find(p => p.id === c.id)?.payments;
         const localPays = variableSim.monthlyPayments.get(c.id) ?? [];
         const basePays = forecastPays ?? localPays;
+        const m0Pay = month0?.perCardAdjusted?.find(x => x.id === c.id)?.payment ?? basePays[0] ?? 0;
         const payments = basePays.map((p, i) => {
           if (cardOverrides[i] !== undefined) return cardOverrides[i];
-          return p;
+          return i === 0 ? m0Pay : p;
         });
         return projectCardVariable(c, payments, 36, true, cardPurchases);
       }
@@ -773,7 +776,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, perCardPaymentsScaled]);
+  }, [cards, paymentMode, variableSim, overrides, perCardPayments, month0]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
@@ -812,6 +815,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }
       return { threshold, month: null };
     });
+  }, [cards, projections]);
+
+  const interestAvoided = useMemo(() => {
+    const recommendedInterest = projections.reduce((s, p) => s + p.totalInterest, 0);
+    const minInterest = cards.reduce((s, c) => {
+      if (c.balance <= 0) return s;
+      const minPays = Array.from({ length: 36 }, () => c.minPayment);
+      return s + projectCardVariable(c, minPays, 36, false).totalInterest;
+    }, 0);
+    return Math.max(0, minInterest - recommendedInterest);
   }, [cards, projections]);
 
   const totalBalance = cards.reduce((s, c) => s + c.balance, 0);
@@ -1196,23 +1209,24 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[320px] text-xs">
-                <p className="font-semibold mb-1">Safe to Pay (remaining this month):</p>
+              <TooltipContent side="bottom" className="max-w-[340px] text-xs">
+                <p className="font-semibold mb-1">Safe to Pay — how it's calculated:</p>
                 <div className="space-y-0.5">
-                  <div className="flex justify-between gap-3"><span>Est. Liquid Cash (net of expenses)</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
-                  <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(month0?.m0SafeFloor ?? recommendedSafeMinimum, false)}</span></div>
+                  {(month0?.cyclingPayment ?? 0) > 0 && (
+                    <div className="flex justify-between gap-3"><span>Cycling cards (statement/full)</span><span>{formatCurrency(month0!.cyclingPayment, false)}</span></div>
+                  )}
+                  {(month0?.revolvingPayment ?? 0) > 0 && (
+                    <div className="flex justify-between gap-3"><span>Revolving debt payments</span><span>{formatCurrency(month0!.revolvingPayment, false)}</span></div>
+                  )}
                   <hr className="my-1 border-border/50" />
                   <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</span></div>
                   {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
                     <div className="flex justify-between gap-3 text-amber-400 text-[10px] mt-1">
-                      <span>Forecast reserves {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
+                      <span>Holdback: {formatCurrency(month0.holdback, false)} reserved for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
                     </div>
                   )}
                 </div>
-                <p className="text-muted-foreground mt-2">Safe to Pay is the amount available for CC payments this month after reserving the cash floor. Expenses are already netted into Est. Liquid Cash.</p>
-                {perCardPaymentsScaled && (
-                  <p className="text-muted-foreground mt-1">Month 0 amounts match the Dashboard recommendation. Months 1–35 use the Forecast simulation — it accounts for your actual paycheck schedule, income growth, bonuses, and tax returns for maximum accuracy.</p>
-                )}
+                <p className="text-muted-foreground mt-2">Computed by the Forecast engine using your paycheck schedule, floor ({formatCurrency(month0?.m0SafeFloor ?? recommendedSafeMinimum, false)}), savings goals, and upcoming bills. Save-up months reserve additional cash, reducing the amount available for debt.</p>
               </TooltipContent>
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
@@ -1221,7 +1235,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
             <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Interest Avoided</p>
-              <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(0, true)}</p>
+              <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(interestAvoided, true)}</p>
             </div>
           </div>
 
