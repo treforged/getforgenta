@@ -254,7 +254,7 @@ export default function Forecast() {
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
       const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal);
       const safeToPayTotal = breakdown.totalAvailableCash;
-      const autopayTotal = breakdown.autopayTotal;
+      const autopayTotal = Math.max(0, breakdown.totalRecommended - safeToPayTotal);
       return { safeToPayTotal, autopayTotal };
     } catch { return null; }
   }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings]);
