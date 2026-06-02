@@ -234,16 +234,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
     const interest = (card.paymentPreference === 'statement' && inGrace)
       ? 0
       : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
-    // Preference cards attempt their full desired amount regardless of targetPayment.
-    // Full-balance: pay everything (balance + new purchases + interest).
-    // Statement-balance: pay carried balance + interest only (no new purchases this cycle).
-    // Revolving (null): capped by targetPayment as before.
-    const payment = bal <= 0 ? 0
-      : card.paymentPreference === 'full'
-      ? bal + newPurchases + interest
-      : card.paymentPreference === 'statement'
-      ? Math.max(0, bal + interest)
-      : Math.min(card.targetPayment, bal + newPurchases + interest);
+    const payment = bal <= 0 ? 0 : Math.min(card.targetPayment, bal + newPurchases + interest);
     if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
     bal = startBal + newPurchases + interest - payment;
     totalInterest += interest;
@@ -262,11 +253,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   return {
     card, months: rows, payoffMonth, totalInterest: Math.round(totalInterest),
     projectedInterestThisMonth: rows[0]?.interest || 0,
-    recommendedPayment: card.paymentPreference === 'full'
-      ? Math.max(0, card.balance) + card.monthlyNewPurchases
-      : card.paymentPreference === 'statement'
-      ? card.balance > 0 ? Math.max(0, card.balance) : card.monthlyNewPurchases
-      : (card.autopayFullBalance && card.balance <= 0) ? card.monthlyNewPurchases : card.targetPayment,
+    recommendedPayment: (card.autopayFullBalance && card.balance <= 0) ? card.monthlyNewPurchases : card.targetPayment,
     utilizationNow: card.creditLimit > 0 ? (card.balance / card.creditLimit) * 100 : 0,
   };
 }
@@ -880,11 +867,8 @@ export function generateRecommendations(
   monthlySavingsAndCar?: number,
   syncCutoffDate?: string,
 ): RecommendationSummary {
-  // Preference cards: zero-balance autopay cards AND positive-balance full/statement cards.
-  // Positive-balance preference cards are allocated their full/statement desired payment
-  // FIRST (matching simulateVariablePayoff Step 5b behavior) before revolving cards get surplus.
-  const preferenceCards = cards.filter(c => c.autopayFullBalance || c.paymentPreference !== null);
-  const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.paymentPreference === null && c.balance > 0);
+  const preferenceCards = cards.filter(c => c.autopayFullBalance); // balance <= 0 already encoded
+  const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
 
   const totalMinDue = revolvingCards.reduce((s, c) => s + c.minPayment, 0);
 
@@ -895,7 +879,7 @@ export function generateRecommendations(
   const effectiveFundingBalance = fundingBalance ?? liquidCash;
 
   const effectivePrimaryDueDay = primaryDueDay ?? (() => {
-    const revolving = cards.filter(c => !c.autopayFullBalance && c.paymentPreference === null && c.balance > 0);
+    const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
     if (revolving.length === 0) return 31;
     const dueDays = revolving.map(c => c.dueDay || 31);
     return Math.min(...dueDays);
@@ -939,17 +923,9 @@ export function generateRecommendations(
   const preferenceRecs: PayoffRecommendation[] = [];
 
   for (const card of preferenceCards) {
-    // Zero-balance autopay cards (balance <= 0, paymentPreference = null): just pay new purchases.
-    // Full-balance with existing debt: pay entire balance + new purchases.
-    // Statement-balance with existing debt: pay carried balance only (restore grace period).
-    // Statement/full with zero balance: pay new purchases (same as autopay cycling).
     const desired = card.paymentPreference === 'full'
       ? Math.max(0, card.balance) + card.monthlyNewPurchases
-      : card.paymentPreference === 'statement'
-      ? card.balance > 0
-        ? Math.max(0, card.balance)         // pay statement to restore grace
-        : card.monthlyNewPurchases          // already at zero — pay this cycle's charges
-      : card.monthlyNewPurchases;           // null-pref autopay card
+      : card.monthlyNewPurchases;
     const actual = Math.round(Math.min(desired, preferencePool) * 100) / 100;
     preferencePool -= actual;
     autopayTotal += actual;
