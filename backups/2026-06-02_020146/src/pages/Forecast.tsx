@@ -256,7 +256,7 @@ export default function Forecast() {
       const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate);
       const safeToPayTotal = breakdown.totalRecommended;
       const autopayTotal = 0;
-      return { safeToPayTotal, autopayTotal, recommendations: breakdown.recommendations };
+      return { safeToPayTotal, autopayTotal };
     } catch { return null; }
   }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate]);
 
@@ -1964,27 +1964,21 @@ export default function Forecast() {
                       ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
                       : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
                     { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
-                    // Per-card breakdown: month 0 uses engine recommendations (same source as
-                    // Dashboard widget and Debt Payoff summary list). Months 1+ use simulation.
+                    // Per-card breakdown: uses pass-3-constrained amounts from useCardProjection
+                    // so Forecast tooltip and Debt Payoff dropdown are guaranteed to match.
                     ...((() => {
-                      const fallback = [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
-                      // Month 0: use engine per-card amounts from currentMonthRecommendedDebt
-                      if (absoluteI === 0 && currentMonthRecommendedDebt?.recommendations) {
-                        const engineRecs = currentMonthRecommendedDebt.recommendations.filter(r => r.payment > 0);
-                        if (engineRecs.length > 0) {
-                          return engineRecs.map(r => ({ label: `  ${r.cardName}`, value: formatCurrency(r.payment, false), op: '−' as const }));
-                        }
-                        return fallback;
-                      }
-                      // Months 1+: use simulation amounts
                       const perCard = cardProjectionData?.perCardPaymentsScaled ?? cardProjectionData?.perCardPayments;
+                      const fallback = [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
                       if (!perCard) return fallback;
                       const filtered = perCard.filter(c => (c.payments[absoluteI] ?? 0) > 0);
                       if (filtered.length === 0) return fallback;
+
                       const lines: { label: string; value: string; op: '−' }[] = [];
                       for (const c of filtered) {
                         const displayAmt = c.payments[absoluteI] ?? 0;
-                        if (displayAmt > 0) lines.push({ label: `  ${c.name}`, value: formatCurrency(displayAmt, false), op: '−' as const });
+                        if (displayAmt > 0) {
+                          lines.push({ label: `  ${c.name}`, value: formatCurrency(displayAmt, false), op: '−' as const });
+                        }
                       }
                       return lines.length > 0 ? lines : fallback;
                     })()),
