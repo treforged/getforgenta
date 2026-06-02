@@ -749,19 +749,20 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   const projections: CardProjection[] = useMemo(() => {
     // Month 0: use pass-3 constrained amount (matches "Recommended This Month" panel).
-    // Months 1-35: use LOCAL variableSim payments (not Forecast perCardPayments) so the
-    // payoff trajectory reflects the debt-only cash model. The Forecast sim inflates monthly
-    // expenses with savings goals and investment transfers, leaving Discover with minimum-only
-    // payments. The local sim excludes those and shows the true debt payoff trajectory.
+    // Months 1-35: use unscaled sim amounts so the payoff trajectory reflects what the
+    // simulation actually pays — avoids the chart showing cards stuck near-zero when
+    // pass-3 scaling reduces Discover's payments due to cycling-card cost reallocation.
     const baseProjs = cards.map(c => {
       const cardOverrides = overrides[c.id] || {};
       const cardPurchases = variableSim.augmentedCCPurchases.map(
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
+        const forecastPays = perCardPayments?.find(p => p.id === c.id)?.payments;
         const localPays = variableSim.monthlyPayments.get(c.id) ?? [];
-        const m0Pay = month0?.perCardAdjusted?.find(x => x.id === c.id)?.payment ?? localPays[0] ?? 0;
-        const payments = localPays.map((p, i) => {
+        const basePays = forecastPays ?? localPays;
+        const m0Pay = month0?.perCardAdjusted?.find(x => x.id === c.id)?.payment ?? basePays[0] ?? 0;
+        const payments = basePays.map((p, i) => {
           if (cardOverrides[i] !== undefined) return cardOverrides[i];
           return i === 0 ? m0Pay : p;
         });
@@ -775,7 +776,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, month0]);
+  }, [cards, paymentMode, variableSim, overrides, perCardPayments, month0]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
