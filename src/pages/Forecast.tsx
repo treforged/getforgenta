@@ -215,9 +215,10 @@ export default function Forecast() {
   );
 
   // Current-month debt breakdown — pins forecast month 0 to the same calc as Debt Payoff + Dashboard.
-  // Returns safeToPayTotal (revolving pool) + autopayTotal (preference card pass-throughs) separately:
-  // rawDebtPayment uses safeToPayTotal (matches Safe to Pay / Available to Deploy),
-  // autopayTotal is folded into baseExpenses so the cash model still deducts the full CC outflow.
+  // safeToPayTotal = totalRecommended (sum of all card payments) = rawDebtPayment for month 0.
+  // autopayTotal is kept at 0 here since it's already included in totalRecommended — the loop
+  // previously added it separately causing double-counting after totalAvailableCash was changed
+  // to represent the actual recommended payment rather than the pre-autopay pool.
   const currentMonthRecommendedDebt = useMemo(() => {
     try {
       const allTxns = mergeWithGeneratedTransactions(transactions, rules, accounts);
@@ -253,8 +254,8 @@ export default function Forecast() {
       }, 0);
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
       const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal);
-      const safeToPayTotal = breakdown.totalAvailableCash;
-      const autopayTotal = breakdown.autopayTotal;
+      const safeToPayTotal = breakdown.totalRecommended;
+      const autopayTotal = 0;
       return { safeToPayTotal, autopayTotal };
     } catch { return null; }
   }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings]);

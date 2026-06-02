@@ -1046,11 +1046,14 @@ export function generateRecommendations(
     return { threshold: t, month: null };
   });
 
+  const filteredRecs = recs.filter(r => r.payment > 0);
+  const totalRecommendedPayment = filteredRecs.reduce((s, r) => s + r.payment, 0);
+
   return {
-    totalAvailableCash: availableAboveFloor,
+    totalAvailableCash: totalRecommendedPayment,
     totalMinimumsdue: totalMinDue,
-    extraCashAvailable: Math.max(0, availableAboveFloor - totalMinDue),
-    recommendations: recs.filter(r => r.payment > 0),
+    extraCashAvailable: Math.max(0, safeToPayTotal - totalMinDue),
+    recommendations: filteredRecs,
     interestAvoided: Math.round((interestMinOnly - interestWithRecs) * 100) / 100,
     projectedPayoffMonths,
     utilizationMilestones: milestones,
