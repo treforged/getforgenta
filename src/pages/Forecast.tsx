@@ -253,12 +253,12 @@ export default function Forecast() {
         return s + Math.min(rem / monthsToGoal, rem);
       }, 0);
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
-      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal);
+      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate);
       const safeToPayTotal = breakdown.totalRecommended;
       const autopayTotal = 0;
       return { safeToPayTotal, autopayTotal };
     } catch { return null; }
-  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings]);
+  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate]);
 
   // ── Shared CC-filtered month events ─────────────────────────────────────────
   // Excludes CC-tagged expense rules from cash expenses so the main projections
