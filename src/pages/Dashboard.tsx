@@ -36,12 +36,11 @@ import {
   getRemainingTransactionDebtPaymentsThisMonth,
   mergeWithGeneratedTransactions,
   generateCurrentMonthTransactionsFromRules,
-  generateMonthTransactionsFromRules,
   createDebtPaymentTransactions,
   mergeDebtPaymentsIntoStream,
   getPaychecksInMonth,
 } from '@/lib/pay-schedule';
-import { buildCardData, generateRecommendations, getMonthlyDebtBreakdown, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
+import { buildCardData, getMonthlyDebtBreakdown, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
 import { useCardProjection } from '@/hooks/useCardProjection';
 import { getTotalCarLoanMonthly, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import {
@@ -592,7 +591,10 @@ export default function Dashboard() {
       }
     }
 
-    return { monthMinSafe: Math.max(cashFloor, prePaycheckBillsTotal), floorItems, prePaycheckBillsTotal };
+    const monthMinSafe = cardProjection?.month0?.m0SafeFloor != null
+      ? Math.max(cardProjection.month0.m0SafeFloor, prePaycheckBillsTotal)
+      : Math.max(cashFloor, prePaycheckBillsTotal);
+    return { monthMinSafe, floorItems, prePaycheckBillsTotal };
   }, [prePaycheckBills, carFunds, cardProjection, cashFloor]);
 
   const fundingBalance = useMemo(() => {
@@ -606,45 +608,50 @@ export default function Dashboard() {
     [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt],
   );
 
-  // Debt recommendations for Dashboard widget — uses syncCutoffDate, allTransactionsWithNextMonth,
-  // and the augmented floor (forecastFloor0.monthMinSafe) to match Debt Payoff tab's computation.
+  // Debt recommendations for Dashboard widget — driven by useCardProjection pass-3 (month0)
+  // so floor, save-up reserves, income timing, and goals all match the Debt Payoff tab exactly.
   const dashboardDebtRecs = useMemo<MonthlyDebtBreakdown>(() => {
-    if (!debtCards.length) {
-      return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, autopayTotal: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
+    const m0 = cardProjection?.month0;
+    const simCards = cardProjection?.simCards ?? [];
+    const strategyLabel = debtStrategy === 'avalanche' ? 'Avalanche' : 'Snowball';
+    if (!debtCards.length || !m0) {
+      return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, autopayTotal: 0, strategyLabel, cashWarning: false, interestAvoided: 0 };
     }
-    const now = new Date();
-    const today = now.getDate();
-    const hasEarlyDueCard = debtCards.some(c => !c.autopayFullBalance && c.balance > 0 && (c.dueDay || 31) < today);
-    const txns = hasEarlyDueCard ? (() => {
-      const nextYear = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-      const nextMonth = (now.getMonth() + 1) % 12;
-      return [...baseTxns, ...generateMonthTransactionsFromRules(rules, accounts, nextYear, nextMonth)];
-    })() : baseTxns;
-    const revolving = debtCards.filter(c => !c.autopayFullBalance && c.balance > 0);
-    const primaryDueDay = revolving.length > 0 ? Math.min(...revolving.map(c => c.dueDay || 31)) : 31;
-    const liquidCash = accounts.filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const summary = generateRecommendations(
-      debtCards, liquidCash, cashFloor, debtStrategy, getMonthlyNetIncome(payConfig), 0,
-      'variable', payConfig, rules, fundingAccountId,
-      forecastFloor0.monthMinSafe, fundingBalance,
-      undefined, undefined, txns, primaryDueDay, monthlySavingsAndCar,
-      syncCutoffDate,
-    );
-    return {
-      recommendations: summary.recommendations.map(r => ({
-        cardId: r.cardId, cardName: r.cardName, color: r.color,
-        payment: r.payment, dueDay: r.dueDay || null,
-        reason: r.reason, isMinimumOnly: r.isMinimumOnly,
-      })),
-      totalMinimumsDue: summary.totalMinimumsdue,
-      totalRecommended: summary.recommendations.reduce((s, r) => s + r.payment, 0),
-      totalAvailableCash: summary.totalAvailableCash,
-      autopayTotal: summary.breakdown.autopayTotal,
-      strategyLabel: summary.strategyLabel,
-      cashWarning: summary.cashWarning,
-      interestAvoided: summary.interestAvoided,
-    };
-  }, [debtCards, accounts, fundingAccountId, payConfig, cashFloor, debtStrategy, forecastFloor0, baseTxns, rules, monthlySavingsAndCar, syncCutoffDate, fundingBalance]);
+    const totalAvailableCash = m0.safeToPayTotal;
+    const totalMinimumsDue = simCards
+      .filter(c => !c.autopayFullBalance && c.balance > 0)
+      .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
+    const autopayTotal = simCards
+      .filter(c => c.autopayFullBalance)
+      .reduce((s, c) => s + c.monthlyNewPurchases, 0);
+    const recommendations = m0.perCardAdjusted.map(item => {
+      const card = simCards.find(c => c.id === item.id);
+      let reason = '';
+      let isMinimumOnly = false;
+      if (card?.autopayFullBalance) {
+        reason = 'Autopay Full Balance';
+      } else if (card && card.balance <= 0) {
+        reason = card.paymentPreference === 'statement' ? 'Statement balance' : 'Full balance';
+      } else {
+        const min = Math.min(card?.minPayment ?? 0, card?.balance ?? 0);
+        isMinimumOnly = item.payment <= min + 0.01;
+        reason = isMinimumOnly
+          ? 'Minimum payment'
+          : debtStrategy === 'avalanche'
+            ? 'Avalanche priority'
+            : 'Snowball priority';
+      }
+      return {
+        cardId: item.id, cardName: item.name,
+        color: card?.color ?? '#888',
+        payment: item.payment, dueDay: card?.dueDay ?? null,
+        reason, isMinimumOnly,
+      };
+    });
+    const totalRecommended = recommendations.reduce((s, r) => s + r.payment, 0);
+    const cashWarning = totalAvailableCash < totalMinimumsDue;
+    return { recommendations, totalMinimumsDue, totalRecommended, totalAvailableCash, autopayTotal, strategyLabel, cashWarning, interestAvoided: 0 };
+  }, [cardProjection, debtCards, debtStrategy]);
 
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
 

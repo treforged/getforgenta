@@ -20,6 +20,7 @@ export interface Month0Result {
   cyclingPayment: number;
   revolvingPayment: number;
   perCardAdjusted: { id: string; name: string; payment: number; maxPayment: number }[];
+  m0SafeFloor: number;
 }
 
 export interface CardProjectionResult {
@@ -732,6 +733,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           cyclingPayment: Math.round(cyclingPayment),
           revolvingPayment: Math.round(revolvingPayment),
           perCardAdjusted,
+          m0SafeFloor: Math.round(m0SafeFloor),
         },
       };
     } catch (e) {
