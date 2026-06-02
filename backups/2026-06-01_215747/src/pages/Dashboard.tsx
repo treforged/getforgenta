@@ -364,12 +364,10 @@ export default function Dashboard() {
     [accounts, baseTxns, rules, debts],
   );
 
-  const debtBreakdown = useMemo<MonthlyDebtBreakdown>(() => {
-    const cfInline = (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000;
-    const { total: ppBillsInline } = getPrePaycheckNextMonthBills(rules, payConfig, fundingAccountId);
-    const floorOverride = Math.max(cfInline, ppBillsInline);
-    return getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, floorOverride);
-  }, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, payConfig, fundingAccountId]);
+  const debtBreakdown = useMemo<MonthlyDebtBreakdown>(
+    () => getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar),
+    [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar],
+  );
 
   const debtPaymentTxns = useMemo(
     () => createDebtPaymentTransactions(debtBreakdown.recommendations, fundingAccountId),
@@ -610,7 +608,7 @@ export default function Dashboard() {
   // and the augmented floor (forecastFloor0.monthMinSafe) to match Debt Payoff tab's computation.
   const dashboardDebtRecs = useMemo<MonthlyDebtBreakdown>(() => {
     if (!debtCards.length) {
-      return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, autopayTotal: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
+      return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
     }
     const now = new Date();
     const today = now.getDate();
@@ -639,7 +637,6 @@ export default function Dashboard() {
       totalMinimumsDue: summary.totalMinimumsdue,
       totalRecommended: summary.recommendations.reduce((s, r) => s + r.payment, 0),
       totalAvailableCash: summary.totalAvailableCash,
-      autopayTotal: summary.breakdown.autopayTotal,
       strategyLabel: summary.strategyLabel,
       cashWarning: summary.cashWarning,
       interestAvoided: summary.interestAvoided,
