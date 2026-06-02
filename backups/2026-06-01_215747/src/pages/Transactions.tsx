@@ -134,6 +134,7 @@ export default function Transactions() {
         if (t.date < todayStr) return false;
         if (t.category === 'Debt Payments') return false;
         if (t.category === 'Balance Adjustment') return false;
+        if (t.payment_source && ccIds.has(t.payment_source)) return false;
         return true;
       })
       .reduce((s: number, t: any) => s + Number(t.amount), 0);

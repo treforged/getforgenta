@@ -888,12 +888,18 @@ export function generateRecommendations(
   let remainingTransactionIncome = 0;
   let remainingTransactionExpenses = 0;
 
+  // Match the same source filtering that CreditCardEngine.tsx uses for cashBreakdown:
+  // exclude CC charges (by payment_source) and CC-default-category items (no source).
+  const fundSources = fundingAccountId
+    ? new Set([fundingAccountId, `account:${fundingAccountId}`])
+    : new Set<string>();
+
   if (transactions && transactions.length > 0) {
-    // No source filter — count all expense transactions so the engine's cash pool
-    // matches estLiquidCash (fundBal + full-month income − full-month non-debt expenses).
+    // Use full month (31) for both income and expenses so Est. Liquid Cash matches
+    // Dashboard's Projected Remaining (fundBal + full-month income − full-month expenses).
     remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, 31, syncCutoffDate);
     remainingTransactionExpenses = getRemainingTransactionExpensesByDay(
-      transactions, 31, true, new Set(), new Set(), syncCutoffDate,
+      transactions, 31, true, fundSources, CC_DEFAULT_CATEGORIES, syncCutoffDate,
     );
   } else if (payConfig && rules) {
     remainingTransactionIncome = getRemainingIncomeByDay(payConfig, 31)
@@ -915,8 +921,10 @@ export function generateRecommendations(
 
   // Preference cards (statement/full) are allocated first, capped by cash above floor.
   // Subtract outflows (bank bills through due date) so upcoming expenses aren't ignored.
+  // Also subtract savings goals + car fund so Safe to Pay is net of those real outflows.
   const availableAboveFloor = Math.max(0,
     effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum
+    - (monthlySavingsAndCar ?? 0),
   );
   let preferencePool = availableAboveFloor;
   let autopayTotal = 0;
@@ -1047,9 +1055,9 @@ export function generateRecommendations(
   });
 
   return {
-    totalAvailableCash: availableAboveFloor,
+    totalAvailableCash: safeToPayTotal,
     totalMinimumsdue: totalMinDue,
-    extraCashAvailable: Math.max(0, availableAboveFloor - totalMinDue),
+    extraCashAvailable: Math.max(0, safeToPayTotal - totalMinDue),
     recommendations: recs.filter(r => r.payment > 0),
     interestAvoided: Math.round((interestMinOnly - interestWithRecs) * 100) / 100,
     projectedPayoffMonths,
@@ -1082,7 +1090,6 @@ export type MonthlyDebtBreakdown = {
   totalMinimumsDue: number;
   totalRecommended: number;
   totalAvailableCash: number;
-  autopayTotal: number;
   strategyLabel: string;
   cashWarning: boolean;
   interestAvoided: number;
@@ -1095,7 +1102,6 @@ function buildCurrentMonthRecommendationSummary(
   debts: any[],
   profile: any,
   monthlySavingsAndCar?: number,
-  safeMinimumOverride?: number,
 ): RecommendationSummary | null {
   if (!accounts || !transactions || !rules || !debts) return null;
   const cards = buildCardData(accounts, transactions, rules, debts);
@@ -1107,6 +1113,7 @@ function buildCurrentMonthRecommendationSummary(
   const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
   const pc = buildPayConfig(profile);
   const monthlyTakeHome = getMonthNetIncome(pc, new Date().getFullYear(), new Date().getMonth());
+  const ccPaymentSources = new Set(cards.flatMap((c: CardData) => [c.id, `account:${c.id}`]));
   const now0 = new Date();
   const monthlyExpenses = rules.filter((r: any) => {
     if (!r.active) return false;
@@ -1116,6 +1123,9 @@ function buildCurrentMonthRecommendationSummary(
       return true;
     }
     if (r.rule_type !== 'expense') return false;
+    if (ccPaymentSources.size === 0) return true;
+    if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
+    if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
     return true;
   }).reduce((s: number, r: any) => {
     const amt = Number(r.amount);
@@ -1144,7 +1154,7 @@ function buildCurrentMonthRecommendationSummary(
 
   return generateRecommendations(
     cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses,
-    'variable', pc, rules, fundingAccountId, safeMinimumOverride ?? ppBills, fundBal,
+    'variable', pc, rules, fundingAccountId, ppBills, fundBal,
     undefined, undefined, transactions, primaryDueDay, monthlySavingsAndCar,
   );
 }
@@ -1156,10 +1166,9 @@ export function getMonthlyDebtBreakdown(
   debts: any[],
   profile: any,
   monthlySavingsAndCar?: number,
-  safeMinimumOverride?: number,
 ): MonthlyDebtBreakdown {
-  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar, safeMinimumOverride);
-  if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, autopayTotal: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar);
+  if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
   return {
     recommendations: summary.recommendations.map(r => ({
       cardId: r.cardId,
@@ -1173,7 +1182,6 @@ export function getMonthlyDebtBreakdown(
     totalMinimumsDue: summary.totalMinimumsdue,
     totalRecommended: summary.recommendations.reduce((s, r) => s + r.payment, 0),
     totalAvailableCash: summary.totalAvailableCash,
-    autopayTotal: summary.breakdown.autopayTotal,
     strategyLabel: summary.strategyLabel,
     cashWarning: summary.cashWarning,
     interestAvoided: summary.interestAvoided,

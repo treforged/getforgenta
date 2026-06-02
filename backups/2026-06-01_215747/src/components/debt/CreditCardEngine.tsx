@@ -380,7 +380,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
     const month0Income = getRemainingTransactionIncomeByDay(allTransactions, 31, syncCutoffDate);
 
-    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true, new Set(), new Set(), syncCutoffDate);
+    // Use the same expense calculation as the recommendations panel so month 0 payments
+    // are consistent. getRemainingTransactionExpensesByDay excludes Debt Payments and
+    // Balance Adjustments but INCLUDES CC-tagged expenses — this matches estLiquidCash
+    // and keeps the simulation conservative (those CC charges will need paying next month).
+    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true, fundingAccountSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
 
     // CC account IDs used to exclude CC-charged one-time expenses from future cash-flow months.
     const ccIds = new Set(
@@ -1059,11 +1063,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </span>
           </div>
 
-          {recommendations.cashWarning && (
-            <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(recommendations.totalAvailableCash, false)}) is less than minimum payments due ({formatCurrency(recommendations.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
-            </div>
-          )}
+          {(() => {
+            const safeToPay = recommendations.totalAvailableCash;
+            return safeToPay < recommendations.totalMinimumsdue ? (
+              <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(safeToPay, false)}) is less than minimum payments due ({formatCurrency(recommendations.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
+              </div>
+            ) : null;
+          })()}
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3 sm:mb-4">
             <Tooltip open={liquidCashOpen} onOpenChange={setLiquidCashOpen}>
@@ -1168,6 +1175,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <div className="space-y-0.5">
                   <div className="flex justify-between gap-3"><span>Est. Liquid Cash (net of expenses)</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
                   <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
+                  {bd.autopayTotal > 0 && <div className="flex justify-between gap-3"><span>− Autopay Cards</span><span>{formatCurrency(bd.autopayTotal, false)}</span></div>}
                   <hr className="my-1 border-border/50" />
                   <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
                   {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
