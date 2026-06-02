@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
-  buildCardData, projectCard, projectCardVariable, generateRecommendations,
-  simulateVariablePayoff, CardData, CardProjection, RecommendationSummary, PayoffRecommendation, CC_DEFAULT_CATEGORIES,
+  buildCardData, projectCard, projectCardVariable,
+  simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES,
 } from '@/lib/credit-card-engine';
 import {
   buildPayConfig, getNormalizedMonthNetIncome, getPrePaycheckNextMonthBills, getMinSafeCash,
@@ -46,7 +46,7 @@ type Props = {
   taxReturnEnabled?: boolean;
   taxReturnAmountOverride?: number;
   taxReturnMonth?: number;
-  /** When provided, overrides recommendations.totalAvailableCash with the full-simulation result. */
+  /** Pass-3 simulation result — drives all month 0 recommendation display (payments, safe-to-pay, floor). */
   month0?: Month0Result | null;
   /** Full 36-month payment arrays from useCardProjection — when provided, projections use Forecast's sim instead of the internal variableSim. */
   perCardPayments?: { id: string; payments: number[] }[] | null;
@@ -707,43 +707,61 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return savingsTotal + carTotal + carLoanTotal;
   }, [goals, carFunds, accounts, rules, pauseSavings]);
 
-  const recommendations: RecommendationSummary = useMemo(
-    () => generateRecommendations(
-      cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyRecurringExpenses,
-      paymentMode, payConfig, rules, fundingAccountId,
-      // Pass the already-augmented safe minimum so the internal floor matches the display tile.
-      // Using allTransactionsWithNextMonth (includes next-month events when due date passed)
-      // and syncCutoffDate so income base matches estLiquidCash exactly.
-      recommendedSafeMinimum, fundingBalance,
-      undefined, undefined, allTransactionsWithNextMonth, primaryDueDay, monthlySavingsAndCar,
-      syncCutoffDate,
-    ),
-    [cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyRecurringExpenses, paymentMode, payConfig, rules, fundingAccountId, recommendedSafeMinimum, fundingBalance, allTransactionsWithNextMonth, primaryDueDay, monthlySavingsAndCar, syncCutoffDate],
-  );
+  const month0Recs = useMemo(() => {
+    const perCardAdj = month0?.perCardAdjusted ?? [];
+    const totalAvailableCash = month0?.safeToPayTotal ?? 0;
+    const strategyLabel = strategy === 'avalanche' ? 'Avalanche' : 'Snowball';
+    const totalMinimumsdue = cards
+      .filter(c => !c.autopayFullBalance && c.balance > 0)
+      .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
+    const cashWarning = totalAvailableCash < totalMinimumsdue;
+    const recs = perCardAdj.map(item => {
+      const card = cards.find(c => c.id === item.id);
+      let reason = '';
+      let isMinimumOnly = false;
+      if (card?.autopayFullBalance) {
+        reason = 'Autopay Full Balance';
+      } else if (card && card.balance <= 0) {
+        reason = card.paymentPreference === 'statement' ? 'Statement balance' : 'Full balance';
+      } else {
+        const min = Math.min(card?.minPayment ?? 0, card?.balance ?? 0);
+        isMinimumOnly = item.payment <= min + 0.01;
+        reason = isMinimumOnly
+          ? 'Minimum payment'
+          : strategy === 'avalanche'
+            ? 'Avalanche priority'
+            : 'Snowball priority';
+      }
+      return {
+        cardId: item.id,
+        cardName: item.name,
+        color: card?.color ?? '#888',
+        payment: item.payment,
+        maxPayment: item.maxPayment,
+        dueDay: card?.dueDay ?? null,
+        reason,
+        isMinimumOnly,
+      };
+    });
+    return { totalAvailableCash, totalMinimumsdue, cashWarning, strategyLabel, recs };
+  }, [month0, cards, strategy]);
 
   const projections: CardProjection[] = useMemo(() => {
-    // Month 0: engine recommendation — same source as Dashboard widget and summary list.
-    // Months 1+: Forecast simulation (perCardPaymentsScaled) when available — it accounts
-    // for variable income, actual paycheck dates, bonuses, and tax returns. Falls back to
-    // the local variableSim when the Forecast data isn't provided (standalone usage).
-    const engineRecMap = new Map(
-      recommendations.recommendations.map((r: PayoffRecommendation) => [r.cardId, r.payment])
-    );
-
+    // All months including month 0 use the Forecast pass-3 simulation (perCardPaymentsScaled)
+    // when available — it accounts for variable income, paycheck dates, save-up reserves,
+    // bonuses, and tax returns. Falls back to local variableSim when Forecast data is absent.
     const baseProjs = cards.map(c => {
       const cardOverrides = overrides[c.id] || {};
       const cardPurchases = variableSim.augmentedCCPurchases.map(
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
-        // Prefer perCardPaymentsScaled (Forecast sim) for months 1+; fall back to local sim.
         const forecastPays = perCardPaymentsScaled?.find(p => p.id === c.id)?.payments;
         const localPays = variableSim.monthlyPayments.get(c.id) ?? [];
         const basePays = forecastPays ?? localPays;
-        const engineMonth0 = engineRecMap.get(c.id) ?? basePays[0] ?? 0;
         const payments = basePays.map((p, i) => {
           if (cardOverrides[i] !== undefined) return cardOverrides[i];
-          return i === 0 ? engineMonth0 : p;
+          return p;
         });
         return projectCardVariable(c, payments, 36, true, cardPurchases);
       }
@@ -755,7 +773,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, recommendations, perCardPaymentsScaled]);
+  }, [cards, paymentMode, variableSim, overrides, perCardPaymentsScaled]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
@@ -783,6 +801,18 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       return row;
     });
   }, [projections]);
+
+  const utilizationMilestones = useMemo(() => {
+    const limit = cards.reduce((s, c) => s + (c.creditLimit ?? 0), 0);
+    if (limit === 0) return [];
+    return [25, 50, 75].map(threshold => {
+      for (let i = 0; i < 36; i++) {
+        const bal = projections.reduce((s, p) => s + (p.months[i]?.endBalance ?? 0), 0);
+        if (bal <= limit * threshold / 100) return { threshold, month: i };
+      }
+      return { threshold, month: null };
+    });
+  }, [cards, projections]);
 
   const totalBalance = cards.reduce((s, c) => s + c.balance, 0);
   const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
@@ -851,10 +881,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   // Reset & Recalculate: target ending cash ≈ recommended safe minimum
   const handleAutoAdjust = () => {
-    const totalRecPay = recommendations.recommendations
-      .filter(r => r.reason !== 'Autopay Full Balance')
-      .reduce((s, r) => s + r.payment, 0);
-    
+    const totalRecPay = (month0?.perCardAdjusted ?? []).reduce((s, r) => s + r.payment, 0);
     const currentEndingCash = liquidCash - totalRecPay;
     const surplus = currentEndingCash - recommendedSafeMinimum;
     
@@ -878,8 +905,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       </div>
     );
   }
-
-  const bd = recommendations.breakdown;
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -1060,16 +1085,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           <div className="flex items-center gap-2 mb-3 sm:mb-4 flex-wrap">
             <h3 className="text-[10px] sm:text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Recommended This Month</h3>
             <span className="text-[9px] sm:text-[10px] px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 font-medium" style={{ borderRadius: 'var(--radius)' }}>
-              {recommendations.strategyLabel}
+              {month0Recs.strategyLabel}
             </span>
             <span className="text-[9px] sm:text-[10px] px-2 py-0.5 bg-muted/30 text-muted-foreground border border-border font-medium" style={{ borderRadius: 'var(--radius)' }}>
               {paymentMode === 'variable' ? 'Variable' : 'Consistent'}
             </span>
           </div>
 
-          {recommendations.cashWarning && (
+          {month0Recs.cashWarning && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(recommendations.totalAvailableCash, false)}) is less than minimum payments due ({formatCurrency(recommendations.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
+              <AlertTriangle size={14} className="shrink-0 mt-0.5" /> <span>Safe to Pay ({formatCurrency(month0Recs.totalAvailableCash, false)}) is less than minimum payments due ({formatCurrency(month0Recs.totalMinimumsdue, false)}). Not all minimums can be covered. Review cash flow urgently.</span>
             </div>
           )}
 
@@ -1167,7 +1192,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setSafeToPayOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
-                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</p>
+                  <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</p>
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
@@ -1175,9 +1200,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <p className="font-semibold mb-1">Safe to Pay (remaining this month):</p>
                 <div className="space-y-0.5">
                   <div className="flex justify-between gap-3"><span>Est. Liquid Cash (net of expenses)</span><span>{formatCurrency(estLiquidCash, false)}</span></div>
-                  <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(bd.safeMinimum, false)}</span></div>
+                  <div className="flex justify-between gap-3"><span>− Safe Minimum</span><span>{formatCurrency(month0?.m0SafeFloor ?? recommendedSafeMinimum, false)}</span></div>
                   <hr className="my-1 border-border/50" />
-                  <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(recommendations.totalAvailableCash, false)}</span></div>
+                  <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</span></div>
                   {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
                     <div className="flex justify-between gap-3 text-amber-400 text-[10px] mt-1">
                       <span>Forecast reserves {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
@@ -1192,11 +1217,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Minimums Due</p>
-              <p className="text-xs sm:text-sm font-display font-bold text-destructive">{formatCurrency(recommendations.totalMinimumsdue, false)}</p>
+              <p className="text-xs sm:text-sm font-display font-bold text-destructive">{formatCurrency(month0Recs.totalMinimumsdue, false)}</p>
             </div>
             <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Interest Avoided</p>
-              <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(recommendations.interestAvoided, true)}</p>
+              <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(0, true)}</p>
             </div>
           </div>
 
@@ -1208,11 +1233,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           )}
 
           <div className="space-y-2">
-            {recommendations.recommendations.map(r => {
-              const adj = month0?.perCardAdjusted?.find(x => x.id === r.cardId);
-              const card = cards.find(c => c.id === r.cardId);
-              const isCycling = card?.autopayFullBalance ?? false;
-              const hasHoldbackCap = month0 != null && month0.holdback > 0 && adj != null && !isCycling && adj.payment < r.payment;
+            {month0Recs.recs.map(r => {
+              const hasHoldbackCap = (month0?.holdback ?? 0) > 0 && r.maxPayment > r.payment + 0.01;
               return (
                 <div key={r.cardId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 flex-wrap gap-1" style={{ borderRadius: 'var(--radius)' }}>
                   <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
@@ -1237,11 +1259,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-[9px] sm:text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5 cursor-pointer" style={{ borderRadius: 'var(--radius)' }}>
-                            cap {formatCurrency(adj!.payment, false)}
+                            max {formatCurrency(r.maxPayment, false)}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-[260px] text-xs">
-                          Forecast suggests capping this payment at {formatCurrency(adj!.payment, false)} to reserve {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}).
+                          Forecast reserved {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}), capping this from {formatCurrency(r.maxPayment, false)} to {formatCurrency(r.payment, false)}.
                         </TooltipContent>
                       </Tooltip>
                     )}
@@ -1252,9 +1274,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             })}
           </div>
 
-          {recommendations.utilizationMilestones.length > 0 && (
+          {utilizationMilestones.length > 0 && (
             <div className="mt-3 sm:mt-4 flex flex-wrap gap-2 sm:gap-3">
-              {recommendations.utilizationMilestones.map(m => (
+              {utilizationMilestones.map(m => (
                 <span key={m.threshold} className="text-[9px] sm:text-[10px] px-2 py-1 bg-muted/30 border border-border text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
                   Below {m.threshold}% util: {m.month !== null ? `~${m.month} months` : 'N/A'}
                 </span>
