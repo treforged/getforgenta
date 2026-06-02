@@ -592,8 +592,16 @@ export function simulateVariablePayoff(
       .reduce((s, c) => s + c.minPayment, 0);
     let paidOffPool = Math.max(0, tentativeAvailAboveFloor - reservedForRevolving);
     let paidOffCashCost = 0;
-    for (const card of cards) {
-      if (!paidOffCards.has(card.id)) continue;
+    // Pay cycling cards in strategy order so highest-APR (avalanche) or lowest-balance
+    // (snowball) card claims from the pool first when it runs short.
+    const paidOffOrder = [...cards]
+      .filter(c => paidOffCards.has(c.id))
+      .sort((a, b) =>
+        strategy === 'avalanche'
+          ? b.apr - a.apr
+          : (paidOffDeferredPurchases.get(a.id) ?? 0) - (paidOffDeferredPurchases.get(b.id) ?? 0)
+      );
+    for (const card of paidOffOrder) {
       // Pay PREVIOUS month's deferred charges (billing cycle delay).
       const purchases = paidOffDeferredPurchases.get(card.id) ?? 0;
       const pay = Math.round(Math.min(purchases, paidOffPool) * 100) / 100;
@@ -781,6 +789,20 @@ export function simulateVariablePayoff(
       // first paidOff month pays monthlyNewPurchases instead of $0 (billing-delay artifact).
       if (finalBal === 0 && !paidOffCards.has(card.id)) {
         paidOffDeferredPurchases.set(card.id, cardPurchasesThisMonth(card));
+      }
+
+      // Statement-preference cards never hit finalBal === 0 while carrying revolving debt
+      // (end balance = purchases > 0). Transition them to paidOffCards when the remaining
+      // balance equals only the recurring purchases — i.e., revolving debt is gone.
+      if (
+        card.paymentPreference === 'statement' &&
+        !paidOffCards.has(card.id) &&
+        finalBal > 0 &&
+        finalBal <= cardPurchasesThisMonth(card) + 0.01
+      ) {
+        paidOffCards.add(card.id);
+        paidOffDeferredPurchases.set(card.id, cardPurchasesThisMonth(card));
+        balances.set(card.id, 0);
       }
 
       // Update grace state: grace applies next month if this month's payment covered
