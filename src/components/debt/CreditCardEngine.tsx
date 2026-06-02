@@ -722,24 +722,24 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   );
 
   const projections: CardProjection[] = useMemo(() => {
-    // Build a lookup from card ID to engine recommendation for month 0.
-    // This ensures the per-card dropdown shows the same payment as the recommendation
-    // summary list and the Dashboard widget (all three use generateRecommendations).
+    // Month 0: engine recommendation — same source as Dashboard widget and summary list.
+    // Months 1+: Forecast simulation (perCardPaymentsScaled) when available — it accounts
+    // for variable income, actual paycheck dates, bonuses, and tax returns. Falls back to
+    // the local variableSim when the Forecast data isn't provided (standalone usage).
     const engineRecMap = new Map(
       recommendations.recommendations.map((r: PayoffRecommendation) => [r.cardId, r.payment])
     );
 
     const baseProjs = cards.map(c => {
       const cardOverrides = overrides[c.id] || {};
-      // Per-month purchases for this card from the augmented sim data.
-      // Index matches projectCardVariable's purchasesPerMonth param: index 0 = month 1.
       const cardPurchases = variableSim.augmentedCCPurchases.map(
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
-        const basePays = variableSim.monthlyPayments.get(c.id) ?? [];
-        // Month 0: use engine recommendation so dropdown matches Dashboard/summary list.
-        // Months 1+: use simulation stream so the balance trajectory remains consistent.
+        // Prefer perCardPaymentsScaled (Forecast sim) for months 1+; fall back to local sim.
+        const forecastPays = perCardPaymentsScaled?.find(p => p.id === c.id)?.payments;
+        const localPays = variableSim.monthlyPayments.get(c.id) ?? [];
+        const basePays = forecastPays ?? localPays;
         const engineMonth0 = engineRecMap.get(c.id) ?? basePays[0] ?? 0;
         const payments = basePays.map((p, i) => {
           if (cardOverrides[i] !== undefined) return cardOverrides[i];
@@ -755,7 +755,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, recommendations]);
+  }, [cards, paymentMode, variableSim, overrides, recommendations, perCardPaymentsScaled]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
@@ -1184,7 +1184,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     </div>
                   )}
                 </div>
-                <p className="text-muted-foreground mt-2">Safe to Pay is the amount available for CC payments this month after reserving the cash floor and any future event holdbacks. Expenses are already netted into Est. Liquid Cash.</p>
+                <p className="text-muted-foreground mt-2">Safe to Pay is the amount available for CC payments this month after reserving the cash floor. Expenses are already netted into Est. Liquid Cash.</p>
+                {perCardPaymentsScaled && (
+                  <p className="text-muted-foreground mt-1">Month 0 amounts match the Dashboard recommendation. Months 1–35 use the Forecast simulation — it accounts for your actual paycheck schedule, income growth, bonuses, and tax returns for maximum accuracy.</p>
+                )}
               </TooltipContent>
             </Tooltip>
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
@@ -1392,7 +1395,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     )}
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
                       <h5 className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
-                        Monthly Projection ({paymentMode === 'variable' ? 'Variable' : 'Consistent'})
+                        Monthly Projection ({paymentMode === 'variable'
+                          ? (perCardPaymentsScaled ? 'Forecast Sim' : 'Variable')
+                          : 'Consistent'})
                       </h5>
                       {hasOverrides && (
                         <button onClick={() => revertAllForCard(proj.card.id)} className="flex items-center gap-1 text-[10px] text-primary hover:underline">

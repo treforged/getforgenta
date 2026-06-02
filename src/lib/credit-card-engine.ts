@@ -963,15 +963,11 @@ export function generateRecommendations(
   let remaining = safeToPayTotal;
   const recs: PayoffRecommendation[] = [...preferenceRecs];
 
-  // Preference cards sort to the front within the existing minimum-first structure so they
-  // receive surplus allocation before null-preference revolving cards.  Minimums are already
-  // reserved for every card in step 1 above, so this only affects the extras pass.
-  const sorted = [...revolvingCards].sort((a, b) => {
-    const aPref = a.paymentPreference !== null ? 0 : 1;
-    const bPref = b.paymentPreference !== null ? 0 : 1;
-    if (aPref !== bPref) return aPref - bPref;
-    return strategy === 'avalanche' ? b.apr - a.apr : a.balance - b.balance;
-  });
+  // Pure strategy sort — no preference-card priority. Full/statement positive-balance
+  // cards compete under normal avalanche/snowball until their balance reaches zero.
+  const sorted = [...revolvingCards].sort((a, b) =>
+    strategy === 'avalanche' ? b.apr - a.apr : a.balance - b.balance
+  );
 
   for (const card of sorted) {
     const basePayment = Math.max(0, Math.min(card.minPayment, remaining, card.balance));
