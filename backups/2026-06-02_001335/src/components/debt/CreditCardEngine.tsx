@@ -1189,19 +1189,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
           </div>
 
-          {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
-            <div className="flex items-start gap-2 bg-amber-400/10 border border-amber-400/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-amber-400" style={{ borderRadius: 'var(--radius)' }}>
-              <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-              <span>Forecast is reserving <strong>{formatCurrency(month0.holdback, false)}</strong> for <strong>{month0.holdbackEvent.eventName}</strong> ({month0.holdbackEvent.monthLabel}). Paying the full amounts below may reduce that reserve — see the per-card caps.</span>
-            </div>
-          )}
-
           <div className="space-y-2">
             {recommendations.recommendations.map(r => {
               const adj = month0?.perCardAdjusted?.find(x => x.id === r.cardId);
               const card = cards.find(c => c.id === r.cardId);
               const isCycling = card?.autopayFullBalance ?? false;
-              const hasHoldbackCap = month0 != null && month0.holdback > 0 && adj != null && !isCycling && adj.payment < r.payment;
+              const displayPayment = (adj != null && !isCycling) ? adj.payment : r.payment;
+              const isReduced = adj != null && !isCycling && adj.maxPayment > adj.payment && month0 != null && month0.holdback > 0;
               return (
                 <div key={r.cardId} className="flex items-center justify-between py-2 px-2 sm:px-3 border border-border bg-muted/10 flex-wrap gap-1" style={{ borderRadius: 'var(--radius)' }}>
                   <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
@@ -1222,19 +1216,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {hasHoldbackCap && month0?.holdbackEvent && (
+                    {isReduced && month0?.holdbackEvent && (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="text-[9px] sm:text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5 cursor-pointer" style={{ borderRadius: 'var(--radius)' }}>
-                            cap {formatCurrency(adj!.payment, false)}
+                            max {formatCurrency(adj!.maxPayment, false)}
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-[260px] text-xs">
-                          Forecast suggests capping this payment at {formatCurrency(adj!.payment, false)} to reserve {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}).
+                          Payment reduced from max {formatCurrency(adj!.maxPayment, false)} to save {formatCurrency(month0.holdback, false)} for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel}).
                         </TooltipContent>
                       </Tooltip>
                     )}
-                    <span className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(r.payment, false)}</span>
+                    <span className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(displayPayment, false)}</span>
                   </div>
                 </div>
               );
