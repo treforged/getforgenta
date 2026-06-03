@@ -687,6 +687,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }));
         activeSim = sim2;
 
+        // Update data[i].totalCCBalance from sim2 so Forecast PASS 2 recomputeSimCash pins
+        // cash to floor in the correct months. PASS 2 uses b.ccDebtBalance > 0 to decide
+        // whether to simulate PASS 3's surplus redirect; if sim1 shows debt cleared when sim2
+        // doesn't, PASS 2 stops pinning too early and misses floor breaches — causing it to
+        // never reduce cycling payments (e.g. Amex Gold statement balance) to maintain the floor.
+        for (let i = 0; i < 36; i++) {
+          data[i].totalCCBalance = Math.round(Math.max(0,
+            cards.reduce((s, c) => s + (sim2.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
+          ));
+        }
+
         // Update allPaymentTotals and debtPaymentTotals in-place from sim2
         for (let i = 0; i < 36; i++) {
           allPaymentTotals[i] = cards.reduce((total, card) =>
