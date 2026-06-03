@@ -557,7 +557,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }, 0),
       );
 
-      let perCardPayments = cards.map(c => ({
+      const perCardPayments = cards.map(c => ({
         name: c.name, id: c.id,
         payments: Array.from({ length: 36 }, (_, i) => {
           const pays = sim.monthlyPayments.get(c.id);
@@ -647,43 +647,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
 
         pass3RevTotals.push(Math.round(revPay + surplus));
-      }
-
-      // If pass-3 constrains month 0 below what the raw sim allocated, re-run with a
-      // capped max so perCardPayments[m >= 1] is sized against the same starting balance
-      // that the chart uses. Without this cap the raw sim may clear Discover in month 1
-      // with a large payment ($1,860) that assumed $2,051 was paid in month 0, but the
-      // chart only applies $852 in month 0, leaving ~$1,169 still owed by month 2 while
-      // the sim's cycling payments ($42) drop in — causing the "stops in August" bug.
-      const simCycTotal0 = Math.max(0, allPaymentTotals[0] - debtPaymentTotals[0]);
-      const m0TotalBudget = pass3RevTotals[0] + simCycTotal0;
-      if (m0TotalBudget < allPaymentTotals[0] - 1) {
-        const cappedMaxDebt = [...maxDebtPaymentByMonth];
-        cappedMaxDebt[0] = m0TotalBudget;
-        const sim2 = simulateVariablePayoff(
-          cards,
-          debtFundingBalance,
-          debtPayoffOptions.cashFloor,
-          debtStrategy,
-          monthlyTakeHome,
-          monthlyExpenses,
-          36,
-          simulationMonthEvents,
-          undefined,
-          cardPurchasesPerMonth,
-          m0Income,
-          m0Expenses,
-          oneTimeArr,
-          m0SafeFloor,
-          cappedMaxDebt,
-          cashFloorByMonth,
-        );
-        perCardPayments = cards.map(c => ({
-          name: c.name, id: c.id,
-          payments: Array.from({ length: 36 }, (_, i) =>
-            Math.round(sim2.monthlyPayments.get(c.id)?.[i] ?? 0),
-          ),
-        }));
       }
 
       // Scale per-card: cycling cards keep full sim amount; revolving cards scale to pass-3 totals.
