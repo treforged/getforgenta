@@ -826,11 +826,11 @@ export function simulateVariablePayoff(
       if ((cardStartMonths.get(card.id) ?? 0) <= m) {
         const endBal = balances.get(card.id) ?? 0;
         monthlyBalances.get(card.id)!.push(endBal);
-        // For statement-preference cards, subtract actual purchases charged this month so only
-        // the revolving carry-over (interest-bearing debt) is counted. Month 0 uses 0 purchases
-        // (live balance already includes them), so endBal itself is the revolving balance.
+        // For statement-preference cards, the balance always includes upcoming monthly purchases
+        // (they cycle as grace-period charges). Only the carry-over above those purchases is
+        // interest-bearing revolving debt. Subtracting monthlyNewPurchases isolates that portion.
         const revolvingBal = card.paymentPreference === 'statement'
-          ? Math.max(0, endBal - cardPurchasesThisMonth(card))
+          ? Math.max(0, endBal - card.monthlyNewPurchases)
           : endBal;
         monthlyRevolvingBalances.get(card.id)!.push(revolvingBal);
       }
