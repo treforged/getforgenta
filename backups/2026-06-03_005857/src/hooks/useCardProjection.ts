@@ -734,22 +734,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const holdbackEvent = holdback > 0 && saveUpReason.has(0) ? (saveUpReason.get(0) ?? null) : null;
 
       // Per-card adjusted amounts (revolving cards scaled; cycling cards kept full)
-      // Always scale from sim1's payment so the denominator (simRevolvingTotal = sim1 total)
-      // and numerator (sim1 per-card) are from the same simulation. When sim2 is triggered
-      // perCardPayments holds sim2 amounts, but using those as the numerator while keeping
-      // sim1 as denominator would double-discount revolving cards.
       const scale = simRevolvingTotal > 0 ? Math.min(1, revolvingPayment / simRevolvingTotal) : 0;
-      const perCardAdjusted = cards.map(c => {
+      const perCardAdjusted = perCardPayments.map(c => {
         const revBal0 = sim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         const isCycling = revBal0 === 0;
-        const sim1Pay = Math.round(sim.monthlyPayments.get(c.id)?.[0] ?? 0);
-        const perCardEntry = perCardPayments.find(p => p.id === c.id);
-        const cyclingPay = perCardEntry?.payments[0] ?? sim1Pay;
+        const simPay = c.payments[0];
         return {
           id: c.id,
           name: c.name,
-          payment: isCycling ? cyclingPay : Math.round(sim1Pay * scale),
-          maxPayment: sim1Pay,
+          payment: isCycling ? simPay : Math.round(simPay * scale),
+          maxPayment: simPay,
         };
       });
 
