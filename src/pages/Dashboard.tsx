@@ -40,7 +40,7 @@ import {
   mergeDebtPaymentsIntoStream,
   getPaychecksInMonth,
 } from '@/lib/pay-schedule';
-import { buildCardData, getMonthlyDebtBreakdown, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
+import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
 import { useCardProjection } from '@/hooks/useCardProjection';
 import { getTotalCarLoanMonthly, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import {
@@ -315,6 +315,13 @@ export default function Dashboard() {
     return checking?.id || null;
   }, [accounts, profile]);
 
+  const debtFundingSources = useMemo(() =>
+    fundingAccountId
+      ? new Set([fundingAccountId, `account:${fundingAccountId}`])
+      : new Set<string>(),
+    [fundingAccountId],
+  );
+
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
     const retireIds = new Set<string>(
@@ -499,7 +506,7 @@ export default function Dashboard() {
   const utilization = accountSummary.ccLimit > 0 ? (accountSummary.ccDebt / accountSummary.ccLimit) * 100 : 0;
 
   const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
-  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
+  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, syncCutoffDate, debtFundingSources, CC_DEFAULT_CATEGORIES), [allMonthTransactions, syncCutoffDate, debtFundingSources]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
 
   const cashFloor = (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000;
@@ -544,6 +551,11 @@ export default function Dashboard() {
     pauseSavings, forecastFundingAccountId: fundingAccountId, debtStrategy,
     persistedDebtFundingId, assumptions: projectionAssumptions,
   });
+
+  const month0SaveUpNote = useMemo(() => {
+    if (!cardProjection?.saveUpMonths?.has(0)) return null;
+    return cardProjection.saveUpReason?.get(0) ?? null;
+  }, [cardProjection]);
 
   const minSafeCash = useMemo(
     () => getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId),
@@ -854,7 +866,8 @@ export default function Dashboard() {
             expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
             projectedSurplus={monthEndCash}
             cashFloor={forecastFloor0.monthMinSafe}
-            availableToDeploy={debtBreakdown.totalAvailableCash}
+            availableToDeploy={cardProjection?.month0?.safeToPayTotal}
+            saveUpNote={month0SaveUpNote}
             onFloorClick={openFloorCalc}
           />
         );

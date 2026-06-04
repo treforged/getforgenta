@@ -11,6 +11,7 @@ type Props = {
   projectedSurplus: number;
   cashFloor: number;
   availableToDeploy?: number;
+  saveUpNote?: { eventName: string; monthLabel: string } | null;
   onFloorClick?: () => void;
 };
 
@@ -31,13 +32,16 @@ export default function MonthlyBudgetSnapshot({
   projectedSurplus,
   cashFloor,
   availableToDeploy,
+  saveUpNote,
   onFloorClick,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const shortfallAmt = projectedSurplus < 0 ? Math.abs(projectedSurplus) : 0;
   // Cash floor segment: capped at projectedSurplus so it never exceeds what's actually there
   const floorSegAmt  = projectedSurplus > 0 ? Math.min(cashFloor, projectedSurplus) : 0;
-  const deployAmt    = Math.max(0, projectedSurplus - cashFloor);
+  const deployAmt    = availableToDeploy != null
+    ? Math.max(0, availableToDeploy)
+    : Math.max(0, projectedSurplus - cashFloor);
 
   const pieData = useMemo(() => {
     const segments = [
@@ -54,16 +58,22 @@ export default function MonthlyBudgetSnapshot({
   const activeSlice = activeIdx !== null ? pieData[activeIdx] : null;
 
   const floorValue    = cashFloor;
-  const deployedValue = projectedSurplus - cashFloor;
+  const deployedValue = availableToDeploy != null ? availableToDeploy : projectedSurplus - cashFloor;
 
-  type Row = { label: string; value: number; sign: string; colorClass: string; onClick?: () => void };
+  type Row = { label: string; value: number; sign: string; colorClass: string; onClick?: () => void; note?: string };
   const rows: Row[] = [
     { label: 'Balance on hand',     value: fundingBalance,            sign: ' ', colorClass: 'text-foreground' },
     { label: 'Income still coming', value: remainingIncome,           sign: '+', colorClass: 'text-success' },
     { label: 'Bills still coming',  value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
     { label: 'Projected remaining', value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
     { label: 'Cash floor',          value: floorValue,                sign: '−', colorClass: 'text-muted-foreground', onClick: onFloorClick },
-    { label: 'Available to deploy', value: deployedValue,             sign: '=', colorClass: deployedValue >= 0 ? 'text-success' : 'text-destructive' },
+    {
+      label: 'Available to deploy',
+      value: deployedValue,
+      sign: '=',
+      colorClass: deployedValue >= 0 ? 'text-success' : 'text-destructive',
+      ...(saveUpNote ? { note: `Holding for: ${saveUpNote.eventName} (${saveUpNote.monthLabel})` } : {}),
+    },
   ];
 
   return (
@@ -156,38 +166,45 @@ export default function MonthlyBudgetSnapshot({
             const isTotal = row.sign === '=';
             const isSubRow = row.sign === '−' && i > 0 && rows[i - 1].sign === '=';
             return (
-              <div
-                key={i}
-                className={cn(
-                  'flex items-center justify-between py-2 text-xs',
-                  isTotal
-                    ? 'border-t border-border mt-1 pt-3'
-                    : isSubRow
-                    ? 'border-b border-border/20 opacity-70'
-                    : 'border-b border-border/30',
-                )}
-              >
-                <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-                  <span className="font-mono text-[10px] font-bold text-muted-foreground/50 w-3 shrink-0 text-center">
-                    {row.sign}
-                  </span>
-                  {row.onClick ? (
-                    <button
-                      onClick={row.onClick}
-                      className={cn(
-                        'text-left underline underline-offset-2 hover:text-foreground transition-colors',
-                        isTotal ? 'text-foreground font-semibold' : '',
-                      )}
-                    >
-                      {row.label}
-                    </button>
-                  ) : (
-                    <span className={isTotal ? 'text-foreground font-semibold' : ''}>{row.label}</span>
+              <div key={i}>
+                <div
+                  className={cn(
+                    'flex items-center justify-between py-2 text-xs',
+                    isTotal
+                      ? 'border-t border-border mt-1 pt-3'
+                      : isSubRow
+                      ? 'border-b border-border/20 opacity-70'
+                      : 'border-b border-border/30',
+                    row.note ? 'pb-1' : '',
                   )}
+                >
+                  <div className="flex items-center gap-2 text-muted-foreground min-w-0">
+                    <span className="font-mono text-[10px] font-bold text-muted-foreground/50 w-3 shrink-0 text-center">
+                      {row.sign}
+                    </span>
+                    {row.onClick ? (
+                      <button
+                        onClick={row.onClick}
+                        className={cn(
+                          'text-left underline underline-offset-2 hover:text-foreground transition-colors',
+                          isTotal ? 'text-foreground font-semibold' : '',
+                        )}
+                      >
+                        {row.label}
+                      </button>
+                    ) : (
+                      <span className={isTotal ? 'text-foreground font-semibold' : ''}>{row.label}</span>
+                    )}
+                  </div>
+                  <span className={cn('font-display font-bold shrink-0 ml-3', row.colorClass)}>
+                    {formatCurrency(Math.abs(row.value), false)}
+                  </span>
                 </div>
-                <span className={cn('font-display font-bold shrink-0 ml-3', row.colorClass)}>
-                  {formatCurrency(Math.abs(row.value), false)}
-                </span>
+                {row.note && (
+                  <p className="text-[10px] text-amber-400 pl-5 pb-2">
+                    {row.note}
+                  </p>
+                )}
               </div>
             );
           })}
