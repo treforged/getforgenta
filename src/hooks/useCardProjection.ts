@@ -868,23 +868,23 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const holdback = Math.max(0, maxCapacity - safeToPayTotal);
       const holdbackEvent = holdback > 0 && saveUpReason.has(0) ? (saveUpReason.get(0) ?? null) : null;
 
-      // Per-card adjusted amounts (revolving cards scaled; cycling cards kept full)
-      // Always scale from sim1's payment so the denominator (simRevolvingTotal = sim1 total)
-      // and numerator (sim1 per-card) are from the same simulation. When sim2 is triggered
-      // perCardPayments holds sim2 amounts, but using those as the numerator while keeping
-      // sim1 as denominator would double-discount revolving cards.
+      // Per-card adjusted amounts (revolving cards scaled; cycling cards kept full).
+      // Use activeSim (sim2 when triggered, sim1 otherwise) for both numerator and scale
+      // denominator so the per-card revolving amounts sum exactly to revolvingPayment.
+      // When sim2 is triggered it caps month-0 total, so using sim1 numerator with the
+      // sim2-updated simRevolvingTotal denominator would over-allocate revolving cards.
       const scale = simRevolvingTotal > 0 ? Math.min(1, revolvingPayment / simRevolvingTotal) : 0;
       const perCardAdjusted = cards.map(c => {
-        const revBal0 = sim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
+        const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         const isCycling = revBal0 === 0;
-        const sim1Pay = Math.round(sim.monthlyPayments.get(c.id)?.[0] ?? 0);
+        const activeSimPay = Math.round(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
         const perCardEntry = perCardPayments.find(p => p.id === c.id);
-        const cyclingPay = perCardEntry?.payments[0] ?? sim1Pay;
+        const cyclingPay = perCardEntry?.payments[0] ?? activeSimPay;
         return {
           id: c.id,
           name: c.name,
-          payment: isCycling ? cyclingPay : Math.round(sim1Pay * scale),
-          maxPayment: sim1Pay,
+          payment: isCycling ? cyclingPay : Math.round(activeSimPay * scale),
+          maxPayment: activeSimPay,
         };
       });
 
