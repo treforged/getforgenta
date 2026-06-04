@@ -763,7 +763,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
-        const forecastPays = (perCardPaymentsScaled ?? perCardPayments)?.find(p => p.id === c.id)?.payments;
+        const forecastPays = perCardPayments?.find(p => p.id === c.id)?.payments;
         const localPays = variableSim.monthlyPayments.get(c.id) ?? [];
         const basePays = forecastPays ?? localPays;
         const m0Pay = month0?.perCardAdjusted?.find(x => x.id === c.id)?.payment ?? basePays[0] ?? 0;
@@ -781,7 +781,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, perCardPayments, perCardPaymentsScaled, month0]);
+  }, [cards, paymentMode, variableSim, overrides, perCardPayments, month0]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
