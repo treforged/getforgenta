@@ -414,11 +414,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             const mFloor = cashFloorByMonth[m];
             const availForDebt = Math.max(0, bal + mInc - mExp - mFloor);
             const effectivePay = Math.min(simDebtPay[m], availForDebt + ccMinTotal);
-            const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeArr[m] ?? { income: 0, expenses: 0 });
-            // Apply one-time items and car DP before the floor clamp so floor breaches caused
-            // by the DP are visible to the iterative recovery loop (mirrors Forecast.tsx order).
-            bal += mInc - mExp - effectivePay + oneTime.income - oneTime.expenses - (m === 0 ? 0 : carDownPaymentByMonth[m]);
+            bal += mInc - mExp - effectivePay;
             if (!saveUpMonths.has(m) && bal > mFloor) bal = mFloor;
+            // Apply one-time items and car down payments after floor clamp so they don't
+            // inflate the floor-clamped portion of cash (mirrors Forecast oneTime handling).
+            const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeArr[m] ?? { income: 0, expenses: 0 });
+            bal += oneTime.income - oneTime.expenses - (m === 0 ? 0 : carDownPaymentByMonth[m]);
             cash.push(bal);
           }
           return cash;
@@ -435,7 +436,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
               if (canReduce > 0) {
                 simDebtPay[j] -= canReduce;
                 toRecover -= canReduce;
-                if (j <= i && hasLargeEvent(i)) {
+                if (j < i && hasLargeEvent(i)) {
                   saveUpMonths.add(j);
                   if (!saveUpReason.has(j)) {
                     const carD = new Date(now.getFullYear(), now.getMonth() + i, 1);
