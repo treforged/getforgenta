@@ -387,29 +387,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }, 0);
       });
 
-      // ── Cycling card statement excess per month ───────────────────────────────
-      // Cycling cards (paymentPreference = statement/full, 0 revolving balance) pay the
-      // previous month's purchases in the current month (1-billing-cycle delay). A one-time
-      // purchase on such a card in month m creates an elevated cash outflow in month m+1.
-      // Compute that excess so PASS 2 can save up in preceding months.
-      const cyclingExcessByMonth = Array.from({ length: 36 }, (_, m) => {
-        if (m === 0) return 0;
-        const purchaseMonth = m - 1;
-        return cards.reduce((s, c) => {
-          if (c.balance > 0) return s;
-          if (c.paymentPreference !== 'statement' && c.paymentPreference !== 'full' && !c.autopayFullBalance) return s;
-          const purchased = cardPurchasesPerMonth[purchaseMonth]?.[c.id] ?? c.monthlyNewPurchases;
-          return s + Math.max(0, purchased - c.monthlyNewPurchases);
-        }, 0);
-      });
-
-      // ── Combined look-ahead: one-time DB expenses + car down payments + cycling excess ──
+      // ── Combined look-ahead: one-time DB expenses + car down payments ─────────
       const maxDebtPaymentByMonth: number[] = Array(36).fill(Infinity);
       const saveUpMonths = new Set<number>();
       const saveUpReason = new Map<number, { eventName: string; monthLabel: string }>();
 
       const hasLargeEvent = (i: number) =>
-        carDownPaymentByMonth[i] > 0 || (oneTimeArr[i]?.expenses ?? 0) > 0 || cyclingExcessByMonth[i] > 0;
+        carDownPaymentByMonth[i] > 0 || (oneTimeArr[i]?.expenses ?? 0) > 0;
 
       if (ccMinTotal > 0 && Array.from({ length: 35 }, (_, i) => i + 1).some(i => hasLargeEvent(i))) {
         const simDebtPay: number[] = [];
@@ -418,7 +402,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const mExp = m === 0 ? m0Expenses : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses);
           const mFloor = cashFloorByMonth[m];
           const startBal = m === 0 ? debtFundingBalance : mFloor;
-          simDebtPay.push(Math.max(ccMinTotal, Math.max(0, startBal + mInc - mExp - mFloor - cyclingExcessByMonth[m])));
+          simDebtPay.push(Math.max(ccMinTotal, Math.max(0, startBal + mInc - mExp - mFloor)));
         }
 
         const recomputeSimCash = (): number[] => {
@@ -428,16 +412,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             const mInc = m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome);
             const mExp = m === 0 ? m0Expenses : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses);
             const mFloor = cashFloorByMonth[m];
-            // Deduct cycling excess (elevated statement payment from prior month's one-time CC purchase)
-            // so floor breaches in elevated-cycling months are visible to the iterative recovery loop.
-            const availForDebt = Math.max(0, bal + mInc - mExp - mFloor - cyclingExcessByMonth[m]);
+            const availForDebt = Math.max(0, bal + mInc - mExp - mFloor);
             const effectivePay = Math.min(simDebtPay[m], availForDebt + ccMinTotal);
             const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeArr[m] ?? { income: 0, expenses: 0 });
-            // Apply one-time items, car DP, and cycling excess before the floor clamp so floor
-            // breaches caused by any of these are visible to the iterative recovery loop.
-            bal += mInc - mExp - effectivePay + oneTime.income - oneTime.expenses
-              - (m === 0 ? 0 : carDownPaymentByMonth[m])
-              - (m === 0 ? 0 : cyclingExcessByMonth[m]);
+            // Apply one-time items and car DP before the floor clamp so floor breaches caused
+            // by the DP are visible to the iterative recovery loop (mirrors Forecast.tsx order).
+            bal += mInc - mExp - effectivePay + oneTime.income - oneTime.expenses - (m === 0 ? 0 : carDownPaymentByMonth[m]);
             if (!saveUpMonths.has(m) && bal > mFloor) bal = mFloor;
             cash.push(bal);
           }
@@ -479,8 +459,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
                         return isFinite(pmi) && pmi === i;
                       });
                       if (car) eventName = `${car.vehicle_name || 'vehicle'} down payment`;
-                    } else if (cyclingExcessByMonth[i] > 0) {
-                      eventName = 'large CC purchase statement payment';
                     }
                     saveUpReason.set(j, { eventName, monthLabel });
                   }
