@@ -618,6 +618,16 @@ export default function Dashboard() {
     [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt],
   );
 
+  // Implicit engine holdback: everything the engine reserves beyond the stated cashFloor
+  // (savings goals, car reserves, floor differences). Derived as a residual so the
+  // snapshot equation always balances: projSurplus − cashFloor − holdback = safeToPayTotal.
+  const month0ImpliedSavings = useMemo(() => {
+    const safeToPayTotal = cardProjection?.month0?.safeToPayTotal;
+    if (safeToPayTotal == null) return 0;
+    const projSurplus = fundingBalance + remainingTxIncome - remainingTxExpenses;
+    return Math.max(0, projSurplus - forecastFloor0.monthMinSafe - safeToPayTotal);
+  }, [cardProjection, fundingBalance, remainingTxIncome, remainingTxExpenses, forecastFloor0]);
+
   // Debt recommendations for Dashboard widget — driven by useCardProjection pass-3 (month0)
   // so floor, save-up reserves, income timing, and goals all match the Debt Payoff tab exactly.
   const dashboardDebtRecs = useMemo<MonthlyDebtBreakdown>(() => {
@@ -866,7 +876,7 @@ export default function Dashboard() {
             expectedRemainingExpenses={remainingTxExpenses}
             projectedSurplus={fundingBalance + remainingTxIncome - remainingTxExpenses}
             cashFloor={forecastFloor0.monthMinSafe}
-            savingsAndReserves={monthlySavingsAndCar}
+            savingsAndReserves={month0ImpliedSavings}
             availableToDeploy={cardProjection?.month0?.safeToPayTotal}
             saveUpNote={month0SaveUpNote}
             onFloorClick={openFloorCalc}
