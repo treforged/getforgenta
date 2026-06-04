@@ -911,11 +911,12 @@ export function generateRecommendations(
   let remainingTransactionExpenses = 0;
 
   if (transactions && transactions.length > 0) {
-    // No source filter — count all expense transactions so the engine's cash pool
-    // matches estLiquidCash (fundBal + full-month income − full-month non-debt expenses).
+    const fundingSources = fundingAccountId
+      ? new Set([fundingAccountId, `account:${fundingAccountId}`])
+      : new Set<string>();
     remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, 31, syncCutoffDate);
     remainingTransactionExpenses = getRemainingTransactionExpensesByDay(
-      transactions, 31, true, new Set(), new Set(), syncCutoffDate,
+      transactions, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate,
     );
   } else if (payConfig && rules) {
     remainingTransactionIncome = getRemainingIncomeByDay(payConfig, 31)

@@ -236,21 +236,27 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [cards]);
 
   // Computed income/expense breakdown for display — full month (day 31).
-  // No source filter: all expense transactions are counted regardless of payment source,
-  // matching Dashboard's getRemainingTransactionExpensesThisMonth which applies no source filter.
-  // Debt Payments are excluded here because estLiquidCash is pre-debt cash (feeds Safe to Pay).
+  // Only funding-account expenses are counted (CC purchases excluded) so estLiquidCash
+  // reflects what actually hits the funding account, not charges to credit cards.
+  const fundingSources = useMemo(() =>
+    resolvedFundingId
+      ? new Set([resolvedFundingId, `account:${resolvedFundingId}`])
+      : new Set<string>(),
+    [resolvedFundingId],
+  );
+
   const cashBreakdown = useMemo(() => {
     const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, 31, syncCutoffDate);
-    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, 31, true, new Set(), new Set(), syncCutoffDate);
+    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
     return { transactionIncome, transactionExpenses };
-  }, [allTransactionsWithNextMonth, syncCutoffDate]);
+  }, [allTransactionsWithNextMonth, syncCutoffDate, fundingSources]);
 
   // Line-item breakdown so the tooltip can show exactly what's included
   const cashBreakdownItems = useMemo(() => {
     const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, 31, syncCutoffDate);
-    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, 31, true, new Set(), new Set(), syncCutoffDate);
+    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
     return { incomeItems, expenseItems };
-  }, [allTransactionsWithNextMonth, syncCutoffDate]);
+  }, [allTransactionsWithNextMonth, syncCutoffDate, fundingSources]);
 
   // Estimated liquid cash: funding balance + full-month income − full-month non-debt expenses.
   // Pre-debt-payment cash — feeds Safe to Pay (estLiquidCash − safeMinimum − autopay).
@@ -1116,7 +1122,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3 sm:mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-3 sm:mb-4">
             <Tooltip open={liquidCashOpen} onOpenChange={setLiquidCashOpen}>
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setLiquidCashOpen(v => !v)}>
@@ -1237,10 +1243,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Minimums Due</p>
               <p className="text-xs sm:text-sm font-display font-bold text-destructive">{formatCurrency(month0Recs.totalMinimumsdue, false)}</p>
-            </div>
-            <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
-              <p className="text-[9px] sm:text-[10px] text-muted-foreground">Interest Avoided</p>
-              <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(interestAvoided, true)}</p>
             </div>
           </div>
 

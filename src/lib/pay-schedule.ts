@@ -498,10 +498,18 @@ export function getRemainingTransactionIncomeThisMonth(transactions: any[], cuto
 }
 
 /**
- * Get ALL remaining expenses from Transactions for the rest of the current month.
- * Single source of truth for Budget Control Remaining Cash On Hand.
+ * Get remaining expenses from Transactions for the rest of the current month.
+ * When fundingAccountSources is provided, only expenses from those accounts are counted
+ * (CC purchases excluded). When excludeCategories is provided, expenses with no explicit
+ * payment_source that fall into those categories are also excluded.
  */
-export function getRemainingTransactionExpensesThisMonth(transactions: any[], excludeDebtPayments = false, cutoffDate?: string): number {
+export function getRemainingTransactionExpensesThisMonth(
+  transactions: any[],
+  excludeDebtPayments = false,
+  cutoffDate?: string,
+  fundingAccountSources: Set<string> = new Set(),
+  excludeCategories: Set<string> = new Set(),
+): number {
   const now = new Date();
   const today = now.getDate();
   const year = now.getFullYear();
@@ -513,6 +521,8 @@ export function getRemainingTransactionExpensesThisMonth(transactions: any[], ex
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
+    if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date || !t.date.startsWith(monthStr)) continue;
     const included = cutoffDate ? t.date > cutoffDate : parseInt(t.date.split('-')[2]) >= today;
     if (included) total += Number(t.amount);
