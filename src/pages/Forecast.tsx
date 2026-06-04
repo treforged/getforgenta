@@ -1057,7 +1057,11 @@ export default function Forecast() {
 
         // Scan BACKWARD from the breached month — prefer reducing the month closest to the breach
         for (let j = i; j >= minAdjustableMonthIndex && toRecover > 0; j--) {
-          const minPayment = ccMinTotal; // minimums always required — even in the expense month
+          // Cycling payments (paid-off revolving cards' deferred purchases) are non-negotiable —
+          // only the revolving portion can be reduced. Add cycling to the floor so PASS 2 doesn't
+          // think it can reduce a month where the cycling payment alone exceeds ccMinTotal.
+          const cyclingAtJ = Math.max(0, (cardProjectionData?.allPaymentTotals?.[j] ?? 0) - (cardProjectionData?.debtPaymentTotals?.[j] ?? 0));
+          const minPayment = cyclingAtJ + ccMinTotal;
           const canReduce = Math.max(0, Math.min(debtPayments[j] - minPayment, toRecover));
           if (canReduce > 0) {
             debtPayments[j] -= canReduce;
