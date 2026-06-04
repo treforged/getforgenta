@@ -661,8 +661,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         ccFloor += card.monthlyNewPurchases;
       }
     }
-    return Math.max(cashFloor, prePaycheckBills.total + ccFloor + carLoanTotal);
-  }, [cashFloor, prePaycheckBills.total, cards, carFunds, variableSim]);
+    const base = Math.max(cashFloor, prePaycheckBills.total + ccFloor + carLoanTotal);
+    // monthlySavingsAndCar includes carLoanTotal; add only the savings/car-reserve portion
+    // that Safe to Pay already deducts so the displayed floor matches the actual holdback.
+    const savingsReserve = Math.max(0, monthlySavingsAndCar - carLoanTotal);
+    return base + savingsReserve;
+  }, [cashFloor, prePaycheckBills.total, cards, carFunds, variableSim, monthlySavingsAndCar]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
