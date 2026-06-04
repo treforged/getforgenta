@@ -863,9 +863,10 @@ export default function Dashboard() {
             fundingBalance={fundingBalance}
             remainingIncome={remainingTxIncome}
             spentSoFar={summary.expenses + totalDebtPayments}
-            expectedRemainingExpenses={remainingTxExpenses + remainingTxDebt}
-            projectedSurplus={monthEndCash}
+            expectedRemainingExpenses={remainingTxExpenses}
+            projectedSurplus={fundingBalance + remainingTxIncome - remainingTxExpenses}
             cashFloor={forecastFloor0.monthMinSafe}
+            savingsAndReserves={monthlySavingsAndCar}
             availableToDeploy={cardProjection?.month0?.safeToPayTotal}
             saveUpNote={month0SaveUpNote}
             onFloorClick={openFloorCalc}
