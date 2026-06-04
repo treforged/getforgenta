@@ -1062,7 +1062,7 @@ export default function Forecast() {
           if (canReduce > 0) {
             debtPayments[j] -= canReduce;
             toRecover -= canReduce;
-            if (j < i) saveUpMonths.add(j);
+            if (j < i && (baseData[i].oneTimeNet < 0 || getMonthEffectiveDP(i) > 0)) saveUpMonths.add(j);
             anyFixed = true;
           }
         }
