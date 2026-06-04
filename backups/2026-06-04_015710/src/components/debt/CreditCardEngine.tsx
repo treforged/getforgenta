@@ -701,8 +701,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         if (minPay > 0) ccFloor += minPay;
       } else {
         if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
-        if (!card.dueDay || card.minPayment <= 0) continue;
-        ccFloor += card.minPayment;
+        if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
+        ccFloor += card.monthlyNewPurchases;
       }
     }
     const base = Math.max(cashFloor, prePaycheckBills.total + ccFloor + carLoanTotal);
