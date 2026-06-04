@@ -643,6 +643,31 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
       rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate, fundingAccountSources]);
 
+  // Exact Forecast month 0 floor formula: prePaycheckBills + carLoans + sim-based CC obligations.
+  // Uses variableSim.monthlyRevolvingBalances[0] to distinguish revolving from paid/autopay cards,
+  // matching forecastFloor0.monthMinSafe in Dashboard.tsx exactly.
+  const recommendedSafeMinimum = useMemo(() => {
+    const now = new Date();
+    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[], now);
+    let ccFloor = 0;
+    for (const card of cards) {
+      const revBal = variableSim.monthlyRevolvingBalances?.get(card.id)?.[0] ?? 1;
+      if (revBal > 0) {
+        const minPay = variableSim.perCardMinPayments?.get(card.id)?.[0] ?? 0;
+        if (minPay > 0) ccFloor += minPay;
+      } else {
+        if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
+        if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
+        ccFloor += card.monthlyNewPurchases;
+      }
+    }
+    const base = Math.max(cashFloor, prePaycheckBills.total + ccFloor + carLoanTotal);
+    // monthlySavingsAndCar includes carLoanTotal; add only the savings/car-reserve portion
+    // that Safe to Pay already deducts so the displayed floor matches the actual holdback.
+    const savingsReserve = Math.max(0, monthlySavingsAndCar - carLoanTotal);
+    return base + savingsReserve;
+  }, [cashFloor, prePaycheckBills.total, cards, carFunds, variableSim, monthlySavingsAndCar]);
+
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
     const retireIds = new Set<string>(
@@ -685,32 +710,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
     return savingsTotal + carTotal + carLoanTotal;
   }, [goals, carFunds, accounts, rules, pauseSavings]);
-
-  // Exact Forecast month 0 floor formula: prePaycheckBills + carLoans + sim-based CC obligations.
-  // Uses variableSim.monthlyRevolvingBalances[0] to distinguish revolving from paid/autopay cards,
-  // matching forecastFloor0.monthMinSafe in Dashboard.tsx exactly.
-  // Declared after monthlySavingsAndCar to avoid temporal dead zone on first render.
-  const recommendedSafeMinimum = useMemo(() => {
-    const now = new Date();
-    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[], now);
-    let ccFloor = 0;
-    for (const card of cards) {
-      const revBal = variableSim.monthlyRevolvingBalances?.get(card.id)?.[0] ?? 1;
-      if (revBal > 0) {
-        const minPay = variableSim.perCardMinPayments?.get(card.id)?.[0] ?? 0;
-        if (minPay > 0) ccFloor += minPay;
-      } else {
-        if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
-        if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
-        ccFloor += card.monthlyNewPurchases;
-      }
-    }
-    const base = Math.max(cashFloor, prePaycheckBills.total + ccFloor + carLoanTotal);
-    // monthlySavingsAndCar includes carLoanTotal; add only the savings/car-reserve portion
-    // that Safe to Pay already deducts so the displayed floor matches the actual holdback.
-    const savingsReserve = Math.max(0, monthlySavingsAndCar - carLoanTotal);
-    return base + savingsReserve;
-  }, [cashFloor, prePaycheckBills.total, cards, carFunds, variableSim, monthlySavingsAndCar]);
 
   const month0Recs = useMemo(() => {
     const perCardAdj = month0?.perCardAdjusted ?? [];
