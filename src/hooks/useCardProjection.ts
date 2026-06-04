@@ -476,6 +476,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
+      // Merge car DP into one-time expenses so simulateVariablePayoff deducts it from
+      // currentCash in the DP month — without this the simulation overstates available
+      // cash in every month after the purchase, causing floor breaches downstream.
+      const oneTimeArrWithDP = oneTimeArr.map((ot, i) =>
+        i === 0 || carDownPaymentByMonth[i] === 0
+          ? ot
+          : { income: ot.income, expenses: ot.expenses + carDownPaymentByMonth[i] },
+      );
+
       // ── Run CC simulation ─────────────────────────────────────────────────────
       const sim = simulateVariablePayoff(
         cards,
@@ -490,7 +499,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         cardPurchasesPerMonth,
         m0Income,
         m0Expenses,
-        oneTimeArr,
+        oneTimeArrWithDP,
         m0SafeFloor,
         maxDebtPaymentByMonth,
         cashFloorByMonth,
@@ -617,7 +626,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       for (let m = 0; m < 36; m++) {
         const mInc   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
-        const mExp   = m === 0 ? m0Expenses + monthlySavingsAndCar : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses);
+        const mExp   = m === 0 ? m0Expenses + monthlySavingsAndCar
+          : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0);
         const mFloor = cashFloorByMonth[m];
         const simRevTotal = debtPaymentTotals[m];
         const simCycTotal = Math.max(0, allPaymentTotals[m] - simRevTotal);
@@ -673,7 +683,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           cardPurchasesPerMonth,
           m0Income,
           m0Expenses,
-          oneTimeArr,
+          oneTimeArrWithDP,
           m0SafeFloor,
           cappedMaxDebt,
           cashFloorByMonth,
@@ -726,7 +736,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         let p3RevBal2 = p3RevBal0_2;
         for (let m = 0; m < 36; m++) {
           const mInc2   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
-          const mExp2   = m === 0 ? m0Expenses + monthlySavingsAndCar : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses);
+          const mExp2   = m === 0 ? m0Expenses + monthlySavingsAndCar
+            : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0);
           const mFloor2 = cashFloorByMonth[m];
           const simRevTotal2 = debtPaymentTotals[m];
           const simCycTotal2 = Math.max(0, allPaymentTotals[m] - simRevTotal2);
