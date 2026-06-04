@@ -552,16 +552,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         projs.reduce((total, proj) => {
           const m = proj.months[i];
           if (!m || m.startBalance <= 0) return total;
-          // Use START-of-month revolving balance so the month a revolving card clears its
-          // balance still counts as revolving, not cycling. End balance = 0 on the clearing
-          // month would misclassify the payoff payment as cycling, bypassing the floor in
-          // Forecast PASS 3 (cyclingPayment is non-negotiable; it skips availableForRevolving).
-          // For m=0 use end balance (live state — cycling cards already show end=0 here).
-          // For m>0 use previous month's end = this month's start.
-          const startRevBal = i === 0
-            ? (sim.monthlyRevolvingBalances.get(proj.card.id)?.[0] ?? 0)
-            : (sim.monthlyRevolvingBalances.get(proj.card.id)?.[i - 1] ?? 0);
-          if (startRevBal <= 0) return total;
+          const revBal = sim.monthlyRevolvingBalances.get(proj.card.id)?.[i] ?? 0;
+          if (revBal <= 0) return total;
           return total + m.payment;
         }, 0),
       );
@@ -727,10 +719,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           debtPaymentTotals[i] = projs2.reduce((total, proj) => {
             const mo = proj.months[i];
             if (!mo || mo.startBalance <= 0) return total;
-            const startRevBal = i === 0
-              ? (sim2.monthlyRevolvingBalances.get(proj.card.id)?.[0] ?? 0)
-              : (sim2.monthlyRevolvingBalances.get(proj.card.id)?.[i - 1] ?? 0);
-            if (startRevBal <= 0) return total;
+            const revBal = sim2.monthlyRevolvingBalances.get(proj.card.id)?.[i] ?? 0;
+            if (revBal <= 0) return total;
             return total + mo.payment;
           }, 0);
         }
