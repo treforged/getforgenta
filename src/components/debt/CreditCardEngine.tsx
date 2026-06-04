@@ -1128,7 +1128,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
           )}
 
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2 mb-3 sm:mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 mb-3 sm:mb-4">
             <Tooltip open={liquidCashOpen} onOpenChange={setLiquidCashOpen}>
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setLiquidCashOpen(v => !v)}>
@@ -1218,14 +1218,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe Minimum</p>
               <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(recommendedSafeMinimum, false)}</p>
             </div>
+            <div className="p-2 sm:p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground">Savings & Reserves</p>
+              <p className={`text-xs sm:text-sm font-display font-bold ${impliedSavings > 0 ? 'text-amber-400' : 'text-muted-foreground'}`}>
+                {impliedSavings > 0 ? `−${formatCurrency(impliedSavings, false)}` : '—'}
+              </p>
+            </div>
             <Tooltip open={safeToPayOpen} onOpenChange={setSafeToPayOpen}>
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setSafeToPayOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
                   <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</p>
-                  {impliedSavings > 0 && (
-                    <p className="text-[9px] text-amber-400 mt-0.5">−{formatCurrency(impliedSavings, false)} reserved</p>
-                  )}
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
