@@ -1136,7 +1136,12 @@ export default function Forecast() {
       const availableForRevolving = p3RevBal > 0
         ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - cyclingPayment - b.monthMinSafe))
         : 0;
-      const revolvingPayment = p3RevBal > 0 ? Math.min(simRevolvingPayment, availableForRevolving) : 0;
+      // Save-up months: cap revolving at PASS 2's planned allocation (debtPayments[i] minus cycling)
+      // so cash accumulates for the upcoming large expense instead of being drained to the floor.
+      const revolvingCap = saveUpMonths.has(i)
+        ? Math.max(ccMinForMonth, debtPayments[i] - cyclingPayment)
+        : availableForRevolving;
+      const revolvingPayment = p3RevBal > 0 ? Math.min(simRevolvingPayment, Math.min(revolvingCap, availableForRevolving)) : 0;
       monthDebtPayment = cyclingPayment + revolvingPayment;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
@@ -1248,7 +1253,7 @@ export default function Forecast() {
         bonusIncome: Math.round(b.bonusIncome),
         taxReturnIncome: Math.round(b.taxReturnIncome),
         isRaiseMonth: b.isRaiseMonth,
-        recommendedDebtPayment: Math.round(b.rawDebtPayment),
+        recommendedDebtPayment: Math.round(debtPayments[i]),
         floorItems: b.floorItems ?? [],
         prePaycheckBillsTotal: Math.round(b.prePaycheckBillsTotal ?? 0),
         settingsCashFloor: cashFloor,
