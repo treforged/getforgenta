@@ -758,6 +758,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return { totalAvailableCash, totalMinimumsdue, cashWarning, strategyLabel, recs };
   }, [month0, cards, strategy]);
 
+  // Implied savings: cash the engine holds beyond the floor and CC payments.
+  const impliedSavings = useMemo(() =>
+    Math.max(0, estLiquidCash - (month0?.m0SafeFloor ?? recommendedSafeMinimum) - (month0?.safeToPayTotal ?? 0)),
+    [estLiquidCash, month0, recommendedSafeMinimum],
+  );
+
   const projections: CardProjection[] = useMemo(() => {
     // Month 0: use pass-3 constrained amount (matches "Recommended This Month" panel).
     // Months 1-35: use unscaled sim amounts so the payoff trajectory reflects what the
@@ -1217,6 +1223,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setSafeToPayOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
                   <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</p>
+                  {impliedSavings > 0 && (
+                    <p className="text-[9px] text-amber-400 mt-0.5">−{formatCurrency(impliedSavings, false)} reserved</p>
+                  )}
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
@@ -1228,6 +1237,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   )}
                   {(month0?.revolvingPayment ?? 0) > 0 && (
                     <div className="flex justify-between gap-3"><span>Revolving debt payments</span><span>{formatCurrency(month0!.revolvingPayment, false)}</span></div>
+                  )}
+                  {impliedSavings > 0 && (
+                    <div className="flex justify-between gap-3 text-amber-400"><span>Savings & reserves</span><span>−{formatCurrency(impliedSavings, false)}</span></div>
                   )}
                   <hr className="my-1 border-border/50" />
                   <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</span></div>
