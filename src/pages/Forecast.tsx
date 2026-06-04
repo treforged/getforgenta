@@ -711,6 +711,7 @@ export default function Forecast() {
       transferBreakdown: { name: string; amount: number }[];
       floorItems: { name: string; amount: number; dueDay: number }[];
       prePaycheckBillsTotal: number;
+      savingsGoalItems: { name: string; amount: number }[];
     }[] = [];
     let incomeMultiplier = 1;
     let expenseMultiplier = 1;
@@ -983,11 +984,14 @@ export default function Forecast() {
 
       // Respect contribution_start_date; exclude goals linked to retirement accounts (paycheck deduction)
       // and goals whose linked account is funded by an active transfer rule this month (avoid double count)
+      const savingsGoalItems: { name: string; amount: number }[] = [];
       const monthlySavingsContrib = goals.reduce((s: number, g: any) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && retireAccountIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDestIds.has(g.linked_account)) return s;
-        return s + Number(g.monthly_contribution);
+        const contrib = Number(g.monthly_contribution);
+        if (contrib > 0) savingsGoalItems.push({ name: g.name, amount: contrib });
+        return s + contrib;
       }, 0);
 
       baseData.push({
@@ -995,7 +999,7 @@ export default function Forecast() {
         monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, monthSavingsTransferContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown,
-        floorItems, prePaycheckBillsTotal,
+        floorItems, prePaycheckBillsTotal, savingsGoalItems,
       });
 
       expenseMultiplier *= (1 + monthlyExpenseGrowth);
@@ -2009,7 +2013,10 @@ export default function Forecast() {
                       }
                       return lines.length > 0 ? lines : fallback;
                     })()),
-                    ...((row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' }] : []),
+                    ...((row.savingsGoalItems?.length > 0)
+                      ? (row.savingsGoalItems as { name: string; amount: number }[]).map(g => ({ label: `  ${g.name}`, value: formatCurrency(g.amount, false), op: '−' as const }))
+                      : (row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' as const }] : []
+                    ),
                     ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
                     ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, false), op: '−' }] : []),
