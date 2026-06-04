@@ -970,10 +970,12 @@ export default function Forecast() {
         } else {
           // Paid off / cycling — floor for statement or full-balance preference cards only.
           if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
-          // No floor item for cards with no recurring purchases (e.g., Discover post-payoff).
-          if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
-          prePaycheckBillsTotal += card.monthlyNewPurchases;
-          floorItems.push({ name: card.name + ' purchases', amount: card.monthlyNewPurchases, dueDay: card.dueDay });
+          // Use the card's configured minimum payment — not the full monthly purchases.
+          // The floor represents the minimum cash that must remain; the full cycling payment
+          // is a planned outflow on top of the floor, not part of it.
+          if (!card.dueDay || card.minPayment <= 0) continue;
+          prePaycheckBillsTotal += card.minPayment;
+          floorItems.push({ name: card.name + ' min', amount: card.minPayment, dueDay: card.dueDay });
         }
       }
 
