@@ -10,6 +10,7 @@ type Props = {
   expectedRemainingExpenses: number;
   projectedSurplus: number;
   cashFloor: number;
+  savingsAndReserves?: number;
   availableToDeploy?: number;
   saveUpNote?: { eventName: string; monthLabel: string } | null;
   onFloorClick?: () => void;
@@ -31,17 +32,20 @@ export default function MonthlyBudgetSnapshot({
   expectedRemainingExpenses,
   projectedSurplus,
   cashFloor,
+  savingsAndReserves,
   availableToDeploy,
   saveUpNote,
   onFloorClick,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const shortfallAmt = projectedSurplus < 0 ? Math.abs(projectedSurplus) : 0;
-  // Cash floor segment: capped at projectedSurplus so it never exceeds what's actually there
-  const floorSegAmt  = projectedSurplus > 0 ? Math.min(cashFloor, projectedSurplus) : 0;
+  const savingsAmt   = savingsAndReserves ?? 0;
+  // Cash floor + savings segment: locked cash that can't be deployed
+  const lockedAmt    = cashFloor + savingsAmt;
+  const floorSegAmt  = projectedSurplus > 0 ? Math.min(lockedAmt, projectedSurplus) : 0;
   const deployAmt    = availableToDeploy != null
     ? Math.max(0, availableToDeploy)
-    : Math.max(0, projectedSurplus - cashFloor);
+    : Math.max(0, projectedSurplus - lockedAmt);
 
   const pieData = useMemo(() => {
     const segments = [
@@ -57,8 +61,7 @@ export default function MonthlyBudgetSnapshot({
 
   const activeSlice = activeIdx !== null ? pieData[activeIdx] : null;
 
-  const floorValue    = cashFloor;
-  const deployedValue = availableToDeploy != null ? availableToDeploy : projectedSurplus - cashFloor;
+  const deployedValue = availableToDeploy != null ? availableToDeploy : projectedSurplus - lockedAmt;
 
   type Row = { label: string; value: number; sign: string; colorClass: string; onClick?: () => void; note?: string };
   const rows: Row[] = [
@@ -66,7 +69,8 @@ export default function MonthlyBudgetSnapshot({
     { label: 'Income still coming', value: remainingIncome,           sign: '+', colorClass: 'text-success' },
     { label: 'Bills still coming',  value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
     { label: 'Projected remaining', value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
-    { label: 'Cash floor',          value: floorValue,                sign: '−', colorClass: 'text-muted-foreground', onClick: onFloorClick },
+    { label: 'Cash floor',          value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground', onClick: onFloorClick },
+    ...(savingsAmt > 0 ? [{ label: 'Savings & reserves', value: savingsAmt, sign: '−', colorClass: 'text-muted-foreground' } as Row] : []),
     {
       label: 'Available to deploy',
       value: deployedValue,
