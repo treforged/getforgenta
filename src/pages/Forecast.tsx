@@ -1241,6 +1241,7 @@ export default function Forecast() {
         // Popup breakdown fields
         baseExpenses: Math.round(b.baseExpenses),
         savingsContrib: Math.round(actualGoalsSavings),
+        savingsGoalItems: b.savingsGoalItems,
         carContrib: Math.round(actualCarSavings),
         carLoanPayment: Math.round(carLoanThisMonth - activeCarLoanLumpSumByMonth[i]),
         vehicleDownPayment: Math.round(downPaymentThisMonth), // full personal obligation (display)
