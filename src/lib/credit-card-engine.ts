@@ -313,8 +313,7 @@ export function projectCardVariable(
       if (m > months) break;
       const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
       const startBal = payment; // previous month's end balance = this month's payment
-      // full-balance cards are truly paid off — show $0. statement cards show pending purchases.
-      const endBal = card.paymentPreference === 'full' ? 0 : Math.round(newPurchases * 100) / 100;
+      const endBal = Math.round(newPurchases * 100) / 100;
       const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
       rows.push({ month: m, label, startBalance: startBal, newPurchases, interest: 0, payment, endBalance: endBal, utilization });
       continue;
