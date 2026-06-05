@@ -543,11 +543,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             row[p.card.name] = Math.round(m.endBalance);
             row.totalInterest += m.interest;
           } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
-            if (p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement') {
-              row[p.card.name] = Math.round(cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases);
-            } else {
-              row[p.card.name] = 0;
-            }
+            // full-balance cards are truly paid off — show $0.
+            // statement cards show the pending monthly charges (next statement balance).
+            row[p.card.name] = p.card.paymentPreference === 'statement'
+              ? Math.round(cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases)
+              : 0;
           }
         }
         row.totalCCBalance = Math.round(Math.max(0,
@@ -557,7 +557,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         for (const card of cards) {
           const simBal = sim.monthlyBalances.get(card.id)?.[i] ?? 0;
           if (simBal > 0) displayBal += simBal;
-          else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += card.monthlyNewPurchases;
+          else if (card.paymentPreference === 'statement') displayBal += card.monthlyNewPurchases;
         }
         row.displayCCBalance = Math.round(Math.max(0, displayBal));
         row.totalInterest = Math.round(row.totalInterest);
