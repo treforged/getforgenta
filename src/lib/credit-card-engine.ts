@@ -305,14 +305,17 @@ export function projectCardVariable(
       : m > monthlyPayments.length ? 0 // beyond sim range: track carried balance only; new purchases assumed paid in-cycle
       : card.monthlyNewPurchases;
 
-    if ((card.autopayFullBalance || card.paymentPreference !== null) && bal <= 0) {
+    if ((card.autopayFullBalance || card.paymentPreference !== null) && (bal <= 0 || payoffMonth !== null)) {
       // Payment = previous month's deferred charges (billing cycle delay).
       // endBalance = this month's new charges (will be paid next cycle).
+      // payoffMonth !== null catches statement-preference cards whose balance equals
+      // newPurchases after the revolving debt clears — bal > 0 but no revolving debt remains.
+      if (m > months) break;
       const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
       const startBal = payment; // previous month's end balance = this month's payment
       const endBal = Math.round(newPurchases * 100) / 100;
       const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
-      if (m <= months) rows.push({ month: m, label, startBalance: startBal, newPurchases, interest: 0, payment, endBalance: endBal, utilization });
+      rows.push({ month: m, label, startBalance: startBal, newPurchases, interest: 0, payment, endBalance: endBal, utilization });
       continue;
     }
 
