@@ -529,7 +529,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       const projs = cards.map(c => {
         const pays = sim.monthlyPayments.get(c.id) || [];
-        return projectCardVariable(c, pays, 36, true);
+        const revBals = sim.monthlyRevolvingBalances.get(c.id) || [];
+        return projectCardVariable(c, pays, 36, true, undefined, revBals);
       });
 
       // ── Derived arrays ────────────────────────────────────────────────────────
@@ -743,7 +744,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             total + (sim2.monthlyPayments.get(card.id)?.[i] ?? 0), 0);
         }
         const projs2 = cards.map(c =>
-          projectCardVariable(c, sim2.monthlyPayments.get(c.id) || [], 36, true)
+          projectCardVariable(c, sim2.monthlyPayments.get(c.id) || [], 36, true, undefined, sim2.monthlyRevolvingBalances.get(c.id) || [])
         );
         for (let i = 0; i < 36; i++) {
           debtPaymentTotals[i] = projs2.reduce((total, proj) => {
