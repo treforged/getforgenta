@@ -735,15 +735,34 @@ export default function Dashboard() {
 
   const carGoalData = useMemo(() => {
     if (carFunds && carFunds.length > 0) {
-      const c = carFunds[0];
-      return { name: c.vehicle_name, saved: Number(c.current_saved), target: Number(c.down_payment_goal), price: Number(c.target_price), apr: Number(c.expected_apr), term: Number(c.loan_term_months), isCarFund: true };
+      const c = carFunds[0] as any;
+      const linkedAcctBal = c.linked_account && accountMap[c.linked_account]
+        ? Number(accountMap[c.linked_account].balance)
+        : null;
+      const saved = linkedAcctBal ?? Number(c.current_saved);
+      const gift = Number(c.gift_contribution) || 0;
+      const personalTarget = Math.max(0, Number(c.down_payment_goal) - gift);
+      const rem = Math.max(0, personalTarget - saved);
+      const now = new Date();
+      let monthsToGoal = 12;
+      if (c.planned_purchase_date) {
+        const parts = (c.planned_purchase_date as string).split('-').map(Number);
+        const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+        monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+      }
+      const monthlyNeeded = rem > 0 ? Math.min(rem / monthsToGoal, rem) : 0;
+      return {
+        name: c.vehicle_name, saved, target: personalTarget, fullDownPayment: Number(c.down_payment_goal),
+        gift, monthlyNeeded, price: Number(c.target_price), apr: Number(c.expected_apr),
+        term: Number(c.loan_term_months), isCarFund: true,
+      };
     }
     const carGoal = goals?.find((g: any) => g.goal_type === 'Car Fund');
     if (carGoal) {
-      return { name: (carGoal as any).name, saved: Number((carGoal as any).current_amount), target: Number((carGoal as any).target_amount), price: 0, apr: 0, term: 0, isCarFund: false };
+      return { name: (carGoal as any).name, saved: Number((carGoal as any).current_amount), target: Number((carGoal as any).target_amount), fullDownPayment: Number((carGoal as any).target_amount), gift: 0, monthlyNeeded: 0, price: 0, apr: 0, term: 0, isCarFund: false };
     }
     return null;
-  }, [carFunds, goals]);
+  }, [carFunds, goals, accountMap]);
 
   // ─── Calc drawer openers ──────────────────────────────────────────────────
 
@@ -977,8 +996,8 @@ export default function Dashboard() {
                 <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.saved, false)}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase">{carGoalData.isCarFund ? 'Down Payment Goal' : 'Target'}</p>
-                <p className="text-lg font-display font-bold text-foreground">{formatCurrency(carGoalData.target, false)}</p>
+                <p className="text-xs text-muted-foreground uppercase">{carGoalData.isCarFund ? (carGoalData.gift > 0 ? 'Your Goal' : 'Down Payment Goal') : 'Target'}</p>
+                <p className="text-lg font-display font-bold text-foreground">{formatCurrency(carGoalData.target, false)}{carGoalData.gift > 0 && <span className="text-xs text-muted-foreground font-normal ml-1">+{formatCurrency(carGoalData.gift, false)} gift</span>}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Progress</p>
@@ -986,10 +1005,19 @@ export default function Dashboard() {
               </div>
               {carGoalData.isCarFund && (
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase">Est. Monthly Pmt</p>
-                  <p className="text-lg font-display font-bold text-destructive">
-                    {formatCurrency(calculateMonthlyPayment(carGoalData.price - carGoalData.target, carGoalData.apr, carGoalData.term), true)}
-                  </p>
+                  {carGoalData.monthlyNeeded > 0 ? (
+                    <>
+                      <p className="text-xs text-muted-foreground uppercase">Save / mo</p>
+                      <p className="text-lg font-display font-bold text-amber-400">{formatCurrency(carGoalData.monthlyNeeded, false)}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-muted-foreground uppercase">Est. Monthly Pmt</p>
+                      <p className="text-lg font-display font-bold text-destructive">
+                        {formatCurrency(calculateMonthlyPayment(carGoalData.price - carGoalData.fullDownPayment, carGoalData.apr, carGoalData.term), true)}
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1123,7 +1151,12 @@ export default function Dashboard() {
                   if (b.goal_type === 'Emergency Fund') return 1;
                   return 0;
                 });
-                const carEntry = carFunds[0] ? [{ id: 'car-dash', name: carFunds[0].vehicle_name, current_amount: carFunds[0].current_saved, target_amount: carFunds[0].down_payment_goal, isCar: true }] : [];
+                const carEntry = carFunds[0] ? (() => {
+                  const c = carFunds[0] as any;
+                  const livebal = c.linked_account && accountMap[c.linked_account] ? Number(accountMap[c.linked_account].balance) : Number(c.current_saved);
+                  const personalGoal = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
+                  return [{ id: 'car-dash', name: c.vehicle_name, current_amount: livebal, target_amount: personalGoal, isCar: true }];
+                })() : [];
                 return [
                   ...(retireGoal ? [retireGoal] : []),
                   ...otherGoals.slice(0, retireGoal ? 1 : 2),
