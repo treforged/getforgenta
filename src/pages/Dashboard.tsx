@@ -744,13 +744,14 @@ export default function Dashboard() {
       const personalTarget = Math.max(0, Number(c.down_payment_goal) - gift);
       const rem = Math.max(0, personalTarget - saved);
       const now = new Date();
-      let monthsToGoal = 12;
+      let savingMonths = 13; // this month + 12 future
       if (c.planned_purchase_date) {
         const parts = (c.planned_purchase_date as string).split('-').map(Number);
         const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-        monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+        const diff = (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth());
+        savingMonths = Math.max(1, diff + 1); // include the purchase month
       }
-      const monthlyNeeded = rem > 0 ? Math.min(rem / monthsToGoal, rem) : 0;
+      const monthlyNeeded = rem > 0 ? Math.min(rem / savingMonths, rem) : 0;
       return {
         name: c.vehicle_name, saved, target: personalTarget, fullDownPayment: Number(c.down_payment_goal),
         gift, monthlyNeeded, price: Number(c.target_price), apr: Number(c.expected_apr),
