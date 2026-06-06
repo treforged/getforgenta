@@ -246,11 +246,12 @@ export default function Forecast() {
         const effectiveSaved0 = linkedAcct0 ? Number(linkedAcct0.balance) : Number(c.current_saved);
         const rem = Math.max(0, Number(c.down_payment_goal) - effectiveSaved0 - Number(c.gift_contribution || 0));
         if (rem <= 0) return s;
-        let monthsToGoal = 12;
+        let monthsToGoal = 13; // default: current + 12 future months
         if (c.planned_purchase_date) {
           const parts = (c.planned_purchase_date as string).split('-').map(Number);
           const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-          monthsToGoal = Math.max(1, (pd.getFullYear() - now0.getFullYear()) * 12 + (pd.getMonth() - now0.getMonth()));
+          const diff = (pd.getFullYear() - now0.getFullYear()) * 12 + (pd.getMonth() - now0.getMonth());
+          monthsToGoal = Math.max(1, diff + 1); // include the purchase month
         }
         return s + Math.min(rem / monthsToGoal, rem);
       }, 0);
@@ -609,12 +610,13 @@ export default function Forecast() {
         } else {
           purchaseMonthIdx = 0;
         }
-        // Timeline-aware: spread the remaining amount evenly over months to goal.
+        // Timeline-aware: spread rem over purchaseMonthIdx+1 months (include the purchase month itself —
+        // user can deposit before the purchase date that month).
         // If linked account with a transfer rule → rule's monthly transfer is already in cash flow, skip contrib.
         // If linked account without a transfer rule → compute needed monthly contrib (user must fund it manually).
         const contrib = (c.linked_account && c.linked_rule_id) ? 0
-          : (rem > 0 && isFinite(purchaseMonthIdx) && purchaseMonthIdx > 0
-            ? Math.min(rem / purchaseMonthIdx, rem)
+          : (rem > 0 && isFinite(purchaseMonthIdx)
+            ? Math.min(rem / (purchaseMonthIdx + 1), rem)
             : 0);
         const loanPrincipal = Math.max(0, Number(c.target_price) + Number(c.tax_fees) - Number(c.down_payment_goal));
         const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
@@ -624,8 +626,8 @@ export default function Forecast() {
         // effectiveDP = what still needs to come from checking in the purchase month after monthly
         // savings have accumulated. When monthly savings fully cover `rem`, effectiveDP = 0 so the
         // cash sim sees no lump-sum shock in the purchase month (the savings handled it month-by-month).
-        const effectiveDP = Math.max(0, rem - contrib * purchaseMonthIdx);
-        return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[] };
+        const effectiveDP = Math.max(0, rem - contrib * (purchaseMonthIdx + 1));
+        return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string };
       });
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(36).fill(0);
@@ -687,7 +689,7 @@ export default function Forecast() {
     }
 
     const getMonthCarContrib = (i: number) => vehicleProjections.reduce(
-      (s, v) => s + (i < v.purchaseMonthIdx ? v.contrib : 0), 0);
+      (s, v) => s + (i <= v.purchaseMonthIdx ? v.contrib : 0), 0);
     const getMonthProjLoanRegular = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i > v.purchaseMonthIdx && i <= v.purchaseMonthIdx + v.termMonths ? v.projPayment : 0), 0);
     const getMonthProjLumpSum = (i: number) => {
@@ -720,6 +722,7 @@ export default function Forecast() {
       floorItems: { name: string; amount: number; dueDay: number }[];
       prePaycheckBillsTotal: number;
       savingsGoalItems: { name: string; amount: number }[];
+      carContribItems: { name: string; amount: number }[];
     }[] = [];
     let incomeMultiplier = 1;
     let expenseMultiplier = 1;
@@ -1002,12 +1005,16 @@ export default function Forecast() {
         return s + contrib;
       }, 0);
 
+      const carContribItems: { name: string; amount: number }[] = vehicleProjections
+        .filter(v => i <= v.purchaseMonthIdx && v.contrib > 0)
+        .map(v => ({ name: v.vehicleName, amount: Math.round(v.contrib) }));
+
       baseData.push({
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
         monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, monthSavingsTransferContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown,
-        floorItems, prePaycheckBillsTotal, savingsGoalItems,
+        floorItems, prePaycheckBillsTotal, savingsGoalItems, carContribItems,
       });
 
       expenseMultiplier *= (1 + monthlyExpenseGrowth);
@@ -1251,6 +1258,7 @@ export default function Forecast() {
         savingsContrib: Math.round(actualGoalsSavings),
         savingsGoalItems: b.savingsGoalItems,
         carContrib: Math.round(actualCarSavings),
+        carContribItems: b.carContribItems,
         carLoanPayment: Math.round(carLoanThisMonth - activeCarLoanLumpSumByMonth[i]),
         vehicleDownPayment: Math.round(downPaymentThisMonth), // full personal obligation (display)
         vehicleSavedPortion: Math.round(Math.max(0, downPaymentThisMonth - effectiveDPThisMonth)), // already in savings
@@ -2026,7 +2034,10 @@ export default function Forecast() {
                       ? (row.savingsGoalItems as { name: string; amount: number }[]).map(g => ({ label: `  ${g.name}`, value: formatCurrency(g.amount, false), op: '−' as const }))
                       : (row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' as const }] : []
                     ),
-                    ...((row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' }] : []),
+                    ...((row.carContribItems as { name: string; amount: number }[] | undefined)?.length
+                      ? (row.carContribItems as { name: string; amount: number }[]).map(v => ({ label: `  ${v.name}`, value: formatCurrency(v.amount, false), op: '−' as const }))
+                      : (row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' as const }] : []
+                    ),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
                     ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, false), op: '−' }] : []),
                     ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: `  Vehicle Down Payment${(row.vehicleSavedPortion ?? 0) > 0 ? ` (${formatCurrency(row.vehicleSavedPortion, false)} from savings)` : ''}`, value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
