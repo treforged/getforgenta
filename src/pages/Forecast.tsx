@@ -242,7 +242,9 @@ export default function Forecast() {
       }, 0);
       const carTotal = carFunds.reduce((s: number, c: any) => {
         if (c.phase === 'loan') return s;
-        const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
+        const linkedAcct0 = c.linked_account ? accounts.find((a: any) => a.id === c.linked_account) : null;
+        const effectiveSaved0 = linkedAcct0 ? Number(linkedAcct0.balance) : Number(c.current_saved);
+        const rem = Math.max(0, Number(c.down_payment_goal) - effectiveSaved0 - Number(c.gift_contribution || 0));
         if (rem <= 0) return s;
         let monthsToGoal = 12;
         if (c.planned_purchase_date) {
@@ -591,7 +593,10 @@ export default function Forecast() {
     const vehicleProjections = pauseSavings ? [] : (carFunds as any[])
       .filter((c: any) => c.phase === 'saving')
       .map((c: any) => {
-        const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
+        // Use live account balance when the vehicle is linked to a savings account
+        const linkedAcct = c.linked_account ? accountMap.get(c.linked_account) : null;
+        const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved);
+        const rem = Math.max(0, Number(c.down_payment_goal) - effectiveSaved - Number(c.gift_contribution || 0));
         // Determine purchase month first — needed for timeline-aware contribution calculation.
         let purchaseMonthIdx: number;
         if (c.planned_purchase_date) {
@@ -605,8 +610,9 @@ export default function Forecast() {
           purchaseMonthIdx = 0;
         }
         // Timeline-aware: spread the remaining amount evenly over months to goal.
-        // No contribution when linked to an account — balance is already in liquidBal.
-        const contrib = c.linked_account ? 0
+        // If linked account with a transfer rule → rule's monthly transfer is already in cash flow, skip contrib.
+        // If linked account without a transfer rule → compute needed monthly contrib (user must fund it manually).
+        const contrib = (c.linked_account && c.linked_rule_id) ? 0
           : (rem > 0 && isFinite(purchaseMonthIdx) && purchaseMonthIdx > 0
             ? Math.min(rem / purchaseMonthIdx, rem)
             : 0);
@@ -655,7 +661,9 @@ export default function Forecast() {
           const pd = new Date(parts[0], parts[1] - 1, parts[2]);
           purchaseMonthIdx = Math.max(0, (pd.getFullYear() - nowDate.getFullYear()) * 12 + (pd.getMonth() - nowDate.getMonth()));
         } else {
-          const rem = Math.max(0, Number(cf.down_payment_goal) - Number(cf.current_saved) - Number(cf.gift_contribution || 0));
+          const linkedAcctLoan = cf.linked_account ? accountMap.get(cf.linked_account) : null;
+          const effectiveSavedLoan = linkedAcctLoan ? Number(linkedAcctLoan.balance) : Number(cf.current_saved);
+          const rem = Math.max(0, Number(cf.down_payment_goal) - effectiveSavedLoan - Number(cf.gift_contribution || 0));
           const mc = rem > 0 ? Math.min(rem / 12, 500) : 0;
           purchaseMonthIdx = mc > 0 ? Math.ceil(rem / mc) : 999;
         }

@@ -231,9 +231,9 @@ function estimateSavingCompletion(downGoal: number, saved: number, monthly: numb
   return dt.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib, onSaveLumpSums, liquidCash, availableAboveFloor }:
+function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccountName, monthlyContrib, onSaveLumpSums, liquidCash, availableAboveFloor, computedMonthlyNeeded }:
   { cf: CarFund; onEdit: () => void; onDelete: () => void; onBuyIt: () => void; deleteConfirm: boolean;
-    linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number; availableAboveFloor?: number }) {
+    linkedAccountName?: string | null; monthlyContrib?: number; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number; availableAboveFloor?: number; computedMonthlyNeeded?: number }) {
   const gift = Number(cf.gift_contribution) || 0;
   const personalGoal = Math.max(0, cf.down_payment_goal - gift);
   // simMonthlyContrib is used for completion-date estimation only.
@@ -261,7 +261,9 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
     cf.loan_term_months,
   );
   const monthly = monthlyContrib ?? 0;
-  const completionLabel = estimateSavingCompletion(personalGoal, cf.current_saved, monthly, cf.planned_purchase_date);
+  // When no transfer rule is linked, show the computed amount needed per month to hit the goal.
+  const displayMonthly = monthly > 0 ? monthly : (computedMonthlyNeeded ?? 0);
+  const completionLabel = estimateSavingCompletion(personalGoal, cf.current_saved, displayMonthly, cf.planned_purchase_date);
 
   const lumpSums: LumpSumPayment[] = Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [];
 
@@ -342,7 +344,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
           {Math.round(pct)}%{' '}
           {cf.planned_purchase_date
             ? `· Planned: ${fmtDate(cf.planned_purchase_date)}`
-            : monthly > 0
+            : displayMonthly > 0
               ? `· Est. ready ${completionLabel}`
               : linkedAccountName ? '· Balance auto-synced from account' : '· Set a transfer rule to estimate completion'}
         </p>
@@ -363,9 +365,12 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         </div>
       </div>
 
-      {monthly > 0 && (
+      {displayMonthly > 0 && (
         <p className="text-[10px] text-primary/70 text-center">
-          {formatCurrency(monthly, false)}/mo contribution{linkedAccountName ? ' · via transfer rule' : ''}
+          {formatCurrency(displayMonthly, false)}/mo
+          {monthly > 0
+            ? (linkedAccountName ? ' · via transfer rule' : ' · contribution')
+            : ' · suggested to hit goal'}
         </p>
       )}
 
@@ -1023,6 +1028,23 @@ export default function Vehicles() {
             const monthlyContrib = linkedRule
               ? toMonthly(Number(linkedRule.amount), linkedRule.frequency)
               : 0;
+            // Compute monthly needed when no transfer rule is linked
+            const computedMonthlyNeeded = (() => {
+              if (monthlyContrib > 0) return 0; // rule handles it
+              const gift = Number(cf.gift_contribution) || 0;
+              const personalGoal = Math.max(0, cf.down_payment_goal - gift);
+              const effectiveSaved = linkedAccount ? Number(linkedAccount.balance) : Number(cf.current_saved);
+              const rem = Math.max(0, personalGoal - effectiveSaved);
+              if (rem <= 0) return 0;
+              const now = new Date();
+              let monthsToGoal = 12;
+              if (cf.planned_purchase_date) {
+                const parts = (cf.planned_purchase_date as string).split('-').map(Number);
+                const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+                monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+              }
+              return Math.min(rem / monthsToGoal, rem);
+            })();
             return (
               <SavingCard
                 key={cf.id}
@@ -1033,6 +1055,7 @@ export default function Vehicles() {
                 deleteConfirm={deleteConfirm === cf.id}
                 linkedAccountName={linkedAccount?.name ?? null}
                 monthlyContrib={monthlyContrib}
+                computedMonthlyNeeded={computedMonthlyNeeded}
                 onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps })}
                 liquidCash={liquidCash}
                 availableAboveFloor={availableAboveFloor}
