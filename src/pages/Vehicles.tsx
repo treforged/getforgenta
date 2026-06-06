@@ -1037,13 +1037,14 @@ export default function Vehicles() {
               const rem = Math.max(0, personalGoal - effectiveSaved);
               if (rem <= 0) return 0;
               const now = new Date();
-              let monthsToGoal = 12;
+              let savingMonths = 13; // default: this month + 12 future
               if (cf.planned_purchase_date) {
                 const parts = (cf.planned_purchase_date as string).split('-').map(Number);
                 const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-                monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+                const diff = (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth());
+                savingMonths = Math.max(1, diff + 1); // include the purchase month
               }
-              return Math.min(rem / monthsToGoal, rem);
+              return Math.min(rem / savingMonths, rem);
             })();
             return (
               <SavingCard
