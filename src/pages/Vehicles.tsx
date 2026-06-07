@@ -251,9 +251,11 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
     }
     return Math.min(rem / monthsToGoal, rem);
   })();
-  // Use availableAboveFloor (checking surplus today→EOM above cash floor) when provided;
-  // fall back to simMonthlyContrib for non-linked cars when the data is unavailable.
-  const simulatedSaved = Math.min(personalGoal, cf.current_saved + (availableAboveFloor ?? simMonthlyContrib));
+  // For linked-account cars, live balance is the truth — don't layer checking surplus on top.
+  // For non-linked cars, add availableAboveFloor (end-of-month surplus projection) or simMonthlyContrib.
+  const simulatedSaved = linkedAccountName
+    ? Math.min(personalGoal, cf.current_saved)
+    : Math.min(personalGoal, cf.current_saved + (availableAboveFloor ?? simMonthlyContrib));
   const pct = personalGoal > 0 ? Math.min((simulatedSaved / personalGoal) * 100, 100) : 100;
   const monthlyEst = calculateMonthlyPayment(
     cf.target_price + cf.tax_fees - cf.down_payment_goal,
