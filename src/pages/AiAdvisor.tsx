@@ -615,6 +615,7 @@ export default function AiAdvisor() {
   const snapshot = useMemo(() => {
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentDate = now.toISOString().split('T')[0];
     const thisMonth = allTxns.filter((t: any) => t.date?.startsWith(currentMonthStr));
 
     const monthlyIncome = thisMonth
@@ -692,6 +693,10 @@ export default function AiAdvisor() {
       ? ((monthlyIncome - monthlyExpenses) / monthlyIncome) * 100
       : 0;
 
+    const emergencyRunwayMonths = monthlyExpenses > 0
+      ? Math.round((savingsBalance / monthlyExpenses) * 10) / 10
+      : null;
+
     const breakdown = categorizeExpenses(thisMonth, true);
     const topCategories = Object.entries(breakdown)
       .map(([category, amount]) => ({ category, amount: amount as number }))
@@ -751,8 +756,10 @@ export default function AiAdvisor() {
       }));
 
     return {
+      currentDate,
       monthlyIncome, monthlyExpenses, monthlyDebtPayments, totalDebt,
       savingsBalance, cashOnHand, netWorth, savingsRate,
+      emergencyRunwayMonths,
       topCategories, debtDetails, savingsGoals,
       creditCards, loans, investments,
       carFunds: carFundDetails,
@@ -1151,12 +1158,11 @@ export default function AiAdvisor() {
   // ── Snapshot bar ──────────────────────────────────────────────────────────────
 
   const SnapshotBar = () => (
-    <div className="px-4 py-2 lg:px-6 border-b border-border/30 shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2">
+    <div className="px-4 py-2 lg:px-6 border-b border-border/30 shrink-0 grid grid-cols-3 gap-2">
       {[
-        { label: 'Income',       value: formatCurrency(snapshot.monthlyIncome, false) },
-        { label: 'Expenses',     value: formatCurrency(snapshot.monthlyExpenses, false) },
-        { label: 'Total Debt',   value: formatCurrency(snapshot.totalDebt, false) },
-        { label: 'Savings Rate', value: `${snapshot.savingsRate.toFixed(1)}%` },
+        { label: 'Income',     value: formatCurrency(snapshot.monthlyIncome, false) },
+        { label: 'Expenses',   value: formatCurrency(snapshot.monthlyExpenses, false) },
+        { label: 'Total Debt', value: formatCurrency(snapshot.totalDebt, false) },
       ].map(k => (
         <div key={k.label} className="bg-secondary/50 rounded-md px-2.5 py-1.5">
           <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{k.label}</p>
