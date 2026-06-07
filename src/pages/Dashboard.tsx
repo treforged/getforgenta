@@ -365,6 +365,49 @@ export default function Dashboard() {
     return savingsTotal + carTotal + carLoanTotal;
   }, [pauseSavings, goals, carFunds, accounts, rules]);
 
+  const month0SavingsBreakdown = useMemo((): { label: string; value: number }[] => {
+    if (pauseSavings) return [];
+    const retireIds = new Set<string>(
+      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+    );
+    const now = new Date();
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const activeTransferDests = new Set<string>(
+      (rules as any[]).filter((r: any) =>
+        r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
+        !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
+        !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
+      ).map((r: any) => r.deposit_account),
+    );
+    const items: { label: string; value: number }[] = [];
+    for (const g of goals as any[]) {
+      if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) continue;
+      if (g.linked_account && retireIds.has(g.linked_account)) continue;
+      if (g.linked_account && activeTransferDests.has(g.linked_account)) continue;
+      const contrib = Number(g.monthly_contribution);
+      if (contrib > 0) items.push({ label: g.name, value: contrib });
+    }
+    for (const c of carFunds as any[]) {
+      if (c.phase === 'loan') continue;
+      const gift = Number(c.gift_contribution || 0);
+      const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - gift);
+      const savedAmt = c.linked_account && accountMap[c.linked_account]
+        ? Number(accountMap[c.linked_account].balance)
+        : Number(c.current_saved);
+      const rem = Math.max(0, giftAdjDownPmt - savedAmt);
+      if (rem <= 0) continue;
+      let monthsToGoal = 12;
+      if (c.planned_purchase_date) {
+        const parts = (c.planned_purchase_date as string).split('-').map(Number);
+        const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+        monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()) + 1);
+      }
+      const reserve = Math.min(rem / monthsToGoal, rem);
+      if (reserve > 0) items.push({ label: c.vehicle_name, value: Math.round(reserve) });
+    }
+    return items;
+  }, [pauseSavings, goals, carFunds, accounts, rules, accountMap]);
+
   const debtCards = useMemo(
     () => buildCardData(accounts, baseTxns, rules, debts),
     [accounts, baseTxns, rules, debts],
@@ -897,6 +940,7 @@ export default function Dashboard() {
             projectedSurplus={fundingBalance + remainingTxIncome - remainingTxExpenses}
             cashFloor={forecastFloor0.monthMinSafe}
             savingsAndReserves={month0ImpliedSavings}
+            savingsBreakdown={month0SavingsBreakdown}
             availableToDeploy={cardProjection?.month0?.safeToPayTotal}
             saveUpNote={month0SaveUpNote}
             onFloorClick={openFloorCalc}
