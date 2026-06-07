@@ -92,6 +92,7 @@ interface RecurringObligation {
 }
 
 interface FinancialSnapshot {
+  currentDate?: string;
   monthlyIncome: number;
   monthlyExpenses: number;
   monthlyDebtPayments?: number;
@@ -100,6 +101,7 @@ interface FinancialSnapshot {
   cashOnHand: number;
   netWorth: number;
   savingsRate: number;
+  emergencyRunwayMonths?: number | null;
   topCategories: { category: string; amount: number }[];
   debtDetails: DebtDetail[];
   savingsGoals: SavingsGoalDetail[];
@@ -234,11 +236,16 @@ function buildPrompt(body: FinancialSnapshot): string {
       : "Directly and fully answer the user's question using their actual numbers, names, and dates. Be complete — 3-6 sentences. Do not open with a general financial health overview."
     : "2-3 sentences covering what they're doing well and what needs the most attention, with specific numbers.";
 
-  return `You are Forgenta, a personal finance coach inside the Forgenta app. You have full access to this user's live financial data. You're direct and specific — never generic — but you're also human about it. You care about this person's real progress. You acknowledge what's hard, celebrate what's working, and give people guidance they can act on today. When someone is stressed about money, lead with empathy before analysis. When they've made progress, say so clearly.${historySection ? '\n' + historySection : ''}
+  const dateContext = body.currentDate ? `\nToday's date: ${body.currentDate}` : '';
+  const runwayNote = body.emergencyRunwayMonths != null
+    ? `\n- Emergency fund runway: ${body.emergencyRunwayMonths.toFixed(1)} months of expenses covered`
+    : '';
+
+  return `You are Forgenta, a personal finance coach inside the Forgenta app. You have full access to this user's live financial data. You're direct and specific — never generic — but you're also human about it. You care about this person's real progress. You acknowledge what's hard, celebrate what's working, and give people guidance they can act on today. When someone is stressed about money, lead with empathy before analysis. When they've made progress, say so clearly.${dateContext}${historySection ? '\n' + historySection : ''}
 
 THEIR FINANCIAL PICTURE
 
-Income & Cash Flow
+Income & Cash Flow (current month)
 - Monthly take-home income: $${body.monthlyIncome.toFixed(0)}
 - Monthly spending (bills, subscriptions, living expenses): $${body.monthlyExpenses.toFixed(0)}
 - Monthly debt payments (CC, loans — separate from spending above): $${debtPayments.toFixed(0)}
@@ -259,7 +266,7 @@ ${goalSection}
 Cash Position
 - Checking / liquid cash: $${body.cashOnHand.toFixed(0)}
 - Savings account balance: $${body.savingsBalance.toFixed(0)}
-- Net worth: $${body.netWorth.toFixed(0)}
+- Net worth: $${body.netWorth.toFixed(0)}${runwayNote}
 ${investmentSection ? `\nInvestment & Retirement Accounts\n${investmentSection}` : ''}
 ${creditCardSection ? `\nCredit Cards (detail)\n${creditCardSection}` : ''}
 ${loanSection ? `\nLoans & Mortgages\n${loanSection}` : ''}
