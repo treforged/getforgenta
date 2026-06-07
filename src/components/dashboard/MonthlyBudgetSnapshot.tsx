@@ -11,6 +11,7 @@ type Props = {
   projectedSurplus: number;
   cashFloor: number;
   savingsAndReserves?: number;
+  savingsBreakdown?: { label: string; value: number }[];
   availableToDeploy?: number;
   saveUpNote?: { eventName: string; monthLabel: string } | null;
   onFloorClick?: () => void;
@@ -33,6 +34,7 @@ export default function MonthlyBudgetSnapshot({
   projectedSurplus,
   cashFloor,
   savingsAndReserves,
+  savingsBreakdown,
   availableToDeploy,
   saveUpNote,
   onFloorClick,
@@ -70,7 +72,10 @@ export default function MonthlyBudgetSnapshot({
     { label: 'Bills still coming',  value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
     { label: 'Projected remaining', value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
     { label: 'Cash floor',          value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground', onClick: onFloorClick },
-    ...(savingsAmt > 0 ? [{ label: 'Savings & reserves', value: savingsAmt, sign: '−', colorClass: 'text-muted-foreground' } as Row] : []),
+    ...(savingsBreakdown && savingsBreakdown.length > 0
+      ? savingsBreakdown.map(item => ({ label: item.label, value: item.value, sign: '−', colorClass: 'text-muted-foreground' } as Row))
+      : savingsAmt > 0 ? [{ label: 'Savings & reserves', value: savingsAmt, sign: '−', colorClass: 'text-muted-foreground' } as Row] : []
+    ),
     {
       label: 'Available to deploy',
       value: deployedValue,
