@@ -672,8 +672,11 @@ export default function AiAdvisor() {
         balance: Number(a.balance ?? 0),
       }));
 
-    // Total debt = structured debts + credit card balances
-    const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance ?? 0), 0) + ccDebt;
+    // Total debt = credit card balances + loan balances, sourced from accounts table only.
+    // The debts table is intentionally excluded here — credit cards tracked there are already
+    // in accounts (credit_card type), so adding both would double-count them.
+    const loanDebt = loans.reduce((s: number, l) => s + l.balance, 0);
+    const totalDebt = ccDebt + loanDebt;
 
     const savingsBalance = activeAccounts
       .filter((a: any) => ['savings', 'high_yield_savings'].includes(a.account_type))
