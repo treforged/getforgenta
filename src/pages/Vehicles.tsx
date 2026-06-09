@@ -367,6 +367,15 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         </div>
       </div>
 
+      {projectedBase && (
+        <div className="flex items-center justify-between px-2 py-1.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
+          <span className="text-muted-foreground">Est. Loan Payoff</span>
+          <span className="font-semibold">
+            {new Date((projectedWithLumps?.payoffDate ?? projectedBase.payoffDate) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+          </span>
+        </div>
+      )}
+
       {displayMonthly > 0 && (
         <p className="text-[10px] text-primary/70 text-center">
           {formatCurrency(displayMonthly, false)}/mo
@@ -438,7 +447,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
     .filter((_, i) => i % 3 === 0 || i === proj.schedule.length - 1)
     .map(r => ({ month: r.month, balance: r.endBalance }));
 
-  const payoffDateFmt = new Date(proj.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const payoffDateFmt = new Date((projWithLumps?.payoffDate ?? proj.payoffDate) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
   return (
     <div className="card-forged p-4 space-y-3">
