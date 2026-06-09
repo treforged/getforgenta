@@ -629,6 +629,27 @@ export default function Forecast() {
         const effectiveDP = Math.max(0, rem - contrib * (purchaseMonthIdx + 1));
         return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string };
       });
+    // Per-vehicle lump sum breakdown for forecast popup (active loans + projected future loans)
+    const carLumpItemsByMonth: { name: string; amount: number }[][] = Array.from({ length: 36 }, (_, i) => {
+      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const items: { name: string; amount: number }[] = [];
+      for (const cf of carFunds as any[]) {
+        if (cf.phase !== 'loan') continue;
+        const amt = (cf.lump_sum_payments ?? [])
+          .filter((ls: any) => ls.date.substring(0, 7) === mk)
+          .reduce((s: number, ls: any) => s + Number(ls.amount), 0);
+        if (amt > 0) items.push({ name: cf.vehicle_name as string, amount: Math.round(amt) });
+      }
+      for (const v of vehicleProjections) {
+        if (!isFinite(v.purchaseMonthIdx) || i <= v.purchaseMonthIdx || i > v.purchaseMonthIdx + v.termMonths) continue;
+        const amt = (v.lumpSumPayments as { date: string; amount: number }[])
+          .filter(ls => ls.date.substring(0, 7) === mk)
+          .reduce((s, ls) => s + Number(ls.amount), 0);
+        if (amt > 0) items.push({ name: v.vehicleName, amount: Math.round(amt) });
+      }
+      return items;
+    });
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(36).fill(0);
     for (const cf of carFunds as any[]) {
@@ -1265,6 +1286,7 @@ export default function Forecast() {
         vehicleInsurance: Math.round(vehicleInsuranceThisMonth),
         projectedCarLoan: Math.round(projLoanThisMonth - projLumpThisMonth),
         carLoanExtraPayment: Math.round(carLoanLumpThisMonth),
+        carLumpItems: carLumpItemsByMonth[i],
         mortgagePayment: Math.round(mortgageMonthlyPayment),
         transfersTotal: Math.round(actualTransfers),
         transferBreakdown: b.transferBreakdown,
@@ -2043,7 +2065,10 @@ export default function Forecast() {
                     ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: `  Vehicle Down Payment${(row.vehicleSavedPortion ?? 0) > 0 ? ` (${formatCurrency(row.vehicleSavedPortion, false)} from savings)` : ''}`, value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
                     ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, false), op: '−' }] : []),
                     ...((row.projectedCarLoan ?? 0) > 0 ? [{ label: '  Est. Car Loan (projected)', value: formatCurrency(row.projectedCarLoan, false), op: '−' }] : []),
-                    ...((row.carLoanExtraPayment ?? 0) > 0 ? [{ label: '  Car Loan Extra Payment', value: formatCurrency(row.carLoanExtraPayment, false), op: '−' }] : []),
+                    ...((row.carLumpItems as { name: string; amount: number }[] | undefined)?.length
+                      ? (row.carLumpItems as { name: string; amount: number }[]).map(v => ({ label: `  ${v.name} — Extra Payment`, value: formatCurrency(v.amount, false), op: '−' as const }))
+                      : (row.carLoanExtraPayment ?? 0) > 0 ? [{ label: '  Car Loan Extra Payment', value: formatCurrency(row.carLoanExtraPayment, false), op: '−' as const }] : []
+                    ),
                     ...((row.lumpSumSavings ?? 0) > 0 ? [{ label: '  Lump Sum → Savings', value: formatCurrency(row.lumpSumSavings, false), op: '−' }] : []),
                     ...((row.lumpSumBrokerage ?? 0) > 0 ? [{ label: '  Lump Sum → Brokerage', value: formatCurrency(row.lumpSumBrokerage, false), op: '−' }] : []),
                     ...((row.lumpSumRothIra ?? 0) > 0 ? [{ label: '  Lump Sum → Roth IRA', value: formatCurrency(row.lumpSumRothIra, false), op: '−' }] : []),
@@ -2109,6 +2134,7 @@ export default function Forecast() {
               };
               const hasCC = (row.totalCCPurchases ?? 0) > 0;
               const hasOneTime = (row.oneTimeNet ?? 0) !== 0;
+              const hasCarLump = (row.carLoanExtraPayment ?? 0) > 0;
               return (
                 <div key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={openDrawer}>
                   <div className="grid grid-cols-[5rem_1fr_1fr_1fr] py-2">
@@ -2121,7 +2147,7 @@ export default function Forecast() {
                       {row.floorBreachedByOneTime && <div className="text-[8px] text-amber-400 leading-tight font-normal">one-time</div>}
                     </div>
                   </div>
-                  {(hasCC || hasOneTime) && (
+                  {(hasCC || hasOneTime || hasCarLump) && (
                     <div className="px-1 pb-1.5 flex flex-wrap gap-1">
                       {hasCC && (
                         <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
@@ -2131,6 +2157,11 @@ export default function Forecast() {
                       {hasOneTime && (
                         <span className={`text-[10px] sm:text-xs px-1.5 py-0.5 border whitespace-nowrap ${(row.oneTimeNet || 0) >= 0 ? 'bg-success/10 text-success border-success/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20'}`} style={{ borderRadius: 'var(--radius)' }}>
                           1× {(row.oneTimeNet || 0) >= 0 ? '+' : ''}{formatCurrency(row.oneTimeNet, false)}
+                        </span>
+                      )}
+                      {hasCarLump && (
+                        <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
+                          +pmt {formatCurrency(row.carLoanExtraPayment, false)}
                         </span>
                       )}
                     </div>
