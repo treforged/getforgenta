@@ -7,7 +7,7 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
-import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
+import { generateScheduledEvents, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
 import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal, Crown, Download } from 'lucide-react';
 import { exportTransactionsCsv } from '@/lib/exportCsv';
@@ -38,9 +38,11 @@ export default function Transactions() {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterSource, setFilterSource] = useState('all');
 
-  // Month filter: 'YYYY-MM' | 'all'
+  // Month filter: 'YYYY-MM' | 'all' | 'forecast'
   const currentMonthStr = new Date().toISOString().slice(0, 7);
   const [filterMonth, setFilterMonth] = useState<string>(currentMonthStr);
+  // Read forecast's persisted year filter to support forecast-range mode
+  const [forecastYear] = usePersistedState<'all' | '1' | '2' | '3'>('tre:forecast:filterYear', 'all');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [editChoiceId, setEditChoiceId] = useState<string | null>(null);
   const [editChoiceRule, setEditChoiceRule] = useState<any>(null);
@@ -80,6 +82,20 @@ export default function Transactions() {
   }, [accounts, profile]);
 
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
+
+  // Account name → ID lookup (for mapping ScheduledEvent.source to account:ID)
+  const accountByName = useMemo(() => {
+    const map: Record<string, string> = {};
+    accounts.forEach((a: any) => { map[a.name] = a.id; });
+    return map;
+  }, [accounts]);
+
+  // Rule ID → category lookup
+  const ruleCategoryMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    rules.forEach((r: any) => { map[r.id] = r.category || 'Other'; });
+    return map;
+  }, [rules]);
 
   // Savings/investing rule IDs for "paused" badge
   const savingsRuleIdsForBadge = useMemo(() => new Set<string>(
@@ -191,13 +207,174 @@ export default function Transactions() {
     }));
   }, [reconciliations]);
 
+  // Projected debt payment transactions from the simulation engine — only for forecast view
+  const projectedDebtPaymentTxns = useMemo(() => {
+    if (filterMonth !== 'forecast') return [];
+    const cards = buildCardData(accounts, baseTxns, rules, debts);
+    if (cards.length === 0) return [];
+
+    const liquidTypes = ['checking', 'business_checking', 'cash'];
+    const liquidCash = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type))
+      .reduce((s: number, a: any) => s + Number(a.balance), 0);
+    const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
+    // Scalar fallbacks
+    const payConfig2 = buildPayConfig(profile);
+    const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig2);
+    const _now2 = new Date();
+    const monthlyExpenses = rules.filter((r: any) => r.active && r.rule_type === 'expense')
+      .reduce((s: number, r: any) => {
+        const amt = Number(r.amount);
+        return s + amt * countRuleOccurrencesInMonth(r, _now2.getFullYear(), _now2.getMonth());
+      }, 0);
+
+    const schedEvts = generateScheduledEvents(rules, accounts, 36);
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const month0Income = getRemainingTransactionIncomeByDay(baseTxns, 31);
+    const month0Expenses = (baseTxns as any[])
+      .filter((t: any) => {
+        if (t.type !== 'expense') return false;
+        if (!t.date || !t.date.startsWith(monthStr)) return false;
+        if (t.date < todayStr) return false;
+        if (t.category === 'Debt Payments') return false;
+        if (t.category === 'Balance Adjustment') return false;
+        if (t.payment_source && ccPaymentSources.has(t.payment_source)) return false;
+        return true;
+      })
+      .reduce((s: number, t: any) => s + Number(t.amount), 0);
+
+    // Same CC-aware builder as Forecast.tsx cardProjectionData (T1/T2/T3/T4)
+    const liquidAccountIds = new Set<string>(
+      accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type)).map((a: any) => a.id),
+    );
+    const incomeToLiquidRuleIds = new Set<string>(
+      rules.filter((r: any) =>
+        r.active && r.rule_type === 'income' &&
+        (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
+      ).map((r: any) => r.id),
+    );
+    const ccPaymentSources = new Set<string>(cards.flatMap(c => [c.id, `account:${c.id}`]));
+    const ccExplicitRuleIds = new Set<string>(
+      rules.filter((r: any) =>
+        r.active && r.rule_type === 'expense' &&
+        r.payment_source && ccPaymentSources.has(r.payment_source),
+      ).map((r: any) => r.id),
+    );
+    const highestAprCardId = cards.length > 0 ? [...cards].sort((a, b) => b.apr - a.apr)[0].id : '';
+    const ccDefaultRuleIds = new Set<string>(
+      rules.filter((r: any) =>
+        r.active && r.rule_type === 'expense' &&
+        !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category),
+      ).map((r: any) => r.id),
+    );
+    const allCcRuleIds = new Set<string>([...ccExplicitRuleIds, ...ccDefaultRuleIds]);
+    const cardRuleIdMap = new Map<string, Set<string>>(
+      cards.map(c => {
+        const cKey = `account:${c.id}`;
+        const ids = new Set<string>(
+          rules.filter((r: any) =>
+            r.active && r.rule_type === 'expense' &&
+            (r.payment_source === c.id || r.payment_source === cKey),
+          ).map((r: any) => r.id),
+        );
+        if (c.id === highestAprCardId) ccDefaultRuleIds.forEach(id => ids.add(id));
+        return [c.id, ids];
+      }),
+    );
+
+    const monthEvts: { income: number; expenses: number }[] = [];
+    const cardPurchasesPerMonth: { [cardId: string]: number }[] = [];
+
+    for (let i = 0; i < 36; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const eventsInMonth = schedEvts.filter(e =>
+        e.date.startsWith(monthKey) && (i > 0 || e.date >= todayStr),
+      );
+      const income = eventsInMonth
+        .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId))
+        .reduce((s, e) => s + e.amount, 0);
+      const cashExpenses = eventsInMonth
+        .filter(e =>
+          e.type === 'expense' &&
+          !(e.ruleId && allCcRuleIds.has(e.ruleId)) &&
+          !(pauseSavings && e.ruleId && savingsRuleIdsForBadge.has(e.ruleId)),
+        )
+        .reduce((s, e) => s + e.amount, 0);
+      monthEvts.push({ income, expenses: cashExpenses });
+
+      const cardPurchases: { [cardId: string]: number } = {};
+      if (i > 0) {
+        for (const card of cards) {
+          const ruleIds = cardRuleIdMap.get(card.id) ?? new Set<string>();
+          cardPurchases[card.id] = eventsInMonth
+            .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
+            .reduce((s, e) => s + e.amount, 0);
+        }
+      }
+      cardPurchasesPerMonth.push(cardPurchases);
+    }
+
+    const sim = simulateVariablePayoff(
+      cards, liquidCash, cashFloor, 'avalanche',
+      monthlyTakeHome, monthlyExpenses, 36,
+      monthEvts, fundingAccountId || undefined, cardPurchasesPerMonth,
+      month0Income, month0Expenses,
+    );
+
+    return sim.debtPaymentTransactions.map(p => ({
+      id: `proj:${p.card}:${p.date}`,
+      date: p.date,
+      type: 'expense' as const,
+      amount: p.amount,
+      category: p.category,
+      note: p.description,
+      payment_source: p.account ? `account:${p.account}` : '',
+      isGenerated: true,
+      isDebtPayment: true,
+      projected: true,
+      debtCardId: p.card,
+      debtCardName: p.description.replace(' Payment', ''),
+    }));
+  }, [filterMonth, accounts, baseTxns, rules, debts, profile, fundingAccountId, pauseSavings, savingsRuleIdsForBadge]);
+
+  // Projected recurring transactions for ALL future months — only in forecast view (T6)
+  const projectedRecurringTxns = useMemo(() => {
+    if (filterMonth !== 'forecast') return [];
+    const schedEvts = generateScheduledEvents(rules, accounts, 36);
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    return schedEvts
+      .filter(e => e.date.substring(0, 7) > currentMonthKey)
+      .map(e => {
+        const acctId = e.source ? accountByName[e.source] : undefined;
+        return {
+          id: `proj:sched:${e.ruleId ?? e.name}:${e.date}`,
+          date: e.date,
+          type: e.type as 'income' | 'expense',
+          amount: e.amount,
+          category: e.type === 'income' ? 'Income' : (e.ruleId ? (ruleCategoryMap[e.ruleId] ?? 'Other') : 'Other'),
+          note: e.name,
+          payment_source: acctId ? `account:${acctId}` : '',
+          isGenerated: true,
+          isDebtPayment: false,
+          projected: true,
+          ruleId: e.ruleId,
+        };
+      });
+  }, [filterMonth, rules, accounts, accountByName, ruleCategoryMap]);
+
   // Merge real + generated recurring + debt payments + reconciliations
   const allTransactions = useMemo(() => {
+    const merged = mergeDebtPaymentsIntoStream(baseTxns, debtPaymentTransactions);
     return [
-      ...mergeDebtPaymentsIntoStream(baseTxns, debtPaymentTransactions),
+      ...merged,
       ...reconciliationTxns,
+      ...projectedDebtPaymentTxns,
+      ...projectedRecurringTxns,
     ].sort((a, b) => b.date.localeCompare(a.date));
-  }, [baseTxns, debtPaymentTransactions, reconciliationTxns]);
+  }, [baseTxns, debtPaymentTransactions, reconciliationTxns, projectedDebtPaymentTxns, projectedRecurringTxns]);
 
   const paymentSourceOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
@@ -238,15 +415,43 @@ export default function Transactions() {
     return !accountMap[id] && !accountMap[`account:${id}`];
   }, [accountMap]);
 
+  // Compute forecast date range for 'forecast' filter mode
+  const forecastRange = useMemo((): [string, string] | null => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const toYYYYMM = (d: Date) => d.toISOString().slice(0, 7);
+    if (forecastYear === '1') {
+      return [toYYYYMM(start), toYYYYMM(new Date(start.getFullYear(), start.getMonth() + 11, 1))];
+    }
+    if (forecastYear === '2') {
+      return [toYYYYMM(new Date(start.getFullYear(), start.getMonth() + 12, 1)), toYYYYMM(new Date(start.getFullYear(), start.getMonth() + 23, 1))];
+    }
+    if (forecastYear === '3') {
+      return [toYYYYMM(new Date(start.getFullYear(), start.getMonth() + 24, 1)), toYYYYMM(new Date(start.getFullYear(), start.getMonth() + 35, 1))];
+    }
+    // 'all' = full 36-month window
+    return [toYYYYMM(start), toYYYYMM(new Date(start.getFullYear(), start.getMonth() + 35, 1))];
+  }, [forecastYear]);
+
   const filtered = useMemo(() => {
     return allTransactions.filter(t => {
-      if (filterMonth !== 'all' && t.date.slice(0, 7) !== filterMonth) return false;
+      // Projected transactions only appear in forecast mode
+      if ((t as any).projected && filterMonth !== 'forecast') return false;
+      // Date filter
+      if (filterMonth !== 'all') {
+        const txMonth = t.date.slice(0, 7);
+        if (filterMonth === 'forecast') {
+          if (!forecastRange || txMonth < forecastRange[0] || txMonth > forecastRange[1]) return false;
+        } else {
+          if (txMonth !== filterMonth) return false;
+        }
+      }
       if (filterType !== 'all' && t.type !== filterType) return false;
       if (filterCategory !== 'all' && t.category !== filterCategory) return false;
       if (filterSource !== 'all' && t.payment_source !== filterSource) return false;
       return true;
     });
-  }, [allTransactions, filterMonth, filterType, filterCategory, filterSource]);
+  }, [allTransactions, filterMonth, forecastRange, filterType, filterCategory, filterSource]);
 
   // Build month options from distinct months in allTransactions (up to 24), plus forecast option
   const monthOptions = useMemo(() => {
@@ -431,7 +636,12 @@ export default function Transactions() {
 
         <button
           onClick={async () => {
-            const period = filterMonth === 'all' ? 'All Time' : filterMonth;
+            const period =
+              filterMonth === 'all'
+                ? 'All Time'
+                : filterMonth === 'forecast'
+                ? 'Forecast Range'
+                : filterMonth;
 
             await exportTransactionsPdf(filtered, period);
           }}
@@ -533,6 +743,7 @@ export default function Transactions() {
       <div className="flex flex-wrap gap-2">
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium" style={{ borderRadius: 'var(--radius)' }}>
           {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <option value="forecast">Forecast Range</option>
           <option value="all">All Time</option>
         </select>
         {(['all', 'income', 'expense'] as const).map(t => (
@@ -577,8 +788,9 @@ export default function Transactions() {
           const isRecon = (t as any).isReconciliation;
           const sourceMissing = !isRecon && isSourceMissing(t.payment_source);
           const reconDelta = (t as any).reconciliationDelta as number | undefined;
+          const isProjected = (t as any).projected === true;
           return (
-            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${(t as any).isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-amber-500/40' : ''}`}>
+            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${isProjected ? 'opacity-50' : t.isGenerated ? 'bg-muted/5' : ''} ${(t as any).isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-amber-500/40' : ''}`}>
               <div className="flex items-center gap-3">
                 {isRecon
                   ? <SlidersHorizontal size={14} className="text-amber-500" />
@@ -587,9 +799,10 @@ export default function Transactions() {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-medium">{t.note || '—'}</p>
-                    {t.isGenerated && !(t as any).isDebtPayment && <Repeat size={10} className="text-primary" />}
-                    {(t as any).isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
-                    {pauseSavings && (t as any).ruleId && savingsRuleIdsForBadge.has((t as any).ruleId) && (
+                    {t.isGenerated && !(t as any).isDebtPayment && !isProjected && <Repeat size={10} className="text-primary" />}
+                    {(t as any).isDebtPayment && !isProjected && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
+                    {isProjected && <span className="text-[9px] text-muted-foreground bg-muted/30 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>projected</span>}
+                    {!isProjected && pauseSavings && (t as any).ruleId && savingsRuleIdsForBadge.has((t as any).ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
                     {isRecon && <span className="text-[9px] text-amber-600 bg-amber-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
@@ -604,9 +817,9 @@ export default function Transactions() {
                 <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success' : 'text-destructive') : t.type === 'income' ? 'text-success' : 'text-destructive'}`}>
                   {isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? '+' : '') : (t.type === 'income' ? '+' : '-')}{isRecon && reconDelta !== undefined ? formatCurrency(reconDelta, false) : formatCurrency(Number(t.amount), false)}
                 </span>
-                {!isRecon && <button onClick={() => duplicateTransaction(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Duplicate"><Copy size={12} /></button>}
-                {!isRecon && <button onClick={() => handleEditClick(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>}
-                {!isRecon && !t.isGenerated && (
+                {!isRecon && !isProjected && <button onClick={() => duplicateTransaction(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Duplicate"><Copy size={12} /></button>}
+                {!isRecon && !isProjected && <button onClick={() => handleEditClick(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>}
+                {!isRecon && !isProjected && !t.isGenerated && (
                   <button onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
                 )}
               </div>
