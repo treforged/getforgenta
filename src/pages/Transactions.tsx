@@ -530,8 +530,8 @@ export default function Transactions() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2">
-        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium" style={{ borderRadius: 'var(--radius)' }}>
+      <div className="flex flex-wrap items-center gap-2">
+        <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]" style={{ borderRadius: 'var(--radius)' }}>
           {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           <option value="all">All Time</option>
         </select>
