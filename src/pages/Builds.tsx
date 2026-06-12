@@ -7,8 +7,6 @@ import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
 import PhaseBlock from '@/components/builds/PhaseBlock';
 import BuildFormModal from '@/components/builds/BuildFormModal';
-import { C5_PHASES } from '@/lib/builds-c5-data';
-import { supabase } from '@/integrations/supabase/client';
 import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
 
 function useIsMobile() {
@@ -80,50 +78,6 @@ export default function Builds() {
   const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
 
-  // ── Seed C5 data on first build ─────────────────────────
-  async function seedC5Data(buildId: string) {
-    if (!user) return;
-    const seedKey = `forgenta:builds_seeded_${user.id}`;
-    if (localStorage.getItem(seedKey)) return;
-    // Also check DB — if phases already exist (e.g. seeded directly), skip and mark done
-    const { data: existing } = await supabase
-      .from('car_build_phases' as any)
-      .select('id')
-      .eq('user_id', user.id)
-      .limit(1);
-    if (existing && existing.length > 0) {
-      localStorage.setItem(seedKey, '1');
-      return;
-    }
-    try {
-      for (let pi = 0; pi < C5_PHASES.length; pi++) {
-        const ph = C5_PHASES[pi];
-        const { data: phRow, error: phErr } = await supabase
-          .from('car_build_phases' as any)
-          .insert({ build_id: buildId, user_id: user.id, title: ph.title, sort_order: pi })
-          .select()
-          .single();
-        if (phErr || !phRow) continue;
-        const phaseId = (phRow as any).id;
-        const itemRows = ph.items.map((it, ii) => ({
-          phase_id: phaseId,
-          build_id: buildId,
-          user_id: user.id,
-          name: it.name,
-          brand: it.brand,
-          price: it.price,
-          sort_order: ii,
-        }));
-        if (itemRows.length > 0) {
-          await supabase.from('car_build_items' as any).insert(itemRows);
-        }
-      }
-      localStorage.setItem(seedKey, '1');
-    } catch {
-      // Non-fatal
-    }
-  }
-
   // ── Build CRUD ───────────────────────────────────────────
   async function handleSaveBuild(data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null }) {
     setFormSaving(true);
@@ -134,7 +88,6 @@ export default function Builds() {
       } else {
         const newBuild = await addBuild.mutateAsync({ ...data, sort_order: builds.length });
         setActiveBuildId(newBuild.id);
-        await seedC5Data(newBuild.id);
         toast.success('Build created');
       }
       setFormOpen(false);
@@ -381,9 +334,6 @@ export default function Builds() {
           >
             Create Your First Build
           </button>
-          <p className="text-[11px] font-mono text-muted-foreground mt-3">
-            Your first build will be pre-loaded with the C5 Corvette template
-          </p>
         </div>
       )}
 
