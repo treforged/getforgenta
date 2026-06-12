@@ -464,7 +464,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         for (const date of planDates) {
           if (date <= cutoff) continue;
           const pd = new Date(date + 'T00:00:00');
-          for (let mi = 1; mi < 36; mi++) {
+          for (let mi = 0; mi < 36; mi++) {
             const md = new Date(now.getFullYear(), now.getMonth() + mi, 1);
             if (pd.getFullYear() === md.getFullYear() && pd.getMonth() === md.getMonth()) {
               augmentedCCPurchases[mi][cardId] = (augmentedCCPurchases[mi][cardId] ?? 0) + plan.payment_amount;
