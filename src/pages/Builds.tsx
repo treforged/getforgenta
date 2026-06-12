@@ -123,9 +123,7 @@ export default function Builds() {
   }
 
   async function handleUpdatePhase(id: string, data: Partial<CarBuildPhase>) {
-    if ('hidden' in data) {
-      setDragPhaseOrder(prev => (prev ?? phases).map(p => p.id === id ? { ...p, ...data } : p));
-    }
+    setDragPhaseOrder(prev => (prev ?? phases).map(p => p.id === id ? { ...p, ...data } : p));
     await updatePhase.mutateAsync({ id, ...data });
   }
 
@@ -142,10 +140,14 @@ export default function Builds() {
   // ── Item CRUD ────────────────────────────────────────────
   async function handleAddItem(phaseId: string, buildId: string) {
     const phaseItems = displayItems.filter(it => it.phase_id === phaseId);
-    await addItem.mutateAsync({ phase_id: phaseId, build_id: buildId, name: 'New Item', sort_order: phaseItems.length });
+    const nextOrder = phaseItems.length > 0
+      ? Math.max(...phaseItems.map(it => it.sort_order)) + 1
+      : 0;
+    await addItem.mutateAsync({ phase_id: phaseId, build_id: buildId, name: 'New Item', sort_order: nextOrder });
   }
 
   async function handleUpdateItem(id: string, data: Partial<CarBuildItem & { phase_id?: string }>) {
+    setDragItemOrder(prev => (prev ?? items).map(it => it.id === id ? { ...it, ...data } : it));
     await updateItem.mutateAsync({ id, ...data });
   }
 
