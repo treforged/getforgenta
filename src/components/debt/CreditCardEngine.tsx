@@ -14,6 +14,7 @@ import {
 import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { type Month0Result } from '@/hooks/useCardProjection';
+import { type PaymentPlan, getPaymentDates } from '@/lib/payment-plan-generator';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -54,6 +55,8 @@ type Props = {
   perCardPaymentsScaled?: { id: string; payments: number[] }[] | null;
   /** Sim revolving balances from useCardProjection — passed to projectCardVariable to fix cycling detection for statement cards. */
   monthlyRevolvingBalances?: Map<string, number[]> | null;
+  /** Payment plans with CC payment_source — charges are injected into per-month CC purchases so the accordion reflects installment spending. */
+  paymentPlans?: PaymentPlan[];
 };
 
 const STRATEGY_TIPS = {
@@ -66,7 +69,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, paymentPlans }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -445,6 +448,33 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       augmentedCCPurchases.push(monthCCPurchases);
     }
 
+    // Inject CC-sourced payment plan charges into augmentedCCPurchases so the
+    // accordion shows installment spending on the correct card per month.
+    if (paymentPlans && paymentPlans.length > 0) {
+      const todayStr = now.toISOString().split('T')[0];
+      const cutoff = syncCutoffDate ?? todayStr;
+      const sourceToCardId = new Map<string, string>(
+        cards.flatMap(c => [[c.id, c.id], [`account:${c.id}`, c.id]]),
+      );
+      for (const plan of paymentPlans) {
+        if (!plan.active || !plan.payment_source) continue;
+        const cardId = sourceToCardId.get(plan.payment_source);
+        if (!cardId) continue;
+        const planDates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
+        for (const date of planDates) {
+          if (date <= cutoff) continue;
+          const pd = new Date(date + 'T00:00:00');
+          for (let mi = 1; mi < 36; mi++) {
+            const md = new Date(now.getFullYear(), now.getMonth() + mi, 1);
+            if (pd.getFullYear() === md.getFullYear() && pd.getMonth() === md.getMonth()) {
+              augmentedCCPurchases[mi][cardId] = (augmentedCCPurchases[mi][cardId] ?? 0) + plan.payment_amount;
+              break;
+            }
+          }
+        }
+      }
+    }
+
     // ── Apply Forecast growth-rate assumptions to future months ──────────────
     // Mirrors Forecast PASS 1: expense inflation compounds monthly; income raises
     // apply as a step in the configured month each year. Month 0 is left unchanged
@@ -649,7 +679,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
-      rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate, fundingAccountSources]);
+      rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate, fundingAccountSources,
+      paymentPlans]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
