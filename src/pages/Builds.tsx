@@ -435,7 +435,7 @@ export default function Builds() {
                 <button
                   onClick={handleDisableShare}
                   disabled={shareLoading}
-                  className="text-[11px] text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
+                  className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors disabled:opacity-40"
                 >
                   Disable
                 </button>
