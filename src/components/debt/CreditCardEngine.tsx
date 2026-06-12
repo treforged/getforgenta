@@ -1559,19 +1559,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 </div>
 
                 {isExpanded && (
-                  <PremiumGate
-                    isPremium={isPremium || isDemo}
-                    title="Month-by-month payoff plan"
-                    features={[
-                      `Exact recommended payment each month for ${proj.card.name}`,
-                      proj.payoffMonth
-                        ? `Paid off in ${proj.payoffMonth} month${proj.payoffMonth === 1 ? '' : 's'} — see every step`
-                        : 'See your full projected payoff timeline',
-                      `Save ${formatCurrency(proj.totalInterest, false)} in total interest`,
-                      'Override any month\'s payment and watch balances update live',
-                    ]}
-                    className="border-t border-border"
-                  >
+                  <div className="border-t border-border">
                   <div className="px-3 sm:px-4 py-3">
                     {proj.card.balance <= 0 && (
                       <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
@@ -1585,7 +1573,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           ? (perCardPaymentsScaled ? 'Forecast Sim' : 'Variable')
                           : 'Consistent'})
                       </h5>
-                      {hasOverrides && (
+                      {(isPremium || isDemo) && hasOverrides && (
                         <button onClick={() => revertAllForCard(proj.card.id)} className="flex items-center gap-1 text-[10px] text-primary hover:underline">
                           <RotateCcw size={10} /> Revert All
                         </button>
@@ -1598,8 +1586,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         <div className="px-2 text-right">Payment</div>
                         <div className="px-2 text-right">End Balance</div>
                       </div>
-                      {/* Rows */}
-                      {proj.months.slice(0, 24).map((row, idx) => {
+                      {/* Rows — free users see 3 months, premium sees 24 */}
+                      {proj.months.slice(0, (isPremium || isDemo) ? 24 : 3).map((row, idx) => {
                         const isOverridden = cardOverrides[idx] !== undefined;
                         const isEditingThis = editingMonth?.cardId === proj.card.id && editingMonth?.month === idx;
                         return (
@@ -1622,7 +1610,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                       {row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}
                                     </span>
                                     {isOverridden && <span className="text-[8px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>edited</span>}
-                                    {!proj.card.autopayFullBalance && row.startBalance > 0 && (
+                                    {(isPremium || isDemo) && !proj.card.autopayFullBalance && row.startBalance > 0 && (
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setEditingMonth({ cardId: proj.card.id, month: idx }); setMonthPayInput(String(Math.round(row.payment))); }}
                                         className="text-muted-foreground hover:text-primary">
@@ -1658,9 +1646,31 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           </div>
                         );
                       })}
+                      {/* Gate remaining months for free users */}
+                      {!(isPremium || isDemo) && proj.months.length > 3 && (
+                        <PremiumGate
+                          isPremium={false}
+                          title="See the full payoff timeline"
+                          features={[
+                            `${proj.months.length - 3} more month${proj.months.length - 3 === 1 ? '' : 's'} remaining for ${proj.card.name}`,
+                            `Save ${formatCurrency(proj.totalInterest, false)} in total interest`,
+                            'Override any month\'s payment and watch balances update live',
+                          ]}
+                        >
+                          <div>
+                            {proj.months.slice(3, 24).map(row => (
+                              <div key={row.month} className="grid grid-cols-3 gap-x-3 py-1.5 border-b border-border/30">
+                                <div className="px-2 text-[10px] font-medium">{row.label}</div>
+                                <div className="px-2 text-right text-[10px] font-semibold text-primary">{row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}</div>
+                                <div className="px-2 text-right text-[10px] font-semibold">{formatCurrency(Math.max(0, row.endBalance), false)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </PremiumGate>
+                      )}
                     </div>
                   </div>
-                  </PremiumGate>
+                  </div>
                 )}
               </div>
             );

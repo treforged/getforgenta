@@ -1478,7 +1478,7 @@ export default function Forecast() {
   }, [accounts, profile, rules, payConfig]);
 
   const freePreview = !isPremium && !isDemo;
-  const displayData = freePreview ? filteredData.slice(0, 3) : filteredData;
+  const displayData = freePreview ? filteredData.slice(0, 12) : filteredData;
 
   if (accountsLoading) return <PageSkeleton />;
 
@@ -1951,7 +1951,7 @@ export default function Forecast() {
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth & Assets Projection</h3>
                 <p className="text-[9px] text-muted-foreground mt-0.5">Click legend items to show or hide series</p>
               </div>
-              {freePreview && <span className="text-[9px] text-muted-foreground">Showing 3 of 36 months</span>}
+              {freePreview && <span className="text-[9px] text-muted-foreground">Showing 12 of 36 months</span>}
             </div>
             <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 220 : 260}>
               {chartMode === 'combo' ? (
@@ -1995,8 +1995,8 @@ export default function Forecast() {
                 <Crown size={18} className="text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold">See your full 36-month forecast</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">Upgrade to Premium to unlock all 36 months, the CC debt payoff trajectory chart, the monthly breakdown table, and PDF export.</p>
+                <p className="text-sm font-semibold">Unlock years 2 &amp; 3</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs">You have year 1 free. Upgrade to Premium to unlock all 36 months, the CC debt payoff trajectory chart, and PDF export.</p>
               </div>
               <Link
                 to="/premium"
@@ -2009,8 +2009,8 @@ export default function Forecast() {
           )}
 
 
-          {/* Monthly Cash Flow Table — premium only */}
-          {!freePreview && <div className="card-forged p-3 sm:p-5">
+          {/* Monthly Cash Flow Table */}
+          {<div className="card-forged p-3 sm:p-5">
             <div className="flex items-center justify-between mb-3 sm:mb-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monthly Breakdown</h3>
               <div className="text-right">
@@ -2196,6 +2196,7 @@ export default function Forecast() {
           </div>}
         </>
       ) : (
+
         <div className="card-forged p-3 sm:p-5">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4">Scheduled Events Timeline</h3>
           <div className="space-y-1">

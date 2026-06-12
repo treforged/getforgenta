@@ -614,9 +614,8 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Payment Plans Section */}
-      {(isPremium || isDemo) && (
-        <div className="card-forged overflow-hidden">
+      {/* Payment Plans Section — visible to all, gated for free users */}
+      <div className="card-forged overflow-hidden">
           <div
             onClick={() => setShowPlans(p => !p)}
             className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/20 transition-colors cursor-pointer"
@@ -627,26 +626,37 @@ export default function Transactions() {
             <div className="flex items-center gap-2">
               <CreditCard size={14} className="text-primary" />
               <span className="text-sm font-display font-semibold">Payment Plans</span>
-              {paymentPlans.filter(p => p.active).length > 0 && (
+              {(isPremium || isDemo) && paymentPlans.filter(p => p.active).length > 0 && (
                 <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>
                   {paymentPlans.filter(p => p.active).length} active
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={e => { e.stopPropagation(); openAddPlan(); }}
-                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
-              >
-                <Plus size={12} /> Add Plan
-              </button>
+              {(isPremium || isDemo) && (
+                <button
+                  onClick={e => { e.stopPropagation(); openAddPlan(); }}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+                >
+                  <Plus size={12} /> Add Plan
+                </button>
+              )}
               {showPlans ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
             </div>
           </div>
 
           {showPlans && (
             <div className="border-t border-border">
-              {paymentPlans.length === 0 ? (
+              {!(isPremium || isDemo) ? (
+                <div className="p-5 flex flex-col items-center text-center gap-3">
+                  <Crown size={16} className="text-primary" />
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Payment Plans — Premium</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-xs">Track PayPal Pay in 4, 0% APR promos, and any installment plan. Payments flow into Transactions and Forecast automatically.</p>
+                  </div>
+                  <Link to="/premium" className="bg-primary text-primary-foreground px-4 py-1.5 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors" style={{ borderRadius: 'var(--radius)' }}>Upgrade Now</Link>
+                </div>
+              ) : paymentPlans.length === 0 ? (
                 <div className="p-6 text-center">
                   <p className="text-xs text-muted-foreground">No payment plans yet.</p>
                   <p className="text-xs text-muted-foreground mt-1">Track PayPal Pay in 4, 0% APR promos, and any installment plan.</p>
@@ -708,7 +718,6 @@ export default function Transactions() {
             </div>
           )}
         </div>
-      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]" style={{ borderRadius: 'var(--radius)' }}>
