@@ -1072,12 +1072,14 @@ export function usePublicBuild(shareToken: string | undefined) {
         .single();
       if (buildErr || !build) return null;
 
-      const [{ data: phases }, { data: items }] = await Promise.all([
+      const [{ data: phases }, { data: items }, { data: profile }] = await Promise.all([
         supabase.from('car_build_phases' as any).select('*').eq('build_id', (build as any).id).order('sort_order'),
         supabase.from('car_build_items' as any).select('*').eq('build_id', (build as any).id).order('sort_order'),
+        supabase.from('profiles' as any).select('display_name').eq('user_id', (build as any).user_id).maybeSingle(),
       ]);
 
-      return { build: build as any, phases: (phases ?? []) as any[], items: (items ?? []) as any[] };
+      const displayName: string | null = (profile as any)?.display_name ?? null;
+      return { build: build as any, phases: (phases ?? []) as any[], items: (items ?? []) as any[], displayName };
     },
   });
 
