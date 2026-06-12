@@ -114,6 +114,9 @@ export default function Builds() {
   }
 
   async function handleUpdatePhase(id: string, data: Partial<CarBuildPhase>) {
+    if ('hidden' in data) {
+      setDragPhaseOrder(prev => (prev ?? phases).map(p => p.id === id ? { ...p, ...data } : p));
+    }
     await updatePhase.mutateAsync({ id, ...data });
   }
 
