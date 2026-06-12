@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, getMonthlyPlanCashExpenses, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
+import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES];
 
@@ -157,7 +157,7 @@ export default function Transactions() {
     }).reduce((s: number, r: any) => {
       const amt = Number(r.amount);
       return s + amt * countRuleOccurrencesInMonth(r, _now.getFullYear(), _now.getMonth());
-    }, 0) + getMonthlyPlanCashExpenses(paymentPlans ?? [], _now.getFullYear(), _now.getMonth(), ccPaymentSources);
+    }, 0);
 
     const sim = simulateVariablePayoff(
       cards, fundingBalance, cashFloor, 'avalanche',
