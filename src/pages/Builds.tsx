@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 import { Plus, Edit2, Trash2, ChevronDown, Share2, Copy, Check as CheckIcon, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCarBuilds, useCarBuildPhases, useCarBuildItems } from '@/hooks/useSupabaseData';
 import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
 import PhaseBlock from '@/components/builds/PhaseBlock';
 import BuildFormModal from '@/components/builds/BuildFormModal';
-import BuildSharePreviewModal from '@/components/builds/BuildSharePreviewModal';
 import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
 
 const SHARE_BASE = 'https://getforgenta.com';
@@ -85,7 +86,6 @@ export default function Builds() {
   // Share UI
   const [shareOpen, setShareOpen] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
-  const [sharePreviewOpen, setSharePreviewOpen] = useState(false);
 
   // ── Build CRUD ───────────────────────────────────────────
   async function handleSaveBuild(data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null }) {
@@ -188,11 +188,11 @@ export default function Builds() {
     return `${SHARE_BASE}/builds/share/${activeBuild.share_token}`;
   }
 
-  function handleOpenShareLink() {
+  async function handleOpenShareLink() {
     const url = shareUrl();
     if (!url) return;
-    if (isMobile) {
-      setSharePreviewOpen(true);
+    if (Capacitor.isNativePlatform()) {
+      await Browser.open({ url });
     } else {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
@@ -409,37 +409,37 @@ export default function Builds() {
           {activeBuild.share_token ? (
             <>
               <div className="text-[12px] text-muted-foreground">Anyone with this link can view your build — read only.</div>
-              <div className="flex items-center gap-2">
-                <input
-                  readOnly
-                  value={shareUrl()}
-                  className="flex-1 bg-[#111] border border-border rounded px-3 py-1.5 text-[12px] text-[#8ab0e0] focus:outline-none select-all"
-                  onFocus={e => e.target.select()}
-                />
+              <input
+                readOnly
+                value={shareUrl()}
+                className="w-full bg-[#111] border border-border rounded px-3 py-1.5 text-[12px] text-[#8ab0e0] focus:outline-none select-all"
+                onFocus={e => e.target.select()}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopyLink}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors"
+                    style={{ background: '#c8a84b', color: '#000' }}
+                  >
+                    <Copy size={12} /> Copy
+                  </button>
+                  <button
+                    onClick={handleOpenShareLink}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors border"
+                    style={{ color: '#c8a84b', borderColor: '#c8a84b', background: 'transparent' }}
+                  >
+                    <ExternalLink size={12} /> Open Preview
+                  </button>
+                </div>
                 <button
-                  onClick={handleCopyLink}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors"
-                  style={{ background: '#c8a84b', color: '#000' }}
+                  onClick={handleDisableShare}
+                  disabled={shareLoading}
+                  className="text-[11px] text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
                 >
-                  <Copy size={12} /> Copy
-                </button>
-                <button
-                  onClick={handleOpenShareLink}
-                  title={isMobile ? 'Preview' : 'Open in new tab'}
-                  className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors border"
-                  style={{ color: '#c8a84b', borderColor: '#c8a84b', background: 'transparent' }}
-                >
-                  <ExternalLink size={12} />
-                  {isMobile ? 'Preview' : 'Open'}
+                  Disable
                 </button>
               </div>
-              <button
-                onClick={handleDisableShare}
-                disabled={shareLoading}
-                className="text-[11px] text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
-              >
-                Disable share link
-              </button>
             </>
           ) : (
             <>
@@ -537,16 +537,6 @@ export default function Builds() {
 
           <BuildSummary phases={displayPhases} items={displayItems} />
         </>
-      )}
-
-      {sharePreviewOpen && activeBuild && (
-        <BuildSharePreviewModal
-          build={activeBuild}
-          phases={displayPhases}
-          items={displayItems}
-          shareUrl={shareUrl()}
-          onClose={() => setSharePreviewOpen(false)}
-        />
       )}
 
       <BuildFormModal
