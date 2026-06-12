@@ -6,11 +6,10 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions, usePaymentPlans } from '@/hooks/useSupabaseData';
+import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions } from '@/hooks/useSupabaseData';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
-import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjection } from '@/hooks/useCardProjection';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
@@ -98,7 +97,6 @@ export default function Forecast() {
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
   const { items: plaidItems } = usePlaidItems();
-  const { data: paymentPlans } = usePaymentPlans();
 
   const defaultAssumptions = {
     incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
@@ -206,26 +204,14 @@ export default function Forecast() {
     overrides: {} as Record<string, Record<number, number>>,
   }), [cashFloor, debtStrategy]);
 
-  const planExpensesByMonth = useMemo(() => {
-    const now = new Date();
-    const ccIds = new Set<string>(
-      (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
-        .flatMap(a => [a.id, `account:${a.id}`]),
-    );
-    return Array.from({ length: 36 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      return getMonthlyPlanCashExpenses(paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccIds);
-    });
-  }, [accounts, paymentPlans]);
-
   const debtPaymentsByMonth = useMemo(() =>
-    getDebtPaymentsByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, 36, planExpensesByMonth),
-    [accounts, transactions, rules, debts, profile, debtPayoffOptions, planExpensesByMonth],
+    getDebtPaymentsByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, 36),
+    [accounts, transactions, rules, debts, profile, debtPayoffOptions],
   );
 
   const debtBalancesByMonth = useMemo(() =>
-    getDebtBalancesByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, 36, planExpensesByMonth),
-    [accounts, transactions, rules, debts, profile, debtPayoffOptions, planExpensesByMonth],
+    getDebtBalancesByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, 36),
+    [accounts, transactions, rules, debts, profile, debtPayoffOptions],
   );
 
   // Current-month debt breakdown — pins forecast month 0 to the same calc as Debt Payoff + Dashboard.
@@ -270,17 +256,12 @@ export default function Forecast() {
         return s + Math.min(rem / monthsToGoal, rem);
       }, 0);
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
-      const ccIds = new Set<string>(
-        (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
-          .flatMap(a => [a.id, `account:${a.id}`]),
-      );
-      const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now0.getFullYear(), now0.getMonth(), ccIds);
-      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses);
+      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate);
       const safeToPayTotal = breakdown.totalRecommended;
       const autopayTotal = 0;
       return { safeToPayTotal, autopayTotal, recommendations: breakdown.recommendations };
     } catch { return null; }
-  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate, paymentPlans]);
+  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate]);
 
   // ── Shared CC-filtered month events ─────────────────────────────────────────
   // Excludes CC-tagged expense rules from cash expenses so the main projections
@@ -390,7 +371,7 @@ export default function Forecast() {
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
-    syncCutoffDate, paymentPlans: paymentPlans ?? [],
+    syncCutoffDate,
   });
 
   // One-time manual transactions for forecast.
