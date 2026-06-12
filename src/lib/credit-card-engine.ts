@@ -21,6 +21,8 @@ export type CardData = {
   autopayFullBalance: boolean;
   dueDay: number | null;
   startDate?: string;
+  statementBalancePhase: boolean;
+  statementBalance: number | null;
 };
 
 export type CardMonthRow = {
@@ -185,10 +187,13 @@ export function buildCardData(
     const pref = (acct as any).payment_preference;
     const paymentPreference: 'statement' | 'full' | null =
       pref === 'statement' ? 'statement' : pref === 'full' ? 'full' : null;
-    const autopayFullBalance = balance <= 0;
+    const statementBalancePhase = Boolean((acct as any).statement_balance_phase);
+    const statementBalance = (acct as any).statement_balance != null ? Number((acct as any).statement_balance) : null;
+    const simBalance = statementBalance !== null ? statementBalance : balance;
+    const autopayFullBalance = simBalance <= 0;
 
     return {
-      id: acct.id, name: acct.name, balance, apr, creditLimit,
+      id: acct.id, name: acct.name, balance: simBalance, apr, creditLimit,
       minPayment: minPay,
       targetPayment: Math.max(targetPay, minPay),
       monthlyNewPurchases, monthlyRepayments: monthRepayments,
@@ -196,6 +201,7 @@ export function buildCardData(
       paymentPreference, autopayFullBalance,
       dueDay: (acct as any).payment_due_day ?? null,
       startDate: (acct as any).card_start_date || undefined,
+      statementBalancePhase, statementBalance,
     };
   });
 }
@@ -209,7 +215,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
   const monthlyRate = card.apr / 100 / 12;
   const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
   // Grace period: true when last payment covered full statement balance, so new purchases don't accrue interest
-  let inGrace = card.paymentPreference === 'statement' && card.balance <= card.monthlyNewPurchases + 0.01;
+  let inGrace = card.paymentPreference === 'statement' && (card.statementBalancePhase || card.balance <= card.monthlyNewPurchases + 0.01);
   // Billing cycle deferred payment: autopay card charges in month m are paid in month m+1.
   let prevMonthPurchases = 0;
 
@@ -294,7 +300,7 @@ export function projectCardVariable(
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
   const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
-  let inGrace = card.paymentPreference === 'statement' && card.balance <= card.monthlyNewPurchases + 0.01;
+  let inGrace = card.paymentPreference === 'statement' && (card.statementBalancePhase || card.balance <= card.monthlyNewPurchases + 0.01);
 
   for (let m = 1; m <= simMonths; m++) {
     const hasPref = card.autopayFullBalance || card.paymentPreference !== null;
@@ -526,7 +532,7 @@ export function simulateVariablePayoff(
   // When a card pays its full statement balance (startBal + interest), the new purchases
   // added that cycle are in grace period — no interest charged next billing cycle.
   const graceMap = new Map<string, boolean>(
-    cards.map(c => [c.id, c.paymentPreference === 'statement' && c.balance <= c.monthlyNewPurchases + 0.01]),
+    cards.map(c => [c.id, c.paymentPreference === 'statement' && (c.statementBalancePhase || c.balance <= c.monthlyNewPurchases + 0.01)]),
   );
 
   // Billing cycle deferred purchases: a paid-off card's charges in month m are paid
