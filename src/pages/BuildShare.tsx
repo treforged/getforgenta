@@ -40,15 +40,11 @@ export default function BuildShare() {
 
   const { build, phases, items } = data;
 
-  const activePhases: CarBuildPhase[] = phases.filter((p: CarBuildPhase) => !p.hidden);
-  const activeItems: CarBuildItem[] = items.filter((it: CarBuildItem) =>
-    activePhases.some((p: CarBuildPhase) => p.id === it.phase_id)
-  );
-
-  const totalConfirmed = activeItems.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
-  const hasTbd = activeItems.some((it: CarBuildItem) => it.price === null);
-  const totalItems = activeItems.length;
-  const doneItems = activeItems.filter((it: CarBuildItem) => it.completed).length;
+  // Show ALL phases and items on the share page — friends should see the full plan
+  const totalConfirmed = items.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
+  const hasTbd = items.some((it: CarBuildItem) => it.price === null);
+  const totalItems = items.length;
+  const doneItems = items.filter((it: CarBuildItem) => it.completed).length;
   const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
 
   const subLabel = [build.year, build.make, build.model].filter(Boolean).join(' ');
@@ -106,9 +102,9 @@ export default function BuildShare() {
               style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #7a1f1f, #c8a84b)' }}
             />
           </div>
-          {activePhases.length > 0 && (
+          {phases.length > 0 && (
             <div className="flex gap-px mt-2 h-1 rounded-full overflow-hidden">
-              {activePhases.map((ph: CarBuildPhase, i: number) => {
+              {phases.map((ph: CarBuildPhase, i: number) => {
                 const phItems = items.filter((it: CarBuildItem) => it.phase_id === ph.id);
                 const phDone = phItems.filter((it: CarBuildItem) => it.completed).length;
                 const phPct = phItems.length > 0 ? (phDone / phItems.length) * 100 : 0;
@@ -119,7 +115,7 @@ export default function BuildShare() {
                     style={{
                       flex: Math.max(phItems.length, 1),
                       background: PHASE_COLORS[i % PHASE_COLORS.length],
-                      opacity: 0.25 + (phPct / 100) * 0.75,
+                      opacity: ph.hidden ? 0.2 + (phPct / 100) * 0.4 : 0.35 + (phPct / 100) * 0.65,
                     }}
                   />
                 );
@@ -128,10 +124,9 @@ export default function BuildShare() {
           )}
         </div>
 
-        {/* Phases */}
+        {/* Phases — all of them, hidden ones marked as "Planned" */}
         <div className="space-y-2">
           {phases.map((ph: CarBuildPhase, i: number) => {
-            if (ph.hidden) return null;
             const phItems: CarBuildItem[] = items.filter((it: CarBuildItem) => it.phase_id === ph.id);
             const doneCount = phItems.filter(it => it.completed).length;
             const allDone = phItems.length > 0 && doneCount === phItems.length;
@@ -139,7 +134,11 @@ export default function BuildShare() {
             const color = PHASE_COLORS[i % PHASE_COLORS.length];
 
             return (
-              <div key={ph.id} className="border border-border rounded overflow-hidden">
+              <div
+                key={ph.id}
+                className="border border-border rounded overflow-hidden"
+                style={ph.hidden ? { opacity: 0.6 } : undefined}
+              >
                 {/* Phase header */}
                 <div className="flex items-center gap-3 px-4 py-3 bg-card">
                   <div className="text-2xl font-display font-bold leading-none flex-shrink-0" style={{ color }}>
@@ -147,14 +146,20 @@ export default function BuildShare() {
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-sm font-semibold uppercase tracking-wide text-foreground truncate">
                         {ph.title}
                       </span>
-                      {allDone && (
-                        <span className="ml-1 text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
+                      {allDone && !ph.hidden && (
+                        <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
                           style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>
                           ✓ Done
+                        </span>
+                      )}
+                      {ph.hidden && (
+                        <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
+                          style={{ color: '#666', borderColor: '#444' }}>
+                          Planned
                         </span>
                       )}
                     </div>
