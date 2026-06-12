@@ -49,7 +49,7 @@ export default function BuildShare() {
     );
   }
 
-  const { build, phases, items } = data;
+  const { build, phases, items, displayName } = data;
 
   const totalConfirmed = items.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
   const hasTbd = items.some((it: CarBuildItem) => it.price === null);
@@ -81,7 +81,7 @@ export default function BuildShare() {
               Forgenta — Build Log
             </div>
             <h1 className="text-4xl sm:text-5xl font-display font-bold tracking-tight leading-none">
-              {build.name}
+              {displayName ? `${displayName}'s Mod List` : build.name}
             </h1>
             {subLabel && (
               <div className="text-[13px] font-mono text-muted-foreground mt-2 tracking-[0.1em] uppercase">
