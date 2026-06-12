@@ -85,6 +85,16 @@ export default function Builds() {
     if (!user) return;
     const seedKey = `forgenta:builds_seeded_${user.id}`;
     if (localStorage.getItem(seedKey)) return;
+    // Also check DB — if phases already exist (e.g. seeded directly), skip and mark done
+    const { data: existing } = await supabase
+      .from('car_build_phases' as any)
+      .select('id')
+      .eq('user_id', user.id)
+      .limit(1);
+    if (existing && existing.length > 0) {
+      localStorage.setItem(seedKey, '1');
+      return;
+    }
     try {
       for (let pi = 0; pi < C5_PHASES.length; pi++) {
         const ph = C5_PHASES[pi];
