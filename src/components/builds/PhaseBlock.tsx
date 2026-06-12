@@ -149,7 +149,7 @@ export default function PhaseBlock({
     <div
       className={cn(
         'border border-border rounded overflow-hidden mb-2 transition-all duration-150',
-        phase.hidden && 'opacity-40',
+        phase.hidden && 'opacity-80',
         isDragging && 'opacity-40',
         isDragOver && 'border-[#c8a84b] shadow-[0_0_0_1px_#c8a84b]',
       )}
@@ -159,7 +159,7 @@ export default function PhaseBlock({
       {/* Phase Header */}
       <div
         className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
-        onClick={() => !phase.hidden && setExpanded(e => !e)}
+        onClick={() => setExpanded(e => !e)}
       >
         {/* Drag handle (desktop) / Arrow buttons (mobile) */}
         {!isMobile ? (
@@ -208,7 +208,7 @@ export default function PhaseBlock({
             >
               <Pencil size={12} />
             </button>
-            <span className={cn('text-sm font-semibold uppercase tracking-wide text-foreground truncate', phase.hidden && 'line-through')}>
+            <span className="text-sm font-semibold uppercase tracking-wide text-foreground truncate">
               {phase.title}
             </span>
             {allDone && (
@@ -218,7 +218,9 @@ export default function PhaseBlock({
               </span>
             )}
           </div>
-          <div className="text-[12px] font-mono text-muted-foreground mt-0.5">{subtitle}</div>
+          <div className="text-[12px] font-mono text-muted-foreground mt-0.5">
+            {phase.hidden ? `planned · ${subtitle}` : subtitle}
+          </div>
         </div>
 
         {/* Phase total */}
@@ -245,12 +247,10 @@ export default function PhaseBlock({
         </button>
 
         {/* Chevron */}
-        {!phase.hidden && (
-          <ChevronDown
-            size={14}
-            className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', expanded && 'rotate-180')}
-          />
-        )}
+        <ChevronDown
+          size={14}
+          className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', expanded && 'rotate-180')}
+        />
       </div>
 
       {/* Inline title edit panel */}
@@ -285,7 +285,7 @@ export default function PhaseBlock({
       )}
 
       {/* Items list */}
-      {expanded && !phase.hidden && (
+      {expanded && (
         <div className="border-t border-border">
           {items.map((item, ii) => {
             const isItemTarget = dragOverItemId === item.id && !isMobile;
