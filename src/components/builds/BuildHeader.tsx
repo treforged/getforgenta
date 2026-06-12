@@ -29,7 +29,7 @@ export default function BuildHeader({ build, phases, items }: BuildHeaderProps) 
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-5 border-b border-border mb-5">
         <div>
           <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.2em] mb-1">
-            TRE Forged — Build Log
+            Forgenta — Build Log
           </div>
           <h1 className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-foreground leading-none">
             {build.name}
