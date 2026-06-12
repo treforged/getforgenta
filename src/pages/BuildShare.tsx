@@ -20,6 +20,7 @@ export default function BuildShare() {
   const { token } = useParams<{ token: string }>();
   const { data, loading, notFound } = usePublicBuild(token);
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
+  const [includePlanned, setIncludePlanned] = useState(false);
 
   function togglePhase(id: string) {
     setExpandedPhases(prev => {
@@ -51,14 +52,17 @@ export default function BuildShare() {
 
   const { build, phases, items, displayName } = data;
 
-  // Hidden phases are "planned future" — exclude their items from the budget total
+  const hasPlannedPhases = phases.some((p: CarBuildPhase) => p.hidden);
+
   const activePhaseIds = new Set(
     phases.filter((p: CarBuildPhase) => !p.hidden).map((p: CarBuildPhase) => p.id)
   );
-  const activeItems = items.filter((it: CarBuildItem) => activePhaseIds.has(it.phase_id));
+  const budgetItems = includePlanned
+    ? items
+    : items.filter((it: CarBuildItem) => activePhaseIds.has(it.phase_id));
 
-  const totalConfirmed = activeItems.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
-  const hasTbd = activeItems.some((it: CarBuildItem) => it.price === null);
+  const totalConfirmed = budgetItems.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
+  const hasTbd = budgetItems.some((it: CarBuildItem) => it.price === null);
   const totalItems = items.length;
   const doneItems = items.filter((it: CarBuildItem) => it.completed).length;
   const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
@@ -97,13 +101,25 @@ export default function BuildShare() {
           </div>
           <div className="sm:text-right shrink-0">
             <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.15em] mb-0.5">
-              Total Budget
+              {includePlanned ? 'Total Mod Cost' : 'Total Budget'}
             </div>
             <div className="text-4xl font-display font-bold tracking-wide leading-none" style={{ color: '#c8a84b' }}>
               ${totalConfirmed.toLocaleString()}
             </div>
             {hasTbd && (
               <div className="text-[12px] font-mono text-muted-foreground mt-0.5">+ TBD items</div>
+            )}
+            {hasPlannedPhases && (
+              <button
+                onClick={() => setIncludePlanned(v => !v)}
+                className="mt-2 text-[11px] font-mono uppercase tracking-wider px-2.5 py-1 rounded border transition-colors"
+                style={includePlanned
+                  ? { color: '#c8a84b', borderColor: '#c8a84b', background: 'transparent' }
+                  : { color: '#666', borderColor: '#333', background: 'transparent' }
+                }
+              >
+                {includePlanned ? 'Planned included' : 'Include planned'}
+              </button>
             )}
           </div>
         </div>
