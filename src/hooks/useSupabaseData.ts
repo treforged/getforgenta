@@ -873,10 +873,16 @@ export function useCarBuildPhases(buildId: string | null) {
   const reorder = useMutation({
     mutationFn: async (rows: { id: string; sort_order: number }[]) => {
       if (!user || !buildId) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('car_build_phases' as any)
-        .upsert(rows.map(r => ({ ...r, build_id: buildId, user_id: user.id })), { onConflict: 'id' });
-      if (error) throw error;
+      const results = await Promise.all(
+        rows.map(r =>
+          supabase.from('car_build_phases' as any)
+            .update({ sort_order: r.sort_order })
+            .eq('id', r.id)
+            .eq('user_id', user.id)
+        )
+      );
+      const err = results.find(r => r.error);
+      if (err?.error) throw err.error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_build_phases', buildId] }); },
     onError: (e: Error) => toast.error(e.message),
@@ -953,10 +959,16 @@ export function useCarBuildItems(buildId: string | null) {
   const reorder = useMutation({
     mutationFn: async (rows: { id: string; sort_order: number; phase_id: string }[]) => {
       if (!user || !buildId) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('car_build_items' as any)
-        .upsert(rows.map(r => ({ ...r, build_id: buildId, user_id: user.id })), { onConflict: 'id' });
-      if (error) throw error;
+      const results = await Promise.all(
+        rows.map(r =>
+          supabase.from('car_build_items' as any)
+            .update({ sort_order: r.sort_order, phase_id: r.phase_id })
+            .eq('id', r.id)
+            .eq('user_id', user.id)
+        )
+      );
+      const err = results.find(r => r.error);
+      if (err?.error) throw err.error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_build_items', buildId] }); },
     onError: (e: Error) => toast.error(e.message),
