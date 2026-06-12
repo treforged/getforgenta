@@ -16,7 +16,7 @@ import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
-import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities } from '@/hooks/useSupabaseData';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
@@ -41,7 +41,6 @@ import {
   getPaychecksInMonth,
 } from '@/lib/pay-schedule';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
-import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjection } from '@/hooks/useCardProjection';
 import { getTotalCarLoanMonthly, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import {
@@ -223,7 +222,6 @@ export default function Dashboard() {
   const { items: plaidItems } = usePlaidItems();
   const { data: manualAssets } = useAssets();
   const { data: manualLiabilities } = useLiabilities();
-  const { data: paymentPlans } = usePaymentPlans();
 
   const { layout, setLayout, visibleWidgets, isCustomizing, setCustomizing, resetLayout } = useDashboardLayout();
 
@@ -432,14 +430,8 @@ export default function Dashboard() {
     // No floorOverride — let buildCurrentMonthRecommendationSummary compute ppBills + ccFloor
     // so the safe minimum matches the Debt Payoff engine. syncCutoffDate aligns remaining
     // income/expense windows with the Debt Payoff page.
-    const now = new Date();
-    const ccIds = new Set<string>(
-      (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
-        .flatMap(a => [a.id, `account:${a.id}`]),
-    );
-    const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now.getFullYear(), now.getMonth(), ccIds);
-    return getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, undefined, syncCutoffDate, planExpenses);
-  }, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, syncCutoffDate, paymentPlans]);
+    return getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, undefined, syncCutoffDate);
+  }, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, syncCutoffDate]);
 
   const debtPaymentTxns = useMemo(
     () => createDebtPaymentTransactions(debtBreakdown.recommendations, fundingAccountId),
@@ -600,7 +592,7 @@ export default function Dashboard() {
     accounts, transactions, rules, debts, goals, carFunds: carFunds as any[],
     profile, debtPayoffOptions, payConfig, scheduledEvents: scheduledEvents36,
     pauseSavings, forecastFundingAccountId: fundingAccountId, debtStrategy,
-    persistedDebtFundingId, assumptions: projectionAssumptions, paymentPlans: paymentPlans ?? [],
+    persistedDebtFundingId, assumptions: projectionAssumptions,
   });
 
   const month0SaveUpNote = useMemo(() => {

@@ -47,27 +47,6 @@ export function getPlanProgress(plan: PaymentPlan): { paid: number; remaining: n
   return { paid, remaining: plan.total_payments - paid, endDate };
 }
 
-export function getMonthlyPlanCashExpenses(
-  plans: PaymentPlan[],
-  year: number,
-  month: number,
-  ccAccountIds: Set<string>,
-): number {
-  let total = 0;
-  for (const plan of plans) {
-    if (!plan.active) continue;
-    if (plan.payment_source && ccAccountIds.has(plan.payment_source)) continue;
-    const dates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
-    for (const date of dates) {
-      const d = new Date(date + 'T00:00:00');
-      if (d.getFullYear() === year && d.getMonth() === month) {
-        total += plan.payment_amount;
-      }
-    }
-  }
-  return total;
-}
-
 export function generatePaymentPlanTransactions(plans: PaymentPlan[]): any[] {
   const results: any[] = [];
   for (const plan of plans) {
