@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { Plus, Edit2, Trash2, ChevronDown } from 'lucide-react';
+import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
+import { Plus, Edit2, Trash2, ChevronDown, Share2, Copy, Check as CheckIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCarBuilds, useCarBuildPhases, useCarBuildItems } from '@/hooks/useSupabaseData';
@@ -77,6 +77,11 @@ export default function Builds() {
   const [draggingPhaseId, setDraggingPhaseId] = useState<string | null>(null);
   const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
+  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+
+  // Share UI
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
 
   // ── Build CRUD ───────────────────────────────────────────
   async function handleSaveBuild(data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null }) {
@@ -150,6 +155,42 @@ export default function Builds() {
     await updateItem.mutateAsync({ id, completed });
   }
 
+  // ── Share ────────────────────────────────────────────────
+  async function handleEnableShare() {
+    if (!activeBuild) return;
+    setShareLoading(true);
+    try {
+      const token = crypto.randomUUID();
+      await updateBuild.mutateAsync({ id: activeBuild.id, share_token: token });
+      toast.success('Share link created');
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
+  async function handleDisableShare() {
+    if (!activeBuild) return;
+    setShareLoading(true);
+    try {
+      await updateBuild.mutateAsync({ id: activeBuild.id, share_token: null });
+      toast.success('Share link disabled');
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
+  function shareUrl() {
+    if (!activeBuild?.share_token) return '';
+    return `${window.location.origin}/builds/share/${activeBuild.share_token}`;
+  }
+
+  async function handleCopyLink() {
+    const url = shareUrl();
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    toast.success('Link copied!');
+  }
+
   // ── Phase drag (desktop) ─────────────────────────────────
   function onPhaseDragStart(e: React.DragEvent, phaseId: string) {
     dragPhaseIdRef.current = phaseId;
@@ -200,16 +241,18 @@ export default function Builds() {
     setDraggingItemId(itemId);
   }
 
-  function onItemDragOver(e: React.DragEvent, _itemId: string, _phaseId: string) {
-    if (!dragItemIdRef.current) return;
+  function onItemDragOver(e: React.DragEvent, itemId: string, _phaseId: string) {
+    if (!dragItemIdRef.current || dragItemIdRef.current === itemId) return;
     e.preventDefault();
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
+    setDragOverItemId(itemId);
   }
 
   function onItemDragEnd() {
     dragItemIdRef.current = null;
     setDraggingItemId(null);
+    setDragOverItemId(null);
   }
 
   function onItemDrop(e: React.DragEvent, toItemId: string, toPhaseId: string) {
@@ -226,6 +269,7 @@ export default function Builds() {
     const withOrders = without.map((it, i) => ({ ...it, sort_order: i }));
     setDragItemOrder(withOrders);
     setDraggingItemId(null);
+    setDragOverItemId(null);
     dragItemIdRef.current = null;
     reorderItems.mutate(withOrders.map(it => ({ id: it.id, sort_order: it.sort_order, phase_id: it.phase_id })));
   }
@@ -258,6 +302,15 @@ export default function Builds() {
     setDragItemOrder(updated);
     reorderItems.mutate(reordered.map((it, i) => ({ id: it.id, sort_order: i, phase_id: it.phase_id })));
   }
+
+  // Drag direction: compare source index vs target index to decide line placement
+  const draggingPhaseIdx = draggingPhaseId ? displayPhases.findIndex(p => p.id === draggingPhaseId) : -1;
+  const dragOverPhaseIdx = dragOverPhaseId ? displayPhases.findIndex(p => p.id === dragOverPhaseId) : -1;
+  const phaseDropBelow = draggingPhaseIdx >= 0 && dragOverPhaseIdx >= 0 && draggingPhaseIdx < dragOverPhaseIdx;
+
+  const draggingItemIdx = draggingItemId ? displayItems.findIndex(it => it.id === draggingItemId) : -1;
+  const dragOverItemIdx = dragOverItemId ? displayItems.findIndex(it => it.id === dragOverItemId) : -1;
+  const itemDropBelow = draggingItemIdx >= 0 && dragOverItemIdx >= 0 && draggingItemIdx < dragOverItemIdx;
 
   // Items grouped by phase for rendering
   const itemsByPhase = useMemo(() => {
@@ -310,6 +363,15 @@ export default function Builds() {
         )}
         {activeBuild && (
           <button
+            onClick={() => setShareOpen(o => !o)}
+            title="Share build"
+            className={`p-2 border rounded transition-colors ${shareOpen ? 'text-[#c8a84b] border-[#c8a84b]' : 'text-muted-foreground hover:text-[#c8a84b] border-border hover:border-[#c8a84b]'}`}
+          >
+            <Share2 size={14} />
+          </button>
+        )}
+        {activeBuild && (
+          <button
             onClick={() => handleDeleteBuild(activeBuild)}
             title="Delete build"
             className="p-2 text-muted-foreground hover:text-red-400 border border-border rounded hover:border-red-400/50 transition-colors"
@@ -325,6 +387,52 @@ export default function Builds() {
           <Plus size={13} /> New Build
         </button>
       </div>
+
+      {/* Share panel */}
+      {shareOpen && activeBuild && (
+        <div className="mb-4 bg-card border border-border rounded p-4 font-mono text-sm space-y-3">
+          <div className="text-[11px] uppercase tracking-[0.15em] text-muted-foreground">Share Build</div>
+          {activeBuild.share_token ? (
+            <>
+              <div className="text-[12px] text-muted-foreground">Anyone with this link can view your build — read only.</div>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={shareUrl()}
+                  className="flex-1 bg-[#111] border border-border rounded px-3 py-1.5 text-[12px] text-[#8ab0e0] focus:outline-none select-all"
+                  onFocus={e => e.target.select()}
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors"
+                  style={{ background: '#c8a84b', color: '#000' }}
+                >
+                  <Copy size={12} /> Copy
+                </button>
+              </div>
+              <button
+                onClick={handleDisableShare}
+                disabled={shareLoading}
+                className="text-[11px] text-muted-foreground hover:text-red-400 transition-colors disabled:opacity-40"
+              >
+                Disable share link
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="text-[12px] text-muted-foreground">Generate a public link so friends can view your plan and progress.</div>
+              <button
+                onClick={handleEnableShare}
+                disabled={shareLoading}
+                className="flex items-center gap-1.5 px-4 py-2 text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-40"
+                style={{ background: '#c8a84b', color: '#000' }}
+              >
+                <Share2 size={12} /> {shareLoading ? 'Creating…' : 'Create Share Link'}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Empty state */}
       {builds.length === 0 && (
@@ -351,37 +459,49 @@ export default function Builds() {
             </div>
           ) : (
             <>
-              {displayPhases.map((ph, i) => (
-                <PhaseBlock
-                  key={ph.id}
-                  phase={ph}
-                  phaseIndex={i}
-                  items={itemsByPhase[ph.id] ?? []}
-                  allPhases={displayPhases}
-                  isMobile={isMobile}
-                  isFirst={i === 0}
-                  isLast={i === displayPhases.length - 1}
-                  isDragging={draggingPhaseId === ph.id}
-                  isDragOver={dragOverPhaseId === ph.id}
-                  dragItemId={draggingItemId}
-                  onUpdatePhase={handleUpdatePhase}
-                  onDeletePhase={handleDeletePhase}
-                  onAddItem={handleAddItem}
-                  onUpdateItem={handleUpdateItem}
-                  onDeleteItem={handleDeleteItem}
-                  onToggleItem={handleToggleItem}
-                  onMovePhase={dir => handleMovePhase(ph.id, dir)}
-                  onMoveItemArrow={handleMoveItemArrow}
-                  onPhaseDragStart={onPhaseDragStart}
-                  onPhaseDragOver={onPhaseDragOver}
-                  onPhaseDragEnd={onPhaseDragEnd}
-                  onPhaseDrop={onPhaseDrop}
-                  onItemDragStart={onItemDragStart}
-                  onItemDragOver={onItemDragOver}
-                  onItemDragEnd={onItemDragEnd}
-                  onItemDrop={onItemDrop}
-                />
-              ))}
+              {displayPhases.map((ph, i) => {
+                const isPhaseTarget = dragOverPhaseId === ph.id && !isMobile;
+                return (
+                  <Fragment key={ph.id}>
+                    {isPhaseTarget && !phaseDropBelow && (
+                      <div className="h-0.5 rounded mx-0.5 mb-1" style={{ background: '#c8a84b' }} />
+                    )}
+                    <PhaseBlock
+                      phase={ph}
+                      phaseIndex={i}
+                      items={itemsByPhase[ph.id] ?? []}
+                      allPhases={displayPhases}
+                      isMobile={isMobile}
+                      isFirst={i === 0}
+                      isLast={i === displayPhases.length - 1}
+                      isDragging={draggingPhaseId === ph.id}
+                      isDragOver={dragOverPhaseId === ph.id}
+                      dragItemId={draggingItemId}
+                      dragOverItemId={dragOverItemId}
+                      itemDropBelow={itemDropBelow}
+                      onUpdatePhase={handleUpdatePhase}
+                      onDeletePhase={handleDeletePhase}
+                      onAddItem={handleAddItem}
+                      onUpdateItem={handleUpdateItem}
+                      onDeleteItem={handleDeleteItem}
+                      onToggleItem={handleToggleItem}
+                      onMovePhase={dir => handleMovePhase(ph.id, dir)}
+                      onMoveItemArrow={handleMoveItemArrow}
+                      onPhaseDragStart={onPhaseDragStart}
+                      onPhaseDragOver={onPhaseDragOver}
+                      onPhaseDragEnd={onPhaseDragEnd}
+                      onPhaseDrop={onPhaseDrop}
+                      onItemDragStart={onItemDragStart}
+                      onItemDragOver={onItemDragOver}
+                      onItemDragEnd={onItemDragEnd}
+                      onItemDrop={onItemDrop}
+                    />
+                    {isPhaseTarget && phaseDropBelow && (
+                      <div className="h-0.5 rounded mx-0.5 mt-1" style={{ background: '#c8a84b' }} />
+                    )}
+                  </Fragment>
+                );
+              })}
 
               <button
                 onClick={handleAddPhase}

@@ -38,6 +38,7 @@ const Vehicles = lazy(() => import("@/pages/Vehicles"));
 const Builds = lazy(() => import("@/pages/Builds"));
 const PlaidOAuth = lazy(() => import("@/pages/PlaidOAuth"));
 const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
+const BuildShare = lazy(() => import("@/pages/BuildShare"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -136,6 +137,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/auth-callback" element={<Suspense fallback={<PageLoader />}><AuthCallback /></Suspense>} />
+      <Route path="/builds/share/:token" element={<Suspense fallback={<PageLoader />}><BuildShare /></Suspense>} />
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/refund" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
