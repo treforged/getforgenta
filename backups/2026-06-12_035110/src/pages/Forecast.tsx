@@ -214,12 +214,9 @@ export default function Forecast() {
     );
     return Array.from({ length: 36 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      return getMonthlyPlanCashExpenses(
-        paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccIds,
-        i === 0 ? syncCutoffDate : undefined,
-      );
+      return getMonthlyPlanCashExpenses(paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccIds);
     });
-  }, [accounts, paymentPlans, syncCutoffDate]);
+  }, [accounts, paymentPlans]);
 
   const debtPaymentsByMonth = useMemo(() =>
     getDebtPaymentsByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, 36, planExpensesByMonth),
@@ -871,8 +868,6 @@ export default function Forecast() {
       } else {
         baseExpenses = budgetFallback * expenseMultiplier;
       }
-      // Plan payments are fixed amounts — add after multiplier to avoid inflation
-      baseExpenses += planExpensesByMonth[i] ?? 0;
 
       // rawDebtPayment = all CC outflows: debt payoff while balances remain + post-payoff
       // purchase pass-through. Uses allPaymentTotals (from sim.monthlyPayments) so
@@ -1335,7 +1330,7 @@ export default function Forecast() {
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth]);
+  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
