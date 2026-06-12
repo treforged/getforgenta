@@ -208,7 +208,7 @@ export default function PhaseBlock({
             >
               <Pencil size={12} />
             </button>
-            <span className={cn('text-sm font-semibold uppercase tracking-wide text-foreground break-words', phase.hidden && 'line-through')}>
+            <span className={cn('text-sm font-semibold uppercase tracking-wide text-foreground truncate', phase.hidden && 'line-through')}>
               {phase.title}
             </span>
             {allDone && (
