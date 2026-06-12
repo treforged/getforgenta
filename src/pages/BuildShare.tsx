@@ -51,8 +51,14 @@ export default function BuildShare() {
 
   const { build, phases, items, displayName } = data;
 
-  const totalConfirmed = items.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
-  const hasTbd = items.some((it: CarBuildItem) => it.price === null);
+  // Hidden phases are "planned future" — exclude their items from the budget total
+  const activePhaseIds = new Set(
+    phases.filter((p: CarBuildPhase) => !p.hidden).map((p: CarBuildPhase) => p.id)
+  );
+  const activeItems = items.filter((it: CarBuildItem) => activePhaseIds.has(it.phase_id));
+
+  const totalConfirmed = activeItems.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
+  const hasTbd = activeItems.some((it: CarBuildItem) => it.price === null);
   const totalItems = items.length;
   const doneItems = items.filter((it: CarBuildItem) => it.completed).length;
   const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
