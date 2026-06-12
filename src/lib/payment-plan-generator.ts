@@ -52,6 +52,7 @@ export function getMonthlyPlanCashExpenses(
   year: number,
   month: number,
   ccAccountIds: Set<string>,
+  afterDate?: string,
 ): number {
   let total = 0;
   for (const plan of plans) {
@@ -59,6 +60,7 @@ export function getMonthlyPlanCashExpenses(
     if (plan.payment_source && ccAccountIds.has(plan.payment_source)) continue;
     const dates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
     for (const date of dates) {
+      if (afterDate && date <= afterDate) continue;
       const d = new Date(date + 'T00:00:00');
       if (d.getFullYear() === year && d.getMonth() === month) {
         total += plan.payment_amount;
