@@ -35,7 +35,6 @@ const Legal = lazy(() => import("@/pages/Legal"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const AiAdvisor = lazy(() => import("@/pages/AiAdvisor"));
 const Vehicles = lazy(() => import("@/pages/Vehicles"));
-const Builds = lazy(() => import("@/pages/Builds"));
 const PlaidOAuth = lazy(() => import("@/pages/PlaidOAuth"));
 const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
 
@@ -116,7 +115,6 @@ function AppRoutes() {
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><DebtPayoff /></ErrorBoundary></Suspense>} />
         <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SavingsGoals /></ErrorBoundary></Suspense>} />
         <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Vehicles /></ErrorBoundary></Suspense>} />
-        <Route path="/builds" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Builds /></ErrorBoundary></Suspense>} />
         <Route path="/net-worth" element={<Navigate to="/accounts" replace />} />
         <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Forecast /></ErrorBoundary></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SettingsPage /></ErrorBoundary></Suspense>} />
