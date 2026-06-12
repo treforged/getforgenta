@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Check, ExternalLink } from 'lucide-react';
+import { Check, ExternalLink, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { usePublicBuild } from '@/hooks/useSupabaseData';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 
@@ -17,10 +19,19 @@ function itemLabel(phaseIndex: number, itemIndex: number, total: number): string
 export default function BuildShare() {
   const { token } = useParams<{ token: string }>();
   const { data, loading, notFound } = usePublicBuild(token);
+  const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
+
+  function togglePhase(id: string) {
+    setExpandedPhases(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-screen overflow-y-auto bg-background flex items-center justify-center">
         <div className="text-sm text-muted-foreground animate-pulse font-mono">Loading build…</div>
       </div>
     );
@@ -28,7 +39,7 @@ export default function BuildShare() {
 
   if (notFound || !data) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+      <div className="h-screen overflow-y-auto bg-background flex flex-col items-center justify-center gap-4">
         <div className="text-lg font-mono text-foreground">Build not found</div>
         <div className="text-sm text-muted-foreground font-mono">This link may have been disabled or never existed.</div>
         <Link to="/" className="text-sm font-mono underline text-muted-foreground hover:text-foreground transition-colors">
@@ -40,7 +51,6 @@ export default function BuildShare() {
 
   const { build, phases, items } = data;
 
-  // Show ALL phases and items on the share page — friends should see the full plan
   const totalConfirmed = items.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
   const hasTbd = items.some((it: CarBuildItem) => it.price === null);
   const totalItems = items.length;
@@ -50,8 +60,10 @@ export default function BuildShare() {
   const subLabel = [build.year, build.make, build.model].filter(Boolean).join(' ');
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    // Own scroll container — avoids the html{height:100%} body-scroll issue
+    <div className="h-screen overflow-y-auto bg-background text-foreground">
       <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6">
+
         {/* Powered-by badge */}
         <div className="flex justify-end mb-6">
           <Link
@@ -124,7 +136,7 @@ export default function BuildShare() {
           )}
         </div>
 
-        {/* Phases — all of them, hidden ones marked as "Planned" */}
+        {/* Phases — all of them, hidden ones shown as "Planned" */}
         <div className="space-y-2">
           {phases.map((ph: CarBuildPhase, i: number) => {
             const phItems: CarBuildItem[] = items.filter((it: CarBuildItem) => it.phase_id === ph.id);
@@ -132,6 +144,7 @@ export default function BuildShare() {
             const allDone = phItems.length > 0 && doneCount === phItems.length;
             const phTotal = phItems.reduce((s, it) => s + (it.price ?? 0), 0);
             const color = PHASE_COLORS[i % PHASE_COLORS.length];
+            const isExpanded = expandedPhases.has(ph.id);
 
             return (
               <div
@@ -139,8 +152,11 @@ export default function BuildShare() {
                 className="border border-border rounded overflow-hidden"
                 style={ph.hidden ? { opacity: 0.6 } : undefined}
               >
-                {/* Phase header */}
-                <div className="flex items-center gap-3 px-4 py-3 bg-card">
+                {/* Phase header — clickable to expand/collapse */}
+                <div
+                  className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
+                  onClick={() => togglePhase(ph.id)}
+                >
                   <div className="text-2xl font-display font-bold leading-none flex-shrink-0" style={{ color }}>
                     <span className="inline-block w-2 h-2 rounded-full mr-1.5 mb-0.5 align-middle" style={{ background: color }} />
                     {i + 1}
@@ -167,13 +183,17 @@ export default function BuildShare() {
                       {doneCount > 0 ? `${doneCount} / ${phItems.length} complete` : `${phItems.length} item${phItems.length !== 1 ? 's' : ''}`}
                     </div>
                   </div>
-                  <div className="font-mono text-base font-medium text-right flex-shrink-0" style={{ color: '#c8a84b' }}>
+                  <div className="font-mono text-base font-medium text-right flex-shrink-0 mr-2" style={{ color: '#c8a84b' }}>
                     {phTotal > 0 ? `$${phTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
                   </div>
+                  <ChevronDown
+                    size={14}
+                    className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')}
+                  />
                 </div>
 
-                {/* Items */}
-                {phItems.length > 0 && (
+                {/* Items — shown only when expanded */}
+                {isExpanded && phItems.length > 0 && (
                   <div className="border-t border-border">
                     {phItems.map((item: CarBuildItem, ii: number) => (
                       <div
@@ -203,6 +223,7 @@ export default function BuildShare() {
                               href={item.link}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={e => e.stopPropagation()}
                               className="inline-flex items-center gap-1 text-[11px] font-mono mt-0.5 transition-colors hover:underline"
                               style={{ color: '#6a90c0' }}
                             >
