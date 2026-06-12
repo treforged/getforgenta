@@ -151,6 +151,7 @@ export type CarBuild = {
   model: string | null;
   notes: string | null;
   sort_order: number;
+  share_token: string | null;
   created_at: string;
 };
 

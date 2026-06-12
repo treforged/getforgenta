@@ -1057,3 +1057,29 @@ export function useCarBuildItems(buildId: string | null) {
 
   return { data: (query.data ?? []) as any[], loading: query.isLoading, error: query.error, add, update, remove, reorder };
 }
+
+// ─── Public build by share token (no auth required) ──────────────────────────
+export function usePublicBuild(shareToken: string | undefined) {
+  const query = useQuery({
+    queryKey: ['public_build', shareToken],
+    enabled: !!shareToken,
+    queryFn: async () => {
+      if (!shareToken) return null;
+      const { data: build, error: buildErr } = await supabase
+        .from('car_builds' as any)
+        .select('*')
+        .eq('share_token', shareToken)
+        .single();
+      if (buildErr || !build) return null;
+
+      const [{ data: phases }, { data: items }] = await Promise.all([
+        supabase.from('car_build_phases' as any).select('*').eq('build_id', (build as any).id).order('sort_order'),
+        supabase.from('car_build_items' as any).select('*').eq('build_id', (build as any).id).order('sort_order'),
+      ]);
+
+      return { build: build as any, phases: (phases ?? []) as any[], items: (items ?? []) as any[] };
+    },
+  });
+
+  return { data: query.data ?? null, loading: query.isLoading, notFound: !query.isLoading && !query.data };
+}
