@@ -8,6 +8,7 @@ import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
   demoNetWorthSnapshots,
 } from '@/lib/demo-data';
+import { PaymentPlan } from '@/lib/payment-plan-generator';
 
 // ─── Accounts (Centralized) ──────────────────────────────
 // FIX #13: Demo accounts now have realistic balances that produce
@@ -722,6 +723,86 @@ export function useNetWorthSnapshots() {
   });
 
   return { data: query.data ?? [], loading: query.isLoading, upsert };
+}
+
+// ─── Payment Plans ───────────────────────────────────────
+const demoPaymentPlans: PaymentPlan[] = [
+  {
+    id: 'pp1',
+    user_id: 'demo',
+    name: 'AirPods Pro',
+    provider: 'PayPal Pay in 4',
+    total_amount: 249,
+    payment_amount: 62.25,
+    frequency: 'biweekly',
+    start_date: '2026-06-01',
+    total_payments: 4,
+    category: 'Shopping',
+    payment_source: null,
+    notes: null,
+    active: true,
+    created_at: '',
+  },
+  {
+    id: 'pp2',
+    user_id: 'demo',
+    name: 'MacBook Pro',
+    provider: 'Prime Visa 12 months',
+    total_amount: 1799,
+    payment_amount: 149.92,
+    frequency: 'monthly',
+    start_date: '2026-05-15',
+    total_payments: 12,
+    category: 'Shopping',
+    payment_source: null,
+    notes: '0% APR promotional period',
+    active: true,
+    created_at: '',
+  },
+];
+
+export function usePaymentPlans() {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: ['payment_plans', isDemo ? 'demo' : user?.id],
+    enabled: isDemo || !!user,
+    queryFn: async () => {
+      if (isDemo || !user) return demoPaymentPlans;
+      const { data, error } = await supabase.from('payment_plans' as any).select('*').eq('user_id', user.id).order('created_at');
+      if (error) throw error;
+      return (data as any[]) ?? [];
+    },
+  });
+  const add = useMutation({
+    mutationFn: async (item: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'>) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase.from('payment_plans' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment_plans'] }); toast.success('Payment plan added'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const update = useMutation({
+    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase.from('payment_plans' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment_plans'] }); toast.success('Payment plan updated'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase.from('payment_plans' as any).delete().eq('id', id).eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment_plans'] }); toast.success('Payment plan removed'); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  return { data: (query.data ?? []) as PaymentPlan[], loading: query.isLoading, error: query.error, add, update, remove };
 }
 
 // ─── Car Builds ──────────────────────────────────────────
