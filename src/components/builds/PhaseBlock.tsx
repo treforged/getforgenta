@@ -1,7 +1,18 @@
 import { useState, useRef } from 'react';
 import { ChevronDown, GripVertical, ArrowUp, ArrowDown, Pencil, EyeOff, Eye, Trash2, Plus, ExternalLink, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
+
+function isValidUrl(val: string): boolean {
+  if (!val.trim()) return true;
+  try {
+    const u = new URL(val.trim());
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 export const PHASE_COLORS = [
   '#c8a84b', '#ba4a4a', '#4a8cba', '#8a5ba3', '#3a8a5a',
@@ -107,6 +118,10 @@ export default function PhaseBlock({
   function saveItemEdit(item: CarBuildItem) {
     const ed = itemEdits[item.id];
     if (!ed) return;
+    if (!isValidUrl(ed.link)) {
+      toast.error('Invalid URL — must start with http:// or https://');
+      return;
+    }
     const parsedPrice = ed.price.trim() ? parseFloat(ed.price) : null;
     const updates: Partial<CarBuildItem & { phase_id?: string }> = {
       name: ed.name.trim() || item.name,
@@ -408,7 +423,10 @@ export default function PhaseBlock({
                           value={itemEdits[item.id].link}
                           onChange={e => updateItemEdit(item.id, 'link', e.target.value)}
                           placeholder="https://..."
-                          style={{ color: '#8ab0e0' }}
+                          style={{
+                            color: '#8ab0e0',
+                            borderColor: !isValidUrl(itemEdits[item.id].link) ? '#e05a5a' : undefined,
+                          }}
                         />
                       </div>
                       <div>
