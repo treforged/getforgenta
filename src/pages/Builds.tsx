@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
-import { Plus, Edit2, Trash2, ChevronDown, Share2, Copy, Check as CheckIcon } from 'lucide-react';
+import { Plus, Edit2, Trash2, ChevronDown, Share2, Copy, Check as CheckIcon, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCarBuilds, useCarBuildPhases, useCarBuildItems } from '@/hooks/useSupabaseData';
@@ -7,7 +7,10 @@ import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
 import PhaseBlock from '@/components/builds/PhaseBlock';
 import BuildFormModal from '@/components/builds/BuildFormModal';
+import BuildSharePreviewModal from '@/components/builds/BuildSharePreviewModal';
 import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
+
+const SHARE_BASE = 'https://getforgenta.com';
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(
@@ -82,6 +85,7 @@ export default function Builds() {
   // Share UI
   const [shareOpen, setShareOpen] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
+  const [sharePreviewOpen, setSharePreviewOpen] = useState(false);
 
   // ── Build CRUD ───────────────────────────────────────────
   async function handleSaveBuild(data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null }) {
@@ -181,7 +185,17 @@ export default function Builds() {
 
   function shareUrl() {
     if (!activeBuild?.share_token) return '';
-    return `${window.location.origin}/builds/share/${activeBuild.share_token}`;
+    return `${SHARE_BASE}/builds/share/${activeBuild.share_token}`;
+  }
+
+  function handleOpenShareLink() {
+    const url = shareUrl();
+    if (!url) return;
+    if (isMobile) {
+      setSharePreviewOpen(true);
+    } else {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   }
 
   async function handleCopyLink() {
@@ -409,6 +423,15 @@ export default function Builds() {
                 >
                   <Copy size={12} /> Copy
                 </button>
+                <button
+                  onClick={handleOpenShareLink}
+                  title={isMobile ? 'Preview' : 'Open in new tab'}
+                  className="flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors border"
+                  style={{ color: '#c8a84b', borderColor: '#c8a84b', background: 'transparent' }}
+                >
+                  <ExternalLink size={12} />
+                  {isMobile ? 'Preview' : 'Open'}
+                </button>
               </div>
               <button
                 onClick={handleDisableShare}
@@ -514,6 +537,16 @@ export default function Builds() {
 
           <BuildSummary phases={displayPhases} items={displayItems} />
         </>
+      )}
+
+      {sharePreviewOpen && activeBuild && (
+        <BuildSharePreviewModal
+          build={activeBuild}
+          phases={displayPhases}
+          items={displayItems}
+          shareUrl={shareUrl()}
+          onClose={() => setSharePreviewOpen(false)}
+        />
       )}
 
       <BuildFormModal

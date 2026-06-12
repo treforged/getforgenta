@@ -189,7 +189,7 @@ export default function BuildShare() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-semibold uppercase tracking-wide text-foreground truncate">
+                      <span className="text-sm font-semibold uppercase tracking-wide text-foreground break-words">
                         {ph.title}
                       </span>
                       {allDone && !ph.hidden && (
@@ -242,7 +242,7 @@ export default function BuildShare() {
                             {item.name}
                           </div>
                           {item.brand && (
-                            <div className="text-[12px] font-mono text-muted-foreground mt-0.5 truncate">{item.brand}</div>
+                            <div className="text-[12px] font-mono text-muted-foreground mt-0.5 break-words">{item.brand}</div>
                           )}
                           {item.link && (
                             <a
