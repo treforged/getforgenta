@@ -149,6 +149,7 @@ export default function Builds() {
   async function handleUpdateItem(id: string, data: Partial<CarBuildItem & { phase_id?: string }>) {
     setDragItemOrder(prev => (prev ?? items).map(it => it.id === id ? { ...it, ...data } : it));
     await updateItem.mutateAsync({ id, ...data });
+    setDragItemOrder(null);
   }
 
   async function handleDeleteItem(id: string) {
@@ -156,9 +157,9 @@ export default function Builds() {
   }
 
   async function handleToggleItem(id: string, completed: boolean) {
-    // Optimistic local update for instant feedback
     setDragItemOrder(prev => (prev ?? items).map(it => it.id === id ? { ...it, completed } : it));
     await updateItem.mutateAsync({ id, completed });
+    setDragItemOrder(null);
   }
 
   // ── Share ────────────────────────────────────────────────
