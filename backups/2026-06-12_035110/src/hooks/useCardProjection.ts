@@ -110,14 +110,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // ── Scalar fallbacks ──────────────────────────────────────────────────────
       const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
       const ccSourceIdsForScalar = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
-      // Month 0: only count plan payments after syncCutoffDate — earlier ones are already
-      // reflected in the current bank balance. Months 1+: all payments in that month.
       const planCashExpensesEarly = Array.from({ length: 36 }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        return getMonthlyPlanCashExpenses(
-          paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccSourceIdsForScalar,
-          i === 0 ? syncCutoffDate : undefined,
-        );
+        return getMonthlyPlanCashExpenses(paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccSourceIdsForScalar);
       });
       const monthlyExpenses = rules.filter((r: any) => {
         if (!r.active || r.rule_type !== 'expense') return false;
@@ -531,7 +526,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         undefined,
         cardPurchasesPerMonth,
         m0Income,
-        m0Expenses + (planCashExpensesEarly[0] ?? 0),
+        m0Expenses,
         oneTimeArrWithDP,
         m0SafeFloor,
         maxDebtPaymentByMonth,
