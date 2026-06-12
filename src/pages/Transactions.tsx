@@ -2,24 +2,38 @@ import { useState, useMemo, useCallback } from 'react';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
-import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations } from '@/hooks/useSupabaseData';
+import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations, usePaymentPlans } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
-import { Plus, ArrowUpRight, ArrowDownRight, Edit2, Trash2, Copy, Repeat, AlertTriangle, Landmark, SlidersHorizontal, Crown, Download } from 'lucide-react';
+import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES];
 
 const emptyForm = { date: new Date().toISOString().split('T')[0], type: 'expense', amount: '', category: 'Other', account: 'Checking', note: '', payment_source: '' };
+
+const emptyPlanForm = {
+  name: '',
+  provider: '',
+  total_amount: '',
+  payment_amount: '',
+  frequency: 'monthly' as PaymentPlanFrequency,
+  start_date: new Date().toISOString().split('T')[0],
+  total_payments: '',
+  category: 'Shopping',
+  payment_source: '',
+  notes: '',
+};
 
 export default function Transactions() {
   const { isDemo } = useDemo();
@@ -30,6 +44,7 @@ export default function Transactions() {
   const { data: debts } = useDebts();
   const { data: profile } = useProfile();
   const { data: reconciliations } = useAccountReconciliations();
+  const { data: paymentPlans, add: addPlan, update: updatePlan, remove: removePlan } = usePaymentPlans();
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -44,6 +59,13 @@ export default function Transactions() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [editChoiceId, setEditChoiceId] = useState<string | null>(null);
   const [editChoiceRule, setEditChoiceRule] = useState<any>(null);
+
+  // Payment plan state
+  const [showPlanForm, setShowPlanForm] = useState(false);
+  const [editPlanId, setEditPlanId] = useState<string | null>(null);
+  const [planForm, setPlanForm] = useState(emptyPlanForm);
+  const [planDeleteConfirm, setPlanDeleteConfirm] = useState<string | null>(null);
+  const [showPlans, setShowPlans] = useState(true);
 
   // Build account lookup map
   const accountMap = useMemo(() => {
@@ -191,13 +213,16 @@ export default function Transactions() {
     }));
   }, [reconciliations]);
 
-  // Merge real + generated recurring + debt payments + reconciliations
+  const planTransactions = useMemo(() => generatePaymentPlanTransactions(paymentPlans), [paymentPlans]);
+
+  // Merge real + generated recurring + debt payments + reconciliations + plan payments
   const allTransactions = useMemo(() => {
     return [
       ...mergeDebtPaymentsIntoStream(baseTxns, debtPaymentTransactions),
       ...reconciliationTxns,
+      ...planTransactions,
     ].sort((a, b) => b.date.localeCompare(a.date));
-  }, [baseTxns, debtPaymentTransactions, reconciliationTxns]);
+  }, [baseTxns, debtPaymentTransactions, reconciliationTxns, planTransactions]);
 
   const paymentSourceOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
@@ -382,6 +407,65 @@ export default function Transactions() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
+  const openAddPlan = () => { setPlanForm(emptyPlanForm); setEditPlanId(null); setShowPlanForm(true); };
+  const openEditPlan = (plan: PaymentPlan) => {
+    setPlanForm({
+      name: plan.name,
+      provider: plan.provider ?? '',
+      total_amount: String(plan.total_amount),
+      payment_amount: String(plan.payment_amount),
+      frequency: plan.frequency,
+      start_date: plan.start_date,
+      total_payments: String(plan.total_payments),
+      category: plan.category,
+      payment_source: plan.payment_source ?? '',
+      notes: plan.notes ?? '',
+    });
+    setEditPlanId(plan.id);
+    setShowPlanForm(true);
+  };
+
+  const handleSavePlan = () => {
+    const totalAmt = parseFloat(planForm.total_amount);
+    const payAmt = parseFloat(planForm.payment_amount);
+    const totalPay = parseInt(planForm.total_payments, 10);
+    if (!planForm.name.trim()) { toast.error('Plan name is required'); return; }
+    if (!totalAmt || totalAmt <= 0) { toast.error('Total amount must be greater than 0'); return; }
+    if (!payAmt || payAmt <= 0) { toast.error('Payment amount must be greater than 0'); return; }
+    if (!totalPay || totalPay <= 0) { toast.error('Number of payments must be at least 1'); return; }
+    const payload = {
+      name: planForm.name.trim(),
+      provider: planForm.provider.trim() || null,
+      total_amount: totalAmt,
+      payment_amount: payAmt,
+      frequency: planForm.frequency,
+      start_date: planForm.start_date,
+      total_payments: totalPay,
+      category: planForm.category,
+      payment_source: planForm.payment_source || null,
+      notes: planForm.notes.trim() || null,
+      active: true,
+    };
+    if (editPlanId) {
+      updatePlan.mutate({ id: editPlanId, ...payload });
+    } else {
+      addPlan.mutate(payload);
+    }
+    setShowPlanForm(false);
+    setPlanForm(emptyPlanForm);
+    setEditPlanId(null);
+  };
+
+  const handleDeletePlan = (id: string) => {
+    if (planDeleteConfirm === id) {
+      removePlan.mutate(id);
+      setPlanDeleteConfirm(null);
+    } else {
+      setPlanDeleteConfirm(id);
+      setTimeout(() => setPlanDeleteConfirm(null), 3000);
+    }
+  };
+
   const formFields = useMemo(() => [
     { key: 'date', label: 'Date', type: 'date' as const },
     { key: 'type', label: 'Type', type: 'select' as const, options: [{ value: 'expense', label: 'Expense' }, { value: 'income', label: 'Income' }] },
@@ -530,6 +614,99 @@ export default function Transactions() {
         </div>
       )}
 
+      {/* Payment Plans Section */}
+      {(isPremium || isDemo) && (
+        <div className="card-forged overflow-hidden">
+          <button
+            onClick={() => setShowPlans(p => !p)}
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/20 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <CreditCard size={14} className="text-primary" />
+              <span className="text-sm font-display font-semibold">Payment Plans</span>
+              {paymentPlans.filter(p => p.active).length > 0 && (
+                <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>
+                  {paymentPlans.filter(p => p.active).length} active
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={e => { e.stopPropagation(); openAddPlan(); }}
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium"
+              >
+                <Plus size={12} /> Add Plan
+              </button>
+              {showPlans ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
+            </div>
+          </button>
+
+          {showPlans && (
+            <div className="border-t border-border">
+              {paymentPlans.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-xs text-muted-foreground">No payment plans yet.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Track PayPal Pay in 4, 0% APR promos, and any installment plan.</p>
+                  <button onClick={openAddPlan} className="mt-3 text-xs text-primary hover:underline font-medium">Add your first plan</button>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {paymentPlans.map(plan => {
+                    const { paid, remaining, endDate } = getPlanProgress(plan);
+                    const nextDate = getNextPaymentDate(plan);
+                    const pct = Math.round((paid / plan.total_payments) * 100);
+                    const remainingAmt = remaining * plan.payment_amount;
+                    return (
+                      <div key={plan.id} className={`p-4 ${!plan.active ? 'opacity-50' : ''}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-xs font-semibold truncate">{plan.name}</p>
+                              {plan.provider && (
+                                <span className="text-[10px] bg-secondary border border-border px-1.5 py-0.5 text-muted-foreground shrink-0" style={{ borderRadius: 'var(--radius)' }}>
+                                  {plan.provider}
+                                </span>
+                              )}
+                              {!plan.active && <span className="text-[10px] text-muted-foreground">(inactive)</span>}
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground shrink-0">{paid}/{plan.total_payments}</span>
+                            </div>
+                            <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5">
+                              <p className="text-[11px] text-muted-foreground">
+                                {formatCurrency(plan.payment_amount, false)}/{plan.frequency === 'biweekly' ? '2 wks' : plan.frequency === 'weekly' ? 'wk' : 'mo'}
+                              </p>
+                              {remaining > 0 && nextDate && (
+                                <p className="text-[11px] text-muted-foreground">Next: {nextDate}</p>
+                              )}
+                              <p className="text-[11px] text-muted-foreground">Remaining: {formatCurrency(remainingAmt, false)}</p>
+                              <p className="text-[11px] text-muted-foreground">Ends: {endDate}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => openEditPlan(plan)} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>
+                            <button
+                              onClick={() => handleDeletePlan(plan.id)}
+                              className={`icon-btn ${planDeleteConfirm === plan.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}
+                              title="Delete"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-2">
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]" style={{ borderRadius: 'var(--radius)' }}>
           {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -589,6 +766,7 @@ export default function Transactions() {
                     <p className="text-xs font-medium">{t.note || '—'}</p>
                     {t.isGenerated && !(t as any).isDebtPayment && <Repeat size={10} className="text-primary" />}
                     {(t as any).isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
+                    {(t as any).isPlanPayment && <span className="text-[9px] text-blue-600 bg-blue-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
                     {pauseSavings && (t as any).ruleId && savingsRuleIdsForBadge.has((t as any).ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
@@ -656,6 +834,157 @@ export default function Transactions() {
           saving={add.isPending || update.isPending || updateRule.isPending}
           saveLabel={editId?.startsWith('rule:') ? 'Update Rule' : editId ? 'Update' : 'Add Transaction'}
         />
+      )}
+
+      {/* Payment Plan Form Modal */}
+      {showPlanForm && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4" onClick={() => setShowPlanForm(false)}>
+          <div className="bg-card border border-border w-full sm:max-w-md rounded-t-[var(--radius)] rounded-b-none sm:rounded-b-[var(--radius)] overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="text-sm font-display font-bold">{editPlanId ? 'Edit Payment Plan' : 'Add Payment Plan'}</h3>
+              <button onClick={() => setShowPlanForm(false)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Plan Name *</label>
+                <input
+                  type="text"
+                  value={planForm.name}
+                  onChange={e => setPlanForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder="e.g. AirPods Pro, MacBook Pro"
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Provider / Program</label>
+                <input
+                  type="text"
+                  value={planForm.provider}
+                  onChange={e => setPlanForm(p => ({ ...p, provider: e.target.value }))}
+                  placeholder="e.g. PayPal Pay in 4, Prime Visa 12 months"
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Total Amount *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={planForm.total_amount}
+                    onChange={e => setPlanForm(p => ({ ...p, total_amount: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Payment Amount *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={planForm.payment_amount}
+                    onChange={e => setPlanForm(p => ({ ...p, payment_amount: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Frequency *</label>
+                  <select
+                    value={planForm.frequency}
+                    onChange={e => setPlanForm(p => ({ ...p, frequency: e.target.value as PaymentPlanFrequency }))}
+                    className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  >
+                    <option value="weekly">Weekly</option>
+                    <option value="biweekly">Every 2 Weeks</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Total Payments *</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    value={planForm.total_payments}
+                    onChange={e => setPlanForm(p => ({ ...p, total_payments: e.target.value }))}
+                    placeholder="e.g. 4 or 12"
+                    className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">First Payment Date *</label>
+                <input
+                  type="date"
+                  value={planForm.start_date}
+                  onChange={e => setPlanForm(p => ({ ...p, start_date: e.target.value }))}
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Category</label>
+                <select
+                  value={planForm.category}
+                  onChange={e => setPlanForm(p => ({ ...p, category: e.target.value }))}
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Payment Source</label>
+                <select
+                  value={planForm.payment_source}
+                  onChange={e => setPlanForm(p => ({ ...p, payment_source: e.target.value }))}
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  <option value="">Unassigned</option>
+                  {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Notes</label>
+                <input
+                  type="text"
+                  value={planForm.notes}
+                  onChange={e => setPlanForm(p => ({ ...p, notes: e.target.value }))}
+                  placeholder="Optional note"
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                />
+              </div>
+              {planForm.payment_amount && planForm.total_payments && (
+                <div className="p-3 bg-muted/30 text-xs text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
+                  Total scheduled: {formatCurrency(parseFloat(planForm.payment_amount || '0') * parseInt(planForm.total_payments || '0', 10), false)}
+                  {' · '}
+                  {planForm.frequency === 'weekly' ? 'weekly' : planForm.frequency === 'biweekly' ? 'every 2 weeks' : 'monthly'} from {planForm.start_date}
+                </div>
+              )}
+              <button
+                onClick={handleSavePlan}
+                disabled={addPlan.isPending || updatePlan.isPending}
+                className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold disabled:opacity-50"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                {addPlan.isPending || updatePlan.isPending ? 'Saving...' : editPlanId ? 'Update Plan' : 'Add Plan'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
