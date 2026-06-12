@@ -3,7 +3,7 @@ import {
   buildCardData, simulateVariablePayoff, projectCardVariable,
   CC_DEFAULT_CATEGORIES, CardData,
 } from '@/lib/credit-card-engine';
-import { PaymentPlan, getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
+import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getRemainingTransactionIncomeByDay,
   getRemainingTransactionExpensesByDay, getMinSafeCash,
@@ -178,6 +178,33 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           }
         }
         cardPurchasesPerMonth.push(cardPurchases);
+      }
+
+      // ── CC-sourced payment plan charges per future month ──────────────────────
+      // Plans paid via CC increase the card balance each month — inject as new
+      // purchases so the payoff simulation sees the recurring balance growth.
+      if (paymentPlans && paymentPlans.length > 0) {
+        const sourceToCardId = new Map<string, string>(
+          cards.flatMap(c => [[c.id, c.id], [`account:${c.id}`, c.id]]),
+        );
+        for (const plan of paymentPlans) {
+          if (!plan.active || !plan.payment_source) continue;
+          const cardId = sourceToCardId.get(plan.payment_source);
+          if (!cardId) continue;
+          const planDates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
+          for (const date of planDates) {
+            // Month 0: skip payments already reflected in the live CC balance
+            if (date <= (syncCutoffDate ?? todayStr)) continue;
+            const pd = new Date(date + 'T00:00:00');
+            for (let mi = 0; mi < 36; mi++) {
+              const md = new Date(now.getFullYear(), now.getMonth() + mi, 1);
+              if (pd.getFullYear() === md.getFullYear() && pd.getMonth() === md.getMonth()) {
+                cardPurchasesPerMonth[mi][cardId] = (cardPurchasesPerMonth[mi][cardId] ?? 0) + plan.payment_amount;
+                break;
+              }
+            }
+          }
+        }
       }
 
       // ── One-time DB transactions per future month ─────────────────────────────

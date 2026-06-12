@@ -17,7 +17,7 @@ export type PaymentPlan = {
   created_at: string;
 };
 
-function getPaymentDates(startDate: string, frequency: PaymentPlanFrequency, count: number): string[] {
+export function getPaymentDates(startDate: string, frequency: PaymentPlanFrequency, count: number): string[] {
   const dates: string[] = [];
   const d = new Date(startDate + 'T00:00:00');
   for (let i = 0; i < count; i++) {
