@@ -1131,6 +1131,7 @@ function buildCurrentMonthRecommendationSummary(
   monthlySavingsAndCar?: number,
   safeMinimumOverride?: number,
   syncCutoffDate?: string,
+  extraMonthlyExpenses = 0,
 ): RecommendationSummary | null {
   if (!accounts || !transactions || !rules || !debts) return null;
   const cards = buildCardData(accounts, transactions, rules, debts);
@@ -1184,7 +1185,7 @@ function buildCurrentMonthRecommendationSummary(
     : 31;
 
   return generateRecommendations(
-    cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses,
+    cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses + extraMonthlyExpenses,
     'variable', pc, rules, fundingAccountId, safeMinimumOverride ?? (ppBills + ccFloor), fundBal,
     undefined, undefined, transactions, primaryDueDay, monthlySavingsAndCar,
     syncCutoffDate,
@@ -1200,8 +1201,9 @@ export function getMonthlyDebtBreakdown(
   monthlySavingsAndCar?: number,
   safeMinimumOverride?: number,
   syncCutoffDate?: string,
+  extraMonthlyExpenses = 0,
 ): MonthlyDebtBreakdown {
-  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar, safeMinimumOverride, syncCutoffDate);
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar, safeMinimumOverride, syncCutoffDate, extraMonthlyExpenses);
   if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, autopayTotal: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
   return {
     recommendations: summary.recommendations.map(r => ({
@@ -1230,8 +1232,9 @@ export function getCurrentMonthDebtRecommendations(
   debts: any[],
   profile: any,
   monthlySavingsAndCar?: number,
+  extraMonthlyExpenses = 0,
 ): { cardId: string; cardName: string; payment: number; dueDay: number | null; reason: string }[] {
-  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar);
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar, undefined, undefined, extraMonthlyExpenses);
   if (!summary) return [];
   return summary.recommendations.map(r => ({
     cardId: r.cardId,

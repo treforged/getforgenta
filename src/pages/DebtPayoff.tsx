@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulateDebtPayoff } from '@/lib/calculations';
-import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations, useSavingsGoals, useCarFunds } from '@/hooks/useSupabaseData';
+import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations, useSavingsGoals, useCarFunds, usePaymentPlans } from '@/hooks/useSupabaseData';
 import FormModal from '@/components/shared/FormModal';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
@@ -27,6 +27,7 @@ export default function DebtPayoff() {
   const { data: profile } = useProfile();
   const { data: goals } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();
+  const { data: paymentPlans } = usePaymentPlans();
   const { isDemo } = useDemo();
 
   const [pauseSavings, setPauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
@@ -156,6 +157,7 @@ export default function DebtPayoff() {
     persistedDebtFundingId,
     assumptions: projectionAssumptions,
     syncCutoffDate,
+    paymentPlans: paymentPlans ?? [],
   });
 
   const debtFreeDate = (months: number) => {

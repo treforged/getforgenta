@@ -229,6 +229,7 @@ export function getDebtPaymentsByMonth(
     overrides: Record<string, Record<number, number>>;
   },
   months = 36,
+  planExpensesByMonth?: number[],
 ): Record<string, number> {
   const cards = buildCardData(accounts, transactions, rules, debts);
   if (cards.length === 0) return {};
@@ -247,7 +248,7 @@ export function getDebtPaymentsByMonth(
   const monthlyTakeHome = getMonthNetIncome(payConfig, now.getFullYear(), now.getMonth())
     + nonPaycheckRules.reduce((s: number, r: any) =>
       s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now), 0);
-  const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards);
+  const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards) + (planExpensesByMonth?.[0] ?? 0);
 
   // Per-month events for variable-mode sim — actual paycheck counts + real occurrence counts
   const monthEvents: { income: number; expenses: number }[] = Array.from({ length: months }, (_, i) => {
@@ -256,7 +257,8 @@ export function getDebtPaymentsByMonth(
     const income = getMonthNetIncome(payConfig, yr, mo)
       + nonPaycheckRules.reduce((s: number, r: any) =>
         s + Number(r.amount) * countRuleOccurrencesInMonth(r, yr, mo, now), 0);
-    const expenses = calcCashOnlyMonthlyExpenses(rules, cards, yr, mo, now);
+    const expenses = calcCashOnlyMonthlyExpenses(rules, cards, yr, mo, now)
+      + (planExpensesByMonth?.[i] ?? 0);
     return { income, expenses };
   });
 
@@ -314,6 +316,7 @@ export function getDebtBalancesByMonth(
     overrides: Record<string, Record<number, number>>;
   },
   months = 36,
+  planExpensesByMonth?: number[],
 ): { monthKey: string; totalBalance: number; totalInterest: number }[] {
   const cards = buildCardData(accounts, transactions, rules, debts);
   if (cards.length === 0) return [];
@@ -332,7 +335,7 @@ export function getDebtBalancesByMonth(
   const monthlyTakeHome = getMonthNetIncome(payConfig, now.getFullYear(), now.getMonth())
     + nonPaycheckRules.reduce((s: number, r: any) =>
       s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth(), now), 0);
-  const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards);
+  const monthlyExpenses = calcCashOnlyMonthlyExpenses(rules, cards) + (planExpensesByMonth?.[0] ?? 0);
 
   // Per-month events for variable-mode sim
   const monthEvents: { income: number; expenses: number }[] = Array.from({ length: months }, (_, i) => {
@@ -341,7 +344,8 @@ export function getDebtBalancesByMonth(
     const income = getMonthNetIncome(payConfig, yr, mo)
       + nonPaycheckRules.reduce((s: number, r: any) =>
         s + Number(r.amount) * countRuleOccurrencesInMonth(r, yr, mo, now), 0);
-    const expenses = calcCashOnlyMonthlyExpenses(rules, cards, yr, mo, now);
+    const expenses = calcCashOnlyMonthlyExpenses(rules, cards, yr, mo, now)
+      + (planExpensesByMonth?.[i] ?? 0);
     return { income, expenses };
   });
 

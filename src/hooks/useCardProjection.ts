@@ -3,6 +3,7 @@ import {
   buildCardData, simulateVariablePayoff, projectCardVariable,
   CC_DEFAULT_CATEGORIES, CardData,
 } from '@/lib/credit-card-engine';
+import { PaymentPlan, getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getRemainingTransactionIncomeByDay,
   getRemainingTransactionExpensesByDay, getMinSafeCash,
@@ -58,6 +59,7 @@ export interface UseCardProjectionParams {
   forecastFundingAccountId: string | null;
   debtStrategy: 'avalanche' | 'snowball';
   persistedDebtFundingId: string | null;
+  paymentPlans?: PaymentPlan[];
   assumptions: {
     incomeGrowthEnabled: boolean;
     incomeGrowth: number;
@@ -80,7 +82,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
-    syncCutoffDate,
+    syncCutoffDate, paymentPlans,
   } = params;
 
   return useMemo(() => {
@@ -108,6 +110,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // ── Scalar fallbacks ──────────────────────────────────────────────────────
       const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
       const ccSourceIdsForScalar = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
+      const planCashExpensesEarly = Array.from({ length: 36 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        return getMonthlyPlanCashExpenses(paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccSourceIdsForScalar);
+      });
       const monthlyExpenses = rules.filter((r: any) => {
         if (!r.active || r.rule_type !== 'expense') return false;
         if (r.payment_source && ccSourceIdsForScalar.has(r.payment_source)) return false;
@@ -116,7 +122,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return true;
       }).reduce((s: number, r: any) => {
         return s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
-      }, 0);
+      }, 0) + (planCashExpensesEarly[0] ?? 0);
 
       // ── Per-card CC purchase map ──────────────────────────────────────────────
       const highestAprCardId = cards.length > 0
@@ -344,7 +350,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return {
           ...e,
           income: rawIncome * simIncMult + bonusTaxInc,
-          expenses: e.expenses * expMult + (pauseSavings ? 0 : monthSavings + monthCarSaving) + monthTransfers + carLoanThisMonth,
+          expenses: e.expenses * expMult + (pauseSavings ? 0 : monthSavings + monthCarSaving) + monthTransfers + carLoanThisMonth + (planCashExpensesEarly[idx] ?? 0),
         };
       });
 
@@ -923,6 +929,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
-    syncCutoffDate,
+    syncCutoffDate, paymentPlans,
   ]);
 }

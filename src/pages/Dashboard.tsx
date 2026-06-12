@@ -16,7 +16,7 @@ import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
-import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans } from '@/hooks/useSupabaseData';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
@@ -41,6 +41,7 @@ import {
   getPaychecksInMonth,
 } from '@/lib/pay-schedule';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
+import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjection } from '@/hooks/useCardProjection';
 import { getTotalCarLoanMonthly, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import {
@@ -222,6 +223,7 @@ export default function Dashboard() {
   const { items: plaidItems } = usePlaidItems();
   const { data: manualAssets } = useAssets();
   const { data: manualLiabilities } = useLiabilities();
+  const { data: paymentPlans } = usePaymentPlans();
 
   const { layout, setLayout, visibleWidgets, isCustomizing, setCustomizing, resetLayout } = useDashboardLayout();
 
@@ -430,8 +432,14 @@ export default function Dashboard() {
     // No floorOverride — let buildCurrentMonthRecommendationSummary compute ppBills + ccFloor
     // so the safe minimum matches the Debt Payoff engine. syncCutoffDate aligns remaining
     // income/expense windows with the Debt Payoff page.
-    return getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, undefined, syncCutoffDate);
-  }, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, syncCutoffDate]);
+    const now = new Date();
+    const ccIds = new Set<string>(
+      (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
+        .flatMap(a => [a.id, `account:${a.id}`]),
+    );
+    const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now.getFullYear(), now.getMonth(), ccIds);
+    return getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, undefined, syncCutoffDate, planExpenses);
+  }, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, syncCutoffDate, paymentPlans]);
 
   const debtPaymentTxns = useMemo(
     () => createDebtPaymentTransactions(debtBreakdown.recommendations, fundingAccountId),
@@ -592,7 +600,7 @@ export default function Dashboard() {
     accounts, transactions, rules, debts, goals, carFunds: carFunds as any[],
     profile, debtPayoffOptions, payConfig, scheduledEvents: scheduledEvents36,
     pauseSavings, forecastFundingAccountId: fundingAccountId, debtStrategy,
-    persistedDebtFundingId, assumptions: projectionAssumptions,
+    persistedDebtFundingId, assumptions: projectionAssumptions, paymentPlans: paymentPlans ?? [],
   });
 
   const month0SaveUpNote = useMemo(() => {
@@ -989,7 +997,7 @@ export default function Dashboard() {
 
       case 'financial_health':
         return (
-          <div key="financial_health" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div key="financial_health" className="grid grid-cols-2 lg:grid-cols-3 gap-4">
             <ClickableMetric onClick={openLiquidCashCalc} tooltip="View liquid cash breakdown">
               <MetricCard label="Liquid Cash" value={formatCurrency(accountSummary.liquidCash, false)} accent="success" icon={DollarSign} />
             </ClickableMetric>
@@ -998,9 +1006,6 @@ export default function Dashboard() {
             </ClickableMetric>
             <ClickableMetric onClick={openExpenseCalc} tooltip="How expenses are calculated">
               <MetricCard label="Monthly Expenses" value={summary.expenses > 0 ? formatCurrency(summary.expenses, false) : '—'} accent="crimson" icon={CreditCard} />
-            </ClickableMetric>
-            <ClickableMetric onClick={openDebtPaymentsCalc} tooltip="View debt payment breakdown by card">
-              <MetricCard label="Debt Payments" value={totalDebtPayments > 0 ? formatCurrency(totalDebtPayments, false) : '—'} accent="silver" icon={Landmark} />
             </ClickableMetric>
           </div>
         );
