@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
-import { Check, ExternalLink, ChevronDown } from 'lucide-react';
+import { Check, ExternalLink, ChevronDown, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePublicBuild } from '@/hooks/useSupabaseData';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
@@ -28,6 +29,14 @@ export default function BuildShare() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+  }
+
+  function handlePrint() {
+    if (!data) return;
+    flushSync(() => {
+      setExpandedPhases(new Set(data.phases.map((p: CarBuildPhase) => p.id)));
+    });
+    window.print();
   }
 
   if (loading) {
@@ -74,11 +83,24 @@ export default function BuildShare() {
 
   return (
     // Own scroll container — avoids the html{height:100%} body-scroll issue
-    <div className="h-screen overflow-y-auto bg-background text-foreground">
-      <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6">
+    <div className="h-screen overflow-y-auto print:h-auto print:overflow-visible bg-background text-foreground">
+      <style>{`
+        @media print {
+          @page { margin: 1.2cm; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .print-item { page-break-inside: avoid; break-inside: avoid; }
+        }
+      `}</style>
+      <div className="max-w-2xl mx-auto py-8 px-4 sm:px-6 print:py-4">
 
-        {/* Powered-by badge */}
-        <div className="flex justify-end mb-6">
+        {/* Powered-by badge + Print button */}
+        <div className="flex justify-end gap-2 mb-6 print:hidden">
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground hover:border-muted-foreground transition-all"
+          >
+            <Printer size={13} /> Print / Save PDF
+          </button>
           <Link
             to="/"
             className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all hover:opacity-90"
@@ -86,6 +108,12 @@ export default function BuildShare() {
           >
             Powered by Forgenta
           </Link>
+        </div>
+        {/* Print-only Forgenta badge */}
+        <div className="hidden print:flex justify-end mb-4">
+          <span className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded" style={{ background: '#c8a84b', color: '#000' }}>
+            Powered by Forgenta
+          </span>
         </div>
 
         {/* Header */}
@@ -116,7 +144,7 @@ export default function BuildShare() {
             {hasPlannedPhases && (
               <button
                 onClick={() => setIncludePlanned(v => !v)}
-                className="mt-2 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all"
+                className="mt-2 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all print:hidden"
                 style={includePlanned
                   ? { background: '#c8a84b', color: '#000' }
                   : { background: '#1a1a1a', color: '#c8a84b', border: '1px solid #c8a84b' }
@@ -214,7 +242,7 @@ export default function BuildShare() {
                   </div>
                   <ChevronDown
                     size={14}
-                    className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')}
+                    className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200 print:hidden', isExpanded && 'rotate-180')}
                   />
                 </div>
 
@@ -224,7 +252,7 @@ export default function BuildShare() {
                     {phItems.map((item: CarBuildItem, ii: number) => (
                       <div
                         key={item.id}
-                        className={`flex items-center gap-2.5 px-4 py-3 border-b border-[#141414] ${item.completed ? 'opacity-50' : ''}`}
+                        className={`print-item flex items-center gap-2.5 px-4 py-3 border-b border-[#141414] ${item.completed ? 'opacity-50' : ''}`}
                       >
                         {/* Complete indicator */}
                         <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 ${item.completed ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white' : 'border-border bg-transparent'}`}>
@@ -253,7 +281,9 @@ export default function BuildShare() {
                               className="inline-flex items-center gap-1 text-[11px] font-mono mt-0.5 transition-colors hover:underline"
                               style={{ color: '#6a90c0' }}
                             >
-                              <ExternalLink size={10} /> VIEW LISTING
+                              <ExternalLink size={10} className="print:hidden" />
+                              <span className="print:hidden">VIEW LISTING</span>
+                              <span className="hidden print:inline text-[9px] break-all">{item.link}</span>
                             </a>
                           )}
                         </div>
