@@ -84,7 +84,7 @@ export default function BuildShare() {
             className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all hover:opacity-90"
             style={{ background: '#c8a84b', color: '#000' }}
           >
-            Forgenta
+            Powered by Forgenta
           </Link>
         </div>
 
