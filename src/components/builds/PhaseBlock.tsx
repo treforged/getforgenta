@@ -44,6 +44,8 @@ interface PhaseBlockProps {
   isDragging: boolean;
   isDragOver: boolean;
   dragItemId: string | null;
+  dragOverItemId: string | null;
+  itemDropBelow: boolean;
   onUpdatePhase: (id: string, data: Partial<CarBuildPhase>) => void;
   onDeletePhase: (id: string) => void;
   onAddItem: (phaseId: string, buildId: string) => void;
@@ -64,7 +66,7 @@ interface PhaseBlockProps {
 
 export default function PhaseBlock({
   phase, phaseIndex, items, allPhases, isMobile,
-  isFirst, isLast, isDragging, isDragOver, dragItemId,
+  isFirst, isLast, isDragging, isDragOver, dragItemId, dragOverItemId, itemDropBelow,
   onUpdatePhase, onDeletePhase, onAddItem, onUpdateItem, onDeleteItem, onToggleItem,
   onMovePhase, onMoveItemArrow,
   onPhaseDragStart, onPhaseDragOver, onPhaseDragEnd, onPhaseDrop,
@@ -285,8 +287,13 @@ export default function PhaseBlock({
       {/* Items list */}
       {expanded && !phase.hidden && (
         <div className="border-t border-border">
-          {items.map((item, ii) => (
+          {items.map((item, ii) => {
+            const isItemTarget = dragOverItemId === item.id && !isMobile;
+            return (
             <div key={item.id}>
+              {isItemTarget && !itemDropBelow && (
+                <div className="h-0.5 rounded mx-4" style={{ background: '#c8a84b' }} />
+              )}
               {/* Item Row */}
               <div
                 className={cn(
@@ -471,8 +478,12 @@ export default function PhaseBlock({
                   </div>
                 </div>
               )}
+              {isItemTarget && itemDropBelow && (
+                <div className="h-0.5 rounded mx-4" style={{ background: '#c8a84b' }} />
+              )}
             </div>
-          ))}
+            );
+          })}
 
           {/* Add item button */}
           <button
