@@ -85,6 +85,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [profile?.cash_floor]);
   const [expandedCards, setExpandedCards] = usePersistedState<string[]>('tre:debt:expanded-cards', []);
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
+  const [editingStatementBal, setEditingStatementBal] = useState<string | null>(null);
+  const [statementBalInput, setStatementBalInput] = useState('');
 
   const [targetInput, setTargetInput] = useState('');
   const [overrides, setOverrides] = useState<Record<string, Record<number, number>>>({});
@@ -907,6 +909,23 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     toast.success(`Target payment for ${card.name} updated to ${formatCurrency(newTarget, false)}`);
   };
 
+  const handleSaveStatementBal = (card: CardData) => {
+    const val = statementBalInput.trim();
+    if (val === '') {
+      updateAccount.mutate({ id: card.id, statement_balance: null } as any);
+      setEditingStatementBal(null);
+      return;
+    }
+    const parsed = parseFloat(val);
+    if (isNaN(parsed) || parsed < 0) {
+      toast.error('Enter a valid balance amount');
+      return;
+    }
+    updateAccount.mutate({ id: card.id, statement_balance: parsed } as any);
+    setEditingStatementBal(null);
+    toast.success(`Statement balance for ${card.name} set to ${formatCurrency(parsed, false)}`);
+  };
+
   const handleOverrideMonth = (cardId: string, monthIdx: number) => {
     const val = parseFloat(monthPayInput);
     if (isNaN(val) || val < 0) {
@@ -1456,6 +1475,81 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {proj.card.paymentPreference === 'full' && 'Pay entire balance + new purchases — as cash allows above floor'}
                   </p>
                 </div>
+
+                {/* Statement balance phase — only relevant for statement-preference cards with a balance */}
+                {proj.card.paymentPreference === 'statement' && proj.card.balance > 0 && (
+                  <div className="px-3 sm:px-4 pb-3 border-t border-border/50 pt-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Statement balance phase</p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5">Already paying statement balance — simulation skips interest on current balance</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const next = !proj.card.statementBalancePhase;
+                          updateAccount.mutate({ id: proj.card.id, statement_balance_phase: next } as any);
+                          if (!next) updateAccount.mutate({ id: proj.card.id, statement_balance: null } as any);
+                        }}
+                        className={`shrink-0 px-2.5 py-1 text-[10px] font-semibold border transition-colors ${proj.card.statementBalancePhase ? 'bg-success/20 text-success border-success/40' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
+                        style={{ borderRadius: 'var(--radius)' }}
+                      >
+                        {proj.card.statementBalancePhase ? 'On' : 'Off'}
+                      </button>
+                    </div>
+                    {proj.card.statementBalancePhase && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider shrink-0">Statement balance</p>
+                        {editingStatementBal === proj.card.id ? (
+                          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                            <span className="text-[10px] text-muted-foreground">$</span>
+                            <input
+                              type="number"
+                              value={statementBalInput}
+                              onChange={e => setStatementBalInput(e.target.value)}
+                              className="w-20 bg-secondary border border-primary px-1.5 py-0.5 text-xs text-foreground font-semibold"
+                              style={{ borderRadius: 'var(--radius)' }}
+                              autoFocus
+                              min={0}
+                              step="1"
+                              placeholder={String(Math.round(proj.card.balance))}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') handleSaveStatementBal(proj.card);
+                                if (e.key === 'Escape') setEditingStatementBal(null);
+                              }}
+                            />
+                            <button onClick={() => handleSaveStatementBal(proj.card)} className="text-primary"><Check size={11} /></button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] font-semibold">
+                              {proj.card.statementBalance != null
+                                ? formatCurrency(proj.card.statementBalance, false)
+                                : formatCurrency(proj.card.balance, false)}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setEditingStatementBal(proj.card.id);
+                                setStatementBalInput(String(Math.round(proj.card.statementBalance ?? proj.card.balance)));
+                              }}
+                              className="text-muted-foreground hover:text-primary"
+                            >
+                              <Edit2 size={10} />
+                            </button>
+                            {proj.card.statementBalance != null && (
+                              <button
+                                onClick={() => updateAccount.mutate({ id: proj.card.id, statement_balance: null } as any)}
+                                className="text-[9px] text-muted-foreground hover:text-destructive"
+                                title="Clear override"
+                              >
+                                ✕
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="px-3 sm:px-4 pb-3">
                   <div className="w-full h-2 bg-muted/50 overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
