@@ -142,6 +142,42 @@ export const CATEGORY_EMOJI: Record<string, string> = {
   Income: '💰', Other: '📦',
 };
 
+export type CarBuild = {
+  id: string;
+  user_id: string;
+  name: string;
+  year: number | null;
+  make: string | null;
+  model: string | null;
+  notes: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
+export type CarBuildPhase = {
+  id: string;
+  build_id: string;
+  user_id: string;
+  title: string;
+  sort_order: number;
+  hidden: boolean;
+  created_at: string;
+};
+
+export type CarBuildItem = {
+  id: string;
+  phase_id: string;
+  build_id: string;
+  user_id: string;
+  name: string;
+  brand: string | null;
+  price: number | null;
+  link: string | null;
+  completed: boolean;
+  sort_order: number;
+  created_at: string;
+};
+
 export const CATEGORY_ICONS: Record<string, string> = {
   Bills: 'Receipt',
   Groceries: 'ShoppingCart',
