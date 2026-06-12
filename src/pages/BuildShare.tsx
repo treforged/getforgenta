@@ -63,8 +63,11 @@ export default function BuildShare() {
 
   const totalConfirmed = budgetItems.reduce((s: number, it: CarBuildItem) => s + (it.price ?? 0), 0);
   const hasTbd = budgetItems.some((it: CarBuildItem) => it.price === null);
-  const totalItems = items.length;
-  const doneItems = items.filter((it: CarBuildItem) => it.completed).length;
+
+  // Progress always counts only active (non-hidden) phase items
+  const activeItems = items.filter((it: CarBuildItem) => activePhaseIds.has(it.phase_id));
+  const totalItems = activeItems.length;
+  const doneItems = activeItems.filter((it: CarBuildItem) => it.completed).length;
   const pct = totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0;
 
   const subLabel = [build.year, build.make, build.model].filter(Boolean).join(' ');
@@ -78,9 +81,10 @@ export default function BuildShare() {
         <div className="flex justify-end mb-6">
           <Link
             to="/"
-            className="text-[11px] font-mono text-muted-foreground border border-border rounded px-2.5 py-1 hover:border-muted-foreground transition-colors"
+            className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all hover:opacity-90"
+            style={{ background: '#c8a84b', color: '#000' }}
           >
-            Powered by Forgenta
+            Forgenta
           </Link>
         </div>
 
@@ -112,13 +116,13 @@ export default function BuildShare() {
             {hasPlannedPhases && (
               <button
                 onClick={() => setIncludePlanned(v => !v)}
-                className="mt-2 text-[11px] font-mono uppercase tracking-wider px-2.5 py-1 rounded border transition-colors"
+                className="mt-2 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all"
                 style={includePlanned
-                  ? { color: '#c8a84b', borderColor: '#c8a84b', background: 'transparent' }
-                  : { color: '#666', borderColor: '#333', background: 'transparent' }
+                  ? { background: '#c8a84b', color: '#000' }
+                  : { background: '#1a1a1a', color: '#c8a84b', border: '1px solid #c8a84b' }
                 }
               >
-                {includePlanned ? 'Planned included' : 'Include planned'}
+                {includePlanned ? '✓ Planned included' : '+ Include planned'}
               </button>
             )}
           </div>
