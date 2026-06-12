@@ -18,7 +18,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, getMonthlyPlanCashExpenses, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 
-const ALL_CATEGORIES = ['Income', ...CATEGORIES];
+const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 
 const emptyForm = { date: new Date().toISOString().split('T')[0], type: 'expense', amount: '', category: 'Other', account: 'Checking', note: '', payment_source: '' };
 
@@ -617,9 +617,12 @@ export default function Transactions() {
       {/* Payment Plans Section */}
       {(isPremium || isDemo) && (
         <div className="card-forged overflow-hidden">
-          <button
+          <div
             onClick={() => setShowPlans(p => !p)}
-            className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/20 transition-colors"
+            className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/20 transition-colors cursor-pointer"
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowPlans(p => !p); }}
           >
             <div className="flex items-center gap-2">
               <CreditCard size={14} className="text-primary" />
@@ -639,7 +642,7 @@ export default function Transactions() {
               </button>
               {showPlans ? <ChevronUp size={14} className="text-muted-foreground" /> : <ChevronDown size={14} className="text-muted-foreground" />}
             </div>
-          </button>
+          </div>
 
           {showPlans && (
             <div className="border-t border-border">
