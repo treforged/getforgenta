@@ -1248,9 +1248,9 @@ export default function Forecast() {
 
       // Flag: floor breached AND the one-time expense alone caused it
       const floorBreachedByOneTime =
-        endingCash < cashFloor &&
+        endingCash < b.monthMinSafe &&
         b.oneTimeNet < 0 &&
-        (endingCash - b.oneTimeNet) >= cashFloor;
+        (endingCash - b.oneTimeNet) >= b.monthMinSafe;
       const debtWasReduced = debtPayments[i] < b.rawDebtPayment;
 
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
@@ -1269,7 +1269,7 @@ export default function Forecast() {
         milestones.push({ month: b.monthLabel, event: '💸 One-time expense caused floor breach' });
       } else if (endingCash < 0 && (i === 0 || data[data.length - 1]?.endingCash >= 0)) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash goes negative!' });
-      } else if (endingCash >= 0 && endingCash < cashFloor && (data.length === 0 || data[data.length - 1]?.endingCash >= cashFloor)) {
+      } else if (endingCash >= 0 && endingCash < b.monthMinSafe && (data.length === 0 || data[data.length - 1]?.endingCash >= b.monthMinSafe)) {
         milestones.push({ month: b.monthLabel, event: '⚠️ Cash below safe minimum' });
       }
 

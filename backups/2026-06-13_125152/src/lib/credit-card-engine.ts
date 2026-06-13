@@ -600,7 +600,7 @@ export function simulateVariablePayoff(
     // Payments are deferred by one billing cycle: charges from month m are paid
     // in month m+1 (statement closes month-end, payment due ~25 days later).
     // Cap total paid-off payments so currentCash never drops below effectiveFloor.
-    const tentativeAvailAboveFloor = Math.max(0, currentCash + monthIncome - monthExpenses + Math.max(0, oneTimeNet) - effectiveFloor);
+    const tentativeAvailAboveFloor = Math.max(0, currentCash + monthIncome - monthExpenses + oneTimeNet - effectiveFloor);
     // Reserve revolving-card minimums before giving cash to autopay cards.
     // Without this, large deferred purchases (e.g. Venture X) drain the pool
     // entirely, leaving revolving cards (Prime, Discover) with nothing beyond
