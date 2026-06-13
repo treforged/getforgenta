@@ -850,11 +850,19 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // In save-up months with no revolving debt, scale cycling cards proportionally to the cap.
       // Uses activeSim (sim2 when triggered, sim1 otherwise) so revolving/cycling classification
       // and per-card amounts are consistent with the updated totals.
+      //
+      // lastRevPayMonth: last month where pass-3 made a live revolving payment.
+      // After this month, pass3RevTotals[m] = 0 because the live balance is exhausted —
+      // NOT because cash is constrained. In those months the simulation still projects
+      // revolving payments (based on plan balances, which may exceed live balances), so
+      // we show the simulation amount directly instead of scaling to 0.
+      const lastRevPayMonth = pass3RevTotals.reduce((last, t, i) => t > 0 ? i : last, -1);
       const perCardPaymentsScaled = cards.map(c => ({
         name: c.name, id: c.id,
         payments: Array.from({ length: 36 }, (_, m) => {
           const simAmt = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
-          if ((activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0) === 0) {
+          const revBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
+          if (revBal === 0) {
             // Cycling card — in save-up months with no revolving debt, scale down proportionally
             if (saveUpMonths.has(m) && debtPaymentTotals[m] === 0) {
               const totalCycFull = cards.reduce((s, cc) => {
@@ -864,6 +872,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
               const scale = totalCycFull > 0 ? Math.min(1, allPaymentTotals[m] / totalCycFull) : 1;
               return Math.round(simAmt * scale);
             }
+            return simAmt;
+          }
+          // Revolving card: when live balance exhausted before month m, pass3RevTotals[m] = 0
+          // but the plan simulation still shows revolving activity — show simulation amount directly.
+          if (pass3RevTotals[m] === 0 && lastRevPayMonth >= 0 && m > lastRevPayMonth) {
             return simAmt;
           }
           const simRevTotal = debtPaymentTotals[m];
