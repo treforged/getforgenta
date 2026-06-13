@@ -635,7 +635,10 @@ export function simulateVariablePayoff(
         });
       }
       // Defer this month's charges to next month's payment.
-      paidOffDeferredPurchases.set(card.id, cardPurchasesThisMonth(card));
+      // Fall back to monthlyNewPurchases when rules aren't tagged with this card's
+      // payment_source (cardPurchasesThisMonth would return 0, causing $0/$— display).
+      paidOffDeferredPurchases.set(card.id,
+        Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases));
     }
 
     // Cards still carrying debt (exclude pre-start cards — they already got 0 pushed above)
@@ -805,8 +808,13 @@ export function simulateVariablePayoff(
       balances.set(card.id, finalBal);
       // When the revolving balance just reached $0, pre-seed deferred purchases so the
       // first paidOff month pays monthlyNewPurchases instead of $0 (billing-delay artifact).
+      // Fall back to monthlyNewPurchases for statement/autopay cards whose rules aren't tagged
+      // with this card's payment_source (cardPurchasesThisMonth would be 0 → $0/$— display).
       if (finalBal === 0 && !paidOffCards.has(card.id)) {
-        paidOffDeferredPurchases.set(card.id, cardPurchasesThisMonth(card));
+        const seedAmt = (card.paymentPreference === 'statement' || card.autopayFullBalance)
+          ? Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases)
+          : cardPurchasesThisMonth(card);
+        paidOffDeferredPurchases.set(card.id, seedAmt);
       }
 
       // Statement-preference cards never hit finalBal === 0 while carrying revolving debt
@@ -819,7 +827,8 @@ export function simulateVariablePayoff(
         finalBal <= cardPurchasesThisMonth(card) + 0.01
       ) {
         paidOffCards.add(card.id);
-        paidOffDeferredPurchases.set(card.id, cardPurchasesThisMonth(card));
+        paidOffDeferredPurchases.set(card.id,
+          Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases));
         balances.set(card.id, 0);
       }
 
