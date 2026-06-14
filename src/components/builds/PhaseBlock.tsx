@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { ChevronDown, GripVertical, ArrowUp, ArrowDown, Pencil, EyeOff, Eye, Trash2, Plus, ExternalLink, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -50,6 +50,8 @@ interface PhaseBlockProps {
   onPhaseDragOver: (e: React.DragEvent, phaseId: string) => void;
   onPhaseDragEnd: () => void;
   onPhaseDrop: (e: React.DragEvent, phaseId: string) => void;
+  isExpanded: boolean;
+  onSetExpanded: (val: boolean) => void;
   onItemDragStart: (e: React.DragEvent, itemId: string) => void;
   onItemDragOver: (e: React.DragEvent, itemId: string, phaseId: string) => void;
   onItemDragEnd: () => void;
@@ -64,17 +66,14 @@ export default function PhaseBlock({
   onMovePhase, onMoveItemArrow,
   onPhaseDragStart, onPhaseDragOver, onPhaseDragEnd, onPhaseDrop,
   onItemDragStart, onItemDragOver, onItemDragEnd, onItemDrop, onItemDropAtEnd,
+  isExpanded, onSetExpanded,
 }: PhaseBlockProps) {
-  const [expanded, setExpanded] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(phase.title);
   const [openItemEdit, setOpenItemEdit] = useState<string | null>(null);
   const [itemEdits, setItemEdits] = useState<Record<string, ItemEditState>>({});
   const [dragOverBottom, setDragOverBottom] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
-  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }, []);
 
   const color = PHASE_COLORS[phaseIndex % PHASE_COLORS.length];
   const doneCount = items.filter(it => it.completed).length;
@@ -166,14 +165,7 @@ export default function PhaseBlock({
       {/* Phase Header */}
       <div
         className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
-        onClick={() => setExpanded(e => !e)}
-        onDragEnter={() => {
-          if (!dragItemId || expanded) return;
-          hoverTimerRef.current = setTimeout(() => setExpanded(true), 600);
-        }}
-        onDragLeave={() => {
-          if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
-        }}
+        onClick={() => onSetExpanded(!isExpanded)}
       >
         {/* Drag handle (desktop) / Arrow buttons (mobile) */}
         {!isMobile ? (
@@ -263,7 +255,7 @@ export default function PhaseBlock({
         {/* Chevron */}
         <ChevronDown
           size={14}
-          className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', expanded && 'rotate-180')}
+          className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')}
         />
       </div>
 
@@ -299,7 +291,7 @@ export default function PhaseBlock({
       )}
 
       {/* Items list */}
-      {expanded && (
+      {isExpanded && (
         <div className="border-t border-border">
           {items.map((item, ii) => {
             const isItemTarget = dragOverItemId === item.id && !isMobile;
@@ -521,7 +513,7 @@ export default function PhaseBlock({
           {/* Add item button */}
           <button
             onClick={async () => {
-              if (!expanded) setExpanded(true);
+              if (!isExpanded) onSetExpanded(true);
               const newId = await onAddItem(phase.id, phase.build_id);
               if (!newId) return;
               setItemEdits(prev => ({
