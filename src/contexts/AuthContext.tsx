@@ -58,24 +58,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .eq('user_id', userId);
 
     // Ensure the funding account never sits below the cash floor between sessions.
+    // Uses the same mechanism as a normal paycheck deposit: insert a transaction
+    // for the shortfall and apply it to the account balance so the history is real.
     const { data: profile } = await (supabase as any)
       .from('profiles')
-      .select('cash_floor, default_deposit_account')
+      .select('cash_floor, default_deposit_account, paycheck_frequency, weekly_gross_income, tax_rate')
       .eq('user_id', userId)
       .single();
     const floor = profile?.cash_floor != null ? Number(profile.cash_floor) : 0;
     if (floor > 0) {
       // Resolve funding account: explicit default → first active checking account
       let fundingId: string | null = profile?.default_deposit_account ?? null;
+      let accountName = 'Checking';
       if (!fundingId) {
-        const { data: accounts } = await (supabase as any)
+        const { data: allAccounts } = await (supabase as any)
           .from('accounts')
-          .select('id, balance, account_type')
+          .select('id, name, balance, account_type')
           .eq('user_id', userId)
           .eq('active', true)
           .order('created_at');
-        fundingId = (accounts as any[])?.find((a: any) => a.account_type === 'checking')?.id ?? null;
+        const checking = (allAccounts as any[])?.find((a: any) => a.account_type === 'checking');
+        fundingId = checking?.id ?? null;
+        accountName = checking?.name ?? 'Checking';
+      } else {
+        const { data: acct } = await (supabase as any)
+          .from('accounts')
+          .select('name')
+          .eq('id', fundingId)
+          .eq('user_id', userId)
+          .single();
+        accountName = acct?.name ?? 'Checking';
       }
+
       if (fundingId) {
         const { data: account } = await (supabase as any)
           .from('accounts')
@@ -83,12 +97,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .eq('id', fundingId)
           .eq('user_id', userId)
           .single();
-        if (account != null && Number(account.balance) < floor) {
-          await (supabase as any)
-            .from('accounts')
-            .update({ balance: floor })
-            .eq('id', fundingId)
-            .eq('user_id', userId);
+        const currentBalance = account != null ? Number(account.balance) : 0;
+        const shortfall = floor - currentBalance;
+        if (shortfall > 0) {
+          // Calculate a realistic net paycheck amount from the profile
+          const grossWeekly = profile?.weekly_gross_income != null ? Number(profile.weekly_gross_income) : 0;
+          const taxRate = profile?.tax_rate != null ? Number(profile.tax_rate) : 22;
+          const netWeekly = grossWeekly > 0 ? grossWeekly * (1 - taxRate / 100) : 0;
+          // Deposit enough full paychecks to clear the shortfall, minimum one paycheck
+          const paycheck = netWeekly > 0 ? netWeekly : shortfall;
+          const depositAmount = Math.ceil(shortfall / paycheck) * paycheck;
+          const today = new Date().toISOString().split('T')[0];
+          await Promise.all([
+            (supabase as any).from('transactions').insert({
+              user_id: userId,
+              date: today,
+              type: 'income',
+              amount: depositAmount,
+              category: 'Other',
+              account: accountName,
+              note: 'Weekly Paycheck',
+              payment_source: `account:${fundingId}`,
+            }),
+            (supabase as any)
+              .from('accounts')
+              .update({ balance: currentBalance + depositAmount })
+              .eq('id', fundingId)
+              .eq('user_id', userId),
+          ]);
         }
       }
     }
