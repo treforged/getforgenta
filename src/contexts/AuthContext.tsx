@@ -57,77 +57,113 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .update({ last_synced_at: new Date().toISOString() })
       .eq('user_id', userId);
 
-    // Ensure the funding account never sits below the cash floor between sessions.
-    // Uses the same mechanism as a normal paycheck deposit: insert a transaction
-    // for the shortfall and apply it to the account balance so the history is real.
+    // ── Cash floor: unwind this month's CC payments until balance is restored ──
     const { data: profile } = await (supabase as any)
       .from('profiles')
-      .select('cash_floor, default_deposit_account, paycheck_frequency, weekly_gross_income, tax_rate')
+      .select('cash_floor, default_deposit_account')
       .eq('user_id', userId)
       .single();
     const floor = profile?.cash_floor != null ? Number(profile.cash_floor) : 0;
     if (floor > 0) {
-      // Resolve funding account: explicit default → first active checking account
       let fundingId: string | null = profile?.default_deposit_account ?? null;
-      let accountName = 'Checking';
       if (!fundingId) {
         const { data: allAccounts } = await (supabase as any)
           .from('accounts')
-          .select('id, name, balance, account_type')
+          .select('id, account_type')
           .eq('user_id', userId)
           .eq('active', true)
           .order('created_at');
-        const checking = (allAccounts as any[])?.find((a: any) => a.account_type === 'checking');
-        fundingId = checking?.id ?? null;
-        accountName = checking?.name ?? 'Checking';
-      } else {
-        const { data: acct } = await (supabase as any)
-          .from('accounts')
-          .select('name')
-          .eq('id', fundingId)
-          .eq('user_id', userId)
-          .single();
-        accountName = acct?.name ?? 'Checking';
+        fundingId = (allAccounts as any[])?.find((a: any) => a.account_type === 'checking')?.id ?? null;
       }
-
       if (fundingId) {
-        const { data: account } = await (supabase as any)
+        const { data: acct } = await (supabase as any)
           .from('accounts')
           .select('balance')
           .eq('id', fundingId)
           .eq('user_id', userId)
           .single();
-        const currentBalance = account != null ? Number(account.balance) : 0;
-        const shortfall = floor - currentBalance;
-        if (shortfall > 0) {
-          // Calculate a realistic net paycheck amount from the profile
-          const grossWeekly = profile?.weekly_gross_income != null ? Number(profile.weekly_gross_income) : 0;
-          const taxRate = profile?.tax_rate != null ? Number(profile.tax_rate) : 22;
-          const netWeekly = grossWeekly > 0 ? grossWeekly * (1 - taxRate / 100) : 0;
-          // Deposit enough full paychecks to clear the shortfall, minimum one paycheck
-          const paycheck = netWeekly > 0 ? netWeekly : shortfall;
-          const depositAmount = Math.ceil(shortfall / paycheck) * paycheck;
-          const today = new Date().toISOString().split('T')[0];
-          await Promise.all([
-            (supabase as any).from('transactions').insert({
-              user_id: userId,
-              date: today,
-              type: 'income',
-              amount: depositAmount,
-              category: 'Other',
-              account: accountName,
-              note: 'Weekly Paycheck',
-              payment_source: `account:${fundingId}`,
-            }),
-            (supabase as any)
-              .from('accounts')
-              .update({ balance: currentBalance + depositAmount })
-              .eq('id', fundingId)
-              .eq('user_id', userId),
-          ]);
+        const balance = acct != null ? Number(acct.balance) : 0;
+        if (balance < floor) {
+          const now = new Date();
+          const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          const { data: debtTxns } = await (supabase as any)
+            .from('transactions')
+            .select('id, amount')
+            .eq('user_id', userId)
+            .eq('type', 'expense')
+            .eq('category', 'Debt Payments')
+            .like('date', `${monthStr}%`)
+            .order('date', { ascending: false });
+          // Delete newest debt payments one by one until balance clears the floor
+          let running = balance;
+          const toDelete: string[] = [];
+          for (const txn of (debtTxns ?? []) as any[]) {
+            if (running >= floor) break;
+            running += Number(txn.amount);
+            toDelete.push(txn.id);
+          }
+          if (toDelete.length > 0) {
+            await Promise.all([
+              (supabase as any)
+                .from('transactions')
+                .delete()
+                .in('id', toDelete)
+                .eq('user_id', userId),
+              (supabase as any)
+                .from('accounts')
+                .update({ balance: running })
+                .eq('id', fundingId)
+                .eq('user_id', userId),
+            ]);
+          }
         }
       }
     }
+
+    // ── Seed lump sum payments on car funds and savings goals ──────────────
+    const now = new Date();
+    const pastDate = (monthsBack: number) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - monthsBack, 15);
+      return d.toISOString().split('T')[0];
+    };
+    const [carRes, goalRes] = await Promise.all([
+      (supabase as any).from('car_funds').select('id').eq('user_id', userId),
+      (supabase as any).from('savings_goals').select('id').eq('user_id', userId),
+    ]);
+    const carLumpSets: { id: string; date: string; amount: number; label: string }[][] = [
+      [
+        { id: 'rv-car0-lump-1', date: pastDate(3), amount: 500,  label: 'Tax refund'     },
+        { id: 'rv-car0-lump-2', date: pastDate(1), amount: 250,  label: 'Bonus allocation' },
+      ],
+      [
+        { id: 'rv-car1-lump-1', date: pastDate(2), amount: 300,  label: 'Side income'    },
+      ],
+    ];
+    const goalLumpSets: { id: string; date: string; amount: number }[][] = [
+      [
+        { id: 'rv-goal0-lump-1', date: pastDate(4), amount: 300 },
+        { id: 'rv-goal0-lump-2', date: pastDate(2), amount: 200 },
+      ],
+      [
+        { id: 'rv-goal1-lump-1', date: pastDate(3), amount: 150 },
+      ],
+    ];
+    await Promise.all([
+      ...((carRes.data ?? []) as any[]).map((fund: any, i: number) =>
+        (supabase as any)
+          .from('car_funds')
+          .update({ lump_sum_payments: carLumpSets[i] ?? carLumpSets[0] })
+          .eq('id', fund.id)
+          .eq('user_id', userId),
+      ),
+      ...((goalRes.data ?? []) as any[]).map((goal: any, i: number) =>
+        (supabase as any)
+          .from('savings_goals')
+          .update({ lump_sum_payments: goalLumpSets[i] ?? goalLumpSets[0] })
+          .eq('id', goal.id)
+          .eq('user_id', userId),
+      ),
+    ]);
 
     localStorage.removeItem(`forged:onboarding_done_${userId}`);
     localStorage.removeItem('forged:tour_done_new_user');
