@@ -689,7 +689,7 @@ export default function Forecast() {
         // savings have accumulated. When monthly savings fully cover `rem`, effectiveDP = 0 so the
         // cash sim sees no lump-sum shock in the purchase month (the savings handled it month-by-month).
         const effectiveDP = Math.max(0, rem - contrib * (purchaseMonthIdx + 1));
-        return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string, linkedAccountId: (c.linked_account as string | null) ?? null };
+        return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string };
       });
     // Per-vehicle lump sum breakdown for forecast popup (active loans + projected future loans)
     const carLumpItemsByMonth: { name: string; amount: number }[][] = Array.from({ length: 36 }, (_, i) => {
@@ -824,7 +824,6 @@ export default function Forecast() {
       paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
       paycheckRetireContrib: number; fullMonth401kContrib: number;
       transferBreakdown: { name: string; amount: number }[];
-      nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
       floorItems: { name: string; amount: number; dueDay: number }[];
       prePaycheckBillsTotal: number;
       savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[];
@@ -973,7 +972,6 @@ export default function Forecast() {
       let monthSavingsTransferContrib = 0;
       const activeTransferDestIds = new Set<string>();
       const transferBreakdown: { name: string; amount: number }[] = [];
-      const nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[] = [];
       const perAccountTransferContribs = new Map<string, number>();
       for (const tr of transferRulesAll) {
         if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > monthEnd) continue;
@@ -1006,23 +1004,6 @@ export default function Forecast() {
           if (tr.frequency === 'weekly') monthAmt = amt * countWeekdayInMonth(d.getFullYear(), d.getMonth(), tr.due_day ?? 5);
           else if (tr.frequency === 'yearly') monthAmt = amt / 12;
         }
-
-        // If payment_source is a non-cash account, this transfer moves money between
-        // non-cash accounts and should NOT reduce checking cash.
-        const srcAcct = tr.payment_source ? accountMap.get(tr.payment_source) : null;
-        const srcIsNonCash = srcAcct
-          ? (['savings', 'high_yield_savings', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa'] as string[]).includes(srcAcct.account_type as string)
-          : false;
-        if (srcIsNonCash) {
-          if (monthAmt > 0) {
-            nonCashTransferItems.push({ name: tr.name, fromAcctId: srcAcct!.id as string, fromAcctName: srcAcct!.name as string, amount: monthAmt });
-            if (tr.deposit_account) {
-              perAccountTransferContribs.set(tr.deposit_account, (perAccountTransferContribs.get(tr.deposit_account) ?? 0) + monthAmt);
-            }
-          }
-          continue;
-        }
-
         monthTransfers += monthAmt;
         if (monthAmt === 0) continue; // cleared — skip categorization
 
@@ -1146,7 +1127,7 @@ export default function Forecast() {
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
         monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, monthSavingsTransferContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
-        paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown, nonCashTransferItems,
+        paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown,
         floorItems, prePaycheckBillsTotal, savingsGoalItems, carContribItems, perAccountTransferContribs,
       });
 
@@ -1341,16 +1322,6 @@ export default function Forecast() {
         else if (savA) savA.balance += amt;
       }
 
-      // 4b-ii. Non-cash transfers — debit the source account
-      for (const item of b.nonCashTransferItems) {
-        const srcSav = perAcctSavings.get(item.fromAcctId);
-        const srcInv = perAcctInvest.get(item.fromAcctId);
-        const srcRet = perAcctRetire.get(item.fromAcctId);
-        if (srcSav) srcSav.balance = Math.max(0, srcSav.balance - item.amount);
-        else if (srcInv) srcInv.balance = Math.max(0, srcInv.balance - item.amount);
-        else if (srcRet) srcRet.balance = Math.max(0, srcRet.balance - item.amount);
-      }
-
       // 4c. Goal monthly contributions → linked savings account or goal pool
       for (const item of b.savingsGoalItems) {
         if (item.linkedAccount && perAcctSavings.has(item.linkedAccount)) {
@@ -1371,21 +1342,6 @@ export default function Forecast() {
         else if (invA) invA.balance += amt;
         else if (savA) savA.balance += amt;
         else if (pool) pool.balance += amt;
-      }
-
-      // 4d-ii. Vehicle down payment — debit the linked savings account on purchase month
-      const vehicleDPFromSavingsThisMonth: { vehicleName: string; fromAcctName: string; amount: number }[] = [];
-      for (const v of vehicleProjections) {
-        if (isFinite(v.purchaseMonthIdx) && i === v.purchaseMonthIdx && v.linkedAccountId) {
-          const savingsPortionFromLinked = Math.round(v.downPayment - v.effectiveDP);
-          if (savingsPortionFromLinked > 0) {
-            const savA = perAcctSavings.get(v.linkedAccountId);
-            if (savA) {
-              savA.balance = Math.max(0, savA.balance - savingsPortionFromLinked);
-              vehicleDPFromSavingsThisMonth.push({ vehicleName: v.vehicleName, fromAcctName: savA.name, amount: savingsPortionFromLinked });
-            }
-          }
-        }
       }
 
       // 4e. Apply growth to each account
@@ -1464,8 +1420,8 @@ export default function Forecast() {
         carContrib: Math.round(actualCarSavings),
         carContribItems: b.carContribItems,
         carLoanPayment: Math.round(carLoanThisMonth - activeCarLoanLumpSumByMonth[i]),
-        vehicleDownPayment: Math.round(effectiveDPThisMonth), // cash portion only — savings portion in nonCashTransferItems
-        vehicleSavedPortion: Math.round(Math.max(0, downPaymentThisMonth - effectiveDPThisMonth)), // from linked savings account
+        vehicleDownPayment: Math.round(downPaymentThisMonth), // full personal obligation (display)
+        vehicleSavedPortion: Math.round(Math.max(0, downPaymentThisMonth - effectiveDPThisMonth)), // already in savings
         vehicleInsurance: Math.round(vehicleInsuranceThisMonth),
         projectedCarLoan: Math.round(projLoanThisMonth - projLumpThisMonth),
         carLoanExtraPayment: Math.round(carLoanLumpThisMonth),
@@ -1473,10 +1429,6 @@ export default function Forecast() {
         mortgagePayment: Math.round(mortgageMonthlyPayment),
         transfersTotal: Math.round(actualTransfers),
         transferBreakdown: b.transferBreakdown,
-        nonCashTransferItems: [
-          ...b.nonCashTransferItems,
-          ...vehicleDPFromSavingsThisMonth.map(v => ({ name: `${v.vehicleName} Down Payment`, fromAcctName: v.fromAcctName, fromAcctId: '', amount: v.amount })),
-        ],
         lumpSumSavings: Math.round(lumpTransferByMonth[i].savings),
         lumpSumBrokerage: Math.round(lumpTransferByMonth[i].brokerage),
         lumpSumRothIra: Math.round(lumpTransferByMonth[i].roth_ira),
@@ -2265,7 +2217,7 @@ export default function Forecast() {
                     ),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
                     ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, false), op: '−' }] : []),
-                    ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: '  Vehicle Down Payment (cash)', value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
+                    ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: `  Vehicle Down Payment${(row.vehicleSavedPortion ?? 0) > 0 ? ` (${formatCurrency(row.vehicleSavedPortion, false)} from savings)` : ''}`, value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
                     ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, false), op: '−' }] : []),
                     ...((row.projectedCarLoan ?? 0) > 0 ? [{ label: '  Est. Car Loan (projected)', value: formatCurrency(row.projectedCarLoan, false), op: '−' }] : []),
                     ...((row.carLumpItems as { name: string; amount: number }[] | undefined)?.length
@@ -2324,16 +2276,6 @@ export default function Forecast() {
                       },
                     },
                     { label: '', value: '' },
-                    ...((row.nonCashTransferItems as { name: string; fromAcctName: string; amount: number }[] | undefined)?.length
-                      ? [
-                          { label: 'Account Transfers (no cash impact)', value: '' },
-                          ...(row.nonCashTransferItems as { name: string; fromAcctName: string; amount: number }[]).map(item => ({
-                            label: `  ${item.name}${item.fromAcctName ? ` — from ${item.fromAcctName}` : ''}`,
-                            value: formatCurrency(item.amount, false),
-                          })),
-                          { label: '', value: '' },
-                        ]
-                      : []),
                     { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
                     { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
                     ...((row.assetBreakdown ?? []) as { bucket: string; id: string; name: string; balance: number }[])
