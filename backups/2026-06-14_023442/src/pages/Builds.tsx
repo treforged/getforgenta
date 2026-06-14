@@ -61,7 +61,7 @@ export default function Builds() {
   const [dragPhaseOrder, setDragPhaseOrder] = useState<CarBuildPhase[] | null>(null);
   const [dragItemOrder, setDragItemOrder] = useState<CarBuildItem[] | null>(null);
 
-  // Reset optimistic state when build switches
+  // Reset optimistic state when server data updates
   const prevBuildId = useRef<string | null>(null);
   useEffect(() => {
     if (resolvedBuildId !== prevBuildId.current) {
@@ -70,13 +70,6 @@ export default function Builds() {
       setDragItemOrder(null);
     }
   }, [resolvedBuildId]);
-
-  // Sync dragItemOrder back to server truth whenever items refresh and no drag is active.
-  // Without this, optimistic edits/toggles stay in dragItemOrder indefinitely, causing
-  // deletes and adds to appear invisible until a page refresh.
-  useEffect(() => {
-    if (!dragItemIdRef.current) setDragItemOrder(null);
-  }, [items]);
 
   const displayPhases: CarBuildPhase[] = dragPhaseOrder ?? phases;
   const displayItems: CarBuildItem[] = dragItemOrder ?? items;
@@ -127,7 +120,6 @@ export default function Builds() {
   const [dragOverPhaseId, setDragOverPhaseId] = useState<string | null>(null);
   const [draggingItemId, setDraggingItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
-  const [itemDropBelow, setItemDropBelow] = useState(false);
 
   // Share UI
   const [shareOpen, setShareOpen] = useState(false);
@@ -184,13 +176,12 @@ export default function Builds() {
   }
 
   // ── Item CRUD ────────────────────────────────────────────
-  async function handleAddItem(phaseId: string, buildId: string): Promise<string | null> {
+  async function handleAddItem(phaseId: string, buildId: string) {
     const phaseItems = displayItems.filter(it => it.phase_id === phaseId);
     const nextOrder = phaseItems.length > 0
       ? Math.max(...phaseItems.map(it => it.sort_order)) + 1
       : 0;
-    const newItem = await addItem.mutateAsync({ phase_id: phaseId, build_id: buildId, name: 'New Item', sort_order: nextOrder });
-    return (newItem as any)?.id ?? null;
+    await addItem.mutateAsync({ phase_id: phaseId, build_id: buildId, name: 'New Item', sort_order: nextOrder });
   }
 
   async function handleUpdateItem(id: string, data: Partial<CarBuildItem & { phase_id?: string }>) {
@@ -309,15 +300,12 @@ export default function Builds() {
     e.stopPropagation();
     e.dataTransfer.dropEffect = 'move';
     setDragOverItemId(itemId);
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setItemDropBelow(e.clientY > rect.top + rect.height / 2);
   }
 
   function onItemDragEnd() {
     dragItemIdRef.current = null;
     setDraggingItemId(null);
     setDragOverItemId(null);
-    setItemDropBelow(false);
   }
 
   function onItemDrop(e: React.DragEvent, toItemId: string, toPhaseId: string) {
@@ -330,13 +318,11 @@ export default function Builds() {
     if (!fromItem) return;
     const without = src.filter(it => it.id !== fromId);
     const toIdx = without.findIndex(it => it.id === toItemId);
-    const insertIdx = itemDropBelow ? toIdx + 1 : toIdx;
-    without.splice(insertIdx, 0, { ...fromItem, phase_id: toPhaseId });
+    without.splice(toIdx, 0, { ...fromItem, phase_id: toPhaseId });
     const withOrders = without.map((it, i) => ({ ...it, sort_order: i }));
     setDragItemOrder(withOrders);
     setDraggingItemId(null);
     setDragOverItemId(null);
-    setItemDropBelow(false);
     dragItemIdRef.current = null;
     reorderItems.mutate(withOrders.map(it => ({ id: it.id, sort_order: it.sort_order, phase_id: it.phase_id })));
   }
@@ -390,10 +376,14 @@ export default function Builds() {
     reorderItems.mutate(reordered.map((it, i) => ({ id: it.id, sort_order: i, phase_id: it.phase_id })));
   }
 
-  // Phase drop direction: index-based (phases don't need cursor precision)
+  // Drag direction: compare source index vs target index to decide line placement
   const draggingPhaseIdx = draggingPhaseId ? displayPhases.findIndex(p => p.id === draggingPhaseId) : -1;
   const dragOverPhaseIdx = dragOverPhaseId ? displayPhases.findIndex(p => p.id === dragOverPhaseId) : -1;
   const phaseDropBelow = draggingPhaseIdx >= 0 && dragOverPhaseIdx >= 0 && draggingPhaseIdx < dragOverPhaseIdx;
+
+  const draggingItemIdx = draggingItemId ? displayItems.findIndex(it => it.id === draggingItemId) : -1;
+  const dragOverItemIdx = dragOverItemId ? displayItems.findIndex(it => it.id === dragOverItemId) : -1;
+  const itemDropBelow = draggingItemIdx >= 0 && dragOverItemIdx >= 0 && draggingItemIdx < dragOverItemIdx;
 
   // Items grouped by phase for rendering
   const itemsByPhase = useMemo(() => {
