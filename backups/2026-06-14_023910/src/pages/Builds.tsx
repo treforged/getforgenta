@@ -68,7 +68,6 @@ export default function Builds() {
       prevBuildId.current = resolvedBuildId;
       setDragPhaseOrder(null);
       setDragItemOrder(null);
-      setExpandedPhaseIds(new Set());
     }
   }, [resolvedBuildId]);
 
@@ -120,16 +119,6 @@ export default function Builds() {
       stopScroll();
     };
   }, []);
-
-  // Which phases are expanded — lifted so drops can close siblings
-  const [expandedPhaseIds, setExpandedPhaseIds] = useState<Set<string>>(new Set());
-  function setPhaseExpanded(id: string, val: boolean) {
-    setExpandedPhaseIds(prev => {
-      const next = new Set(prev);
-      val ? next.add(id) : next.delete(id);
-      return next;
-    });
-  }
 
   // Drag refs (no state — avoid re-renders mid-drag)
   const dragPhaseIdRef = useRef<string | null>(null);
@@ -207,10 +196,6 @@ export default function Builds() {
   async function handleUpdateItem(id: string, data: Partial<CarBuildItem & { phase_id?: string }>) {
     setDragItemOrder(prev => (prev ?? items).map(it => it.id === id ? { ...it, ...data } : it));
     await updateItem.mutateAsync({ id, ...data });
-    // If item was moved to a different phase via the edit form, open destination only
-    if (data.phase_id) {
-      setExpandedPhaseIds(new Set([data.phase_id]));
-    }
   }
 
   async function handleDeleteItem(id: string) {
@@ -353,10 +338,6 @@ export default function Builds() {
     setDragOverItemId(null);
     setItemDropBelow(false);
     dragItemIdRef.current = null;
-    // If moved to a different phase, open destination and close everything else
-    if (fromItem.phase_id !== toPhaseId) {
-      setExpandedPhaseIds(new Set([toPhaseId]));
-    }
     reorderItems.mutate(withOrders.map(it => ({ id: it.id, sort_order: it.sort_order, phase_id: it.phase_id })));
   }
 
@@ -377,12 +358,8 @@ export default function Builds() {
     setDraggingItemId(null);
     setDragOverItemId(null);
     dragItemIdRef.current = null;
-    // Moving to a different phase — open destination, close everything else
-    if (fromItem.phase_id !== toPhaseId) {
-      setExpandedPhaseIds(new Set([toPhaseId]));
-    }
     reorderItems.mutate(withOrders.map(it => ({ id: it.id, sort_order: it.sort_order, phase_id: it.phase_id })));
-  }, [displayItems, reorderItems, expandedPhaseIds]);
+  }, [displayItems, reorderItems]);
 
   // ── Mobile arrow reorder ─────────────────────────────────
   function handleMovePhase(phaseId: string, direction: 'up' | 'down') {
@@ -614,8 +591,6 @@ export default function Builds() {
                       dragItemId={draggingItemId}
                       dragOverItemId={dragOverItemId}
                       itemDropBelow={itemDropBelow}
-                      isExpanded={expandedPhaseIds.has(ph.id)}
-                      onSetExpanded={val => setPhaseExpanded(ph.id, val)}
                       onUpdatePhase={handleUpdatePhase}
                       onDeletePhase={handleDeletePhase}
                       onAddItem={handleAddItem}
