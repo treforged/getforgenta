@@ -1186,6 +1186,7 @@ export default function Forecast() {
     }, 0);
     let p3RevBal = liveRevolvingBal;
     let prevP3RevBal = p3RevBal;
+    let cumulativeSurplus = 0;
 
     for (let i = 0; i < 36; i++) {
       const b = baseData[i];
@@ -1244,18 +1245,26 @@ export default function Forecast() {
       monthDebtPayment = cyclingPayment + revolvingPayment;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
-      // Step 3: redirect surplus above floor to debt — capped at remaining p3RevBal minus the
-      // regular revolving payment (both come out of the same balance this month) so we never
-      // over-pay in the final payoff month. Only skip in Forecast PASS 2 save-up months (cash
-      // one-time expenses / car DP); CC engine save-up months only govern revolvingCap above.
+      // Step 3: redirect surplus above floor to debt. Cap uses CC engine's post-payment revolving
+      // balance (interest-inclusive) minus cumulative surpluses already sent — fixes prior drift
+      // where p3RevBal fell below the true balance because monthly interest wasn't added back.
+      // The engine's monthlyRevolvingBalances[i] already has the planned revolving payment deducted,
+      // so revolvingPayment is not subtracted again here.
+      const ccEngRevBalEnd = (cardProjectionData?.simCards ?? []).reduce((s: number, c: any) => {
+        const revBal0 = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[0] ?? 1;
+        if (revBal0 === 0) return s;
+        return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
+      }, 0);
       if (!saveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
-        const surplus = Math.min(finalLiquid - b.monthMinSafe, Math.max(0, p3RevBal - revolvingPayment));
-        monthDebtPayment += surplus;
-        finalLiquid -= surplus;
-        p3RevBal = Math.max(0, p3RevBal - surplus);
+        const surplus = Math.min(finalLiquid - b.monthMinSafe, Math.max(0, ccEngRevBalEnd - cumulativeSurplus));
+        if (surplus > 0) {
+          monthDebtPayment += surplus;
+          finalLiquid -= surplus;
+          cumulativeSurplus += surplus;
+        }
       }
-      // Deduct revolving payment from tracker after Step 3
-      p3RevBal = Math.max(0, p3RevBal - revolvingPayment);
+      // Sync p3RevBal to engine's interest-inclusive end-of-month balance minus all surplus sent.
+      p3RevBal = Math.max(0, ccEngRevBalEnd - cumulativeSurplus);
 
       // Step 4: per-account balance tracking
       const actualGoalsSavings = b.monthlySavingsContrib;
