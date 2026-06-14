@@ -143,7 +143,7 @@ export default function Builds() {
       autoExpandedByDragRef.current = null;
       setTimeout(() => {
         setExpandedPhaseIds(s => { const n = new Set(s); n.delete(prev); return n; });
-      }, 100);
+      }, 400);
     }
     // Schedule expand only if this phase isn't already open
     expandTimerRef.current = setTimeout(() => {
