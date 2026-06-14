@@ -116,8 +116,11 @@ export default function Forecast() {
       if (saved && typeof saved === 'object') {
         const { taxOverride: _dropped, ...migrated } = { ...saved };
         setAssumptionsState(prev => ({ ...prev, ...migrated }));
+        assumptionsLoaded.current = true;
       }
-      assumptionsLoaded.current = true;
+      // If saved is null/undefined the real profile hasn't loaded yet (DEFAULT_PROFILE
+      // fallback is truthy but has no forecast_assumptions). Leave the guard unset so
+      // the effect re-runs when the real profile arrives from Supabase.
     }
   }, [profile]);
   const setAssumptions = useCallback((val: typeof defaultAssumptions | ((prev: typeof defaultAssumptions) => typeof defaultAssumptions)) => {
