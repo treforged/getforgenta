@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -428,12 +429,15 @@ export default function Auth() {
         toast.success('Signed in successfully');
         navigate('/dashboard', { replace: true });
       } else {
+        const rawName = displayName.trim().slice(0, LIMITS.username);
+        const { clean: cleanName, flagged: nameFlagged } = filterProfanity(rawName);
+        if (nameFlagged) toast.warning('Display name contained inappropriate language and was cleaned.');
         const { error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth`,
-            data: { display_name: displayName.trim() },
+            data: { display_name: cleanName },
           },
         });
         if (error) throw error;

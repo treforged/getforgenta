@@ -7,6 +7,7 @@ import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
+import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals, useCarFunds } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -661,12 +662,15 @@ export default function BudgetControl() {
       toast.error('Income rules require a Start Date');
       return;
     }
+    const { clean: cleanRuleName, flagged: ruleNameFlagged } = filterProfanity(form.name.trim().slice(0, LIMITS.ruleName));
+    const { clean: cleanRuleNotes, flagged: ruleNotesFlagged } = filterProfanity(form.notes.trim().slice(0, LIMITS.ruleNotes));
+    if (ruleNameFlagged || ruleNotesFlagged) toast.warning('Some content contained inappropriate language and was cleaned.');
     const parsedTaxRate = parseFloat(form.tax_rate);
     const payload: any = {
-      name: form.name, amount, rule_type: form.rule_type, frequency: form.frequency,
+      name: cleanRuleName, amount, rule_type: form.rule_type, frequency: form.frequency,
       due_day: parseInt(form.due_day) || 1, due_month: form.due_month ? parseInt(form.due_month) : null,
       category: form.category, payment_source: form.payment_source || null,
-      deposit_account: form.deposit_account || null, notes: form.notes, active: true,
+      deposit_account: form.deposit_account || null, notes: cleanRuleNotes, active: true,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
       tax_rate: form.rule_type === 'income' && form.tax_rate.trim() !== '' && !isNaN(parsedTaxRate) ? parsedTaxRate : null,
