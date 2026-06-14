@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+﻿import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
@@ -7,13 +7,12 @@ import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions, usePaymentPlans } from '@/hooks/useSupabaseData';
-import { usePlaidItems } from '@/hooks/usePlaidItems';
-import { generateScheduledEvents, aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
+import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
-import { useCardProjection } from '@/hooks/useCardProjection';
+import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { buildPayConfig, getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
+import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -94,45 +93,24 @@ export default function Forecast() {
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: subs } = useSubscriptions();
   const { data: budgetItems } = useBudgetItems();
-  const { data: profile, update: updateProfile } = useProfile();
+  const { data: profile } = useProfile();
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
-  const { items: plaidItems } = usePlaidItems();
   const { data: paymentPlans } = usePaymentPlans();
 
-  const defaultAssumptions = {
-    incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
-    investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5,
-    bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
-    taxReturnEnabled: false, taxReturnFilingStatus: 'single' as FilingStatus, taxReturnDependents: 0,
-    taxReturnState: 'FL', taxReturnFederalWithheld: 0, taxReturnMonth: 2, taxReturnAmountOverride: 0,
-  };
-  const [assumptions, setAssumptionsState] = useState(defaultAssumptions);
-  const assumptionsLoaded = useRef(false);
-  const assumptionsSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (profile && !assumptionsLoaded.current) {
-      const saved = (profile as any).forecast_assumptions;
-      if (saved && typeof saved === 'object') {
-        const { taxOverride: _dropped, ...migrated } = { ...saved };
-        setAssumptionsState(prev => ({ ...prev, ...migrated }));
-        assumptionsLoaded.current = true;
-      }
-      // If saved is null/undefined the real profile hasn't loaded yet (DEFAULT_PROFILE
-      // fallback is truthy but has no forecast_assumptions). Leave the guard unset so
-      // the effect re-runs when the real profile arrives from Supabase.
-    }
-  }, [profile]);
-  const setAssumptions = useCallback((val: typeof defaultAssumptions | ((prev: typeof defaultAssumptions) => typeof defaultAssumptions)) => {
-    setAssumptionsState(prev => {
-      const next = typeof val === 'function' ? val(prev) : val;
-      if (assumptionsSaveTimer.current) clearTimeout(assumptionsSaveTimer.current);
-      assumptionsSaveTimer.current = setTimeout(() => {
-        updateProfile.mutate({ forecast_assumptions: next } as any);
-      }, 800);
-      return next;
-    });
-  }, [updateProfile]);
+  const {
+    cardProjection: cardProjectionData,
+    assumptions,
+    setAssumptions,
+    pauseSavings,
+    debtStrategy,
+    payConfig,
+    cashFloor,
+    forecastFundingAccountId,
+    syncCutoffDate,
+    scheduledEvents,
+    debtPayoffOptions,
+  } = useCardProjectionContext();
   const [showAssumptions, setShowAssumptions] = useState(false);
   const [assumptionsTutorialSeen, setAssumptionsTutorialSeen] = usePersistedState('tre:forecast:assumptionsTutorialSeen', false);
   const [filterYear, setFilterYear] = usePersistedState<'all' | '1' | '2' | '3'>('tre:forecast:filterYear', 'all');
@@ -141,9 +119,6 @@ export default function Forecast() {
   const [hiddenSeries, setHiddenSeries] = usePersistedState<string[]>('tre:forecast:hidden', []);
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[] } | null>(null);
   const [floorCalcDrawer, setFloorCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
-  const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
-  const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
-  const [persistedDebtFundingId] = usePersistedState<string>('tre:debt:fundingAccount', '');
 
   const toggleSeries = useCallback((key: string) => {
     setHiddenSeries((prev: string[]) => {
@@ -152,8 +127,6 @@ export default function Forecast() {
     });
   }, [setHiddenSeries]);
 
-  const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
-  const cashFloor = useMemo(() => { const cf = (profile as any)?.cash_floor; return cf != null ? Number(cf) : 1000; }, [profile]);
 
   // Annualize the "Federal Withholding" deduction from Budget Control, if the user has set one.
   // Takes priority over the state-rate default so the estimate reflects their actual W-4 setup.
@@ -171,43 +144,9 @@ export default function Forecast() {
     return Math.round(perPaycheck * paychecksPerYear);
   }, [payConfig, profile]);
 
-  // Resolve the funding account the same way CreditCardEngine does — profile preference first,
-  // then first active checking account. Used to scope pre-paycheck bills and safe-floor to the
-  // account that actually funds debt payments.
-  const forecastFundingAccountId = useMemo((): string | null => {
-    const defaultId = (profile as any)?.default_deposit_account;
-    if (defaultId) {
-      const acct = accounts.find((a: any) => a.id === defaultId && a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type));
-      if (acct) return acct.id as string;
-    }
-    const checking = accounts.find((a: any) => a.active && a.account_type === 'checking');
-    return (checking?.id as string) ?? null;
-  }, [accounts, profile]);
-
-  // Balance cutoff: use the funding account's Plaid last_synced_at date so the exclusion
-  // boundary matches the actual snapshot in the account balance, not an arbitrary clock.
-  // Falls back to today's local date for manual (non-Plaid) accounts.
-  const syncCutoffDate = useMemo((): string => {
-    const today = new Date();
-    const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    if (!forecastFundingAccountId) return localDate;
-    const fundingAcct = accounts.find((a: any) => a.id === forecastFundingAccountId);
-    if (!fundingAcct?.plaid_item_id) return localDate;
-    const plaidItem = plaidItems.find((pi: any) => pi.plaid_item_id === fundingAcct.plaid_item_id);
-    if (!plaidItem?.last_synced_at) return localDate;
-    return plaidItem.last_synced_at.split('T')[0];
-  }, [forecastFundingAccountId, accounts, plaidItems]);
 
   const prePaycheckBillsInfo = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId), [rules, payConfig, forecastFundingAccountId]);
-  const scheduledEvents = useMemo(() => generateScheduledEvents(rules, accounts, 36), [rules, accounts]);
   const monthlyAggregates = useMemo(() => aggregateByMonth(scheduledEvents), [scheduledEvents]);
-
-  const debtPayoffOptions = useMemo(() => ({
-    strategy: debtStrategy,
-    paymentMode: 'variable' as const,
-    cashFloor,
-    overrides: {} as Record<string, Record<number, number>>,
-  }), [cashFloor, debtStrategy]);
 
   const planExpensesByMonth = useMemo(() => {
     const now = new Date();
@@ -391,13 +330,6 @@ export default function Forecast() {
       return { income, nonPaycheckIncome, expenses };
     });
   }, [accounts, rules, scheduledEvents, pauseSavings, profile, syncCutoffDate]);
-
-  const cardProjectionData = useCardProjection({
-    accounts, transactions, rules, debts, goals, carFunds, profile,
-    debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
-    forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
-    syncCutoffDate, paymentPlans: paymentPlans ?? [],
-  });
 
   // One-time manual transactions for forecast.
   // CC-tagged expenses are excluded — they increase CC balance (tracked by the debt

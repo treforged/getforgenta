@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import DemoBanner from '@/components/shared/DemoBanner';
 import { useDemo } from '@/contexts/DemoContext';
+import { CardProjectionProvider } from '@/contexts/CardProjectionContext';
 
 export default function DashboardLayout() {
   const { isDemo } = useDemo();
@@ -32,9 +33,11 @@ export default function DashboardLayout() {
           `}
           style={{ touchAction: 'pan-y', overflowX: 'hidden' }}
         >
-          <div style={{ overflow: 'hidden', minWidth: '0', width: '100%' }}>
-            <Outlet />
-          </div>
+          <CardProjectionProvider>
+            <div style={{ overflow: 'hidden', minWidth: '0', width: '100%' }}>
+              <Outlet />
+            </div>
+          </CardProjectionProvider>
         </main>
 
         <footer className="hidden lg:block border-t border-border py-4 px-6">
