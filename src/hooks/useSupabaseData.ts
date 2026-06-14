@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { sanitizePayload } from '@/lib/sanitize';
 import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
-  demoNetWorthSnapshots,
+  demoNetWorthSnapshots, demoCarBuilds, demoCarBuildPhases, demoCarBuildItems,
 } from '@/lib/demo-data';
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 
@@ -814,10 +814,10 @@ export function useCarBuilds() {
   const qc = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['car_builds', user?.id],
-    enabled: !!user && !isDemo,
+    queryKey: ['car_builds', isDemo ? 'demo' : user?.id],
+    enabled: isDemo || !!user,
     queryFn: async () => {
-      if (!user) return [];
+      if (isDemo || !user) return demoCarBuilds;
       const { data, error } = await supabase
         .from('car_builds' as any)
         .select('*')
@@ -893,10 +893,11 @@ export function useCarBuildPhases(buildId: string | null) {
   const qc = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['car_build_phases', buildId],
-    enabled: !!user && !!buildId && !isDemo,
+    queryKey: ['car_build_phases', isDemo ? `demo-${buildId}` : buildId],
+    enabled: (isDemo || !!user) && !!buildId,
     queryFn: async () => {
-      if (!user || !buildId) return [];
+      if (isDemo || !user) return demoCarBuildPhases.filter(p => p.build_id === buildId);
+      if (!buildId) return [];
       const { data, error } = await supabase
         .from('car_build_phases' as any)
         .select('*')
@@ -979,10 +980,11 @@ export function useCarBuildItems(buildId: string | null) {
   const qc = useQueryClient();
 
   const query = useQuery({
-    queryKey: ['car_build_items', buildId],
-    enabled: !!user && !!buildId && !isDemo,
+    queryKey: ['car_build_items', isDemo ? `demo-${buildId}` : buildId],
+    enabled: (isDemo || !!user) && !!buildId,
     queryFn: async () => {
-      if (!user || !buildId) return [];
+      if (isDemo || !user) return demoCarBuildItems.filter(item => item.build_id === buildId);
+      if (!buildId) return [];
       const { data, error } = await supabase
         .from('car_build_items' as any)
         .select('*')
