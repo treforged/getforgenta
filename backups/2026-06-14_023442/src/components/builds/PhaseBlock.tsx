@@ -40,7 +40,7 @@ interface PhaseBlockProps {
   itemDropBelow: boolean;
   onUpdatePhase: (id: string, data: Partial<CarBuildPhase>) => void;
   onDeletePhase: (id: string) => void;
-  onAddItem: (phaseId: string, buildId: string) => Promise<string | null>;
+  onAddItem: (phaseId: string, buildId: string) => void;
   onUpdateItem: (id: string, data: Partial<CarBuildItem & { phase_id?: string }>) => void;
   onDeleteItem: (id: string) => void;
   onToggleItem: (id: string, completed: boolean) => void;
@@ -520,16 +520,7 @@ export default function PhaseBlock({
 
           {/* Add item button */}
           <button
-            onClick={async () => {
-              if (!expanded) setExpanded(true);
-              const newId = await onAddItem(phase.id, phase.build_id);
-              if (!newId) return;
-              setItemEdits(prev => ({
-                ...prev,
-                [newId]: { name: 'New Item', brand: '', price: '', link: '', moveToPhaseId: phase.id },
-              }));
-              setOpenItemEdit(newId);
-            }}
+            onClick={() => onAddItem(phase.id, phase.build_id)}
             className="flex items-center gap-2 w-full px-4 py-2.5 text-[12px] font-mono uppercase tracking-[0.1em] text-muted-foreground hover:text-[#c8a84b] hover:bg-[#0d0d0d] transition-colors border-t border-dashed border-[#1e1e1e]"
           >
             <Plus size={14} /> Add Item
