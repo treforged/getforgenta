@@ -634,12 +634,11 @@ export function simulateVariablePayoff(
           type: 'debt_payoff', projected: true,
         });
       }
-      // Carry forward any unpaid amount when the pool couldn't cover the full statement.
-      // Without this, constrained months silently drop the deficit, causing the next
-      // month to under-charge and the pay-off-pool to never catch up.
-      const unpaid = Math.round((purchases - pay) * 100) / 100;
-      const thisMonthPurchases = Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases);
-      paidOffDeferredPurchases.set(card.id, unpaid + thisMonthPurchases);
+      // Defer this month's charges to next month's payment.
+      // Fall back to monthlyNewPurchases when rules aren't tagged with this card's
+      // payment_source (cardPurchasesThisMonth would return 0, causing $0/$— display).
+      paidOffDeferredPurchases.set(card.id,
+        Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases));
     }
 
     // Cards still carrying debt (exclude pre-start cards — they already got 0 pushed above)
