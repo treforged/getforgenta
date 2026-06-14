@@ -1,18 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, GripVertical, ArrowUp, ArrowDown, Pencil, EyeOff, Eye, Trash2, Plus, ExternalLink, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { filterProfanity, isSafeUrl, LIMITS } from '@/lib/content-filter';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 
-function isValidUrl(val: string): boolean {
-  if (!val.trim()) return true;
-  try {
-    const u = new URL(val.trim());
-    return u.protocol === 'http:' || u.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
 
 export const PHASE_COLORS = [
   '#c8a84b', '#ba4a4a', '#4a8cba', '#8a5ba3', '#3a8a5a',
@@ -62,6 +54,7 @@ interface PhaseBlockProps {
   onItemDragOver: (e: React.DragEvent, itemId: string, phaseId: string) => void;
   onItemDragEnd: () => void;
   onItemDrop: (e: React.DragEvent, itemId: string, phaseId: string) => void;
+  onItemDropAtEnd: (e: React.DragEvent, phaseId: string) => void;
 }
 
 export default function PhaseBlock({
@@ -70,14 +63,18 @@ export default function PhaseBlock({
   onUpdatePhase, onDeletePhase, onAddItem, onUpdateItem, onDeleteItem, onToggleItem,
   onMovePhase, onMoveItemArrow,
   onPhaseDragStart, onPhaseDragOver, onPhaseDragEnd, onPhaseDrop,
-  onItemDragStart, onItemDragOver, onItemDragEnd, onItemDrop,
+  onItemDragStart, onItemDragOver, onItemDragEnd, onItemDrop, onItemDropAtEnd,
 }: PhaseBlockProps) {
   const [expanded, setExpanded] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(phase.title);
   const [openItemEdit, setOpenItemEdit] = useState<string | null>(null);
   const [itemEdits, setItemEdits] = useState<Record<string, ItemEditState>>({});
+  const [dragOverBottom, setDragOverBottom] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }, []);
 
   const color = PHASE_COLORS[phaseIndex % PHASE_COLORS.length];
   const doneCount = items.filter(it => it.completed).length;
@@ -95,9 +92,11 @@ export default function PhaseBlock({
   }
 
   function saveTitleEdit() {
-    const t = titleInput.trim();
-    if (!t) return;
-    if (t !== phase.title) onUpdatePhase(phase.id, { title: t });
+    const raw = titleInput.trim().slice(0, LIMITS.phaseTitle);
+    if (!raw) return;
+    const { clean, flagged } = filterProfanity(raw);
+    if (flagged) toast.warning('Phase title contained inappropriate language and was cleaned.');
+    if (clean !== phase.title) onUpdatePhase(phase.id, { title: clean });
     setEditingTitle(false);
   }
 
@@ -120,16 +119,24 @@ export default function PhaseBlock({
   function saveItemEdit(item: CarBuildItem) {
     const ed = itemEdits[item.id];
     if (!ed) return;
-    if (!isValidUrl(ed.link)) {
-      toast.error('Invalid URL — must start with http:// or https://');
+
+    const urlCheck = isSafeUrl(ed.link);
+    if (!urlCheck.safe) {
+      toast.error(urlCheck.reason ?? 'Link not allowed');
       return;
     }
+
+    const nameResult = filterProfanity(ed.name.trim().slice(0, LIMITS.itemName));
+    const brandResult = filterProfanity(ed.brand.trim().slice(0, LIMITS.itemBrand));
+    if (nameResult.flagged) toast.warning('Item name contained inappropriate language and was cleaned.');
+    if (brandResult.flagged) toast.warning('Description contained inappropriate language and was cleaned.');
+
     const parsedPrice = ed.price.trim() ? parseFloat(ed.price) : null;
     const updates: Partial<CarBuildItem & { phase_id?: string }> = {
-      name: ed.name.trim() || item.name,
-      brand: ed.brand.trim() || null,
+      name: nameResult.clean || item.name,
+      brand: brandResult.clean || null,
       price: parsedPrice !== null && !isNaN(parsedPrice) ? parsedPrice : null,
-      link: ed.link.trim() || null,
+      link: ed.link.trim() ? ed.link.trim().slice(0, LIMITS.itemLink) : null,
     };
     if (ed.moveToPhaseId !== item.phase_id) {
       updates.phase_id = ed.moveToPhaseId;
@@ -160,6 +167,13 @@ export default function PhaseBlock({
       <div
         className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
         onClick={() => setExpanded(e => !e)}
+        onDragEnter={() => {
+          if (!dragItemId || expanded) return;
+          hoverTimerRef.current = setTimeout(() => setExpanded(true), 600);
+        }}
+        onDragLeave={() => {
+          if (hoverTimerRef.current) { clearTimeout(hoverTimerRef.current); hoverTimerRef.current = null; }
+        }}
       >
         {/* Drag handle (desktop) / Arrow buttons (mobile) */}
         {!isMobile ? (
@@ -231,10 +245,10 @@ export default function PhaseBlock({
         {/* Hide/show */}
         <button
           onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }}
-          title={phase.hidden ? 'Show phase' : 'Hide phase'}
+          title={phase.hidden ? 'Phase hidden (planned) — click to show' : 'Hide phase (mark as planned)'}
           className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
         >
-          {phase.hidden ? <Eye size={14} style={{ color: '#c8a84b' }} /> : <EyeOff size={14} />}
+          {phase.hidden ? <EyeOff size={14} style={{ color: '#c8a84b' }} /> : <Eye size={14} />}
         </button>
 
         {/* Delete */}
@@ -408,19 +422,23 @@ export default function PhaseBlock({
                         <input
                           className={inputCls}
                           value={itemEdits[item.id].name}
+                          maxLength={LIMITS.itemName}
                           onChange={e => updateItemEdit(item.id, 'name', e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') saveItemEdit(item); if (e.key === 'Escape') setOpenItemEdit(null); }}
                           autoFocus
                         />
+                        <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{itemEdits[item.id].name.length}/{LIMITS.itemName}</span>
                       </div>
                       <div>
                         <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Brand / Description</label>
                         <input
                           className={inputCls}
                           value={itemEdits[item.id].brand}
+                          maxLength={LIMITS.itemBrand}
                           onChange={e => updateItemEdit(item.id, 'brand', e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') saveItemEdit(item); if (e.key === 'Escape') setOpenItemEdit(null); }}
                         />
+                        <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{itemEdits[item.id].brand.length}/{LIMITS.itemBrand}</span>
                       </div>
                       <div>
                         <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Product Link (URL)</label>
@@ -428,11 +446,12 @@ export default function PhaseBlock({
                           className={monoInput}
                           type="url"
                           value={itemEdits[item.id].link}
+                          maxLength={LIMITS.itemLink}
                           onChange={e => updateItemEdit(item.id, 'link', e.target.value)}
                           placeholder="https://..."
                           style={{
                             color: '#8ab0e0',
-                            borderColor: !isValidUrl(itemEdits[item.id].link) ? '#e05a5a' : undefined,
+                            borderColor: !isSafeUrl(itemEdits[item.id].link).safe ? '#e05a5a' : undefined,
                           }}
                         />
                       </div>
@@ -484,6 +503,20 @@ export default function PhaseBlock({
             </div>
             );
           })}
+
+          {/* Bottom drop zone — allows dropping below the last (or only) item */}
+          {!isMobile && dragItemId && (
+            <div
+              className="h-4 w-full"
+              onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOverBottom(true); }}
+              onDragLeave={() => setDragOverBottom(false)}
+              onDrop={e => { setDragOverBottom(false); onItemDropAtEnd(e, phase.id); }}
+            >
+              {dragOverBottom && (
+                <div className="h-0.5 rounded mx-4 mt-1.5" style={{ background: '#c8a84b' }} />
+              )}
+            </div>
+          )}
 
           {/* Add item button */}
           <button

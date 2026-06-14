@@ -190,6 +190,24 @@ export default function BuildShare() {
           )}
         </div>
 
+        {/* Build photos */}
+        {build.photos && build.photos.length > 0 && (
+          <div className="mb-6">
+            <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.15em] mb-2">Photos</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {(build.photos as string[]).map((url: string, i: number) => (
+                <img
+                  key={i}
+                  src={url}
+                  alt={`Build photo ${i + 1}`}
+                  className="w-full aspect-square object-cover rounded border border-border"
+                  loading="lazy"
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Phases — all of them, hidden ones shown as "Planned" */}
         <div className="space-y-2">
           {phases.map((ph: CarBuildPhase, i: number) => {
@@ -304,8 +322,27 @@ export default function BuildShare() {
           })}
         </div>
 
+        {/* Community rules */}
+        <div className="mt-8 pt-5 border-t border-border">
+          <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.15em] mb-3">Community Rules</div>
+          <ul className="space-y-1.5">
+            {[
+              'No NSFW, offensive, or inappropriate content.',
+              'No links to adult sites, scams, or phishing pages.',
+              'Photos must depict the actual vehicle or parts — no explicit imagery.',
+              'Item descriptions must be accurate and appropriate.',
+              'Violations may result in share link removal.',
+            ].map((rule, i) => (
+              <li key={i} className="flex items-start gap-2 text-[11px] font-mono text-muted-foreground">
+                <span className="shrink-0" style={{ color: '#c8a84b' }}>{i + 1}.</span>
+                <span>{rule}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
         {/* Footer */}
-        <div className="mt-8 pt-5 border-t border-border text-center">
+        <div className="mt-6 pt-5 border-t border-border text-center">
           <div className="text-[12px] font-mono text-muted-foreground">
             Shared via{' '}
             <Link to="/" className="hover:text-foreground transition-colors underline">
