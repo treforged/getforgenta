@@ -12,6 +12,7 @@ import FormModal from '@/components/shared/FormModal';
 import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
+import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 import { useDemo } from '@/contexts/DemoContext';
@@ -370,13 +371,16 @@ export default function Transactions() {
     const amount = parseFloat(form.amount);
     if (!amount) return;
 
+    const { clean: cleanNote, flagged: noteFlagged } = filterProfanity(form.note.trim().slice(0, LIMITS.transactionNote));
+    if (noteFlagged) toast.warning('Note contained inappropriate language and was cleaned.');
+
     if (editId && editId.startsWith('rule:')) {
       // Update the recurring rule
       const ruleId = editId.slice(5);
       const rulePayload: any = {
         id: ruleId,
         amount,
-        name: form.note || 'Transaction',
+        name: cleanNote || 'Transaction',
         category: form.category,
       };
       if (form.type === 'income') {
@@ -389,7 +393,7 @@ export default function Transactions() {
       updateRule.mutate(rulePayload);
       toast.success('Recurring rule updated — future transactions will reflect this change.');
     } else {
-      const payload = { date: form.date, type: form.type, amount, category: form.category, account: form.account, note: form.note || 'Transaction', payment_source: form.payment_source };
+      const payload = { date: form.date, type: form.type, amount, category: form.category, account: form.account, note: cleanNote || 'Transaction', payment_source: form.payment_source };
       if (editId && !editId.startsWith('gen:')) {
         update.mutate({ id: editId, ...payload });
         toast.success('Transaction updated');

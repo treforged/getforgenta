@@ -13,6 +13,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X } from 'lucide-react';
 import PremiumGate from '@/components/shared/PremiumGate';
+import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { CarFund } from '@/lib/types';
@@ -798,6 +799,8 @@ export default function Vehicles() {
 
   const handleSaveSaving = () => {
     if (!savingForm.vehicle_name) return;
+    const { clean: cleanVehicleName, flagged: vNameFlagged } = filterProfanity(savingForm.vehicle_name.trim().slice(0, LIMITS.vehicleName));
+    if (vNameFlagged) toast.warning('Vehicle name contained inappropriate language and was cleaned.');
     const linkedAccount = savingForm.linked_account || null;
     const linkedRule = savingForm.linked_rule_id
       ? (rules as any[]).find((r: any) => r.id === savingForm.linked_rule_id)
@@ -806,7 +809,7 @@ export default function Vehicles() {
       ? Number(accountMap[linkedAccount].balance)
       : parseFloat(savingForm.current_saved) || 0;
     const payload = {
-      vehicle_name: savingForm.vehicle_name,
+      vehicle_name: cleanVehicleName,
       target_price: parseFloat(savingForm.target_price) || 0,
       tax_fees: parseFloat(savingForm.tax_fees) || 0,
       down_payment_goal: parseFloat(savingForm.down_payment_goal) || 0,
@@ -829,8 +832,9 @@ export default function Vehicles() {
 
   const handleSaveLoan = () => {
     if (!loanForm.vehicle_name || !loanForm.payment_start_date) return;
+    const { clean: cleanLoanVehicleName } = filterProfanity(loanForm.vehicle_name.trim().slice(0, LIMITS.vehicleName));
     const payload = {
-      vehicle_name: loanForm.vehicle_name,
+      vehicle_name: cleanLoanVehicleName,
       loan_amount: parseFloat(loanForm.loan_amount) || 0,
       expected_apr: parseFloat(loanForm.expected_apr) || 0,
       loan_term_months: parseInt(loanForm.loan_term_months) || 60,

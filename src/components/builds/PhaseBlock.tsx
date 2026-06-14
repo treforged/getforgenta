@@ -213,15 +213,15 @@ export default function PhaseBlock({
 
         {/* Title + subtitle */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-start gap-1.5">
             <button
               onClick={openTitleEdit}
-              className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-[#c8a84b] transition-all flex-shrink-0"
+              className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-[#c8a84b] transition-all flex-shrink-0 mt-0.5"
               title="Rename phase"
             >
               <Pencil size={12} />
             </button>
-            <span className="text-sm font-semibold uppercase tracking-wide text-foreground truncate">
+            <span className="text-sm font-semibold uppercase tracking-wide text-foreground break-words min-w-0">
               {phase.title}
             </span>
             {allDone && (
@@ -310,7 +310,7 @@ export default function PhaseBlock({
               {/* Item Row */}
               <div
                 className={cn(
-                  'flex items-center gap-2.5 px-4 py-3 border-b border-[#141414] hover:bg-[#0f0f0f] transition-colors',
+                  'flex items-start gap-2.5 px-4 py-3 border-b border-[#141414] hover:bg-[#0f0f0f] transition-colors',
                   item.completed && 'opacity-50',
                   dragItemId === item.id && 'opacity-40',
                 )}
@@ -352,7 +352,7 @@ export default function PhaseBlock({
                 <button
                   onClick={() => onToggleItem(item.id, !item.completed)}
                   className={cn(
-                    'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200',
+                    'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5',
                     item.completed
                       ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white'
                       : 'border-border bg-transparent hover:border-[#3a8a5a]',
@@ -362,13 +362,13 @@ export default function PhaseBlock({
                 </button>
 
                 {/* Item label */}
-                <div className="text-[13px] font-mono text-muted-foreground flex-shrink-0 w-7 text-center">
+                <div className="text-[13px] font-mono text-muted-foreground flex-shrink-0 w-7 text-center mt-0.5">
                   {itemLabel(phaseIndex, ii, items.length)}
                 </div>
 
                 {/* Name + brand + link */}
                 <div className="flex-1 min-w-0">
-                  <div className={cn('text-sm text-[#c8c2b8] leading-snug', item.completed && 'line-through')}>
+                  <div className={cn('text-sm text-[#c8c2b8] leading-snug break-words', item.completed && 'line-through')}>
                     {item.name}
                   </div>
                   {item.brand && (

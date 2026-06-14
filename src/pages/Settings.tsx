@@ -21,6 +21,7 @@ import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import { getDayName } from '@/lib/scheduling';
 import { supabase } from '@/integrations/supabase/client';
 import { tracedInvoke } from '@/lib/tracer';
+import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { emailChangeSchema, passwordChangeSchema } from '@/lib/schemas';
@@ -189,8 +190,12 @@ export default function SettingsPage() {
     const _cf = parseFloat(cashFloor); const cf = isNaN(_cf) ? 1000 : _cf;
     const pd = parseInt(paycheckDay);
 
+    const rawName = displayName.trim().slice(0, LIMITS.username);
+    const { clean: cleanName, flagged: nameFlagged } = filterProfanity(rawName);
+    if (nameFlagged) toast.warning('Display name contained inappropriate language and was cleaned.');
+
     update.mutate({
-      display_name: displayName,
+      display_name: cleanName,
       currency,
       weekly_gross_income: wgi,
       // FIX #11: Correctly compute gross_income based on frequency
