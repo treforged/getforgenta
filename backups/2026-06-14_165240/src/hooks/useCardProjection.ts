@@ -33,7 +33,6 @@ export interface CardProjectionResult {
   perCardPayments: { name: string; id: string; payments: number[] }[];
   perCardPaymentsScaled: { name: string; id: string; payments: number[] }[];
   monthlyRevolvingBalances: Map<string, number[]>;
-  monthlyBalances: Map<string, number[]>;
   perCardMinPayments: Map<string, number[]>;
   m0Income: number;
   m0Expenses: number;
@@ -950,7 +949,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         perCardPayments,
         perCardPaymentsScaled,
         monthlyRevolvingBalances: activeSim.monthlyRevolvingBalances,
-        monthlyBalances: activeSim.monthlyBalances,
         perCardMinPayments: activeSim.perCardMinPayments,
         m0Income,
         m0Expenses,

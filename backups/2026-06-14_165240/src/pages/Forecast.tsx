@@ -1387,7 +1387,7 @@ export default function Forecast() {
         displayDebtPayment: i === 0
           ? (cardProjectionData?.month0?.safeToPayTotal ?? (currentMonthRecommendedDebt?.safeToPayTotal ?? undefined))
           : undefined,
-        plannedDebtPayment: Math.round(monthDebtPayment),
+        plannedDebtPayment: cardProjectionData?.allPaymentTotals?.[i] ?? Math.round(monthDebtPayment),
 
         brokerageContrib: Math.round(xferBrokerageAmt),
         retireContrib: Math.round(b.paycheckRetireContrib + xferRetireAmt),
@@ -2294,16 +2294,11 @@ export default function Forecast() {
                       .map(card => ({
                         label: `  ${card.name}`,
                         value: (() => {
-                          // Detect revolving vs cycling via monthlyRevolvingBalances (> 0 = revolving).
-                          // For revolving cards: use monthlyBalances (= full endBal including new purchases
-                          // this month) so statement-preference cards like Prime Visa show the real balance,
-                          // not just the carry-over after stripping current-month charges.
-                          // For cycling cards: revBal is 0, fall back to data[i][name] which stores the
-                          // cycling statement balance (newPurchases) — matches accordion display.
+                          // Revolving cards: use monthlyRevolvingBalances (activeSim/sim2 — matches accordion).
+                          // Cycling cards: revBal is 0 (paid in full each month), fall back to
+                          // data[i][name] which stores newPurchases = current statement balance.
                           const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[absoluteI] ?? 0;
-                          const simBal = cardProjectionData?.monthlyBalances?.get(card.id)?.[absoluteI] ?? 0;
-                          const cyclingBal = cardProjectionData?.data[absoluteI]?.[card.name] ?? 0;
-                          const bal = revBal > 0 ? simBal : cyclingBal;
+                          const bal = revBal > 0 ? revBal : (cardProjectionData?.data[absoluteI]?.[card.name] ?? 0);
                           return bal > 0 ? formatCurrency(Math.round(bal), false) : '—';
                         })(),
                       })),
