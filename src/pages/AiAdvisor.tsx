@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { filterProfanity, LIMITS } from '@/lib/content-filter';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useTransactions, useDebts, useSavingsGoals, useAccounts, useRecurringRules, useCarFunds } from '@/hooks/useSupabaseData';
@@ -891,7 +893,9 @@ export default function AiAdvisor() {
   const handleConsentDecline = () => setConsentStatus('declined');
 
   const handleAsk = async (q?: string) => {
-    const finalQ = (q ?? question).trim();
+    const rawQ = (q ?? question).trim().slice(0, LIMITS.aiPrompt);
+    const { clean: finalQ, flagged: qFlagged } = filterProfanity(rawQ);
+    if (qFlagged) { toast.warning('Your message contained inappropriate language and was cleaned.'); }
 
     const now = Date.now();
     if (now - lastAskTime.current < COOLDOWN_MS) {

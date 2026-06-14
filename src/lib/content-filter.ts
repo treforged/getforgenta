@@ -32,12 +32,26 @@ const BLOCKED_DOMAIN_FRAGMENTS = [
 ];
 
 export const LIMITS = {
+  // Builds
   buildName: 60,
   buildNotes: 500,
   itemName: 100,
   itemBrand: 150,
   itemLink: 500,
   phaseTitle: 60,
+  // User identity
+  username: 40,
+  // AI
+  aiPrompt: 500,
+  // Financial records
+  goalName: 60,
+  vehicleName: 60,
+  ruleName: 60,
+  ruleNotes: 300,
+  transactionNote: 200,
+  planName: 60,
+  planNotes: 300,
+  debtName: 60,
 } as const;
 
 export function filterProfanity(text: string): { clean: string; flagged: boolean } {
