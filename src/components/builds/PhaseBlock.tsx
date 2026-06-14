@@ -166,6 +166,7 @@ export default function PhaseBlock({
       <div
         className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
         onClick={() => onSetExpanded(!isExpanded)}
+        onDragEnter={() => { if (dragItemId && !isExpanded) onSetExpanded(true); }}
       >
         {/* Drag handle (desktop) / Arrow buttons (mobile) */}
         {!isMobile ? (
