@@ -1,4 +1,4 @@
-import { Transaction, Debt, SavingsGoal, CarFund, Asset, Liability } from './types';
+import { Transaction, Debt, SavingsGoal, CarFund, Asset, Liability, CarBuild, CarBuildPhase, CarBuildItem } from './types';
 
 const now = new Date();
 const y = now.getFullYear();
@@ -238,7 +238,60 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
 export const demoAssets: Omit<Asset, 'id' | 'user_id' | 'created_at'>[] = [];
 
 // ── Demo Liabilities ───────────────────────────────────────
-// Modest student loan that contributes to early negative net worth.
+// Student loan + auto loan on the RAV4 contribute to the negative early net worth.
 export const demoLiabilities: Omit<Liability, 'id' | 'user_id' | 'created_at'>[] = [
-  { name: 'Student Loan', type: 'student_loan', balance: 8000, apr: 5.5, notes: 'Federal direct' },
+  { name: 'Student Loan',      type: 'student_loan', balance:  8000, apr: 5.5, notes: 'Federal direct' },
+  { name: 'Auto Loan — RAV4', type: 'auto_loan',     balance: 26500, apr: 6.4, notes: '2022 Toyota RAV4 — 60-month term, started Feb 2026' },
+];
+
+// ── Demo Car Builds ────────────────────────────────────────
+const DEMO_BUILD_ID = 'demo-build-1';
+const DEMO_PHASE_INT = 'demo-phase-int';
+const DEMO_PHASE_SUS = 'demo-phase-sus';
+const DEMO_PHASE_EXH = 'demo-phase-exh';
+const DEMO_PHASE_WRAP = 'demo-phase-wrap';
+const DEMO_PHASE_BLWR = 'demo-phase-blwr';
+
+export const demoCarBuilds: CarBuild[] = [
+  {
+    id: DEMO_BUILD_ID,
+    user_id: 'demo',
+    name: 'C5 Corvette Build',
+    year: 2003,
+    make: 'Chevrolet',
+    model: 'Corvette',
+    notes: 'Daily → weekend warrior. Midnight purple wrap, supercharger end-game.',
+    sort_order: 0,
+    share_token: null,
+    photos: null,
+    created_at: '',
+  },
+];
+
+export const demoCarBuildPhases: CarBuildPhase[] = [
+  { id: DEMO_PHASE_INT,  build_id: DEMO_BUILD_ID, user_id: 'demo', title: 'Interior & Electronics', sort_order: 0, hidden: false, created_at: '' },
+  { id: DEMO_PHASE_SUS,  build_id: DEMO_BUILD_ID, user_id: 'demo', title: 'Suspension',              sort_order: 1, hidden: false, created_at: '' },
+  { id: DEMO_PHASE_EXH,  build_id: DEMO_BUILD_ID, user_id: 'demo', title: 'Exhaust & Cooling',       sort_order: 2, hidden: false, created_at: '' },
+  { id: DEMO_PHASE_WRAP, build_id: DEMO_BUILD_ID, user_id: 'demo', title: 'Wrap',                    sort_order: 3, hidden: false, created_at: '' },
+  { id: DEMO_PHASE_BLWR, build_id: DEMO_BUILD_ID, user_id: 'demo', title: 'Supercharger',            sort_order: 4, hidden: false, created_at: '' },
+];
+
+export const demoCarBuildItems: CarBuildItem[] = [
+  // Interior & Electronics — mostly done
+  { id: 'demo-item-01', phase_id: DEMO_PHASE_INT, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Steering Wheel',          brand: 'Lowered Empire — Black Reaper Carbon Fiber', price:  220, link: null, completed: true,  sort_order: 0, created_at: '' },
+  { id: 'demo-item-02', phase_id: DEMO_PHASE_INT, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Wheel Hub',               brand: 'NRG SRK-170H',                               price:  103, link: null, completed: true,  sort_order: 1, created_at: '' },
+  { id: 'demo-item-03', phase_id: DEMO_PHASE_INT, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Wheel Quick Release',      brand: 'NRG SRK-200BK',                              price:  103, link: null, completed: true,  sort_order: 2, created_at: '' },
+  { id: 'demo-item-04', phase_id: DEMO_PHASE_INT, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Digital Media Receiver',   brand: 'Pioneer DMH-W3050NEX',                       price:  430, link: null, completed: true,  sort_order: 3, created_at: '' },
+  { id: 'demo-item-05', phase_id: DEMO_PHASE_INT, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Floor Mats',              brand: 'Lloyd Mats All-Weather Rubber',               price:  260, link: null, completed: true,  sort_order: 4, created_at: '' },
+  // Suspension — in progress
+  { id: 'demo-item-06', phase_id: DEMO_PHASE_SUS, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Coilovers',               brand: 'BC Racing BR Series',                         price: 1200, link: null, completed: true,  sort_order: 0, created_at: '' },
+  { id: 'demo-item-07', phase_id: DEMO_PHASE_SUS, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Adjustable Control Arms',  brand: null,                                          price: null, link: null, completed: false, sort_order: 1, created_at: '' },
+  { id: 'demo-item-08', phase_id: DEMO_PHASE_SUS, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Sway Bars + Poly Bushings', brand: null,                                         price: null, link: null, completed: false, sort_order: 2, created_at: '' },
+  // Exhaust & Cooling — pending
+  { id: 'demo-item-09', phase_id: DEMO_PHASE_EXH, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Axle-Back Exhaust',        brand: 'Corsa Sport Tigershark Black PVD',            price: 2214, link: null, completed: false, sort_order: 0, created_at: '' },
+  { id: 'demo-item-10', phase_id: DEMO_PHASE_EXH, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Radiator w/ Trans Cooler', brand: 'DeWitts',                                    price:  891, link: null, completed: false, sort_order: 1, created_at: '' },
+  // Wrap — planned
+  { id: 'demo-item-11', phase_id: DEMO_PHASE_WRAP, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Midnight Purple Full Wrap', brand: 'Professional Install',                      price: 2500, link: null, completed: false, sort_order: 0, created_at: '' },
+  // Supercharger — end-game
+  { id: 'demo-item-12', phase_id: DEMO_PHASE_BLWR, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'TVS2300 Supercharger Kit', brand: 'Magnuson',                                   price: 4300, link: null, completed: false, sort_order: 0, created_at: '' },
 ];
