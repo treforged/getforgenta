@@ -1,17 +1,14 @@
-import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from 'react';
+import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 import { Plus, Edit2, Trash2, ChevronDown, Share2, Copy, Check as CheckIcon, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { useAuth } from '@/contexts/AuthContext';
-import { useSubscription } from '@/hooks/useSubscription';
 import { useCarBuilds, useCarBuildPhases, useCarBuildItems } from '@/hooks/useSupabaseData';
 import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
 import PhaseBlock from '@/components/builds/PhaseBlock';
 import BuildFormModal from '@/components/builds/BuildFormModal';
-import BuildPhotoUploader from '@/components/builds/BuildPhotoUploader';
-import PremiumGate from '@/components/shared/PremiumGate';
 import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
 
 const SHARE_BASE = 'https://getforgenta.com';
@@ -31,7 +28,6 @@ function useIsMobile() {
 
 export default function Builds() {
   const { user } = useAuth();
-  const { isPremium } = useSubscription();
   const isMobile = useIsMobile();
 
   const { data: builds, loading: buildsLoading, add: addBuild, update: updateBuild, remove: removeBuild } = useCarBuilds();
@@ -78,40 +74,6 @@ export default function Builds() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingBuild, setEditingBuild] = useState<CarBuild | null>(null);
   const [formSaving, setFormSaving] = useState(false);
-
-  // Auto-scroll during drag
-  const scrollAnimRef = useRef<number | null>(null);
-  useEffect(() => {
-    function onDragOver(e: DragEvent) {
-      if (!dragItemIdRef.current && !dragPhaseIdRef.current) return;
-      const ZONE = 80;
-      const SPEED = 10;
-      const { clientY } = e;
-      const { innerHeight } = window;
-      if (scrollAnimRef.current) cancelAnimationFrame(scrollAnimRef.current);
-      if (clientY < ZONE) {
-        const speed = -SPEED * (1 - clientY / ZONE);
-        const step = () => { window.scrollBy(0, speed); scrollAnimRef.current = requestAnimationFrame(step); };
-        scrollAnimRef.current = requestAnimationFrame(step);
-      } else if (clientY > innerHeight - ZONE) {
-        const speed = SPEED * ((clientY - (innerHeight - ZONE)) / ZONE);
-        const step = () => { window.scrollBy(0, speed); scrollAnimRef.current = requestAnimationFrame(step); };
-        scrollAnimRef.current = requestAnimationFrame(step);
-      }
-    }
-    function stopScroll() {
-      if (scrollAnimRef.current) { cancelAnimationFrame(scrollAnimRef.current); scrollAnimRef.current = null; }
-    }
-    window.addEventListener('dragover', onDragOver);
-    window.addEventListener('dragend', stopScroll);
-    window.addEventListener('drop', stopScroll);
-    return () => {
-      window.removeEventListener('dragover', onDragOver);
-      window.removeEventListener('dragend', stopScroll);
-      window.removeEventListener('drop', stopScroll);
-      stopScroll();
-    };
-  }, []);
 
   // Drag refs (no state — avoid re-renders mid-drag)
   const dragPhaseIdRef = useRef<string | null>(null);
@@ -187,6 +149,7 @@ export default function Builds() {
   async function handleUpdateItem(id: string, data: Partial<CarBuildItem & { phase_id?: string }>) {
     setDragItemOrder(prev => (prev ?? items).map(it => it.id === id ? { ...it, ...data } : it));
     await updateItem.mutateAsync({ id, ...data });
+    setDragItemOrder(null);
   }
 
   async function handleDeleteItem(id: string) {
@@ -196,6 +159,7 @@ export default function Builds() {
   async function handleToggleItem(id: string, completed: boolean) {
     setDragItemOrder(prev => (prev ?? items).map(it => it.id === id ? { ...it, completed } : it));
     await updateItem.mutateAsync({ id, completed });
+    setDragItemOrder(null);
   }
 
   // ── Share ────────────────────────────────────────────────
@@ -326,26 +290,6 @@ export default function Builds() {
     dragItemIdRef.current = null;
     reorderItems.mutate(withOrders.map(it => ({ id: it.id, sort_order: it.sort_order, phase_id: it.phase_id })));
   }
-
-  // Drop after the last item in a phase (bottom drop zone)
-  const onItemDropAtEnd = useCallback((e: React.DragEvent, toPhaseId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const fromId = e.dataTransfer.getData('item-id');
-    if (!fromId) return;
-    const src = displayItems;
-    const fromItem = src.find(it => it.id === fromId);
-    if (!fromItem) return;
-    const without = src.filter(it => it.id !== fromId);
-    const lastIdx = without.reduce((acc, it, i) => it.phase_id === toPhaseId ? i : acc, -1);
-    without.splice(lastIdx + 1, 0, { ...fromItem, phase_id: toPhaseId });
-    const withOrders = without.map((it, i) => ({ ...it, sort_order: i }));
-    setDragItemOrder(withOrders);
-    setDraggingItemId(null);
-    setDragOverItemId(null);
-    dragItemIdRef.current = null;
-    reorderItems.mutate(withOrders.map(it => ({ id: it.id, sort_order: it.sort_order, phase_id: it.phase_id })));
-  }, [displayItems, reorderItems]);
 
   // ── Mobile arrow reorder ─────────────────────────────────
   function handleMovePhase(phaseId: string, direction: 'up' | 'down') {
@@ -499,26 +443,6 @@ export default function Builds() {
                   Disable
                 </button>
               </div>
-
-              {/* Photo upload — premium only */}
-              <div className="pt-3 border-t border-border">
-                <PremiumGate
-                  isPremium={isPremium}
-                  title="Build Photos"
-                  features={[
-                    'Attach up to 6 photos to your shared build',
-                    'Photos appear on your public share page',
-                    'JPEG, PNG, and WebP supported (max 5MB each)',
-                  ]}
-                >
-                  <BuildPhotoUploader
-                    buildId={activeBuild.id}
-                    userId={user!.id}
-                    photos={activeBuild.photos ?? []}
-                    onPhotosChange={photos => updateBuild.mutateAsync({ id: activeBuild.id, photos })}
-                  />
-                </PremiumGate>
-              </div>
             </>
           ) : (
             <>
@@ -597,7 +521,6 @@ export default function Builds() {
                       onItemDragOver={onItemDragOver}
                       onItemDragEnd={onItemDragEnd}
                       onItemDrop={onItemDrop}
-                      onItemDropAtEnd={onItemDropAtEnd}
                     />
                     {isPhaseTarget && phaseDropBelow && (
                       <div className="h-0.5 rounded mx-0.5 mt-1" style={{ background: '#c8a84b' }} />

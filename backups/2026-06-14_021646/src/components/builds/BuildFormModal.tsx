@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import { toast } from 'sonner';
-import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import type { CarBuild } from '@/lib/types';
 
 interface BuildFormModalProps {
@@ -36,16 +34,12 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { setNameError('Name is required'); return; }
-    const nameResult = filterProfanity(form.name.trim().slice(0, LIMITS.buildName));
-    const notesResult = filterProfanity(form.notes.trim().slice(0, LIMITS.buildNotes));
-    if (nameResult.flagged) toast.warning('Build name contained inappropriate language and was cleaned.');
-    if (notesResult.flagged) toast.warning('Notes contained inappropriate language and was cleaned.');
     onSave({
-      name: nameResult.clean,
+      name: form.name.trim(),
       year: form.year ? parseInt(form.year, 10) : null,
       make: form.make.trim() || null,
       model: form.model.trim() || null,
-      notes: notesResult.clean || null,
+      notes: form.notes.trim() || null,
     });
   }
 
@@ -70,12 +64,10 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
             <input
               className={`${inputCls}${nameError ? ' border-destructive' : ''}`}
               value={form.name}
-              maxLength={LIMITS.buildName}
               onChange={e => { setForm(f => ({ ...f, name: e.target.value })); setNameError(''); }}
               placeholder="e.g. 2004 C5 Corvette"
               autoFocus
             />
-            <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{form.name.length}/{LIMITS.buildName}</span>
             {nameError && <p className="text-xs text-destructive mt-1">{nameError}</p>}
           </div>
 
@@ -117,11 +109,9 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
               className={`${inputCls} resize-none`}
               rows={2}
               value={form.notes}
-              maxLength={LIMITS.buildNotes}
               onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
               placeholder="Optional notes about this build..."
             />
-            <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{form.notes.length}/{LIMITS.buildNotes}</span>
           </div>
 
           <div className="flex gap-2 pt-1">
