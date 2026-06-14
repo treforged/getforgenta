@@ -14,6 +14,7 @@ import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X } from 'lucide-react';
 import * as DebtEngine from '@/lib/credit-card-engine';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
@@ -426,8 +427,10 @@ export default function SavingsGoals() {
   const handleSave = () => {
     const target_amount = parseFloat(form.target_amount);
     if (!form.name || isNaN(target_amount)) return;
+    const { clean: cleanName, flagged: nameFlagged } = filterProfanity(form.name.trim().slice(0, LIMITS.goalName));
+    if (nameFlagged) toast.warning('Goal name contained inappropriate language and was cleaned.');
     const payload: any = {
-      name: form.name, target_amount, current_amount: parseFloat(form.current_amount) || 0,
+      name: cleanName, target_amount, current_amount: parseFloat(form.current_amount) || 0,
       monthly_contribution: parseFloat(form.monthly_contribution) || 0,
       target_date: form.target_date || null,
       linked_account: form.linked_account || null,

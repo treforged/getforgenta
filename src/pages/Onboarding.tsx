@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import {
   DollarSign, CreditCard, PiggyBank, Target, ChevronRight,
   ChevronLeft, Check, Crown, Zap, BarChart3, Shield, Loader2, Car, Fingerprint,
@@ -207,9 +208,13 @@ export default function Onboarding() {
       const _tr = parseFloat(data.taxRate); const tr = isNaN(_tr) ? 0 : _tr;
       const gross = data.paycheckFrequency === 'biweekly' ? wg * 26 / 12 : wg * 52 / 12;
 
+      const rawDisplayName = (data.displayName || user?.email?.split('@')[0] || 'User').slice(0, LIMITS.username);
+      const { clean: cleanDisplayName, flagged: nameFlagged } = filterProfanity(rawDisplayName);
+      if (nameFlagged) toast.warning('Display name contained inappropriate language and was cleaned.');
+
       const refCode = sessionStorage.getItem('forged:ref') || null;
       await supabase.from('profiles').update({
-        display_name: data.displayName || user?.email?.split('@')[0] || 'User',
+        display_name: cleanDisplayName,
         weekly_gross_income: wg,
         gross_income: gross,
         monthly_income_default: gross * (1 - tr / 100),
@@ -242,7 +247,7 @@ export default function Onboarding() {
         await supabase.from('debts').insert(
           validDebts.map(d => ({
             user_id: user!.id,
-            name: d.name,
+            name: filterProfanity(d.name.slice(0, LIMITS.debtName)).clean,
             balance: parseFloat(d.balance),
             apr: parseFloat(d.apr) || 0,
             min_payment: parseFloat(d.minPayment) || 0,
