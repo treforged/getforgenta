@@ -56,6 +56,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .from('plaid_items')
       .update({ last_synced_at: new Date().toISOString() })
       .eq('user_id', userId);
+
+    // Ensure the funding account never sits below the cash floor between sessions.
+    const { data: profile } = await (supabase as any)
+      .from('profiles')
+      .select('cash_floor, default_deposit_account')
+      .eq('user_id', userId)
+      .single();
+    const floor = profile?.cash_floor != null ? Number(profile.cash_floor) : 0;
+    if (floor > 0) {
+      // Resolve funding account: explicit default → first active checking account
+      let fundingId: string | null = profile?.default_deposit_account ?? null;
+      if (!fundingId) {
+        const { data: accounts } = await (supabase as any)
+          .from('accounts')
+          .select('id, balance, account_type')
+          .eq('user_id', userId)
+          .eq('active', true)
+          .order('created_at');
+        fundingId = (accounts as any[])?.find((a: any) => a.account_type === 'checking')?.id ?? null;
+      }
+      if (fundingId) {
+        const { data: account } = await (supabase as any)
+          .from('accounts')
+          .select('balance')
+          .eq('id', fundingId)
+          .eq('user_id', userId)
+          .single();
+        if (account != null && Number(account.balance) < floor) {
+          await (supabase as any)
+            .from('accounts')
+            .update({ balance: floor })
+            .eq('id', fundingId)
+            .eq('user_id', userId);
+        }
+      }
+    }
+
     localStorage.removeItem(`forged:onboarding_done_${userId}`);
     localStorage.removeItem('forged:tour_done_new_user');
     localStorage.removeItem('forged:tour_done_premium');
