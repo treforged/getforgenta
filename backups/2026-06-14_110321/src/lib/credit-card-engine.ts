@@ -1188,6 +1188,12 @@ function buildCurrentMonthRecommendationSummary(
   const fundBal = fundAcct ? Number(fundAcct.balance) : liquidCash;
   const { total: ppBills } = getPrePaycheckNextMonthBills(rules, pc, fundingAccountId);
 
+  // Include CC min payments in the default floor so it matches forecastFloor0.monthMinSafe.
+  // Car loans are not included here (no carFunds available), which is a minor approximation.
+  const ccFloor = cards
+    .filter(c => !c.autopayFullBalance && c.balance > 0 && c.minPayment > 0)
+    .reduce((s, c) => s + c.minPayment, 0);
+
   const revolving = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
   const primaryDueDay = revolving.length > 0
     ? Math.min(...revolving.map(c => c.dueDay || 31))
@@ -1195,7 +1201,7 @@ function buildCurrentMonthRecommendationSummary(
 
   return generateRecommendations(
     cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses + extraMonthlyExpenses,
-    'variable', pc, rules, fundingAccountId, safeMinimumOverride ?? ppBills, fundBal,
+    'variable', pc, rules, fundingAccountId, safeMinimumOverride ?? (ppBills + ccFloor), fundBal,
     undefined, undefined, transactions, primaryDueDay, monthlySavingsAndCar,
     syncCutoffDate,
   );
