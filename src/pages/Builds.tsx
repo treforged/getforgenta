@@ -131,6 +131,37 @@ export default function Builds() {
     });
   }
 
+  // Auto-expand phases during item drag
+  const autoExpandedByDragRef = useRef<string | null>(null);
+  const expandTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function onItemDragEnterPhase(phaseId: string) {
+    if (expandTimerRef.current) clearTimeout(expandTimerRef.current);
+    // Collapse the phase that was previously auto-expanded (if different from this one)
+    if (autoExpandedByDragRef.current && autoExpandedByDragRef.current !== phaseId) {
+      const prev = autoExpandedByDragRef.current;
+      autoExpandedByDragRef.current = null;
+      setExpandedPhaseIds(s => { const n = new Set(s); n.delete(prev); return n; });
+    }
+    // Schedule expand only if this phase isn't already open
+    expandTimerRef.current = setTimeout(() => {
+      setExpandedPhaseIds(s => {
+        if (s.has(phaseId)) return s;
+        autoExpandedByDragRef.current = phaseId;
+        return new Set([...s, phaseId]);
+      });
+    }, 400);
+  }
+
+  function clearDragExpandState() {
+    if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
+    if (autoExpandedByDragRef.current) {
+      const prev = autoExpandedByDragRef.current;
+      autoExpandedByDragRef.current = null;
+      setExpandedPhaseIds(s => { const n = new Set(s); n.delete(prev); return n; });
+    }
+  }
+
   // Drag refs (no state — avoid re-renders mid-drag)
   const dragPhaseIdRef = useRef<string | null>(null);
   const dragItemIdRef = useRef<string | null>(null);
@@ -333,6 +364,8 @@ export default function Builds() {
     setDraggingItemId(null);
     setDragOverItemId(null);
     setItemDropBelow(false);
+    // If drag was cancelled (no drop), collapse any phase we auto-expanded
+    clearDragExpandState();
   }
 
   function onItemDrop(e: React.DragEvent, toItemId: string, toPhaseId: string) {
@@ -353,6 +386,9 @@ export default function Builds() {
     setDragOverItemId(null);
     setItemDropBelow(false);
     dragItemIdRef.current = null;
+    // Clear timer and tracking — drop landed, don't collapse destination
+    if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
+    autoExpandedByDragRef.current = null;
     // If moved to a different phase, open destination and close everything else
     if (fromItem.phase_id !== toPhaseId) {
       setExpandedPhaseIds(new Set([toPhaseId]));
@@ -377,12 +413,13 @@ export default function Builds() {
     setDraggingItemId(null);
     setDragOverItemId(null);
     dragItemIdRef.current = null;
-    // Moving to a different phase — open destination, close everything else
+    if (expandTimerRef.current) { clearTimeout(expandTimerRef.current); expandTimerRef.current = null; }
+    autoExpandedByDragRef.current = null;
     if (fromItem.phase_id !== toPhaseId) {
       setExpandedPhaseIds(new Set([toPhaseId]));
     }
     reorderItems.mutate(withOrders.map(it => ({ id: it.id, sort_order: it.sort_order, phase_id: it.phase_id })));
-  }, [displayItems, reorderItems, expandedPhaseIds]);
+  }, [displayItems, reorderItems]);
 
   // ── Mobile arrow reorder ─────────────────────────────────
   function handleMovePhase(phaseId: string, direction: 'up' | 'down') {
@@ -616,6 +653,7 @@ export default function Builds() {
                       itemDropBelow={itemDropBelow}
                       isExpanded={expandedPhaseIds.has(ph.id)}
                       onSetExpanded={val => setPhaseExpanded(ph.id, val)}
+                      onItemDragEnterPhase={onItemDragEnterPhase}
                       onUpdatePhase={handleUpdatePhase}
                       onDeletePhase={handleDeletePhase}
                       onAddItem={handleAddItem}

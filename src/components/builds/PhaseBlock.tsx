@@ -52,6 +52,7 @@ interface PhaseBlockProps {
   onPhaseDrop: (e: React.DragEvent, phaseId: string) => void;
   isExpanded: boolean;
   onSetExpanded: (val: boolean) => void;
+  onItemDragEnterPhase: (phaseId: string) => void;
   onItemDragStart: (e: React.DragEvent, itemId: string) => void;
   onItemDragOver: (e: React.DragEvent, itemId: string, phaseId: string) => void;
   onItemDragEnd: () => void;
@@ -65,6 +66,7 @@ export default function PhaseBlock({
   onUpdatePhase, onDeletePhase, onAddItem, onUpdateItem, onDeleteItem, onToggleItem,
   onMovePhase, onMoveItemArrow,
   onPhaseDragStart, onPhaseDragOver, onPhaseDragEnd, onPhaseDrop,
+  onItemDragEnterPhase,
   onItemDragStart, onItemDragOver, onItemDragEnd, onItemDrop, onItemDropAtEnd,
   isExpanded, onSetExpanded,
 }: PhaseBlockProps) {
@@ -161,12 +163,16 @@ export default function PhaseBlock({
       )}
       onDragOver={e => !isMobile && onPhaseDragOver(e, phase.id)}
       onDrop={e => !isMobile && onPhaseDrop(e, phase.id)}
+      onDragEnter={e => {
+        if (!isMobile && dragItemId && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          onItemDragEnterPhase(phase.id);
+        }
+      }}
     >
       {/* Phase Header */}
       <div
         className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
         onClick={() => onSetExpanded(!isExpanded)}
-        onDragEnter={() => { if (dragItemId && !isExpanded) onSetExpanded(true); }}
       >
         {/* Drag handle (desktop) / Arrow buttons (mobile) */}
         {!isMobile ? (
