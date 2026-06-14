@@ -1229,9 +1229,15 @@ export default function Forecast() {
       const availableForRevolving = p3RevBal > 0
         ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - cyclingPayment - b.monthMinSafe))
         : 0;
-      // Save-up months: cap revolving at PASS 2's planned allocation (debtPayments[i] minus cycling)
-      // so cash accumulates for the upcoming large expense instead of being drained to the floor.
-      const revolvingCap = saveUpMonths.has(i)
+      // The CC engine (useCardProjection) marks save-up months when large cycling payments are
+      // upcoming — in those months the sim caps revolving payments at ccMinTotal. Respect that
+      // same set here so the Forecast's p3RevBal tracker evolves at the same rate as the engine,
+      // preventing the Forecast from "paying off" revolving debt faster than the sim and
+      // showing artificially high end cash while the accordion still shows the sim's minimum payment.
+      const ccEngSaveUp = cardProjectionData?.saveUpMonths?.has(i) ?? false;
+      // Save-up months (either Forecast PASS 2 or CC engine): cap revolving at minimum-ish so
+      // cash accumulates for the upcoming large expense instead of being drained to the floor.
+      const revolvingCap = (saveUpMonths.has(i) || ccEngSaveUp)
         ? Math.max(ccMinForMonth, debtPayments[i] - cyclingPayment)
         : availableForRevolving;
       const revolvingPayment = p3RevBal > 0 ? Math.min(simRevolvingPayment, Math.min(revolvingCap, availableForRevolving)) : 0;
@@ -1240,7 +1246,9 @@ export default function Forecast() {
 
       // Step 3: redirect surplus above floor to debt — capped at remaining p3RevBal so
       // surplus stops once CC debt is actually paid (not just when the CC sim thinks it is).
-      if (!saveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
+      // Skip surplus in save-up months (both Forecast PASS 2 and CC engine) so accumulated
+      // cash is preserved for the upcoming large cycling payment, not prematurely sent to debt.
+      if (!saveUpMonths.has(i) && !ccEngSaveUp && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
         const surplus = Math.min(finalLiquid - b.monthMinSafe, p3RevBal);
         monthDebtPayment += surplus;
         finalLiquid -= surplus;
@@ -2286,7 +2294,10 @@ export default function Forecast() {
                       .map(card => ({
                         label: `  ${card.name}`,
                         value: (() => {
-                          const bal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[absoluteI] ?? 0;
+                          // Use projection data[i][card.name] which captures both revolving
+                          // balances AND cycling card statement balances (newPurchases),
+                          // matching what the DebtPayoff accordion displays.
+                          const bal = cardProjectionData?.data[absoluteI]?.[card.name] ?? 0;
                           return bal > 0 ? formatCurrency(Math.round(bal), false) : '—';
                         })(),
                       })),
