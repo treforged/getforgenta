@@ -1244,12 +1244,12 @@ export default function Forecast() {
       monthDebtPayment = cyclingPayment + revolvingPayment;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
-      // Step 3: redirect surplus above floor to debt — capped at remaining p3RevBal so
-      // surplus stops once CC debt is actually paid (not just when the CC sim thinks it is).
-      // Skip surplus in save-up months (both Forecast PASS 2 and CC engine) so accumulated
-      // cash is preserved for the upcoming large cycling payment, not prematurely sent to debt.
-      if (!saveUpMonths.has(i) && !ccEngSaveUp && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
-        const surplus = Math.min(finalLiquid - b.monthMinSafe, p3RevBal);
+      // Step 3: redirect surplus above floor to debt — capped at remaining p3RevBal minus the
+      // regular revolving payment (both come out of the same balance this month) so we never
+      // over-pay in the final payoff month. Only skip in Forecast PASS 2 save-up months (cash
+      // one-time expenses / car DP); CC engine save-up months only govern revolvingCap above.
+      if (!saveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
+        const surplus = Math.min(finalLiquid - b.monthMinSafe, Math.max(0, p3RevBal - revolvingPayment));
         monthDebtPayment += surplus;
         finalLiquid -= surplus;
         p3RevBal = Math.max(0, p3RevBal - surplus);
@@ -2294,10 +2294,11 @@ export default function Forecast() {
                       .map(card => ({
                         label: `  ${card.name}`,
                         value: (() => {
-                          // Use projection data[i][card.name] which captures both revolving
-                          // balances AND cycling card statement balances (newPurchases),
-                          // matching what the DebtPayoff accordion displays.
-                          const bal = cardProjectionData?.data[absoluteI]?.[card.name] ?? 0;
+                          // Revolving cards: use monthlyRevolvingBalances (activeSim/sim2 — matches accordion).
+                          // Cycling cards: revBal is 0 (paid in full each month), fall back to
+                          // data[i][name] which stores newPurchases = current statement balance.
+                          const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[absoluteI] ?? 0;
+                          const bal = revBal > 0 ? revBal : (cardProjectionData?.data[absoluteI]?.[card.name] ?? 0);
                           return bal > 0 ? formatCurrency(Math.round(bal), false) : '—';
                         })(),
                       })),
