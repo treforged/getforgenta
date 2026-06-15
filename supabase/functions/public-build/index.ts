@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
 
   const { data: build, error: buildErr } = await supabase
     .from("car_builds")
-    .select("id, name, year, make, model, notes, user_id")
+    .select("id, name, year, make, model, notes, user_id, photos")
     .eq("share_token", token)
     .single();
 
