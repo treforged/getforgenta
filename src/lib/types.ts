@@ -178,7 +178,7 @@ export type CarBuildItem = {
   link: string | null;
   completed: boolean;
   sort_order: number;
-  payment_plan_id: string | null;
+  payment_plan_id?: string | null;
   created_at: string;
 };
 
