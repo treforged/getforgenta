@@ -1061,27 +1061,36 @@ export function useCarBuildItems(buildId: string | null) {
 }
 
 // ─── Public build by share token (no auth required) ──────────────────────────
+// Calls the `public-build` Edge Function instead of PostgREST directly.
+// The Edge Function validates the exact token server-side (service role) so
+// unauthenticated callers cannot enumerate builds or access any data without
+// knowing the precise share UUID.
+const SUPABASE_FUNCTIONS_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+
 export function usePublicBuild(shareToken: string | undefined) {
   const query = useQuery({
     queryKey: ['public_build', shareToken],
     enabled: !!shareToken,
     queryFn: async () => {
       if (!shareToken) return null;
-      const { data: build, error: buildErr } = await supabase
-        .from('car_builds' as any)
-        .select('*')
-        .eq('share_token', shareToken)
-        .single();
-      if (buildErr || !build) return null;
-
-      const [{ data: phases }, { data: items }, { data: profile }] = await Promise.all([
-        supabase.from('car_build_phases' as any).select('*').eq('build_id', (build as any).id).order('sort_order'),
-        supabase.from('car_build_items' as any).select('*').eq('build_id', (build as any).id).order('sort_order'),
-        supabase.from('profiles' as any).select('display_name').eq('user_id', (build as any).user_id).maybeSingle(),
-      ]);
-
-      const displayName: string | null = (profile as any)?.display_name ?? null;
-      return { build: build as any, phases: (phases ?? []) as any[], items: (items ?? []) as any[], displayName };
+      const res = await fetch(
+        `${SUPABASE_FUNCTIONS_URL}/public-build?token=${encodeURIComponent(shareToken)}`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': SUPABASE_PUBLISHABLE_KEY,
+            'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+          },
+        },
+      );
+      if (!res.ok) return null;
+      return res.json() as Promise<{
+        build: any;
+        phases: any[];
+        items: any[];
+        displayName: string | null;
+      }>;
     },
   });
 
