@@ -465,7 +465,7 @@ export function useTransactions() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string }) => {
+    mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string; car_build_item_id?: string | null }) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' }) as any);
       if (error) throw error;
