@@ -86,7 +86,7 @@ interface PhaseBlockProps {
   paymentSourceOptions: { value: string; label: string }[];
   onLinkTransaction: (itemId: string, prevTxId: string | null, newTxId: string | null) => Promise<void>;
   onCreateTransactionForItem: (itemId: string, prevTxId: string | null, tx: { date: string; amount: number; note: string; payment_source?: string }) => Promise<void>;
-  onUpdateLinkedTransaction: (txId: string, updates: { date: string; amount: number }) => Promise<void>;
+  onUpdateLinkedTransaction: (txId: string, updates: { date: string; amount: number; payment_source?: string }) => Promise<void>;
   onCreatePlanForItem: (itemId: string, plan: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
 }
 
@@ -211,7 +211,7 @@ export default function PhaseBlock({
         } else if (ed.linkedTransactionId) {
           const amount = parseFloat(ed.txAmount);
           if (ed.txDate && !isNaN(amount) && amount > 0) {
-            await onUpdateLinkedTransaction(ed.linkedTransactionId, { date: ed.txDate, amount });
+            await onUpdateLinkedTransaction(ed.linkedTransactionId, { date: ed.txDate, amount, payment_source: ed.txPaymentSource || undefined });
           }
           if (ed.linkedTransactionId !== prevTxId) {
             await onLinkTransaction(item.id, prevTxId, ed.linkedTransactionId);
@@ -537,6 +537,7 @@ export default function PhaseBlock({
                                         linkedTransactionId: txId,
                                         txDate: tx?.date ?? itemEdits[item.id].txDate,
                                         txAmount: tx ? String(tx.amount) : itemEdits[item.id].txAmount,
+                                        txPaymentSource: tx?.payment_source ?? itemEdits[item.id].txPaymentSource,
                                       });
                                     }}
                                   >
@@ -559,6 +560,13 @@ export default function PhaseBlock({
                                       <div>
                                         <label className={labelCls}>Amount ($)</label>
                                         <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} min="0" step="0.01" />
+                                      </div>
+                                      <div>
+                                        <label className={labelCls}>Payment Method</label>
+                                        <select className={inputCls} value={itemEdits[item.id].txPaymentSource} onChange={e => updateItemEdit(item.id, 'txPaymentSource', e.target.value)}>
+                                          <option value="">Unassigned</option>
+                                          {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                        </select>
                                       </div>
                                     </div>
                                   )}
