@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { filterProfanity, isSafeUrl, LIMITS } from '@/lib/content-filter';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
+import DateScrollPicker from '@/components/shared/DateScrollPicker';
 
 export const PHASE_COLORS = [
   '#c8a84b', '#ba4a4a', '#4a8cba', '#8a5ba3', '#3a8a5a',
@@ -33,6 +34,7 @@ interface ItemEditState {
   txDate: string;
   txAmount: string;
   txNote: string;
+  txPaymentSource: string;
   isNewTransaction: boolean;
   // plan
   linkedPlanId: string;
@@ -43,6 +45,7 @@ interface ItemEditState {
   newPlanFrequency: PlanFreq;
   newPlanStartDate: string;
   newPlanTotalPayments: string;
+  newPlanPaymentSource: string;
 }
 
 interface PhaseBlockProps {
@@ -80,8 +83,9 @@ interface PhaseBlockProps {
   onItemDropAtEnd: (e: React.DragEvent, phaseId: string) => void;
   paymentPlans: PaymentPlan[];
   transactions: any[];
+  paymentSourceOptions: { value: string; label: string }[];
   onLinkTransaction: (itemId: string, prevTxId: string | null, newTxId: string | null) => Promise<void>;
-  onCreateTransactionForItem: (itemId: string, prevTxId: string | null, tx: { date: string; amount: number; note: string }) => Promise<void>;
+  onCreateTransactionForItem: (itemId: string, prevTxId: string | null, tx: { date: string; amount: number; note: string; payment_source?: string }) => Promise<void>;
   onUpdateLinkedTransaction: (txId: string, updates: { date: string; amount: number }) => Promise<void>;
   onCreatePlanForItem: (itemId: string, plan: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
 }
@@ -95,7 +99,7 @@ export default function PhaseBlock({
   onItemDragEnterPhase,
   onItemDragStart, onItemDragOver, onItemDragEnd, onItemDrop, onItemDropAtEnd,
   isExpanded, onSetExpanded,
-  paymentPlans, transactions,
+  paymentPlans, transactions, paymentSourceOptions,
   onLinkTransaction, onCreateTransactionForItem, onUpdateLinkedTransaction, onCreatePlanForItem,
 }: PhaseBlockProps) {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -149,6 +153,7 @@ export default function PhaseBlock({
         txDate: linkedTx?.date ?? today,
         txAmount: linkedTx ? String(linkedTx.amount) : (item.price !== null ? String(item.price) : ''),
         txNote: linkedTx?.note ?? '',
+        txPaymentSource: linkedTx?.payment_source ?? '',
         isNewTransaction: false,
         linkedPlanId: item.payment_plan_id ?? '',
         isNewPlan: false,
@@ -158,6 +163,7 @@ export default function PhaseBlock({
         newPlanFrequency: 'monthly',
         newPlanStartDate: today,
         newPlanTotalPayments: '4',
+        newPlanPaymentSource: '',
       },
     }));
     setOpenItemEdit(item.id);
@@ -201,7 +207,7 @@ export default function PhaseBlock({
             toast.error('Date and amount are required');
             return;
           }
-          await onCreateTransactionForItem(item.id, prevTxId, { date: ed.txDate, amount, note: ed.txNote });
+          await onCreateTransactionForItem(item.id, prevTxId, { date: ed.txDate, amount, note: ed.txNote, payment_source: ed.txPaymentSource || undefined });
         } else if (ed.linkedTransactionId) {
           const amount = parseFloat(ed.txAmount);
           if (ed.txDate && !isNaN(amount) && amount > 0) {
@@ -231,7 +237,7 @@ export default function PhaseBlock({
             start_date: ed.newPlanStartDate,
             total_payments: totalPmts,
             category: 'Car',
-            payment_source: null,
+            payment_source: ed.newPlanPaymentSource || null,
             notes: null,
             active: true,
           });
@@ -545,10 +551,10 @@ export default function PhaseBlock({
                                       ))}
                                   </select>
                                   {itemEdits[item.id].linkedTransactionId && (
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-2">
                                       <div>
                                         <label className={labelCls}>Date</label>
-                                        <input type="date" className={inputCls} value={itemEdits[item.id].txDate} onChange={e => updateItemEdit(item.id, 'txDate', e.target.value)} />
+                                        <DateScrollPicker value={itemEdits[item.id].txDate} onChange={v => updateItemEdit(item.id, 'txDate', v)} />
                                       </div>
                                       <div>
                                         <label className={labelCls}>Amount ($)</label>
@@ -559,15 +565,20 @@ export default function PhaseBlock({
                                 </>
                               ) : (
                                 <div className="space-y-2">
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <label className={labelCls}>Date</label>
-                                      <input type="date" className={inputCls} value={itemEdits[item.id].txDate} onChange={e => updateItemEdit(item.id, 'txDate', e.target.value)} />
-                                    </div>
-                                    <div>
-                                      <label className={labelCls}>Amount ($)</label>
-                                      <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} placeholder="0.00" min="0" step="0.01" />
-                                    </div>
+                                  <div>
+                                    <label className={labelCls}>Date</label>
+                                    <DateScrollPicker value={itemEdits[item.id].txDate} onChange={v => updateItemEdit(item.id, 'txDate', v)} />
+                                  </div>
+                                  <div>
+                                    <label className={labelCls}>Amount ($)</label>
+                                    <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                                  </div>
+                                  <div>
+                                    <label className={labelCls}>Payment Method</label>
+                                    <select className={inputCls} value={itemEdits[item.id].txPaymentSource} onChange={e => updateItemEdit(item.id, 'txPaymentSource', e.target.value)}>
+                                      <option value="">Unassigned</option>
+                                      {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
                                   </div>
                                   <div>
                                     <label className={labelCls}>Note (optional)</label>
@@ -615,23 +626,28 @@ export default function PhaseBlock({
                                       <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].newPlanPayment} onChange={e => updateItemEdit(item.id, 'newPlanPayment', e.target.value)} placeholder="0.00" min="0" step="0.01" />
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-2 gap-2">
-                                    <div>
-                                      <label className={labelCls}>Frequency</label>
-                                      <select className={inputCls} value={itemEdits[item.id].newPlanFrequency} onChange={e => updateItemEdit(item.id, 'newPlanFrequency', e.target.value as PlanFreq)}>
-                                        <option value="weekly">Weekly</option>
-                                        <option value="biweekly">Biweekly</option>
-                                        <option value="monthly">Monthly</option>
-                                      </select>
-                                    </div>
-                                    <div>
-                                      <label className={labelCls}>Start Date</label>
-                                      <input type="date" className={inputCls} value={itemEdits[item.id].newPlanStartDate} onChange={e => updateItemEdit(item.id, 'newPlanStartDate', e.target.value)} />
-                                    </div>
+                                  <div>
+                                    <label className={labelCls}>Frequency</label>
+                                    <select className={inputCls} value={itemEdits[item.id].newPlanFrequency} onChange={e => updateItemEdit(item.id, 'newPlanFrequency', e.target.value as PlanFreq)}>
+                                      <option value="weekly">Weekly</option>
+                                      <option value="biweekly">Biweekly</option>
+                                      <option value="monthly">Monthly</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className={labelCls}>Start Date</label>
+                                    <DateScrollPicker value={itemEdits[item.id].newPlanStartDate} onChange={v => updateItemEdit(item.id, 'newPlanStartDate', v)} />
                                   </div>
                                   <div>
                                     <label className={labelCls}># Payments</label>
                                     <input type="number" className={inputCls} value={itemEdits[item.id].newPlanTotalPayments} onChange={e => updateItemEdit(item.id, 'newPlanTotalPayments', e.target.value)} placeholder="4" min="1" step="1" />
+                                  </div>
+                                  <div>
+                                    <label className={labelCls}>Payment Method</label>
+                                    <select className={inputCls} value={itemEdits[item.id].newPlanPaymentSource} onChange={e => updateItemEdit(item.id, 'newPlanPaymentSource', e.target.value)}>
+                                      <option value="">Unassigned</option>
+                                      {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                    </select>
                                   </div>
                                 </div>
                               )}
@@ -706,9 +722,11 @@ export default function PhaseBlock({
                   moveToPhaseId: phase.id,
                   linkMode: 'none',
                   linkedTransactionId: '', txDate: today, txAmount: '', txNote: '', isNewTransaction: false,
+                  txPaymentSource: '',
                   linkedPlanId: '', isNewPlan: false,
                   newPlanName: 'New Item', newPlanTotal: '', newPlanPayment: '',
                   newPlanFrequency: 'monthly', newPlanStartDate: today, newPlanTotalPayments: '4',
+                  newPlanPaymentSource: '',
                 },
               }));
               setOpenItemEdit(newId);

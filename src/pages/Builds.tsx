@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useCarBuilds, useCarBuildPhases, useCarBuildItems, usePaymentPlans, useTransactions } from '@/hooks/useSupabaseData';
+import { useCarBuilds, useCarBuildPhases, useCarBuildItems, usePaymentPlans, useTransactions, useAccounts } from '@/hooks/useSupabaseData';
 import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
 import PhaseBlock from '@/components/builds/PhaseBlock';
@@ -57,6 +57,22 @@ export default function Builds() {
   const { data: items, loading: itemsLoading, add: addItem, update: updateItem, remove: removeItem, reorder: reorderItems } = useCarBuildItems(resolvedBuildId);
   const { data: paymentPlans, add: addPaymentPlan } = usePaymentPlans();
   const { data: transactions, update: updateTransaction, add: addTransaction } = useTransactions();
+  const { data: accounts } = useAccounts();
+
+  const paymentSourceOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
+    (accounts ?? []).filter((a: any) => a.active).forEach((a: any) => {
+      const typeLabel = a.account_type === 'credit_card' ? 'Credit Card'
+        : a.account_type === 'high_yield_savings' ? 'HYS'
+        : a.account_type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+      opts.push({ value: `account:${a.id}`, label: `${a.name} (${typeLabel})` });
+    });
+    if (opts.length === 1) {
+      opts.push({ value: 'bank_account', label: 'Bank Account' });
+      opts.push({ value: 'credit_card', label: 'Credit Card' });
+    }
+    return opts;
+  }, [accounts]);
 
   // Optimistic order state — only used during/after drag before server confirms
   // null = use server data (phases/items from hooks)
@@ -273,7 +289,7 @@ export default function Builds() {
   async function handleCreateTransactionForItem(
     itemId: string,
     prevTxId: string | null,
-    tx: { date: string; amount: number; note: string },
+    tx: { date: string; amount: number; note: string; payment_source?: string },
   ) {
     if (prevTxId) {
       await updateTransaction.mutateAsync({ id: prevTxId, car_build_item_id: null });
@@ -285,6 +301,7 @@ export default function Builds() {
       category: 'Car',
       account: '',
       note: tx.note,
+      payment_source: tx.payment_source ?? null,
       car_build_item_id: itemId,
     } as any);
   }
@@ -726,6 +743,7 @@ export default function Builds() {
                       onItemDropAtEnd={onItemDropAtEnd}
                       paymentPlans={paymentPlans}
                       transactions={transactions}
+                      paymentSourceOptions={paymentSourceOptions}
                       onLinkTransaction={handleLinkTransaction}
                       onCreateTransactionForItem={handleCreateTransactionForItem}
                       onUpdateLinkedTransaction={handleUpdateLinkedTransaction}
