@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { filterProfanity, isSafeUrl, LIMITS } from '@/lib/content-filter';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
+import type { PaymentPlan } from '@/lib/payment-plan-generator';
 
 
 export const PHASE_COLORS = [
@@ -23,6 +24,8 @@ interface ItemEditState {
   price: string;
   link: string;
   moveToPhaseId: string;
+  paymentPlanId: string;
+  linkedTransactionId: string;
 }
 
 interface PhaseBlockProps {
@@ -58,6 +61,9 @@ interface PhaseBlockProps {
   onItemDragEnd: () => void;
   onItemDrop: (e: React.DragEvent, itemId: string, phaseId: string) => void;
   onItemDropAtEnd: (e: React.DragEvent, phaseId: string) => void;
+  paymentPlans: PaymentPlan[];
+  transactions: any[];
+  onLinkTransaction: (itemId: string, prevTransactionId: string | null, newTransactionId: string | null) => void;
 }
 
 export default function PhaseBlock({
@@ -69,6 +75,7 @@ export default function PhaseBlock({
   onItemDragEnterPhase,
   onItemDragStart, onItemDragOver, onItemDragEnd, onItemDrop, onItemDropAtEnd,
   isExpanded, onSetExpanded,
+  paymentPlans, transactions, onLinkTransaction,
 }: PhaseBlockProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(phase.title);
@@ -112,6 +119,8 @@ export default function PhaseBlock({
         price: item.price !== null ? String(item.price) : '',
         link: item.link ?? '',
         moveToPhaseId: item.phase_id,
+        paymentPlanId: item.payment_plan_id ?? '',
+        linkedTransactionId: transactions.find((t: any) => t.car_build_item_id === item.id)?.id ?? '',
       },
     }));
     setOpenItemEdit(item.id);
@@ -138,10 +147,18 @@ export default function PhaseBlock({
       brand: brandResult.clean || null,
       price: parsedPrice !== null && !isNaN(parsedPrice) ? parsedPrice : null,
       link: ed.link.trim() ? ed.link.trim().slice(0, LIMITS.itemLink) : null,
+      payment_plan_id: ed.paymentPlanId || null,
     };
     if (ed.moveToPhaseId !== item.phase_id) {
       updates.phase_id = ed.moveToPhaseId;
     }
+
+    const prevLinkedTxId = transactions.find((t: any) => t.car_build_item_id === item.id)?.id ?? null;
+    const newLinkedTxId = ed.linkedTransactionId || null;
+    if (newLinkedTxId !== prevLinkedTxId) {
+      onLinkTransaction(item.id, prevLinkedTxId, newLinkedTxId);
+    }
+
     onUpdateItem(item.id, updates);
     setOpenItemEdit(null);
   }
@@ -213,7 +230,7 @@ export default function PhaseBlock({
 
         {/* Title + subtitle */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-1.5">
+          <div className="flex items-start gap-1.5 min-w-0">
             <button
               onClick={openTitleEdit}
               className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-[#c8a84b] transition-all flex-shrink-0 mt-0.5"
@@ -221,18 +238,20 @@ export default function PhaseBlock({
             >
               <Pencil size={12} />
             </button>
-            <span className="text-sm font-semibold uppercase tracking-wide text-foreground break-words min-w-0">
+            <span className="text-sm font-semibold uppercase tracking-wide text-foreground break-words flex-1 min-w-0">
               {phase.title}
             </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
             {allDone && (
-              <span className="ml-1 text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
+              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
                 style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>
                 ✓ Done
               </span>
             )}
-          </div>
-          <div className="text-[12px] font-mono text-muted-foreground mt-0.5">
-            {phase.hidden ? `planned · ${subtitle}` : subtitle}
+            <span className="text-[12px] font-mono text-muted-foreground">
+              {phase.hidden ? `planned · ${subtitle}` : subtitle}
+            </span>
           </div>
         </div>
 
@@ -374,6 +393,20 @@ export default function PhaseBlock({
                   {item.brand && (
                     <div className="text-[12px] font-mono text-muted-foreground mt-0.5 break-words">{item.brand}</div>
                   )}
+                  {(item.payment_plan_id || transactions.some((t: any) => t.car_build_item_id === item.id)) && (
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      {item.payment_plan_id && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#c8a84b]/40 text-[#c8a84b]/80">
+                          {paymentPlans.find(p => p.id === item.payment_plan_id)?.name ?? 'Payment Plan'}
+                        </span>
+                      )}
+                      {transactions.some((t: any) => t.car_build_item_id === item.id) && (
+                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-green-700/40 text-green-500/80">
+                          ✓ tx
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {item.link && (
                     <a
                       href={item.link}
@@ -464,6 +497,39 @@ export default function PhaseBlock({
                           {allPhases.map((ph, i) => (
                             <option key={ph.id} value={ph.id}>{i + 1}. {ph.title}</option>
                           ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Payment Plan (optional)</label>
+                        <select
+                          className={inputCls}
+                          value={itemEdits[item.id].paymentPlanId}
+                          onChange={e => updateItemEdit(item.id, 'paymentPlanId', e.target.value)}
+                        >
+                          <option value="">None</option>
+                          {paymentPlans.filter(p => p.active).map(p => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} — ${p.total_amount.toLocaleString()} ({p.total_payments}× ${p.payment_amount})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Linked Transaction (optional)</label>
+                        <select
+                          className={inputCls}
+                          value={itemEdits[item.id].linkedTransactionId}
+                          onChange={e => updateItemEdit(item.id, 'linkedTransactionId', e.target.value)}
+                        >
+                          <option value="">None</option>
+                          {transactions
+                            .filter((t: any) => t.type === 'expense')
+                            .slice(0, 100)
+                            .map((t: any) => (
+                              <option key={t.id} value={t.id}>
+                                {t.date} · ${Number(t.amount).toLocaleString()} · {t.note || t.category}
+                              </option>
+                            ))}
                         </select>
                       </div>
                     </div>

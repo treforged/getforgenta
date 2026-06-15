@@ -8,6 +8,7 @@ export type Transaction = {
   account: string;
   note: string;
   payment_source?: string;
+  car_build_item_id?: string | null;
   created_at: string;
 };
 
@@ -177,6 +178,7 @@ export type CarBuildItem = {
   link: string | null;
   completed: boolean;
   sort_order: number;
+  payment_plan_id: string | null;
   created_at: string;
 };
 
