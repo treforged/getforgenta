@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { X, Info, Check, Loader2 } from 'lucide-react';
+import DateScrollPicker from './DateScrollPicker';
 
 type Field = {
   key: string;
@@ -8,6 +9,7 @@ type Field = {
   placeholder?: string;
   options?: { value: string; label: string }[];
   required?: boolean;
+  clearable?: boolean;
   step?: string;
   disabled?: boolean;
   hint?: string;
@@ -73,6 +75,26 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                   {f.required && <option value="" disabled>{f.placeholder || 'Select…'}</option>}
                   {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
+              ) : f.type === 'date' ? (
+                <div className="mt-1">
+                  {!values[f.key] ? (
+                    <button type="button"
+                      onClick={() => onChange(f.key, new Date().toISOString().split('T')[0])}
+                      className="text-xs text-primary hover:text-primary/80 py-1">
+                      + Set date
+                    </button>
+                  ) : (
+                    <div className="space-y-1">
+                      <DateScrollPicker value={values[f.key]} onChange={v => onChange(f.key, v)} />
+                      {f.clearable && (
+                        <button type="button" onClick={() => onChange(f.key, '')}
+                          className="text-[10px] text-muted-foreground hover:text-foreground">
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <input
                   type={f.type}
@@ -81,7 +103,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                   onChange={e => !f.disabled && onChange(f.key, e.target.value)}
                   readOnly={f.disabled}
                   className={`w-full mt-1 bg-secondary border border-border px-3 py-3 text-sm text-foreground ${f.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  style={{ borderRadius: 'var(--radius)', ...(f.type === 'date' ? { colorScheme: 'dark' } : {}) }}
+                  style={{ borderRadius: 'var(--radius)' }}
                   placeholder={f.placeholder}
                 />
               )}

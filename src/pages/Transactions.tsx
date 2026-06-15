@@ -9,6 +9,7 @@ import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/
 import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
+import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
@@ -437,8 +438,12 @@ export default function Transactions() {
     if (!totalAmt || totalAmt <= 0) { toast.error('Total amount must be greater than 0'); return; }
     if (!payAmt || payAmt <= 0) { toast.error('Payment amount must be greater than 0'); return; }
     if (!totalPay || totalPay <= 0) { toast.error('Number of payments must be at least 1'); return; }
+    const { clean: cleanName, flagged: nameFlagged } = filterProfanity(planForm.name.trim().slice(0, LIMITS.planName));
+    if (nameFlagged) toast.warning('Plan name contained inappropriate language and was cleaned.');
+    const { clean: cleanNotes, flagged: notesFlagged } = filterProfanity(planForm.notes.trim().slice(0, LIMITS.planNotes));
+    if (notesFlagged) toast.warning('Notes contained inappropriate language and was cleaned.');
     const payload = {
-      name: planForm.name.trim(),
+      name: cleanName,
       provider: planForm.provider.trim() || null,
       total_amount: totalAmt,
       payment_amount: payAmt,
@@ -447,7 +452,7 @@ export default function Transactions() {
       total_payments: totalPay,
       category: planForm.category,
       payment_source: planForm.payment_source || null,
-      notes: planForm.notes.trim() || null,
+      notes: cleanNotes || null,
       active: true,
     };
     if (editPlanId) {
@@ -941,13 +946,7 @@ export default function Transactions() {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">First Payment Date *</label>
-                <input
-                  type="date"
-                  value={planForm.start_date}
-                  onChange={e => setPlanForm(p => ({ ...p, start_date: e.target.value }))}
-                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
-                  style={{ borderRadius: 'var(--radius)' }}
-                />
+                <DateScrollPicker value={planForm.start_date} onChange={v => setPlanForm(p => ({ ...p, start_date: v }))} />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Category</label>

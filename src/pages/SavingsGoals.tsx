@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router-dom';
@@ -10,7 +11,7 @@ import ProgressBar from '@/components/shared/ProgressBar';
 import FormModal from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-react';
 import * as DebtEngine from '@/lib/credit-card-engine';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -24,6 +25,90 @@ const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_con
 
 type GoalLumpSum = { id: string; date: string; amount: number };
 
+function GoalLumpSumModal({
+  mode, initialDate, initialAmount, projectedBalanceAt, liquidCash, onSave, onClose,
+}: {
+  mode: 'add' | 'edit';
+  initialDate: string;
+  initialAmount: string;
+  projectedBalanceAt: (date: string) => number;
+  liquidCash: number;
+  onSave: (date: string, amount: number) => void;
+  onClose: () => void;
+}) {
+  const [date, setDate] = useState(initialDate);
+  const [amount, setAmount] = useState(initialAmount);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  const proj = date ? projectedBalanceAt(date) : null;
+  const canSave = !!date && parseFloat(amount) > 0;
+
+  const handleSave = () => {
+    const amt = parseFloat(amount);
+    if (!date || !amt || amt <= 0) return;
+    onSave(date, amt);
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
+      style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
+      onClick={onClose}
+    >
+      <div
+        className="card-forged w-full sm:max-w-md flex flex-col rounded-t-[var(--radius)] rounded-b-none sm:rounded-b-[var(--radius)]"
+        style={{ maxHeight: 'calc(88dvh - env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0">
+          <h2 className="font-display font-semibold text-sm">{mode === 'add' ? 'Add Contribution' : 'Edit Contribution'}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-4 pb-2 popup-scroll" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Date</p>
+            <DateScrollPicker value={date} onChange={setDate} />
+          </div>
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
+            <input
+              type="number"
+              placeholder="0.00"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              className="w-full bg-secondary border border-border px-3 py-3 text-sm text-foreground"
+              style={{ borderRadius: 'var(--radius)' }}
+            />
+          </div>
+          {date && proj !== null && (
+            <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
+              <span>Goal balance at date: <span className="text-foreground font-medium">{formatCurrency(proj, false)}</span></span>
+              <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash, false)}</span></span>
+            </div>
+          )}
+        </div>
+        <div className="px-4 sm:px-6 pt-3 pb-5 sm:pb-6 shrink-0 border-t border-border mt-1">
+          <button
+            onClick={handleSave}
+            disabled={!canSave}
+            className="w-full bg-primary text-primary-foreground py-3.5 text-sm font-semibold btn-press disabled:opacity-50 flex items-center justify-center gap-2"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            <Check size={14} />
+            {mode === 'add' ? 'Add Contribution' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GoalLumpSumPanel({
   lumpSums, onSave, liquidCash, currentAmount, monthlyContrib, isRothIra, apyRate = 0,
 }: {
@@ -35,12 +120,7 @@ function GoalLumpSumPanel({
   isRothIra?: boolean;
   apyRate?: number;
 }) {
-  const [adding, setAdding] = useState(false);
-  const [newDate, setNewDate] = useState('');
-  const [newAmount, setNewAmount] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editDate, setEditDate] = useState('');
-  const [editAmount, setEditAmount] = useState('');
+  const [modal, setModal] = useState<null | { mode: 'add' } | { mode: 'edit'; id: string; date: string; amount: string }>(null);
 
   const projectedBalanceAt = (dateStr: string) => {
     const today = new Date();
@@ -60,57 +140,38 @@ function GoalLumpSumPanel({
     }, {} as Record<number, number>);
   }, [lumpSums, isRothIra]);
 
-  const handleAdd = () => {
-    const amount = parseFloat(newAmount);
-    if (!newDate || !amount || amount <= 0) return;
+  const handleModalSave = (date: string, amount: number) => {
+    if (!modal) return;
     if (isRothIra) {
-      const yr = parseInt(newDate.substring(0, 4), 10);
-      if ((rothByYear[yr] || 0) + amount > ROTH_IRA_LIMIT) {
-        toast.error(`Exceeds $${ROTH_IRA_LIMIT.toLocaleString()} Roth IRA limit for ${yr}`);
-        return;
+      const yr = parseInt(date.substring(0, 4), 10);
+      let otherTotal: number;
+      if (modal.mode === 'edit') {
+        otherTotal = lumpSums.filter(ls => ls.id !== modal.id && ls.date.substring(0, 4) === String(yr)).reduce((s, ls) => s + ls.amount, 0);
+      } else {
+        otherTotal = rothByYear[yr] || 0;
       }
-    }
-    onSave([...lumpSums, { id: crypto.randomUUID(), date: newDate, amount }]);
-    setNewDate(''); setNewAmount(''); setAdding(false);
-  };
-
-  const handleSaveEdit = (id: string) => {
-    const amount = parseFloat(editAmount);
-    if (!editDate || !amount || amount <= 0) return;
-    if (isRothIra) {
-      const yr = parseInt(editDate.substring(0, 4), 10);
-      const otherTotal = lumpSums.filter(ls => ls.id !== id && ls.date.substring(0, 4) === String(yr)).reduce((s, ls) => s + ls.amount, 0);
       if (otherTotal + amount > ROTH_IRA_LIMIT) {
         toast.error(`Exceeds $${ROTH_IRA_LIMIT.toLocaleString()} Roth IRA limit for ${yr}`);
         return;
       }
     }
-    onSave(lumpSums.map(ls => ls.id === id ? { ...ls, date: editDate, amount } : ls));
-    setEditingId(null);
+    if (modal.mode === 'add') {
+      onSave([...lumpSums, { id: crypto.randomUUID(), date, amount }]);
+    } else {
+      onSave(lumpSums.map(ls => ls.id === modal.id ? { ...ls, date, amount } : ls));
+    }
+    setModal(null);
   };
 
   const handleRemove = (id: string) => onSave(lumpSums.filter(ls => ls.id !== id));
-
-  const DatePreview = ({ dateStr }: { dateStr: string }) => {
-    if (!dateStr) return null;
-    const proj = projectedBalanceAt(dateStr);
-    return (
-      <div className="basis-full pt-1.5 flex flex-wrap gap-4 text-[10px] text-muted-foreground border-t border-border/20">
-        <span>Goal balance at date: <span className="text-foreground font-medium">{formatCurrency(proj, false)}</span></span>
-        <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash, false)}</span></span>
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-2 border-t border-border/30 pt-3 mt-1">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">Planned Contributions</span>
-        {!adding && (
-          <button onClick={() => setAdding(true)} className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80">
-            <Plus size={10} /> Add
-          </button>
-        )}
+        <button onClick={() => setModal({ mode: 'add' })} className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80">
+          <Plus size={10} /> Add
+        </button>
       </div>
 
       {isRothIra && Object.keys(rothByYear).length > 0 && (
@@ -137,31 +198,7 @@ function GoalLumpSumPanel({
         </div>
       )}
 
-      {adding && (
-        <div className="flex flex-wrap gap-2 items-end p-2 bg-secondary/30 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
-          <div className="space-y-0.5">
-            <p className="text-[10px] text-muted-foreground">Date</p>
-            <input type="date" value={newDate} onChange={e => setNewDate(e.target.value)}
-              className="bg-secondary border border-border text-sm text-foreground px-2 py-1.5"
-              style={{ borderRadius: 'var(--radius)', colorScheme: 'dark' }} />
-          </div>
-          <div className="space-y-0.5">
-            <p className="text-[10px] text-muted-foreground">Amount</p>
-            <input type="number" placeholder="0" value={newAmount} onChange={e => setNewAmount(e.target.value)}
-              className="w-28 bg-background border border-border text-xs px-2 py-1"
-              style={{ borderRadius: 'var(--radius)' }} />
-          </div>
-          <div className="flex gap-1">
-            <button onClick={() => { setAdding(false); setNewDate(''); setNewAmount(''); }}
-              className="text-[10px] px-2 py-1.5 border border-border hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
-            <button onClick={handleAdd}
-              className="text-[10px] px-2 py-1.5 bg-primary text-primary-foreground" style={{ borderRadius: 'var(--radius)' }}>Add</button>
-          </div>
-          <DatePreview dateStr={newDate} />
-        </div>
-      )}
-
-      {lumpSums.length === 0 && !adding && (
+      {lumpSums.length === 0 && (
         <p className="text-[10px] text-muted-foreground">No planned contributions yet.</p>
       )}
 
@@ -169,29 +206,6 @@ function GoalLumpSumPanel({
         <div className="space-y-1">
           {[...lumpSums].sort((a, b) => a.date.localeCompare(b.date)).map(ls => {
             const dateLabel = new Date(ls.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            if (editingId === ls.id) {
-              return (
-                <div key={ls.id} className="flex flex-wrap gap-2 items-end p-2 bg-secondary/30 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] text-muted-foreground">Date</p>
-                    <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)}
-                      className="bg-secondary border border-border text-sm text-foreground px-2 py-1.5"
-                      style={{ borderRadius: 'var(--radius)', colorScheme: 'dark' }} />
-                  </div>
-                  <div className="space-y-0.5">
-                    <p className="text-[10px] text-muted-foreground">Amount</p>
-                    <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)}
-                      className="w-28 bg-background border border-border text-xs px-2 py-1"
-                      style={{ borderRadius: 'var(--radius)' }} />
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => setEditingId(null)} className="text-[10px] px-2 py-1.5 border border-border hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
-                    <button onClick={() => handleSaveEdit(ls.id)} className="text-[10px] px-2 py-1.5 bg-primary text-primary-foreground" style={{ borderRadius: 'var(--radius)' }}>Save</button>
-                  </div>
-                  <DatePreview dateStr={editDate} />
-                </div>
-              );
-            }
             return (
               <div key={ls.id} className="flex items-center justify-between py-1 px-2 bg-secondary/20 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="flex items-center gap-2">
@@ -199,7 +213,7 @@ function GoalLumpSumPanel({
                   <span className="text-[10px] text-primary font-semibold">{formatCurrency(ls.amount, false)}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <button onClick={() => { setEditingId(ls.id); setEditDate(ls.date); setEditAmount(String(ls.amount)); setAdding(false); }}
+                  <button onClick={() => setModal({ mode: 'edit', id: ls.id, date: ls.date, amount: String(ls.amount) })}
                     className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
                   <button onClick={() => handleRemove(ls.id)} className="text-muted-foreground hover:text-destructive"><X size={11} /></button>
                 </div>
@@ -207,6 +221,19 @@ function GoalLumpSumPanel({
             );
           })}
         </div>
+      )}
+
+      {modal && (
+        <GoalLumpSumModal
+          key={modal.mode === 'edit' ? modal.id : 'add'}
+          mode={modal.mode}
+          initialDate={modal.mode === 'edit' ? modal.date : ''}
+          initialAmount={modal.mode === 'edit' ? modal.amount : ''}
+          projectedBalanceAt={projectedBalanceAt}
+          liquidCash={liquidCash}
+          onSave={handleModalSave}
+          onClose={() => setModal(null)}
+        />
       )}
     </div>
   );

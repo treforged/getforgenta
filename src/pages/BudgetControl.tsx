@@ -719,8 +719,8 @@ export default function BudgetControl() {
     }
     fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
     
-    fields.push({ key: 'start_date', label: form.rule_type === 'income' ? 'Start Date (required)' : 'Start Date (optional)', type: 'date', ...(form.rule_type === 'income' ? { required: true } : {}) });
-    fields.push({ key: 'end_date', label: 'End Date (optional)', type: 'date' });
+    fields.push({ key: 'start_date', label: form.rule_type === 'income' ? 'Start Date (required)' : 'Start Date (optional)', type: 'date', ...(form.rule_type === 'income' ? { required: true } : { clearable: true }) });
+    fields.push({ key: 'end_date', label: 'End Date (optional)', type: 'date', clearable: true });
 
     if (form.rule_type === 'income') {
       fields.push({ key: 'deposit_account', label: 'Deposit Into', type: 'select', options: depositAccountOptions });
