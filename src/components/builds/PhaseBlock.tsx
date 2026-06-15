@@ -6,7 +6,6 @@ import { filterProfanity, isSafeUrl, LIMITS } from '@/lib/content-filter';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
 
-
 export const PHASE_COLORS = [
   '#c8a84b', '#ba4a4a', '#4a8cba', '#8a5ba3', '#3a8a5a',
   '#c87a3a', '#8aaa3a', '#5a7ab8', '#c84b8a', '#4bb8c8',
@@ -18,14 +17,32 @@ function itemLabel(phaseIndex: number, itemIndex: number, total: number): string
   return `${phaseIndex + 1}${String.fromCharCode(97 + itemIndex)}`;
 }
 
+type LinkMode = 'none' | 'transaction' | 'plan';
+type PlanFreq = 'weekly' | 'biweekly' | 'monthly';
+
 interface ItemEditState {
   name: string;
   brand: string;
   price: string;
   link: string;
   moveToPhaseId: string;
-  paymentPlanId: string;
+  // financing
+  linkMode: LinkMode;
+  // transaction
   linkedTransactionId: string;
+  txDate: string;
+  txAmount: string;
+  txNote: string;
+  isNewTransaction: boolean;
+  // plan
+  linkedPlanId: string;
+  isNewPlan: boolean;
+  newPlanName: string;
+  newPlanTotal: string;
+  newPlanPayment: string;
+  newPlanFrequency: PlanFreq;
+  newPlanStartDate: string;
+  newPlanTotalPayments: string;
 }
 
 interface PhaseBlockProps {
@@ -63,7 +80,10 @@ interface PhaseBlockProps {
   onItemDropAtEnd: (e: React.DragEvent, phaseId: string) => void;
   paymentPlans: PaymentPlan[];
   transactions: any[];
-  onLinkTransaction: (itemId: string, prevTransactionId: string | null, newTransactionId: string | null) => void;
+  onLinkTransaction: (itemId: string, prevTxId: string | null, newTxId: string | null) => Promise<void>;
+  onCreateTransactionForItem: (itemId: string, prevTxId: string | null, tx: { date: string; amount: number; note: string }) => Promise<void>;
+  onUpdateLinkedTransaction: (txId: string, updates: { date: string; amount: number }) => Promise<void>;
+  onCreatePlanForItem: (itemId: string, plan: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'>) => Promise<void>;
 }
 
 export default function PhaseBlock({
@@ -75,13 +95,15 @@ export default function PhaseBlock({
   onItemDragEnterPhase,
   onItemDragStart, onItemDragOver, onItemDragEnd, onItemDrop, onItemDropAtEnd,
   isExpanded, onSetExpanded,
-  paymentPlans, transactions, onLinkTransaction,
+  paymentPlans, transactions,
+  onLinkTransaction, onCreateTransactionForItem, onUpdateLinkedTransaction, onCreatePlanForItem,
 }: PhaseBlockProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleInput, setTitleInput] = useState(phase.title);
   const [openItemEdit, setOpenItemEdit] = useState<string | null>(null);
   const [itemEdits, setItemEdits] = useState<Record<string, ItemEditState>>({});
   const [dragOverBottom, setDragOverBottom] = useState(false);
+  const [savingItemId, setSavingItemId] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const color = PHASE_COLORS[phaseIndex % PHASE_COLORS.length];
@@ -111,6 +133,9 @@ export default function PhaseBlock({
   function openItemEditPanel(item: CarBuildItem, e: React.MouseEvent) {
     e.stopPropagation();
     if (openItemEdit === item.id) { setOpenItemEdit(null); return; }
+    const linkedTx = transactions.find((t: any) => t.car_build_item_id === item.id);
+    const today = new Date().toISOString().split('T')[0];
+    const mode: LinkMode = linkedTx ? 'transaction' : (item.payment_plan_id ? 'plan' : 'none');
     setItemEdits(prev => ({
       ...prev,
       [item.id]: {
@@ -119,22 +144,31 @@ export default function PhaseBlock({
         price: item.price !== null ? String(item.price) : '',
         link: item.link ?? '',
         moveToPhaseId: item.phase_id,
-        paymentPlanId: item.payment_plan_id ?? '',
-        linkedTransactionId: transactions.find((t: any) => t.car_build_item_id === item.id)?.id ?? '',
+        linkMode: mode,
+        linkedTransactionId: linkedTx?.id ?? '',
+        txDate: linkedTx?.date ?? today,
+        txAmount: linkedTx ? String(linkedTx.amount) : (item.price !== null ? String(item.price) : ''),
+        txNote: linkedTx?.note ?? '',
+        isNewTransaction: false,
+        linkedPlanId: item.payment_plan_id ?? '',
+        isNewPlan: false,
+        newPlanName: item.name,
+        newPlanTotal: item.price !== null ? String(item.price) : '',
+        newPlanPayment: '',
+        newPlanFrequency: 'monthly',
+        newPlanStartDate: today,
+        newPlanTotalPayments: '4',
       },
     }));
     setOpenItemEdit(item.id);
   }
 
-  function saveItemEdit(item: CarBuildItem) {
+  async function saveItemEdit(item: CarBuildItem) {
     const ed = itemEdits[item.id];
     if (!ed) return;
 
     const urlCheck = isSafeUrl(ed.link);
-    if (!urlCheck.safe) {
-      toast.error(urlCheck.reason ?? 'Link not allowed');
-      return;
-    }
+    if (!urlCheck.safe) { toast.error(urlCheck.reason ?? 'Link not allowed'); return; }
 
     const nameResult = filterProfanity(ed.name.trim().slice(0, LIMITS.itemName));
     const brandResult = filterProfanity(ed.brand.trim().slice(0, LIMITS.itemBrand));
@@ -147,28 +181,87 @@ export default function PhaseBlock({
       brand: brandResult.clean || null,
       price: parsedPrice !== null && !isNaN(parsedPrice) ? parsedPrice : null,
       link: ed.link.trim() ? ed.link.trim().slice(0, LIMITS.itemLink) : null,
-      payment_plan_id: ed.paymentPlanId || null,
     };
-    if (ed.moveToPhaseId !== item.phase_id) {
-      updates.phase_id = ed.moveToPhaseId;
-    }
+    if (ed.moveToPhaseId !== item.phase_id) updates.phase_id = ed.moveToPhaseId;
 
-    const prevLinkedTxId = transactions.find((t: any) => t.car_build_item_id === item.id)?.id ?? null;
-    const newLinkedTxId = ed.linkedTransactionId || null;
-    if (newLinkedTxId !== prevLinkedTxId) {
-      onLinkTransaction(item.id, prevLinkedTxId, newLinkedTxId);
-    }
+    const prevLinkedTx = transactions.find((t: any) => t.car_build_item_id === item.id);
+    const prevTxId = prevLinkedTx?.id ?? null;
 
-    onUpdateItem(item.id, updates);
-    setOpenItemEdit(null);
+    setSavingItemId(item.id);
+    try {
+      if (ed.linkMode === 'none') {
+        updates.payment_plan_id = null;
+        if (prevTxId) await onLinkTransaction(item.id, prevTxId, null);
+
+      } else if (ed.linkMode === 'transaction') {
+        updates.payment_plan_id = null;
+        if (ed.isNewTransaction) {
+          const amount = parseFloat(ed.txAmount);
+          if (!ed.txDate || isNaN(amount) || amount <= 0) {
+            toast.error('Date and amount are required');
+            return;
+          }
+          await onCreateTransactionForItem(item.id, prevTxId, { date: ed.txDate, amount, note: ed.txNote });
+        } else if (ed.linkedTransactionId) {
+          const amount = parseFloat(ed.txAmount);
+          if (ed.txDate && !isNaN(amount) && amount > 0) {
+            await onUpdateLinkedTransaction(ed.linkedTransactionId, { date: ed.txDate, amount });
+          }
+          if (ed.linkedTransactionId !== prevTxId) {
+            await onLinkTransaction(item.id, prevTxId, ed.linkedTransactionId);
+          }
+        }
+
+      } else if (ed.linkMode === 'plan') {
+        if (prevTxId) await onLinkTransaction(item.id, prevTxId, null);
+        if (ed.isNewPlan) {
+          const total = parseFloat(ed.newPlanTotal);
+          const payment = parseFloat(ed.newPlanPayment);
+          const totalPmts = parseInt(ed.newPlanTotalPayments, 10);
+          if (!ed.newPlanName || isNaN(total) || isNaN(payment) || isNaN(totalPmts) || totalPmts <= 0) {
+            toast.error('Fill in all payment plan fields');
+            return;
+          }
+          await onCreatePlanForItem(item.id, {
+            name: ed.newPlanName,
+            provider: null,
+            total_amount: total,
+            payment_amount: payment,
+            frequency: ed.newPlanFrequency,
+            start_date: ed.newPlanStartDate,
+            total_payments: totalPmts,
+            category: 'Car',
+            payment_source: null,
+            notes: null,
+            active: true,
+          });
+        } else if (ed.linkedPlanId) {
+          updates.payment_plan_id = ed.linkedPlanId;
+        }
+      }
+
+      onUpdateItem(item.id, updates);
+      setOpenItemEdit(null);
+    } finally {
+      setSavingItemId(null);
+    }
   }
 
-  function updateItemEdit(itemId: string, field: keyof ItemEditState, value: string) {
+  function updateItemEdit(itemId: string, field: keyof ItemEditState, value: any) {
     setItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], [field]: value } }));
+  }
+
+  function setFinancingField(itemId: string, fields: Partial<ItemEditState>) {
+    setItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], ...fields } }));
   }
 
   const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-none focus:border-[#c8a84b] font-sans';
   const monoInput = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-none focus:border-[#c8a84b] font-mono';
+  const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1';
+  const modeBtnCls = (active: boolean) => cn(
+    'px-2.5 py-[3px] text-[10px] font-mono uppercase tracking-wider rounded border transition-colors',
+    active ? 'border-[#c8a84b] text-[#c8a84b]' : 'border-border text-muted-foreground hover:border-muted-foreground',
+  );
 
   return (
     <div
@@ -191,7 +284,6 @@ export default function PhaseBlock({
         className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
         onClick={() => onSetExpanded(!isExpanded)}
       >
-        {/* Drag handle (desktop) / Arrow buttons (mobile) */}
         {!isMobile ? (
           <div
             draggable
@@ -205,92 +297,50 @@ export default function PhaseBlock({
           </div>
         ) : (
           <div className="flex flex-col gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
-            <button
-              disabled={isFirst}
-              onClick={() => onMovePhase('up')}
-              className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"
-            >
-              <ArrowUp size={12} />
-            </button>
-            <button
-              disabled={isLast}
-              onClick={() => onMovePhase('down')}
-              className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"
-            >
-              <ArrowDown size={12} />
-            </button>
+            <button disabled={isFirst} onClick={() => onMovePhase('up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowUp size={12} /></button>
+            <button disabled={isLast} onClick={() => onMovePhase('down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowDown size={12} /></button>
           </div>
         )}
 
-        {/* Phase number + dot */}
         <div className="text-2xl font-display font-bold leading-none flex-shrink-0" style={{ color }}>
           <span className="inline-block w-2 h-2 rounded-full mr-1.5 mb-0.5 align-middle" style={{ background: color }} />
           {phaseIndex + 1}
         </div>
 
-        {/* Title + subtitle */}
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-1.5 min-w-0">
-            <button
-              onClick={openTitleEdit}
-              className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-[#c8a84b] transition-all flex-shrink-0 mt-0.5"
-              title="Rename phase"
-            >
+            <button onClick={openTitleEdit} className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-[#c8a84b] transition-all flex-shrink-0 mt-0.5" title="Rename phase">
               <Pencil size={12} />
             </button>
-            <span className="text-sm font-semibold uppercase tracking-wide text-foreground break-words flex-1 min-w-0">
-              {phase.title}
-            </span>
+            <span className="text-sm font-semibold uppercase tracking-wide text-foreground break-words flex-1 min-w-0">{phase.title}</span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             {allDone && (
-              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
-                style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>
-                ✓ Done
-              </span>
+              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0" style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>✓ Done</span>
             )}
-            <span className="text-[12px] font-mono text-muted-foreground">
-              {phase.hidden ? `planned · ${subtitle}` : subtitle}
-            </span>
+            <span className="text-[12px] font-mono text-muted-foreground">{phase.hidden ? `planned · ${subtitle}` : subtitle}</span>
           </div>
         </div>
 
-        {/* Phase total */}
         <div className="font-mono text-base font-medium text-right flex-shrink-0" style={{ color: '#c8a84b' }}>
           {phaseTotal > 0 ? `$${phaseTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
         </div>
 
-        {/* Hide/show */}
-        <button
-          onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }}
-          title={phase.hidden ? 'Phase hidden (planned) — click to show' : 'Hide phase (mark as planned)'}
-          className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <button onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }} title={phase.hidden ? 'Phase hidden (planned) — click to show' : 'Hide phase (mark as planned)'} className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors">
           {phase.hidden ? <EyeOff size={14} style={{ color: '#c8a84b' }} /> : <Eye size={14} />}
         </button>
 
-        {/* Delete */}
-        <button
-          onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }}
-          title="Delete phase"
-          className="flex-shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all"
-        >
+        <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="flex-shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all">
           <Trash2 size={13} />
         </button>
 
-        {/* Chevron */}
-        <ChevronDown
-          size={14}
-          className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')}
-        />
+        <ChevronDown size={14} className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')} />
       </div>
 
-      {/* Inline title edit panel */}
+      {/* Inline title edit */}
       {editingTitle && (
         <div className="bg-[#0e0e0e] border-t border-border px-4 py-3" onClick={e => e.stopPropagation()}>
-          <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1.5">
-            Phase Title
-          </label>
+          <label className={labelCls}>Phase Title</label>
           <input
             ref={titleRef}
             className={inputCls}
@@ -299,19 +349,8 @@ export default function PhaseBlock({
             onKeyDown={e => { if (e.key === 'Enter') saveTitleEdit(); if (e.key === 'Escape') setEditingTitle(false); }}
           />
           <div className="flex gap-2 mt-2">
-            <button
-              onClick={saveTitleEdit}
-              className="px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider rounded"
-              style={{ background: '#c8a84b', color: '#000' }}
-            >
-              Save
-            </button>
-            <button
-              onClick={() => setEditingTitle(false)}
-              className="px-3 py-1 text-[11px] font-mono text-muted-foreground border border-border rounded hover:border-muted-foreground transition-colors"
-            >
-              Cancel
-            </button>
+            <button onClick={saveTitleEdit} className="px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider rounded" style={{ background: '#c8a84b', color: '#000' }}>Save</button>
+            <button onClick={() => setEditingTitle(false)} className="px-3 py-1 text-[11px] font-mono text-muted-foreground border border-border rounded hover:border-muted-foreground transition-colors">Cancel</button>
           </div>
         </div>
       )}
@@ -321,255 +360,325 @@ export default function PhaseBlock({
         <div className="border-t border-border">
           {items.map((item, ii) => {
             const isItemTarget = dragOverItemId === item.id && !isMobile;
+            const linkedTx = transactions.find((t: any) => t.car_build_item_id === item.id);
+            const linkedPlan = item.payment_plan_id ? paymentPlans.find(p => p.id === item.payment_plan_id) : null;
             return (
-            <div key={item.id}>
-              {isItemTarget && !itemDropBelow && (
-                <div className="h-0.5 rounded mx-4" style={{ background: '#c8a84b' }} />
-              )}
-              {/* Item Row */}
-              <div
-                className={cn(
-                  'flex items-start gap-2.5 px-4 py-3 border-b border-[#141414] hover:bg-[#0f0f0f] transition-colors',
-                  item.completed && 'opacity-50',
-                  dragItemId === item.id && 'opacity-40',
-                )}
-                onDragOver={e => !isMobile && onItemDragOver(e, item.id, phase.id)}
-                onDrop={e => !isMobile && onItemDrop(e, item.id, phase.id)}
-              >
-                {/* Item drag handle / arrows */}
-                {!isMobile ? (
-                  <div
-                    draggable
-                    onDragStart={e => onItemDragStart(e, item.id)}
-                    onDragEnd={onItemDragEnd}
-                    onClick={e => e.stopPropagation()}
-                    className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 flex-shrink-0"
-                    title="Drag to reorder"
-                  >
-                    <GripVertical size={14} />
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-0.5 flex-shrink-0">
-                    <button
-                      disabled={ii === 0}
-                      onClick={() => onMoveItemArrow(item.id, phase.id, 'up')}
-                      className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"
-                    >
-                      <ArrowUp size={10} />
-                    </button>
-                    <button
-                      disabled={ii === items.length - 1}
-                      onClick={() => onMoveItemArrow(item.id, phase.id, 'down')}
-                      className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"
-                    >
-                      <ArrowDown size={10} />
-                    </button>
-                  </div>
+              <div key={item.id}>
+                {isItemTarget && !itemDropBelow && (
+                  <div className="h-0.5 rounded mx-4" style={{ background: '#c8a84b' }} />
                 )}
 
-                {/* Complete toggle */}
-                <button
-                  onClick={() => onToggleItem(item.id, !item.completed)}
+                {/* Item Row */}
+                <div
                   className={cn(
-                    'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5',
-                    item.completed
-                      ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white'
-                      : 'border-border bg-transparent hover:border-[#3a8a5a]',
+                    'flex items-start gap-2.5 px-4 py-3 border-b border-[#141414] hover:bg-[#0f0f0f] transition-colors',
+                    item.completed && 'opacity-50',
+                    dragItemId === item.id && 'opacity-40',
                   )}
+                  onDragOver={e => !isMobile && onItemDragOver(e, item.id, phase.id)}
+                  onDrop={e => !isMobile && onItemDrop(e, item.id, phase.id)}
                 >
-                  {item.completed && <Check size={11} strokeWidth={3} />}
-                </button>
-
-                {/* Item label */}
-                <div className="text-[13px] font-mono text-muted-foreground flex-shrink-0 w-7 text-center mt-0.5">
-                  {itemLabel(phaseIndex, ii, items.length)}
-                </div>
-
-                {/* Name + brand + link */}
-                <div className="flex-1 min-w-0">
-                  <div className={cn('text-sm text-[#c8c2b8] leading-snug break-words', item.completed && 'line-through')}>
-                    {item.name}
-                  </div>
-                  {item.brand && (
-                    <div className="text-[12px] font-mono text-muted-foreground mt-0.5 break-words">{item.brand}</div>
-                  )}
-                  {(item.payment_plan_id || transactions.some((t: any) => t.car_build_item_id === item.id)) && (
-                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      {item.payment_plan_id && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#c8a84b]/40 text-[#c8a84b]/80">
-                          {paymentPlans.find(p => p.id === item.payment_plan_id)?.name ?? 'Payment Plan'}
-                        </span>
-                      )}
-                      {transactions.some((t: any) => t.car_build_item_id === item.id) && (
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-green-700/40 text-green-500/80">
-                          ✓ tx
-                        </span>
-                      )}
+                  {!isMobile ? (
+                    <div draggable onDragStart={e => onItemDragStart(e, item.id)} onDragEnd={onItemDragEnd} onClick={e => e.stopPropagation()} className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 flex-shrink-0" title="Drag to reorder">
+                      <GripVertical size={14} />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-0.5 flex-shrink-0">
+                      <button disabled={ii === 0} onClick={() => onMoveItemArrow(item.id, phase.id, 'up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowUp size={10} /></button>
+                      <button disabled={ii === items.length - 1} onClick={() => onMoveItemArrow(item.id, phase.id, 'down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowDown size={10} /></button>
                     </div>
                   )}
-                  {item.link && (
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] font-mono mt-0.5 transition-colors hover:underline"
-                      style={{ color: '#6a90c0' }}
-                      onClick={e => e.stopPropagation()}
-                    >
-                      <ExternalLink size={10} /> VIEW LISTING
-                    </a>
-                  )}
-                </div>
 
-                {/* Price + edit */}
-                <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
-                  {item.price !== null
-                    ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
-                    : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
-                  }
                   <button
-                    onClick={e => openItemEditPanel(item, e)}
-                    className="text-[11px] font-mono px-2 py-0.5 border border-border rounded text-muted-foreground hover:border-[#c8a84b] hover:text-[#c8a84b] transition-colors"
+                    onClick={() => onToggleItem(item.id, !item.completed)}
+                    className={cn(
+                      'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5',
+                      item.completed ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white' : 'border-border bg-transparent hover:border-[#3a8a5a]',
+                    )}
                   >
-                    EDIT
+                    {item.completed && <Check size={11} strokeWidth={3} />}
+                  </button>
+
+                  <div className="text-[13px] font-mono text-muted-foreground flex-shrink-0 w-7 text-center mt-0.5">
+                    {itemLabel(phaseIndex, ii, items.length)}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className={cn('text-sm text-[#c8c2b8] leading-snug break-words', item.completed && 'line-through')}>
+                      {item.name}
+                    </div>
+                    {item.brand && (
+                      <div className="text-[12px] font-mono text-muted-foreground mt-0.5 break-words">{item.brand}</div>
+                    )}
+                    {(linkedPlan || linkedTx) && (
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        {linkedPlan && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#c8a84b]/40 text-[#c8a84b]/80">
+                            {linkedPlan.name}
+                          </span>
+                        )}
+                        {linkedTx && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-green-700/40 text-green-500/80">
+                            ✓ ${Number(linkedTx.amount).toLocaleString()} · {linkedTx.date}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {item.link && (
+                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-mono mt-0.5 transition-colors hover:underline" style={{ color: '#6a90c0' }} onClick={e => e.stopPropagation()}>
+                        <ExternalLink size={10} /> VIEW LISTING
+                      </a>
+                    )}
+                  </div>
+
+                  <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                    {item.price !== null
+                      ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
+                      : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
+                    }
+                    <button onClick={e => openItemEditPanel(item, e)} className="text-[11px] font-mono px-2 py-0.5 border border-border rounded text-muted-foreground hover:border-[#c8a84b] hover:text-[#c8a84b] transition-colors">
+                      EDIT
+                    </button>
+                  </div>
+
+                  <button onClick={() => onDeleteItem(item.id)} className="flex-shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all ml-0.5">
+                    <Trash2 size={13} />
                   </button>
                 </div>
 
-                {/* Delete */}
-                <button
-                  onClick={() => onDeleteItem(item.id)}
-                  className="flex-shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all ml-0.5"
-                >
-                  <Trash2 size={13} />
-                </button>
-              </div>
-
-              {/* Inline item edit panel */}
-              {openItemEdit === item.id && itemEdits[item.id] && (
-                <div className="bg-[#0e0e0e] border-b border-border px-4 py-3 pl-[4.5rem]" onClick={e => e.stopPropagation()}>
-                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
-                    <div className="space-y-2.5">
-                      <div>
-                        <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Item Name</label>
-                        <input
-                          className={inputCls}
-                          value={itemEdits[item.id].name}
-                          maxLength={LIMITS.itemName}
-                          onChange={e => updateItemEdit(item.id, 'name', e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') saveItemEdit(item); if (e.key === 'Escape') setOpenItemEdit(null); }}
-                          autoFocus
-                        />
-                        <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{itemEdits[item.id].name.length}/{LIMITS.itemName}</span>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Brand / Description</label>
-                        <input
-                          className={inputCls}
-                          value={itemEdits[item.id].brand}
-                          maxLength={LIMITS.itemBrand}
-                          onChange={e => updateItemEdit(item.id, 'brand', e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') saveItemEdit(item); if (e.key === 'Escape') setOpenItemEdit(null); }}
-                        />
-                        <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{itemEdits[item.id].brand.length}/{LIMITS.itemBrand}</span>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Product Link (URL)</label>
-                        <input
-                          className={monoInput}
-                          type="url"
-                          value={itemEdits[item.id].link}
-                          maxLength={LIMITS.itemLink}
-                          onChange={e => updateItemEdit(item.id, 'link', e.target.value)}
-                          placeholder="https://..."
-                          style={{
-                            color: '#8ab0e0',
-                            borderColor: !isSafeUrl(itemEdits[item.id].link).safe ? '#e05a5a' : undefined,
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Move to Phase</label>
-                        <select
-                          className={inputCls}
-                          value={itemEdits[item.id].moveToPhaseId}
-                          onChange={e => updateItemEdit(item.id, 'moveToPhaseId', e.target.value)}
-                        >
-                          {allPhases.map((ph, i) => (
-                            <option key={ph.id} value={ph.id}>{i + 1}. {ph.title}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Payment Plan (optional)</label>
-                        <select
-                          className={inputCls}
-                          value={itemEdits[item.id].paymentPlanId}
-                          onChange={e => updateItemEdit(item.id, 'paymentPlanId', e.target.value)}
-                        >
-                          <option value="">None</option>
-                          {paymentPlans.filter(p => p.active).map(p => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} — ${p.total_amount.toLocaleString()} ({p.total_payments}× ${p.payment_amount})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Linked Transaction (optional)</label>
-                        <select
-                          className={inputCls}
-                          value={itemEdits[item.id].linkedTransactionId}
-                          onChange={e => updateItemEdit(item.id, 'linkedTransactionId', e.target.value)}
-                        >
-                          <option value="">None</option>
-                          {transactions
-                            .filter((t: any) => t.type === 'expense')
-                            .slice(0, 100)
-                            .map((t: any) => (
-                              <option key={t.id} value={t.id}>
-                                {t.date} · ${Number(t.amount).toLocaleString()} · {t.note || t.category}
-                              </option>
+                {/* Inline item edit panel */}
+                {openItemEdit === item.id && itemEdits[item.id] && (
+                  <div className="bg-[#0e0e0e] border-b border-border px-4 py-3 pl-[4.5rem]" onClick={e => e.stopPropagation()}>
+                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
+                      {/* Left column */}
+                      <div className="space-y-2.5">
+                        <div>
+                          <label className={labelCls}>Item Name</label>
+                          <input
+                            className={inputCls}
+                            value={itemEdits[item.id].name}
+                            maxLength={LIMITS.itemName}
+                            onChange={e => updateItemEdit(item.id, 'name', e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Escape') setOpenItemEdit(null); }}
+                            autoFocus
+                          />
+                          <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{itemEdits[item.id].name.length}/{LIMITS.itemName}</span>
+                        </div>
+                        <div>
+                          <label className={labelCls}>Brand / Description</label>
+                          <input
+                            className={inputCls}
+                            value={itemEdits[item.id].brand}
+                            maxLength={LIMITS.itemBrand}
+                            onChange={e => updateItemEdit(item.id, 'brand', e.target.value)}
+                          />
+                          <span className="text-[10px] text-muted-foreground text-right block mt-0.5">{itemEdits[item.id].brand.length}/{LIMITS.itemBrand}</span>
+                        </div>
+                        <div>
+                          <label className={labelCls}>Product Link (URL)</label>
+                          <input
+                            className={monoInput}
+                            type="url"
+                            value={itemEdits[item.id].link}
+                            maxLength={LIMITS.itemLink}
+                            onChange={e => updateItemEdit(item.id, 'link', e.target.value)}
+                            placeholder="https://..."
+                            style={{ color: '#8ab0e0', borderColor: !isSafeUrl(itemEdits[item.id].link).safe ? '#e05a5a' : undefined }}
+                          />
+                        </div>
+                        <div>
+                          <label className={labelCls}>Move to Phase</label>
+                          <select className={inputCls} value={itemEdits[item.id].moveToPhaseId} onChange={e => updateItemEdit(item.id, 'moveToPhaseId', e.target.value)}>
+                            {allPhases.map((ph, i) => (
+                              <option key={ph.id} value={ph.id}>{i + 1}. {ph.title}</option>
                             ))}
-                        </select>
+                          </select>
+                        </div>
+
+                        {/* ── Financing section ─────────────────────────── */}
+                        <div className="pt-1 border-t border-[#1e1e1e]">
+                          <label className={labelCls}>Financing</label>
+                          <div className="flex gap-1 mb-2">
+                            {(['none', 'transaction', 'plan'] as LinkMode[]).map(m => (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() => setFinancingField(item.id, { linkMode: m })}
+                                className={modeBtnCls(itemEdits[item.id].linkMode === m)}
+                              >
+                                {m === 'none' ? 'None' : m === 'transaction' ? 'Transaction' : 'Plan'}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Transaction mode */}
+                          {itemEdits[item.id].linkMode === 'transaction' && (
+                            <div className="space-y-2">
+                              <div className="flex gap-1.5 mb-1.5">
+                                <button type="button" className={modeBtnCls(!itemEdits[item.id].isNewTransaction)} onClick={() => setFinancingField(item.id, { isNewTransaction: false })}>Existing</button>
+                                <button type="button" className={modeBtnCls(itemEdits[item.id].isNewTransaction)} onClick={() => setFinancingField(item.id, { isNewTransaction: true, linkedTransactionId: '' })}>＋ New</button>
+                              </div>
+
+                              {!itemEdits[item.id].isNewTransaction ? (
+                                <>
+                                  <select
+                                    className={inputCls}
+                                    value={itemEdits[item.id].linkedTransactionId}
+                                    onChange={e => {
+                                      const txId = e.target.value;
+                                      const tx = transactions.find((t: any) => t.id === txId);
+                                      setFinancingField(item.id, {
+                                        linkedTransactionId: txId,
+                                        txDate: tx?.date ?? itemEdits[item.id].txDate,
+                                        txAmount: tx ? String(tx.amount) : itemEdits[item.id].txAmount,
+                                      });
+                                    }}
+                                  >
+                                    <option value="">Select transaction…</option>
+                                    {transactions
+                                      .filter((t: any) => t.type === 'expense')
+                                      .slice(0, 100)
+                                      .map((t: any) => (
+                                        <option key={t.id} value={t.id}>
+                                          {t.date} · ${Number(t.amount).toLocaleString()} · {t.note || t.category}
+                                        </option>
+                                      ))}
+                                  </select>
+                                  {itemEdits[item.id].linkedTransactionId && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <label className={labelCls}>Date</label>
+                                        <input type="date" className={inputCls} value={itemEdits[item.id].txDate} onChange={e => updateItemEdit(item.id, 'txDate', e.target.value)} />
+                                      </div>
+                                      <div>
+                                        <label className={labelCls}>Amount ($)</label>
+                                        <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} min="0" step="0.01" />
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className={labelCls}>Date</label>
+                                      <input type="date" className={inputCls} value={itemEdits[item.id].txDate} onChange={e => updateItemEdit(item.id, 'txDate', e.target.value)} />
+                                    </div>
+                                    <div>
+                                      <label className={labelCls}>Amount ($)</label>
+                                      <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].txAmount} onChange={e => updateItemEdit(item.id, 'txAmount', e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className={labelCls}>Note (optional)</label>
+                                    <input className={inputCls} value={itemEdits[item.id].txNote} onChange={e => updateItemEdit(item.id, 'txNote', e.target.value)} placeholder="e.g. Bought from Summit Racing" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Plan mode */}
+                          {itemEdits[item.id].linkMode === 'plan' && (
+                            <div className="space-y-2">
+                              <div className="flex gap-1.5 mb-1.5">
+                                <button type="button" className={modeBtnCls(!itemEdits[item.id].isNewPlan)} onClick={() => setFinancingField(item.id, { isNewPlan: false })}>Existing</button>
+                                <button type="button" className={modeBtnCls(itemEdits[item.id].isNewPlan)} onClick={() => setFinancingField(item.id, { isNewPlan: true, linkedPlanId: '' })}>＋ New</button>
+                              </div>
+
+                              {!itemEdits[item.id].isNewPlan ? (
+                                <select
+                                  className={inputCls}
+                                  value={itemEdits[item.id].linkedPlanId}
+                                  onChange={e => updateItemEdit(item.id, 'linkedPlanId', e.target.value)}
+                                >
+                                  <option value="">Select plan…</option>
+                                  {paymentPlans.filter(p => p.active).map(p => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.name} — ${p.total_amount.toLocaleString()} ({p.total_payments}× ${p.payment_amount})
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div>
+                                    <label className={labelCls}>Plan Name</label>
+                                    <input className={inputCls} value={itemEdits[item.id].newPlanName} onChange={e => updateItemEdit(item.id, 'newPlanName', e.target.value)} placeholder="e.g. Exhaust system" />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className={labelCls}>Total ($)</label>
+                                      <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].newPlanTotal} onChange={e => updateItemEdit(item.id, 'newPlanTotal', e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                    <div>
+                                      <label className={labelCls}>Payment ($)</label>
+                                      <input type="number" className={`${inputCls} text-right`} value={itemEdits[item.id].newPlanPayment} onChange={e => updateItemEdit(item.id, 'newPlanPayment', e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <label className={labelCls}>Frequency</label>
+                                      <select className={inputCls} value={itemEdits[item.id].newPlanFrequency} onChange={e => updateItemEdit(item.id, 'newPlanFrequency', e.target.value as PlanFreq)}>
+                                        <option value="weekly">Weekly</option>
+                                        <option value="biweekly">Biweekly</option>
+                                        <option value="monthly">Monthly</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className={labelCls}>Start Date</label>
+                                      <input type="date" className={inputCls} value={itemEdits[item.id].newPlanStartDate} onChange={e => updateItemEdit(item.id, 'newPlanStartDate', e.target.value)} />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <label className={labelCls}># Payments</label>
+                                    <input type="number" className={inputCls} value={itemEdits[item.id].newPlanTotalPayments} onChange={e => updateItemEdit(item.id, 'newPlanTotalPayments', e.target.value)} placeholder="4" min="1" step="1" />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {/* ── end Financing ─────────────────────────────── */}
+                      </div>
+
+                      {/* Right column — Price */}
+                      <div>
+                        <label className={labelCls}>Price ($)</label>
+                        <input
+                          className={`${inputCls} text-right`}
+                          type="number"
+                          value={itemEdits[item.id].price}
+                          onChange={e => updateItemEdit(item.id, 'price', e.target.value)}
+                          placeholder="TBD"
+                          min="0"
+                        />
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1">Price ($)</label>
-                      <input
-                        className={`${inputCls} text-right`}
-                        type="number"
-                        value={itemEdits[item.id].price}
-                        onChange={e => updateItemEdit(item.id, 'price', e.target.value)}
-                        placeholder="TBD"
-                        min="0"
-                      />
+
+                    <div className="flex gap-2 mt-3">
+                      <button
+                        onClick={() => { void saveItemEdit(item); }}
+                        disabled={savingItemId === item.id}
+                        className="px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider rounded disabled:opacity-40"
+                        style={{ background: '#c8a84b', color: '#000' }}
+                      >
+                        {savingItemId === item.id ? 'Saving…' : 'Save'}
+                      </button>
+                      <button onClick={() => setOpenItemEdit(null)} className="px-3 py-1 text-[11px] font-mono text-muted-foreground border border-border rounded hover:border-muted-foreground transition-colors">
+                        Cancel
+                      </button>
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => saveItemEdit(item)}
-                      className="px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider rounded"
-                      style={{ background: '#c8a84b', color: '#000' }}
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setOpenItemEdit(null)}
-                      className="px-3 py-1 text-[11px] font-mono text-muted-foreground border border-border rounded hover:border-muted-foreground transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-              {isItemTarget && itemDropBelow && (
-                <div className="h-0.5 rounded mx-4" style={{ background: '#c8a84b' }} />
-              )}
-            </div>
+                )}
+
+                {isItemTarget && itemDropBelow && (
+                  <div className="h-0.5 rounded mx-4" style={{ background: '#c8a84b' }} />
+                )}
+              </div>
             );
           })}
 
-          {/* Bottom drop zone — allows dropping below the last (or only) item */}
+          {/* Bottom drop zone */}
           {!isMobile && dragItemId && (
             <div
               className="h-4 w-full"
@@ -589,9 +698,18 @@ export default function PhaseBlock({
               if (!isExpanded) onSetExpanded(true);
               const newId = await onAddItem(phase.id, phase.build_id);
               if (!newId) return;
+              const today = new Date().toISOString().split('T')[0];
               setItemEdits(prev => ({
                 ...prev,
-                [newId]: { name: 'New Item', brand: '', price: '', link: '', moveToPhaseId: phase.id },
+                [newId]: {
+                  name: 'New Item', brand: '', price: '', link: '',
+                  moveToPhaseId: phase.id,
+                  linkMode: 'none',
+                  linkedTransactionId: '', txDate: today, txAmount: '', txNote: '', isNewTransaction: false,
+                  linkedPlanId: '', isNewPlan: false,
+                  newPlanName: 'New Item', newPlanTotal: '', newPlanPayment: '',
+                  newPlanFrequency: 'monthly', newPlanStartDate: today, newPlanTotalPayments: '4',
+                },
               }));
               setOpenItemEdit(newId);
             }}
