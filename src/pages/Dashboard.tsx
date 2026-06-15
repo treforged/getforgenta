@@ -679,7 +679,7 @@ export default function Dashboard() {
       };
     });
     const totalRecommended = recommendations.reduce((s, r) => s + r.payment, 0);
-    const cashWarning = totalAvailableCash < totalMinimumsDue;
+    const cashWarning = Math.round(totalAvailableCash * 100) < Math.round(totalMinimumsDue * 100);
     return { recommendations, totalMinimumsDue, totalRecommended, totalAvailableCash, autopayTotal, strategyLabel, cashWarning, interestAvoided: 0 };
   }, [cardProjection, debtCards, debtStrategy]);
 
