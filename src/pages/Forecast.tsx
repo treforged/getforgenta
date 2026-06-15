@@ -1187,6 +1187,7 @@ export default function Forecast() {
     let p3RevBal = liveRevolvingBal;
     let prevP3RevBal = p3RevBal;
     let cumulativeSurplus = 0;
+    let ccDebtFreeFired = false;
 
     for (let i = 0; i < 36; i++) {
       const b = baseData[i];
@@ -1264,7 +1265,9 @@ export default function Forecast() {
         }
       }
       // Sync p3RevBal to engine's interest-inclusive end-of-month balance minus all surplus sent.
-      p3RevBal = Math.max(0, ccEngRevBalEnd - cumulativeSurplus);
+      // Once CC Debt Free fires, lock at 0 — the engine's own trajectory (without PASS 3 surplus)
+      // can lag several months behind actual payoff and would otherwise reopen surplus routing.
+      p3RevBal = ccDebtFreeFired ? 0 : Math.max(0, ccEngRevBalEnd - cumulativeSurplus);
 
       // Step 4: per-account balance tracking
       const actualGoalsSavings = b.monthlySavingsContrib;
@@ -1369,6 +1372,7 @@ export default function Forecast() {
 
       if (p3RevBal <= 0 && prevP3RevBal > 0) {
         milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
+        ccDebtFreeFired = true;
       }
       goals.forEach((g: any) => {
         const projected = Number(g.current_amount) + Number(g.monthly_contribution) * i;
