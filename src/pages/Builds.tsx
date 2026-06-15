@@ -5,7 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useCarBuilds, useCarBuildPhases, useCarBuildItems } from '@/hooks/useSupabaseData';
+import { useCarBuilds, useCarBuildPhases, useCarBuildItems, usePaymentPlans, useTransactions } from '@/hooks/useSupabaseData';
 import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
 import PhaseBlock from '@/components/builds/PhaseBlock';
@@ -55,6 +55,8 @@ export default function Builds() {
 
   const { data: phases, loading: phasesLoading, add: addPhase, update: updatePhase, remove: removePhase, reorder: reorderPhases } = useCarBuildPhases(resolvedBuildId);
   const { data: items, loading: itemsLoading, add: addItem, update: updateItem, remove: removeItem, reorder: reorderItems } = useCarBuildItems(resolvedBuildId);
+  const { data: paymentPlans } = usePaymentPlans();
+  const { data: transactions, update: updateTransaction } = useTransactions();
 
   // Optimistic order state — only used during/after drag before server confirms
   // null = use server data (phases/items from hooks)
@@ -253,6 +255,19 @@ export default function Builds() {
   async function handleToggleItem(id: string, completed: boolean) {
     setDragItemOrder(prev => (prev ?? items).map(it => it.id === id ? { ...it, completed } : it));
     await updateItem.mutateAsync({ id, completed });
+  }
+
+  async function handleLinkTransaction(
+    itemId: string,
+    prevTransactionId: string | null,
+    newTransactionId: string | null,
+  ) {
+    if (prevTransactionId) {
+      await updateTransaction.mutateAsync({ id: prevTransactionId, car_build_item_id: null });
+    }
+    if (newTransactionId) {
+      await updateTransaction.mutateAsync({ id: newTransactionId, car_build_item_id: itemId });
+    }
   }
 
   // ── Share ────────────────────────────────────────────────
@@ -673,6 +688,9 @@ export default function Builds() {
                       onItemDragEnd={onItemDragEnd}
                       onItemDrop={onItemDrop}
                       onItemDropAtEnd={onItemDropAtEnd}
+                      paymentPlans={paymentPlans}
+                      transactions={transactions}
+                      onLinkTransaction={handleLinkTransaction}
                     />
                     {isPhaseTarget && phaseDropBelow && (
                       <div className="h-0.5 rounded mx-0.5 mt-1" style={{ background: '#c8a84b' }} />
