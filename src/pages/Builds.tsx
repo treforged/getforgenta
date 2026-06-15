@@ -55,8 +55,8 @@ export default function Builds() {
 
   const { data: phases, loading: phasesLoading, add: addPhase, update: updatePhase, remove: removePhase, reorder: reorderPhases } = useCarBuildPhases(resolvedBuildId);
   const { data: items, loading: itemsLoading, add: addItem, update: updateItem, remove: removeItem, reorder: reorderItems } = useCarBuildItems(resolvedBuildId);
-  const { data: paymentPlans } = usePaymentPlans();
-  const { data: transactions, update: updateTransaction } = useTransactions();
+  const { data: paymentPlans, add: addPaymentPlan } = usePaymentPlans();
+  const { data: transactions, update: updateTransaction, add: addTransaction } = useTransactions();
 
   // Optimistic order state — only used during/after drag before server confirms
   // null = use server data (phases/items from hooks)
@@ -267,6 +267,42 @@ export default function Builds() {
     }
     if (newTransactionId) {
       await updateTransaction.mutateAsync({ id: newTransactionId, car_build_item_id: itemId });
+    }
+  }
+
+  async function handleCreateTransactionForItem(
+    itemId: string,
+    prevTxId: string | null,
+    tx: { date: string; amount: number; note: string },
+  ) {
+    if (prevTxId) {
+      await updateTransaction.mutateAsync({ id: prevTxId, car_build_item_id: null });
+    }
+    await addTransaction.mutateAsync({
+      date: tx.date,
+      type: 'expense',
+      amount: tx.amount,
+      category: 'Car',
+      account: '',
+      note: tx.note,
+      car_build_item_id: itemId,
+    } as any);
+  }
+
+  async function handleUpdateLinkedTransaction(
+    txId: string,
+    updates: { date: string; amount: number },
+  ) {
+    await updateTransaction.mutateAsync({ id: txId, ...updates });
+  }
+
+  async function handleCreatePlanForItem(
+    itemId: string,
+    plan: any,
+  ) {
+    const created = await addPaymentPlan.mutateAsync(plan);
+    if (created?.id) {
+      await updateItem.mutateAsync({ id: itemId, payment_plan_id: created.id });
     }
   }
 
@@ -691,6 +727,9 @@ export default function Builds() {
                       paymentPlans={paymentPlans}
                       transactions={transactions}
                       onLinkTransaction={handleLinkTransaction}
+                      onCreateTransactionForItem={handleCreateTransactionForItem}
+                      onUpdateLinkedTransaction={handleUpdateLinkedTransaction}
+                      onCreatePlanForItem={handleCreatePlanForItem}
                     />
                     {isPhaseTarget && phaseDropBelow && (
                       <div className="h-0.5 rounded mx-0.5 mt-1" style={{ background: '#c8a84b' }} />

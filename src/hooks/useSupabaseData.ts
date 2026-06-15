@@ -467,8 +467,9 @@ export function useTransactions() {
   const add = useMutation({
     mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string; car_build_item_id?: string | null }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' }) as any);
+      const { data, error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' }) as any).select().single();
       if (error) throw error;
+      return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['transactions'] }); toast.success('Transaction added'); },
     onError: (e) => toast.error(e.message),
@@ -778,8 +779,9 @@ export function usePaymentPlans() {
   const add = useMutation({
     mutationFn: async (item: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'>) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('payment_plans' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
+      const { data, error } = await supabase.from('payment_plans' as any).insert(sanitizePayload({ ...item, user_id: user.id })).select().single();
       if (error) throw error;
+      return data as unknown as PaymentPlan;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment_plans'] }); toast.success('Payment plan added'); },
     onError: (e: Error) => toast.error(e.message),
