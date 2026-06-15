@@ -1,5 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
-import DateScrollPicker from '@/components/shared/DateScrollPicker';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,7 +11,7 @@ import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfil
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X } from 'lucide-react';
 import PremiumGate from '@/components/shared/PremiumGate';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
@@ -48,95 +47,6 @@ function fmtDate(iso: string | null | undefined) {
   return new Date(iso + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-
-function LumpSumModal({
-  mode, initialDate, initialAmount, schedule, liquidCash, onSave, onClose,
-}: {
-  mode: 'add' | 'edit';
-  initialDate: string;
-  initialAmount: string;
-  schedule: { date: string; startBalance: number }[];
-  liquidCash?: number;
-  onSave: (date: string, amount: number) => void;
-  onClose: () => void;
-}) {
-  const [date, setDate] = useState(initialDate);
-  const [amount, setAmount] = useState(initialAmount);
-
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-
-  const bal = date
-    ? (schedule.find(r => r.date.substring(0, 7) === date.substring(0, 7))?.startBalance ?? null)
-    : null;
-  const canSave = !!date && parseFloat(amount) > 0;
-
-  const handleSave = () => {
-    const amt = parseFloat(amount);
-    if (!date || !amt || amt <= 0) return;
-    onSave(date, amt);
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
-      style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
-      onClick={onClose}
-    >
-      <div
-        className="card-forged w-full sm:max-w-md flex flex-col rounded-t-[var(--radius)] rounded-b-none sm:rounded-b-[var(--radius)]"
-        style={{ maxHeight: 'calc(88dvh - env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0">
-          <h2 className="font-display font-semibold text-sm">{mode === 'add' ? 'Add Extra Payment' : 'Edit Extra Payment'}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-4 pb-2 popup-scroll" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Date</p>
-            <DateScrollPicker value={date} onChange={setDate} />
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Amount</p>
-            <input
-              type="number"
-              placeholder="0.00"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              className="w-full bg-secondary border border-border px-3 py-3 text-sm text-foreground"
-              style={{ borderRadius: 'var(--radius)' }}
-            />
-          </div>
-          {date && (bal !== null || liquidCash !== undefined) && (
-            <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
-              {bal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(bal, false)}</span></span>}
-              {liquidCash !== undefined && <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash, false)}</span></span>}
-            </div>
-          )}
-        </div>
-
-        <div className="px-4 sm:px-6 pt-3 pb-5 sm:pb-6 shrink-0 border-t border-border mt-1">
-          <button
-            onClick={handleSave}
-            disabled={!canSave}
-            className="w-full bg-primary text-primary-foreground py-3.5 text-sm font-semibold btn-press disabled:opacity-50 flex items-center justify-center gap-2"
-            style={{ borderRadius: 'var(--radius)' }}
-          >
-            <Check size={14} />
-            {mode === 'add' ? 'Add Payment' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function LumpSumPanel({
   schedule,
   lumpSums,
@@ -162,11 +72,37 @@ function LumpSumPanel({
   label?: string;
   liquidCash?: number;
 }) {
-  const [modal, setModal] = useState<null | { mode: 'add' } | { mode: 'edit'; id: string; date: string; amount: string }>(null);
+  const [adding, setAdding] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [newAmount, setNewAmount] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editAmount, setEditAmount] = useState('');
 
   const getBalanceBefore = (dateStr: string) => {
     const month = dateStr.substring(0, 7);
     return schedule.find(r => r.date.substring(0, 7) === month)?.startBalance ?? null;
+  };
+
+  const handleAdd = () => {
+    const amount = parseFloat(newAmount);
+    if (!newDate || !amount || amount <= 0) return;
+    onAdd({ id: crypto.randomUUID(), date: newDate, amount });
+    setNewDate(''); setNewAmount(''); setAdding(false);
+  };
+
+  const startEdit = (ls: LumpSumPayment) => {
+    setEditingId(ls.id);
+    setEditDate(ls.date);
+    setEditAmount(String(ls.amount));
+    setAdding(false);
+  };
+
+  const handleSaveEdit = (id: string) => {
+    const amount = parseFloat(editAmount);
+    if (!editDate || !amount || amount <= 0) return;
+    onUpdate({ id, date: editDate, amount });
+    setEditingId(null);
   };
 
   const baseD = new Date(basePayoffDate + 'T00:00:00');
@@ -179,20 +115,80 @@ function LumpSumPanel({
     <div className="space-y-2 border-t border-border/30 pt-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium">{label}</span>
-        <button onClick={() => setModal({ mode: 'add' })} className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80">
-          <Plus size={10} /> Add
-        </button>
+        {!adding && (
+          <button onClick={() => setAdding(true)} className="flex items-center gap-1 text-[10px] text-primary hover:text-primary/80">
+            <Plus size={10} /> Add
+          </button>
+        )}
       </div>
 
-      {!hasLumps && (
+      {adding && (
+        <div className="flex flex-wrap gap-2 items-end p-2 bg-secondary/30 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
+          <div className="space-y-0.5">
+            <p className="text-[10px] text-muted-foreground">Date</p>
+            <input
+              type="date"
+              value={newDate}
+              onChange={e => setNewDate(e.target.value)}
+              className="bg-secondary border border-border text-sm text-foreground px-2 py-1.5"
+              style={{ borderRadius: 'var(--radius)', colorScheme: 'dark' }}
+            />
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-[10px] text-muted-foreground">Amount</p>
+            <input
+              type="number"
+              placeholder="0"
+              value={newAmount}
+              onChange={e => setNewAmount(e.target.value)}
+              className="w-28 bg-background border border-border text-xs px-2 py-1"
+              style={{ borderRadius: 'var(--radius)' }}
+            />
+          </div>
+          <div className="flex gap-1">
+            <button onClick={() => setAdding(false)} className="text-[10px] px-2 py-1.5 border border-border hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
+            <button onClick={handleAdd} className="text-[10px] px-2 py-1.5 bg-primary text-primary-foreground" style={{ borderRadius: 'var(--radius)' }}>Add</button>
+          </div>
+          {newDate && (() => {
+            const prevBal = getBalanceBefore(newDate);
+            if (prevBal === null && liquidCash === undefined) return null;
+            return (
+              <div className="basis-full pt-1.5 flex flex-wrap gap-4 text-[10px] text-muted-foreground border-t border-border/20">
+                {prevBal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(prevBal, false)}</span></span>}
+                {liquidCash !== undefined && <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash, false)}</span></span>}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {!hasLumps && !adding && (
         <p className="text-[10px] text-muted-foreground">No extra payments planned. Add one to see how it shortens your payoff.</p>
       )}
 
       {hasLumps && (
         <div className="space-y-1">
-          {[...lumpSums].sort((a, b) => a.date.localeCompare(b.date)).map(ls => {
+          {lumpSums.map(ls => {
             const bal = getBalanceBefore(ls.date);
             const dateLabel = new Date(ls.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            if (editingId === ls.id) {
+              return (
+                <div key={ls.id} className="flex flex-wrap gap-2 items-end p-2 bg-secondary/30 border border-border/40" style={{ borderRadius: 'var(--radius)' }}>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-muted-foreground">Date</p>
+                    <input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} className="bg-secondary border border-border text-sm text-foreground px-2 py-1.5" style={{ borderRadius: 'var(--radius)', colorScheme: 'dark' }} />
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-muted-foreground">Amount</p>
+                    <input type="number" value={editAmount} onChange={e => setEditAmount(e.target.value)} className="w-28 bg-background border border-border text-xs px-2 py-1" style={{ borderRadius: 'var(--radius)' }} />
+                  </div>
+                  <div className="flex gap-1">
+                    <button onClick={() => setEditingId(null)} className="text-[10px] px-2 py-1.5 border border-border hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
+                    <button onClick={() => handleSaveEdit(ls.id)} className="text-[10px] px-2 py-1.5 bg-primary text-primary-foreground" style={{ borderRadius: 'var(--radius)' }}>Save</button>
+                  </div>
+                </div>
+              );
+            }
             return (
               <div key={ls.id} className="flex items-center justify-between py-1 px-2 bg-secondary/20 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
@@ -201,7 +197,7 @@ function LumpSumPanel({
                   {bal !== null && <span className="text-[10px] text-muted-foreground">Balance before: {formatCurrency(bal, false)}</span>}
                 </div>
                 <div className="flex items-center gap-1 ml-2 shrink-0">
-                  <button onClick={() => setModal({ mode: 'edit', id: ls.id, date: ls.date, amount: String(ls.amount) })} className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
+                  <button onClick={() => startEdit(ls)} className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
                   <button onClick={() => onRemove(ls.id)} className="text-muted-foreground hover:text-destructive"><X size={11} /></button>
                 </div>
               </div>
@@ -220,26 +216,6 @@ function LumpSumPanel({
             {interestSaved > 0 && <span className="text-success">saves {formatCurrency(interestSaved, false)} interest</span>}
           </div>
         </div>
-      )}
-
-      {modal && (
-        <LumpSumModal
-          key={modal.mode === 'edit' ? modal.id : 'add'}
-          mode={modal.mode}
-          initialDate={modal.mode === 'edit' ? modal.date : ''}
-          initialAmount={modal.mode === 'edit' ? modal.amount : ''}
-          schedule={schedule}
-          liquidCash={liquidCash}
-          onSave={(date, amount) => {
-            if (modal.mode === 'add') {
-              onAdd({ id: crypto.randomUUID(), date, amount });
-            } else {
-              onUpdate({ id: modal.id, date, amount });
-            }
-            setModal(null);
-          }}
-          onClose={() => setModal(null)}
-        />
       )}
     </div>
   );
