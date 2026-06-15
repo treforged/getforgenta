@@ -9,7 +9,6 @@ import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/
 import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
-import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
 import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
@@ -946,7 +945,13 @@ export default function Transactions() {
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">First Payment Date *</label>
-                <DateScrollPicker value={planForm.start_date} onChange={v => setPlanForm(p => ({ ...p, start_date: v }))} />
+                <input
+                  type="date"
+                  value={planForm.start_date}
+                  onChange={e => setPlanForm(p => ({ ...p, start_date: e.target.value }))}
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
+                  style={{ borderRadius: 'var(--radius)' }}
+                />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Category</label>
