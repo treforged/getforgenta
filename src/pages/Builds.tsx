@@ -308,7 +308,7 @@ export default function Builds() {
 
   async function handleUpdateLinkedTransaction(
     txId: string,
-    updates: { date: string; amount: number },
+    updates: { date: string; amount: number; payment_source?: string },
   ) {
     await updateTransaction.mutateAsync({ id: txId, ...updates });
   }
