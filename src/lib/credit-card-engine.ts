@@ -993,7 +993,7 @@ export function generateRecommendations(
 
   const safeToPayTotal = preferencePool; // remaining for revolving cards
 
-  const cashWarning = Math.round(safeToPayTotal * 100) < Math.round(totalMinDue * 100);
+  const cashWarning = Math.ceil(safeToPayTotal - totalMinDue) < 0;
 
   const cardEstimatedCash = new Map<string, number>();
   for (const card of revolvingCards) {

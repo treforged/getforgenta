@@ -760,7 +760,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const totalMinimumsdue = cards
       .filter(c => !c.autopayFullBalance && c.balance > 0)
       .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
-    const cashWarning = Math.round(totalAvailableCash * 100) < Math.round(totalMinimumsdue * 100);
+    const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsdue) < 0;
     const recs = perCardAdj.map(item => {
       const card = cards.find(c => c.id === item.id);
       let reason = '';
