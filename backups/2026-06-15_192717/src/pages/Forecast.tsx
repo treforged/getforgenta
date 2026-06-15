@@ -201,14 +201,16 @@ export default function Forecast() {
       }, 0);
       const carTotal = carFunds.reduce((s: number, c: any) => {
         if (c.phase === 'loan') return s;
-        const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
-        const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
+        const linkedAcct0 = c.linked_account ? accounts.find((a: any) => a.id === c.linked_account) : null;
+        const effectiveSaved0 = linkedAcct0 ? Number(linkedAcct0.balance) : Number(c.current_saved);
+        const rem = Math.max(0, Number(c.down_payment_goal) - effectiveSaved0 - Number(c.gift_contribution || 0));
         if (rem <= 0) return s;
-        let monthsToGoal = 12;
+        let monthsToGoal = 13; // default: current + 12 future months
         if (c.planned_purchase_date) {
           const parts = (c.planned_purchase_date as string).split('-').map(Number);
           const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-          monthsToGoal = Math.max(1, (pd.getFullYear() - now0.getFullYear()) * 12 + (pd.getMonth() - now0.getMonth()));
+          const diff = (pd.getFullYear() - now0.getFullYear()) * 12 + (pd.getMonth() - now0.getMonth());
+          monthsToGoal = Math.max(1, diff + 1); // include the purchase month
         }
         return s + Math.min(rem / monthsToGoal, rem);
       }, 0);
