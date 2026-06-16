@@ -1,6 +1,8 @@
 // ─── Unified Pay Schedule Engine ─────────────────────────
 // Single source of truth for income calculations across all tabs
 
+import { getActiveCarLoanPayments } from './vehicle-loan-engine';
+
 export type PayFrequency = 'weekly' | 'biweekly' | 'monthly';
 
 export type PayScheduleConfig = {
@@ -691,6 +693,62 @@ export function getMinSafeCash(
 ): number {
   const { total: prePaycheckBills } = getPrePaycheckNextMonthBills(rules, config, fundingAccountId, now);
   return Math.max(cashFloor, prePaycheckBills);
+}
+
+/**
+ * Cash floor augmented with active car-loan payments and credit-card minimums due, on top of
+ * the bare pre-paycheck-bills floor from getMinSafeCash(). This is the single source of truth
+ * for the floor shown to the user (Forecast, Dashboard) — call it from anywhere that needs to
+ * cap "available cash" so the cap always matches what's displayed as "Cash Floor".
+ */
+export function getAugmentedMinSafeCash(
+  rules: any[],
+  config: PayScheduleConfig,
+  cashFloor: number,
+  fundingAccountId: string | null,
+  now: Date,
+  carFunds: any[],
+  cc: { simCards: any[]; monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]> } | null,
+  monthIdx: number,
+): { monthMinSafe: number; floorItems: { name: string; amount: number; dueDay: number }[]; prePaycheckBillsTotal: number } {
+  const { total: baseTotal, items: baseItems } = getPrePaycheckNextMonthBills(rules, config, fundingAccountId, now);
+  let prePaycheckBillsTotal = baseTotal;
+  const floorItems: { name: string; amount: number; dueDay: number }[] = [...baseItems];
+
+  for (const cf of (carFunds ?? []) as any[]) {
+    if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
+    const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
+    const carPayments = getActiveCarLoanPayments([cf], now);
+    for (const cp of carPayments) {
+      prePaycheckBillsTotal += cp.payment;
+      floorItems.push({ name: cf.vehicle_name + ' loan', amount: cp.payment, dueDay: loanDueDay });
+    }
+  }
+
+  if (cc) {
+    for (const card of cc.simCards as any[]) {
+      const revBal = cc.monthlyRevolvingBalances?.get(card.id)?.[monthIdx] ?? 1;
+      if (revBal > 0) {
+        const minPay = cc.perCardMinPayments?.get(card.id)?.[monthIdx] ?? 0;
+        if (minPay > 0 && card.dueDay) {
+          prePaycheckBillsTotal += minPay;
+          floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
+        }
+      } else {
+        // Paid off / cycling — floor for statement or full-balance preference cards only.
+        if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
+        // Use the card's configured minimum payment, not the full monthly purchases — the floor
+        // represents the minimum cash that must remain; the full cycling payment is a planned
+        // outflow on top of the floor, not part of it.
+        if (!card.dueDay || card.minPayment <= 0) continue;
+        prePaycheckBillsTotal += card.minPayment;
+        floorItems.push({ name: card.name + ' min', amount: card.minPayment, dueDay: card.dueDay });
+      }
+    }
+  }
+
+  const monthMinSafe = Math.max(cashFloor, prePaycheckBillsTotal);
+  return { monthMinSafe, floorItems, prePaycheckBillsTotal };
 }
 
 /** Get remaining scheduled expenses this month from today onward */
