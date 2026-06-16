@@ -764,7 +764,7 @@ export default function Forecast() {
       floorItems: { name: string; amount: number; dueDay: number }[];
       prePaycheckBillsTotal: number;
       savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[];
-      carContribItems: { name: string; amount: number }[];
+      carContribItems: { name: string; amount: number; isPurchaseMonth: boolean }[];
       perAccountTransferContribs: Map<string, number>;
     }[] = [];
     let incomeMultiplier = 1;
@@ -1047,9 +1047,9 @@ export default function Forecast() {
         return s + contrib;
       }, 0);
 
-      const carContribItems: { name: string; amount: number }[] = vehicleProjections
+      const carContribItems: { name: string; amount: number; isPurchaseMonth: boolean }[] = vehicleProjections
         .filter(v => i <= v.purchaseMonthIdx && v.contrib > 0)
-        .map(v => ({ name: v.vehicleName, amount: Math.round(v.contrib) }));
+        .map(v => ({ name: v.vehicleName, amount: Math.round(v.contrib), isPurchaseMonth: i === v.purchaseMonthIdx }));
 
       baseData.push({
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
@@ -1074,11 +1074,18 @@ export default function Forecast() {
     //  • CC one-time purchases are excluded from oneTimeByMonth and never trigger save-up.
     //  • CC minimums are always met — payments never drop below ccMinTotal.
 
-    // Total CC minimum payment across all cards (floor for save-up reduction)
+    // Total CC minimum payment across all cards (floor for save-up reduction).
+    // Sourced from cardProjectionData.simCards (CardData.minPayment, the same value the
+    // simulation and useCardProjection's month-0 calc use) rather than the debts table's
+    // min_payment directly — those can disagree (accounts.min_payment takes precedence in
+    // buildCardData when present), which previously made Forecast think less was due than the
+    // engine actually required, letting month-0 debt payments diverge from cardProjectionData.
     const ccCards = active.filter((a: any) => a.account_type === 'credit_card');
-    const ccMinTotal = debts
-      .filter((d: any) => ccCards.some((a: any) => a.name.toLowerCase() === d.name.toLowerCase()))
-      .reduce((s: number, d: any) => s + Number(d.min_payment), 0);
+    const ccMinTotal = (cardProjectionData?.simCards ?? []).length > 0
+      ? (cardProjectionData!.simCards as any[]).reduce((s: number, c: any) => s + Number(c.minPayment || 0), 0)
+      : debts
+        .filter((d: any) => ccCards.some((a: any) => a.name.toLowerCase() === d.name.toLowerCase()))
+        .reduce((s: number, d: any) => s + Number(d.min_payment), 0);
 
     const debtPayments = baseData.map(b => b.rawDebtPayment);
 
@@ -2202,10 +2209,14 @@ export default function Forecast() {
                       ? (row.savingsGoalItems as { name: string; amount: number }[]).map(g => ({ label: `  ${g.name}`, value: formatCurrency(g.amount, false), op: '−' as const }))
                       : (row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' as const }] : []
                     ),
-                    // Informational only — this cash hasn't left any account yet, so it's not
-                    // subtracted from Ending Cash (see cumulativeCarReserveHeld), just earmarked.
-                    ...((row.carContribItems as { name: string; amount: number }[] | undefined)?.length
-                      ? (row.carContribItems as { name: string; amount: number }[]).map(v => ({ label: `  Reserving for ${v.name} (still your cash)`, value: formatCurrency(v.amount, false) }))
+                    // Still-saving months: informational only — this cash hasn't left any account
+                    // yet (see cumulativeCarReserveHeld adding it back into Ending Cash). The
+                    // purchase month itself is a real outflow — show it as a normal subtracted
+                    // line since the cumulative add-back nets to zero that month.
+                    ...((row.carContribItems as { name: string; amount: number; isPurchaseMonth: boolean }[] | undefined)?.length
+                      ? (row.carContribItems as { name: string; amount: number; isPurchaseMonth: boolean }[]).map(v => v.isPurchaseMonth
+                          ? { label: `  ${v.name} (down payment)`, value: formatCurrency(v.amount, false), op: '−' as const }
+                          : { label: `  Reserving for ${v.name} (still your cash)`, value: formatCurrency(v.amount, false) })
                       : (row.carContrib ?? 0) > 0 ? [{ label: '  Reserving for car fund (still your cash)', value: formatCurrency(row.carContrib, false) }] : []
                     ),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
