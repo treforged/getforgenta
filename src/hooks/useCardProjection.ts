@@ -927,9 +927,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const revolvingPayment = liveRevolvingBal > 0 ? Math.min(simRevolvingTotal, availableForRevolving) : 0;
       const safeToPayTotal = cyclingPayment + revolvingPayment;
 
-      // Max capacity: what you could pay if month 0 were NOT a save-up month (step 3 surplus)
-      const isMonth0SaveUp = saveUpMonths.has(0);
-      const surplusIfFree = (!isMonth0SaveUp && liveRevolvingBal > 0)
+      // Max capacity: cash headroom above safeToPayTotal that's being held back this month
+      // (e.g. for a save-up event). Must be computed even when month 0 IS a save-up month —
+      // that's exactly when revolvingPayment is capped below available cash and a holdback exists.
+      const surplusIfFree = liveRevolvingBal > 0
         ? Math.max(0, Math.min(cashPreDebt - cyclingPayment - revolvingPayment - m0SafeFloor, liveRevolvingBal))
         : 0;
       const maxCapacity = safeToPayTotal + surplusIfFree;
