@@ -692,7 +692,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const projs = cards.map(c => {
         const pays = sim.monthlyPayments.get(c.id) || [];
         const revBals = sim.monthlyRevolvingBalances.get(c.id) || [];
-        return projectCardVariable(c, pays, 36, true, undefined, revBals);
+        // Real per-month purchases for this card (one-time transactions + payment plans +
+        // scheduled rules), not the undefined default that made projectCardVariable fall back
+        // to card.monthlyNewPurchases — a static average baseline. That fallback made a cycling
+        // card's displayed end balance (data[i][card.name], what Forecast's popup shows) ignore
+        // real one-time purchases and payment-plan charges entirely once the card had no
+        // revolving balance, even though the simulation/Debt Payoff tab already paid them
+        // correctly on the normal 1-cycle delay.
+        const purchases = cardPurchasesPerMonth.map(monthMap => monthMap[c.id] ?? 0);
+        return projectCardVariable(c, pays, 36, true, purchases, revBals);
       });
 
       // ── Derived arrays ────────────────────────────────────────────────────────

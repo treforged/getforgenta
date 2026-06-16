@@ -1207,7 +1207,19 @@ export default function Forecast() {
         ? Math.max(ccMinForMonth, debtPayments[i] - cyclingPayment)
         : availableForRevolving;
       const revolvingPayment = p3RevBal > 0 ? Math.min(simRevolvingPayment, Math.min(revolvingCap, availableForRevolving)) : 0;
-      monthDebtPayment = cyclingPayment + revolvingPayment;
+      // Prefer the Debt Payoff tab's own displayed total (perCardPaymentsScaled, which already
+      // reflects its per-card avalanche/snowball priority, minimum-payment protection, and
+      // surplus redirect) over Forecast's independently re-derived revolvingPayment above,
+      // whenever it's within Forecast's own safety ceiling (cyclingPayment + revolvingPayment) —
+      // this is what actually keeps the two pages' displayed numbers in sync in the common case,
+      // since otherwise each page computes its own revolving split from a slightly different
+      // running-cash model and the two only roughly agree. Still clamped to Forecast's own
+      // ceiling so a rare disagreement between the two models can never let this page pay out
+      // more than its own independent floor check considers safe.
+      const hookScaledTotal = (cardProjectionData?.perCardPaymentsScaled as any[] | undefined)
+        ?.reduce((s, p) => s + (p.payments[i] ?? 0), 0) ?? null;
+      const safetyCeiling = cyclingPayment + revolvingPayment;
+      monthDebtPayment = hookScaledTotal !== null ? Math.min(hookScaledTotal, safetyCeiling) : safetyCeiling;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
       // Step 3: redirect surplus above floor to debt. Cap uses CC engine's post-payment revolving
