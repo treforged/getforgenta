@@ -10,7 +10,7 @@ import {
   getNormalizedMonthNetIncome, getMonthNetIncome,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
-import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
 
 export interface Month0Result {
   safeToPayTotal: number;
@@ -460,6 +460,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const maxDebtPaymentByMonth: number[] = Array(36).fill(Infinity);
       const saveUpMonths = new Set<number>();
       const saveUpReason = new Map<number, { eventName: string; monthLabel: string }>();
+      // Strictly-before-the-breach months only (j < i, never the event's own month) — mirrors
+      // Forecast.tsx's own PASS-2 convention exactly ("reduces debt payments in the months
+      // immediately before the expense"). Used only to gate the surplus-redirect step in
+      // pass3RevTotals below, NOT maxDebtPaymentByMonth/saveUpMonths — the event's own month still
+      // needs its payment capped there to protect the cash for that month's expense, but once
+      // that protection is in place, any further surplus above it is genuinely free and Forecast's
+      // own walk does redirect it, just not into a "save-up" month strictly before the expense.
+      const strictSaveUpMonths = new Set<number>();
 
       const hasLargeEvent = (i: number) =>
         carDownPaymentByMonth[i] > 0 || (oneTimeArr[i]?.expenses ?? 0) > 0 || cyclingExcessByMonth[i] > 0;
@@ -510,6 +518,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
                 toRecover -= canReduce;
                 if (j <= i && hasLargeEvent(i)) {
                   saveUpMonths.add(j);
+                  if (j < i) strictSaveUpMonths.add(j);
                   if (!saveUpReason.has(j)) {
                     const carD = new Date(now.getFullYear(), now.getMonth() + i, 1);
                     const monthLabel = carD.toLocaleString('en', { month: 'long', year: 'numeric' });
@@ -729,6 +738,41 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
       const monthlySavingsAndCar = goalContrib + carReserve + carLoanTotal;
 
+      // Vehicle insurance + projected car loan for ANY month (mirrors Forecast.tsx's
+      // vehicleProjections / getMonthVehicleInsurance / getMonthProjLoan) and mortgage payment
+      // (mirrors Forecast.tsx's mortgageMonthlyPayment). Previously only computed for month 0,
+      // which let month-0's per-card recommendations overstate cash availability vs Forecast's
+      // own total, and pass3RevTotals below (which scales the per-card amounts shown for months
+      // 1+) didn't know about these categories at all for any month — so whenever Forecast's own
+      // walk sent extra cash to debt to cover insurance/projected-loan/mortgage, the displayed
+      // per-card amounts didn't reflect it.
+      const vehicleForecastByMonth = (carFunds as any[])
+        .filter((c: any) => c.phase === 'saving')
+        .map((c: any) => {
+          let purchaseMonthIdx = 0;
+          if (c.planned_purchase_date) {
+            const parts = (c.planned_purchase_date as string).split('-').map(Number);
+            const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+            purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+          }
+          const loanPrincipal = Math.max(0, Number(c.target_price) + Number(c.tax_fees) - Number(c.down_payment_goal));
+          const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
+            ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
+            : 0;
+          return { purchaseMonthIdx, projPayment, termMonths: Number(c.loan_term_months) || 0, insurance: Number(c.monthly_insurance || 0) };
+        });
+      const getVehicleExtrasForMonth = (m: number) => vehicleForecastByMonth.reduce((s, v) => {
+        const insurance = m >= v.purchaseMonthIdx ? v.insurance : 0;
+        const projLoan = m > v.purchaseMonthIdx && m <= v.purchaseMonthIdx + v.termMonths ? v.projPayment : 0;
+        return s + insurance + projLoan;
+      }, 0);
+      const mortgageAccountNames = new Set(
+        (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
+          .map((a: any) => (a.name as string).toLowerCase()),
+      );
+      const monthlyMortgagePayment = (debts as any[]).filter((d: any) => mortgageAccountNames.has((d.name as string).toLowerCase()))
+        .reduce((s: number, d: any) => s + Number(d.target_payment || d.min_payment || 0), 0);
+
       // ── PASS-3 equivalent: constrain per-card payments to cash-floor model ─────
       // Mirrors Forecast PASS 3 steps 2+3: tracks rolling cash and revolving balance,
       // clips revolving payments when cash would drop below the floor, redirects surplus.
@@ -744,8 +788,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       for (let m = 0; m < 36; m++) {
         const mInc   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
-        const mExp   = m === 0 ? m0Expenses + monthlySavingsAndCar
-          : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0);
+        const mOneTimeNet = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
+        const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar
+          : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
+          + getVehicleExtrasForMonth(m) + monthlyMortgagePayment + mOneTimeNet;
         // Augmented (not bare cashFloorByMonth) so this matches the floor Forecast.tsx uses for
         // the same month — otherwise pass3RevTotals (which scales the displayed per-card amounts
         // for months 1+) and Forecast's own Ending Cash walk cap debt payments differently.
@@ -774,7 +820,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         p3RevBal = Math.max(0, p3RevBal - revPay);
 
         let surplus = 0;
-        if (!saveUpMonths.has(m) && p3RevBal > 0 && p3Cash > mFloor) {
+        if (!strictSaveUpMonths.has(m) && p3RevBal > 0 && p3Cash > mFloor) {
           surplus = Math.min(p3Cash - mFloor, p3RevBal);
           p3Cash -= surplus;
           p3RevBal = Math.max(0, p3RevBal - surplus);
@@ -863,8 +909,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         let p3RevBal2 = p3RevBal0_2;
         for (let m = 0; m < 36; m++) {
           const mInc2   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
-          const mExp2   = m === 0 ? m0Expenses + monthlySavingsAndCar
-            : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0);
+          const mOneTimeNet2 = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
+          const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar
+            : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
+            + getVehicleExtrasForMonth(m) + monthlyMortgagePayment + mOneTimeNet2;
           const mFloor2 = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
             new Date(now.getFullYear(), now.getMonth() + m, 1),
@@ -886,7 +934,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           p3Cash2 = cashPreDebt2 - simCycTotal2 - revPay2;
           p3RevBal2 = Math.max(0, p3RevBal2 - revPay2);
           let surplus2 = 0;
-          if (!saveUpMonths.has(m) && p3RevBal2 > 0 && p3Cash2 > mFloor2) {
+          if (!strictSaveUpMonths.has(m) && p3RevBal2 > 0 && p3Cash2 > mFloor2) {
             surplus2 = Math.min(p3Cash2 - mFloor2, p3RevBal2);
             p3Cash2 -= surplus2;
             p3RevBal2 = Math.max(0, p3RevBal2 - surplus2);
@@ -917,6 +965,31 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // revolving payments (based on plan balances, which may exceed live balances), so
       // we show the simulation amount directly instead of scaling to 0.
       const lastRevPayMonth = pass3RevTotals.reduce((last, t, i) => t > 0 ? i : last, -1);
+
+      // When pass3RevTotals[m] exceeds the natural simulated total (debtPaymentTotals[m]), that's
+      // a surplus being redirected to debt beyond the card-payoff schedule's own pace — Forecast's
+      // own PASS-3 does this whenever cash exceeds the floor. The scale below is capped at 1 (it
+      // only ever reduces a card's natural payment, never increases it), so without this, the
+      // displayed per-card amounts silently fall short of what Forecast's own walk actually pays —
+      // a confirmed source of a real per-month gap between the popup's line items and Ending Cash.
+      // Distribute the surplus across revolving cards proportional to each card's natural share of
+      // this month's payment, capped at that card's own remaining balance so it can't overpay.
+      const extraPerCardByMonth = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(36).fill(0)]));
+      for (let m = 0; m < 36; m++) {
+        const simRevTotal = debtPaymentTotals[m];
+        const target = pass3RevTotals[m] ?? 0;
+        if (simRevTotal <= 0 || target <= simRevTotal) continue;
+        const extra = target - simRevTotal;
+        const revCards = cards.filter(c => (activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0) > 0);
+        if (revCards.length === 0) continue;
+        for (const c of revCards) {
+          const natural = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
+          const share = extra * (natural / simRevTotal);
+          const remainingBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
+          extraPerCardByMonth.get(c.id)![m] = Math.max(0, Math.min(share, remainingBal));
+        }
+      }
+
       const perCardPaymentsScaled = cards.map(c => ({
         name: c.name, id: c.id,
         payments: Array.from({ length: 36 }, (_, m) => {
@@ -941,7 +1014,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           }
           const simRevTotal = debtPaymentTotals[m];
           const scale = simRevTotal > 0 ? Math.min(1, pass3RevTotals[m] / simRevTotal) : 1;
-          return Math.round(simAmt * scale);
+          const extra = extraPerCardByMonth.get(c.id)?.[m] ?? 0;
+          return Math.round(simAmt * scale + extra);
         }),
       }));
 
@@ -976,26 +1050,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         carFunds, { simCards: cards, monthlyRevolvingBalances: activeSim.monthlyRevolvingBalances, perCardMinPayments: activeSim.perCardMinPayments }, 0,
       ).monthMinSafe;
 
-      // Vehicle insurance for saving-phase car funds whose purchase month has already arrived
-      // (mirrors Forecast.tsx's getMonthVehicleInsurance) and mortgage payment (mirrors
-      // Forecast.tsx's mortgageMonthlyPayment) — both omitted from m0Expenses today, which let
-      // month 0's per-card recommendations overstate cash availability vs Forecast's own total.
-      const m0VehicleInsurance = (carFunds as any[]).reduce((s: number, c: any) => {
-        if (c.phase !== 'saving') return s;
-        let purchaseMonthIdx = 0;
-        if (c.planned_purchase_date) {
-          const parts = (c.planned_purchase_date as string).split('-').map(Number);
-          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-          purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
-        }
-        return purchaseMonthIdx <= 0 ? s + Number(c.monthly_insurance || 0) : s;
-      }, 0);
-      const mortgageAccountNames = new Set(
-        (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
-          .map((a: any) => (a.name as string).toLowerCase()),
-      );
-      const m0MortgagePayment = (debts as any[]).filter((d: any) => mortgageAccountNames.has((d.name as string).toLowerCase()))
-        .reduce((s: number, d: any) => s + Number(d.target_payment || d.min_payment || 0), 0);
+      // Vehicle insurance/projected loan and mortgage for month 0 — reuses the per-month
+      // helpers defined above (which pass3RevTotals also uses) so month 0 and every later
+      // month are computed identically.
+      const m0VehicleInsurance = getVehicleExtrasForMonth(0);
+      const m0MortgagePayment = monthlyMortgagePayment;
 
       const ccMinForMonth = liveRevolvingBal > 0 ? Math.min(ccMinTotalRevolving, simRevolvingTotal) : 0;
       const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment;
