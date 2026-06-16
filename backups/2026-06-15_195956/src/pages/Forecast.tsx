@@ -453,6 +453,7 @@ export default function Forecast() {
 
     const monthlyInvestGrowth = Math.pow(1 + assumptions.investmentGrowth / 100, 1 / 12) - 1;
     const monthlySavingsInterest = Math.pow(1 + assumptions.savingsInterest / 100, 1 / 12) - 1;
+    const monthlyExpenseGrowth = Math.pow(1 + assumptions.expenseGrowth / 100, 1 / 12) - 1;
 
     // Per-account weighted APY for retirement growth — falls back to global investmentGrowth
     const retireAccounts = active.filter((a: any) => retireTypes.includes(a.account_type));
@@ -764,6 +765,7 @@ export default function Forecast() {
       perAccountTransferContribs: Map<string, number>;
     }[] = [];
     let incomeMultiplier = 1;
+    let expenseMultiplier = 1;
 
     // Index of the first (or only) bonus month in the 36-month window — used for non-recurring bonus
     const nextBonusMonthIndex = !assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0
@@ -862,11 +864,11 @@ export default function Forecast() {
       if (i === 0) {
         baseExpenses = filteredExpenses;
       } else if (filteredExpenses > 0) {
-        baseExpenses = filteredExpenses;
+        baseExpenses = filteredExpenses * expenseMultiplier;
       } else {
-        baseExpenses = budgetFallback;
+        baseExpenses = budgetFallback * expenseMultiplier;
       }
-      // Plan payments are fixed amounts — add after base expenses
+      // Plan payments are fixed amounts — add after multiplier to avoid inflation
       baseExpenses += planExpensesByMonth[i] ?? 0;
 
       // rawDebtPayment = all CC outflows: debt payoff while balances remain + post-payoff
@@ -1081,6 +1083,7 @@ export default function Forecast() {
         floorItems, prePaycheckBillsTotal, savingsGoalItems, carContribItems, perAccountTransferContribs,
       });
 
+      expenseMultiplier *= (1 + monthlyExpenseGrowth);
     }
 
     // ═══ PASS 2: Look-ahead — save up for one-time CASH expenses, redirect surplus otherwise ═══
@@ -1626,11 +1629,12 @@ export default function Forecast() {
               <button onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              These five inputs directly drive every number in the 36-month projection. Changing them instantly re-runs the full forecast.
+              These six inputs directly drive every number in the 36-month projection. Changing them instantly re-runs the full forecast.
             </p>
             <div className="space-y-2">
               {[
                 { label: 'Income Growth %', desc: 'Annual raise applied to your take-home. 3% means your income increases 3% each year.' },
+                { label: 'Expense Growth %', desc: 'Annual inflation on recurring expenses. 2.5% reflects typical cost-of-living increases.' },
                 { label: 'Investment Growth %', desc: 'Annual return applied to investment account balances in the projection.' },
                 { label: 'Savings Interest %', desc: 'Annual APY applied to savings and HYSA account balances.' },
                 { label: 'Bonus Income $', desc: 'A one-time annual bonus added to total income, spread evenly across all 12 months.' },
@@ -1761,7 +1765,7 @@ export default function Forecast() {
               { label: '3-pass engine', desc: 'PASS 1 builds base values. PASS 2 looks ahead and pre-saves cash for future one-time expenses. PASS 3 pushes all surplus above the cash floor to debt.' },
               { label: 'End cash at floor', desc: 'While CC debt exists, end cash lands exactly at $1,000 each month — no idle cash. The June car purchase causes PASS 2 to pre-save in April and May.' },
               { label: 'Debt payoff trajectory', desc: 'The debt chart shows each card\'s balance declining month by month. Sapphire goes first (22.99% APR), then Discover gets the full surplus.' },
-              { label: 'Assumptions panel', desc: 'Adjust income growth, investment return, and savings interest to model different scenarios over 3 years.' },
+              { label: 'Assumptions panel', desc: 'Adjust income growth, expense inflation, investment return, and savings interest to model different scenarios over 3 years.' },
             ].map((f, i) => (
               <div key={i} className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
                 <span className="text-primary font-bold shrink-0">→</span>
@@ -1790,6 +1794,7 @@ export default function Forecast() {
               {[
                 { key: 'investmentGrowth', label: 'Investment %' },
                 { key: 'savingsInterest', label: 'Savings Interest %' },
+                { key: 'expenseGrowth', label: 'Expense Inflation %' },
               ].map(({ key, label }) => (
                 <div key={key}>
                   <label className="text-[9px] text-muted-foreground uppercase">{label}</label>
@@ -1990,7 +1995,7 @@ export default function Forecast() {
           <div className="border-t border-border/50 pt-3 space-y-1.5">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Impact on Your Financial Plan</p>
             <p className="text-[10px] text-muted-foreground leading-relaxed">
-              Income growth applies to both this Forecast and the Debt Payoff tab's future-month payment schedule. A higher raise accelerates your payoff timeline. Bonus and tax return amounts are injected as one-time income and also shift how quickly balances drop.
+              Income growth and expense inflation apply to both this Forecast and the Debt Payoff tab's future-month payment schedule. A higher raise accelerates your payoff timeline; higher expense inflation reduces the monthly surplus available for debt. Bonus and tax return amounts are injected as one-time income and also shift how quickly balances drop.
             </p>
             <p className="text-[10px] text-muted-foreground leading-relaxed">
               Investment return and savings interest rates only affect net worth and account growth projections here — they do not change what flows to debt payoff.
