@@ -90,8 +90,15 @@ describe('useCardProjection floor-breach protection (cycling-card baseline payme
 
     const seriesA = r.perCardPaymentsScaled.find(p => p.id === cardAId)!;
     const cardA = r.simCards.find(c => c.id === cardAId)!;
-    for (let m = 0; m <= 3; m++) {
+    // Months 1-3 (immediately before the annual bill) are capped down to the minimum.
+    for (let m = 1; m <= 3; m++) {
       expect(seriesA.payments[m]).toBeLessThanOrEqual(cardA.minPayment + 1);
     }
+    // Month 0 is NOT artificially suppressed — its own natural surplus is allowed through since
+    // no reserve is actually needed that early. This is the reserve-based look-ahead's key
+    // improvement over an all-or-nothing "fully protect this whole month or not" flag: each
+    // month banks only its own marginal contribution toward a future shortfall instead of an
+    // unbroken chain of fully-protected months reaching back further than necessary.
+    expect(seriesA.payments[0]).toBeGreaterThan(cardA.minPayment + 1);
   });
 });

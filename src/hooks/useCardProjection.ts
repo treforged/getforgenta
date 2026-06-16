@@ -554,115 +554,129 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const maxDebtPaymentByMonth: number[] = Array(36).fill(Infinity);
         const saveUpMonths = new Set<number>();
         const saveUpReason = new Map<number, { eventName: string; monthLabel: string }>();
-        // Strictly-before-the-breach months only (j < i, never the event's own month) — mirrors
-        // Forecast.tsx's own PASS-2 convention exactly ("reduces debt payments in the months
-        // immediately before the expense"). Used only to gate the surplus-redirect step in
-        // pass3RevTotals below, NOT maxDebtPaymentByMonth/saveUpMonths — the event's own month
-        // still needs its payment capped there to protect the cash for that month's expense, but
-        // once that protection is in place, any further surplus above it is genuinely free and
-        // Forecast's own walk does redirect it, just not into a "save-up" month strictly before
-        // the expense.
+        // No longer distinct from saveUpMonths — kept as a separate set (currently always equal)
+        // since pass3RevTotals below gates its surplus-redirect step on this name specifically.
         const strictSaveUpMonths = new Set<number>();
 
         if (ccMinTotal > 0) {
-          const simDebtPay: number[] = [];
-          for (let m = 0; m < 36; m++) {
+          const monthFlow = (m: number) => {
             const mInc = m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome);
             const mExp = comprehensiveMExp(m, cyclingPaymentByMonth);
-            const mFloor = floorByMonth[m];
-            const startBal = m === 0 ? debtFundingBalance : mFloor;
-            simDebtPay.push(Math.max(ccMinTotal, Math.max(0, startBal + mInc - mExp - mFloor)));
-          }
-
-          const recomputeSimCash = (): number[] => {
-            let bal = debtFundingBalance;
-            const cash: number[] = [];
-            for (let m = 0; m < 36; m++) {
-              const mInc = m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome);
-              const mExp = comprehensiveMExp(m, cyclingPaymentByMonth);
-              const mFloor = floorByMonth[m];
-              const availForDebt = Math.max(0, bal + mInc - mExp - mFloor);
-              const effectivePay = Math.min(simDebtPay[m], availForDebt + ccMinTotal);
-              const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeArr[m] ?? { income: 0, expenses: 0 });
-              // Apply one-time items and car DP before the floor clamp so floor breaches caused
-              // by either are visible to the iterative recovery loop. Cycling is no longer a
-              // separate term here — it's already inside mExp via comprehensiveMExp.
-              bal += mInc - mExp - effectivePay + oneTime.income - oneTime.expenses
-                - (m === 0 ? 0 : carDownPaymentByMonth[m]);
-              if (!saveUpMonths.has(m) && bal > mFloor) bal = mFloor;
-              cash.push(bal);
-            }
-            return cash;
+            const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeArr[m] ?? { income: 0, expenses: 0 });
+            const carDP = m === 0 ? 0 : carDownPaymentByMonth[m];
+            return { mInc, mExp, oneTime, carDP, mFloor: floorByMonth[m] };
           };
 
-          for (let pass = 0; pass < 20; pass++) {
-            const simCash = recomputeSimCash();
-            let anyFixed = false;
-            for (let i = 0; i < 36; i++) {
-              if (simCash[i] >= floorByMonth[i]) continue;
-              let toRecover = floorByMonth[i] - simCash[i];
-              for (let j = i; j >= 0 && toRecover > 0; j--) {
-                const canReduce = Math.max(0, Math.min(simDebtPay[j] - ccMinTotal, toRecover));
-                if (canReduce > 0) {
-                  simDebtPay[j] -= canReduce;
-                  toRecover -= canReduce;
-                  if (j <= i) {
-                    saveUpMonths.add(j);
-                    if (j < i) strictSaveUpMonths.add(j);
-                    if (!saveUpReason.has(j)) {
-                      const carD = new Date(now.getFullYear(), now.getMonth() + i, 1);
-                      const monthLabel = carD.toLocaleString('en', { month: 'long', year: 'numeric' });
-                      let eventName = 'upcoming expense';
-                      if (carDownPaymentByMonth[i] > 0) {
-                        const car = (carFunds as any[]).find((c: any) => {
-                          if (c.phase !== 'saving') return false;
-                          const dp = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.gift_contribution || 0));
-                          if (dp <= 0) return false;
-                          let pmi: number;
-                          if (c.planned_purchase_date) {
-                            const parts = (c.planned_purchase_date as string).split('-').map(Number);
-                            const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-                            pmi = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
-                          } else {
-                            const rem = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.current_saved || 0) - Number(c.gift_contribution || 0));
-                            const contrib = rem > 0 ? Math.min(rem / 12, 500) : 0;
-                            pmi = contrib > 0 ? Math.ceil(rem / contrib) : 999;
-                          }
-                          return isFinite(pmi) && pmi === i;
-                        });
-                        if (car) eventName = `${formatCurrency(carDownPaymentByMonth[i], false)} ${car.vehicle_name || 'vehicle'} down payment`;
-                      } else if (cyclingExcessByMonth[i] > 0) {
-                        eventName = `${formatCurrency(cyclingExcessByMonth[i], false)} CC purchase statement payment`;
-                      } else {
-                        const od = new Date(now.getFullYear(), now.getMonth() + i, 1);
-                        const omk = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
-                        const monthTxns = (transactions as any[]).filter((t: any) => {
-                          if (t.type !== 'expense' || (t as any).isGenerated) return false;
-                          if (!t.date || !t.date.startsWith(omk)) return false;
-                          if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
-                          if (t.payment_source && ccSourceIds.has(t.payment_source)) return false;
-                          return true;
-                        });
-                        const biggest = monthTxns.reduce((max: any, t: any) =>
-                          !max || Number(t.amount) > Number(max.amount) ? t : max, null as any);
-                        if (biggest) {
-                          const label = (biggest.note as string)?.trim() || biggest.category || 'expense';
-                          eventName = `${formatCurrency(Number(biggest.amount), false)} ${label}`;
-                        }
-                      }
-                      saveUpReason.set(j, { eventName, monthLabel });
-                    }
-                  }
-                  anyFixed = true;
-                }
-              }
-              if (anyFixed) break;
-            }
-            if (!anyFixed) break;
+          // Per-month net cash flow if only the minimum is ever sent to debt — the most that
+          // could possibly be preserved that month. Feeds the backward pass below, which sizes
+          // how much reserve each earlier month genuinely needs instead of flagging entire
+          // months as fully-protected-or-not.
+          const netAtMin: number[] = Array.from({ length: 36 }, (_, m) => {
+            const { mInc, mExp, oneTime, carDP } = monthFlow(m);
+            return mInc - mExp + oneTime.income - oneTime.expenses - carDP - ccMinTotal;
+          });
+
+          // Backward pass: reserveNeeded[m] = minimum cash required at the START of month m,
+          // beyond that month's own bare floor, to guarantee no future floor breach through
+          // month 35 — assuming every month from m onward pays only as much above the minimum
+          // as it can truly spare. This replaces an earlier all-or-nothing "is this month fully
+          // protected" flag, which required an unbroken chain of fully-protected months reaching
+          // all the way back from any future breach (one unprotected month in between would
+          // reset the accumulated buffer back to the bare floor) — that cascade was capping many
+          // consecutive months at their card minimum to protect a single, much smaller shortfall
+          // a year or more out. Each month now banks exactly its own marginal contribution toward
+          // a future need and sends the rest to debt.
+          const reserveNeeded: number[] = Array(37).fill(0);
+          for (let m = 35; m >= 0; m--) {
+            const nextFloor = m + 1 < 36 ? floorByMonth[m + 1] : floorByMonth[35];
+            const endBalAtMin = floorByMonth[m] + netAtMin[m];
+            reserveNeeded[m] = Math.max(0, nextFloor + reserveNeeded[m + 1] - endBalAtMin);
           }
 
-          for (const m of saveUpMonths) {
-            maxDebtPaymentByMonth[m] = ccMinTotal;
+          // Unprotected (no caps at all) trajectory, purely to identify which future months
+          // would actually breach the floor and why — used only to label saveUpReason below,
+          // not to decide the caps themselves (reserveNeeded already does that more precisely).
+          const rawBreachMonths: number[] = [];
+          {
+            let rawBal = debtFundingBalance;
+            for (let m = 0; m < 36; m++) {
+              const { mInc, mExp, oneTime, carDP, mFloor } = monthFlow(m);
+              const natural = Math.max(ccMinTotal, Math.max(0, rawBal + mInc - mExp + oneTime.income - oneTime.expenses - carDP - mFloor));
+              rawBal += mInc - mExp - natural + oneTime.income - oneTime.expenses - carDP;
+              if (rawBal < mFloor - 0.01) rawBreachMonths.push(m);
+            }
+          }
+
+          const describeBreach = (i: number): { eventName: string; monthLabel: string } => {
+            const carD = new Date(now.getFullYear(), now.getMonth() + i, 1);
+            const monthLabel = carD.toLocaleString('en', { month: 'long', year: 'numeric' });
+            let eventName = 'upcoming expense';
+            if (carDownPaymentByMonth[i] > 0) {
+              const car = (carFunds as any[]).find((c: any) => {
+                if (c.phase !== 'saving') return false;
+                const dp = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.gift_contribution || 0));
+                if (dp <= 0) return false;
+                let pmi: number;
+                if (c.planned_purchase_date) {
+                  const parts = (c.planned_purchase_date as string).split('-').map(Number);
+                  const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+                  pmi = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+                } else {
+                  const rem = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.current_saved || 0) - Number(c.gift_contribution || 0));
+                  const contrib = rem > 0 ? Math.min(rem / 12, 500) : 0;
+                  pmi = contrib > 0 ? Math.ceil(rem / contrib) : 999;
+                }
+                return isFinite(pmi) && pmi === i;
+              });
+              if (car) eventName = `${formatCurrency(carDownPaymentByMonth[i], false)} ${car.vehicle_name || 'vehicle'} down payment`;
+            } else if (cyclingExcessByMonth[i] > 0) {
+              eventName = `${formatCurrency(cyclingExcessByMonth[i], false)} CC purchase statement payment`;
+            } else {
+              const od = new Date(now.getFullYear(), now.getMonth() + i, 1);
+              const omk = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
+              const monthTxns = (transactions as any[]).filter((t: any) => {
+                if (t.type !== 'expense' || (t as any).isGenerated) return false;
+                if (!t.date || !t.date.startsWith(omk)) return false;
+                if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
+                if (t.payment_source && ccSourceIds.has(t.payment_source)) return false;
+                return true;
+              });
+              const biggest = monthTxns.reduce((max: any, t: any) =>
+                !max || Number(t.amount) > Number(max.amount) ? t : max, null as any);
+              if (biggest) {
+                const label = (biggest.note as string)?.trim() || biggest.category || 'expense';
+                eventName = `${formatCurrency(Number(biggest.amount), false)} ${label}`;
+              }
+            }
+            return { eventName, monthLabel };
+          };
+
+          // Forward pass: the actual cash trajectory, capping each month's debt payment so the
+          // ending balance never dips below what reserveNeeded says the following month needs.
+          let bal = debtFundingBalance;
+          for (let m = 0; m < 36; m++) {
+            const { mInc, mExp, oneTime, carDP, mFloor } = monthFlow(m);
+            const natural = Math.max(ccMinTotal, Math.max(0, bal + mInc - mExp + oneTime.income - oneTime.expenses - carDP - mFloor));
+
+            if (reserveNeeded[m + 1] > 0) {
+              const nextFloor = m + 1 < 36 ? floorByMonth[m + 1] : floorByMonth[35];
+              const requiredEndBal = nextFloor + reserveNeeded[m + 1];
+              const availableForDebt = Math.max(0, bal + mInc - mExp + oneTime.income - oneTime.expenses - carDP - requiredEndBal);
+              const cap = Math.max(ccMinTotal, availableForDebt);
+              maxDebtPaymentByMonth[m] = cap;
+              const actualPay = Math.min(cap, natural);
+              if (cap < natural - 1) {
+                saveUpMonths.add(m);
+                strictSaveUpMonths.add(m);
+                if (!saveUpReason.has(m)) {
+                  const i = rawBreachMonths.find(b => b > m);
+                  saveUpReason.set(m, describeBreach(i !== undefined ? i : Math.min(35, m + 1)));
+                }
+              }
+              bal += mInc - mExp - actualPay + oneTime.income - oneTime.expenses - carDP;
+            } else {
+              bal += mInc - mExp - natural + oneTime.income - oneTime.expenses - carDP;
+            }
           }
         }
 
@@ -694,23 +708,25 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Full cycling-card statement payment per month (not just the excess over baseline) —
       // mirrors Forecast.tsx's rawDebtPayment, which already includes this via allPaymentTotals,
       // and this hook's own month-0 cyclingPayment (allPaymentTotals[0] - debtPaymentTotals[0]),
-      // generalized to any month and any simulation pass. Uses START-of-month revolving balance
-      // so the month a revolving card clears its balance still counts as revolving, not cycling
-      // (matching debtPaymentTotals below). Without this, the look-ahead's cash model never
-      // accounted for a cycling card's routine statement payment at all — only the unusual excess
-      // — making it think more cash was available than Forecast's own model did.
-      const computeCyclingPaymentByMonth = (simResult: { monthlyPayments: Map<string, number[]>; monthlyRevolvingBalances: Map<string, number[]> }): number[] =>
-        Array.from({ length: 36 }, (_, m) => {
-          const allTotal = cards.reduce((s, c) => s + (simResult.monthlyPayments.get(c.id)?.[m] ?? 0), 0);
-          const revTotal = cards.reduce((s, c) => {
-            const startRevBal = m === 0
-              ? (simResult.monthlyRevolvingBalances.get(c.id)?.[0] ?? 0)
-              : (simResult.monthlyRevolvingBalances.get(c.id)?.[m - 1] ?? 0);
-            if (startRevBal <= 0) return s;
+      // generalized to any month and any simulation pass. Without this, the look-ahead's cash
+      // model never accounted for a cycling card's routine statement payment at all — only the
+      // unusual excess — making it think more cash was available than Forecast's own model did.
+      //
+      // Gated on the card's LIVE balance (c.balance <= 0, mirroring cyclingExcessByMonth's own
+      // gate below) rather than the simulation's per-month revolving balance: an early, uncapped
+      // bootstrap pass (see the iterative refinement further down) can pay a currently-revolving
+      // card off far faster than a properly-capped run ever would, which would otherwise
+      // misclassify its ongoing new purchases as a "mandatory cycling payment" rather than its
+      // real, reducible revolving allocation — inflating the apparent shortfall and triggering
+      // far more save-up than actually needed. A card that's genuinely still revolving today
+      // never counts here, however the (possibly overly-optimistic) simulation pass treats it.
+      const computeCyclingPaymentByMonth = (simResult: { monthlyPayments: Map<string, number[]> }): number[] =>
+        Array.from({ length: 36 }, (_, m) =>
+          cards.reduce((s, c) => {
+            if (c.balance > 0) return s;
             return s + (simResult.monthlyPayments.get(c.id)?.[m] ?? 0);
-          }, 0);
-          return Math.max(0, allTotal - revTotal);
-        });
+          }, 0),
+        );
 
       // ── Run CC simulation ─────────────────────────────────────────────────────
       // Bootstrap pass: uncapped, bare floor — just to get an initial card-minimum-payment /
