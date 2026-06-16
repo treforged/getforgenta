@@ -6,8 +6,10 @@ import {
 } from '@/lib/credit-card-engine';
 import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates } from '@/lib/payment-plan-generator';
 import {
-  PayScheduleConfig, getMinSafeCash, getAugmentedMinSafeCash,
-  getNormalizedMonthNetIncome, getMonthNetIncome,
+  PayScheduleConfig, getRemainingTransactionIncomeByDay,
+  getRemainingTransactionExpensesByDay, getMinSafeCash, getAugmentedMinSafeCash,
+  mergeWithGeneratedTransactions, getNormalizedMonthNetIncome,
+  getMonthNetIncome,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
@@ -112,6 +114,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const resolvedDebtFundingId = persistedDebtFundingId || forecastFundingAccountId;
       const debtFundingAccount = accounts.find((a: any) => a.active && a.id === resolvedDebtFundingId);
       const debtFundingBalance = debtFundingAccount ? Number(debtFundingAccount.balance) : liquidCash;
+      const debtFundingSources = resolvedDebtFundingId
+        ? new Set([resolvedDebtFundingId, `account:${resolvedDebtFundingId}`])
+        : new Set<string>();
 
       // ── Scalar fallbacks ──────────────────────────────────────────────────────
       const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
@@ -236,7 +241,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         oneTimeArr.push({ income: inc, expenses: exp });
       }
 
-      // ── Month 0 floor ──────────────────────────────────────────────────────────
+      // ── Month 0 income / expenses / floor ─────────────────────────────────────
+      const allTxnsForM0 = mergeWithGeneratedTransactions(transactions, rules, accounts);
+      const m0Income = getRemainingTransactionIncomeByDay(allTxnsForM0, 31, syncCutoffDate);
+      const m0Expenses = getRemainingTransactionExpensesByDay(allTxnsForM0, 31, true, debtFundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
       const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, now);
       const cashFloorByMonth = Array.from({ length: 36 }, (_, m) => {
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
@@ -288,11 +296,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const forecastMonthEvents = Array.from({ length: 36 }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        // Cutoff matches Forecast.tsx's own forecastMonthEvents exactly (syncCutoffDate, strict
-        // >) — this previously used today's date with >=, which could include or exclude an
-        // extra day's events vs Forecast.tsx depending on how today and the last Plaid sync line up.
         const eventsInMonth = scheduledEvents.filter(e =>
-          e.date.startsWith(monthKey) && (i > 0 || e.date > (syncCutoffDate ?? todayStr)),
+          e.date.startsWith(monthKey) && (i > 0 || e.date >= todayStr),
         );
         const income = eventsInMonth
           .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId))
@@ -312,17 +317,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           .reduce((s, e) => s + e.amount, 0);
         return { income, nonPaycheckIncome, expenses };
       });
-
-      // Month-0 income/expenses — sourced from forecastMonthEvents[0] (the array immediately
-      // above), the same scheduled-events-based figure Forecast.tsx's own baseExpenses/netIncome
-      // use for month 0. Previously sourced from getRemainingTransactionIncomeByDay/
-      // getRemainingTransactionExpensesByDay (a transaction-merge engine independent of
-      // forecastMonthEvents), which could disagree with Forecast.tsx by the value of whatever
-      // scheduled bills/income fell in the gap between the two engines' definitions of "remaining
-      // this month" — confirmed ~$20 apart for a real test account, enough to make Forecast's
-      // displayed line items not sum to its own Ending Cash.
-      const m0Income = forecastMonthEvents[0].income;
-      const m0Expenses = forecastMonthEvents[0].expenses;
 
       // ── simulationMonthEvents (mirrors cardProjectionData exactly) ────────────
       const simRetireIds = new Set<string>(
