@@ -23,7 +23,6 @@ import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
-import { computeFloorProtection } from '@/lib/floor-protection';
 
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
   if (!open) return null;
@@ -1088,41 +1087,25 @@ export default function Forecast() {
         .filter((d: any) => ccCards.some((a: any) => a.name.toLowerCase() === d.name.toLowerCase()))
         .reduce((s: number, d: any) => s + Number(d.min_payment), 0);
 
-    // ═══ PASS 2: Look-ahead — save up for upcoming cash shortfalls ═══
-    // Runs its own independent floor-protection pass, sharing the reserve-based algorithm in
-    // src/lib/floor-protection.ts with useCardProjection.ts but built entirely from Forecast's
-    // own per-month numbers — not borrowed from the hook. This is deliberate: the hook and
-    // Forecast compute income/expenses/floor independently (separate code paths over the same
-    // underlying data), and a previous attempt at trusting the hook's save-up determination here
-    // blindly let a real discrepancy between the two models (a saving-phase car's projected-loan
-    // lump-sum payments, which the hook didn't know about) show up as unprotected floor breaches
-    // on this page while the hook itself reported everything was fine. Each page now catches its
-    // own breaches in its own model; sharing only the algorithm (not the data) means a fix to the
-    // math — like the cascade-protection rewrite that replaced an all-or-nothing "fully protect
-    // this month or not" flag — fixes both pages at once instead of drifting apart again.
-    const cyclingByMonth = Array.from({ length: 36 }, (_, i) =>
-      Math.max(0, (cardProjectionData?.allPaymentTotals?.[i] ?? 0) - (cardProjectionData?.debtPaymentTotals?.[i] ?? 0)),
+    // debtPayments[i] is sourced directly from useCardProjection's own per-card scaled payments
+    // (perCardPaymentsScaled) — the hook runs an equivalent, comprehensive look-ahead (a
+    // reserveNeeded-based calculation, see the "Combined look-ahead" section of
+    // useCardProjection.ts) covering every cash outflow this PASS-2 used to model independently
+    // here (mortgage, vehicle insurance/projected loan, lump-sum transfers, cycling-card
+    // payments) plus categories this duplicate never had visibility into at all. Forecast's own
+    // backward-search loop (this comment used to sit above ~60 lines of it) is removed entirely
+    // — saveUpMonths/strictSaveUpMonths now come straight from the hook so the two pages can
+    // never diverge again the way they did before this consolidation.
+    const debtPayments = Array.from({ length: 36 }, (_, i) =>
+      cardProjectionData
+        ? (cardProjectionData.perCardPaymentsScaled as any[]).reduce((s: number, p: any) => s + (p.payments[i] ?? 0), 0)
+        : baseData[i].rawDebtPayment,
     );
-    const ccSourceIds = new Set<string>(ccCards.flatMap((a: any) => [a.id as string, `account:${a.id}`]));
-    const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths } = computeFloorProtection({
-      incomeByMonth: baseData.map(b => b.netIncome),
-      expenseByMonth: baseData.map((b, i) =>
-        b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
-          + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment
-          + b.monthTransfers + lumpTransferByMonth[i].total + cyclingByMonth[i]),
-      oneTimeNetByMonth: baseData.map(b => b.oneTimeNet),
-      carDownPaymentByMonth: Array.from({ length: 36 }, (_, i) => getMonthEffectiveDP(i)),
-      floorByMonth: baseData.map(b => b.monthMinSafe),
-      startingBalance: liquidBal,
-      ccMinTotal,
-      cyclingExcessByMonth: cyclingByMonth,
-      carFunds, transactions, ccSourceIds, now: nowDate, formatCurrency,
-    });
-
-    // debtPayments[i]: Forecast's own raw recommended payment (rawDebtPayment, already sourced
-    // from cardProjectionData.allPaymentTotals where available), capped by this page's own
-    // look-ahead above.
-    const debtPayments = baseData.map((b, i) => Math.min(b.rawDebtPayment, maxDebtPaymentByMonth[i]));
+    const saveUpMonths = cardProjectionData?.saveUpMonths ?? new Set<number>();
+    // Strictly-before-the-breach months — see useCardProjection.ts's own comment on
+    // strictSaveUpMonths for why PASS 3's surplus-redirect step (below) gates on this set
+    // specifically rather than saveUpMonths.
+    const strictSaveUpMonths = cardProjectionData?.strictSaveUpMonths ?? new Set<number>();
 
     // ═══ PASS 3: Build final projection data ═══
     let finalLiquid = liquidBal;
