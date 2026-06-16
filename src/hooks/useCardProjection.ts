@@ -66,7 +66,6 @@ export interface UseCardProjectionParams {
     incomeGrowth: number;
     raiseMonth: number;
     raiseMode?: string;
-    expenseGrowth: number;
     bonusEnabled: boolean;
     bonusAmount: number;
     bonusMode: string;
@@ -313,7 +312,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         (accounts as any[]).filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
       );
       const simTransferRules = (rules as any[]).filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
-      const monthlyExpGrowthRate = Math.pow(1 + assumptions.expenseGrowth / 100, 1 / 12) - 1;
       let simIncMult = 1;
       const simFirstBonusIdx = (!assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0)
         ? (() => {
@@ -337,7 +335,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             simIncMult *= (1 + assumptions.incomeGrowth / 100);
           }
         }
-        const expMult = Math.pow(1 + monthlyExpGrowthRate, idx);
         let bonusTaxInc = 0;
         if (assumptions.bonusEnabled && assumptions.bonusAmount > 0 && d.getMonth() + 1 === assumptions.bonusMonth) {
           if (assumptions.bonusRecurring || idx === simFirstBonusIdx) {
@@ -383,7 +380,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return {
           ...e,
           income: rawIncome * simIncMult + bonusTaxInc,
-          expenses: e.expenses * expMult + (pauseSavings ? 0 : monthSavings + monthCarSaving) + monthTransfers + carLoanThisMonth + (planCashExpensesEarly[idx] ?? 0),
+          expenses: e.expenses + (pauseSavings ? 0 : monthSavings + monthCarSaving) + monthTransfers + carLoanThisMonth + (planCashExpensesEarly[idx] ?? 0),
         };
       });
 
@@ -664,8 +661,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carReserve = pauseSavings ? 0 : (carFunds as any[]).reduce((s: number, c: any) => {
         if (c.phase === 'loan') return s;
         if (c.phase !== 'saving') return s;
+        const liveSaved = c.linked_account
+          ? Number(accountMap.get(c.linked_account)?.balance ?? c.current_saved ?? 0)
+          : Number(c.current_saved || 0);
         const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
-        const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
+        const rem = Math.max(0, giftAdjDownPmt - liveSaved);
         if (rem <= 0) return s;
         let monthsToGoal = 12;
         if (c.planned_purchase_date) {
@@ -673,8 +673,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const pd = new Date(parts[0], parts[1] - 1, parts[2]);
           monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
         }
-        // Always use rem (remaining after current_saved) regardless of linked_account.
-        // Using giftAdjDownPmt would ignore savings already accumulated, overstating the reserve.
         const reserve = Math.min(rem / monthsToGoal, rem);
         return s + reserve;
       }, 0);
