@@ -5075,6 +5075,18 @@
     "mtime": 1781582216.8586974,
     "hash": "f223c0292075a77f182fdc85c84ace9e"
   },
+  "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-16_001454\\src\\components\\dashboard\\MonthlyBudgetSnapshot.tsx": {
+    "mtime": 1781583294.8961997,
+    "hash": "9b691e7a3fd55bbaeadc8d730ac6099f"
+  },
+  "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-16_001454\\src\\components\\debt\\CreditCardEngine.tsx": {
+    "mtime": 1781583294.9284656,
+    "hash": "a9bb8ab0bdcea882d2210860854405a5"
+  },
+  "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-16_001454\\src\\pages\\Dashboard.tsx": {
+    "mtime": 1781583294.8621922,
+    "hash": "36eaf2fab4c0a65006e2f3a7d5d804c1"
+  },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\ios\\App\\App\\AppDelegate.swift": {
     "mtime": 1779464313.4725912,
     "hash": "25c3c39da6e38f0541b14a33195e2f1c"
@@ -5440,8 +5452,8 @@
     "hash": "114dbb230e4dac4c6d03756f0aa55a33"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\dashboard\\MonthlyBudgetSnapshot.tsx": {
-    "mtime": 1780818715.9811778,
-    "hash": "9b691e7a3fd55bbaeadc8d730ac6099f"
+    "mtime": 1781583268.2987714,
+    "hash": "955d4b0f2fcba14d427a332e053a830a"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\dashboard\\OnboardingChecklist.tsx": {
     "mtime": 1779236562.9818313,
@@ -5452,8 +5464,8 @@
     "hash": "6d9e41b23adf2f77e230f5b0020980bd"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\debt\\CreditCardEngine.tsx": {
-    "mtime": 1781568134.7215803,
-    "hash": "a9bb8ab0bdcea882d2210860854405a5"
+    "mtime": 1781583255.920945,
+    "hash": "fdf655875f1a61d413571a494c03b3dc"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\debug\\BlackScreenDebug.tsx": {
     "mtime": 1779468177.3655715,
@@ -5812,8 +5824,8 @@
     "hash": "109727b1bc5d176cad37a4d62d7d435e"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Dashboard.tsx": {
-    "mtime": 1781566056.036686,
-    "hash": "36eaf2fab4c0a65006e2f3a7d5d804c1"
+    "mtime": 1781583260.2174258,
+    "hash": "d0d6d9c7f798e2032db6db961eafa93f"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\DebtPayoff.tsx": {
     "mtime": 1781568144.3945377,
