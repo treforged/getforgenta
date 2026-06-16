@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { formatCurrency } from '@/lib/calculations';
 import {
   buildCardData, simulateVariablePayoff, projectCardVariable,
   CC_DEFAULT_CATEGORIES, CardData,
@@ -515,25 +514,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
                         }
                         return isFinite(pmi) && pmi === i;
                       });
-                      if (car) eventName = `${formatCurrency(carDownPaymentByMonth[i], false)} ${car.vehicle_name || 'vehicle'} down payment`;
+                      if (car) eventName = `${car.vehicle_name || 'vehicle'} down payment`;
                     } else if (cyclingExcessByMonth[i] > 0) {
-                      eventName = `${formatCurrency(cyclingExcessByMonth[i], false)} CC purchase statement payment`;
-                    } else {
-                      const od = new Date(now.getFullYear(), now.getMonth() + i, 1);
-                      const omk = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
-                      const monthTxns = (transactions as any[]).filter((t: any) => {
-                        if (t.type !== 'expense' || (t as any).isGenerated) return false;
-                        if (!t.date || !t.date.startsWith(omk)) return false;
-                        if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
-                        if (t.payment_source && ccSourceIds.has(t.payment_source)) return false;
-                        return true;
-                      });
-                      const biggest = monthTxns.reduce((max: any, t: any) =>
-                        !max || Number(t.amount) > Number(max.amount) ? t : max, null as any);
-                      if (biggest) {
-                        const label = (biggest.note as string)?.trim() || biggest.category || 'expense';
-                        eventName = `${formatCurrency(Number(biggest.amount), false)} ${label}`;
-                      }
+                      eventName = 'large CC purchase statement payment';
                     }
                     saveUpReason.set(j, { eventName, monthLabel });
                   }
