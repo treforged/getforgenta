@@ -7,7 +7,7 @@ import {
 import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getRemainingTransactionIncomeByDay,
-  getRemainingTransactionExpensesByDay, getMinSafeCash, getAugmentedMinSafeCash,
+  getRemainingTransactionExpensesByDay, getMinSafeCash,
   mergeWithGeneratedTransactions, getNormalizedMonthNetIncome,
   getMonthNetIncome,
 } from '@/lib/pay-schedule';
@@ -23,11 +23,6 @@ export interface Month0Result {
   revolvingPayment: number;
   perCardAdjusted: { id: string; name: string; payment: number; maxPayment: number }[];
   m0SafeFloor: number;
-  /** Cash being set aside this month toward a saving-phase vehicle's down payment. Still the
-   * user's own cash (hasn't left any account) — excluded from debt-payment capacity above, but
-   * should be shown as cash on hand with this note, not subtracted as if it were a real expense. */
-  carReserve: number;
-  carReserveEvent: { vehicleName: string } | null;
 }
 
 export interface CardProjectionResult {
@@ -680,41 +675,24 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
         return s + Number(g.monthly_contribution);
       }, 0);
-      // Mirrors Forecast.tsx's vehicleProjections.contrib formula exactly (purchaseMonthIdx-based
-      // denominator, linked_rule_id-gated skip) so the two pipelines never drift apart again.
-      // linked_account is ignored when it equals the funding account itself — that balance is
-      // already counted as available cash elsewhere, so treating it as "already saved" would
-      // double-count the same dollars instead of protecting them for the upcoming purchase.
       const carReserve = pauseSavings ? 0 : (carFunds as any[]).reduce((s: number, c: any) => {
+        if (c.phase === 'loan') return s;
         if (c.phase !== 'saving') return s;
-        const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
-          ? accountMap.get(c.linked_account) : null;
-        const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved || 0);
+        const liveSaved = c.linked_account
+          ? Number(accountMap.get(c.linked_account)?.balance ?? c.current_saved ?? 0)
+          : Number(c.current_saved || 0);
         const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
-        const rem = Math.max(0, giftAdjDownPmt - effectiveSaved);
-        let purchaseMonthIdx: number;
+        const rem = Math.max(0, giftAdjDownPmt - liveSaved);
+        if (rem <= 0) return s;
+        let monthsToGoal = 12;
         if (c.planned_purchase_date) {
           const parts = (c.planned_purchase_date as string).split('-').map(Number);
           const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-          purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
-        } else if (rem > 0) {
-          const bootstrapContrib = Math.min(rem / 12, 500);
-          purchaseMonthIdx = bootstrapContrib > 0 ? Math.ceil(rem / bootstrapContrib) : Infinity;
-        } else {
-          purchaseMonthIdx = 0;
+          monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
         }
-        const contrib = (c.linked_account && c.linked_rule_id) ? 0
-          : (rem > 0 && isFinite(purchaseMonthIdx) ? Math.min(rem / (purchaseMonthIdx + 1), rem) : 0);
-        return s + contrib;
+        const reserve = Math.min(rem / monthsToGoal, rem);
+        return s + reserve;
       }, 0);
-      const carReserveEvent = pauseSavings ? null : (carFunds as any[]).find((c: any) => {
-        if (c.phase !== 'saving') return false;
-        const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
-          ? accountMap.get(c.linked_account) : null;
-        const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved || 0);
-        const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0) - effectiveSaved);
-        return rem > 0 && !(c.linked_account && c.linked_rule_id);
-      });
       const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
       const monthlySavingsAndCar = goalContrib + carReserve + carLoanTotal;
 
@@ -941,39 +919,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         })
         .reduce((s, c) => s + c.minPayment, 0);
 
-      // Floor used to cap month-0 payment capacity — augmented with active car-loan payments
-      // and CC minimums (same function Dashboard/Forecast use to display "Cash floor") so the
-      // cap here always matches what the user sees, instead of the bare pre-paycheck-bills floor.
-      const m0FloorAugmented = getAugmentedMinSafeCash(
-        rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, now,
-        carFunds, { simCards: cards, monthlyRevolvingBalances: sim.monthlyRevolvingBalances, perCardMinPayments: sim.perCardMinPayments }, 0,
-      ).monthMinSafe;
-
-      // Vehicle insurance for saving-phase car funds whose purchase month has already arrived
-      // (mirrors Forecast.tsx's getMonthVehicleInsurance) and mortgage payment (mirrors
-      // Forecast.tsx's mortgageMonthlyPayment) — both omitted from m0Expenses today, which let
-      // month 0's per-card recommendations overstate cash availability vs Forecast's own total.
-      const m0VehicleInsurance = (carFunds as any[]).reduce((s: number, c: any) => {
-        if (c.phase !== 'saving') return s;
-        let purchaseMonthIdx = 0;
-        if (c.planned_purchase_date) {
-          const parts = (c.planned_purchase_date as string).split('-').map(Number);
-          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-          purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
-        }
-        return purchaseMonthIdx <= 0 ? s + Number(c.monthly_insurance || 0) : s;
-      }, 0);
-      const mortgageAccountNames = new Set(
-        (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
-          .map((a: any) => (a.name as string).toLowerCase()),
-      );
-      const m0MortgagePayment = (debts as any[]).filter((d: any) => mortgageAccountNames.has((d.name as string).toLowerCase()))
-        .reduce((s: number, d: any) => s + Number(d.target_payment || d.min_payment || 0), 0);
-
       const ccMinForMonth = liveRevolvingBal > 0 ? Math.min(ccMinTotalRevolving, simRevolvingTotal) : 0;
-      const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment;
+      const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar;
       const availableForRevolving = liveRevolvingBal > 0
-        ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - m0FloorAugmented - cyclingPayment))
+        ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - m0SafeFloor - cyclingPayment))
         : 0;
       const revolvingPayment = liveRevolvingBal > 0 ? Math.min(simRevolvingTotal, availableForRevolving) : 0;
       const safeToPayTotal = cyclingPayment + revolvingPayment;
@@ -982,7 +931,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // (e.g. for a save-up event). Must be computed even when month 0 IS a save-up month —
       // that's exactly when revolvingPayment is capped below available cash and a holdback exists.
       const surplusIfFree = liveRevolvingBal > 0
-        ? Math.max(0, Math.min(cashPreDebt - cyclingPayment - revolvingPayment - m0FloorAugmented, liveRevolvingBal))
+        ? Math.max(0, Math.min(cashPreDebt - cyclingPayment - revolvingPayment - m0SafeFloor, liveRevolvingBal))
         : 0;
       const maxCapacity = safeToPayTotal + surplusIfFree;
       const holdback = Math.max(0, maxCapacity - safeToPayTotal);
@@ -1032,9 +981,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           cyclingPayment: Math.round(cyclingPayment),
           revolvingPayment: Math.round(revolvingPayment),
           perCardAdjusted,
-          m0SafeFloor: Math.round(m0FloorAugmented),
-          carReserve: Math.round(carReserve),
-          carReserveEvent: carReserveEvent ? { vehicleName: carReserveEvent.vehicle_name as string } : null,
+          m0SafeFloor: Math.round(m0SafeFloor),
         },
       };
     } catch (e) {

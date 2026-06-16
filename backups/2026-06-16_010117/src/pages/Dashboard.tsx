@@ -29,7 +29,6 @@ import {
   getNextPaycheckDate,
   getPaycheckNet,
   getMinSafeCash,
-  getAugmentedMinSafeCash,
   getPrePaycheckNextMonthBills,
   getRemainingTransactionIncomeThisMonth,
   getRemainingTransactionExpensesThisMonth,
@@ -43,7 +42,7 @@ import {
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
   Line, CartesianGrid, ComposedChart,
@@ -387,10 +386,7 @@ export default function Dashboard() {
       if (c.phase === 'loan') continue;
       const gift = Number(c.gift_contribution || 0);
       const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - gift);
-      // Ignore linked_account when it's the funding account itself — that balance is already
-      // counted as available cash elsewhere, so treating it as "already saved" would double-count
-      // the same dollars instead of protecting them for the upcoming purchase.
-      const savedAmt = c.linked_account && c.linked_account !== fundingAccountId && accountMap[c.linked_account]
+      const savedAmt = c.linked_account && accountMap[c.linked_account]
         ? Number(accountMap[c.linked_account].balance)
         : Number(c.current_saved);
       const rem = Math.max(0, giftAdjDownPmt - savedAmt);
@@ -578,21 +574,44 @@ export default function Dashboard() {
   );
 
   // Forecast-equivalent cash floor for month 0: pre-paycheck bills + car loans + CC minimums.
-  // Shared with Forecast.tsx and useCardProjection.ts via getAugmentedMinSafeCash so the floor
-  // displayed here always matches the floor actually used to cap availableToDeploy below.
-  const forecastFloor0 = useMemo(
-    () => getAugmentedMinSafeCash(
-      rules, payConfig, cashFloor, fundingAccountId, new Date(),
-      carFunds ?? [],
-      cardProjection ? {
-        simCards: cardProjection.simCards,
-        monthlyRevolvingBalances: cardProjection.monthlyRevolvingBalances,
-        perCardMinPayments: cardProjection.perCardMinPayments,
-      } : null,
-      0,
-    ),
-    [rules, payConfig, cashFloor, fundingAccountId, carFunds, cardProjection],
-  );
+  // Used to make the floor row in MonthlyBudgetSnapshot match Forecast's floor exactly.
+  const forecastFloor0 = useMemo((): {
+    monthMinSafe: number;
+    floorItems: { name: string; amount: number; dueDay?: number }[];
+    prePaycheckBillsTotal: number;
+  } => {
+    let prePaycheckBillsTotal = prePaycheckBills.total;
+    const floorItems: { name: string; amount: number; dueDay?: number }[] = [...prePaycheckBills.items];
+
+    for (const cf of (carFunds ?? []) as any[]) {
+      if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
+      const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
+      const carPayments = getActiveCarLoanPayments([cf], new Date());
+      for (const cp of carPayments) {
+        prePaycheckBillsTotal += cp.payment;
+        floorItems.push({ name: cf.vehicle_name + ' loan', amount: cp.payment, dueDay: loanDueDay });
+      }
+    }
+
+    for (const card of (cardProjection?.simCards ?? [])) {
+      const revBal = cardProjection?.monthlyRevolvingBalances?.get(card.id)?.[0] ?? 1;
+      if (revBal > 0) {
+        const minPay = cardProjection?.perCardMinPayments?.get(card.id)?.[0] ?? 0;
+        if (minPay > 0 && card.dueDay) {
+          prePaycheckBillsTotal += minPay;
+          floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
+        }
+      } else {
+        if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
+        if (!card.dueDay || card.monthlyNewPurchases <= 0) continue;
+        prePaycheckBillsTotal += card.monthlyNewPurchases;
+        floorItems.push({ name: card.name + ' purchases', amount: card.monthlyNewPurchases, dueDay: card.dueDay });
+      }
+    }
+
+    const monthMinSafe = Math.max(cashFloor, prePaycheckBillsTotal);
+    return { monthMinSafe, floorItems, prePaycheckBillsTotal };
+  }, [prePaycheckBills, carFunds, cashFloor]);
 
   const fundingBalance = useMemo(() => {
     const fundAcct = accounts.find((a: any) => a.id === fundingAccountId);
