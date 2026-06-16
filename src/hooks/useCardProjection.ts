@@ -740,7 +740,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const mInc   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
         const mExp   = m === 0 ? m0Expenses + monthlySavingsAndCar
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0);
-        const mFloor = cashFloorByMonth[m];
+        // Augmented (not bare cashFloorByMonth) so this matches the floor Forecast.tsx uses for
+        // the same month — otherwise pass3RevTotals (which scales the displayed per-card amounts
+        // for months 1+) and Forecast's own Ending Cash walk cap debt payments differently.
+        const mFloor = getAugmentedMinSafeCash(
+          rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
+          new Date(now.getFullYear(), now.getMonth() + m, 1),
+          carFunds, { simCards: cards, monthlyRevolvingBalances: sim.monthlyRevolvingBalances, perCardMinPayments: sim.perCardMinPayments }, m,
+        ).monthMinSafe;
         const simRevTotal = debtPaymentTotals[m];
         const simCycTotal = Math.max(0, allPaymentTotals[m] - simRevTotal);
 
@@ -852,7 +859,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const mInc2   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
           const mExp2   = m === 0 ? m0Expenses + monthlySavingsAndCar
             : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0);
-          const mFloor2 = cashFloorByMonth[m];
+          const mFloor2 = getAugmentedMinSafeCash(
+            rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
+            new Date(now.getFullYear(), now.getMonth() + m, 1),
+            carFunds, { simCards: cards, monthlyRevolvingBalances: sim2.monthlyRevolvingBalances, perCardMinPayments: sim2.perCardMinPayments }, m,
+          ).monthMinSafe;
           const simRevTotal2 = debtPaymentTotals[m];
           const simCycTotal2 = Math.max(0, allPaymentTotals[m] - simRevTotal2);
           const ccMinForM2 = p3RevBal2 > 0
