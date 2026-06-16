@@ -12,7 +12,7 @@ import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
+import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -22,7 +22,7 @@ import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, 
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, getActiveCarLoanPayments, calculateScheduledPayment, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
 
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
   if (!open) return null;
@@ -588,12 +588,8 @@ export default function Forecast() {
     const vehicleProjections = pauseSavings ? [] : (carFunds as any[])
       .filter((c: any) => c.phase === 'saving')
       .map((c: any) => {
-        // Use live account balance when the vehicle is linked to a separate savings account.
-        // Ignore linked_account when it's the funding account itself — that balance is already
-        // counted as available cash elsewhere, so treating it as "already saved" would double-
-        // count the same dollars instead of protecting them for the upcoming purchase.
-        const linkedAcct = c.linked_account && c.linked_account !== forecastFundingAccountId
-          ? accountMap.get(c.linked_account) : null;
+        // Use live account balance when the vehicle is linked to a savings account
+        const linkedAcct = c.linked_account ? accountMap.get(c.linked_account) : null;
         const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved);
         const rem = Math.max(0, Number(c.down_payment_goal) - effectiveSaved - Number(c.gift_contribution || 0));
         // Determine purchase month first — needed for timeline-aware contribution calculation.
@@ -1022,18 +1018,44 @@ export default function Forecast() {
         .reduce((s: number, dd: any) => s + Number(dd.target_payment), 0);
       const otherDebtBalance = Math.max(0, nonCCLiabilities - otherDebtPayments * i);
 
-      // Shared with Dashboard.tsx and useCardProjection.ts via getAugmentedMinSafeCash so the
-      // floor displayed here always matches the floor actually used to cap available cash.
-      const { monthMinSafe, floorItems, prePaycheckBillsTotal } = getAugmentedMinSafeCash(
-        rules, payConfig, cashFloor, forecastFundingAccountId, d,
-        carFunds ?? [],
-        cardProjectionData ? {
-          simCards: cardProjectionData.simCards,
-          monthlyRevolvingBalances: cardProjectionData.monthlyRevolvingBalances,
-          perCardMinPayments: cardProjectionData.perCardMinPayments,
-        } : null,
-        i,
-      );
+      const prePaycheckResult = getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId, d);
+      let prePaycheckBillsTotal = prePaycheckResult.total;
+      const floorItems: { name: string; amount: number; dueDay: number }[] = [...prePaycheckResult.items];
+
+      // Augment floor with items not in rules: car loans and CC cycling payments.
+      // All included regardless of paycheck timing — floor covers every fixed monthly obligation.
+      for (const cf of (carFunds ?? []) as any[]) {
+        if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
+        const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
+        const carPayments = getActiveCarLoanPayments([cf], d);
+        for (const cp of carPayments) {
+          prePaycheckBillsTotal += cp.payment;
+          floorItems.push({ name: cf.vehicle_name + ' loan', amount: cp.payment, dueDay: loanDueDay });
+        }
+      }
+
+      for (const card of (cardProjectionData?.simCards ?? [])) {
+        const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[i] ?? 1;
+        if (revBal > 0) {
+          // Still revolving — add balance-sensitive minimum to the floor.
+          const minPay = cardProjectionData?.perCardMinPayments?.get(card.id)?.[i] ?? 0;
+          if (minPay > 0 && card.dueDay) {
+            prePaycheckBillsTotal += minPay;
+            floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
+          }
+        } else {
+          // Paid off / cycling — floor for statement or full-balance preference cards only.
+          if (card.paymentPreference !== 'statement' && card.paymentPreference !== 'full' && !card.autopayFullBalance) continue;
+          // Use the card's configured minimum payment — not the full monthly purchases.
+          // The floor represents the minimum cash that must remain; the full cycling payment
+          // is a planned outflow on top of the floor, not part of it.
+          if (!card.dueDay || card.minPayment <= 0) continue;
+          prePaycheckBillsTotal += card.minPayment;
+          floorItems.push({ name: card.name + ' min', amount: card.minPayment, dueDay: card.dueDay });
+        }
+      }
+
+      const monthMinSafe = Math.max(cashFloor, prePaycheckBillsTotal);
 
       // Respect contribution_start_date; exclude goals linked to retirement accounts (paycheck deduction)
       // and goals whose linked account is funded by an active transfer rule this month (avoid double count)
@@ -1161,23 +1183,12 @@ export default function Forecast() {
     let prevP3RevBal = p3RevBal;
     let cumulativeSurplus = 0;
     let ccDebtFreeFired = false;
-    // Cash being set aside toward a saving-phase vehicle's down payment hasn't left any account
-    // yet — it's still the user's cash. Track it separately and add it back to displayed Ending
-    // Cash each month, removing it once the purchase month arrives (the money's been spent by
-    // month-end, same point effectiveDP/the lump-sum purchase deduction already fires).
-    let cumulativeCarReserveHeld = 0;
 
     for (let i = 0; i < 36; i++) {
       const b = baseData[i];
       let monthDebtPayment = debtPayments[i];
       const startingCash = Math.round(finalLiquid);
       const carContribThisMonth = getMonthCarContrib(i);
-      cumulativeCarReserveHeld += carContribThisMonth;
-      for (const v of vehicleProjections) {
-        if (i === v.purchaseMonthIdx) {
-          cumulativeCarReserveHeld = Math.max(0, cumulativeCarReserveHeld - v.contrib * (v.purchaseMonthIdx + 1));
-        }
-      }
       const carLoanThisMonth = activeCarLoanByMonth[i];
       const projLumpThisMonth = getMonthProjLumpSum(i);
       const projLoanThisMonth = getMonthProjLoan(i);
@@ -1342,8 +1353,7 @@ export default function Forecast() {
       const totalMonthlyOut = b.baseExpenses + monthDebtPayment + savingsOut + carLoanThisMonth + effectiveDPThisMonth + vehicleInsuranceThisMonth + projLoanThisMonth + mortgageMonthlyPayment + actualTransfers + lumpTransferThisMonth;
 
       // FIX #9: Don't floor at 0 — allow display of negative to alert user
-      // Reserved-but-not-yet-spent vehicle savings are added back — see cumulativeCarReserveHeld.
-      const endingCash = Math.round(finalLiquid + cumulativeCarReserveHeld);
+      const endingCash = Math.round(finalLiquid);
 
       // Flag: floor breached AND the one-time expense alone caused it
       const floorBreachedByOneTime =
@@ -1404,7 +1414,6 @@ export default function Forecast() {
         savingsGoalItems: b.savingsGoalItems,
         carContrib: Math.round(actualCarSavings),
         carContribItems: b.carContribItems,
-        carReserveHeld: Math.round(cumulativeCarReserveHeld),
         carLoanPayment: Math.round(carLoanThisMonth - activeCarLoanLumpSumByMonth[i]),
         vehicleDownPayment: Math.round(effectiveDPThisMonth), // cash portion only — savings portion in nonCashTransferItems
         vehicleSavedPortion: Math.round(Math.max(0, downPaymentThisMonth - effectiveDPThisMonth)), // from linked savings account
@@ -2202,11 +2211,9 @@ export default function Forecast() {
                       ? (row.savingsGoalItems as { name: string; amount: number }[]).map(g => ({ label: `  ${g.name}`, value: formatCurrency(g.amount, false), op: '−' as const }))
                       : (row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' as const }] : []
                     ),
-                    // Informational only — this cash hasn't left any account yet, so it's not
-                    // subtracted from Ending Cash (see cumulativeCarReserveHeld), just earmarked.
                     ...((row.carContribItems as { name: string; amount: number }[] | undefined)?.length
-                      ? (row.carContribItems as { name: string; amount: number }[]).map(v => ({ label: `  Reserving for ${v.name} (still your cash)`, value: formatCurrency(v.amount, false) }))
-                      : (row.carContrib ?? 0) > 0 ? [{ label: '  Reserving for car fund (still your cash)', value: formatCurrency(row.carContrib, false) }] : []
+                      ? (row.carContribItems as { name: string; amount: number }[]).map(v => ({ label: `  ${v.name}`, value: formatCurrency(v.amount, false), op: '−' as const }))
+                      : (row.carContrib ?? 0) > 0 ? [{ label: '  Car Fund', value: formatCurrency(row.carContrib, false), op: '−' as const }] : []
                     ),
                     ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
                     ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, false), op: '−' }] : []),
@@ -2228,9 +2235,6 @@ export default function Forecast() {
                       : []),
                     { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
                     { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
-                    ...((row.carReserveHeld ?? 0) > 0
-                      ? [{ label: `  includes ${formatCurrency(row.carReserveHeld, false)} reserved for an upcoming vehicle purchase`, value: '' }]
-                      : []),
                     {
                       label: 'Cash Floor',
                       value: formatCurrency(row.monthMinSafe, false),
