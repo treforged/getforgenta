@@ -1061,25 +1061,21 @@ export default function Forecast() {
 
     }
 
-    // ═══ PASS 2: Look-ahead — save up for one-time CASH expenses, redirect surplus otherwise ═══
+    // ═══ PASS 2: debt-payment reduction schedule — sourced from cardProjectionData ═══
     //
-    // Design goals:
-    //  • When CC debt exists and no upcoming cash expense needs saving, PASS 3 pins end cash
-    //    to cashFloor (all surplus → debt). PASS 2 must simulate this so it sees the correct
-    //    starting balance for future months.
-    //  • When a future one-time CASH expense would breach the floor, PASS 2 reduces debt
-    //    payments in the months immediately before the expense (latest-first = "1 month before
-    //    if possible, more if needed"), down to CC minimums. Those months become "save-up months"
-    //    where PASS 3 skips its redirect so cash accumulates.
-    //  • CC one-time purchases are excluded from oneTimeByMonth and never trigger save-up.
-    //  • CC minimums are always met — payments never drop below ccMinTotal.
-
-    // Total CC minimum payment across all cards (floor for save-up reduction).
-    // Sourced from cardProjectionData.simCards (CardData.minPayment, the same value the
-    // simulation and useCardProjection's month-0 calc use) rather than the debts table's
-    // min_payment directly — those can disagree (accounts.min_payment takes precedence in
-    // buildCardData when present), which previously made Forecast think less was due than the
-    // engine actually required, letting month-0 debt payments diverge from cardProjectionData.
+    // This used to run its own independent 20-pass backward-reduction loop, deciding which
+    // earlier months should sacrifice debt paydown to protect a later floor breach. That
+    // duplicated useCardProjection.ts's own equivalent look-ahead (maxDebtPaymentByMonth, which
+    // feeds directly into the credit-card payoff simulation), and the two algorithms could reach
+    // different conclusions about how much a given month should hold back — confirmed on a real
+    // account where Forecast's own walk held back ~$1,162 more for one month than was reflected
+    // in the popup's own per-card line items, because the two reduction schedules disagreed.
+    // cardProjectionData.allPaymentTotals/debtPaymentTotals already reflect the engine's own
+    // reduction (the underlying simulation is capped by maxDebtPaymentByMonth internally), and
+    // baseData[i].rawDebtPayment is already sourced from cardProjectionData.allPaymentTotals[i]
+    // (see PASS 1) — so debtPayments[i] just reads that directly, with no independent re-reduction.
+    // cardProjectionData.saveUpMonths/saveUpReason and strictSaveUpMonths (below) are the single
+    // source of truth for which months are protected and which months still redirect surplus.
     const ccCards = active.filter((a: any) => a.account_type === 'credit_card');
     const ccMinTotal = (cardProjectionData?.simCards ?? []).length > 0
       ? (cardProjectionData!.simCards as any[]).reduce((s: number, c: any) => s + Number(c.minPayment || 0), 0)
@@ -1088,63 +1084,8 @@ export default function Forecast() {
         .reduce((s: number, d: any) => s + Number(d.min_payment), 0);
 
     const debtPayments = baseData.map(b => b.rawDebtPayment);
-
-    // Months where PASS 2 reduced debt to save up — PASS 3 skips redirect in these months
-    const saveUpMonths = new Set<number>();
-
-    // Simulate cash flow accounting for PASS 3 pinning in normal months.
-    // Save-up months are NOT pinned — their extra cash carries forward to cover future expenses.
-    const recomputeSimCash = (simCash: number[]) => {
-      let bal = liquidBal;
-      for (let i = 0; i < 36; i++) {
-        const b = baseData[i];
-        const totalOut = b.baseExpenses + debtPayments[i] + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i] + getMonthEffectiveDP(i) + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment + b.monthTransfers + lumpTransferByMonth[i].total;
-        bal += b.netIncome - totalOut + b.oneTimeNet;
-        // Simulate PASS 3 redirect: pin to monthMinSafe in normal months (not save-up months)
-        if (!saveUpMonths.has(i) && b.ccDebtBalance > 0 && bal > b.monthMinSafe) {
-          bal = b.monthMinSafe;
-        }
-        simCash[i] = bal;
-      }
-    };
-
-    const simCash: number[] = Array.from({ length: 36 });
-    recomputeSimCash(simCash);
-
-    const minAdjustableMonthIndex = 0;
-
-    // Iteratively find floor breaches and reduce debt in months immediately before each breach,
-    // working backward (prefer the 1 month before, then 2, etc.) and stopping at CC minimums.
-    for (let pass = 0; pass < 20; pass++) {
-      let anyFixed = false;
-      for (let i = 0; i < 36; i++) {
-        if (simCash[i] >= baseData[i].monthMinSafe) continue;
-        const shortfall = baseData[i].monthMinSafe - simCash[i];
-        let toRecover = shortfall;
-
-        // Scan BACKWARD from the breached month — prefer reducing the month closest to the breach
-        for (let j = i; j >= minAdjustableMonthIndex && toRecover > 0; j--) {
-          // Cycling payments (paid-off revolving cards' deferred purchases) are non-negotiable —
-          // only the revolving portion can be reduced. Add cycling to the floor so PASS 2 doesn't
-          // think it can reduce a month where the cycling payment alone exceeds ccMinTotal.
-          const cyclingAtJ = Math.max(0, (cardProjectionData?.allPaymentTotals?.[j] ?? 0) - (cardProjectionData?.debtPaymentTotals?.[j] ?? 0));
-          const minPayment = cyclingAtJ + ccMinTotal;
-          const canReduce = Math.max(0, Math.min(debtPayments[j] - minPayment, toRecover));
-          if (canReduce > 0) {
-            debtPayments[j] -= canReduce;
-            toRecover -= canReduce;
-            if (j < i) saveUpMonths.add(j);
-            anyFixed = true;
-          }
-        }
-
-        if (anyFixed) {
-          recomputeSimCash(simCash);
-          break; // restart scan to catch cascading effects
-        }
-      }
-      if (!anyFixed) break;
-    }
+    const saveUpMonths = cardProjectionData?.saveUpMonths ?? new Set<number>();
+    const strictSaveUpMonths = cardProjectionData?.strictSaveUpMonths ?? new Set<number>();
 
     // ═══ PASS 3: Build final projection data ═══
     let finalLiquid = liquidBal;
@@ -1227,10 +1168,10 @@ export default function Forecast() {
       // same set here so the Forecast's p3RevBal tracker evolves at the same rate as the engine,
       // preventing the Forecast from "paying off" revolving debt faster than the sim and
       // showing artificially high end cash while the accordion still shows the sim's minimum payment.
-      const ccEngSaveUp = cardProjectionData?.saveUpMonths?.has(i) ?? false;
-      // Save-up months (either Forecast PASS 2 or CC engine): cap revolving at minimum-ish so
-      // cash accumulates for the upcoming large expense instead of being drained to the floor.
-      const revolvingCap = (saveUpMonths.has(i) || ccEngSaveUp)
+      // Save-up months (from cardProjectionData, the single source of truth): cap revolving at
+      // minimum-ish so cash accumulates for the upcoming large expense instead of being drained
+      // to the floor.
+      const revolvingCap = saveUpMonths.has(i)
         ? Math.max(ccMinForMonth, debtPayments[i] - cyclingPayment)
         : availableForRevolving;
       const revolvingPayment = p3RevBal > 0 ? Math.min(simRevolvingPayment, Math.min(revolvingCap, availableForRevolving)) : 0;
@@ -1247,7 +1188,11 @@ export default function Forecast() {
         if (revBal0 === 0) return s;
         return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
       }, 0);
-      if (!saveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
+      // strictSaveUpMonths (not saveUpMonths) — the event's own month should still redirect any
+      // genuine surplus left over once its own protection is already in place; only months
+      // strictly before the event (where reducing further would eat into the protected cash) are
+      // excluded from redirect. See strictSaveUpMonths's definition in useCardProjection.ts.
+      if (!strictSaveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
         const surplus = Math.min(finalLiquid - b.monthMinSafe, Math.max(0, ccEngRevBalEnd - cumulativeSurplus));
         if (surplus > 0) {
           monthDebtPayment += surplus;
@@ -1357,7 +1302,7 @@ export default function Forecast() {
         endingCash < cashFloor &&
         b.oneTimeNet < 0 &&
         (endingCash - b.oneTimeNet) >= cashFloor;
-      const debtWasReduced = debtPayments[i] < b.rawDebtPayment;
+      const debtWasReduced = saveUpMonths.has(i);
 
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
       const netWorth = totalAssets - totalLiabilityBal;

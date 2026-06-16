@@ -48,6 +48,11 @@ export interface CardProjectionResult {
   m0Expenses: number;
   m0SafeFloor: number;
   saveUpMonths: Set<number>;
+  /** Strictly-before-the-breach months only (never the event's own month) — see the
+   * strictSaveUpMonths comment near its definition. Forecast.tsx uses this (not saveUpMonths)
+   * to gate its own surplus-redirect step, since the event's own month should still be eligible
+   * for redirecting any genuine surplus left over once its own protection is already in place. */
+  strictSaveUpMonths: Set<number>;
   saveUpReason: Map<number, { eventName: string; monthLabel: string }>;
   month0: Month0Result;
 }
@@ -990,6 +995,34 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
+      // When pass3RevTotals[m] requires scaling DOWN below the natural simulated total, applying
+      // the same scale factor to every card uniformly can push an individual card below its own
+      // minimum payment even though the combined total still covers every card's minimum in
+      // aggregate — the same class of bug fixed for month 0's perCardAdjusted above, but that fix
+      // never extended to this months-1+ path. Protect each revolving card's own minimum first,
+      // then distribute only the leftover ("discretionary") pool proportional to each card's
+      // natural extra above its own minimum — mirrors the month-0 algorithm exactly.
+      const protectedPerCardByMonth = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(36).fill(0)]));
+      for (let m = 0; m < 36; m++) {
+        const simRevTotal = debtPaymentTotals[m];
+        const target = pass3RevTotals[m] ?? 0;
+        if (simRevTotal <= 0 || target >= simRevTotal) continue;
+        const revCards = cards.filter(c => (activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0) > 0);
+        if (revCards.length === 0) continue;
+        const minSum = revCards.reduce((s, c) => s + c.minPayment, 0);
+        const discretionaryPool = Math.max(0, target - minSum);
+        const naturalExtraTotal = revCards.reduce((s, c) => {
+          const natural = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
+          return s + Math.max(0, natural - c.minPayment);
+        }, 0);
+        for (const c of revCards) {
+          const natural = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
+          const extra = Math.max(0, natural - c.minPayment);
+          const extraShare = naturalExtraTotal > 0 ? discretionaryPool * (extra / naturalExtraTotal) : 0;
+          protectedPerCardByMonth.get(c.id)![m] = Math.min(natural, c.minPayment + extraShare);
+        }
+      }
+
       const perCardPaymentsScaled = cards.map(c => ({
         name: c.name, id: c.id,
         payments: Array.from({ length: 36 }, (_, m) => {
@@ -1014,6 +1047,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           }
           const simRevTotal = debtPaymentTotals[m];
           const scale = simRevTotal > 0 ? Math.min(1, pass3RevTotals[m] / simRevTotal) : 1;
+          if (scale < 1) {
+            const protectedAmt = protectedPerCardByMonth.get(c.id)?.[m];
+            if (protectedAmt != null) return Math.round(protectedAmt);
+          }
           const extra = extraPerCardByMonth.get(c.id)?.[m] ?? 0;
           return Math.round(simAmt * scale + extra);
         }),
@@ -1133,6 +1170,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         m0Expenses,
         m0SafeFloor,
         saveUpMonths,
+        strictSaveUpMonths,
         saveUpReason,
         month0: {
           safeToPayTotal: Math.round(safeToPayTotal),
