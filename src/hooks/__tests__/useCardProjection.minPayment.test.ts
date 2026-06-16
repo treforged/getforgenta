@@ -96,4 +96,66 @@ describe('useCardProjection minimum-payment protection', () => {
     }
     expect(violations).toEqual([]);
   });
+
+  it('redirects surplus to the highest-APR card with a balance before any lower-priority card exceeds its minimum (avalanche)', () => {
+    const checkingId = 'checking-1';
+    const highCardId = 'card-high-apr';
+    const lowCardId = 'card-low-apr';
+
+    // No future large event — plenty of cash relative to expenses, so PASS-3's surplus redirect
+    // fires most months, sending any cash above the floor to debt.
+    const accounts = [
+      { id: checkingId, name: 'Checking', account_type: 'checking', balance: 3000, active: true },
+      { id: highCardId, name: 'High APR Card', account_type: 'credit_card', balance: 6000, credit_limit: 15000, apr: 27, payment_due_day: 1, active: true, min_payment: 150, payment_preference: 'statement' },
+      { id: lowCardId, name: 'Low APR Card', account_type: 'credit_card', balance: 1100, credit_limit: 5000, apr: 12, payment_due_day: 1, active: true, min_payment: 99, payment_preference: 'statement' },
+    ];
+    const debts = [
+      { id: highCardId, name: 'High APR Card', balance: 6000, apr: 27, min_payment: 150, target_payment: 400, credit_limit: 15000 },
+      { id: lowCardId, name: 'Low APR Card', balance: 1100, apr: 12, min_payment: 99, target_payment: 99, credit_limit: 5000 },
+    ];
+    const rules = [
+      { id: 'income-1', name: 'Paycheck', amount: 3000, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: checkingId, active: true, category: 'Other' },
+      { id: 'bill-1', name: 'Rent', amount: 1000, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: checkingId, deposit_account: null, active: true, category: 'Bills' },
+    ];
+    const transactions: any[] = [];
+    const carFunds: any[] = [];
+    const goals: any[] = [];
+    const profile: any = null;
+
+    const payConfig = buildPayConfig(profile);
+    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const now = new Date();
+    const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const { result } = renderHook(() => useCardProjection({
+      accounts, transactions, rules, debts, goals, carFunds, profile,
+      debtPayoffOptions: { cashFloor: 500 },
+      payConfig,
+      scheduledEvents,
+      pauseSavings: false,
+      forecastFundingAccountId: checkingId,
+      debtStrategy: 'avalanche',
+      persistedDebtFundingId: null,
+      assumptions: DEFAULT_ASSUMPTIONS,
+      syncCutoffDate,
+      paymentPlans: [],
+    } as any));
+
+    const r = result.current!;
+    expect(r).not.toBeNull();
+
+    const lowSeries = r.perCardPaymentsScaled.find(p => p.id === lowCardId)!;
+    const lowCard = r.simCards.find(c => c.id === lowCardId)!;
+    const violations: string[] = [];
+    for (let m = 0; m < 36; m++) {
+      const lowPay = lowSeries.payments[m];
+      const highRevBal = r.monthlyRevolvingBalances.get(highCardId)?.[m] ?? 0;
+      // The low-APR card should only be paid above its own minimum once the high-APR card's
+      // balance is fully cleared — avalanche must exhaust the higher-priority card first.
+      if (lowPay > lowCard.minPayment + 1 && highRevBal > 1) {
+        violations.push(`month ${m}: Low APR card paid ${lowPay} (min ${lowCard.minPayment}) while High APR card still owes ${highRevBal}`);
+      }
+    }
+    expect(violations).toEqual([]);
+  });
 });
