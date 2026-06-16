@@ -521,18 +521,22 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // ── Combined look-ahead: one-time DB expenses + car down payments + cycling excess ──
       // Comprehensive per-month expense figure for the look-ahead — mirrors Forecast.tsx's own
       // totalOut (baseExpenses + savings/car contributions + vehicle insurance + projected car
-      // loan + mortgage + lump-sum transfers), minus the debt payment itself (tracked separately
-      // as simDebtPay below). For m>0, simulationMonthEvents[m].expenses already folds in goal/
+      // loan + mortgage + lump-sum transfers), minus the REVOLVING debt payment itself (tracked
+      // separately as simDebtPay below — cycling-card statement payments are mandatory and
+      // non-negotiable, so they belong here as an expense, not as part of the reducible revolving
+      // allocation; this mirrors Forecast.tsx's own rawDebtPayment, which already includes cycling
+      // via allPaymentTotals). For m>0, simulationMonthEvents[m].expenses already folds in goal/
       // car-fund monthly contributions and the active car loan's regular payment, so only the
       // categories that engine doesn't know about need to be added here. Month 0 intentionally
       // stays m0Expenses-only — its own minimum-protection path (cashPreDebt, further below)
-      // already accounts for monthlySavingsAndCar/vehicle/mortgage precisely; duplicating that
-      // here would only affect maxDebtPaymentByMonth[0]'s cap, not the displayed recommendation.
-      const comprehensiveMExp = (m: number): number =>
+      // already accounts for monthlySavingsAndCar/vehicle/mortgage/cycling precisely; duplicating
+      // that here would only affect maxDebtPaymentByMonth[0]'s cap, not the displayed recommendation.
+      const comprehensiveMExp = (m: number, cyclingPaymentByMonth: number[]): number =>
         m === 0
           ? m0Expenses
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses)
-            + getVehicleExtrasForMonth(m) + monthlyMortgagePayment + lumpTransferByMonth[m] + carLoanLumpByMonth[m];
+            + getVehicleExtrasForMonth(m) + monthlyMortgagePayment + lumpTransferByMonth[m] + carLoanLumpByMonth[m]
+            + cyclingPaymentByMonth[m];
 
       // No longer gated behind a flagged "large event" — every month's floor breach must be
       // protected, not just ones traceable to a recorded one-time expense, car down payment, or
@@ -541,11 +545,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // mortgage/insurance/regular bills with no single flagged event), which is exactly the case
       // that regressed when Forecast.tsx's own general-purpose PASS-2 was removed in its place.
       //
-      // Takes the per-month floor as a parameter (rather than closing over a single fixed array)
-      // because the floor itself depends on the simulation's own per-card minimum payments
-      // (getAugmentedMinSafeCash, same floor Forecast's PASS-2 and pass3RevTotals use) — see the
-      // iterative refinement below this function for why it has to be callable more than once.
-      const runLookAhead = (floorByMonth: number[]) => {
+      // Takes the per-month floor and per-month cycling payment as parameters (rather than
+      // closing over fixed arrays) because both depend on the simulation's own per-card state
+      // (getAugmentedMinSafeCash needs minimum payments/revolving balances; the cycling payment
+      // needs monthlyPayments) — see the iterative refinement below this function for why it has
+      // to be callable more than once, each time against a fresher simulation.
+      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[]) => {
         const maxDebtPaymentByMonth: number[] = Array(36).fill(Infinity);
         const saveUpMonths = new Set<number>();
         const saveUpReason = new Map<number, { eventName: string; monthLabel: string }>();
@@ -563,10 +568,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const simDebtPay: number[] = [];
           for (let m = 0; m < 36; m++) {
             const mInc = m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome);
-            const mExp = comprehensiveMExp(m);
+            const mExp = comprehensiveMExp(m, cyclingPaymentByMonth);
             const mFloor = floorByMonth[m];
             const startBal = m === 0 ? debtFundingBalance : mFloor;
-            simDebtPay.push(Math.max(ccMinTotal, Math.max(0, startBal + mInc - mExp - mFloor - cyclingExcessByMonth[m])));
+            simDebtPay.push(Math.max(ccMinTotal, Math.max(0, startBal + mInc - mExp - mFloor)));
           }
 
           const recomputeSimCash = (): number[] => {
@@ -574,18 +579,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             const cash: number[] = [];
             for (let m = 0; m < 36; m++) {
               const mInc = m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome);
-              const mExp = comprehensiveMExp(m);
+              const mExp = comprehensiveMExp(m, cyclingPaymentByMonth);
               const mFloor = floorByMonth[m];
-              // Deduct cycling excess (elevated statement payment from prior month's one-time CC purchase)
-              // so floor breaches in elevated-cycling months are visible to the iterative recovery loop.
-              const availForDebt = Math.max(0, bal + mInc - mExp - mFloor - cyclingExcessByMonth[m]);
+              const availForDebt = Math.max(0, bal + mInc - mExp - mFloor);
               const effectivePay = Math.min(simDebtPay[m], availForDebt + ccMinTotal);
               const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeArr[m] ?? { income: 0, expenses: 0 });
-              // Apply one-time items, car DP, and cycling excess before the floor clamp so floor
-              // breaches caused by any of these are visible to the iterative recovery loop.
+              // Apply one-time items and car DP before the floor clamp so floor breaches caused
+              // by either are visible to the iterative recovery loop. Cycling is no longer a
+              // separate term here — it's already inside mExp via comprehensiveMExp.
               bal += mInc - mExp - effectivePay + oneTime.income - oneTime.expenses
-                - (m === 0 ? 0 : carDownPaymentByMonth[m])
-                - (m === 0 ? 0 : cyclingExcessByMonth[m]);
+                - (m === 0 ? 0 : carDownPaymentByMonth[m]);
               if (!saveUpMonths.has(m) && bal > mFloor) bal = mFloor;
               cash.push(bal);
             }
@@ -688,6 +691,27 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ).monthMinSafe;
         });
 
+      // Full cycling-card statement payment per month (not just the excess over baseline) —
+      // mirrors Forecast.tsx's rawDebtPayment, which already includes this via allPaymentTotals,
+      // and this hook's own month-0 cyclingPayment (allPaymentTotals[0] - debtPaymentTotals[0]),
+      // generalized to any month and any simulation pass. Uses START-of-month revolving balance
+      // so the month a revolving card clears its balance still counts as revolving, not cycling
+      // (matching debtPaymentTotals below). Without this, the look-ahead's cash model never
+      // accounted for a cycling card's routine statement payment at all — only the unusual excess
+      // — making it think more cash was available than Forecast's own model did.
+      const computeCyclingPaymentByMonth = (simResult: { monthlyPayments: Map<string, number[]>; monthlyRevolvingBalances: Map<string, number[]> }): number[] =>
+        Array.from({ length: 36 }, (_, m) => {
+          const allTotal = cards.reduce((s, c) => s + (simResult.monthlyPayments.get(c.id)?.[m] ?? 0), 0);
+          const revTotal = cards.reduce((s, c) => {
+            const startRevBal = m === 0
+              ? (simResult.monthlyRevolvingBalances.get(c.id)?.[0] ?? 0)
+              : (simResult.monthlyRevolvingBalances.get(c.id)?.[m - 1] ?? 0);
+            if (startRevBal <= 0) return s;
+            return s + (simResult.monthlyPayments.get(c.id)?.[m] ?? 0);
+          }, 0);
+          return Math.max(0, allTotal - revTotal);
+        });
+
       // ── Run CC simulation ─────────────────────────────────────────────────────
       // Bootstrap pass: uncapped, bare floor — just to get an initial card-minimum-payment /
       // revolving-balance trajectory so the augmented floor below has something to work from.
@@ -718,10 +742,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // coarse and rarely shift between passes — and bring this look-ahead's breach detection to
       // parity with Forecast's own floor instead of the narrower bare one.
       let augmentedCashFloorByMonth = cashFloorByMonth;
-      let lookAhead = runLookAhead(cashFloorByMonth);
+      let lookAhead = runLookAhead(cashFloorByMonth, Array(36).fill(0));
       for (let outer = 0; outer < 3; outer++) {
         augmentedCashFloorByMonth = computeAugmentedFloor(sim);
-        lookAhead = runLookAhead(augmentedCashFloorByMonth);
+        const cyclingPaymentByMonth = computeCyclingPaymentByMonth(sim);
+        lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth);
         sim = simulateVariablePayoff(
           cards,
           debtFundingBalance,
