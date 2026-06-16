@@ -404,8 +404,15 @@ export default function Dashboard() {
       const reserve = Math.min(rem / monthsToGoal, rem);
       if (reserve > 0) items.push({ label: c.vehicle_name, value: Math.round(reserve) });
     }
+    // These are subtracted inside cardProjection.month0's cashPreDebt (and therefore affect
+    // availableToDeploy/safeToPayTotal below) but weren't otherwise shown as visible line items,
+    // so the displayed math didn't add up to "Available to deploy".
+    const vehicleInsurance = cardProjection?.month0?.vehicleInsurance ?? 0;
+    if (vehicleInsurance > 0) items.push({ label: 'Vehicle Insurance (est.)', value: vehicleInsurance });
+    const mortgagePayment = cardProjection?.month0?.mortgagePayment ?? 0;
+    if (mortgagePayment > 0) items.push({ label: 'Mortgage Payment', value: mortgagePayment });
     return items;
-  }, [pauseSavings, goals, carFunds, accounts, rules, accountMap]);
+  }, [pauseSavings, goals, carFunds, accounts, rules, accountMap, cardProjection]);
 
   const debtCards = useMemo(
     () => buildCardData(accounts, baseTxns, rules, debts),

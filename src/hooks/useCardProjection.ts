@@ -28,6 +28,11 @@ export interface Month0Result {
    * should be shown as cash on hand with this note, not subtracted as if it were a real expense. */
   carReserve: number;
   carReserveEvent: { vehicleName: string } | null;
+  /** Subtracted from cashPreDebt above — surface these so any UI deriving "available to deploy"
+   * from visible line items (Dashboard) can show them, instead of having them only affect the
+   * total invisibly. */
+  vehicleInsurance: number;
+  mortgagePayment: number;
 }
 
 export interface CardProjectionResult {
@@ -993,17 +998,41 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // denominator so the per-card revolving amounts sum exactly to revolvingPayment.
       // When sim2 is triggered it caps month-0 total, so using sim1 numerator with the
       // sim2-updated simRevolvingTotal denominator would over-allocate revolving cards.
-      const scale = simRevolvingTotal > 0 ? Math.min(1, revolvingPayment / simRevolvingTotal) : 0;
+      // Scaling the combined revolvingPayment down uniformly across cards (a flat percentage)
+      // can push an individual card below its own minimum even though the combined total still
+      // covers every card's minimum in aggregate — e.g. Discover's natural payment is already
+      // close to its minimum, so any uniform scale-down sends it under. Protect each revolving
+      // card's own minimum first, then distribute only the leftover ("discretionary") pool
+      // proportionally across each card's natural payment above its own minimum.
+      const ccMinSumActive = cards.reduce((s, c) => {
+        const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
+        return revBal0 > 0 ? s + c.minPayment : s;
+      }, 0);
+      const discretionaryPool = Math.max(0, revolvingPayment - ccMinSumActive);
+      const naturalExtraTotal = cards.reduce((s, c) => {
+        const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
+        if (revBal0 === 0) return s;
+        const activeSimPay = Math.round(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
+        return s + Math.max(0, activeSimPay - c.minPayment);
+      }, 0);
       const perCardAdjusted = cards.map(c => {
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         const isCycling = revBal0 === 0;
         const activeSimPay = Math.round(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
         const perCardEntry = perCardPayments.find(p => p.id === c.id);
         const cyclingPay = perCardEntry?.payments[0] ?? activeSimPay;
+        let payment: number;
+        if (isCycling) {
+          payment = cyclingPay;
+        } else {
+          const extra = Math.max(0, activeSimPay - c.minPayment);
+          const extraShare = naturalExtraTotal > 0 ? discretionaryPool * (extra / naturalExtraTotal) : 0;
+          payment = Math.round(Math.min(activeSimPay, c.minPayment + extraShare));
+        }
         return {
           id: c.id,
           name: c.name,
-          payment: isCycling ? cyclingPay : Math.round(activeSimPay * scale),
+          payment,
           maxPayment: activeSimPay,
         };
       });
@@ -1035,6 +1064,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           m0SafeFloor: Math.round(m0FloorAugmented),
           carReserve: Math.round(carReserve),
           carReserveEvent: carReserveEvent ? { vehicleName: carReserveEvent.vehicle_name as string } : null,
+          vehicleInsurance: Math.round(m0VehicleInsurance),
+          mortgagePayment: Math.round(m0MortgagePayment),
         },
       };
     } catch (e) {
