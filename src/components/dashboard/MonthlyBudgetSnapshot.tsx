@@ -13,7 +13,7 @@ type Props = {
   savingsAndReserves?: number;
   savingsBreakdown?: { label: string; value: number }[];
   availableToDeploy?: number;
-  saveUpNote?: { eventName: string; monthLabel: string } | null;
+  saveUpNote?: { eventName: string; monthLabel: string; amount: number } | null;
   onFloorClick?: () => void;
 };
 
@@ -81,7 +81,7 @@ export default function MonthlyBudgetSnapshot({
       value: deployedValue,
       sign: '=',
       colorClass: deployedValue >= 0 ? 'text-success' : 'text-destructive',
-      ...(saveUpNote ? { note: `Holding for: ${saveUpNote.eventName} (${saveUpNote.monthLabel})` } : {}),
+      ...(saveUpNote ? { note: `Reserving ${formatCurrency(saveUpNote.amount, false)} for ${saveUpNote.eventName} (${saveUpNote.monthLabel})` } : {}),
     },
   ];
 

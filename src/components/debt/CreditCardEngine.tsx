@@ -789,11 +789,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return { totalAvailableCash, totalMinimumsdue, cashWarning, strategyLabel, recs };
   }, [month0, cards, strategy]);
 
-  // Implied savings: cash the engine holds beyond the floor and CC payments.
-  const impliedSavings = useMemo(() =>
-    Math.max(0, estLiquidCash - (month0?.m0SafeFloor ?? recommendedSafeMinimum) - (month0?.safeToPayTotal ?? 0)),
-    [estLiquidCash, month0, recommendedSafeMinimum],
-  );
+  // Implied savings: recurring reserve the engine holds beyond the floor and CC payments
+  // (goal contributions + car fund reserve). The save-up holdback for a one-time future
+  // event is excluded here — it's surfaced separately via month0.holdback/holdbackEvent.
+  const impliedSavings = useMemo(() => {
+    const residual = Math.max(0, estLiquidCash - (month0?.m0SafeFloor ?? recommendedSafeMinimum) - (month0?.safeToPayTotal ?? 0));
+    return Math.max(0, residual - (month0?.holdback ?? 0));
+  }, [estLiquidCash, month0, recommendedSafeMinimum]);
 
   const projections: CardProjection[] = useMemo(() => {
     // Month 0: use pass-3 constrained amount (matches "Recommended This Month" panel).

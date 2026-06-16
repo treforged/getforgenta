@@ -557,8 +557,10 @@ export default function Dashboard() {
 
 
   const month0SaveUpNote = useMemo(() => {
-    if (!cardProjection?.saveUpMonths?.has(0)) return null;
-    return cardProjection.saveUpReason?.get(0) ?? null;
+    const event = cardProjection?.month0?.holdbackEvent;
+    const amount = cardProjection?.month0?.holdback;
+    if (!event || !amount) return null;
+    return { ...event, amount };
   }, [cardProjection]);
 
   const minSafeCash = useMemo(
