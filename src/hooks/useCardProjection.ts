@@ -479,13 +479,29 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
             ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
             : 0;
-          return { purchaseMonthIdx, projPayment, termMonths: Number(c.loan_term_months) || 0, insurance: Number(c.monthly_insurance || 0) };
+          return {
+            purchaseMonthIdx, projPayment, termMonths: Number(c.loan_term_months) || 0, insurance: Number(c.monthly_insurance || 0),
+            // Extra payments the user plans to make once this saving-phase car is financed —
+            // mirrors Forecast.tsx's getMonthProjLumpSum. Missing this was the root cause of a
+            // real discrepancy: Forecast's own model (which already included these) showed a
+            // genuine multi-month floor breach that this hook's look-ahead never saw coming,
+            // since it had no idea this $/month was leaving every month in that window.
+            lumpSumPayments: (c.lump_sum_payments ?? []) as { date: string; amount: number }[],
+          };
         });
-      const getVehicleExtrasForMonth = (m: number) => vehicleForecastByMonth.reduce((s, v) => {
-        const insurance = m >= v.purchaseMonthIdx ? v.insurance : 0;
-        const projLoan = m > v.purchaseMonthIdx && m <= v.purchaseMonthIdx + v.termMonths ? v.projPayment : 0;
-        return s + insurance + projLoan;
-      }, 0);
+      const getVehicleExtrasForMonth = (m: number) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+        const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return vehicleForecastByMonth.reduce((s, v) => {
+          const insurance = m >= v.purchaseMonthIdx ? v.insurance : 0;
+          const inLoanWindow = m > v.purchaseMonthIdx && m <= v.purchaseMonthIdx + v.termMonths;
+          const projLoan = inLoanWindow ? v.projPayment : 0;
+          const lumpSum = inLoanWindow
+            ? v.lumpSumPayments.filter(ls => ls.date.substring(0, 7) === mk).reduce((s2, ls) => s2 + Number(ls.amount), 0)
+            : 0;
+          return s + insurance + projLoan + lumpSum;
+        }, 0);
+      };
       const mortgageAccountNames = new Set(
         (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
           .map((a: any) => (a.name as string).toLowerCase()),
