@@ -977,21 +977,27 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // only ever reduces a card's natural payment, never increases it), so without this, the
       // displayed per-card amounts silently fall short of what Forecast's own walk actually pays —
       // a confirmed source of a real per-month gap between the popup's line items and Ending Cash.
-      // Distribute the surplus across revolving cards proportional to each card's natural share of
-      // this month's payment, capped at that card's own remaining balance so it can't overpay.
+      // Allocate the surplus in debt-strategy priority order (avalanche: highest APR first;
+      // snowball: lowest balance first) — NOT proportional to each card's natural payment share.
+      // Proportional allocation previously gave a lower-priority card (Discover, lower APR) a slice
+      // of the surplus while a higher-priority card (Prime Visa, higher APR) still carried a
+      // balance — avalanche should send 100% of any surplus to the highest-priority card with a
+      // remaining balance before any other card gets a cent above its minimum.
       const extraPerCardByMonth = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(36).fill(0)]));
       for (let m = 0; m < 36; m++) {
         const simRevTotal = debtPaymentTotals[m];
         const target = pass3RevTotals[m] ?? 0;
         if (simRevTotal <= 0 || target <= simRevTotal) continue;
-        const extra = target - simRevTotal;
-        const revCards = cards.filter(c => (activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0) > 0);
-        if (revCards.length === 0) continue;
+        let extra = target - simRevTotal;
+        const revCards = cards
+          .filter(c => (activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0) > 0)
+          .sort((a, b) => debtStrategy === 'avalanche' ? b.apr - a.apr : a.balance - b.balance);
         for (const c of revCards) {
-          const natural = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
-          const share = extra * (natural / simRevTotal);
+          if (extra <= 0) break;
           const remainingBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
-          extraPerCardByMonth.get(c.id)![m] = Math.max(0, Math.min(share, remainingBal));
+          const alloc = Math.max(0, Math.min(extra, remainingBal));
+          extraPerCardByMonth.get(c.id)![m] = alloc;
+          extra -= alloc;
         }
       }
 
