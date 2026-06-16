@@ -13,7 +13,7 @@ import type { FilingStatus } from '@/lib/tax-estimator';
 
 const DEFAULT_ASSUMPTIONS = {
   incomeGrowthEnabled: true, incomeGrowth: 3, raiseMonth: 3, raiseMode: 'pct' as 'pct' | 'flat',
-  investmentGrowth: 7, savingsInterest: 4.5,
+  investmentGrowth: 7, savingsInterest: 4.5, expenseGrowth: 2.5,
   bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
   taxReturnEnabled: false, taxReturnFilingStatus: 'single' as FilingStatus, taxReturnDependents: 0,
   taxReturnState: 'FL', taxReturnFederalWithheld: 0, taxReturnMonth: 2, taxReturnAmountOverride: 0,
@@ -136,6 +136,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     incomeGrowth: assumptions.incomeGrowth,
     raiseMonth: assumptions.raiseMonth,
     raiseMode: assumptions.raiseMode,
+    expenseGrowth: assumptions.expenseGrowth,
     bonusEnabled: assumptions.bonusEnabled,
     bonusAmount: assumptions.bonusAmount,
     bonusMode: assumptions.bonusMode,

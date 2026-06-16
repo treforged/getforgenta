@@ -349,6 +349,7 @@ export default function DebtPayoff() {
           incomeGrowth={assumptions.incomeGrowth}
           raiseMonth={assumptions.raiseMonth}
           raiseMode={assumptions.raiseMode}
+          expenseGrowth={assumptions.expenseGrowth}
           bonusEnabled={assumptions.bonusEnabled}
           bonusAmount={assumptions.bonusAmount}
           bonusMode={assumptions.bonusMode}

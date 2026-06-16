@@ -661,11 +661,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carReserve = pauseSavings ? 0 : (carFunds as any[]).reduce((s: number, c: any) => {
         if (c.phase === 'loan') return s;
         if (c.phase !== 'saving') return s;
-        const liveSaved = c.linked_account
-          ? Number(accountMap.get(c.linked_account)?.balance ?? c.current_saved ?? 0)
-          : Number(c.current_saved || 0);
         const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
-        const rem = Math.max(0, giftAdjDownPmt - liveSaved);
+        const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
         if (rem <= 0) return s;
         let monthsToGoal = 12;
         if (c.planned_purchase_date) {
@@ -673,6 +670,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const pd = new Date(parts[0], parts[1] - 1, parts[2]);
           monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
         }
+        // Always use rem (remaining after current_saved) regardless of linked_account.
+        // Using giftAdjDownPmt would ignore savings already accumulated, overstating the reserve.
         const reserve = Math.min(rem / monthsToGoal, rem);
         return s + reserve;
       }, 0);

@@ -38,6 +38,7 @@ type Props = {
   incomeGrowth?: number;
   raiseMonth?: number;
   raiseMode?: 'pct' | 'flat';
+  expenseGrowth?: number;
   bonusEnabled?: boolean;
   bonusAmount?: number;
   bonusMode?: 'flat' | 'pct';
@@ -68,7 +69,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, paymentPlans }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, paymentPlans }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -477,8 +478,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     }
 
     // ── Apply Forecast growth-rate assumptions to future months ──────────────
-    // Income raises apply as a step in the configured month each year.
-    // Month 0 is left unchanged (uses actual remaining transaction amounts).
+    // Mirrors Forecast PASS 1: expense inflation compounds monthly; income raises
+    // apply as a step in the configured month each year. Month 0 is left unchanged
+    // (it uses actual remaining transaction amounts, not scaled values).
+    const monthlyExpGrowthRate = Math.pow(1 + (expenseGrowth ?? 0) / 100, 1 / 12) - 1;
     let incMult = 1;
     // Pre-compute bonus month index for non-recurring bonus (first occurrence in window)
     const firstBonusIdx = (!bonusRecurring && bonusEnabled && (bonusAmount ?? 0) > 0)
@@ -501,6 +504,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           incMult *= (1 + (incomeGrowth ?? 0) / 100);
         }
       }
+      const expMult = Math.pow(1 + monthlyExpGrowthRate, m);
       // Inject bonus + tax return into regular monthly income — same slot as Forecast PASS 1
       // so extra cash is available for debt allocation that month, not deferred post-allocation.
       let bonusTaxInc = 0;
@@ -514,7 +518,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       if (taxReturnEnabled && (taxReturnAmountOverride ?? 0) > 0 && d.getMonth() + 1 === (taxReturnMonth ?? 2)) {
         bonusTaxInc += (taxReturnAmountOverride ?? 0);
       }
-      return { income: ev.income * incMult + bonusTaxInc, expenses: ev.expenses };
+      return { income: ev.income * incMult + bonusTaxInc, expenses: ev.expenses * expMult };
     });
 
     // Per-month car loan payments from carFunds (mirrors Forecast's activeCarLoanByMonth).
@@ -674,7 +678,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return { ...sim, augmentedCCPurchases };
   }, [cards, fundingBalance, cashFloor, strategy, monthlyTakeHome,
       monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents,
-      incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode,
+      incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, expenseGrowth,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
       rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate, fundingAccountSources,
