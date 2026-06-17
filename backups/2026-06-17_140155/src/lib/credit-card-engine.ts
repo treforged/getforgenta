@@ -368,12 +368,7 @@ export function projectCardVariable(
       if (payoffMonth === null) payoffMonth = m;
       const cyclingPayment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
       const cycleStartBal = Math.round(startBal * 100) / 100;
-      // Net the payment against the prior statement balance first, carrying any shortfall
-      // forward, then add this month's new purchases on top (they bill next cycle). When
-      // cyclingPayment >= startBal this reduces to the old `newPurchases`-only formula;
-      // when the payment is smaller (e.g. a scaled/capped recommended payment), the unpaid
-      // remainder is preserved instead of being silently written off.
-      const endBal = Math.round((Math.max(0, cycleStartBal - cyclingPayment) + newPurchases) * 100) / 100;
+      const endBal = Math.round(newPurchases * 100) / 100;
       const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
       rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: 0, payment: cyclingPayment, endBalance: endBal, utilization });
       // Card pays its statement balance in full each cycle while cycling — carry resets
