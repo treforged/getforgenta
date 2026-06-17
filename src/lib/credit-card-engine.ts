@@ -611,13 +611,11 @@ export function simulateVariablePayoff(
       }
     }
 
-    // ── Step 2 — Handle paid-off cards: pay purchases, capped by cash above floor ──
+    // ── Step 2 — Handle paid-off cards: pay purchases in full (mandatory) ──
     // These cards stay at $0 permanently. Purchase cost is a cash outflow
     // but does NOT create a balance that accrues interest (grace period model).
     // Payments are deferred by one billing cycle: charges from month m are paid
     // in month m+1 (statement closes month-end, payment due ~25 days later).
-    // Cap total paid-off payments so currentCash never drops below effectiveFloor.
-    const tentativeAvailAboveFloor = Math.max(0, currentCash + monthIncome - monthExpenses + Math.max(0, oneTimeNet) - effectiveFloor);
     // Reserve revolving-card minimums before giving cash to autopay cards.
     // Without this, large deferred purchases (e.g. Venture X) drain the pool
     // entirely, leaving revolving cards (Prime, Discover) with nothing beyond
@@ -625,7 +623,6 @@ export function simulateVariablePayoff(
     const reservedForRevolving = cards
       .filter(c => !paidOffCards.has(c.id) && (cardStartMonths.get(c.id) ?? 0) <= m && (balances.get(c.id) ?? 0) > 0)
       .reduce((s, c) => s + c.minPayment, 0);
-    let paidOffPool = Math.max(0, tentativeAvailAboveFloor - reservedForRevolving);
     let paidOffCashCost = 0;
     // Pay cycling cards in strategy order so highest-APR (avalanche) or lowest-balance
     // (snowball) card claims from the pool first when it runs short.
@@ -636,6 +633,21 @@ export function simulateVariablePayoff(
           ? b.apr - a.apr
           : (paidOffDeferredPurchases.get(a.id) ?? 0) - (paidOffDeferredPurchases.get(b.id) ?? 0)
       );
+    // Cycling-card statement payments are mandatory and non-negotiable — a bill for
+    // purchases already made, not a discretionary expense (see useCardProjection's
+    // "mandatory" cycling comment). Unlike the cash floor (a cushion against FUTURE
+    // uncertainty), a statement for spending that already happened isn't optional, so
+    // this pool is allowed to dip below effectiveFloor — it just can't touch the other
+    // cards' reserved minimums. Previously this was capped at tentativeAvailAboveFloor,
+    // which silently deferred any shortfall into next month's purchases at 0% interest
+    // with no visible carry — producing a payment that never matched the prior month's
+    // statement (e.g. a $59 shortfall one month, then a $59-inflated payment the next).
+    const paidOffNeed = paidOffOrder.reduce((s, c) => s + (paidOffDeferredPurchases.get(c.id) ?? 0), 0);
+    const cashAvailableForPaidOff = Math.max(0, currentCash + monthIncome - monthExpenses + Math.max(0, oneTimeNet) - reservedForRevolving);
+    let paidOffPool = Math.min(paidOffNeed, cashAvailableForPaidOff);
+    if (paidOffPool < paidOffNeed - 0.01) {
+      flags.push({ month: m + 1, flag: 'FLOOR_BREACHED' });
+    }
     for (const card of paidOffOrder) {
       // Pay PREVIOUS month's deferred charges (billing cycle delay).
       const purchases = paidOffDeferredPurchases.get(card.id) ?? 0;
