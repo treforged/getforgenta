@@ -1044,16 +1044,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
-      // For save-up months where revolving debt is already cleared, cap allPaymentTotals at
-      // maxDebtPaymentByMonth so cycling card payments (e.g. Amex Gold statement balance)
-      // are reduced — consistent with Forecast PASS 3's effectiveTotalPayments cap.
-      // Without this, Debt Payoff shows full cycling payments in save-up months while
-      // Forecast correctly shows reduced amounts.
-      for (const m of saveUpMonths) {
-        const cap = maxDebtPaymentByMonth[m];
-        if (!isFinite(cap) || debtPaymentTotals[m] > 0) continue;
-        if (allPaymentTotals[m] > cap) allPaymentTotals[m] = cap;
-      }
+      // Cycling-card statement payments are mandatory and non-negotiable (see comprehensiveMExp
+      // above) — deferring one doesn't free up cash for a future expense, it just rolls the
+      // balance forward with interest and converts the card to revolving. So once revolving
+      // debt is cleared, allPaymentTotals must NOT be capped by maxDebtPaymentByMonth (that cap
+      // is sized for the revolving/discretionary allocation only); doing so previously shrank a
+      // cycling card's required payment below its real statement balance in save-up months.
 
       // Scale per-card: cycling cards keep full sim amount; revolving cards scale to pass-3 totals.
       // In save-up months with no revolving debt, scale cycling cards proportionally to the cap.
@@ -1130,16 +1126,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         payments: Array.from({ length: 36 }, (_, m) => {
           const simAmt = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
           const revBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
+          // Cycling card — its payment is the prior cycle's full statement balance, mandatory
+          // regardless of save-up months (see the allPaymentTotals comment above).
           if (revBal === 0) {
-            // Cycling card — in save-up months with no revolving debt, scale down proportionally
-            if (saveUpMonths.has(m) && debtPaymentTotals[m] === 0) {
-              const totalCycFull = cards.reduce((s, cc) => {
-                if ((activeSim.monthlyRevolvingBalances.get(cc.id)?.[m] ?? 0) > 0) return s;
-                return s + Math.round(activeSim.monthlyPayments.get(cc.id)?.[m] ?? 0);
-              }, 0);
-              const scale = totalCycFull > 0 ? Math.min(1, allPaymentTotals[m] / totalCycFull) : 1;
-              return Math.round(simAmt * scale);
-            }
             return simAmt;
           }
           // Revolving card: when live balance exhausted before month m, pass3RevTotals[m] = 0
