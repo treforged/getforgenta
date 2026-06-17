@@ -300,11 +300,6 @@ export function projectCardVariable(
 ): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
-  // Parallel "legacy debt only" balance, ignoring ongoing new purchases — mirrors how
-  // simulateVariablePayoff computes revolvingBalances (purchases are funded by cash flow,
-  // not added to the debt being paid down). Used to sanity-check the ground truth below
-  // without an actively-spent card's ongoing purchases falsely keeping it "not cleared."
-  let legacyBal = card.balance;
   let totalInterest = 0;
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
@@ -335,16 +330,8 @@ export function projectCardVariable(
       : (monthlyPayments[m - 1] ?? card.minPayment);
     const payment = bal <= 0 ? 0 : Math.min(availablePayment, bal + newPurchases + interest);
     const prospectiveEndBal = startBal + newPurchases + interest - payment;
-    // Replay the same real payment against the legacy-only track (no purchases) to see
-    // whether IT would be cleared by now — this is what ground truth actually represents,
-    // so a card with ongoing purchases that outpace its avalanche payment (which was only
-    // ever sized to clear the original debt) doesn't get permanently blocked from cycling.
-    const legacyInterest = (card.paymentPreference === 'statement' && inGrace)
-      ? 0
-      : Math.round(Math.max(0, legacyBal) * monthlyRate * 100) / 100;
-    const prospectiveLegacyBal = Math.max(0, legacyBal + legacyInterest - payment);
     const prospectiveRevolving = card.paymentPreference === 'statement'
-      ? prospectiveLegacyBal
+      ? Math.max(0, prospectiveEndBal - newPurchases)
       : Math.max(0, prospectiveEndBal);
 
     // Use sim revolving balance as ground truth when available, but only once the local
@@ -371,20 +358,12 @@ export function projectCardVariable(
       const endBal = Math.round(newPurchases * 100) / 100;
       const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
       rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: 0, payment: cyclingPayment, endBalance: endBal, utilization });
-      // Card pays its statement balance in full each cycle while cycling — carry resets
-      // to this month's unpaid new purchases, not the stale pre-payoff balance. Without
-      // this, bal/legacyBal stay frozen and reaccrue interest with no payment next month,
-      // flipping isCycling back to false and corrupting the rest of the projection.
-      bal = endBal;
-      legacyBal = 0;
       continue;
     }
 
     if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
     bal = prospectiveEndBal;
     if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behaviour
-    legacyBal = prospectiveLegacyBal;
-    if (legacyBal > 0 && legacyBal < 1) legacyBal = 0;
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
