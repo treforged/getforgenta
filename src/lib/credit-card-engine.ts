@@ -290,7 +290,11 @@ export function projectCardVariable(
    * When provided, revolvingBalances[m-1] === 0 is used as ground truth to detect when a
    * card has cleared its revolving debt and should enter cycling mode. This avoids the
    * ~$0.01 rounding drift in the local `inGrace` check that prevents statement-preference
-   * cards from ever setting payoffMonth.
+   * cards from ever setting payoffMonth. Only trusted when this function's own replay of
+   * monthlyPayments (which may be scaled down from whatever payments the sim used to
+   * compute revolvingBalances — see callers) also agrees the carry is ~$0 that month;
+   * otherwise a scaled-down displayed payment could flash "cycling" before the real
+   * balance it's paying down has actually cleared.
    */
   revolvingBalances?: number[],
 ): CardProjection {
@@ -304,19 +308,6 @@ export function projectCardVariable(
 
   for (let m = 1; m <= simMonths; m++) {
     const hasPref = card.autopayFullBalance || card.paymentPreference !== null;
-    // Use sim revolving balance as ground truth when available: avoids ~$0.01 rounding
-    // drift in the local inGrace check that prevents statement cards from ever transitioning.
-    const simRevBal = revolvingBalances?.[m - 1];
-    const isCycling = hasPref && (
-      simRevBal !== undefined ? simRevBal === 0 : (bal <= 0 || payoffMonth !== null)
-    );
-
-    if (!hasPref && bal <= 0 && payoffMonth !== null) break;
-    if (isCycling && m > months) break;
-
-    const d = new Date();
-    d.setMonth(d.getMonth() + m - 1);
-    const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
     const startBal = bal;
     const newPurchases = purchasesPerMonth?.[m - 1] !== undefined
       ? purchasesPerMonth[m - 1]
@@ -324,16 +315,10 @@ export function projectCardVariable(
       : m > monthlyPayments.length ? 0 // beyond sim range: track carried balance only; new purchases assumed paid in-cycle
       : card.monthlyNewPurchases;
 
-    if (isCycling) {
-      if (payoffMonth === null) payoffMonth = m;
-      const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
-      const cycleStartBal = payment;
-      const endBal = Math.round(newPurchases * 100) / 100;
-      const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
-      rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: 0, payment, endBalance: endBal, utilization });
-      continue;
-    }
-
+    // Prospective interest/payment/balance for this month, computed from the real
+    // (possibly scaled-down) monthlyPayments. Used both to sanity-check the sim's
+    // ground-truth revolving balance below and, when not cycling, as this month's
+    // actual row — so the decision and the applied math never diverge.
     const interest = (card.paymentPreference === 'statement' && inGrace)
       ? 0
       : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
@@ -344,8 +329,40 @@ export function projectCardVariable(
       ? card.monthlyNewPurchases
       : (monthlyPayments[m - 1] ?? card.minPayment);
     const payment = bal <= 0 ? 0 : Math.min(availablePayment, bal + newPurchases + interest);
+    const prospectiveEndBal = startBal + newPurchases + interest - payment;
+    const prospectiveRevolving = card.paymentPreference === 'statement'
+      ? Math.max(0, prospectiveEndBal - newPurchases)
+      : Math.max(0, prospectiveEndBal);
+
+    // Use sim revolving balance as ground truth when available, but only once the local
+    // replay above (driven by the real, possibly scaled-down monthlyPayments) also agrees
+    // the revolving carry is ~$0 this month. The <1 tolerance absorbs genuine sub-dollar
+    // rounding drift between the sim's and this function's interest math without trusting
+    // a ground truth computed from a payment trajectory that differs from what's displayed.
+    const simRevBal = revolvingBalances?.[m - 1];
+    const isCycling = hasPref && (
+      simRevBal !== undefined ? (simRevBal === 0 && prospectiveRevolving < 1) : (bal <= 0 || payoffMonth !== null)
+    );
+
+    if (!hasPref && bal <= 0 && payoffMonth !== null) break;
+    if (isCycling && m > months) break;
+
+    const d = new Date();
+    d.setMonth(d.getMonth() + m - 1);
+    const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
+
+    if (isCycling) {
+      if (payoffMonth === null) payoffMonth = m;
+      const cyclingPayment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
+      const cycleStartBal = cyclingPayment;
+      const endBal = Math.round(newPurchases * 100) / 100;
+      const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
+      rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: 0, payment: cyclingPayment, endBalance: endBal, utilization });
+      continue;
+    }
+
     if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
-    bal = startBal + newPurchases + interest - payment;
+    bal = prospectiveEndBal;
     if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behaviour
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
