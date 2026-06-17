@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-// TEMP diagnostic — not a regression test. Dumps the real per-month projection
-// pipeline for the live "Tre" account to root-cause the cycling-transition
-// balance-drop bug reported 2026-06-17 ("prime visa never actually pays the
-// full amount... it just drops and pays last month's purchases").
-// Delete this file once the root cause is confirmed and fixed.
-import { describe, it } from 'vitest';
+// Diagnostic + regression test for the cycling-transition balance-drop bug
+// reported 2026-06-17 ("prime visa never actually pays the full amount...
+// it just drops and pays last month's purchases"). Kept intentionally (per
+// explicit instruction) until the user confirms the issue is fully cleared
+// — do not delete without confirmation.
+import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCardProjection } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
@@ -195,5 +195,13 @@ describe('cycling transition diagnostic (real account data)', () => {
     }
 
     console.log('totalCCBalance by month:', r.data.slice(0, 22).map((d: any) => Math.round(d.totalCCBalance)));
+
+    // Regression assertion: at month index 3, Prime Visa's ground-truth legacy debt has
+    // just cleared (revBal hit 0 at index 2) while the recommended/scaled payment series
+    // is smaller than the sim's raw payments — exactly the underpaid-cycling-transition
+    // scenario reported by the user. Before the projectCardVariable isCycling fix, this
+    // collapsed straight to ~newPurchases ($777), silently writing off the unpaid carry.
+    // After the fix it correctly carries the shortfall forward (~$1,954 against this fixture).
+    expect(r.data[3]?.['Prime Visa']).toBeGreaterThan(1500);
   });
 });
