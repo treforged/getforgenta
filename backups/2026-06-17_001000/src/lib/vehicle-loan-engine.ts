@@ -169,7 +169,6 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
       paymentStartDate: cf.payment_start_date,
       interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
       actualMonthlyPayment: cf.actual_monthly_payment,
-      lumpSumPayments: cf.lump_sum_payments ?? [],
     }, today);
 
     if (proj.remainingBalance <= 0) continue;
