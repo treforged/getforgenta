@@ -119,9 +119,6 @@ export function useRecurringRules() {
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      if (item.start_date && item.end_date && item.end_date < item.start_date) {
-        throw new Error('End Date cannot be before Start Date');
-      }
       const { error } = await supabase.from('recurring_rules' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
@@ -131,9 +128,6 @@ export function useRecurringRules() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      if (item.start_date && item.end_date && item.end_date < item.start_date) {
-        throw new Error('End Date cannot be before Start Date');
-      }
       const { error } = await supabase.from('recurring_rules' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
