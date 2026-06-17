@@ -733,34 +733,75 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       }
       const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason } = lookAhead;
 
+      const projs = cards.map(c => {
+        const pays = sim.monthlyPayments.get(c.id) || [];
+        const revBals = sim.monthlyRevolvingBalances.get(c.id) || [];
+        // Real per-month purchases for this card (one-time transactions + payment plans +
+        // scheduled rules), not the undefined default that made projectCardVariable fall back
+        // to card.monthlyNewPurchases — a static average baseline. That fallback made a cycling
+        // card's displayed end balance (data[i][card.name], what Forecast's popup shows) ignore
+        // real one-time purchases and payment-plan charges entirely once the card had no
+        // revolving balance, even though the simulation/Debt Payoff tab already paid them
+        // correctly on the normal 1-cycle delay.
+        const purchases = cardPurchasesPerMonth.map(monthMap => monthMap[c.id] ?? 0);
+        return projectCardVariable(c, pays, 36, true, purchases, revBals);
+      });
+
+      // ── Derived arrays ────────────────────────────────────────────────────────
+      const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
+      const data = Array.from({ length: 36 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const row: any = { month: d.toLocaleString('en', { month: 'short', year: 'numeric' }), totalCCBalance: 0, displayCCBalance: 0, totalInterest: 0 };
+        for (const p of projs) {
+          const m = p.months[i];
+          if (m) {
+            row[p.card.name] = Math.round(m.endBalance);
+            row.totalInterest += m.interest;
+          } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
+            if (p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement') {
+              row[p.card.name] = Math.round(cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases);
+            } else {
+              row[p.card.name] = 0;
+            }
+          }
+        }
+        row.totalCCBalance = Math.round(Math.max(0,
+          cards.reduce((s, c) => s + (sim.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
+        ));
+        let displayBal = 0;
+        for (const card of cards) {
+          const simBal = sim.monthlyBalances.get(card.id)?.[i] ?? 0;
+          if (simBal > 0) displayBal += simBal;
+          else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += card.monthlyNewPurchases;
+        }
+        row.displayCCBalance = Math.round(Math.max(0, displayBal));
+        row.totalInterest = Math.round(row.totalInterest);
+        row.utilization = totalLimit > 0 ? Math.round((row.totalCCBalance / totalLimit) * 100) : 0;
+        return row;
+      });
+
       // Only count payments where the card is carrying actual revolving debt.
-      // Cycling cards (autopay cards, statement-pref cards after revolving clears) have
-      // monthlyRevolvingBalances === 0 — their mandatory payment is tracked separately via
-      // allPaymentTotals/cyclingPayment, not here. Including them would inflate simRevTotal
-      // in pass-3, making p3RevBal hit 0 too early, which scales all subsequent revolving
-      // payments to 0.
-      // Computed directly from a sim's own outputs (not via a projectCardVariable replay) so
-      // this never depends on the balance/cycling display table (`data`) — that table is
-      // built later, from perCardPaymentsScaled, and must not be a prerequisite for it.
-      const computeDebtPaymentTotals = (
-        simResult: { monthlyPayments: Map<string, number[]>; monthlyRevolvingBalances: Map<string, number[]> },
-      ): number[] =>
-        Array.from({ length: 36 }, (_, i) =>
-          cards.reduce((total, c) => {
-            // Use START-of-month revolving balance so the month a revolving card clears its
-            // balance still counts as revolving, not cycling. End balance = 0 on the clearing
-            // month would misclassify the payoff payment as cycling, bypassing the floor in
-            // Forecast PASS 3 (cyclingPayment is non-negotiable; it skips availableForRevolving).
-            // For m=0 use end balance (live state — cycling cards already show end=0 here).
-            // For m>0 use previous month's end = this month's start.
-            const startRevBal = i === 0
-              ? (simResult.monthlyRevolvingBalances.get(c.id)?.[0] ?? 0)
-              : (simResult.monthlyRevolvingBalances.get(c.id)?.[i - 1] ?? 0);
-            if (startRevBal <= 0) return total;
-            return total + (simResult.monthlyPayments.get(c.id)?.[i] ?? 0);
-          }, 0),
-        );
-      let debtPaymentTotals = computeDebtPaymentTotals(sim);
+      // Cycling-mode rows (autopay cards, statement-pref cards after revolving clears) set
+      // startBalance = payment as a display artifact — their revolving balance is 0.
+      // Including them inflates simRevTotal in pass-3, making p3RevBal hit 0 too early,
+      // which scales all subsequent revolving payments to 0.
+      const debtPaymentTotals = Array.from({ length: 36 }, (_, i) =>
+        projs.reduce((total, proj) => {
+          const m = proj.months[i];
+          if (!m || m.startBalance <= 0) return total;
+          // Use START-of-month revolving balance so the month a revolving card clears its
+          // balance still counts as revolving, not cycling. End balance = 0 on the clearing
+          // month would misclassify the payoff payment as cycling, bypassing the floor in
+          // Forecast PASS 3 (cyclingPayment is non-negotiable; it skips availableForRevolving).
+          // For m=0 use end balance (live state — cycling cards already show end=0 here).
+          // For m>0 use previous month's end = this month's start.
+          const startRevBal = i === 0
+            ? (sim.monthlyRevolvingBalances.get(proj.card.id)?.[0] ?? 0)
+            : (sim.monthlyRevolvingBalances.get(proj.card.id)?.[i - 1] ?? 0);
+          if (startRevBal <= 0) return total;
+          return total + m.payment;
+        }, 0),
+      );
 
       const allPaymentTotals = Array.from({ length: 36 }, (_, i) =>
         cards.reduce((total, card) => {
@@ -927,16 +968,36 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }));
         activeSim = sim2;
 
-        // allPaymentTotals and debtPaymentTotals must reflect sim2 from here on — pass3RevTotals
-        // below and every later PASS-3-driven scaling step needs the capped-retry's numbers,
-        // not the original uncapped sim's. The balance/cycling display table (`data`) doesn't
-        // exist yet at this point (built later from activeSim + perCardPaymentsScaled), so it
-        // needs no patching here.
+        // Update data[i].totalCCBalance from sim2 so Forecast PASS 2 recomputeSimCash pins
+        // cash to floor in the correct months. PASS 2 uses b.ccDebtBalance > 0 to decide
+        // whether to simulate PASS 3's surplus redirect; if sim1 shows debt cleared when sim2
+        // doesn't, PASS 2 stops pinning too early and misses floor breaches — causing it to
+        // never reduce cycling payments (e.g. Amex Gold statement balance) to maintain the floor.
+        for (let i = 0; i < 36; i++) {
+          data[i].totalCCBalance = Math.round(Math.max(0,
+            cards.reduce((s, c) => s + (sim2.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
+          ));
+        }
+
+        // Update allPaymentTotals and debtPaymentTotals in-place from sim2
         for (let i = 0; i < 36; i++) {
           allPaymentTotals[i] = cards.reduce((total, card) =>
             total + (sim2.monthlyPayments.get(card.id)?.[i] ?? 0), 0);
         }
-        debtPaymentTotals = computeDebtPaymentTotals(sim2);
+        const projs2 = cards.map(c =>
+          projectCardVariable(c, sim2.monthlyPayments.get(c.id) || [], 36, true, undefined, sim2.monthlyRevolvingBalances.get(c.id) || [])
+        );
+        for (let i = 0; i < 36; i++) {
+          debtPaymentTotals[i] = projs2.reduce((total, proj) => {
+            const mo = proj.months[i];
+            if (!mo || mo.startBalance <= 0) return total;
+            const startRevBal = i === 0
+              ? (sim2.monthlyRevolvingBalances.get(proj.card.id)?.[0] ?? 0)
+              : (sim2.monthlyRevolvingBalances.get(proj.card.id)?.[i - 1] ?? 0);
+            if (startRevBal <= 0) return total;
+            return total + mo.payment;
+          }, 0);
+        }
 
         // Re-run pass3RevTotals with sim2-corrected totals
         const p3RevBal0_2 = cards.reduce((s, c) => {
@@ -1085,60 +1146,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           return Math.round(simAmt * scale + extra);
         }),
       }));
-
-      // ── Derived display arrays ──────────────────────────────────────────────────
-      // Built from perCardPaymentsScaled (the final, cash-floor-protected recommended
-      // payment) and activeSim — NOT a raw sim's payments — so the balance/cycling table
-      // Forecast's popup and the Debt Payoff chart read never assumes a bigger payment was
-      // made than what's actually recommended everywhere else in the UI. Must run after
-      // perCardPaymentsScaled/activeSim are both final; debtPaymentTotals above was
-      // deliberately decoupled from this table so it could be computed earlier without
-      // circularity.
-      const projs = cards.map(c => {
-        const pays = perCardPaymentsScaled.find(p => p.id === c.id)?.payments || [];
-        const revBals = activeSim.monthlyRevolvingBalances.get(c.id) || [];
-        // Real per-month purchases for this card (one-time transactions + payment plans +
-        // scheduled rules), not the undefined default that made projectCardVariable fall back
-        // to card.monthlyNewPurchases — a static average baseline. That fallback made a cycling
-        // card's displayed end balance (data[i][card.name], what Forecast's popup shows) ignore
-        // real one-time purchases and payment-plan charges entirely once the card had no
-        // revolving balance, even though the simulation/Debt Payoff tab already paid them
-        // correctly on the normal 1-cycle delay.
-        const purchases = cardPurchasesPerMonth.map(monthMap => monthMap[c.id] ?? 0);
-        return projectCardVariable(c, pays, 36, true, purchases, revBals);
-      });
-
-      const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
-      const data = Array.from({ length: 36 }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        const row: any = { month: d.toLocaleString('en', { month: 'short', year: 'numeric' }), totalCCBalance: 0, displayCCBalance: 0, totalInterest: 0 };
-        for (const p of projs) {
-          const m = p.months[i];
-          if (m) {
-            row[p.card.name] = Math.round(m.endBalance);
-            row.totalInterest += m.interest;
-          } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
-            if (p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement') {
-              row[p.card.name] = Math.round(cardPurchasesPerMonth[i]?.[p.card.id] ?? p.card.monthlyNewPurchases);
-            } else {
-              row[p.card.name] = 0;
-            }
-          }
-        }
-        row.totalCCBalance = Math.round(Math.max(0,
-          cards.reduce((s, c) => s + (activeSim.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
-        ));
-        let displayBal = 0;
-        for (const card of cards) {
-          const simBal = activeSim.monthlyBalances.get(card.id)?.[i] ?? 0;
-          if (simBal > 0) displayBal += simBal;
-          else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += card.monthlyNewPurchases;
-        }
-        row.displayCCBalance = Math.round(Math.max(0, displayBal));
-        row.totalInterest = Math.round(row.totalInterest);
-        row.utilization = totalLimit > 0 ? Math.round((row.totalCCBalance / totalLimit) * 100) : 0;
-        return row;
-      });
 
       // ── month0 computation ────────────────────────────────────────────────────
       const cyclingPayment = Math.max(0, allPaymentTotals[0] - debtPaymentTotals[0]);
