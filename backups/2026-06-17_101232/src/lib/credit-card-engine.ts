@@ -367,7 +367,7 @@ export function projectCardVariable(
     if (isCycling) {
       if (payoffMonth === null) payoffMonth = m;
       const cyclingPayment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
-      const cycleStartBal = Math.round(startBal * 100) / 100;
+      const cycleStartBal = cyclingPayment;
       const endBal = Math.round(newPurchases * 100) / 100;
       const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
       rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: 0, payment: cyclingPayment, endBalance: endBal, utilization });
