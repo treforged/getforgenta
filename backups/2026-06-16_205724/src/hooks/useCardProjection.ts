@@ -730,6 +730,23 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           lookAhead.maxDebtPaymentByMonth,
           augmentedCashFloorByMonth,
         );
+
+        // TEMP DEBUG — Venture X May-2027 underpayment investigation. Remove after diagnosis.
+        if (typeof window !== 'undefined' && outer === 2) {
+          for (let m = 0; m < 36; m++) {
+            const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+            const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
+            if (!['Feb 2027', 'Mar 2027', 'Apr 2027', 'May 2027', 'Jun 2027', 'Jul 2027', 'Aug 2027'].includes(label)) continue;
+            const cashBefore = m === 0 ? debtFundingBalance : sim.projectedCashByMonth[m - 1];
+            const revInfo = cards.map(c =>
+              `${c.name}: revBal=${(sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0).toFixed(2)} min=${(sim.perCardMinPayments.get(c.id)?.[m] ?? 0).toFixed(2)} pay=${(sim.monthlyPayments.get(c.id)?.[m] ?? 0).toFixed(2)}`,
+            ).join(' | ');
+            // eslint-disable-next-line no-console
+            console.log(
+              `[VX-DEBUG] ${label} (m=${m}) floor=${augmentedCashFloorByMonth[m].toFixed(2)} cashBefore=${cashBefore.toFixed(2)} cashAfter=${sim.projectedCashByMonth[m].toFixed(2)} maxCapNextPass=${lookAhead.maxDebtPaymentByMonth[m]} || ${revInfo}`,
+            );
+          }
+        }
       }
       const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason } = lookAhead;
 
@@ -1044,12 +1061,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
-      // Cycling-card statement payments are mandatory and non-negotiable (see comprehensiveMExp
-      // above) — deferring one doesn't free up cash for a future expense, it just rolls the
-      // balance forward with interest and converts the card to revolving. So once revolving
-      // debt is cleared, allPaymentTotals must NOT be capped by maxDebtPaymentByMonth (that cap
-      // is sized for the revolving/discretionary allocation only); doing so previously shrank a
-      // cycling card's required payment below its real statement balance in save-up months.
+      // For save-up months where revolving debt is already cleared, cap allPaymentTotals at
+      // maxDebtPaymentByMonth so cycling card payments (e.g. Amex Gold statement balance)
+      // are reduced — consistent with Forecast PASS 3's effectiveTotalPayments cap.
+      // Without this, Debt Payoff shows full cycling payments in save-up months while
+      // Forecast correctly shows reduced amounts.
+      for (const m of saveUpMonths) {
+        const cap = maxDebtPaymentByMonth[m];
+        if (!isFinite(cap) || debtPaymentTotals[m] > 0) continue;
+        if (allPaymentTotals[m] > cap) allPaymentTotals[m] = cap;
+      }
 
       // Scale per-card: cycling cards keep full sim amount; revolving cards scale to pass-3 totals.
       // In save-up months with no revolving debt, scale cycling cards proportionally to the cap.
@@ -1126,9 +1147,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         payments: Array.from({ length: 36 }, (_, m) => {
           const simAmt = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
           const revBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
-          // Cycling card — its payment is the prior cycle's full statement balance, mandatory
-          // regardless of save-up months (see the allPaymentTotals comment above).
           if (revBal === 0) {
+            // Cycling card — in save-up months with no revolving debt, scale down proportionally
+            if (saveUpMonths.has(m) && debtPaymentTotals[m] === 0) {
+              const totalCycFull = cards.reduce((s, cc) => {
+                if ((activeSim.monthlyRevolvingBalances.get(cc.id)?.[m] ?? 0) > 0) return s;
+                return s + Math.round(activeSim.monthlyPayments.get(cc.id)?.[m] ?? 0);
+              }, 0);
+              const scale = totalCycFull > 0 ? Math.min(1, allPaymentTotals[m] / totalCycFull) : 1;
+              return Math.round(simAmt * scale);
+            }
             return simAmt;
           }
           // Revolving card: when live balance exhausted before month m, pass3RevTotals[m] = 0
