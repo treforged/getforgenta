@@ -700,9 +700,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // revolving balance, even though the simulation/Debt Payoff tab already paid them
         // correctly on the normal 1-cycle delay.
         const purchases = cardPurchasesPerMonth.map(monthMap => monthMap[c.id] ?? 0);
-        const cyclingOwed = sim.monthlyCyclingOwed.get(c.id) || [];
-        const cyclingInterest = sim.monthlyCyclingInterest.get(c.id) || [];
-        return projectCardVariable(c, pays, 36, true, purchases, revBals, cyclingOwed, cyclingInterest);
+        return projectCardVariable(c, pays, 36, true, purchases, revBals);
       });
 
       // ── Derived arrays ────────────────────────────────────────────────────────
