@@ -97,4 +97,43 @@ describe('simulateVariablePayoff / projectCardVariable — cycling shortfall int
       expect(row.startBalance).toBeCloseTo(row.payment, 2);
     }
   });
+
+  it('shows continuity (not a $0 placeholder) on the month a revolving card transitions to cycling', () => {
+    // Mirrors Prime Visa: a statement-preference card revolves normally for a couple of
+    // months, then a big-surplus month pays it off completely and the engine flips it into
+    // cycling mode mid-iteration (Step 6). monthlyCyclingOwed/monthlyCyclingInterest were
+    // already pushed as 0 placeholders for that month back in Step 2, before the transition
+    // was known — without the retroactive fix, the transition month's displayed "Start"
+    // balance would show $0 instead of carrying the prior month's end balance forward.
+    const card = makeCard({
+      id: 'cardP', name: 'Card P', balance: 1000, apr: 12, monthlyNewPurchases: 100,
+      minPayment: 50, autopayFullBalance: false,
+    });
+    const monthEvents = [
+      { income: 600, expenses: 500 },  // m0: minimum only, still revolving
+      { income: 600, expenses: 500 },  // m1: minimum only, still revolving
+      { income: 2000, expenses: 500 }, // m2: big surplus — pays off fully, transitions
+    ];
+
+    const sim = simulateVariablePayoff([card], 600, 500, 'avalanche', 600, 500, 3, monthEvents);
+
+    const m1EndBalance = sim.monthlyBalances.get('cardP')![1];
+    expect(m1EndBalance).toBeGreaterThan(0); // still genuinely revolving after month 1
+
+    // The transition month's retroactively-corrected "owed" must equal the PRIOR month's
+    // end balance exactly — that's the continuity the bug broke.
+    expect(sim.monthlyCyclingOwed.get('cardP')![2]).toBeCloseTo(m1EndBalance, 2);
+    expect(sim.monthlyCyclingInterest.get('cardP')![2]).toBeGreaterThan(0);
+
+    const proj = projectCardVariable(
+      card, sim.monthlyPayments.get('cardP')!, 3, true, undefined,
+      sim.monthlyRevolvingBalances.get('cardP')!,
+      sim.monthlyCyclingOwed.get('cardP')!, sim.monthlyCyclingInterest.get('cardP')!,
+    );
+
+    const transitionRow = proj.months[2]; // 1-indexed row 3 = sim month index 2
+    expect(transitionRow.startBalance).toBeCloseTo(m1EndBalance, 2);
+    expect(transitionRow.startBalance).not.toBe(0);
+    expect(transitionRow.interest).toBeGreaterThan(0);
+  });
 });
