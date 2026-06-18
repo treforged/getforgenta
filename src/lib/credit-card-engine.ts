@@ -884,6 +884,19 @@ export function simulateVariablePayoff(
         balances.set(card.id, 0);
       }
 
+      // If this card's revolving balance just reached $0 (either path above), the ground-truth
+      // isCycling check downstream will treat THIS month as cycling — but monthlyCyclingOwed/
+      // monthlyCyclingInterest were already pushed as 0 placeholders back in Step 2, before this
+      // transition was known. Retroactively correct them to the real revolving figures for this
+      // month (the balance carried in, and this month's actual interest) so the display shows
+      // continuity with last month's end balance instead of a stale $0/no-interest placeholder.
+      if ((balances.get(card.id) ?? 0) === 0) {
+        const owedArr = monthlyCyclingOwed.get(card.id);
+        const interestArr = monthlyCyclingInterest.get(card.id);
+        if (owedArr && owedArr.length > 0) owedArr[owedArr.length - 1] = Math.round(startBal * 100) / 100;
+        if (interestArr && interestArr.length > 0) interestArr[interestArr.length - 1] = interest;
+      }
+
       // Update grace state: grace applies next month if this month's payment covered
       // the full statement balance (startBal + interest), i.e., nothing carried over.
       if (card.paymentPreference === 'statement') {
