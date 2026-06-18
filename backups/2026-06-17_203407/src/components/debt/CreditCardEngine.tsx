@@ -791,9 +791,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   const projections: CardProjection[] = useMemo(() => {
     // Month 0: use pass-3 constrained amount (matches "Recommended This Month" panel).
-    // Months 1-35: use unscaled sim amounts so the payoff trajectory reflects what the
-    // simulation actually pays — avoids the chart showing cards stuck near-zero when
-    // pass-3 scaling reduces Discover's payments due to cycling-card cost reallocation.
+    // Months 1-35: prefer perCardPaymentsScaled (the cash-floor-protected recommended
+    // series, same as Forecast/Debt Payoff) and fall back to the unscaled local sim only
+    // when the scaled series isn't available yet.
     const baseProjs = cards.map(c => {
       const cardOverrides = overrides[c.id] || {};
       const cardPurchases = variableSim.augmentedCCPurchases.map(

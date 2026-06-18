@@ -90,15 +90,21 @@ describe('useCardProjection floor-breach protection (cycling-card baseline payme
 
     const seriesA = r.perCardPaymentsScaled.find(p => p.id === cardAId)!;
     const cardA = r.simCards.find(c => c.id === cardAId)!;
-    // Months 1-3 (immediately before the annual bill) are capped down to the minimum.
-    for (let m = 1; m <= 3; m++) {
+    // Months 0-3 (the window before the annual bill) are capped down to the minimum. Month 0
+    // is included here — unlike before credit-card-engine.ts's paid-off-pool fix, which let the
+    // cash floor silently defer part of Card B's statement payment into the following month
+    // whenever cash was tight. That deferral acted as a hidden 0%-interest cushion: it smoothed
+    // Card B's apparent monthly cost, so the look-ahead underestimated the true recurring drain
+    // and didn't think month 0 needed to bank anything yet. With the deferral removed, Card B's
+    // full $600 mandatory cost shows up every month with no smoothing, so the look-ahead now
+    // correctly recognizes the bigger true future need and extends protection back to month 0.
+    for (let m = 0; m <= 3; m++) {
       expect(seriesA.payments[m]).toBeLessThanOrEqual(cardA.minPayment + 1);
     }
-    // Month 0 is NOT artificially suppressed — its own natural surplus is allowed through since
-    // no reserve is actually needed that early. This is the reserve-based look-ahead's key
-    // improvement over an all-or-nothing "fully protect this whole month or not" flag: each
-    // month banks only its own marginal contribution toward a future shortfall instead of an
-    // unbroken chain of fully-protected months reaching back further than necessary.
-    expect(seriesA.payments[0]).toBeGreaterThan(cardA.minPayment + 1);
+    // The protection is still marginal, not a blanket "protect everything from now on" flag:
+    // once the bill window passes and before the next annual cycle's save-up window begins,
+    // Card A's natural surplus is allowed through well above the minimum again.
+    expect(seriesA.payments[6]).toBeGreaterThan(cardA.minPayment + 1);
+    expect(seriesA.payments[7]).toBeGreaterThan(cardA.minPayment + 1);
   });
 });
