@@ -662,10 +662,6 @@ export default function BudgetControl() {
       toast.error('Income rules require a Start Date');
       return;
     }
-    if (form.start_date && form.end_date && form.end_date < form.start_date) {
-      toast.error('End Date cannot be before Start Date');
-      return;
-    }
     const { clean: cleanRuleName, flagged: ruleNameFlagged } = filterProfanity(form.name.trim().slice(0, LIMITS.ruleName));
     const { clean: cleanRuleNotes, flagged: ruleNotesFlagged } = filterProfanity(form.notes.trim().slice(0, LIMITS.ruleNotes));
     if (ruleNameFlagged || ruleNotesFlagged) toast.warning('Some content contained inappropriate language and was cleaned.');
