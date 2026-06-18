@@ -290,12 +290,21 @@ export function projectCardVariable(
    * When provided, revolvingBalances[m-1] === 0 is used as ground truth to detect when a
    * card has cleared its revolving debt and should enter cycling mode. This avoids the
    * ~$0.01 rounding drift in the local `inGrace` check that prevents statement-preference
-   * cards from ever setting payoffMonth.
+   * cards from ever setting payoffMonth. Only trusted when this function's own replay of
+   * monthlyPayments (which may be scaled down from whatever payments the sim used to
+   * compute revolvingBalances — see callers) also agrees the carry is ~$0 that month;
+   * otherwise a scaled-down displayed payment could flash "cycling" before the real
+   * balance it's paying down has actually cleared.
    */
   revolvingBalances?: number[],
 ): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
+  // Parallel "legacy debt only" balance, ignoring ongoing new purchases — mirrors how
+  // simulateVariablePayoff computes revolvingBalances (purchases are funded by cash flow,
+  // not added to the debt being paid down). Used to sanity-check the ground truth below
+  // without an actively-spent card's ongoing purchases falsely keeping it "not cleared."
+  let legacyBal = card.balance;
   let totalInterest = 0;
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
@@ -304,19 +313,6 @@ export function projectCardVariable(
 
   for (let m = 1; m <= simMonths; m++) {
     const hasPref = card.autopayFullBalance || card.paymentPreference !== null;
-    // Use sim revolving balance as ground truth when available: avoids ~$0.01 rounding
-    // drift in the local inGrace check that prevents statement cards from ever transitioning.
-    const simRevBal = revolvingBalances?.[m - 1];
-    const isCycling = hasPref && (
-      simRevBal !== undefined ? simRevBal === 0 : (bal <= 0 || payoffMonth !== null)
-    );
-
-    if (!hasPref && bal <= 0 && payoffMonth !== null) break;
-    if (isCycling && m > months) break;
-
-    const d = new Date();
-    d.setMonth(d.getMonth() + m - 1);
-    const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
     const startBal = bal;
     const newPurchases = purchasesPerMonth?.[m - 1] !== undefined
       ? purchasesPerMonth[m - 1]
@@ -324,16 +320,10 @@ export function projectCardVariable(
       : m > monthlyPayments.length ? 0 // beyond sim range: track carried balance only; new purchases assumed paid in-cycle
       : card.monthlyNewPurchases;
 
-    if (isCycling) {
-      if (payoffMonth === null) payoffMonth = m;
-      const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
-      const cycleStartBal = payment;
-      const endBal = Math.round(newPurchases * 100) / 100;
-      const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
-      rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: 0, payment, endBalance: endBal, utilization });
-      continue;
-    }
-
+    // Prospective interest/payment/balance for this month, computed from the real
+    // (possibly scaled-down) monthlyPayments. Used both to sanity-check the sim's
+    // ground-truth revolving balance below and, when not cycling, as this month's
+    // actual row — so the decision and the applied math never diverge.
     const interest = (card.paymentPreference === 'statement' && inGrace)
       ? 0
       : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
@@ -344,9 +334,62 @@ export function projectCardVariable(
       ? card.monthlyNewPurchases
       : (monthlyPayments[m - 1] ?? card.minPayment);
     const payment = bal <= 0 ? 0 : Math.min(availablePayment, bal + newPurchases + interest);
+    const prospectiveEndBal = startBal + newPurchases + interest - payment;
+    // Replay the same real payment against the legacy-only track (no purchases) to see
+    // whether IT would be cleared by now — this is what ground truth actually represents,
+    // so a card with ongoing purchases that outpace its avalanche payment (which was only
+    // ever sized to clear the original debt) doesn't get permanently blocked from cycling.
+    const legacyInterest = (card.paymentPreference === 'statement' && inGrace)
+      ? 0
+      : Math.round(Math.max(0, legacyBal) * monthlyRate * 100) / 100;
+    const prospectiveLegacyBal = Math.max(0, legacyBal + legacyInterest - payment);
+    const prospectiveRevolving = card.paymentPreference === 'statement'
+      ? prospectiveLegacyBal
+      : Math.max(0, prospectiveEndBal);
+
+    // Use sim revolving balance as ground truth when available, but only once the local
+    // replay above (driven by the real, possibly scaled-down monthlyPayments) also agrees
+    // the revolving carry is ~$0 this month. The <1 tolerance absorbs genuine sub-dollar
+    // rounding drift between the sim's and this function's interest math without trusting
+    // a ground truth computed from a payment trajectory that differs from what's displayed.
+    const simRevBal = revolvingBalances?.[m - 1];
+    const isCycling = hasPref && (
+      simRevBal !== undefined ? (simRevBal === 0 && prospectiveRevolving < 1) : (bal <= 0 || payoffMonth !== null)
+    );
+
+    if (!hasPref && bal <= 0 && payoffMonth !== null) break;
+    if (isCycling && m > months) break;
+
+    const d = new Date();
+    d.setMonth(d.getMonth() + m - 1);
+    const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
+
+    if (isCycling) {
+      if (payoffMonth === null) payoffMonth = m;
+      const cyclingPayment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
+      const cycleStartBal = Math.round(startBal * 100) / 100;
+      // Net the payment against the prior statement balance first, carrying any shortfall
+      // forward, then add this month's new purchases on top (they bill next cycle). When
+      // cyclingPayment >= startBal this reduces to the old `newPurchases`-only formula;
+      // when the payment is smaller (e.g. a scaled/capped recommended payment), the unpaid
+      // remainder is preserved instead of being silently written off.
+      const endBal = Math.round((Math.max(0, cycleStartBal - cyclingPayment) + newPurchases) * 100) / 100;
+      const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
+      rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: 0, payment: cyclingPayment, endBalance: endBal, utilization });
+      // Card pays its statement balance in full each cycle while cycling — carry resets
+      // to this month's unpaid new purchases, not the stale pre-payoff balance. Without
+      // this, bal/legacyBal stay frozen and reaccrue interest with no payment next month,
+      // flipping isCycling back to false and corrupting the rest of the projection.
+      bal = endBal;
+      legacyBal = 0;
+      continue;
+    }
+
     if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
-    bal = startBal + newPurchases + interest - payment;
+    bal = prospectiveEndBal;
     if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behaviour
+    legacyBal = prospectiveLegacyBal;
+    if (legacyBal > 0 && legacyBal < 1) legacyBal = 0;
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
@@ -594,13 +637,11 @@ export function simulateVariablePayoff(
       }
     }
 
-    // ── Step 2 — Handle paid-off cards: pay purchases, capped by cash above floor ──
+    // ── Step 2 — Handle paid-off cards: pay purchases in full (mandatory) ──
     // These cards stay at $0 permanently. Purchase cost is a cash outflow
     // but does NOT create a balance that accrues interest (grace period model).
     // Payments are deferred by one billing cycle: charges from month m are paid
     // in month m+1 (statement closes month-end, payment due ~25 days later).
-    // Cap total paid-off payments so currentCash never drops below effectiveFloor.
-    const tentativeAvailAboveFloor = Math.max(0, currentCash + monthIncome - monthExpenses + Math.max(0, oneTimeNet) - effectiveFloor);
     // Reserve revolving-card minimums before giving cash to autopay cards.
     // Without this, large deferred purchases (e.g. Venture X) drain the pool
     // entirely, leaving revolving cards (Prime, Discover) with nothing beyond
@@ -608,7 +649,6 @@ export function simulateVariablePayoff(
     const reservedForRevolving = cards
       .filter(c => !paidOffCards.has(c.id) && (cardStartMonths.get(c.id) ?? 0) <= m && (balances.get(c.id) ?? 0) > 0)
       .reduce((s, c) => s + c.minPayment, 0);
-    let paidOffPool = Math.max(0, tentativeAvailAboveFloor - reservedForRevolving);
     let paidOffCashCost = 0;
     // Pay cycling cards in strategy order so highest-APR (avalanche) or lowest-balance
     // (snowball) card claims from the pool first when it runs short.
@@ -619,6 +659,21 @@ export function simulateVariablePayoff(
           ? b.apr - a.apr
           : (paidOffDeferredPurchases.get(a.id) ?? 0) - (paidOffDeferredPurchases.get(b.id) ?? 0)
       );
+    // Cycling-card statement payments are mandatory and non-negotiable — a bill for
+    // purchases already made, not a discretionary expense (see useCardProjection's
+    // "mandatory" cycling comment). Unlike the cash floor (a cushion against FUTURE
+    // uncertainty), a statement for spending that already happened isn't optional, so
+    // this pool is allowed to dip below effectiveFloor — it just can't touch the other
+    // cards' reserved minimums. Previously this was capped at tentativeAvailAboveFloor,
+    // which silently deferred any shortfall into next month's purchases at 0% interest
+    // with no visible carry — producing a payment that never matched the prior month's
+    // statement (e.g. a $59 shortfall one month, then a $59-inflated payment the next).
+    const paidOffNeed = paidOffOrder.reduce((s, c) => s + (paidOffDeferredPurchases.get(c.id) ?? 0), 0);
+    const cashAvailableForPaidOff = Math.max(0, currentCash + monthIncome - monthExpenses + Math.max(0, oneTimeNet) - reservedForRevolving);
+    let paidOffPool = Math.min(paidOffNeed, cashAvailableForPaidOff);
+    if (paidOffPool < paidOffNeed - 0.01) {
+      flags.push({ month: m + 1, flag: 'FLOOR_BREACHED' });
+    }
     for (const card of paidOffOrder) {
       // Pay PREVIOUS month's deferred charges (billing cycle delay).
       const purchases = paidOffDeferredPurchases.get(card.id) ?? 0;
