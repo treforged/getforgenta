@@ -1182,19 +1182,13 @@ export default function Forecast() {
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
       const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
 
-      // Step 2: cycling payments are non-negotiable (like rent).
-      // Exception: in save-up months where revolving debt is already cleared, cap total CC
-      // payments to PASS 2's reduced amount (monthDebtPayment = debtPayments[i]) so that
-      // statement/full-balance card payments (e.g. Amex Gold) are reduced and cash accumulates
-      // for the upcoming large expense (car down payment, one-time item). Without this cap,
-      // cycling payments bypass PASS 2's look-ahead reductions and the floor is never met.
-      // Revolving payments and minimums only apply while p3RevBal shows remaining debt.
+      // Step 2: cycling payments are non-negotiable (like rent) — a statement/full-balance
+      // card's payment is last cycle's actual balance, not a discretionary amount. Deferring it
+      // in a save-up month doesn't free up cash for a future expense; it just rolls the balance
+      // forward with interest and flips the card to revolving, so it's never capped here.
       const simAllPayments = cardProjectionData?.allPaymentTotals?.[i] ?? monthDebtPayment;
       const simRevolvingPayment = cardProjectionData?.debtPaymentTotals?.[i] ?? monthDebtPayment;
-      const effectiveTotalPayments = (saveUpMonths.has(i) && p3RevBal <= 0 && cardProjectionData)
-        ? Math.min(simAllPayments, Math.max(0, monthDebtPayment))
-        : simAllPayments;
-      const cyclingPayment = Math.max(0, effectiveTotalPayments - simRevolvingPayment);
+      const cyclingPayment = Math.max(0, simAllPayments - simRevolvingPayment);
       // Gate minimum and revolving payment on p3RevBal — once debt is zeroed, skip both.
       const ccMinForMonth = p3RevBal > 0 ? Math.min(ccMinTotal, simRevolvingPayment) : 0;
       const availableForRevolving = p3RevBal > 0
