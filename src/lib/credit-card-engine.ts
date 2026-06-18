@@ -293,6 +293,16 @@ export function projectCardVariable(
    * cards from ever setting payoffMonth.
    */
   revolvingBalances?: number[],
+  /**
+   * Sim-computed true amount owed at the start of each cycling billing cycle (index = m-1),
+   * before that month's payment — includes any interest carried from a missed full payment.
+   * When provided, used for the cycling row's startBalance/endBalance so a partial payment is
+   * visible in the row where it happens instead of silently disappearing until next month.
+   */
+  cyclingOwedByMonth?: number[],
+  /** Sim-computed interest charged each cycling month (index = m-1) on a carried-forward
+   * unpaid balance — 0 unless the previous cycle's payment fell short of the full statement. */
+  cyclingInterestByMonth?: number[],
 ): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
@@ -327,10 +337,14 @@ export function projectCardVariable(
     if (isCycling) {
       if (payoffMonth === null) payoffMonth = m;
       const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
-      const cycleStartBal = payment;
-      const endBal = Math.round(newPurchases * 100) / 100;
+      const trueOwedThisCycle = cyclingOwedByMonth?.[m - 1];
+      const cycleStartBal = trueOwedThisCycle !== undefined ? Math.round(trueOwedThisCycle * 100) / 100 : payment;
+      const cycleInterest = cyclingInterestByMonth?.[m - 1] ?? 0;
+      const trueOwedNextCycle = cyclingOwedByMonth?.[m];
+      const endBal = trueOwedNextCycle !== undefined ? Math.round(trueOwedNextCycle * 100) / 100 : Math.round(newPurchases * 100) / 100;
       const utilization = card.creditLimit > 0 ? (endBal / card.creditLimit) * 100 : 0;
-      rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: 0, payment, endBalance: endBal, utilization });
+      totalInterest += cycleInterest;
+      rows.push({ month: m, label, startBalance: cycleStartBal, newPurchases, interest: cycleInterest, payment, endBalance: endBal, utilization });
       continue;
     }
 
@@ -478,6 +492,13 @@ export function simulateVariablePayoff(
   monthlyRevolvingBalances: Map<string, number[]>;
   /** Per-card per-month minimum payment based on projected balance — shrinks as debt is paid. */
   perCardMinPayments: Map<string, number[]>;
+  /** Per-card per-month TRUE amount owed at the start of the cycling billing cycle (principal +
+   * any carried interest), before that month's payment. Used by projectCardVariable so a
+   * partial payment is visible in the row where it happens instead of silently disappearing. */
+  monthlyCyclingOwed: Map<string, number[]>;
+  /** Per-card per-month interest charged on a cycling card's carried-forward unpaid balance —
+   * always 0 unless the previous cycle's payment fell short of the full statement. */
+  monthlyCyclingInterest: Map<string, number[]>;
   projectedPayoffMonths: number;
   cashFloorBreaches: { month: number; endingCash: number }[];
   flags: SimulationFlag[];
@@ -491,6 +512,8 @@ export function simulateVariablePayoff(
       monthlyBalances: new Map(),
       monthlyRevolvingBalances: new Map(),
       perCardMinPayments: new Map(),
+      monthlyCyclingOwed: new Map(),
+      monthlyCyclingInterest: new Map(),
       projectedPayoffMonths: 0,
       cashFloorBreaches: [],
       flags: [],
@@ -506,6 +529,8 @@ export function simulateVariablePayoff(
   const monthlyBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyRevolvingBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const perCardMinPayments = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  const monthlyCyclingOwed = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  const monthlyCyclingInterest = new Map<string, number[]>(cards.map(c => [c.id, []]));
   let currentCash = liquidCash;
   let projectedPayoffMonths = 0;
   const cashFloorBreaches: { month: number; endingCash: number }[] = [];
@@ -537,7 +562,13 @@ export function simulateVariablePayoff(
 
   // Billing cycle deferred purchases: a paid-off card's charges in month m are paid
   // in month m+1 (statement closes at month-end, payment due ~25 days into next month).
+  // Tracks PRINCIPAL only — any interest from a missed full payment is tracked separately
+  // in pendingInterestCarry so it can be reported per-month instead of silently folded in.
   const paidOffDeferredPurchases = new Map<string, number>(cards.map(c => [c.id, 0]));
+  // Interest owed next cycle because this cycle's payment didn't cover the full statement —
+  // mirrors real card terms: missing a full statement payment loses the grace period and
+  // accrues interest on the unpaid balance until it's caught up.
+  const pendingInterestCarry = new Map<string, number>(cards.map(c => [c.id, 0]));
 
   for (let m = 0; m < months; m++) {
 
@@ -578,6 +609,8 @@ export function simulateVariablePayoff(
         monthlyBalances.get(card.id)!.push(0);
         monthlyRevolvingBalances.get(card.id)!.push(0);
         perCardMinPayments.get(card.id)!.push(0);
+        monthlyCyclingOwed.get(card.id)!.push(0);
+        monthlyCyclingInterest.get(card.id)!.push(0);
       } else if (paidOffCards.has(card.id)) {
         perCardMinPayments.get(card.id)!.push(0);
       } else {
@@ -620,9 +653,14 @@ export function simulateVariablePayoff(
           : (paidOffDeferredPurchases.get(a.id) ?? 0) - (paidOffDeferredPurchases.get(b.id) ?? 0)
       );
     for (const card of paidOffOrder) {
-      // Pay PREVIOUS month's deferred charges (billing cycle delay).
-      const purchases = paidOffDeferredPurchases.get(card.id) ?? 0;
-      const pay = Math.round(Math.min(purchases, paidOffPool) * 100) / 100;
+      // Pay PREVIOUS month's deferred charges (billing cycle delay), plus any interest
+      // carried over from a prior cycle that wasn't paid in full.
+      const principalOwed = paidOffDeferredPurchases.get(card.id) ?? 0;
+      const interestDue = pendingInterestCarry.get(card.id) ?? 0;
+      const owedThisCycle = Math.round((principalOwed + interestDue) * 100) / 100;
+      monthlyCyclingOwed.get(card.id)!.push(owedThisCycle);
+      monthlyCyclingInterest.get(card.id)!.push(interestDue);
+      const pay = Math.round(Math.min(owedThisCycle, paidOffPool) * 100) / 100;
       paidOffPool -= pay;
       monthlyPayments.get(card.id)!.push(pay);
       paidOffCashCost += pay;
@@ -637,9 +675,22 @@ export function simulateVariablePayoff(
       // Carry forward any unpaid amount when the pool couldn't cover the full statement.
       // Without this, constrained months silently drop the deficit, causing the next
       // month to under-charge and the pay-off-pool to never catch up.
-      const unpaid = Math.round((purchases - pay) * 100) / 100;
+      const unpaidPrincipal = Math.round((owedThisCycle - pay) * 100) / 100;
+      // Missing a full statement payment loses the grace period — the unpaid balance accrues
+      // interest at the card's APR until it's caught up, same as a real card statement would.
+      const interestForNextCycle = unpaidPrincipal > 0.01
+        ? Math.round(unpaidPrincipal * (card.apr / 100 / 12) * 100) / 100
+        : 0;
+      pendingInterestCarry.set(card.id, interestForNextCycle);
       const thisMonthPurchases = Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases);
-      paidOffDeferredPurchases.set(card.id, unpaid + thisMonthPurchases);
+      paidOffDeferredPurchases.set(card.id, unpaidPrincipal + thisMonthPurchases);
+    }
+    // Cards in paidOffOrder already pushed above — push 0 for cards not yet in cycling mode
+    // this month (still revolving, or not yet active) to keep all per-month arrays aligned.
+    for (const card of cards) {
+      if ((cardStartMonths.get(card.id) ?? 0) > m || paidOffCards.has(card.id)) continue;
+      monthlyCyclingOwed.get(card.id)!.push(0);
+      monthlyCyclingInterest.get(card.id)!.push(0);
     }
 
     // Cards still carrying debt (exclude pre-start cards — they already got 0 pushed above)
@@ -882,6 +933,8 @@ export function simulateVariablePayoff(
     monthlyBalances,
     monthlyRevolvingBalances,
     perCardMinPayments,
+    monthlyCyclingOwed,
+    monthlyCyclingInterest,
     projectedPayoffMonths,
     cashFloorBreaches,
     flags,

@@ -809,7 +809,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           return i === 0 ? m0Pay : p;
         });
         const revBals = (monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(c.id) ?? [];
-        return projectCardVariable(c, payments, 36, true, cardPurchases, revBals);
+        const cyclingOwed = variableSim.monthlyCyclingOwed?.get(c.id) ?? [];
+        const cyclingInterest = variableSim.monthlyCyclingInterest?.get(c.id) ?? [];
+        return projectCardVariable(c, payments, 36, true, cardPurchases, revBals, cyclingOwed, cyclingInterest);
       }
       if (Object.keys(cardOverrides).length > 0) {
         const payments = Array.from({ length: 36 }, (_, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : c.targetPayment);
