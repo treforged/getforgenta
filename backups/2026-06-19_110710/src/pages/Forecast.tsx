@@ -549,22 +549,6 @@ export default function Forecast() {
         .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
         .reduce((s: number, ls: any) => s + ls.amount, 0);
     });
-    // Insurance on phase='loan' car funds per month — activeCarLoanByMonth above covers the
-    // regular payment and lump sums for an active loan, but nothing here ever added the car's
-    // monthly_insurance once phase flips to 'loan'. getMonthVehicleInsurance only ever looked at
-    // vehicleProjections (phase==='saving' cars), so insurance silently vanished from every total
-    // that includes it the instant a loan activated. Anchored to payment_start_date so it starts
-    // the same month the user's own first-payment date says it should, and — matching
-    // vehicleProjections' saving-phase insurance, which never stops once started — runs
-    // indefinitely rather than capping at loan_term_months (insurance is an ownership cost, not a
-    // financing one).
-    const activeCarLoanInsuranceByMonth = Array.from({ length: 36 }, (_, i) => {
-      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
-      return (carFunds as any[])
-        .filter((cf: any) => cf.phase === 'loan' && cf.payment_start_date)
-        .filter((cf: any) => d >= new Date(cf.payment_start_date + 'T00:00:00'))
-        .reduce((s: number, cf: any) => s + Number(cf.monthly_insurance || 0), 0);
-    });
 
     // Lump sum contributions from savings goals — one-time future transfers
     // Destination type inferred from the goal's linked account type
@@ -765,8 +749,7 @@ export default function Forecast() {
     const getMonthEffectiveDP = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i === v.purchaseMonthIdx ? v.effectiveDP : 0), 0);
     const getMonthVehicleInsurance = (i: number) => vehicleProjections.reduce(
-      (s, v) => s + (isFinite(v.purchaseMonthIdx) && i >= v.purchaseMonthIdx ? v.insurance : 0), 0)
-      + activeCarLoanInsuranceByMonth[i];
+      (s, v) => s + (isFinite(v.purchaseMonthIdx) && i >= v.purchaseMonthIdx ? v.insurance : 0), 0);
 
     const transferRulesAll = rules.filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
 
