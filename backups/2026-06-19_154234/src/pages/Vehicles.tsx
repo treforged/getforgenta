@@ -29,7 +29,7 @@ const emptySavingForm = {
   vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', gift_contribution: '',
   current_saved: '', monthly_insurance: '', expected_apr: '', loan_term_months: '60',
   linked_account: '', linked_rule_id: '', planned_purchase_date: '',
-  payment_start_date: '',
+  loan_start_date: '', payment_start_date: '',
 };
 
 const emptyLoanForm = {
@@ -833,6 +833,7 @@ export default function Vehicles() {
       { key: 'down_payment_goal', label: 'Down Payment Goal (total to dealer)', type: 'number', placeholder: '5600', step: '0.01' },
       { key: 'gift_contribution', label: 'Gift / External Contribution (optional)', type: 'number', placeholder: '0', step: '0.01' },
       { key: 'planned_purchase_date', label: 'Planned Purchase Date', type: 'date' },
+      { key: 'loan_start_date', label: 'Planned Loan Start Date (optional)', type: 'date' },
       { key: 'payment_start_date', label: 'Planned First Payment Date', type: 'date' },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
       { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync contribution)', type: 'select', options: transferRuleOptions },
@@ -865,6 +866,7 @@ export default function Vehicles() {
       linked_account: cf.linked_account ?? '',
       linked_rule_id: cf.linked_rule_id ?? '',
       planned_purchase_date: cf.planned_purchase_date ?? '',
+      loan_start_date: cf.loan_start_date ?? '',
       payment_start_date: cf.payment_start_date ?? '',
     });
     setEditId(cf.id); setShowSavingForm(true);
@@ -915,14 +917,11 @@ export default function Vehicles() {
       linked_rule_id: linkedRule?.id ?? null,
       planned_purchase_date: savingForm.planned_purchase_date || null,
       phase: 'saving' as const,
-      // Pre-planned, ahead of activation — BuyItDialog prefills payment_start_date from this
-      // instead of always defaulting to next-month. loan_start_date is intentionally left null
-      // here — planned_purchase_date IS the loan's start date while saving (no separate field;
-      // they're the same real-world date), and BuyItDialog/generateCarLoanTransactions both fall
-      // back to planned_purchase_date when loan_start_date isn't set. Populating payment_start_date
-      // here has no effect until the user actually hits "I bought it" — every loan-payment/
-      // insurance calculation gates on phase === 'loan' first.
-      loan_amount: 0, loan_start_date: null,
+      // Pre-planned, ahead of activation — BuyItDialog prefills from these instead of always
+      // defaulting to today/next-month. Neither one puts the card into an active-loan state;
+      // every loan-payment/insurance calculation gates on phase === 'loan' first, so populating
+      // them here has no effect until the user actually hits "I bought it".
+      loan_amount: 0, loan_start_date: savingForm.loan_start_date || null,
       payment_start_date: savingForm.payment_start_date || null,
       interest_start_date: null, actual_monthly_payment: 0,
     };
