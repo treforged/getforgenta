@@ -57,11 +57,13 @@ function LumpSumModal({
   initialAmount: string;
   schedule: { date: string; startBalance: number }[];
   liquidCash?: number;
-  onSave: (date: string, amount: number) => void;
+  onSave: (entries: { date: string; amount: number }[]) => void;
   onClose: () => void;
 }) {
   const [date, setDate] = useState(initialDate);
   const [amount, setAmount] = useState(initialAmount);
+  // Repeat is add-only — editing always targets exactly the one existing entry.
+  const [repeatMonths, setRepeatMonths] = useState('1');
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -76,7 +78,9 @@ function LumpSumModal({
   const handleSave = () => {
     const amt = parseFloat(amount);
     if (!date || !amt || amt <= 0) return;
-    onSave(date, amt);
+    const count = mode === 'add' ? Math.max(1, Math.min(60, parseInt(repeatMonths) || 1)) : 1;
+    const entries = Array.from({ length: count }, (_, k) => ({ date: addMonthsStr(date, k), amount: amt }));
+    onSave(entries);
   };
 
   return (
@@ -113,6 +117,23 @@ function LumpSumModal({
               style={{ borderRadius: 'var(--radius)' }}
             />
           </div>
+          {mode === 'add' && (
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                Repeat <span className="text-muted-foreground/60">(consecutive months, starting this date)</span>
+              </p>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                placeholder="1"
+                value={repeatMonths}
+                onChange={e => setRepeatMonths(e.target.value)}
+                className="w-full bg-secondary border border-border px-3 py-3 text-sm text-foreground"
+                style={{ borderRadius: 'var(--radius)' }}
+              />
+            </div>
+          )}
           {date && (bal !== null || liquidCash !== undefined) && (
             <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
               {bal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(bal, false)}</span></span>}
@@ -156,7 +177,7 @@ function LumpSumPanel({
   withLumpsTotalInterest: number;
   basePayoffDate: string;
   withLumpsPayoffDate: string;
-  onAdd: (ls: LumpSumPayment) => void;
+  onAdd: (entries: LumpSumPayment[]) => void;
   onRemove: (id: string) => void;
   onUpdate: (ls: LumpSumPayment) => void;
   label?: string;
@@ -230,11 +251,11 @@ function LumpSumPanel({
           initialAmount={modal.mode === 'edit' ? modal.amount : ''}
           schedule={schedule}
           liquidCash={liquidCash}
-          onSave={(date, amount) => {
+          onSave={(entries) => {
             if (modal.mode === 'add') {
-              onAdd({ id: crypto.randomUUID(), date, amount });
+              onAdd(entries.map(e => ({ id: crypto.randomUUID(), date: e.date, amount: e.amount })));
             } else {
-              onUpdate({ id: modal.id, date, amount });
+              onUpdate({ id: modal.id, date: entries[0].date, amount: entries[0].amount });
             }
             setModal(null);
           }}
@@ -318,7 +339,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
     });
   }, [projectedBase, lumpSums, cf]);
 
-  const handleAddLump = (ls: LumpSumPayment) => onSaveLumpSums([...lumpSums, ls]);
+  const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
   const handleRemoveLump = (id: string) => onSaveLumpSums(lumpSums.filter(l => l.id !== id));
   const handleUpdateLump = (ls: LumpSumPayment) => onSaveLumpSums(lumpSums.map(l => l.id === ls.id ? ls : l));
   return (
@@ -462,7 +483,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
 
   const [showSchedule, setShowSchedule] = useState(false);
 
-  const handleAddLump = (ls: LumpSumPayment) => onSaveLumpSums([...lumpSums, ls]);
+  const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
   const handleRemoveLump = (id: string) => onSaveLumpSums(lumpSums.filter(l => l.id !== id));
   const handleUpdateLump = (ls: LumpSumPayment) => onSaveLumpSums(lumpSums.map(l => l.id === ls.id ? ls : l));
 
