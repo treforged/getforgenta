@@ -7,7 +7,7 @@ import InstructionsModal from '@/components/shared/InstructionsModal';
 import FormModal from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
-import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
+import { buildAmortizationSchedule, getActiveCarLoanPayments, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
 import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -631,9 +631,7 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
   { cf: CarFund; accountOptions: { value: string; label: string }[]; onConfirm: (fields: Partial<CarFund>) => void; onClose: () => void }) {
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0];
-  // getLoanPrincipal — same formula the saving-phase projection uses (Forecast.tsx/
-  // useCardProjection.ts), so accepting this default with no edits doesn't change the payment.
-  const loanAmountDefault = getLoanPrincipal(cf);
+  const loanAmountDefault = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
   const [form, setForm] = useState({
     loan_amount: String(loanAmountDefault),
     expected_apr: String(cf.expected_apr),
@@ -657,11 +655,7 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
 
   const handleConfirm = () => {
     const loan_amount = parseFloat(form.loan_amount);
-    if (!loan_amount) return;
-    if (!form.payment_start_date) {
-      toast.error('First Payment Date is required.');
-      return;
-    }
+    if (!loan_amount || !form.payment_start_date) return;
     if (form.interest_start_date < form.loan_start_date) {
       toast.error('Interest start date cannot be before loan start date');
       return;
@@ -832,9 +826,9 @@ export default function Vehicles() {
       { key: 'tax_fees', label: 'Tax & Fees', type: 'number', placeholder: '2000', step: '0.01' },
       { key: 'down_payment_goal', label: 'Down Payment Goal (total to dealer)', type: 'number', placeholder: '5600', step: '0.01' },
       { key: 'gift_contribution', label: 'Gift / External Contribution (optional)', type: 'number', placeholder: '0', step: '0.01' },
-      { key: 'planned_purchase_date', label: 'Planned Purchase Date', type: 'date' },
+      { key: 'planned_purchase_date', label: 'Planned Purchase Date (optional)', type: 'date' },
       { key: 'loan_start_date', label: 'Planned Loan Start Date (optional)', type: 'date' },
-      { key: 'payment_start_date', label: 'Planned First Payment Date', type: 'date' },
+      { key: 'payment_start_date', label: 'Planned First Payment Date (optional)', type: 'date' },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
       { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync contribution)', type: 'select', options: transferRuleOptions },
     ];
@@ -886,14 +880,6 @@ export default function Vehicles() {
 
   const handleSaveSaving = () => {
     if (!savingForm.vehicle_name) return;
-    if (!savingForm.planned_purchase_date) {
-      toast.error('Planned Purchase Date is required.');
-      return;
-    }
-    if (!savingForm.payment_start_date) {
-      toast.error('Planned First Payment Date is required.');
-      return;
-    }
     const { clean: cleanVehicleName, flagged: vNameFlagged } = filterProfanity(savingForm.vehicle_name.trim().slice(0, LIMITS.vehicleName));
     if (vNameFlagged) toast.warning('Vehicle name contained inappropriate language and was cleaned.');
     const linkedAccount = savingForm.linked_account || null;
@@ -931,15 +917,7 @@ export default function Vehicles() {
   };
 
   const handleSaveLoan = () => {
-    if (!loanForm.vehicle_name) return;
-    if (!loanForm.loan_start_date) {
-      toast.error('Loan Start Date is required.');
-      return;
-    }
-    if (!loanForm.payment_start_date) {
-      toast.error('First Payment Date is required.');
-      return;
-    }
+    if (!loanForm.vehicle_name || !loanForm.payment_start_date) return;
     const { clean: cleanLoanVehicleName } = filterProfanity(loanForm.vehicle_name.trim().slice(0, LIMITS.vehicleName));
     const payload = {
       vehicle_name: cleanLoanVehicleName,
@@ -1232,16 +1210,7 @@ export default function Vehicles() {
           title={editId ? 'Edit Vehicle Goal' : 'Add Vehicle Goal'}
           fields={savingFormFields}
           values={savingForm}
-          onChange={(k, v) => setSavingForm(prev => {
-            const next = { ...prev, [k]: v };
-            // Auto-suggest a first-payment date one month after purchase — matches the
-            // purchaseMonthIdx + 1 relationship the saving-phase projection already assumes.
-            // Only fills it in if it's not already set, so it never overwrites a manual edit.
-            if (k === 'planned_purchase_date' && v && !prev.payment_start_date) {
-              next.payment_start_date = addMonthsStr(v, 1);
-            }
-            return next;
-          })}
+          onChange={(k, v) => setSavingForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSaveSaving}
           onClose={() => setShowSavingForm(false)}
         />

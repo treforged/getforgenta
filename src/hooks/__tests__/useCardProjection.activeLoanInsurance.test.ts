@@ -103,4 +103,58 @@ describe('useCardProjection — active loan insurance', () => {
     // payment_start_date is next month — month 0 must not show this insurance yet.
     expect(r.month0.vehicleInsurance).toBe(0);
   });
+
+  it('saving-phase insurance follows payment_start_date, not the purchase date — does not show up early', () => {
+    // Before this fix, saving-phase insurance anchored to purchaseMonthIdx (the purchase date),
+    // so it would show up the same month as the purchase even if the first payment (and the real,
+    // loan-phase insurance anchor) doesn't start until a month later. Purchase this month,
+    // first payment next month — month 0 must NOT show insurance yet.
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const futureStart = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const carFunds = [{
+      id: 'car-1', vehicle_name: 'Test Car', phase: 'saving',
+      target_price: 14000, tax_fees: 1000, down_payment_goal: 3000, current_saved: 0, gift_contribution: 0,
+      loan_amount: 0, expected_apr: 6, loan_term_months: 60,
+      loan_start_date: null, payment_start_date: futureStart, interest_start_date: null,
+      actual_monthly_payment: 0, monthly_insurance: 150,
+      linked_account: null, linked_rule_id: null, loan_payment_account: null, planned_purchase_date: today,
+      lump_sum_payments: [],
+    }];
+
+    const r = renderWithCarFund(carFunds).result.current!;
+    expect(r.month0.vehicleInsurance).toBe(0);
+  });
+
+  it('saving-phase and loan-phase show identical insurance once isolated from the projected loan payment — the no-op-at-activation guarantee', () => {
+    // loan_term_months: 0 zeroes out the projected/actual loan payment in both phases
+    // (calculateScheduledPayment returns 0 for termMonths <= 0), isolating insurance so the two
+    // phases' month0.vehicleInsurance figures are directly comparable (normally saving-phase
+    // bundles insurance + projected payment + lump sum into one total, while loan-phase tracks
+    // the real payment separately — not what this test is checking).
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const savingPhaseCarFunds = [{
+      id: 'car-1', vehicle_name: 'Test Car', phase: 'saving',
+      target_price: 14000, tax_fees: 1000, down_payment_goal: 3000, current_saved: 0, gift_contribution: 0,
+      loan_amount: 0, expected_apr: 6, loan_term_months: 0,
+      loan_start_date: null, payment_start_date: today, interest_start_date: null,
+      actual_monthly_payment: 0, monthly_insurance: 150,
+      linked_account: null, linked_rule_id: null, loan_payment_account: null, planned_purchase_date: today,
+      lump_sum_payments: [],
+    }];
+    const loanPhaseCarFunds = [{
+      ...savingPhaseCarFunds[0],
+      phase: 'loan', loan_amount: 12000, loan_start_date: today, interest_start_date: today,
+    }];
+
+    const saving = renderWithCarFund(savingPhaseCarFunds).result.current!;
+    const loan = renderWithCarFund(loanPhaseCarFunds).result.current!;
+
+    expect(saving.month0.vehicleInsurance).toBe(150);
+    expect(saving.month0.vehicleInsurance).toBe(loan.month0.vehicleInsurance);
+  });
 });
