@@ -644,22 +644,24 @@ export default function Forecast() {
         const effectiveDP = Math.max(0, rem - contrib * (purchaseMonthIdx + 1));
         return { contrib, purchaseMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string, linkedAccountId: (c.linked_account as string | null) ?? null };
       });
-    // Per-vehicle lump sum breakdown for forecast popup (every car fund, any phase). Previously
-    // filtered to phase === 'loan' only, plus a second pass over vehicleProjections (saving-phase
-    // only) gated to a purchase-month-estimate window — so a car fund undone back to 'saving'
-    // (lump_sum_payments untouched by the undo, still real data) could fall through the cracks
-    // whenever its actual lump-sum dates didn't happen to land inside that re-estimated window.
-    // lump_sum_payments already carries its own exact date, so there's no need to infer a window
-    // at all — match by date directly for every car fund, regardless of phase.
+    // Per-vehicle lump sum breakdown for forecast popup (active loans + projected future loans)
     const carLumpItemsByMonth: { name: string; amount: number }[][] = Array.from({ length: 36 }, (_, i) => {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const items: { name: string; amount: number }[] = [];
       for (const cf of carFunds as any[]) {
+        if (cf.phase !== 'loan') continue;
         const amt = (cf.lump_sum_payments ?? [])
           .filter((ls: any) => ls.date.substring(0, 7) === mk)
           .reduce((s: number, ls: any) => s + Number(ls.amount), 0);
         if (amt > 0) items.push({ name: cf.vehicle_name as string, amount: Math.round(amt) });
+      }
+      for (const v of vehicleProjections) {
+        if (!isFinite(v.purchaseMonthIdx) || i <= v.purchaseMonthIdx || i > v.purchaseMonthIdx + v.termMonths) continue;
+        const amt = (v.lumpSumPayments as { date: string; amount: number }[])
+          .filter(ls => ls.date.substring(0, 7) === mk)
+          .reduce((s, ls) => s + Number(ls.amount), 0);
+        if (amt > 0) items.push({ name: v.vehicleName, amount: Math.round(amt) });
       }
       return items;
     });
