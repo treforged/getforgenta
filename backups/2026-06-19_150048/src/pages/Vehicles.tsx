@@ -29,7 +29,6 @@ const emptySavingForm = {
   vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', gift_contribution: '',
   current_saved: '', monthly_insurance: '', expected_apr: '', loan_term_months: '60',
   linked_account: '', linked_rule_id: '', planned_purchase_date: '',
-  loan_start_date: '', payment_start_date: '',
 };
 
 const emptyLoanForm = {
@@ -636,9 +635,9 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
     loan_amount: String(loanAmountDefault),
     expected_apr: String(cf.expected_apr),
     loan_term_months: String(cf.loan_term_months),
-    loan_start_date: cf.loan_start_date ?? cf.planned_purchase_date ?? today,
-    payment_start_date: cf.payment_start_date ?? nextMonth,
-    interest_start_date: cf.payment_start_date ?? nextMonth,
+    loan_start_date: cf.planned_purchase_date ?? today,
+    payment_start_date: nextMonth,
+    interest_start_date: nextMonth,
     actual_monthly_payment: '',
     loan_payment_account: cf.loan_payment_account ?? '',
   });
@@ -827,8 +826,6 @@ export default function Vehicles() {
       { key: 'down_payment_goal', label: 'Down Payment Goal (total to dealer)', type: 'number', placeholder: '5600', step: '0.01' },
       { key: 'gift_contribution', label: 'Gift / External Contribution (optional)', type: 'number', placeholder: '0', step: '0.01' },
       { key: 'planned_purchase_date', label: 'Planned Purchase Date (optional)', type: 'date' },
-      { key: 'loan_start_date', label: 'Planned Loan Start Date (optional)', type: 'date' },
-      { key: 'payment_start_date', label: 'Planned First Payment Date (optional)', type: 'date' },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
       { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync contribution)', type: 'select', options: transferRuleOptions },
     ];
@@ -860,8 +857,6 @@ export default function Vehicles() {
       linked_account: cf.linked_account ?? '',
       linked_rule_id: cf.linked_rule_id ?? '',
       planned_purchase_date: cf.planned_purchase_date ?? '',
-      loan_start_date: cf.loan_start_date ?? '',
-      payment_start_date: cf.payment_start_date ?? '',
     });
     setEditId(cf.id); setShowSavingForm(true);
   };
@@ -903,12 +898,7 @@ export default function Vehicles() {
       linked_rule_id: linkedRule?.id ?? null,
       planned_purchase_date: savingForm.planned_purchase_date || null,
       phase: 'saving' as const,
-      // Pre-planned, ahead of activation — BuyItDialog prefills from these instead of always
-      // defaulting to today/next-month. Neither one puts the card into an active-loan state;
-      // every loan-payment/insurance calculation gates on phase === 'loan' first, so populating
-      // them here has no effect until the user actually hits "I bought it".
-      loan_amount: 0, loan_start_date: savingForm.loan_start_date || null,
-      payment_start_date: savingForm.payment_start_date || null,
+      loan_amount: 0, loan_start_date: null, payment_start_date: null,
       interest_start_date: null, actual_monthly_payment: 0,
     };
     if (editId) update.mutate({ id: editId, ...payload });
