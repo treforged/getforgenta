@@ -45,13 +45,6 @@ export interface CardProjectionResult {
   monthlyRevolvingBalances: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
   perCardMinPayments: Map<string, number[]>;
-  /** True amount owed at the start of each cycling billing cycle (principal + any carried
-   * interest), before that month's payment. Lets other consumers of this hook's sim (e.g.
-   * CreditCardEngine.tsx's accordion) show the same Start/End figures as the Forecast popup,
-   * instead of falling back to a separate, independently-converging local simulation. */
-  monthlyCyclingOwed: Map<string, number[]>;
-  /** Interest charged on a cycling card's carried-forward unpaid balance, per month. */
-  monthlyCyclingInterest: Map<string, number[]>;
   m0Income: number;
   m0Expenses: number;
   m0SafeFloor: number;
@@ -1233,8 +1226,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         monthlyRevolvingBalances: activeSim.monthlyRevolvingBalances,
         monthlyBalances: activeSim.monthlyBalances,
         perCardMinPayments: activeSim.perCardMinPayments,
-        monthlyCyclingOwed: activeSim.monthlyCyclingOwed,
-        monthlyCyclingInterest: activeSim.monthlyCyclingInterest,
         m0Income,
         m0Expenses,
         m0SafeFloor,
