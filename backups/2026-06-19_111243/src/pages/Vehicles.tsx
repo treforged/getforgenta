@@ -410,23 +410,21 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         </p>
       )}
 
-      {/* projectedBase needs a planned purchase date + computable loan amount/term — when not yet
-          set, the panel below still works (list + add), it just can't show payoff-date/interest-
-          saved impact figures yet. Without the fallbacks here, the whole panel (including "Add")
-          used to disappear entirely until those fields were filled in. */}
-      <LumpSumPanel
-        schedule={projectedWithLumps?.schedule ?? projectedBase?.schedule ?? []}
-        lumpSums={lumpSums}
-        baseTotalInterest={projectedBase?.totalInterest ?? 0}
-        withLumpsTotalInterest={projectedWithLumps?.totalInterest ?? projectedBase?.totalInterest ?? 0}
-        basePayoffDate={projectedBase?.payoffDate ?? ''}
-        withLumpsPayoffDate={projectedWithLumps?.payoffDate ?? projectedBase?.payoffDate ?? ''}
-        onAdd={handleAddLump}
-        onRemove={handleRemoveLump}
-        onUpdate={handleUpdateLump}
-        label="Projected Extra Payments"
-        liquidCash={liquidCash}
-      />
+      {projectedBase && (
+        <LumpSumPanel
+          schedule={projectedWithLumps?.schedule ?? projectedBase.schedule}
+          lumpSums={lumpSums}
+          baseTotalInterest={projectedBase.totalInterest}
+          withLumpsTotalInterest={projectedWithLumps?.totalInterest ?? projectedBase.totalInterest}
+          basePayoffDate={projectedBase.payoffDate}
+          withLumpsPayoffDate={projectedWithLumps?.payoffDate ?? projectedBase.payoffDate}
+          onAdd={handleAddLump}
+          onRemove={handleRemoveLump}
+          onUpdate={handleUpdateLump}
+          label="Projected Extra Payments"
+          liquidCash={liquidCash}
+        />
+      )}
 
       <button
         onClick={onBuyIt}
