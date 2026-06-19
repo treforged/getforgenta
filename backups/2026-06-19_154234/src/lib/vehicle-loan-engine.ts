@@ -221,11 +221,7 @@ export function getTotalCarLoanMonthly(carFunds: CarFund[], asOf?: Date): number
 export function generateCarLoanTransactions(carFunds: CarFund[]): any[] {
   const results: any[] = [];
   for (const cf of carFunds) {
-    // loan_start_date and planned_purchase_date represent the same real-world date — saving-
-    // phase car funds only ever populate the latter (no separate "loan start" concept until a
-    // loan actually exists), so fall back to it here.
-    const loanStartDate = cf.loan_start_date ?? cf.planned_purchase_date;
-    if (!loanStartDate || !cf.payment_start_date) continue;
+    if (!cf.loan_start_date || !cf.payment_start_date) continue;
     const loanAmount = getLoanPrincipal(cf);
     if (loanAmount <= 0) continue;
     const paymentSource = cf.loan_payment_account ? `account:${cf.loan_payment_account}` : '';
@@ -234,7 +230,7 @@ export function generateCarLoanTransactions(carFunds: CarFund[]): any[] {
       loanAmount,
       apr: cf.expected_apr,
       termMonths: cf.loan_term_months,
-      loanStartDate,
+      loanStartDate: cf.loan_start_date,
       paymentStartDate: cf.payment_start_date,
       interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
       actualMonthlyPayment: cf.phase === 'loan' ? cf.actual_monthly_payment : 0,

@@ -92,4 +92,21 @@ describe('generateCarLoanTransactions', () => {
     const rows = generateCarLoanTransactions([cf]);
     expect(rows[0].payment_source).toBe('account:checking-1');
   });
+
+  it('falls back to planned_purchase_date when loan_start_date is null — the normal saving-phase case', () => {
+    // loan_start_date and planned_purchase_date represent the same real-world date; the saving
+    // form no longer collects loan_start_date separately, so it's always null pre-activation.
+    const cf = makeCarFund({
+      phase: 'saving', loan_start_date: null, planned_purchase_date: '2026-01-01',
+      target_price: 14000, tax_fees: 1000, down_payment_goal: 3000,
+    });
+    const rows = generateCarLoanTransactions([cf]);
+    expect(rows.some(r => r.id.startsWith('carloan:'))).toBe(true);
+  });
+
+  it('generates nothing when both loan_start_date and planned_purchase_date are null', () => {
+    const cf = makeCarFund({ phase: 'saving', loan_start_date: null, planned_purchase_date: null });
+    const rows = generateCarLoanTransactions([cf]);
+    expect(rows).toEqual([]);
+  });
 });
