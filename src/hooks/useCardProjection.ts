@@ -10,7 +10,7 @@ import {
   getNormalizedMonthNetIncome, getMonthNetIncome,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
-import { getTotalCarLoanMonthly, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 
 export interface Month0Result {
@@ -488,12 +488,27 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             const pd = new Date(parts[0], parts[1] - 1, parts[2]);
             purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
           }
-          const loanPrincipal = Math.max(0, Number(c.target_price) + Number(c.tax_fees) - Number(c.down_payment_goal));
+          // getLoanPrincipal — same formula Forecast.tsx uses, and the same one loan-phase falls
+          // back to via cf.loan_amount once activated. Keeping this in one place is what
+          // guarantees the payment amount doesn't change at activation if nothing else did.
+          const loanPrincipal = getLoanPrincipal(c);
           const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
             ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
             : 0;
+          // Payment/insurance anchor — derived from payment_start_date the same way
+          // purchaseMonthIdx is derived from planned_purchase_date, falling back to
+          // purchaseMonthIdx + 1 (the old implicit assumption) on pre-existing records that
+          // predate requiring this field. Mirrors Forecast.tsx's paymentStartMonthIdx exactly.
+          let paymentStartMonthIdx: number;
+          if (c.payment_start_date) {
+            const parts = (c.payment_start_date as string).split('-').map(Number);
+            const psd = new Date(parts[0], parts[1] - 1, parts[2]);
+            paymentStartMonthIdx = Math.max(0, (psd.getFullYear() - now.getFullYear()) * 12 + (psd.getMonth() - now.getMonth()));
+          } else {
+            paymentStartMonthIdx = purchaseMonthIdx + 1;
+          }
           return {
-            purchaseMonthIdx, projPayment, termMonths: Number(c.loan_term_months) || 0, insurance: Number(c.monthly_insurance || 0),
+            purchaseMonthIdx, paymentStartMonthIdx, projPayment, termMonths: Number(c.loan_term_months) || 0, insurance: Number(c.monthly_insurance || 0),
             // Extra payments the user plans to make once this saving-phase car is financed —
             // mirrors Forecast.tsx's getMonthProjLumpSum. Missing this was the root cause of a
             // real discrepancy: Forecast's own model (which already included these) showed a
@@ -506,8 +521,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return vehicleForecastByMonth.reduce((s, v) => {
-          const insurance = m >= v.purchaseMonthIdx ? v.insurance : 0;
-          const inLoanWindow = m > v.purchaseMonthIdx && m <= v.purchaseMonthIdx + v.termMonths;
+          const insurance = m >= v.paymentStartMonthIdx ? v.insurance : 0;
+          const inLoanWindow = m >= v.paymentStartMonthIdx && m < v.paymentStartMonthIdx + v.termMonths;
           const projLoan = inLoanWindow ? v.projPayment : 0;
           const lumpSum = inLoanWindow
             ? v.lumpSumPayments.filter(ls => ls.date.substring(0, 7) === mk).reduce((s2, ls) => s2 + Number(ls.amount), 0)
