@@ -313,17 +313,6 @@ export function projectCardVariable(
    * overrides, minimum-only comparisons) — there is no ground truth for those by definition.
    */
   trueBalanceByMonth?: number[],
-  /**
-   * Sim-computed TRUE interest charged on a revolving (non-cycling) card's starting balance each
-   * month (index = m-1), from simulateVariablePayoff's Step 3 calc. When provided alongside
-   * trueBalanceByMonth, used directly instead of back-solving interest from
-   * (trueEndBal - startBal - newPurchases + payment) — that algebra assumes `payment` is the
-   * exact amount that produced trueEndBal, which is false for callers that display a cash-floor-
-   * scaled payment (e.g. CreditCardEngine.tsx's PASS-3 "Forecast Sim" mode) different from the
-   * engine's own natural payment. Without this, those months can back-solve a nonsensical
-   * (often deeply negative) interest figure that silently disappears from the display.
-   */
-  trueInterestByMonth?: number[],
 ): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
@@ -374,17 +363,13 @@ export function projectCardVariable(
     let payment: number;
     if (trueEndBal !== undefined) {
       // Ground truth from the engine's own cascade (minimum enforcement, multi-card
-      // allocation already applied). endBalance always trusts this directly so transitions
-      // (e.g. into cycling mode) stay continuous with no unexplained jump. Interest prefers the
-      // engine's own real Step-3 charge (trueInterestByMonth) when available; only back-solve
-      // from (trueEndBal - startBal - newPurchases + payment) as a fallback, since that algebra
-      // assumes `payment` is the exact amount that produced trueEndBal — false whenever the
-      // displayed payment is a cash-floor-scaled amount different from the engine's own.
+      // allocation already applied) — trust the real payment outright and solve for interest
+      // so this row's own components (start + purchases + interest - payment) reconcile
+      // exactly to it. Without this, the simplified flat-APR model below can silently drift
+      // from the engine's real numbers over several months and then jump without explanation
+      // once a later row (e.g. a cycling transition) switches back to ground truth.
       payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
-      const trueInterest = trueInterestByMonth?.[m - 1];
-      interest = trueInterest !== undefined
-        ? Math.round(trueInterest * 100) / 100
-        : Math.round((trueEndBal - startBal - newPurchases + payment) * 100) / 100;
+      interest = Math.round((trueEndBal - startBal - newPurchases + payment) * 100) / 100;
       bal = Math.round(trueEndBal * 100) / 100;
     } else {
       const fallbackInterest = (card.paymentPreference === 'statement' && inGrace)
@@ -540,12 +525,6 @@ export function simulateVariablePayoff(
   /** Per-card per-month interest charged on a cycling card's carried-forward unpaid balance —
    * always 0 unless the previous cycle's payment fell short of the full statement. */
   monthlyCyclingInterest: Map<string, number[]>;
-  /** Per-card per-month interest actually charged on a REVOLVING (non-cycling) card's starting
-   * balance this cycle (Step 3's real calc — 0 during a statement-preference grace period).
-   * Ground truth for projectCardVariable's revolving branch so its displayed interest reflects
-   * what the engine actually charged, independent of whatever payment ends up displayed (which
-   * may be a cash-floor-scaled amount that differs from the payment used to produce this figure). */
-  monthlyInterest: Map<string, number[]>;
   projectedPayoffMonths: number;
   cashFloorBreaches: { month: number; endingCash: number }[];
   flags: SimulationFlag[];
@@ -561,7 +540,6 @@ export function simulateVariablePayoff(
       perCardMinPayments: new Map(),
       monthlyCyclingOwed: new Map(),
       monthlyCyclingInterest: new Map(),
-      monthlyInterest: new Map(),
       projectedPayoffMonths: 0,
       cashFloorBreaches: [],
       flags: [],
@@ -579,7 +557,6 @@ export function simulateVariablePayoff(
   const perCardMinPayments = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyCyclingOwed = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyCyclingInterest = new Map<string, number[]>(cards.map(c => [c.id, []]));
-  const monthlyInterest = new Map<string, number[]>(cards.map(c => [c.id, []]));
   let currentCash = liquidCash;
   let projectedPayoffMonths = 0;
   const cashFloorBreaches: { month: number; endingCash: number }[] = [];
@@ -660,7 +637,6 @@ export function simulateVariablePayoff(
         perCardMinPayments.get(card.id)!.push(0);
         monthlyCyclingOwed.get(card.id)!.push(0);
         monthlyCyclingInterest.get(card.id)!.push(0);
-        monthlyInterest.get(card.id)!.push(0);
       } else if (paidOffCards.has(card.id)) {
         perCardMinPayments.get(card.id)!.push(0);
       } else {
@@ -713,7 +689,6 @@ export function simulateVariablePayoff(
       const pay = Math.round(Math.min(owedThisCycle, paidOffPool) * 100) / 100;
       paidOffPool -= pay;
       monthlyPayments.get(card.id)!.push(pay);
-      monthlyInterest.get(card.id)!.push(0); // cycling cards track interest via monthlyCyclingInterest instead
       paidOffCashCost += pay;
       if (pay > 0) {
         debtPaymentTransactions.push({
@@ -903,7 +878,6 @@ export function simulateVariablePayoff(
       const purchases = cardPurchasesThisMonth(card);
       const pay = Math.round((payments.get(card.id) ?? 0) * 100) / 100;
       monthlyPayments.get(card.id)!.push(pay);
-      monthlyInterest.get(card.id)!.push(interest);
       totalDebtPayments += pay;
 
       const bbp = balBeforePayment.get(card.id) ?? 0; // startBal + interest + purchases
@@ -1000,7 +974,6 @@ export function simulateVariablePayoff(
     perCardMinPayments,
     monthlyCyclingOwed,
     monthlyCyclingInterest,
-    monthlyInterest,
     projectedPayoffMonths,
     cashFloorBreaches,
     flags,
