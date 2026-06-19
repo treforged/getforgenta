@@ -361,6 +361,8 @@ export default function DebtPayoff() {
           perCardPayments={cardProjection?.perCardPayments ?? null}
           perCardPaymentsScaled={cardProjection?.perCardPaymentsScaled ?? null}
           monthlyRevolvingBalances={cardProjection?.monthlyRevolvingBalances ?? null}
+          monthlyCyclingOwed={cardProjection?.monthlyCyclingOwed ?? null}
+          monthlyCyclingInterest={cardProjection?.monthlyCyclingInterest ?? null}
           paymentPlans={paymentPlans ?? []}
         />
       )}
