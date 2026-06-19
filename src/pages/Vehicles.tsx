@@ -34,7 +34,7 @@ const emptySavingForm = {
 const emptyLoanForm = {
   vehicle_name: '', loan_amount: '', expected_apr: '', loan_term_months: '60',
   loan_start_date: '', payment_start_date: '', interest_start_date: '', actual_monthly_payment: '',
-  monthly_insurance: '',
+  monthly_insurance: '', loan_payment_account: '',
 };
 
 function addMonthsStr(dateStr: string, n: number): string {
@@ -605,8 +605,8 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
   );
 }
 
-function BuyItDialog({ cf, onConfirm, onClose }:
-  { cf: CarFund; onConfirm: (fields: Partial<CarFund>) => void; onClose: () => void }) {
+function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
+  { cf: CarFund; accountOptions: { value: string; label: string }[]; onConfirm: (fields: Partial<CarFund>) => void; onClose: () => void }) {
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0];
   const loanAmountDefault = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
@@ -618,6 +618,7 @@ function BuyItDialog({ cf, onConfirm, onClose }:
     payment_start_date: nextMonth,
     interest_start_date: nextMonth,
     actual_monthly_payment: '',
+    loan_payment_account: cf.loan_payment_account ?? '',
   });
 
   const scheduledPmt = useMemo(() => {
@@ -646,6 +647,7 @@ function BuyItDialog({ cf, onConfirm, onClose }:
       payment_start_date: form.payment_start_date,
       interest_start_date: form.interest_start_date || form.payment_start_date,
       actual_monthly_payment: parseFloat(form.actual_monthly_payment) || 0,
+      loan_payment_account: form.loan_payment_account || null,
     });
   };
 
@@ -686,6 +688,20 @@ function BuyItDialog({ cf, onConfirm, onClose }:
               />
             </div>
           ))}
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">
+              Monthly Payment Account <span className="text-muted-foreground/60">(defaults to general cash if unset)</span>
+            </label>
+            <select
+              value={form.loan_payment_account}
+              onChange={e => setForm(prev => ({ ...prev, loan_payment_account: e.target.value }))}
+              className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {accountOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+          </div>
 
           <div>
             <label className="text-xs font-medium text-muted-foreground block mb-1">
@@ -733,7 +749,7 @@ export default function Vehicles() {
   const savingVehicles = useMemo(() => carFunds.filter((c: any) => (c.phase ?? 'saving') === 'saving'), [carFunds]);
   const loanVehicles = useMemo(() => carFunds.filter((c: any) => c.phase === 'loan'), [carFunds]);
 
-  const activeLoans = useMemo(() => getActiveCarLoanPayments(carFunds as CarFund[]), [carFunds]);
+  const activeLoans = useMemo(() => getActiveCarLoanPayments(carFunds as unknown as CarFund[]), [carFunds]);
   const totalMonthlyLoanPayments = activeLoans.reduce((s, l) => s + l.payment, 0);
 
   const liquidCash = useMemo(() =>
@@ -831,6 +847,7 @@ export default function Vehicles() {
       loan_start_date: cf.loan_start_date ?? '', payment_start_date: cf.payment_start_date ?? '',
       interest_start_date: cf.interest_start_date ?? '', actual_monthly_payment: String(cf.actual_monthly_payment || ''),
       monthly_insurance: String(cf.monthly_insurance),
+      loan_payment_account: cf.loan_payment_account ?? '',
     });
     setEditId(cf.id); setShowLoanForm(true);
   };
@@ -881,6 +898,7 @@ export default function Vehicles() {
       interest_start_date: loanForm.interest_start_date || loanForm.payment_start_date || null,
       actual_monthly_payment: parseFloat(loanForm.actual_monthly_payment) || 0,
       monthly_insurance: parseFloat(loanForm.monthly_insurance) || 0,
+      loan_payment_account: loanForm.loan_payment_account || null,
       phase: 'loan' as const,
       target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0,
       linked_account: null, linked_rule_id: null, planned_purchase_date: null,
@@ -1153,7 +1171,7 @@ export default function Vehicles() {
       </PremiumGate>
 
       {buyItFor && (
-        <BuyItDialog cf={buyItFor} onConfirm={handleBuyIt} onClose={() => setBuyItFor(null)} />
+        <BuyItDialog cf={buyItFor} accountOptions={accountOptions} onConfirm={handleBuyIt} onClose={() => setBuyItFor(null)} />
       )}
 
       {showSavingForm && (
@@ -1180,6 +1198,7 @@ export default function Vehicles() {
             { key: 'interest_start_date', label: 'Interest Start Date', type: 'date' },
             { key: 'actual_monthly_payment', label: 'Payment Override (blank = scheduled)', type: 'number', placeholder: '0', step: '0.01' },
             { key: 'monthly_insurance', label: 'Monthly Insurance', type: 'number', placeholder: '180', step: '0.01' },
+            { key: 'loan_payment_account', label: 'Monthly Payment Account', type: 'select', options: accountOptions },
           ]}
           values={loanForm}
           onChange={(k, v) => setLoanForm(prev => ({ ...prev, [k]: v }))}

@@ -57,6 +57,10 @@ export type CarFund = {
   actual_monthly_payment: number;
   linked_account: string | null;
   linked_rule_id: string | null;
+  /** Account the ongoing monthly loan payment is paid from, once phase === 'loan'. Independent of
+   * linked_account, which is only ever the down-payment savings account. Null means the payment
+   * comes from the generic liquid-cash pool (today's default behavior, unchanged). */
+  loan_payment_account: string | null;
   planned_purchase_date: string | null;
   gift_contribution: number;
   lump_sum_payments: { id: string; date: string; amount: number; label?: string }[];
