@@ -648,59 +648,47 @@ function BuyItDialog({ cf, onConfirm, onClose }:
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
-      style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
-      onClick={onClose}
-    >
-      <div
-        className="card-forged w-full sm:max-w-sm flex flex-col rounded-t-[var(--radius)] rounded-b-none sm:rounded-b-[var(--radius)]"
-        style={{ maxHeight: 'calc(88dvh - env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="px-4 sm:px-6 pt-5 sm:pt-6 pb-3 shrink-0 space-y-1">
-          <h2 className="text-sm font-semibold">Start Loan Tracking — {cf.vehicle_name}</h2>
-          <p className="text-xs text-muted-foreground">Enter your actual loan details. Payments will flow into Forecast and Debt Payoff.</p>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)' }} onClick={onClose}>
+      <div className="bg-background border border-border p-5 w-full max-w-sm space-y-4" style={{ borderRadius: 'var(--radius)' }} onClick={e => e.stopPropagation()}>
+        <h2 className="text-sm font-semibold">Start Loan Tracking — {cf.vehicle_name}</h2>
+        <p className="text-xs text-muted-foreground">Enter your actual loan details. Payments will flow into Forecast and Debt Payoff.</p>
 
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-4 pb-2 popup-scroll" style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
-          {[
-            { k: 'loan_amount', label: 'Loan Amount', type: 'number', placeholder: String(loanAmountDefault) },
-            { k: 'expected_apr', label: 'APR %', type: 'number', placeholder: '5.9' },
-            { k: 'loan_term_months', label: 'Term (months)', type: 'number', placeholder: '60' },
-            { k: 'loan_start_date', label: 'Loan Start Date', type: 'date' },
-            { k: 'payment_start_date', label: 'First Payment Date', type: 'date' },
-            { k: 'interest_start_date', label: 'Interest Start Date', type: 'date' },
-          ].map(field => (
-            <div key={field.k}>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">{field.label}</label>
-              <input
-                type={field.type}
-                value={(form as any)[field.k]}
-                onChange={f(field.k)}
-                placeholder={field.placeholder ?? ''}
-                className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
-                style={{ borderRadius: 'var(--radius)' }}
-              />
-            </div>
-          ))}
-
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">
-              Monthly Payment Override <span className="text-muted-foreground/60">(leave blank to use {formatCurrency(scheduledPmt, false)}/mo)</span>
-            </label>
+        {[
+          { k: 'loan_amount', label: 'Loan Amount', type: 'number', placeholder: String(loanAmountDefault) },
+          { k: 'expected_apr', label: 'APR %', type: 'number', placeholder: '5.9' },
+          { k: 'loan_term_months', label: 'Term (months)', type: 'number', placeholder: '60' },
+          { k: 'loan_start_date', label: 'Loan Start Date', type: 'date' },
+          { k: 'payment_start_date', label: 'First Payment Date', type: 'date' },
+          { k: 'interest_start_date', label: 'Interest Start Date', type: 'date' },
+        ].map(field => (
+          <div key={field.k}>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">{field.label}</label>
             <input
-              type="number"
-              value={form.actual_monthly_payment}
-              onChange={f('actual_monthly_payment')}
-              placeholder={formatCurrency(scheduledPmt, false)}
+              type={field.type}
+              value={(form as any)[field.k]}
+              onChange={f(field.k)}
+              placeholder={field.placeholder ?? ''}
               className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
               style={{ borderRadius: 'var(--radius)' }}
             />
           </div>
+        ))}
+
+        <div>
+          <label className="text-xs font-medium text-muted-foreground block mb-1">
+            Monthly Payment Override <span className="text-muted-foreground/60">(leave blank to use {formatCurrency(scheduledPmt, false)}/mo)</span>
+          </label>
+          <input
+            type="number"
+            value={form.actual_monthly_payment}
+            onChange={f('actual_monthly_payment')}
+            placeholder={formatCurrency(scheduledPmt, false)}
+            className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
+            style={{ borderRadius: 'var(--radius)' }}
+          />
         </div>
 
-        <div className="flex gap-2 px-4 sm:px-6 pt-3 pb-5 sm:pb-6 shrink-0 border-t border-border mt-1">
+        <div className="flex gap-2 pt-1">
           <button onClick={onClose} className="flex-1 border border-border text-xs py-2 btn-press hover:bg-muted/20" style={{ borderRadius: 'var(--radius)' }}>Cancel</button>
           <button onClick={handleConfirm} className="flex-1 bg-primary text-primary-foreground text-xs py-2 btn-press" style={{ borderRadius: 'var(--radius)' }}>Confirm</button>
         </div>
