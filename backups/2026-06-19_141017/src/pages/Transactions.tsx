@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
-import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations, usePaymentPlans, useCarFunds } from '@/hooks/useSupabaseData';
+import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations, usePaymentPlans } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
@@ -19,7 +19,6 @@ import { Link } from 'react-router-dom';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, getMonthlyPlanCashExpenses, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
-import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 
@@ -48,7 +47,6 @@ export default function Transactions() {
   const { data: profile } = useProfile();
   const { data: reconciliations } = useAccountReconciliations();
   const { data: paymentPlans, add: addPlan, update: updatePlan, remove: removePlan } = usePaymentPlans();
-  const { data: carFunds } = useCarFunds();
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -218,17 +216,15 @@ export default function Transactions() {
   }, [reconciliations]);
 
   const planTransactions = useMemo(() => generatePaymentPlanTransactions(paymentPlans), [paymentPlans]);
-  const carLoanTransactions = useMemo(() => generateCarLoanTransactions((carFunds ?? []) as any[]), [carFunds]);
 
-  // Merge real + generated recurring + debt payments + reconciliations + plan payments + car loans
+  // Merge real + generated recurring + debt payments + reconciliations + plan payments
   const allTransactions = useMemo(() => {
     return [
       ...mergeDebtPaymentsIntoStream(baseTxns, debtPaymentTransactions),
       ...reconciliationTxns,
       ...planTransactions,
-      ...carLoanTransactions,
     ].sort((a, b) => b.date.localeCompare(a.date));
-  }, [baseTxns, debtPaymentTransactions, reconciliationTxns, planTransactions, carLoanTransactions]);
+  }, [baseTxns, debtPaymentTransactions, reconciliationTxns, planTransactions]);
 
   const paymentSourceOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
@@ -784,7 +780,7 @@ export default function Transactions() {
               <div className="flex items-center gap-3">
                 {isRecon
                   ? <SlidersHorizontal size={14} className="text-amber-500" />
-                  : <span className="text-base leading-none w-5 text-center shrink-0">{(t as any).isDebtPayment ? '💳' : (t as any).isCarLoanPayment ? '🚗' : t.type === 'income' ? '💰' : (CATEGORY_EMOJI[t.category] ?? '📦')}</span>
+                  : <span className="text-base leading-none w-5 text-center shrink-0">{(t as any).isDebtPayment ? '💳' : t.type === 'income' ? '💰' : (CATEGORY_EMOJI[t.category] ?? '📦')}</span>
                 }
                 <div>
                   <div className="flex items-center gap-1.5">
@@ -792,7 +788,6 @@ export default function Transactions() {
                     {t.isGenerated && !(t as any).isDebtPayment && <Repeat size={10} className="text-primary" />}
                     {(t as any).isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
                     {(t as any).isPlanPayment && <span className="text-[9px] text-blue-600 bg-blue-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
-                    {(t as any).isCarLoanPayment && <span className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>car loan</span>}
                     {pauseSavings && (t as any).ruleId && savingsRuleIdsForBadge.has((t as any).ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
