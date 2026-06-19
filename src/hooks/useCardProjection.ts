@@ -709,7 +709,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const purchases = cardPurchasesPerMonth.map(monthMap => monthMap[c.id] ?? 0);
         const cyclingOwed = sim.monthlyCyclingOwed.get(c.id) || [];
         const cyclingInterest = sim.monthlyCyclingInterest.get(c.id) || [];
-        return projectCardVariable(c, pays, 36, true, purchases, revBals, cyclingOwed, cyclingInterest);
+        const trueBalances = sim.monthlyBalances.get(c.id) || [];
+        return projectCardVariable(c, pays, 36, true, purchases, revBals, cyclingOwed, cyclingInterest, trueBalances);
       });
 
       // ── Derived arrays ────────────────────────────────────────────────────────
