@@ -150,20 +150,6 @@ export interface CarLoanPaymentInfo {
   isDeferredInterest: boolean;
 }
 
-/**
- * The single source of truth for "how much is this loan for" — used by both the saving-phase
- * projection (where it's an estimate computed live from target_price/tax_fees/down_payment_goal)
- * and the loan-phase actual (where it's the stored loan_amount, frozen at activation). Before
- * this helper existed, the two phases each had their own copy of the saving-phase formula, with
- * nothing keeping them in sync — any drift between them changed the displayed payment the instant
- * phase flipped, even with "no other changes."
- */
-export function getLoanPrincipal(cf: CarFund): number {
-  return cf.phase === 'loan'
-    ? Number(cf.loan_amount)
-    : Math.max(0, Number(cf.target_price) + Number(cf.tax_fees) - Number(cf.down_payment_goal));
-}
-
 export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarLoanPaymentInfo[] {
   const today = asOf ?? new Date();
   const results: CarLoanPaymentInfo[] = [];
@@ -206,12 +192,9 @@ export function getTotalCarLoanMonthly(carFunds: CarFund[], asOf?: Date): number
 }
 
 /**
- * Transaction-row-shaped entries for every car fund's regular payments, lump sums, and insurance
- * — modeled directly on generatePaymentPlanTransactions (payment-plan-generator.ts), the
- * equivalent for debt payment plans. Covers BOTH phases: an active loan's real payments, and a
- * saving-phase car's projected future payments (using getLoanPrincipal's estimate instead of a
- * stored loan_amount) — previously loan-phase only, so a saving-phase car's projected payment and
- * insurance never showed up here at all. Regular payments and lump sums are split out of
+ * Transaction-row-shaped entries for every active car loan's regular payments, lump sums, and
+ * insurance — modeled directly on generatePaymentPlanTransactions (payment-plan-generator.ts),
+ * the equivalent for debt payment plans. Regular payments and lump sums are split out of
  * buildAmortizationSchedule's combined row.payment (= regular + lumpSum) so each shows as its own
  * line item, matching how the user entered them separately in the first place. Insurance is
  * capped at a 36-month display horizon (this is for the Transactions list, not a cash-flow
@@ -221,19 +204,17 @@ export function getTotalCarLoanMonthly(carFunds: CarFund[], asOf?: Date): number
 export function generateCarLoanTransactions(carFunds: CarFund[]): any[] {
   const results: any[] = [];
   for (const cf of carFunds) {
-    if (!cf.loan_start_date || !cf.payment_start_date) continue;
-    const loanAmount = getLoanPrincipal(cf);
-    if (loanAmount <= 0) continue;
+    if (cf.phase !== 'loan' || !cf.loan_start_date || !cf.payment_start_date) continue;
     const paymentSource = cf.loan_payment_account ? `account:${cf.loan_payment_account}` : '';
 
     const proj = buildAmortizationSchedule({
-      loanAmount,
+      loanAmount: cf.loan_amount,
       apr: cf.expected_apr,
       termMonths: cf.loan_term_months,
       loanStartDate: cf.loan_start_date,
       paymentStartDate: cf.payment_start_date,
       interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
-      actualMonthlyPayment: cf.phase === 'loan' ? cf.actual_monthly_payment : 0,
+      actualMonthlyPayment: cf.actual_monthly_payment,
       lumpSumPayments: cf.lump_sum_payments ?? [],
     });
 

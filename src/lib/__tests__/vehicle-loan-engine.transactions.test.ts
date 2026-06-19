@@ -64,10 +64,27 @@ describe('generateCarLoanTransactions', () => {
     expect(rows.some(r => r.id.startsWith('carloanins:'))).toBe(false);
   });
 
-  it('skips a saving-phase car fund entirely (no loan to generate payments for)', () => {
-    const cf = makeCarFund({ phase: 'saving', monthly_insurance: 150 });
+  it('skips a car fund with no loan to generate payments for (zero principal)', () => {
+    const cf = makeCarFund({ phase: 'saving', monthly_insurance: 150, target_price: 0, down_payment_goal: 0 });
     const rows = generateCarLoanTransactions([cf]);
     expect(rows).toEqual([]);
+  });
+
+  it('generates projected payments and insurance for a saving-phase car fund with dates set', () => {
+    // target_price + tax_fees - down_payment_goal = getLoanPrincipal's saving-phase estimate.
+    const cf = makeCarFund({
+      phase: 'saving', loan_amount: 0, target_price: 14000, tax_fees: 1000, down_payment_goal: 3000,
+      monthly_insurance: 150,
+    });
+    const rows = generateCarLoanTransactions([cf]);
+    expect(rows.some(r => r.id.startsWith('carloan:'))).toBe(true);
+    expect(rows.some(r => r.id.startsWith('carloanins:'))).toBe(true);
+    // Same principal (12000) as the loan-phase fixture — the regular payment should match exactly,
+    // since both phases now go through the same getLoanPrincipal + buildAmortizationSchedule path.
+    const loanPhaseRows = generateCarLoanTransactions([makeCarFund({})]);
+    const savingRegular = rows.find(r => r.id.startsWith('carloan:'))!;
+    const loanRegular = loanPhaseRows.find(r => r.id.startsWith('carloan:'))!;
+    expect(savingRegular.amount).toBeCloseTo(loanRegular.amount, 2);
   });
 
   it('tags payment_source from loan_payment_account when set, matching the "account:<id>" convention', () => {
