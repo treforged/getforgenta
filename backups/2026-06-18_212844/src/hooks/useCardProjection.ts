@@ -696,6 +696,19 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       }
       const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason } = lookAhead;
 
+      if (typeof window !== 'undefined' && window.localStorage?.getItem('debug_cc_engine') === '1') {
+        const pv = cards.find(c => c.name === 'Prime Visa');
+        if (pv) {
+          console.log('[DEBUG_PV] ' + JSON.stringify({
+            monthlyBalances: sim.monthlyBalances.get(pv.id),
+            monthlyRevolvingBalances: sim.monthlyRevolvingBalances.get(pv.id),
+            monthlyCyclingOwed: sim.monthlyCyclingOwed.get(pv.id),
+            monthlyCyclingInterest: sim.monthlyCyclingInterest.get(pv.id),
+            monthlyPayments: sim.monthlyPayments.get(pv.id),
+          }));
+        }
+      }
+
       const projs = cards.map(c => {
         const pays = sim.monthlyPayments.get(c.id) || [];
         const revBals = sim.monthlyRevolvingBalances.get(c.id) || [];
@@ -709,8 +722,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const purchases = cardPurchasesPerMonth.map(monthMap => monthMap[c.id] ?? 0);
         const cyclingOwed = sim.monthlyCyclingOwed.get(c.id) || [];
         const cyclingInterest = sim.monthlyCyclingInterest.get(c.id) || [];
-        const trueBalances = sim.monthlyBalances.get(c.id) || [];
-        return projectCardVariable(c, pays, 36, true, purchases, revBals, cyclingOwed, cyclingInterest, trueBalances);
+        return projectCardVariable(c, pays, 36, true, purchases, revBals, cyclingOwed, cyclingInterest);
       });
 
       // ── Derived arrays ────────────────────────────────────────────────────────
