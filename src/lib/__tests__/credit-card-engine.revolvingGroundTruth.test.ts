@@ -54,6 +54,35 @@ describe('projectCardVariable — ground-truth revolving balance', () => {
     expect(proj.payoffMonth).toBe(3);
   });
 
+  it('uses the engine-provided true interest instead of back-solving it, when the displayed payment is scaled away from the payment that produced the true balance', () => {
+    // Mirrors a real bug: CreditCardEngine.tsx's "Forecast Sim" mode displays a cash-floor-scaled
+    // payment (PASS-3) that can be much smaller than the engine's own natural payment, while
+    // monthlyBalances reflects the trajectory produced by the NATURAL (unscaled) payment. Back-
+    // solving interest from (trueEndBal - startBal - purchases + DISPLAYED payment) in that case
+    // produces a nonsensical, often deeply negative figure that silently vanishes from the UI —
+    // exactly what "Oct/Nov/Dec show no interest charges" turned out to be.
+    const card = makeCard({
+      id: 'cardP', name: 'Prime Visa', balance: 1221.98, apr: 27.49, monthlyNewPurchases: 777,
+      minPayment: 50, paymentPreference: null, autopayFullBalance: false,
+    });
+
+    const scaledPayment = [607]; // displayed — far less than the engine's own natural payment
+    const trueBalanceByMonth = [936.41]; // produced by the engine's actual (larger, unscaled) payment
+    const trueInterestByMonth = [27.99]; // the real Step-3 interest the engine charged this cycle
+
+    const proj = projectCardVariable(
+      card, scaledPayment, 1, false, undefined, undefined, undefined, undefined,
+      trueBalanceByMonth, trueInterestByMonth,
+    );
+
+    // Interest must come from the engine's real figure, not a back-solved value (which would be
+    // 936.41 - 1221.98 - 777 + 607 = -455 — exactly the kind of figure the old code hid).
+    expect(proj.months[0].interest).toBeCloseTo(27.99, 2);
+    // endBalance still trusts ground truth directly, and payment still shows what's displayed.
+    expect(proj.months[0].endBalance).toBeCloseTo(936.41, 2);
+    expect(proj.months[0].payment).toBeCloseTo(607, 2);
+  });
+
   it('falls back to the local flat-APR walk when no ground truth is provided (hypothetical payment schedules)', () => {
     const card = makeCard({
       id: 'cardH', name: 'Card H', balance: 1000, apr: 24, monthlyNewPurchases: 0,
