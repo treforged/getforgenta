@@ -67,6 +67,12 @@ type Props = {
    * payment, instead of projectCardVariable's own simplified flat-APR balance walk drifting
    * from it over several months. */
   monthlyBalances?: Map<string, number[]> | null;
+  /** Interest actually charged on a revolving (non-cycling) card's starting balance each month,
+   * from useCardProjection's sim (Step 3's real calc). Used directly instead of back-solving
+   * interest from the displayed payment, which may be a cash-floor-scaled amount (PASS-3) that
+   * differs from the payment that actually produced monthlyBalances — back-solving against a
+   * mismatched payment can produce a nonsensical (often deeply negative) interest figure. */
+  monthlyInterest?: Map<string, number[]> | null;
   /** Payment plans with CC payment_source — charges are injected into per-month CC purchases so the accordion reflects installment spending. */
   paymentPlans?: PaymentPlan[];
 };
@@ -81,7 +87,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, paymentPlans }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -825,7 +831,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         const cyclingOwed = (monthlyCyclingOwed ?? variableSim.monthlyCyclingOwed)?.get(c.id) ?? [];
         const cyclingInterest = (monthlyCyclingInterest ?? variableSim.monthlyCyclingInterest)?.get(c.id) ?? [];
         const trueBalances = (monthlyBalances ?? variableSim.monthlyBalances)?.get(c.id) ?? [];
-        return projectCardVariable(c, payments, 36, true, cardPurchases, revBals, cyclingOwed, cyclingInterest, trueBalances);
+        const trueInterest = (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
+        return projectCardVariable(c, payments, 36, true, cardPurchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
       }
       if (Object.keys(cardOverrides).length > 0) {
         const payments = Array.from({ length: 36 }, (_, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : c.targetPayment);
@@ -835,7 +842,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, perCardPayments, perCardPaymentsScaled, month0, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances]);
+  }, [cards, paymentMode, variableSim, overrides, perCardPayments, perCardPaymentsScaled, month0, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];

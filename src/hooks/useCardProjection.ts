@@ -52,6 +52,11 @@ export interface CardProjectionResult {
   monthlyCyclingOwed: Map<string, number[]>;
   /** Interest charged on a cycling card's carried-forward unpaid balance, per month. */
   monthlyCyclingInterest: Map<string, number[]>;
+  /** Interest actually charged on a REVOLVING (non-cycling) card's starting balance each month
+   * (Step 3's real calc). Ground truth so projectCardVariable's revolving branch can show the
+   * engine's real interest instead of back-solving it from whatever payment ends up displayed —
+   * which may be a cash-floor-scaled amount different from the payment that produced the balance. */
+  monthlyInterest: Map<string, number[]>;
   m0Income: number;
   m0Expenses: number;
   m0SafeFloor: number;
@@ -710,7 +715,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const cyclingOwed = sim.monthlyCyclingOwed.get(c.id) || [];
         const cyclingInterest = sim.monthlyCyclingInterest.get(c.id) || [];
         const trueBalances = sim.monthlyBalances.get(c.id) || [];
-        return projectCardVariable(c, pays, 36, true, purchases, revBals, cyclingOwed, cyclingInterest, trueBalances);
+        const trueInterest = sim.monthlyInterest.get(c.id) || [];
+        return projectCardVariable(c, pays, 36, true, purchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
       });
 
       // ── Derived arrays ────────────────────────────────────────────────────────
@@ -1236,6 +1242,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         perCardMinPayments: activeSim.perCardMinPayments,
         monthlyCyclingOwed: activeSim.monthlyCyclingOwed,
         monthlyCyclingInterest: activeSim.monthlyCyclingInterest,
+        monthlyInterest: activeSim.monthlyInterest,
         m0Income,
         m0Expenses,
         m0SafeFloor,
