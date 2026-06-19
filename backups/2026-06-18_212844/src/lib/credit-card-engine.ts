@@ -303,16 +303,6 @@ export function projectCardVariable(
   /** Sim-computed interest charged each cycling month (index = m-1) on a carried-forward
    * unpaid balance — 0 unless the previous cycle's payment fell short of the full statement. */
   cyclingInterestByMonth?: number[],
-  /**
-   * Sim-computed TRUE end-of-month balance per month (index = m-1) from simulateVariablePayoff's
-   * Step 3-6 cascade — the actual ground truth, after minimum enforcement and multi-card
-   * allocation. When provided, the revolving (non-cycling) branch uses this as the authoritative
-   * endBalance instead of recomputing its own balance walk with a simplified flat-APR interest
-   * model, which can silently drift from the engine's real numbers over several months. Omit this
-   * when projecting a hypothetical payment schedule that never went through the engine (payment
-   * overrides, minimum-only comparisons) — there is no ground truth for those by definition.
-   */
-  trueBalanceByMonth?: number[],
 ): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
@@ -358,35 +348,19 @@ export function projectCardVariable(
       continue;
     }
 
-    const trueEndBal = trueBalanceByMonth?.[m - 1];
-    let interest: number;
-    let payment: number;
-    if (trueEndBal !== undefined) {
-      // Ground truth from the engine's own cascade (minimum enforcement, multi-card
-      // allocation already applied) — trust the real payment outright and solve for interest
-      // so this row's own components (start + purchases + interest - payment) reconcile
-      // exactly to it. Without this, the simplified flat-APR model below can silently drift
-      // from the engine's real numbers over several months and then jump without explanation
-      // once a later row (e.g. a cycling transition) switches back to ground truth.
-      payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
-      interest = Math.round((trueEndBal - startBal - newPurchases + payment) * 100) / 100;
-      bal = Math.round(trueEndBal * 100) / 100;
-    } else {
-      const fallbackInterest = (card.paymentPreference === 'statement' && inGrace)
-        ? 0
-        : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
-      // Past the sim window, a cycling statement card uses purchases as the payment proxy
-      // (the card pays its balance in full each cycle). Without this, minPayment=0 causes
-      // 300+ months of compounding interest on the cycling balance → inflated totalInterest.
-      const availablePayment = m > monthlyPayments.length && payoffMonth !== null
-        ? card.monthlyNewPurchases
-        : (monthlyPayments[m - 1] ?? card.minPayment);
-      payment = bal <= 0 ? 0 : Math.min(availablePayment, bal + newPurchases + fallbackInterest);
-      interest = fallbackInterest;
-      bal = startBal + newPurchases + interest - payment;
-      if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behaviour
-    }
+    const interest = (card.paymentPreference === 'statement' && inGrace)
+      ? 0
+      : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
+    // Past the sim window, a cycling statement card uses purchases as the payment proxy
+    // (the card pays its balance in full each cycle). Without this, minPayment=0 causes
+    // 300+ months of compounding interest on the cycling balance → inflated totalInterest.
+    const availablePayment = m > monthlyPayments.length && payoffMonth !== null
+      ? card.monthlyNewPurchases
+      : (monthlyPayments[m - 1] ?? card.minPayment);
+    const payment = bal <= 0 ? 0 : Math.min(availablePayment, bal + newPurchases + interest);
     if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
+    bal = startBal + newPurchases + interest - payment;
+    if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behaviour
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
