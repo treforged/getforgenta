@@ -982,7 +982,9 @@ export default function Vehicles() {
         phase: 'saving',
         loan_amount: 0,
         loan_start_date: null,
-        payment_start_date: null,
+        // payment_start_date is preserved, not nulled — it's a required saving-phase field now
+        // (planned first-payment date), and the user already had a real planned value here.
+        // Nulling it lost their plan on every undo and violated the "always required" invariant.
         interest_start_date: null,
         actual_monthly_payment: 0,
         // restore original saving-phase fields
