@@ -680,24 +680,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // revolving balance, and what their minimum is, per month) — that only exists once a
       // simulation has actually run. Compute it fresh against whichever sim is passed in so each
       // outer-pass iteration below uses an up-to-date floor as cards pay off / drop out.
-      // ccMinInFloor[m]: how much of that month's floor is CC revolving minimums (only present
-      // once a sim exists to know who's revolving) — threaded into simulateVariablePayoff's
-      // ccMinAlreadyInFloorByMonth so it doesn't reserve those same dollars a second time via its
-      // own reservedForRevolving before sizing cycling cards' payoff pool.
-      const computeAugmentedFloor = (simResult: { monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]> }): { floor: number[]; ccMinInFloor: number[] } => {
-        const floor: number[] = [];
-        const ccMinInFloor: number[] = [];
-        for (let m = 0; m < 36; m++) {
+      const computeAugmentedFloor = (simResult: { monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]> }): number[] =>
+        Array.from({ length: 36 }, (_, m) => {
           const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-          const r = getAugmentedMinSafeCash(
+          return getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, d,
             carFunds, { simCards: cards, monthlyRevolvingBalances: simResult.monthlyRevolvingBalances, perCardMinPayments: simResult.perCardMinPayments }, m,
-          );
-          floor.push(r.monthMinSafe);
-          ccMinInFloor.push(r.ccRevolvingMinIncluded);
-        }
-        return { floor, ccMinInFloor };
-      };
+          ).monthMinSafe;
+        });
 
       // Full cycling-card statement payment per month (not just the excess over baseline) —
       // mirrors Forecast.tsx's rawDebtPayment, which already includes this via allPaymentTotals,
@@ -752,12 +742,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // coarse and rarely shift between passes — and bring this look-ahead's breach detection to
       // parity with Forecast's own floor instead of the narrower bare one.
       let augmentedCashFloorByMonth = cashFloorByMonth;
-      let ccMinInFloorByMonth: number[] = Array(36).fill(0);
       let lookAhead = runLookAhead(cashFloorByMonth, Array(36).fill(0));
       for (let outer = 0; outer < 3; outer++) {
-        const augmented = computeAugmentedFloor(sim);
-        augmentedCashFloorByMonth = augmented.floor;
-        ccMinInFloorByMonth = augmented.ccMinInFloor;
+        augmentedCashFloorByMonth = computeAugmentedFloor(sim);
         const cyclingPaymentByMonth = computeCyclingPaymentByMonth(sim);
         lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth);
         sim = simulateVariablePayoff(
@@ -777,7 +764,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           m0SafeFloor,
           lookAhead.maxDebtPaymentByMonth,
           augmentedCashFloorByMonth,
-          ccMinInFloorByMonth,
         );
       }
       const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason } = lookAhead;
@@ -1016,7 +1002,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           m0SafeFloor,
           cappedMaxDebt,
           augmentedCashFloorByMonth,
-          ccMinInFloorByMonth,
         );
         perCardPayments = cards.map(c => ({
           name: c.name, id: c.id,
