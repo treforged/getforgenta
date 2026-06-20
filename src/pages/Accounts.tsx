@@ -577,7 +577,7 @@ export default function Accounts() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
-              { label: 'Checking & Cash', desc: 'Liquid balance is the starting point for the debt payoff engine and the 36-month forecast.' },
+              { label: 'Checking & Cash', desc: 'Liquid balance is the starting point for the debt payoff engine and the 60-month forecast.' },
               { label: 'Credit Cards', desc: 'Balance + APR feed the avalanche engine. Payment due date determines when each card gets paid.' },
               { label: 'Savings & HYS', desc: 'Tracked separately from cash so emergency funds are never counted as available for debt payments.' },
               { label: 'Investments & Retirement', desc: '401k, Roth IRA, and brokerage grow over time and appear in Net Worth projections.' },

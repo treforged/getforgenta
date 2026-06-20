@@ -1,4 +1,5 @@
 import type { CarFund } from './types';
+import { PROJECTION_MONTHS } from './credit-card-engine';
 
 export interface LumpSumPayment {
   id: string;
@@ -242,9 +243,9 @@ export function getTotalCarLoanMonthly(carFunds: CarFund[], asOf?: Date): number
  * insurance never showed up here at all. Regular payments and lump sums are split out of
  * buildAmortizationSchedule's combined row.payment (= regular + lumpSum) so each shows as its own
  * line item, matching how the user entered them separately in the first place. Insurance is
- * capped at a 36-month display horizon (this is for the Transactions list, not a cash-flow
- * model — unlike the indefinite-insurance behavior in useCardProjection.ts/Forecast.tsx, there's
- * no reason to generate rows forever).
+ * capped at a PROJECTION_MONTHS display horizon (this is for the Transactions list, not a
+ * cash-flow model — unlike the indefinite-insurance behavior in
+ * useCardProjection.ts/Forecast.tsx, there's no reason to generate rows forever).
  */
 export function generateCarLoanTransactions(carFunds: CarFund[]): any[] {
   const results: any[] = [];
@@ -305,7 +306,7 @@ export function generateCarLoanTransactions(carFunds: CarFund[]): any[] {
 
     if (Number(cf.monthly_insurance) > 0) {
       const start = new Date(cf.payment_start_date + 'T00:00:00');
-      for (let m = 0; m < 36; m++) {
+      for (let m = 0; m < PROJECTION_MONTHS; m++) {
         const d = new Date(start.getFullYear(), start.getMonth() + m, start.getDate());
         results.push({
           id: `carloanins:${cf.id}:${m}`,

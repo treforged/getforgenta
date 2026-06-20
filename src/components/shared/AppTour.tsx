@@ -33,8 +33,8 @@ const NEW_USER_STEPS: TourStep[] = [
   },
   {
     emoji: '📈',
-    title: '36-Month Forecast',
-    body: 'See your full financial trajectory. Debt payoff, savings growth, and net worth — all projected three years out.',
+    title: '60-Month Forecast',
+    body: 'See your full financial trajectory. Debt payoff, savings growth, and net worth — all projected five years out.',
   },
   {
     emoji: '💡',
@@ -67,7 +67,7 @@ const PREMIUM_STEPS: TourStep[] = [
   {
     emoji: '📄',
     title: 'PDF export',
-    body: 'Download your 36-month forecast as a print-ready PDF. Put it on the wall. Watch it happen.',
+    body: 'Download your 60-month forecast as a print-ready PDF. Put it on the wall. Watch it happen.',
   },
   {
     emoji: '🏷️',

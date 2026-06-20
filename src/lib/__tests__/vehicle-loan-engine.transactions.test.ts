@@ -48,11 +48,11 @@ describe('generateCarLoanTransactions', () => {
     expect(regularSameMonth!.amount).toBeCloseTo(regularNoLumpMonth!.amount, 2);
   });
 
-  it('generates 36 months of insurance rows anchored to payment_start_date when monthly_insurance > 0', () => {
+  it('generates PROJECTION_MONTHS months of insurance rows anchored to payment_start_date when monthly_insurance > 0', () => {
     const cf = makeCarFund({ monthly_insurance: 150 });
     const rows = generateCarLoanTransactions([cf]);
     const insuranceRows = rows.filter(r => r.id.startsWith('carloanins:'));
-    expect(insuranceRows.length).toBe(36);
+    expect(insuranceRows.length).toBe(60);
     expect(insuranceRows[0].date).toBe('2026-01-01');
     expect(insuranceRows[0].amount).toBe(150);
     expect(insuranceRows[0].category).toBe('Insurance');

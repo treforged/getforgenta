@@ -1117,7 +1117,7 @@ export default function Vehicles() {
         features={[
           'Track down payment savings with auto account balance sync',
           'Full loan amortization from purchase to payoff',
-          'Set a planned purchase date and see it wired into the 36-month Forecast',
+          'Set a planned purchase date and see it wired into the 60-month Forecast',
           'Gift/contribution tracking reduces your personal savings target',
         ]}
       >

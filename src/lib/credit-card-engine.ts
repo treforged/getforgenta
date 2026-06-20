@@ -4,7 +4,12 @@ import {
   getRemainingIncomeByDay, getRemainingExpensesByDay, getRemainingNonPaycheckIncomeByDay,
   buildPayConfig, getPrePaycheckNextMonthBills, getMonthNetIncome,
 } from './pay-schedule';
-import { countRuleOccurrencesInMonth } from './scheduling';
+import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
+// Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
+// debt/forecast surface) gets this without needing a second import line — scheduling.ts is the
+// canonical source since it has zero internal dependencies, avoiding a circular import (this
+// file already imports countRuleOccurrencesInMonth from it).
+export { PROJECTION_MONTHS } from './scheduling';
 
 export type CardData = {
   id: string;
@@ -207,7 +212,7 @@ export function buildCardData(
 }
 
 /** Project a single card with FIXED payment (consistent mode or standalone view) */
-export function projectCard(card: CardData, months = 36): CardProjection {
+export function projectCard(card: CardData, months = PROJECTION_MONTHS): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
   let totalInterest = 0;
@@ -267,7 +272,7 @@ export function projectCard(card: CardData, months = 36): CardProjection {
 export function projectCardVariable(
   card: CardData,
   monthlyPayments: number[],
-  months = 36,
+  months = PROJECTION_MONTHS,
   /**
    * When true, month 1 uses 0 purchases instead of card.monthlyNewPurchases.
    * Set this when monthlyPayments comes from simulateVariablePayoff, whose month 0
@@ -475,7 +480,7 @@ export function simulateVariablePayoff(
   monthlyTakeHome: number,
   /** Scalar fallback — used when monthEvents is not provided. */
   monthlyExpenses: number,
-  months = 36,
+  months = PROJECTION_MONTHS,
   /**
    * Optional event-based per-month income/expense sums (C5).
    * monthEvents[0]  = current month scoped today→EOM (scoped by caller, C1).

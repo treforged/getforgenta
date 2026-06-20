@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { formatCurrency } from '@/lib/calculations';
 import {
   buildCardData, simulateVariablePayoff, projectCardVariable,
-  CC_DEFAULT_CATEGORIES, CardData,
+  CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS,
 } from '@/lib/credit-card-engine';
 import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates } from '@/lib/payment-plan-generator';
 import {
@@ -85,7 +85,7 @@ export interface UseCardProjectionParams {
   profile: any;
   debtPayoffOptions: { cashFloor: number };
   payConfig: PayScheduleConfig;
-  /** Pre-computed scheduled events from generateScheduledEvents(rules, accounts, 36) */
+  /** Pre-computed scheduled events from generateScheduledEvents(rules, accounts, PROJECTION_MONTHS) */
   scheduledEvents: any[];
   pauseSavings: boolean;
   syncCutoffDate?: string;
@@ -145,7 +145,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const ccSourceIdsForScalar = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
       // Month 0: only count plan payments after syncCutoffDate — earlier ones are already
       // reflected in the current bank balance. Months 1+: all payments in that month.
-      const planCashExpensesEarly = Array.from({ length: 36 }, (_, i) => {
+      const planCashExpensesEarly = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         return getMonthlyPlanCashExpenses(
           paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccSourceIdsForScalar,
@@ -192,7 +192,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       );
 
       const cardPurchasesPerMonth: { [cardId: string]: number }[] = [];
-      for (let i = 0; i < 36; i++) {
+      for (let i = 0; i < PROJECTION_MONTHS; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         const eventsInMonth = scheduledEvents.filter(e =>
@@ -235,7 +235,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             // Month 0: skip payments already reflected in the live CC balance
             if (date <= (syncCutoffDate ?? todayStr)) continue;
             const pd = new Date(date + 'T00:00:00');
-            for (let mi = 0; mi < 36; mi++) {
+            for (let mi = 0; mi < PROJECTION_MONTHS; mi++) {
               const md = new Date(now.getFullYear(), now.getMonth() + mi, 1);
               if (pd.getFullYear() === md.getFullYear() && pd.getMonth() === md.getMonth()) {
                 cardPurchasesPerMonth[mi][cardId] = (cardPurchasesPerMonth[mi][cardId] ?? 0) + plan.payment_amount;
@@ -249,7 +249,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // ── One-time DB transactions per future month ─────────────────────────────
       const ccSourceIds = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
       const oneTimeArr: { income: number; expenses: number }[] = [{ income: 0, expenses: 0 }];
-      for (let oi = 1; oi < 36; oi++) {
+      for (let oi = 1; oi < PROJECTION_MONTHS; oi++) {
         const od = new Date(now.getFullYear(), now.getMonth() + oi, 1);
         const omk = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
         const txns = (transactions as any[]).filter((t: any) =>
@@ -271,7 +271,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       // ── Month 0 floor ──────────────────────────────────────────────────────────
       const m0SafeFloor = getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, now);
-      const cashFloorByMonth = Array.from({ length: 36 }, (_, m) => {
+      const cashFloorByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
         return getMinSafeCash(rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, d);
       });
@@ -331,7 +331,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         rules.filter((r: any) => r.rule_type === 'income' && r.tax_rate != null)
           .map((r: any) => [r.id, Number(r.tax_rate)]),
       );
-      const forecastMonthEvents = Array.from({ length: 36 }, (_, i) => {
+      const forecastMonthEvents = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         // Cutoff matches Forecast.tsx's own forecastMonthEvents exactly (syncCutoffDate, strict
@@ -446,7 +446,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // ── Lump-sum payments on phase='loan' car funds per month (mirrors the lump-sum portion
       // of Forecast.tsx's activeCarLoanByMonth — getTotalCarLoanMonthly covers only the regular
       // payment, lump_sum_payments on loan-phase cars are separate).
-      const carLoanLumpByMonth = Array.from({ length: 36 }, (_, i) => {
+      const carLoanLumpByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const md = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
         return (carFunds as any[])
@@ -464,7 +464,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // monthsBetween, not exact-date, for the same reason getActiveCarLoanPayments' gate was
       // fixed — different representative days within the same month must agree. Runs indefinitely
       // rather than capping at loan_term_months (insurance is an ownership cost, not a financing one).
-      const carLoanInsuranceByMonth = Array.from({ length: 36 }, (_, i) => {
+      const carLoanInsuranceByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const dStr = d.toISOString().split('T')[0];
         return (carFunds as any[])
@@ -481,7 +481,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       let simIncMult = 1;
       const simFirstBonusIdx = (!assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0)
         ? (() => {
-            for (let k = 1; k < 36; k++) {
+            for (let k = 1; k < PROJECTION_MONTHS; k++) {
               const kd = new Date(now.getFullYear(), now.getMonth() + k, 1);
               if (kd.getMonth() + 1 === assumptions.bonusMonth) return k;
             }
@@ -565,7 +565,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // effectiveDP = what must still come from checking in the purchase month after monthly
       // savings have accumulated. When monthly savings cover all of `rem`, this is 0 — no
       // lump-sum shock in the purchase month and no save-up needed for that car event.
-      const carDownPaymentByMonth = Array.from({ length: 36 }, (_, i) => {
+      const carDownPaymentByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         return (carFunds as any[]).reduce((s: number, c: any) => {
           if (c.phase !== 'saving') return s;
           const liveSaved = c.linked_account
@@ -600,7 +600,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // previous month's purchases in the current month (1-billing-cycle delay). A one-time
       // purchase on such a card in month m creates an elevated cash outflow in month m+1.
       // Compute that excess so PASS 2 can save up in preceding months.
-      const cyclingExcessByMonth = Array.from({ length: 36 }, (_, m) => {
+      const cyclingExcessByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
         if (m === 0) return 0;
         const purchaseMonth = m - 1;
         return cards.reduce((s, c) => {
@@ -625,7 +625,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       // ── Lump-sum goal transfers per month (mirrors Forecast.tsx's lumpTransferByMonth, the
       // .total figure only — per-account categorization is a display concern handled elsewhere).
-      const lumpTransferByMonth = Array.from({ length: 36 }, (_, i) => {
+      const lumpTransferByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const md = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
         let total = 0;
@@ -677,14 +677,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // simulation.
       const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[]) =>
         computeFloorProtection({
-          incomeByMonth: Array.from({ length: 36 }, (_, m) => m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome)),
-          expenseByMonth: Array.from({ length: 36 }, (_, m) => comprehensiveMExp(m, cyclingPaymentByMonth)),
-          oneTimeNetByMonth: Array.from({ length: 36 }, (_, m) => {
+          incomeByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome)),
+          expenseByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => comprehensiveMExp(m, cyclingPaymentByMonth)),
+          oneTimeNetByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
             if (m === 0) return 0;
             const ot = oneTimeArr[m] ?? { income: 0, expenses: 0 };
             return ot.income - ot.expenses;
           }),
-          carDownPaymentByMonth: Array.from({ length: 36 }, (_, m) => m === 0 ? 0 : carDownPaymentByMonth[m]),
+          carDownPaymentByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => m === 0 ? 0 : carDownPaymentByMonth[m]),
           floorByMonth,
           startingBalance: debtFundingBalance,
           ccMinTotal,
@@ -712,7 +712,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const computeAugmentedFloor = (simResult: { monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]>; monthlyCyclingBacklog: Map<string, number[]> }): { floor: number[]; ccMinInFloor: number[] } => {
         const floor: number[] = [];
         const ccMinInFloor: number[] = [];
-        for (let m = 0; m < 36; m++) {
+        for (let m = 0; m < PROJECTION_MONTHS; m++) {
           const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
           const r = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, d,
@@ -750,7 +750,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // expense figure or the look-ahead would over-reserve cash and choke off exactly the surplus
       // this unification exists to free for genuinely-revolving cards.
       const computeCyclingPaymentByMonth = (simResult: { monthlyMandatoryCyclingPayment: Map<string, number[]> }): number[] =>
-        Array.from({ length: 36 }, (_, m) =>
+        Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
           cards.reduce((s, c) => {
             if (c.balance > 0) return s;
             return s + (simResult.monthlyMandatoryCyclingPayment.get(c.id)?.[m] ?? 0);
@@ -767,7 +767,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         debtStrategy,
         monthlyTakeHome,
         monthlyExpenses,
-        36,
+        PROJECTION_MONTHS,
         simulationMonthEvents,
         undefined,
         cardPurchasesPerMonth,
@@ -787,8 +787,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // coarse and rarely shift between passes — and bring this look-ahead's breach detection to
       // parity with Forecast's own floor instead of the narrower bare one.
       let augmentedCashFloorByMonth = cashFloorByMonth;
-      let ccMinInFloorByMonth: number[] = Array(36).fill(0);
-      let lookAhead = runLookAhead(cashFloorByMonth, Array(36).fill(0));
+      let ccMinInFloorByMonth: number[] = Array(PROJECTION_MONTHS).fill(0);
+      let lookAhead = runLookAhead(cashFloorByMonth, Array(PROJECTION_MONTHS).fill(0));
       for (let outer = 0; outer < 3; outer++) {
         const augmented = computeAugmentedFloor(sim);
         augmentedCashFloorByMonth = augmented.floor;
@@ -802,7 +802,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           debtStrategy,
           monthlyTakeHome,
           monthlyExpenses,
-          36,
+          PROJECTION_MONTHS,
           simulationMonthEvents,
           undefined,
           cardPurchasesPerMonth,
@@ -832,12 +832,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const cyclingInterest = sim.monthlyCyclingInterest.get(c.id) || [];
         const trueBalances = sim.monthlyBalances.get(c.id) || [];
         const trueInterest = sim.monthlyInterest.get(c.id) || [];
-        return projectCardVariable(c, pays, 36, true, purchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
+        return projectCardVariable(c, pays, PROJECTION_MONTHS, true, purchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
       });
 
       // ── Derived arrays ────────────────────────────────────────────────────────
       const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
-      const data = Array.from({ length: 36 }, (_, i) => {
+      const data = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const row: any = { month: d.toLocaleString('en', { month: 'short', year: 'numeric' }), totalCCBalance: 0, displayCCBalance: 0, totalInterest: 0 };
         for (const p of projs) {
@@ -873,7 +873,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // startBalance = payment as a display artifact — their revolving balance is 0.
       // Including them inflates simRevTotal in pass-3, making p3RevBal hit 0 too early,
       // which scales all subsequent revolving payments to 0.
-      const debtPaymentTotals = Array.from({ length: 36 }, (_, i) =>
+      const debtPaymentTotals = Array.from({ length: PROJECTION_MONTHS }, (_, i) =>
         projs.reduce((total, proj) => {
           const m = proj.months[i];
           if (!m || m.startBalance <= 0) return total;
@@ -891,7 +891,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }, 0),
       );
 
-      const allPaymentTotals = Array.from({ length: 36 }, (_, i) =>
+      const allPaymentTotals = Array.from({ length: PROJECTION_MONTHS }, (_, i) =>
         cards.reduce((total, card) => {
           const pays = sim.monthlyPayments.get(card.id);
           return total + (pays?.[i] ?? 0);
@@ -900,7 +900,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       let perCardPayments = cards.map(c => ({
         name: c.name, id: c.id,
-        payments: Array.from({ length: 36 }, (_, i) => {
+        payments: Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
           const pays = sim.monthlyPayments.get(c.id);
           return Math.round(pays?.[i] ?? 0);
         }),
@@ -975,7 +975,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       let p3Cash = debtFundingBalance;
       let p3RevBal = p3RevBal0;
 
-      for (let m = 0; m < 36; m++) {
+      for (let m = 0; m < PROJECTION_MONTHS; m++) {
         const mInc   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
         const mOneTimeNet = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
         // m===0: simulationMonthEvents[0] is the unmodified forecastMonthEvents entry (no car-fund
@@ -1044,7 +1044,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           debtStrategy,
           monthlyTakeHome,
           monthlyExpenses,
-          36,
+          PROJECTION_MONTHS,
           simulationMonthEvents,
           undefined,
           cardPurchasesPerMonth,
@@ -1058,7 +1058,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         );
         perCardPayments = cards.map(c => ({
           name: c.name, id: c.id,
-          payments: Array.from({ length: 36 }, (_, i) =>
+          payments: Array.from({ length: PROJECTION_MONTHS }, (_, i) =>
             Math.round(sim2.monthlyPayments.get(c.id)?.[i] ?? 0),
           ),
         }));
@@ -1069,21 +1069,21 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // whether to simulate PASS 3's surplus redirect; if sim1 shows debt cleared when sim2
         // doesn't, PASS 2 stops pinning too early and misses floor breaches — causing it to
         // never reduce cycling payments (e.g. Amex Gold statement balance) to maintain the floor.
-        for (let i = 0; i < 36; i++) {
+        for (let i = 0; i < PROJECTION_MONTHS; i++) {
           data[i].totalCCBalance = Math.round(Math.max(0,
             cards.reduce((s, c) => s + (sim2.monthlyRevolvingBalances.get(c.id)?.[i] ?? 0), 0),
           ));
         }
 
         // Update allPaymentTotals and debtPaymentTotals in-place from sim2
-        for (let i = 0; i < 36; i++) {
+        for (let i = 0; i < PROJECTION_MONTHS; i++) {
           allPaymentTotals[i] = cards.reduce((total, card) =>
             total + (sim2.monthlyPayments.get(card.id)?.[i] ?? 0), 0);
         }
         const projs2 = cards.map(c =>
-          projectCardVariable(c, sim2.monthlyPayments.get(c.id) || [], 36, true, undefined, sim2.monthlyRevolvingBalances.get(c.id) || [])
+          projectCardVariable(c, sim2.monthlyPayments.get(c.id) || [], PROJECTION_MONTHS, true, undefined, sim2.monthlyRevolvingBalances.get(c.id) || [])
         );
-        for (let i = 0; i < 36; i++) {
+        for (let i = 0; i < PROJECTION_MONTHS; i++) {
           debtPaymentTotals[i] = projs2.reduce((total, proj) => {
             const mo = proj.months[i];
             if (!mo || mo.startBalance <= 0) return total;
@@ -1104,7 +1104,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         pass3RevTotals.length = 0;
         let p3Cash2 = debtFundingBalance;
         let p3RevBal2 = p3RevBal0_2;
-        for (let m = 0; m < 36; m++) {
+        for (let m = 0; m < PROJECTION_MONTHS; m++) {
           const mInc2   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
           const mOneTimeNet2 = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
           // m===0 still needs getVehicleExtrasForMonth(0) added explicitly (see the identical note
@@ -1180,8 +1180,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // of the surplus while a higher-priority card (Prime Visa, higher APR) still carried a
       // balance — avalanche should send 100% of any surplus to the highest-priority card with a
       // remaining balance before any other card gets a cent above its minimum.
-      const extraPerCardByMonth = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(36).fill(0)]));
-      for (let m = 0; m < 36; m++) {
+      const extraPerCardByMonth = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(PROJECTION_MONTHS).fill(0)]));
+      for (let m = 0; m < PROJECTION_MONTHS; m++) {
         const simRevTotal = debtPaymentTotals[m];
         const target = pass3RevTotals[m] ?? 0;
         if (simRevTotal <= 0 || target <= simRevTotal) continue;
@@ -1205,8 +1205,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // never extended to this months-1+ path. Protect each revolving card's own minimum first,
       // then distribute only the leftover ("discretionary") pool proportional to each card's
       // natural extra above its own minimum — mirrors the month-0 algorithm exactly.
-      const protectedPerCardByMonth = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(36).fill(0)]));
-      for (let m = 0; m < 36; m++) {
+      const protectedPerCardByMonth = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(PROJECTION_MONTHS).fill(0)]));
+      for (let m = 0; m < PROJECTION_MONTHS; m++) {
         const simRevTotal = debtPaymentTotals[m];
         const target = pass3RevTotals[m] ?? 0;
         if (simRevTotal <= 0 || target >= simRevTotal) continue;
@@ -1228,7 +1228,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       const perCardPaymentsScaled = cards.map(c => ({
         name: c.name, id: c.id,
-        payments: Array.from({ length: 36 }, (_, m) => {
+        payments: Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
           const simAmt = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
           const revBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
           if (revBal === 0) {

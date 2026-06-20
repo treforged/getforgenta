@@ -961,7 +961,7 @@ export default function BudgetControl() {
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
               <p className="text-sm sm:text-base font-semibold text-foreground">Recurring rules — the engine behind every projection</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Everything you set here flows automatically into the Dashboard, Debt Payoff engine, and 36-month Forecast.</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Everything you set here flows automatically into the Dashboard, Debt Payoff engine, and 60-month Forecast.</p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

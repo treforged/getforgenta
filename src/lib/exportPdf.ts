@@ -173,7 +173,7 @@ export async function exportForecastPdf(rows: ForecastRow[], period = 'All Time'
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Forgenta — Forecast</title><style>${PDF_STYLES}</style></head>
 <body>
   <header>
-    <div><h1>FORGENTA</h1><p class="meta">36-Month Forecast &middot; ${period}</p></div>
+    <div><h1>FORGENTA</h1><p class="meta">60-Month Forecast &middot; ${period}</p></div>
     <div class="right meta"><p>Exported ${exportDate}</p><p>${rows.length} month${rows.length !== 1 ? 's' : ''}</p></div>
   </header>
   <table>

@@ -8,7 +8,7 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions, usePaymentPlans } from '@/hooks/useSupabaseData';
 import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
-import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
+import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
@@ -114,7 +114,7 @@ export default function Forecast() {
   } = useCardProjectionContext();
   const [showAssumptions, setShowAssumptions] = useState(false);
   const [assumptionsTutorialSeen, setAssumptionsTutorialSeen] = usePersistedState('tre:forecast:assumptionsTutorialSeen', false);
-  const [filterYear, setFilterYear] = usePersistedState<'all' | '1' | '2' | '3'>('tre:forecast:filterYear', 'all');
+  const [filterYear, setFilterYear] = usePersistedState<'all' | '1' | '2' | '3' | '4' | '5'>('tre:forecast:filterYear', 'all');
   const [chartMode, setChartMode] = usePersistedState<'combo' | 'line'>('tre:forecast:chartMode', 'combo');
   const [viewMode, setViewMode] = usePersistedState<'monthly' | 'detailed'>('tre:forecast:viewMode', 'monthly');
   const [hiddenSeries, setHiddenSeries] = usePersistedState<string[]>('tre:forecast:hidden', []);
@@ -155,7 +155,7 @@ export default function Forecast() {
       (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
         .flatMap(a => [a.id, `account:${a.id}`]),
     );
-    return Array.from({ length: 36 }, (_, i) => {
+    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       return getMonthlyPlanCashExpenses(
         paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccIds,
@@ -165,12 +165,12 @@ export default function Forecast() {
   }, [accounts, paymentPlans, syncCutoffDate]);
 
   const debtPaymentsByMonth = useMemo(() =>
-    getDebtPaymentsByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, 36, planExpensesByMonth),
+    getDebtPaymentsByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, PROJECTION_MONTHS, planExpensesByMonth),
     [accounts, transactions, rules, debts, profile, debtPayoffOptions, planExpensesByMonth],
   );
 
   const debtBalancesByMonth = useMemo(() =>
-    getDebtBalancesByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, 36, planExpensesByMonth),
+    getDebtBalancesByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, PROJECTION_MONTHS, planExpensesByMonth),
     [accounts, transactions, rules, debts, profile, debtPayoffOptions, planExpensesByMonth],
   );
 
@@ -305,7 +305,7 @@ export default function Forecast() {
       ).map((r: any) => r.id),
     );
 
-    return Array.from({ length: 36 }, (_, i) => {
+    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
@@ -414,7 +414,7 @@ export default function Forecast() {
     );
     const now = new Date();
     const todayStr = syncCutoffDate;
-    return Array.from({ length: 36 }, (_, i) => {
+    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       return scheduledEvents
@@ -548,8 +548,8 @@ export default function Forecast() {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
-    // Active loan payments per month — stops when each loan pays off within the 36-month window
-    const activeCarLoanByMonth = Array.from({ length: 36 }, (_, i) => {
+    // Active loan payments per month — stops when each loan pays off within the projection window
+    const activeCarLoanByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 15);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
       const regular = getTotalCarLoanMonthly(carFunds as any[], md);
@@ -559,7 +559,7 @@ export default function Forecast() {
         .reduce((s: number, ls: any) => s + ls.amount, 0);
       return regular + lumpTotal;
     });
-    const activeCarLoanLumpSumByMonth = Array.from({ length: 36 }, (_, i) => {
+    const activeCarLoanLumpSumByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
       return (carFunds as any[])
@@ -578,7 +578,7 @@ export default function Forecast() {
     // getActiveCarLoanPayments' gate was fixed earlier — different representative days within the
     // same month must agree. Runs indefinitely rather than capping at loan_term_months (insurance
     // is an ownership cost, not a financing one).
-    const activeCarLoanInsuranceByMonth = Array.from({ length: 36 }, (_, i) => {
+    const activeCarLoanInsuranceByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const dStr = d.toISOString().split('T')[0];
       return (carFunds as any[])
@@ -592,7 +592,7 @@ export default function Forecast() {
     const retireAccountTypes = new Set(['401k', 'roth_ira', 'ira', 'hsa']);
     const brokerageAccountTypes = new Set(['brokerage', 'investment']);
     const activeAccountMap = Object.fromEntries((accounts as any[]).filter((a: any) => a.active !== false).map((a: any) => [a.id, a]));
-    const lumpTransferByMonth = Array.from({ length: 36 }, (_, i) => {
+    const lumpTransferByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
       let savings = 0, brokerage = 0, roth_ira = 0;
@@ -701,7 +701,7 @@ export default function Forecast() {
     // whenever its actual lump-sum dates didn't happen to land inside that re-estimated window.
     // lump_sum_payments already carries its own exact date, so there's no need to infer a window
     // at all — match by date directly for every car fund, regardless of phase.
-    const carLumpItemsByMonth: { name: string; amount: number }[][] = Array.from({ length: 36 }, (_, i) => {
+    const carLumpItemsByMonth: { name: string; amount: number }[][] = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const items: { name: string; amount: number }[] = [];
@@ -728,12 +728,12 @@ export default function Forecast() {
       });
 
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
-    const carLoanBalanceByMonth = new Array(36).fill(0);
+    const carLoanBalanceByMonth = new Array(PROJECTION_MONTHS).fill(0);
     const carLoanPerFund: { name: string; balances: number[] }[] = [];
     for (const cf of carFunds as any[]) {
       const fundName = (cf.vehicle_name ?? cf.name ?? 'Vehicle') as string;
       if (cf.phase === 'loan' && cf.loan_start_date && cf.payment_start_date) {
-        const fundBalances = new Array(36).fill(0);
+        const fundBalances = new Array(PROJECTION_MONTHS).fill(0);
         try {
           const proj = buildAmortizationSchedule({
             loanAmount: Number(cf.loan_amount),
@@ -745,7 +745,7 @@ export default function Forecast() {
             actualMonthlyPayment: Number(cf.actual_monthly_payment),
             lumpSumPayments: cf.lump_sum_payments ?? [],
           }, nowDate);
-          for (let i = 0; i < 36; i++) {
+          for (let i = 0; i < PROJECTION_MONTHS; i++) {
             const schedIdx = proj.monthsElapsed - 1 + i;
             const bal = schedIdx < 0 ? Number(cf.loan_amount)
               : (proj.schedule[schedIdx]?.endBalance ?? 0);
@@ -772,14 +772,14 @@ export default function Forecast() {
           const mc = rem > 0 ? Math.min(rem / 12, 500) : 0;
           purchaseMonthIdx = mc > 0 ? Math.ceil(rem / mc) : 999;
         }
-        if (!isFinite(purchaseMonthIdx) || purchaseMonthIdx >= 36) continue;
+        if (!isFinite(purchaseMonthIdx) || purchaseMonthIdx >= PROJECTION_MONTHS) continue;
         const r = apr > 0 ? apr / 100 / 12 : 0;
         const scheduled = r > 0
           ? (loanPrincipal * r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1)
           : loanPrincipal / termMonths;
         let bal = loanPrincipal;
-        const projFundBalances = new Array(36).fill(0);
-        for (let i = purchaseMonthIdx; i < 36 && bal > 0; i++) {
+        const projFundBalances = new Array(PROJECTION_MONTHS).fill(0);
+        for (let i = purchaseMonthIdx; i < PROJECTION_MONTHS && bal > 0; i++) {
           projFundBalances[i] = Math.round(bal);
           carLoanBalanceByMonth[i] += Math.round(bal);
           const interest = r > 0 ? bal * r : 0;
@@ -847,10 +847,10 @@ export default function Forecast() {
         .flatMap((a: any) => [a.id, `account:${a.id}`]),
     );
 
-    // Index of the first (or only) bonus month in the 36-month window — used for non-recurring bonus
+    // Index of the first (or only) bonus month in the projection window — used for non-recurring bonus
     const nextBonusMonthIndex = !assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0
       ? (() => {
-          for (let k = 0; k < 36; k++) {
+          for (let k = 0; k < PROJECTION_MONTHS; k++) {
             const dd = new Date(nowDate.getFullYear(), nowDate.getMonth() + k, 1);
             if (dd.getMonth() + 1 === assumptions.bonusMonth) return k;
           }
@@ -858,7 +858,7 @@ export default function Forecast() {
         })()
       : -1;
 
-    for (let i = 0; i < 36; i++) {
+    for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const monthLabel = d.toLocaleString('en', { month: 'short', year: 'numeric' });
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -1195,7 +1195,7 @@ export default function Forecast() {
     // own breaches in its own model; sharing only the algorithm (not the data) means a fix to the
     // math — like the cascade-protection rewrite that replaced an all-or-nothing "fully protect
     // this month or not" flag — fixes both pages at once instead of drifting apart again.
-    const cyclingByMonth = Array.from({ length: 36 }, (_, i) =>
+    const cyclingByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) =>
       Math.max(0, (cardProjectionData?.allPaymentTotals?.[i] ?? 0) - (cardProjectionData?.debtPaymentTotals?.[i] ?? 0)),
     );
     const ccSourceIds = new Set<string>(ccCards.flatMap((a: any) => [a.id as string, `account:${a.id}`]));
@@ -1206,7 +1206,7 @@ export default function Forecast() {
           + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + mortgageMonthlyPayment
           + b.monthTransfers + lumpTransferByMonth[i].total + cyclingByMonth[i]),
       oneTimeNetByMonth: baseData.map(b => b.oneTimeNet),
-      carDownPaymentByMonth: Array.from({ length: 36 }, (_, i) => getMonthEffectiveDP(i)),
+      carDownPaymentByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, i) => getMonthEffectiveDP(i)),
       floorByMonth: baseData.map(b => b.monthMinSafe),
       startingBalance: liquidBal,
       ccMinTotal,
@@ -1247,7 +1247,7 @@ export default function Forecast() {
     // month-end, same point effectiveDP/the lump-sum purchase deduction already fires).
     let cumulativeCarReserveHeld = 0;
 
-    for (let i = 0; i < 36; i++) {
+    for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const b = baseData[i];
       let monthDebtPayment = debtPayments[i];
       const startingCash = Math.round(finalLiquid);
@@ -1576,7 +1576,7 @@ export default function Forecast() {
     const txRate = _profTr2 != null ? Number(_profTr2) : 22;
     const results: { year: number; monthlyTakeHome: number; bonus: number; taxReturn: number; raiseApplied: boolean }[] = [];
 
-    for (let i = 1; i <= 36; i++) {
+    for (let i = 1; i <= PROJECTION_MONTHS; i++) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       let raiseApplied = false;
       if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
@@ -1589,7 +1589,7 @@ export default function Forecast() {
         raiseApplied = true;
       }
 
-      if (i === 12 || i === 24 || i === 36) {
+      if (i % 12 === 0) {
         const adjustedConfig = { ...payConfig, weeklyGross: payConfig.weeklyGross * multiplier };
         const monthlyTakeHome = getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth());
         const annualGross = payConfig.weeklyGross * 52 * multiplier;
@@ -1705,7 +1705,7 @@ export default function Forecast() {
               <button onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              These five inputs directly drive every number in the 36-month projection. Changing them instantly re-runs the full forecast.
+              These five inputs directly drive every number in the 60-month projection. Changing them instantly re-runs the full forecast.
             </p>
             <div className="space-y-2">
               {[
@@ -1736,10 +1736,10 @@ export default function Forecast() {
         <div className="flex items-start gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Forecast</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">36-month projections driven by live data</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">60-month projections driven by live data</p>
           </div>
           <InstructionsModal pageTitle="Forecast Guide" sections={[
-            { title: 'What is this page?', body: 'The Forecast projects your cash, debt, investments, and net worth across 36 months using your live accounts, recurring rules, debt payoff plan, savings goals, vehicle funds, and one-time transactions.' },
+            { title: 'What is this page?', body: 'The Forecast projects your cash, debt, investments, and net worth across 60 months using your live accounts, recurring rules, debt payoff plan, savings goals, vehicle funds, and one-time transactions.' },
             { title: 'Three-stage engine', body: 'Each month runs in three stages. Stage 1 applies income and all baseline expenses. Stage 2 looks ahead to known large expenses — holding back extra debt payments early so a future month never falls below your safe floor. Stage 3 takes any cash still above the floor and automatically redirects it to your highest-priority credit card debt.' },
             { title: 'Automatic surplus routing', body: 'When your projected end cash exceeds the Safe Minimum, that surplus is automatically sent to credit card debt — on top of your regular planned payment. Months where surplus fully routed will show end cash pinned near the floor. The CC badge shows the full payment for the month, not just the planned amount.' },
             { title: 'CC payment badge', body: 'The CC badge (e.g. CC $1,318) shows the total cash that goes to credit cards that month — your regular revolving payment plus any surplus automatically added. It rises above the Debt Payoff plan amount in months where extra cash is available above the floor.' },
@@ -1767,7 +1767,7 @@ export default function Forecast() {
             <>
               <button
                 onClick={async () => {
-                  const label = filterYear === 'all' ? 'All 36 Months' : `Year ${filterYear}`;
+                  const label = filterYear === 'all' ? 'All 60 Months' : `Year ${filterYear}`;
                   await exportForecastPdf(filteredData.map((r: any) => ({
                     month: r.month,
                     takeHome: r.takeHome ?? 0,
@@ -1831,7 +1831,7 @@ export default function Forecast() {
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
             <div>
-              <p className="text-xs font-semibold text-foreground">36-month simulation — every data source feeding one projection</p>
+              <p className="text-xs font-semibold text-foreground">60-month simulation — every data source feeding one projection</p>
               <p className="text-xs text-muted-foreground mt-0.5">The Forecast is where everything converges: income rules, debt payments, savings transfers, and one-time transactions all play out month by month.</p>
             </div>
           </div>
@@ -1840,7 +1840,7 @@ export default function Forecast() {
               { label: '3-pass engine', desc: 'PASS 1 builds base values. PASS 2 looks ahead and pre-saves cash for future one-time expenses. PASS 3 pushes all surplus above the cash floor to debt.' },
               { label: 'End cash at floor', desc: 'While CC debt exists, end cash lands exactly at $1,000 each month — no idle cash. The June car purchase causes PASS 2 to pre-save in April and May.' },
               { label: 'Debt payoff trajectory', desc: 'The debt chart shows each card\'s balance declining month by month. Sapphire goes first (22.99% APR), then Discover gets the full surplus.' },
-              { label: 'Assumptions panel', desc: 'Adjust income growth, investment return, and savings interest to model different scenarios over 3 years.' },
+              { label: 'Assumptions panel', desc: 'Adjust income growth, investment return, and savings interest to model different scenarios over 5 years.' },
             ].map((f, i) => (
               <div key={i} className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
                 <span className="text-primary font-bold shrink-0">→</span>
@@ -2076,11 +2076,11 @@ export default function Forecast() {
             </p>
           </div>
 
-          {/* 3-Year Projection Summary */}
+          {/* 5-Year Projection Summary */}
           {yearlyProjections.length > 0 && (
             <div>
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Projected Estimates</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {yearlyProjections.map(yr => (
                   <div key={yr.year} className="bg-secondary/50 border border-border/50 px-2.5 py-2 space-y-1" style={{ borderRadius: 'var(--radius)' }}>
                     <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider">Year {yr.year}</p>
@@ -2111,9 +2111,9 @@ export default function Forecast() {
       {/* Year Filter — premium only */}
       {!freePreview && (
         <div className="flex gap-1.5 sm:gap-2 overflow-x-auto w-full pb-1">
-          {(['all', '1', '2', '3'] as const).map(yr => (
+          {(['all', '1', '2', '3', '4', '5'] as const).map(yr => (
             <button key={yr} onClick={() => setFilterYear(yr)} className={`px-3 sm:px-4 py-1 sm:py-1.5 text-xs font-medium border btn-press whitespace-nowrap ${filterYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
-              {yr === 'all' ? 'All 36 Months' : `Year ${yr}`}
+              {yr === 'all' ? 'All 60 Months' : `Year ${yr}`}
             </button>
           ))}
         </div>
@@ -2161,7 +2161,7 @@ export default function Forecast() {
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth & Assets Projection</h3>
                 <p className="text-[9px] text-muted-foreground mt-0.5">Click legend items to show or hide series</p>
               </div>
-              {freePreview && <span className="text-[9px] text-muted-foreground">Showing 12 of 36 months</span>}
+              {freePreview && <span className="text-[9px] text-muted-foreground">Showing 12 of 60 months</span>}
             </div>
             <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 220 : 260}>
               {chartMode === 'combo' ? (
@@ -2205,8 +2205,8 @@ export default function Forecast() {
                 <Crown size={18} className="text-primary" />
               </div>
               <div>
-                <p className="text-sm font-semibold">Unlock years 2 &amp; 3</p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-xs">You have year 1 free. Upgrade to Premium to unlock all 36 months, the CC debt payoff trajectory chart, and PDF export.</p>
+                <p className="text-sm font-semibold">Unlock years 2-5</p>
+                <p className="text-xs text-muted-foreground mt-1 max-w-xs">You have year 1 free. Upgrade to Premium to unlock all 60 months, the CC debt payoff trajectory chart, and PDF export.</p>
               </div>
               <Link
                 to="/premium"
