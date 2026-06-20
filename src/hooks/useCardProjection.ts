@@ -10,7 +10,7 @@ import {
   getNormalizedMonthNetIncome, getMonthNetIncome,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 
 export interface Month0Result {
@@ -129,7 +129,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         .reduce((s: number, a: any) => s + Number(a.balance), 0);
       const resolvedDebtFundingId = persistedDebtFundingId || forecastFundingAccountId;
       const debtFundingAccount = accounts.find((a: any) => a.active && a.id === resolvedDebtFundingId);
-      const debtFundingBalance = debtFundingAccount ? Number(debtFundingAccount.balance) : liquidCash;
+      // Already-saved/gifted down-payment money sitting in this same account is still "available
+      // cash" by default — earmark it out so it isn't offered up for CC paydown while it's spoken
+      // for. Disappears on its own once a car fund's phase flips to 'loan' (see getCarFundEarmark).
+      const debtFundingBalance = Math.max(0, (debtFundingAccount ? Number(debtFundingAccount.balance) : liquidCash)
+        - getCarFundEarmark(carFunds as any[], resolvedDebtFundingId));
 
       // ── Scalar fallbacks ──────────────────────────────────────────────────────
       const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
@@ -342,6 +346,108 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const m0Income = forecastMonthEvents[0].income;
       const m0Expenses = forecastMonthEvents[0].expenses;
 
+      // Vehicle insurance + projected car loan for ANY month (mirrors Forecast.tsx's
+      // vehicleProjections / getMonthVehicleInsurance / getMonthProjLoan). Moved here, before
+      // simulationMonthEvents, so simulationMonthEvents' own .expenses (the array that actually
+      // drives the real cash simulation, not just the secondary look-ahead cap) can include a
+      // saving-phase car's projected future payment/insurance directly — previously only
+      // comprehensiveMExp saw this, so the real simulation had no idea the cost was coming until
+      // the literal month phase flipped to 'loan', producing an activation-time step-change in
+      // recommended CC payments even when nothing about the car's numbers changed.
+      const vehicleForecastByMonth = (carFunds as any[])
+        .filter((c: any) => c.phase === 'saving')
+        .map((c: any) => {
+          let purchaseMonthIdx = 0;
+          if (c.planned_purchase_date) {
+            const parts = (c.planned_purchase_date as string).split('-').map(Number);
+            const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+            purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+          }
+          // getLoanPrincipal — same formula Forecast.tsx uses, and the same one loan-phase falls
+          // back to via cf.loan_amount once activated. Keeping this in one place is what
+          // guarantees the payment amount doesn't change at activation if nothing else did.
+          const loanPrincipal = getLoanPrincipal(c);
+          const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
+            ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
+            : 0;
+          // Payment/insurance anchor — derived from payment_start_date the same way
+          // purchaseMonthIdx is derived from planned_purchase_date, falling back to
+          // purchaseMonthIdx + 1 (the old implicit assumption) on pre-existing records that
+          // predate requiring this field. Mirrors Forecast.tsx's paymentStartMonthIdx exactly.
+          let paymentStartMonthIdx: number;
+          if (c.payment_start_date) {
+            const parts = (c.payment_start_date as string).split('-').map(Number);
+            const psd = new Date(parts[0], parts[1] - 1, parts[2]);
+            paymentStartMonthIdx = Math.max(0, (psd.getFullYear() - now.getFullYear()) * 12 + (psd.getMonth() - now.getMonth()));
+          } else {
+            paymentStartMonthIdx = purchaseMonthIdx + 1;
+          }
+          // Effective term — accounts for lump sums accelerating payoff, matching what the actual
+          // loan-phase schedule (buildAmortizationSchedule) would show once activated. Without
+          // this, the projected window always ran the full loan_term_months even when lump sums
+          // pay the loan off earlier, disagreeing with the real schedule at activation.
+          const effectiveTermMonths = (loanPrincipal > 0 && Number(c.expected_apr) >= 0 && Number(c.loan_term_months) > 0 && c.payment_start_date)
+            ? buildAmortizationSchedule({
+                loanAmount: loanPrincipal, apr: Number(c.expected_apr), termMonths: Number(c.loan_term_months),
+                loanStartDate: c.planned_purchase_date ?? c.payment_start_date, paymentStartDate: c.payment_start_date,
+                interestStartDate: c.payment_start_date, actualMonthlyPayment: 0,
+                lumpSumPayments: c.lump_sum_payments ?? [],
+              }).schedule.length
+            : Number(c.loan_term_months) || 0;
+          return {
+            purchaseMonthIdx, paymentStartMonthIdx, projPayment, termMonths: effectiveTermMonths, insurance: Number(c.monthly_insurance || 0),
+            // Extra payments the user plans to make once this saving-phase car is financed —
+            // mirrors Forecast.tsx's getMonthProjLumpSum.
+            lumpSumPayments: (c.lump_sum_payments ?? []) as { date: string; amount: number }[],
+          };
+        });
+      const getVehicleExtrasForMonth = (m: number) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+        const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return vehicleForecastByMonth.reduce((s, v) => {
+          // Insurance follows the purchase date (purchaseMonthIdx), not the payment-start date —
+          // needed the day you own the car, not when the first bill posts. The loan payment
+          // itself stays anchored to paymentStartMonthIdx; only insurance differs.
+          const insurance = m >= v.purchaseMonthIdx ? v.insurance : 0;
+          const inLoanWindow = m >= v.paymentStartMonthIdx && m < v.paymentStartMonthIdx + v.termMonths;
+          const projLoan = inLoanWindow ? v.projPayment : 0;
+          const lumpSum = inLoanWindow
+            ? v.lumpSumPayments.filter(ls => ls.date.substring(0, 7) === mk).reduce((s2, ls) => s2 + Number(ls.amount), 0)
+            : 0;
+          return s + insurance + projLoan + lumpSum;
+        }, 0);
+      };
+
+      // ── Lump-sum payments on phase='loan' car funds per month (mirrors the lump-sum portion
+      // of Forecast.tsx's activeCarLoanByMonth — getTotalCarLoanMonthly covers only the regular
+      // payment, lump_sum_payments on loan-phase cars are separate).
+      const carLoanLumpByMonth = Array.from({ length: 36 }, (_, i) => {
+        const md = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
+        return (carFunds as any[])
+          .filter((cf: any) => cf.phase === 'loan')
+          .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
+          .reduce((s: number, ls: any) => s + ls.amount, 0);
+      });
+
+      // ── Insurance on phase='loan' car funds per month — getTotalCarLoanMonthly/carLoanLumpByMonth
+      // above cover the regular payment and lump sums for an active loan, but neither one (nor
+      // anything else in this hook) ever adds the car's monthly_insurance once phase flips to
+      // 'loan'. Anchored to loan_start_date (not payment_start_date) — insurance is needed the
+      // day you own the car, not when the first bill posts, matching vehicleForecastByMonth's
+      // saving-phase insurance (purchaseMonthIdx) above. Calendar-month comparison via
+      // monthsBetween, not exact-date, for the same reason getActiveCarLoanPayments' gate was
+      // fixed — different representative days within the same month must agree. Runs indefinitely
+      // rather than capping at loan_term_months (insurance is an ownership cost, not a financing one).
+      const carLoanInsuranceByMonth = Array.from({ length: 36 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const dStr = d.toISOString().split('T')[0];
+        return (carFunds as any[])
+          .filter((cf: any) => cf.phase === 'loan' && cf.loan_start_date)
+          .filter((cf: any) => monthsBetween(cf.loan_start_date, dStr) >= 0)
+          .reduce((s: number, cf: any) => s + Number(cf.monthly_insurance || 0), 0);
+      });
+
       // ── simulationMonthEvents (mirrors cardProjectionData exactly) ────────────
       const simRetireIds = new Set<string>(
         (accounts as any[]).filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
@@ -415,7 +521,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return {
           ...e,
           income: rawIncome * simIncMult + bonusTaxInc,
-          expenses: e.expenses + (pauseSavings ? 0 : monthSavings + monthCarSaving) + monthTransfers + carLoanThisMonth + (planCashExpensesEarly[idx] ?? 0),
+          // getVehicleExtrasForMonth/carLoanInsuranceByMonth/carLoanLumpByMonth fold the
+          // saving-phase projected payment+insurance and loan-phase insurance/lump sums directly
+          // into the real simulation here — see the comment above vehicleForecastByMonth for why
+          // this (not just comprehensiveMExp) needed to know about them.
+          expenses: e.expenses + (pauseSavings ? 0 : monthSavings + monthCarSaving) + monthTransfers + carLoanThisMonth
+            + getVehicleExtrasForMonth(idx) + carLoanInsuranceByMonth[idx] + carLoanLumpByMonth[idx]
+            + (planCashExpensesEarly[idx] ?? 0),
         };
       });
 
@@ -474,77 +586,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }, 0);
       });
 
-      // Vehicle insurance + projected car loan for ANY month (mirrors Forecast.tsx's
-      // vehicleProjections / getMonthVehicleInsurance / getMonthProjLoan) and mortgage payment
-      // (mirrors Forecast.tsx's mortgageMonthlyPayment). Relocated here (before the combined
-      // look-ahead) so the look-ahead's floor-breach loop below can use the same comprehensive
-      // per-month outflow figure Forecast.tsx uses, instead of a narrower one.
-      const vehicleForecastByMonth = (carFunds as any[])
-        .filter((c: any) => c.phase === 'saving')
-        .map((c: any) => {
-          let purchaseMonthIdx = 0;
-          if (c.planned_purchase_date) {
-            const parts = (c.planned_purchase_date as string).split('-').map(Number);
-            const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-            purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
-          }
-          // getLoanPrincipal — same formula Forecast.tsx uses, and the same one loan-phase falls
-          // back to via cf.loan_amount once activated. Keeping this in one place is what
-          // guarantees the payment amount doesn't change at activation if nothing else did.
-          const loanPrincipal = getLoanPrincipal(c);
-          const projPayment = Number(c.expected_apr) > 0 && Number(c.loan_term_months) > 0 && loanPrincipal > 0
-            ? calculateScheduledPayment(loanPrincipal, Number(c.expected_apr), Number(c.loan_term_months))
-            : 0;
-          // Payment/insurance anchor — derived from payment_start_date the same way
-          // purchaseMonthIdx is derived from planned_purchase_date, falling back to
-          // purchaseMonthIdx + 1 (the old implicit assumption) on pre-existing records that
-          // predate requiring this field. Mirrors Forecast.tsx's paymentStartMonthIdx exactly.
-          let paymentStartMonthIdx: number;
-          if (c.payment_start_date) {
-            const parts = (c.payment_start_date as string).split('-').map(Number);
-            const psd = new Date(parts[0], parts[1] - 1, parts[2]);
-            paymentStartMonthIdx = Math.max(0, (psd.getFullYear() - now.getFullYear()) * 12 + (psd.getMonth() - now.getMonth()));
-          } else {
-            paymentStartMonthIdx = purchaseMonthIdx + 1;
-          }
-          // Effective term — accounts for lump sums accelerating payoff, matching what the actual
-          // loan-phase schedule (buildAmortizationSchedule) would show once activated. Without
-          // this, the projected window always ran the full loan_term_months even when lump sums
-          // pay the loan off earlier, disagreeing with the real schedule at activation.
-          const effectiveTermMonths = (loanPrincipal > 0 && Number(c.expected_apr) >= 0 && Number(c.loan_term_months) > 0 && c.payment_start_date)
-            ? buildAmortizationSchedule({
-                loanAmount: loanPrincipal, apr: Number(c.expected_apr), termMonths: Number(c.loan_term_months),
-                loanStartDate: c.planned_purchase_date ?? c.payment_start_date, paymentStartDate: c.payment_start_date,
-                interestStartDate: c.payment_start_date, actualMonthlyPayment: 0,
-                lumpSumPayments: c.lump_sum_payments ?? [],
-              }).schedule.length
-            : Number(c.loan_term_months) || 0;
-          return {
-            purchaseMonthIdx, paymentStartMonthIdx, projPayment, termMonths: effectiveTermMonths, insurance: Number(c.monthly_insurance || 0),
-            // Extra payments the user plans to make once this saving-phase car is financed —
-            // mirrors Forecast.tsx's getMonthProjLumpSum. Missing this was the root cause of a
-            // real discrepancy: Forecast's own model (which already included these) showed a
-            // genuine multi-month floor breach that this hook's look-ahead never saw coming,
-            // since it had no idea this $/month was leaving every month in that window.
-            lumpSumPayments: (c.lump_sum_payments ?? []) as { date: string; amount: number }[],
-          };
-        });
-      const getVehicleExtrasForMonth = (m: number) => {
-        const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-        const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        return vehicleForecastByMonth.reduce((s, v) => {
-          // Insurance follows the purchase date (purchaseMonthIdx), not the payment-start date —
-          // needed the day you own the car, not when the first bill posts. The loan payment
-          // itself stays anchored to paymentStartMonthIdx; only insurance differs.
-          const insurance = m >= v.purchaseMonthIdx ? v.insurance : 0;
-          const inLoanWindow = m >= v.paymentStartMonthIdx && m < v.paymentStartMonthIdx + v.termMonths;
-          const projLoan = inLoanWindow ? v.projPayment : 0;
-          const lumpSum = inLoanWindow
-            ? v.lumpSumPayments.filter(ls => ls.date.substring(0, 7) === mk).reduce((s2, ls) => s2 + Number(ls.amount), 0)
-            : 0;
-          return s + insurance + projLoan + lumpSum;
-        }, 0);
-      };
+      // Mortgage payment (mirrors Forecast.tsx's mortgageMonthlyPayment). vehicleForecastByMonth/
+      // getVehicleExtrasForMonth/carLoanLumpByMonth/carLoanInsuranceByMonth (the car-fund
+      // equivalents) moved up before simulationMonthEvents — see the block right after m0Expenses
+      // above — so simulationMonthEvents' own .expenses can include them directly instead of only
+      // the separate look-ahead's comprehensiveMExp seeing them.
       const mortgageAccountNames = new Set(
         (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
           .map((a: any) => (a.name as string).toLowerCase()),
@@ -565,57 +611,28 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return total;
       });
 
-      // ── Lump-sum payments on phase='loan' car funds per month (mirrors the lump-sum portion
-      // of Forecast.tsx's activeCarLoanByMonth — getTotalCarLoanMonthly covers only the regular
-      // payment, lump_sum_payments on loan-phase cars are separate).
-      const carLoanLumpByMonth = Array.from({ length: 36 }, (_, i) => {
-        const md = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
-        return (carFunds as any[])
-          .filter((cf: any) => cf.phase === 'loan')
-          .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
-          .reduce((s: number, ls: any) => s + ls.amount, 0);
-      });
-
-      // ── Insurance on phase='loan' car funds per month — getTotalCarLoanMonthly/carLoanLumpByMonth
-      // above cover the regular payment and lump sums for an active loan, but neither one (nor
-      // anything else in this hook) ever adds the car's monthly_insurance once phase flips to
-      // 'loan'. vehicleForecastByMonth/getVehicleExtrasForMonth only ever look at phase==='saving'
-      // cars, so insurance silently vanished from this hook's cash model the instant a loan
-      // activated. Anchored to loan_start_date (not payment_start_date) — insurance is needed the
-      // day you own the car, not when the first bill posts, matching vehicleForecastByMonth's
-      // saving-phase insurance (purchaseMonthIdx) below. Calendar-month comparison via
-      // monthsBetween, not exact-date, for the same reason getActiveCarLoanPayments' gate was
-      // fixed — different representative days within the same month must agree. Runs indefinitely
-      // rather than capping at loan_term_months (insurance is an ownership cost, not a financing one).
-      const carLoanInsuranceByMonth = Array.from({ length: 36 }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        const dStr = d.toISOString().split('T')[0];
-        return (carFunds as any[])
-          .filter((cf: any) => cf.phase === 'loan' && cf.loan_start_date)
-          .filter((cf: any) => monthsBetween(cf.loan_start_date, dStr) >= 0)
-          .reduce((s: number, cf: any) => s + Number(cf.monthly_insurance || 0), 0);
-      });
-
-      // ── Combined look-ahead: one-time DB expenses + car down payments + cycling excess ──
+      // ── Combined look-ahead: one-time DB expenses + cycling excess ────────────
       // Comprehensive per-month expense figure for the look-ahead — mirrors Forecast.tsx's own
-      // totalOut (baseExpenses + savings/car contributions + vehicle insurance + projected car
-      // loan + mortgage + lump-sum transfers), minus the REVOLVING debt payment itself (tracked
-      // separately by computeFloorProtection — cycling-card statement payments are mandatory and
-      // non-negotiable, so they belong here as an expense, not as part of the reducible revolving
-      // allocation; this mirrors Forecast.tsx's own rawDebtPayment, which already includes cycling
-      // via allPaymentTotals). For m>0, simulationMonthEvents[m].expenses already folds in goal/
-      // car-fund monthly contributions and the active car loan's regular payment, so only the
-      // categories that engine doesn't know about need to be added here. Month 0 intentionally
-      // stays m0Expenses-only — its own minimum-protection path (cashPreDebt, further below)
-      // already accounts for monthlySavingsAndCar/vehicle/mortgage/cycling precisely; duplicating
-      // that here would only affect maxDebtPaymentByMonth[0]'s cap, not the displayed recommendation.
+      // totalOut, minus the REVOLVING debt payment itself (tracked separately by
+      // computeFloorProtection — cycling-card statement payments are mandatory and non-negotiable,
+      // so they belong here as an expense, not as part of the reducible revolving allocation; this
+      // mirrors Forecast.tsx's own rawDebtPayment, which already includes cycling via
+      // allPaymentTotals). For m>0, simulationMonthEvents[m].expenses already folds in goal/
+      // car-fund monthly contributions, the active car loan's regular payment, AND (since both were
+      // moved into simulationMonthEvents directly) the saving-phase projected payment/insurance and
+      // loan-phase insurance/lump sums — getVehicleExtrasForMonth/carLoanLumpByMonth/
+      // carLoanInsuranceByMonth are deliberately NOT added again here; doing so would double-count
+      // them on top of the look-ahead cap. Only the categories simulationMonthEvents still doesn't
+      // know about (mortgage, goal lump-sum transfers, cycling) need to be added here. Month 0
+      // intentionally stays m0Expenses-only — its own minimum-protection path (cashPreDebt, further
+      // below) already accounts for monthlySavingsAndCar/vehicle/mortgage/cycling precisely;
+      // duplicating that here would only affect maxDebtPaymentByMonth[0]'s cap, not the displayed
+      // recommendation.
       const comprehensiveMExp = (m: number, cyclingPaymentByMonth: number[]): number =>
         m === 0
           ? m0Expenses
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses)
-            + getVehicleExtrasForMonth(m) + monthlyMortgagePayment + lumpTransferByMonth[m] + carLoanLumpByMonth[m]
-            + carLoanInsuranceByMonth[m] + cyclingPaymentByMonth[m];
+            + monthlyMortgagePayment + lumpTransferByMonth[m] + cyclingPaymentByMonth[m];
 
       // No longer gated behind a flagged "large event" — every month's floor breach must be
       // protected, not just ones traceable to a recorded one-time expense, car down payment, or
@@ -912,9 +929,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       for (let m = 0; m < 36; m++) {
         const mInc   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
         const mOneTimeNet = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
-        const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar
+        // m===0: simulationMonthEvents[0] is the unmodified forecastMonthEvents entry (no car-fund
+        // terms folded in), so the vehicle/insurance/lump-sum figures still need adding here. For
+        // m>0, simulationMonthEvents[m].expenses already includes them — adding again would
+        // double-count.
+        const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0]
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
-          + getVehicleExtrasForMonth(m) + monthlyMortgagePayment + lumpTransferByMonth[m] + carLoanLumpByMonth[m] + carLoanInsuranceByMonth[m] + mOneTimeNet;
+          + monthlyMortgagePayment + lumpTransferByMonth[m] + mOneTimeNet;
         // Augmented (not bare cashFloorByMonth) so this matches the floor Forecast.tsx uses for
         // the same month — otherwise pass3RevTotals (which scales the displayed per-card amounts
         // for months 1+) and Forecast's own Ending Cash walk cap debt payments differently.
@@ -1033,9 +1054,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         for (let m = 0; m < 36; m++) {
           const mInc2   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
           const mOneTimeNet2 = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
-          const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar
+          // m===0 still needs getVehicleExtrasForMonth(0) added explicitly (see the identical note
+          // on mExp above) — m>0 already has it via simulationMonthEvents[m].expenses.
+          const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0)
             : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
-            + getVehicleExtrasForMonth(m) + monthlyMortgagePayment + mOneTimeNet2;
+            + monthlyMortgagePayment + mOneTimeNet2;
           const mFloor2 = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
             new Date(now.getFullYear(), now.getMonth() + m, 1),

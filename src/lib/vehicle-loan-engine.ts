@@ -164,6 +164,27 @@ export function getLoanPrincipal(cf: CarFund): number {
     : Math.max(0, Number(cf.target_price) + Number(cf.tax_fees) - Number(cf.down_payment_goal));
 }
 
+/**
+ * Money already saved/gifted toward a saving-phase car's down payment, when that money sits in
+ * (or defaults to) the same account being offered up as "available cash" elsewhere — so it must
+ * be excluded from that cash pool, not just from the "how much more do I need to save" math.
+ * Capped at down_payment_goal - gift_contribution: never earmark more than the buyer actually
+ * still needs to bring from their own cash, even if current_saved happens to be larger.
+ * When linked_account is a genuinely separate account, its balance already lives outside the
+ * funding account's balance — earmarking it again here would double-subtract, so those car funds
+ * contribute 0. Phase-gated to 'saving' only: the instant a car fund activates into a loan, it
+ * stops matching this filter and the earmark disappears on its own — no separate release step,
+ * which is what keeps loan activation from creating a second, unrelated cash discontinuity.
+ */
+export function getCarFundEarmark(carFunds: CarFund[], fundingAccountId: string | null): number {
+  return carFunds.reduce((s, cf) => {
+    if (cf.phase !== 'saving') return s;
+    if (cf.linked_account && cf.linked_account !== fundingAccountId) return s;
+    const ownCashNeeded = Math.max(0, Number(cf.down_payment_goal || 0) - Number(cf.gift_contribution || 0));
+    return s + Math.min(Number(cf.current_saved || 0), ownCashNeeded);
+  }, 0);
+}
+
 export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarLoanPaymentInfo[] {
   const today = asOf ?? new Date();
   const results: CarLoanPaymentInfo[] = [];

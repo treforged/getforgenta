@@ -22,7 +22,7 @@ import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, 
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
@@ -435,6 +435,10 @@ export default function Forecast() {
     let liquidBal = fundingAcct
       ? Number(fundingAcct.balance)
       : active.filter((a: any) => liquidTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
+    // Already-saved/gifted down-payment money sitting in this same account is still "available
+    // cash" by default — earmark it out so it isn't offered up for CC paydown while it's spoken
+    // for. Disappears on its own once a car fund's phase flips to 'loan' (see getCarFundEarmark).
+    liquidBal = Math.max(0, liquidBal - getCarFundEarmark(carFunds as any[], forecastFundingAccountId));
     let totalLiabilityBal = active.filter((a: any) => liabilityTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
 
     const accountMap = new Map(accounts.map((a: any) => [a.id, a]));
