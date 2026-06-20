@@ -573,7 +573,7 @@ export default function Transactions() {
           <div className="flex-1 space-y-2">
             <p className="text-xs font-semibold text-foreground">One-time transactions — Premium</p>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Record income windfalls and large one-time expenses that instantly update your Debt Payoff engine and 60-month Forecast.
+              Record income windfalls and large one-time expenses that instantly update your Debt Payoff engine and 36-month Forecast.
             </p>
             <ul className="space-y-1">
               {[

@@ -8,7 +8,7 @@ import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useCardProjection, type CardProjectionResult } from '@/hooks/useCardProjection';
 import { buildPayConfig, type PayScheduleConfig } from '@/lib/pay-schedule';
-import { generateScheduledEvents, PROJECTION_MONTHS } from '@/lib/scheduling';
+import { generateScheduledEvents } from '@/lib/scheduling';
 import type { FilingStatus } from '@/lib/tax-estimator';
 
 const DEFAULT_ASSUMPTIONS = {
@@ -120,7 +120,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
   }, [forecastFundingAccountId, accounts, plaidItems]);
 
   const scheduledEvents = useMemo(
-    () => generateScheduledEvents(rules ?? [], accounts ?? [], PROJECTION_MONTHS),
+    () => generateScheduledEvents(rules ?? [], accounts ?? [], 36),
     [rules, accounts],
   );
 

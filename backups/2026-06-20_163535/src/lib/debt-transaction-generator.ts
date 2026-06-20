@@ -1,7 +1,7 @@
 // ─── Debt Payment Transaction Generator ──────────────────
 // Generates monthly debt payment transactions from the Debt Payoff schedule
 
-import { buildCardData, projectCard, projectCardVariable, simulateVariablePayoff, CardData, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from './credit-card-engine';
+import { buildCardData, projectCard, projectCardVariable, simulateVariablePayoff, CardData, CC_DEFAULT_CATEGORIES } from './credit-card-engine';
 import { countRuleOccurrencesInMonth } from './scheduling';
 import { buildPayConfig, getMonthNetIncome } from './pay-schedule';
 
@@ -62,7 +62,7 @@ export function generateDebtPaymentTransactions(
     overrides: Record<string, Record<number, number>>;
     fundingAccountId?: string;
   },
-  monthsAhead = PROJECTION_MONTHS,
+  monthsAhead = 36,
 ): DebtPaymentTransaction[] {
   const cards = buildCardData(accounts, transactions, rules, debts);
   if (cards.length === 0) return [];
@@ -228,7 +228,7 @@ export function getDebtPaymentsByMonth(
     cashFloor: number;
     overrides: Record<string, Record<number, number>>;
   },
-  months = PROJECTION_MONTHS,
+  months = 36,
   planExpensesByMonth?: number[],
 ): Record<string, number> {
   const cards = buildCardData(accounts, transactions, rules, debts);
@@ -315,7 +315,7 @@ export function getDebtBalancesByMonth(
     cashFloor: number;
     overrides: Record<string, Record<number, number>>;
   },
-  months = PROJECTION_MONTHS,
+  months = 36,
   planExpensesByMonth?: number[],
 ): { monthKey: string; totalBalance: number; totalInterest: number }[] {
   const cards = buildCardData(accounts, transactions, rules, debts);
