@@ -748,18 +748,12 @@ export function simulateVariablePayoff(
     // in month m+1 (statement closes month-end, payment due ~25 days later).
     // Cap total paid-off payments so currentCash never drops below effectiveFloor.
     const tentativeAvailAboveFloor = Math.max(0, currentCash + monthIncome - monthExpenses + Math.max(0, oneTimeNet) - effectiveFloor);
-    // Reserve revolving-card (and backlog-card — see cyclingBacklog) minimums before giving cash
-    // to the mandatory cycling pool. Without this, large deferred purchases (e.g. Venture X)
-    // drain the pool entirely, leaving revolving/backlog cards with nothing beyond their own
-    // minimum in Step 5's avalanche cascade — causing their balances to grow instead of paying
-    // down. Backlog cards are included for the same reason genuinely-revolving cards are: their
-    // minimum is guaranteed via availableCash (Step 5), which is what's left AFTER this
-    // reservation — omitting them here would let the mandatory pool eat into that guarantee.
+    // Reserve revolving-card minimums before giving cash to autopay cards.
+    // Without this, large deferred purchases (e.g. Venture X) drain the pool
+    // entirely, leaving revolving cards (Prime, Discover) with nothing beyond
+    // the minimum — causing balances to grow instead of paying down.
     const reservedForRevolving = cards
-      .filter(c => (cardStartMonths.get(c.id) ?? 0) <= m && (
-        (!paidOffCards.has(c.id) && (balances.get(c.id) ?? 0) > 0) ||
-        (paidOffCards.has(c.id) && (cyclingBacklog.get(c.id) ?? 0) > 0)
-      ))
+      .filter(c => !paidOffCards.has(c.id) && (cardStartMonths.get(c.id) ?? 0) <= m && (balances.get(c.id) ?? 0) > 0)
       .reduce((s, c) => s + c.minPayment, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
     // outer-refinement passes in useCardProjection.ts), don't reserve it a second time here — only

@@ -1125,7 +1125,6 @@ export default function Forecast() {
           simCards: cardProjectionData.simCards,
           monthlyRevolvingBalances: cardProjectionData.monthlyRevolvingBalances,
           perCardMinPayments: cardProjectionData.perCardMinPayments,
-          monthlyCyclingBacklog: cardProjectionData.monthlyCyclingBacklog,
         } : null,
         i,
       );
