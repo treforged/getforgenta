@@ -5,7 +5,7 @@ import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations, usePaymentPlans, useCarFunds } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
-import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
+import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES } from '@/lib/credit-card-engine';
 import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
@@ -279,15 +279,13 @@ export default function Transactions() {
     });
   }, [allTransactions, filterMonth, filterType, filterCategory, filterSource]);
 
-  // Build month options from distinct months in allTransactions (up to the full projection
-  // window), plus an "All Time" option. Car loan rows alone can span PROJECTION_MONTHS, so
-  // capping this lower than that window hides months the rest of the app already projects.
+  // Build month options from distinct months in allTransactions (up to 24), plus forecast option
   const monthOptions = useMemo(() => {
     const seen = new Set<string>();
     for (const t of allTransactions) {
       const m = t.date.slice(0, 7);
       seen.add(m);
-      if (seen.size >= PROJECTION_MONTHS) break;
+      if (seen.size >= 24) break;
     }
     return [...seen].sort((a, b) => b.localeCompare(a)).map(m => {
       const [y, mo] = m.split('-');
