@@ -172,15 +172,8 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
     if (cf.phase !== 'loan') continue;
     if (!cf.loan_start_date || !cf.payment_start_date) continue;
 
-    // Calendar-month comparison, not exact-date — the forecast model this feeds operates at
-    // monthly granularity everywhere else (buildAmortizationSchedule's own monthsElapsed below
-    // already uses monthsBetween for this same reason). An exact-date check against an arbitrary
-    // representative day for "this month" (callers have used both the 1st and the 15th) made the
-    // loan's effective start month depend on which day happened to be picked, not on
-    // payment_start_date's actual month — causing Forecast and Debt Payoff to disagree with each
-    // other, and either to disagree with the saving-phase projection's month-only anchor.
-    const todayStr = today.toISOString().split('T')[0];
-    if (monthsBetween(cf.payment_start_date, todayStr) < 0) continue;
+    const paymentStart = new Date(cf.payment_start_date + 'T00:00:00');
+    if (today < paymentStart) continue;
 
     const proj = buildAmortizationSchedule({
       loanAmount: cf.loan_amount,
