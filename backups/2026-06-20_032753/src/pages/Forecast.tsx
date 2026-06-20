@@ -285,19 +285,6 @@ export default function Forecast() {
 
     const allCcRuleIds = new Set<string>([...ccExplicitRuleIds, ...ccDefaultRuleIds]);
 
-    // Expense rules paid from a bank account other than the funding account (not a CC, already
-    // excluded above) — that money never touches the funding account, so it must not reduce its
-    // modeled cash flow. Mirrors useCardProjection.ts's identical Set exactly — keep in lockstep.
-    const otherAccountRuleIds = new Set<string>(
-      rules.filter((r: any) => {
-        if (!r.active || r.rule_type !== 'expense' || !r.payment_source) return false;
-        if (ccPaymentSources.has(r.payment_source)) return false;
-        if (!forecastFundingAccountId) return false;
-        const srcId = (r.payment_source as string).replace(/^account:/, '');
-        return srcId !== forecastFundingAccountId;
-      }).map((r: any) => r.id),
-    );
-
     const savingsRuleIds = new Set<string>(
       rules.filter((r: any) =>
         r.active && r.rule_type === 'expense' &&
@@ -335,14 +322,13 @@ export default function Forecast() {
         .filter(e =>
           e.type === 'expense' &&
           !(e.ruleId && allCcRuleIds.has(e.ruleId)) &&
-          !(e.ruleId && otherAccountRuleIds.has(e.ruleId)) &&
           !(pauseSavings && e.ruleId && savingsRuleIds.has(e.ruleId)),
         )
         .reduce((s, e) => s + e.amount, 0);
 
       return { income, nonPaycheckIncome, expenses };
     });
-  }, [accounts, rules, scheduledEvents, pauseSavings, profile, syncCutoffDate, forecastFundingAccountId]);
+  }, [accounts, rules, scheduledEvents, pauseSavings, profile, syncCutoffDate]);
 
   // One-time manual transactions for forecast.
   // CC-tagged expenses are excluded — they increase CC balance (tracked by the debt
@@ -835,17 +821,8 @@ export default function Forecast() {
       savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[];
       carContribItems: { name: string; amount: number; isPurchaseMonth: boolean }[];
       perAccountTransferContribs: Map<string, number>;
-      otherAccountExpenseItems: { name: string; fromAcctName: string; amount: number }[];
     }[] = [];
     let incomeMultiplier = 1;
-
-    // Expense rules paid from a non-CC, non-funding-account source — tracked for the popup's
-    // "Other Account Expenses (no cash impact)" section. Hoisted out of the per-month loop below
-    // since it only depends on accounts, not the month being computed.
-    const ccPaymentSourcesForOtherAcct = new Set<string>(
-      accounts.filter((a: any) => a.active && a.account_type === 'credit_card')
-        .flatMap((a: any) => [a.id, `account:${a.id}`]),
-    );
 
     // Index of the first (or only) bonus month in the 36-month window — used for non-recurring bonus
     const nextBonusMonthIndex = !assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0
@@ -1068,22 +1045,6 @@ export default function Forecast() {
         }
       }
 
-      // Expense rules paid from a different bank account than the funding account — that money
-      // never touches the funding account, so (mirroring nonCashTransferItems above) it must not
-      // reduce baseExpenses. Tracked here for the popup's own "no cash impact" section instead.
-      const otherAccountExpenseItems: { name: string; fromAcctName: string; amount: number }[] = [];
-      for (const r of rules) {
-        if (!r.active || r.rule_type !== 'expense' || !r.payment_source) continue;
-        if (ccPaymentSourcesForOtherAcct.has(r.payment_source)) continue;
-        const srcId = (r.payment_source as string).replace(/^account:/, '');
-        if (!forecastFundingAccountId || srcId === forecastFundingAccountId) continue;
-        const srcAcct = accountMap.get(srcId);
-        const monthAmt = Number(r.amount) * countRuleOccurrencesInMonth(r, d.getFullYear(), d.getMonth());
-        if (monthAmt > 0) {
-          otherAccountExpenseItems.push({ name: r.name as string, fromAcctName: (srcAcct?.name as string) ?? '', amount: monthAmt });
-        }
-      }
-
       // Add paycheck 401k deduction — month 0 uses only paychecks strictly after syncCutoffDate.
       // Paychecks on or before the sync date are already reflected in liquidBal.
       const paychecksThisMonth = i === 0
@@ -1151,7 +1112,6 @@ export default function Forecast() {
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown, nonCashTransferItems,
         floorItems, prePaycheckBillsTotal, savingsGoalItems, carContribItems, perAccountTransferContribs,
-        otherAccountExpenseItems,
       });
 
     }
@@ -1505,7 +1465,6 @@ export default function Forecast() {
           ...b.nonCashTransferItems,
           ...vehicleDPFromSavingsThisMonth.map(v => ({ name: `${v.vehicleName} Down Payment`, fromAcctName: v.fromAcctName, fromAcctId: '', amount: v.amount })),
         ],
-        otherAccountExpenseItems: b.otherAccountExpenseItems,
         lumpSumSavings: Math.round(lumpTransferByMonth[i].savings),
         lumpSumBrokerage: Math.round(lumpTransferByMonth[i].brokerage),
         lumpSumRothIra: Math.round(lumpTransferByMonth[i].roth_ira),
@@ -2367,16 +2326,6 @@ export default function Forecast() {
                       ? [
                           { label: 'Account Transfers (no cash impact)', value: '' },
                           ...(row.nonCashTransferItems as { name: string; fromAcctName: string; amount: number }[]).map(item => ({
-                            label: `  ${item.name}${item.fromAcctName ? ` — from ${item.fromAcctName}` : ''}`,
-                            value: formatCurrency(item.amount, false),
-                          })),
-                          { label: '', value: '' },
-                        ]
-                      : []),
-                    ...((row.otherAccountExpenseItems as { name: string; fromAcctName: string; amount: number }[] | undefined)?.length
-                      ? [
-                          { label: 'Other Account Expenses (no cash impact)', value: '' },
-                          ...(row.otherAccountExpenseItems as { name: string; fromAcctName: string; amount: number }[]).map(item => ({
                             label: `  ${item.name}${item.fromAcctName ? ` — from ${item.fromAcctName}` : ''}`,
                             value: formatCurrency(item.amount, false),
                           })),
