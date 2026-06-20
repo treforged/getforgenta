@@ -772,12 +772,12 @@ export function simulateVariablePayoff(
           monthlyRevolvingBalances.get(card.id)!.push(0);
         }
       }
-      currentCash += monthIncome - monthExpenses - paidOffCashCost;
+      currentCash = Math.round((currentCash + monthIncome - monthExpenses - paidOffCashCost) * 100) / 100;
       const oneTime = oneTimeByMonth?.[m];
       if (oneTime && (oneTime.income > 0 || oneTime.expenses > 0)) {
-        currentCash += oneTime.income - oneTime.expenses;
+        currentCash = Math.round((currentCash + oneTime.income - oneTime.expenses) * 100) / 100;
       }
-      projectedCashByMonth.push(Math.round(currentCash * 100) / 100);
+      projectedCashByMonth.push(currentCash);
       continue;
     }
 
@@ -924,7 +924,10 @@ export function simulateVariablePayoff(
       totalDebtPayments += pay;
 
       const bbp = balBeforePayment.get(card.id) ?? 0; // startBal + interest + purchases
-      const endBal = Math.max(0, bbp - pay);
+      // Round to cents here, not just where this value is later displayed — otherwise tiny
+      // floating-point residue (e.g. 1337.1300000000006) silently carries into next month's
+      // startBal and compounds across the whole simulation.
+      const endBal = Math.round(Math.max(0, bbp - pay) * 100) / 100;
       const finalBal = endBal < 1 ? 0 : endBal; // clear sub-dollar dust
       balances.set(card.id, finalBal);
       // When the revolving balance just reached $0, pre-seed deferred purchases so the
@@ -991,7 +994,7 @@ export function simulateVariablePayoff(
         // the revolving carry-over (interest-bearing debt) is counted. Month 0 uses 0 purchases
         // (live balance already includes them), so endBal itself is the revolving balance.
         const revolvingBal = card.paymentPreference === 'statement'
-          ? Math.max(0, endBal - cardPurchasesThisMonth(card))
+          ? Math.round(Math.max(0, endBal - cardPurchasesThisMonth(card)) * 100) / 100
           : endBal;
         monthlyRevolvingBalances.get(card.id)!.push(revolvingBal);
       }
@@ -1001,13 +1004,13 @@ export function simulateVariablePayoff(
     projectedPayoffMonths = m + 1;
 
     // ── Step 7 — Advance cash ──────────────────────────────────
-    currentCash += monthIncome - monthExpenses - totalDebtPayments;
+    currentCash = Math.round((currentCash + monthIncome - monthExpenses - totalDebtPayments) * 100) / 100;
     // One-time items applied AFTER debt allocation to avoid look-ahead cash hoarding
     const oneTime = oneTimeByMonth?.[m];
     if (oneTime && (oneTime.income > 0 || oneTime.expenses > 0)) {
-      currentCash += oneTime.income - oneTime.expenses;
+      currentCash = Math.round((currentCash + oneTime.income - oneTime.expenses) * 100) / 100;
     }
-    projectedCashByMonth.push(Math.round(currentCash * 100) / 100);
+    projectedCashByMonth.push(currentCash);
   }
 
   return {
