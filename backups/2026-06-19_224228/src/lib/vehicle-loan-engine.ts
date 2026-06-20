@@ -52,7 +52,7 @@ function addMonths(dateStr: string, n: number): string {
   return d.toISOString().split('T')[0];
 }
 
-export function monthsBetween(fromStr: string, toStr: string): number {
+function monthsBetween(fromStr: string, toStr: string): number {
   const from = new Date(fromStr + 'T00:00:00');
   const to = new Date(toStr + 'T00:00:00');
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
