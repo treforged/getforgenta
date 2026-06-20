@@ -22,7 +22,7 @@ import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, 
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
@@ -553,16 +553,19 @@ export default function Forecast() {
     // regular payment and lump sums for an active loan, but nothing here ever added the car's
     // monthly_insurance once phase flips to 'loan'. getMonthVehicleInsurance only ever looked at
     // vehicleProjections (phase==='saving' cars), so insurance silently vanished from every total
-    // that includes it the instant a loan activated. Anchored to payment_start_date so it starts
-    // the same month the user's own first-payment date says it should, and — matching
-    // vehicleProjections' saving-phase insurance, which never stops once started — runs
-    // indefinitely rather than capping at loan_term_months (insurance is an ownership cost, not a
-    // financing one).
+    // that includes it the instant a loan activated. Anchored to loan_start_date (not
+    // payment_start_date) — insurance is needed the day you own the car, not when the first bill
+    // posts, and matches vehicleProjections' saving-phase insurance below (purchaseMonthIdx).
+    // Calendar-month comparison via monthsBetween, not exact-date, for the same reason
+    // getActiveCarLoanPayments' gate was fixed earlier — different representative days within the
+    // same month must agree. Runs indefinitely rather than capping at loan_term_months (insurance
+    // is an ownership cost, not a financing one).
     const activeCarLoanInsuranceByMonth = Array.from({ length: 36 }, (_, i) => {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
+      const dStr = d.toISOString().split('T')[0];
       return (carFunds as any[])
-        .filter((cf: any) => cf.phase === 'loan' && cf.payment_start_date)
-        .filter((cf: any) => d >= new Date(cf.payment_start_date + 'T00:00:00'))
+        .filter((cf: any) => cf.phase === 'loan' && cf.loan_start_date)
+        .filter((cf: any) => monthsBetween(cf.loan_start_date, dStr) >= 0)
         .reduce((s: number, cf: any) => s + Number(cf.monthly_insurance || 0), 0);
     });
 
@@ -659,7 +662,19 @@ export default function Forecast() {
         // savings have accumulated. When monthly savings fully cover `rem`, effectiveDP = 0 so the
         // cash sim sees no lump-sum shock in the purchase month (the savings handled it month-by-month).
         const effectiveDP = Math.max(0, rem - contrib * (purchaseMonthIdx + 1));
-        return { contrib, purchaseMonthIdx, paymentStartMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: Number(c.loan_term_months), lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string, linkedAccountId: (c.linked_account as string | null) ?? null };
+        // Effective term — accounts for lump sums accelerating payoff, matching what the actual
+        // loan-phase schedule (buildAmortizationSchedule) would show once activated. Without this,
+        // the projected window always ran the full loan_term_months even when lump sums pay the
+        // loan off earlier, disagreeing with the real schedule at activation.
+        const effectiveTermMonths = (loanPrincipal > 0 && Number(c.expected_apr) >= 0 && Number(c.loan_term_months) > 0 && c.payment_start_date)
+          ? buildAmortizationSchedule({
+              loanAmount: loanPrincipal, apr: Number(c.expected_apr), termMonths: Number(c.loan_term_months),
+              loanStartDate: c.planned_purchase_date ?? c.payment_start_date, paymentStartDate: c.payment_start_date,
+              interestStartDate: c.payment_start_date, actualMonthlyPayment: 0,
+              lumpSumPayments: c.lump_sum_payments ?? [],
+            }).schedule.length
+          : Number(c.loan_term_months);
+        return { contrib, purchaseMonthIdx, paymentStartMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: effectiveTermMonths, lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string, linkedAccountId: (c.linked_account as string | null) ?? null };
       });
     // Per-vehicle lump sum breakdown for forecast popup (every car fund, any phase). Previously
     // filtered to phase === 'loan' only, plus a second pass over vehicleProjections (saving-phase
@@ -779,8 +794,11 @@ export default function Forecast() {
     // For cash-flow math only: uses effectiveDP (0 when monthly savings already cover the remaining).
     const getMonthEffectiveDP = (i: number) => vehicleProjections.reduce(
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i === v.purchaseMonthIdx ? v.effectiveDP : 0), 0);
+    // Insurance follows the purchase date (purchaseMonthIdx), not the payment-start date — you
+    // need insurance the day you own the car, not when the first loan bill posts. The loan
+    // payment itself stays anchored to paymentStartMonthIdx elsewhere; only insurance differs.
     const getMonthVehicleInsurance = (i: number) => vehicleProjections.reduce(
-      (s, v) => s + (isFinite(v.paymentStartMonthIdx) && i >= v.paymentStartMonthIdx ? v.insurance : 0), 0)
+      (s, v) => s + (isFinite(v.purchaseMonthIdx) && i >= v.purchaseMonthIdx ? v.insurance : 0), 0)
       + activeCarLoanInsuranceByMonth[i];
 
     const transferRulesAll = rules.filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));

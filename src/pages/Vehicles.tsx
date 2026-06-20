@@ -942,7 +942,7 @@ export default function Vehicles() {
       return;
     }
     const { clean: cleanLoanVehicleName } = filterProfanity(loanForm.vehicle_name.trim().slice(0, LIMITS.vehicleName));
-    const payload = {
+    const payload: any = {
       vehicle_name: cleanLoanVehicleName,
       loan_amount: parseFloat(loanForm.loan_amount) || 0,
       expected_apr: parseFloat(loanForm.expected_apr) || 0,
@@ -954,9 +954,17 @@ export default function Vehicles() {
       monthly_insurance: parseFloat(loanForm.monthly_insurance) || 0,
       loan_payment_account: loanForm.loan_payment_account || null,
       phase: 'loan' as const,
-      target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0,
-      linked_account: null, linked_rule_id: null, planned_purchase_date: null,
     };
+    // Only zero out saving-phase identity fields when creating a brand-new direct loan (no
+    // saving-phase history exists to preserve). Editing an EXISTING loan — even just to tweak the
+    // APR or term — must NOT touch these: this record may have come from a saving-phase car fund,
+    // and overwriting them here destroyed that history permanently (Undo had no way to recover
+    // it, since it assumes these fields were never touched). Supabase's .update() is a partial
+    // PATCH, so omitting them on edit preserves whatever is already there.
+    if (!editId) {
+      payload.target_price = 0; payload.tax_fees = 0; payload.down_payment_goal = 0; payload.current_saved = 0;
+      payload.linked_account = null; payload.linked_rule_id = null; payload.planned_purchase_date = null;
+    }
     if (editId) update.mutate({ id: editId, ...payload });
     else add.mutate(payload);
     setShowLoanForm(false);

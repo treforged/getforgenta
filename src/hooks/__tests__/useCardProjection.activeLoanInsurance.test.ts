@@ -10,8 +10,11 @@ import { generateScheduledEvents } from '@/lib/scheduling';
 // getVehicleExtrasForMonth/vehicleForecastByMonth only ever looked at phase==='saving' car funds —
 // getTotalCarLoanMonthly (the regular payment) and carLoanLumpByMonth (lump sums) both already had
 // correct phase==='loan' handling, but nothing added monthly_insurance once a loan activated. Fixed
-// by adding carLoanInsuranceByMonth, anchored to payment_start_date (not loan_start_date or any
-// purchase date), mirroring carLoanLumpByMonth's existing pattern exactly.
+// by adding carLoanInsuranceByMonth.
+//
+// Anchor corrected a second time same day: insurance follows loan_start_date (purchase date), not
+// payment_start_date — you need insurance the day you own the car, not when the first loan bill
+// posts. The loan payment itself still anchors to payment_start_date; only insurance differs.
 
 const DEFAULT_ASSUMPTIONS = {
   incomeGrowthEnabled: false, incomeGrowth: 0, raiseMonth: 1, raiseMode: 'pct' as const,
@@ -57,30 +60,7 @@ function renderWithCarFund(carFunds: any[]) {
 }
 
 describe('useCardProjection — active loan insurance', () => {
-  it('includes monthly_insurance for a phase=loan car fund starting the month of payment_start_date', () => {
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-
-    const carFunds = [{
-      id: 'car-1', vehicle_name: 'Test Car', phase: 'loan',
-      target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0, gift_contribution: 0,
-      loan_amount: 20000, expected_apr: 6, loan_term_months: 60,
-      loan_start_date: today, payment_start_date: today, interest_start_date: today,
-      actual_monthly_payment: 0, monthly_insurance: 150,
-      linked_account: null, linked_rule_id: null, planned_purchase_date: null,
-      lump_sum_payments: [],
-    }];
-
-    const { result } = renderWithCarFund(carFunds);
-    const r = result.current!;
-    expect(r).not.toBeNull();
-
-    // Insurance starts this month (payment_start_date === today) — must show up in month 0's
-    // displayed vehicle-insurance line item, not silently vanish.
-    expect(r.month0.vehicleInsurance).toBeGreaterThanOrEqual(150);
-  });
-
-  it('does not include insurance before payment_start_date arrives', () => {
+  it('includes monthly_insurance for a phase=loan car fund starting the month of loan_start_date, even before payment_start_date arrives', () => {
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -90,6 +70,8 @@ describe('useCardProjection — active loan insurance', () => {
       id: 'car-1', vehicle_name: 'Test Car', phase: 'loan',
       target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0, gift_contribution: 0,
       loan_amount: 20000, expected_apr: 6, loan_term_months: 60,
+      // Owned (loan_start_date) this month; first bill (payment_start_date) isn't due until next
+      // month — insurance must already show this month, since you own the car now.
       loan_start_date: today, payment_start_date: futureStart, interest_start_date: futureStart,
       actual_monthly_payment: 0, monthly_insurance: 150,
       linked_account: null, linked_rule_id: null, planned_purchase_date: null,
@@ -99,16 +81,35 @@ describe('useCardProjection — active loan insurance', () => {
     const { result } = renderWithCarFund(carFunds);
     const r = result.current!;
     expect(r).not.toBeNull();
+    expect(r.month0.vehicleInsurance).toBeGreaterThanOrEqual(150);
+  });
 
-    // payment_start_date is next month — month 0 must not show this insurance yet.
+  it('does not include insurance before loan_start_date arrives, regardless of payment_start_date', () => {
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const futureStart = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const carFunds = [{
+      id: 'car-1', vehicle_name: 'Test Car', phase: 'loan',
+      target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0, gift_contribution: 0,
+      loan_amount: 20000, expected_apr: 6, loan_term_months: 60,
+      loan_start_date: futureStart, payment_start_date: today, interest_start_date: today,
+      actual_monthly_payment: 0, monthly_insurance: 150,
+      linked_account: null, linked_rule_id: null, planned_purchase_date: null,
+      lump_sum_payments: [],
+    }];
+
+    const { result } = renderWithCarFund(carFunds);
+    const r = result.current!;
+    expect(r).not.toBeNull();
+
+    // loan_start_date is next month — month 0 must not show this insurance yet, even though
+    // payment_start_date (today) has already arrived.
     expect(r.month0.vehicleInsurance).toBe(0);
   });
 
-  it('saving-phase insurance follows payment_start_date, not the purchase date — does not show up early', () => {
-    // Before this fix, saving-phase insurance anchored to purchaseMonthIdx (the purchase date),
-    // so it would show up the same month as the purchase even if the first payment (and the real,
-    // loan-phase insurance anchor) doesn't start until a month later. Purchase this month,
-    // first payment next month — month 0 must NOT show insurance yet.
+  it('saving-phase insurance follows the purchase date, not payment_start_date — shows up the same month as purchase', () => {
     const now = new Date();
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -124,8 +125,10 @@ describe('useCardProjection — active loan insurance', () => {
       lump_sum_payments: [],
     }];
 
+    // Purchase this month, first payment next month — insurance must already show this month,
+    // matching loan-phase's loan_start_date anchor once activated.
     const r = renderWithCarFund(carFunds).result.current!;
-    expect(r.month0.vehicleInsurance).toBe(0);
+    expect(r.month0.vehicleInsurance).toBeGreaterThanOrEqual(150);
   });
 
   it('saving-phase and loan-phase show identical insurance once isolated from the projected loan payment — the no-op-at-activation guarantee', () => {

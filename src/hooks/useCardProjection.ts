@@ -10,7 +10,7 @@ import {
   getNormalizedMonthNetIncome, getMonthNetIncome,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 
 export interface Month0Result {
@@ -507,8 +507,20 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           } else {
             paymentStartMonthIdx = purchaseMonthIdx + 1;
           }
+          // Effective term — accounts for lump sums accelerating payoff, matching what the actual
+          // loan-phase schedule (buildAmortizationSchedule) would show once activated. Without
+          // this, the projected window always ran the full loan_term_months even when lump sums
+          // pay the loan off earlier, disagreeing with the real schedule at activation.
+          const effectiveTermMonths = (loanPrincipal > 0 && Number(c.expected_apr) >= 0 && Number(c.loan_term_months) > 0 && c.payment_start_date)
+            ? buildAmortizationSchedule({
+                loanAmount: loanPrincipal, apr: Number(c.expected_apr), termMonths: Number(c.loan_term_months),
+                loanStartDate: c.planned_purchase_date ?? c.payment_start_date, paymentStartDate: c.payment_start_date,
+                interestStartDate: c.payment_start_date, actualMonthlyPayment: 0,
+                lumpSumPayments: c.lump_sum_payments ?? [],
+              }).schedule.length
+            : Number(c.loan_term_months) || 0;
           return {
-            purchaseMonthIdx, paymentStartMonthIdx, projPayment, termMonths: Number(c.loan_term_months) || 0, insurance: Number(c.monthly_insurance || 0),
+            purchaseMonthIdx, paymentStartMonthIdx, projPayment, termMonths: effectiveTermMonths, insurance: Number(c.monthly_insurance || 0),
             // Extra payments the user plans to make once this saving-phase car is financed —
             // mirrors Forecast.tsx's getMonthProjLumpSum. Missing this was the root cause of a
             // real discrepancy: Forecast's own model (which already included these) showed a
@@ -521,7 +533,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return vehicleForecastByMonth.reduce((s, v) => {
-          const insurance = m >= v.paymentStartMonthIdx ? v.insurance : 0;
+          // Insurance follows the purchase date (purchaseMonthIdx), not the payment-start date —
+          // needed the day you own the car, not when the first bill posts. The loan payment
+          // itself stays anchored to paymentStartMonthIdx; only insurance differs.
+          const insurance = m >= v.purchaseMonthIdx ? v.insurance : 0;
           const inLoanWindow = m >= v.paymentStartMonthIdx && m < v.paymentStartMonthIdx + v.termMonths;
           const projLoan = inLoanWindow ? v.projPayment : 0;
           const lumpSum = inLoanWindow
@@ -567,16 +582,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // anything else in this hook) ever adds the car's monthly_insurance once phase flips to
       // 'loan'. vehicleForecastByMonth/getVehicleExtrasForMonth only ever look at phase==='saving'
       // cars, so insurance silently vanished from this hook's cash model the instant a loan
-      // activated. Anchored to payment_start_date (not loan_start_date) so it starts the same
-      // month the user's own first-payment date says it should, and — matching
-      // vehicleForecastByMonth's saving-phase insurance, which never stops once started — runs
-      // indefinitely rather than capping at loan_term_months (insurance is an ownership cost, not
-      // a financing one).
+      // activated. Anchored to loan_start_date (not payment_start_date) — insurance is needed the
+      // day you own the car, not when the first bill posts, matching vehicleForecastByMonth's
+      // saving-phase insurance (purchaseMonthIdx) below. Calendar-month comparison via
+      // monthsBetween, not exact-date, for the same reason getActiveCarLoanPayments' gate was
+      // fixed — different representative days within the same month must agree. Runs indefinitely
+      // rather than capping at loan_term_months (insurance is an ownership cost, not a financing one).
       const carLoanInsuranceByMonth = Array.from({ length: 36 }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        const dStr = d.toISOString().split('T')[0];
         return (carFunds as any[])
-          .filter((cf: any) => cf.phase === 'loan' && cf.payment_start_date)
-          .filter((cf: any) => d >= new Date(cf.payment_start_date + 'T00:00:00'))
+          .filter((cf: any) => cf.phase === 'loan' && cf.loan_start_date)
+          .filter((cf: any) => monthsBetween(cf.loan_start_date, dStr) >= 0)
           .reduce((s: number, cf: any) => s + Number(cf.monthly_insurance || 0), 0);
       });
 
