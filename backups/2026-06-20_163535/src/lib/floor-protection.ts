@@ -5,20 +5,18 @@
 // fixes both callers at once, while keeping each caller's own numbers as an independent check
 // against the other ever silently disagreeing.
 
-import { PROJECTION_MONTHS } from './credit-card-engine';
-
 export interface FloorProtectionParams {
-  /** Per-month net income, length PROJECTION_MONTHS. Index 0 is month 0's own (today-to-EOM) remaining income. */
+  /** Per-month net income, length 36. Index 0 is month 0's own (today-to-EOM) remaining income. */
   incomeByMonth: number[];
   /** Comprehensive per-month expense figure EXCLUDING the debt payment itself — every other cash
    * outflow that month (base expenses, savings/car/mortgage/vehicle/lump-transfer/cycling-card
-   * costs, etc). Length PROJECTION_MONTHS. */
+   * costs, etc). Length 36. */
   expenseByMonth: number[];
-  /** Per-month net (income - expenses) from one-time, non-recurring items. Length PROJECTION_MONTHS. */
+  /** Per-month net (income - expenses) from one-time, non-recurring items. Length 36. */
   oneTimeNetByMonth: number[];
-  /** Per-month car down-payment cash outflow (lump sum landing in checking that month). Length PROJECTION_MONTHS. */
+  /** Per-month car down-payment cash outflow (lump sum landing in checking that month). Length 36. */
   carDownPaymentByMonth: number[];
-  /** Per-month safe-cash floor (augmented — includes card-minimum/car-loan buffers). Length PROJECTION_MONTHS. */
+  /** Per-month safe-cash floor (augmented — includes card-minimum/car-loan buffers). Length 36. */
   floorByMonth: number[];
   /** Starting liquid balance (today's actual balance in the funding account). */
   startingBalance: number;
@@ -55,8 +53,7 @@ export interface FloorProtectionResult {
  * Reserve-based floor-breach protection.
  *
  * reserveNeeded[m] (backward pass) is the minimum cash required at the START of month m, beyond
- * that month's own bare floor, to guarantee no future floor breach through the last projected
- * month (PROJECTION_MONTHS - 1) — assuming
+ * that month's own bare floor, to guarantee no future floor breach through month 35 — assuming
  * every month from m onward pays only as much above the minimum as it can truly spare. The
  * forward pass then caps each month's debt payment only enough to keep the ending balance at or
  * above what the following month's own reserveNeeded requires.
@@ -75,7 +72,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     now, formatCurrency,
   } = params;
 
-  const maxDebtPaymentByMonth: number[] = Array(PROJECTION_MONTHS).fill(Infinity);
+  const maxDebtPaymentByMonth: number[] = Array(36).fill(Infinity);
   const saveUpMonths = new Set<number>();
   const strictSaveUpMonths = new Set<number>();
   const saveUpReason = new Map<number, { eventName: string; monthLabel: string }>();
@@ -86,13 +83,13 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
 
   // Per-month net cash flow if only the minimum is ever sent to debt — the most that could
   // possibly be preserved that month. Feeds the backward pass below.
-  const netAtMin: number[] = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
+  const netAtMin: number[] = Array.from({ length: 36 }, (_, m) =>
     incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - ccMinTotal,
   );
 
-  const reserveNeeded: number[] = Array(PROJECTION_MONTHS + 1).fill(0);
-  for (let m = PROJECTION_MONTHS - 1; m >= 0; m--) {
-    const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];
+  const reserveNeeded: number[] = Array(37).fill(0);
+  for (let m = 35; m >= 0; m--) {
+    const nextFloor = m + 1 < 36 ? floorByMonth[m + 1] : floorByMonth[35];
     const endBalAtMin = floorByMonth[m] + netAtMin[m];
     reserveNeeded[m] = Math.max(0, nextFloor + reserveNeeded[m + 1] - endBalAtMin);
   }
@@ -103,7 +100,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   const rawBreachMonths: number[] = [];
   {
     let rawBal = startingBalance;
-    for (let m = 0; m < PROJECTION_MONTHS; m++) {
+    for (let m = 0; m < 36; m++) {
       const mFloor = floorByMonth[m];
       const natural = Math.max(ccMinTotal, Math.max(0, rawBal + incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - mFloor));
       rawBal += incomeByMonth[m] - expenseByMonth[m] - natural + oneTimeNetByMonth[m] - carDownPaymentByMonth[m];
@@ -158,7 +155,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   // Forward pass: the actual cash trajectory, capping each month's debt payment so the ending
   // balance never dips below what reserveNeeded says the following month requires.
   let bal = startingBalance;
-  for (let m = 0; m < PROJECTION_MONTHS; m++) {
+  for (let m = 0; m < 36; m++) {
     const mInc = incomeByMonth[m];
     const mExp = expenseByMonth[m];
     const oneTimeNet = oneTimeNetByMonth[m];
@@ -167,7 +164,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     const natural = Math.max(ccMinTotal, Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - mFloor));
 
     if (reserveNeeded[m + 1] > 0) {
-      const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];
+      const nextFloor = m + 1 < 36 ? floorByMonth[m + 1] : floorByMonth[35];
       const requiredEndBal = nextFloor + reserveNeeded[m + 1];
       const availableForDebt = Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - requiredEndBal);
       const cap = Math.max(ccMinTotal, availableForDebt);
@@ -178,7 +175,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
         strictSaveUpMonths.add(m);
         if (!saveUpReason.has(m)) {
           const i = rawBreachMonths.find(b => b > m);
-          saveUpReason.set(m, describeBreach(i !== undefined ? i : Math.min(PROJECTION_MONTHS - 1, m + 1)));
+          saveUpReason.set(m, describeBreach(i !== undefined ? i : Math.min(35, m + 1)));
         }
       }
       bal += mInc - mExp - actualPay + oneTimeNet - carDP;

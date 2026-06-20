@@ -236,7 +236,7 @@ function FirstUpsell({
     'Auto-sync bank balances every morning',
     'AI Advisor — ask anything about your money',
     'Up to 3 linked accounts with real transaction import',
-    'Advanced 60-month cash flow forecast',
+    'Advanced 36-month cash flow forecast',
     'Export reports as PDF or CSV',
   ];
 
@@ -296,7 +296,7 @@ function SecondUpsell({
     'Auto-sync every morning — wake up to fresh balances',
     'AI Advisor — ask your money anything, get real answers',
     'Up to 3 linked accounts vs. manual-only on free',
-    'Advanced 60-month forecast with Plaid data',
+    'Advanced 36-month forecast with Plaid data',
     'Cancel anytime',
   ];
 

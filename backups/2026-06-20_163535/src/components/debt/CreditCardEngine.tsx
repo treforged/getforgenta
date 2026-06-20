@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
   buildCardData, projectCard, projectCardVariable,
-  simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS,
+  simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES,
 } from '@/lib/credit-card-engine';
 import {
   buildPayConfig, getNormalizedMonthNetIncome, getPrePaycheckNextMonthBills, getMinSafeCash,
@@ -48,7 +48,7 @@ type Props = {
   taxReturnMonth?: number;
   /** Pass-3 simulation result — drives all month 0 recommendation display (payments, safe-to-pay, floor). */
   month0?: Month0Result | null;
-  /** Full PROJECTION_MONTHS-length payment arrays from useCardProjection — when provided, projections use Forecast's sim instead of the internal variableSim. */
+  /** Full 36-month payment arrays from useCardProjection — when provided, projections use Forecast's sim instead of the internal variableSim. */
   perCardPayments?: { id: string; payments: number[] }[] | null;
   /** Cash-floor-constrained version of perCardPayments (pass-3 scaled). Preferred over perCardPayments when provided. */
   perCardPaymentsScaled?: { id: string; payments: number[] }[] | null;
@@ -308,7 +308,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const { monthEvents, cardPurchasesPerMonth: ccPurchasesPerMonth } = useMemo(() => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-    const scheduledEvents = generateScheduledEvents(rules, accounts, PROJECTION_MONTHS);
+    const scheduledEvents = generateScheduledEvents(rules, accounts, 36);
 
     const liquidAccountIds = new Set<string>(
       accounts.filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
@@ -359,7 +359,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const evMonthEvents: { income: number; expenses: number }[] = [];
     const evCardPurchases: { [cardId: string]: number }[] = [];
 
-    for (let i = 0; i < PROJECTION_MONTHS; i++) {
+    for (let i = 0; i < 36; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 
@@ -431,7 +431,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // so the simulation knows that month's purchases on that card.
     const augmentedCCPurchases: { [cardId: string]: number }[] = [{}]; // month 0 = empty
 
-    for (let i = 1; i < PROJECTION_MONTHS; i++) {
+    for (let i = 1; i < 36; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const txns = (allTransactions as any[]).filter((t: any) =>
@@ -484,7 +484,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         for (const date of planDates) {
           if (date <= cutoff) continue;
           const pd = new Date(date + 'T00:00:00');
-          for (let mi = 0; mi < PROJECTION_MONTHS; mi++) {
+          for (let mi = 0; mi < 36; mi++) {
             const md = new Date(now.getFullYear(), now.getMonth() + mi, 1);
             if (pd.getFullYear() === md.getFullYear() && pd.getMonth() === md.getMonth()) {
               augmentedCCPurchases[mi][cardId] = (augmentedCCPurchases[mi][cardId] ?? 0) + plan.payment_amount;
@@ -502,7 +502,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Pre-compute bonus month index for non-recurring bonus (first occurrence in window)
     const firstBonusIdx = (!bonusRecurring && bonusEnabled && (bonusAmount ?? 0) > 0)
       ? (() => {
-          for (let k = 1; k < PROJECTION_MONTHS; k++) {
+          for (let k = 1; k < 36; k++) {
             const kd = new Date(now.getFullYear(), now.getMonth() + k, 1);
             if (kd.getMonth() + 1 === (bonusMonth ?? 12)) return k;
           }
@@ -538,7 +538,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
     // Per-month car loan payments from carFunds (mirrors Forecast's activeCarLoanByMonth).
     // Car loans live outside rules so they are absent from monthEvents; add them explicitly.
-    const activeCarLoanByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
+    const activeCarLoanByMonth = Array.from({ length: 36 }, (_, m) => {
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
       return getTotalCarLoanMonthly(carFunds as any[], d);
     });
@@ -558,7 +558,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'),
     );
 
-    const extraExpensesByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
+    const extraExpensesByMonth = Array.from({ length: 36 }, (_, m) => {
       if (m === 0) return 0; // month 0 handled by month0Expenses
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
       const simMonthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
@@ -605,7 +605,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // ── Per-month safe floor (mirrors Forecast monthMinSafe) ─────────────────────
     // getMinSafeCash = max(cashFloor, prePaycheckNextMonthBills) for that specific month.
     // Month 0 is already handled by month0SafeFloor in the sim call.
-    const cashFloorByMonth: number[] = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
+    const cashFloorByMonth: number[] = Array.from({ length: 36 }, (_, m) => {
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
       return getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId ?? null, d);
     });
@@ -617,7 +617,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       .filter(c => !c.autopayFullBalance && c.balance > 0)
       .reduce((s, c) => s + c.minPayment, 0);
 
-    const maxDebtPaymentByMonth: number[] = Array(PROJECTION_MONTHS).fill(Infinity);
+    const maxDebtPaymentByMonth: number[] = Array(36).fill(Infinity);
 
     if (ccMinTotalPrepass > 0 && oneTimeByMonth.some((o, i) => i > 0 && o.expenses > 0)) {
       const saveUpMonths = new Set<number>();
@@ -625,7 +625,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       // Initialize: greedy estimate (all surplus above floor → debt)
       // Month 0 uses fundingBalance; months 1+ approximate PASS 3 (start at floor)
       const simDebtPay: number[] = [];
-      for (let m = 0; m < PROJECTION_MONTHS; m++) {
+      for (let m = 0; m < 36; m++) {
         const mInc = m === 0 ? month0Income : (carAdjustedMonthEvents[m]?.income ?? monthlyTakeHome);
         const mExp = m === 0 ? month0Expenses : (carAdjustedMonthEvents[m]?.expenses ?? monthlyRecurringExpenses);
         const mFloor = cashFloorByMonth[m];
@@ -637,7 +637,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       const recomputeSimCash = (): number[] => {
         let bal = fundingBalance;
         const cash: number[] = [];
-        for (let m = 0; m < PROJECTION_MONTHS; m++) {
+        for (let m = 0; m < 36; m++) {
           const mInc = m === 0 ? month0Income : (carAdjustedMonthEvents[m]?.income ?? monthlyTakeHome);
           const mExp = m === 0 ? month0Expenses : (carAdjustedMonthEvents[m]?.expenses ?? monthlyRecurringExpenses);
           const oneTime = m === 0 ? { income: 0, expenses: 0 } : (oneTimeByMonth[m] ?? { income: 0, expenses: 0 });
@@ -655,7 +655,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       for (let pass = 0; pass < 20; pass++) {
         const simCash = recomputeSimCash();
         let anyFixed = false;
-        for (let i = 0; i < PROJECTION_MONTHS; i++) {
+        for (let i = 0; i < 36; i++) {
           if (simCash[i] >= cashFloorByMonth[i]) continue;
           const shortfall = cashFloorByMonth[i] - simCash[i];
           let toRecover = shortfall;
@@ -680,7 +680,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
     const sim = simulateVariablePayoff(
       cards, fundingBalance, cashFloor, strategy,
-      monthlyTakeHome, monthlyRecurringExpenses, PROJECTION_MONTHS,
+      monthlyTakeHome, monthlyRecurringExpenses, 36,
       carAdjustedMonthEvents, undefined, augmentedCCPurchases,
       month0Income, month0Expenses,
       oneTimeByMonth,
@@ -832,13 +832,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         const cyclingInterest = (monthlyCyclingInterest ?? variableSim.monthlyCyclingInterest)?.get(c.id) ?? [];
         const trueBalances = (monthlyBalances ?? variableSim.monthlyBalances)?.get(c.id) ?? [];
         const trueInterest = (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
-        return projectCardVariable(c, payments, PROJECTION_MONTHS, true, cardPurchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
+        return projectCardVariable(c, payments, 36, true, cardPurchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
       }
       if (Object.keys(cardOverrides).length > 0) {
-        const payments = Array.from({ length: PROJECTION_MONTHS }, (_, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : c.targetPayment);
-        return projectCardVariable(c, payments, PROJECTION_MONTHS, false, cardPurchases);
+        const payments = Array.from({ length: 36 }, (_, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : c.targetPayment);
+        return projectCardVariable(c, payments, 36, false, cardPurchases);
       }
-      return projectCard(c, PROJECTION_MONTHS);
+      return projectCard(c, 36);
     });
 
     return baseProjs;
@@ -847,7 +847,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
     const now = new Date();
-    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
+    return Array.from({ length: 36 }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const row: Record<string, number | string | null> = {
         month: d.toLocaleString('en', { month: 'short', year: 'numeric' }),
@@ -875,7 +875,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const limit = cards.reduce((s, c) => s + (c.creditLimit ?? 0), 0);
     if (limit === 0) return [];
     return [25, 50, 75].map(threshold => {
-      for (let i = 0; i < PROJECTION_MONTHS; i++) {
+      for (let i = 0; i < 36; i++) {
         const bal = projections.reduce((s, p) => s + (p.months[i]?.endBalance ?? 0), 0);
         if (bal <= limit * threshold / 100) return { threshold, month: i };
       }
@@ -887,8 +887,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const recommendedInterest = projections.reduce((s, p) => s + p.totalInterest, 0);
     const minInterest = cards.reduce((s, c) => {
       if (c.balance <= 0) return s;
-      const minPays = Array.from({ length: PROJECTION_MONTHS }, () => c.minPayment);
-      return s + projectCardVariable(c, minPays, PROJECTION_MONTHS, false).totalInterest;
+      const minPays = Array.from({ length: 36 }, () => c.minPayment);
+      return s + projectCardVariable(c, minPays, 36, false).totalInterest;
     }, 0);
     return Math.max(0, minInterest - recommendedInterest);
   }, [cards, projections]);

@@ -303,7 +303,7 @@ export default function NetWorth() {
               { label: 'Weekly snapshots', desc: 'The chart uses 14 saved snapshots from Jan–Apr showing the real progression. The Jan 10 dip was a $380 car repair that spiked the CC balance.' },
               { label: 'Auto-calculated totals', desc: 'Assets and liabilities pull live from Accounts — no manual entry needed for anything tracked there.' },
               { label: 'Student loan', desc: 'The $8,000 federal student loan is a manual liability. It reduces net worth but isn\'t part of the CC avalanche payoff plan.' },
-              { label: 'Connects to Forecast', desc: 'The Forecast page projects where net worth goes over 60 months as debt is eliminated and savings grow.' },
+              { label: 'Connects to Forecast', desc: 'The Forecast page projects where net worth goes over 36 months as debt is eliminated and savings grow.' },
             ].map((f, i) => (
               <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>
                 <span className="text-primary font-bold shrink-0">→</span>
