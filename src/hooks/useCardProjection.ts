@@ -151,6 +151,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (!r.active || r.rule_type !== 'expense') return false;
         if (r.payment_source && ccSourceIdsForScalar.has(r.payment_source)) return false;
         if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
+        // Paid from a different bank account entirely (not a CC, not the funding account) — that
+        // money never touches the funding account, so it must not reduce its modeled cash either.
+        if (r.payment_source && !ccSourceIdsForScalar.has(r.payment_source)) {
+          const srcId = (r.payment_source as string).replace(/^account:/, '');
+          if (resolvedDebtFundingId && srcId !== resolvedDebtFundingId) return false;
+        }
         if (pauseSavings && (r.category === 'Savings' || r.category === 'Investing')) return false;
         return true;
       }).reduce((s: number, r: any) => {
@@ -297,6 +303,19 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         ).map((r: any) => r.id),
       );
       const allCcRuleIds = new Set<string>([...ccExplicitRuleIds, ...ccDefaultRuleIds]);
+      // Expense rules paid from a bank account other than the funding account (not a CC, already
+      // excluded above) — that money never touches the funding account, so it must not reduce its
+      // modeled cash flow. Mirrors Forecast.tsx's identical Set exactly (same logic, see its own
+      // forecastMonthEvents) — keep the two in lockstep if this changes.
+      const otherAccountRuleIds = new Set<string>(
+        rules.filter((r: any) => {
+          if (!r.active || r.rule_type !== 'expense' || !r.payment_source) return false;
+          if (ccPaymentSources.has(r.payment_source)) return false;
+          if (!resolvedDebtFundingId) return false;
+          const srcId = (r.payment_source as string).replace(/^account:/, '');
+          return srcId !== resolvedDebtFundingId;
+        }).map((r: any) => r.id),
+      );
       const savingsRuleIds = new Set<string>(
         rules.filter((r: any) =>
           r.active && r.rule_type === 'expense' &&
@@ -329,6 +348,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           .filter(e =>
             e.type === 'expense' &&
             !(e.ruleId && allCcRuleIds.has(e.ruleId)) &&
+            !(e.ruleId && otherAccountRuleIds.has(e.ruleId)) &&
             !(pauseSavings && e.ruleId && savingsRuleIds.has(e.ruleId)),
           )
           .reduce((s, e) => s + e.amount, 0);
