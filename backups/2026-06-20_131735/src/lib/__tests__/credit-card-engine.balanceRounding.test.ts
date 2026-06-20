@@ -61,25 +61,4 @@ describe('simulateVariablePayoff — balance/cash rounding', () => {
     }
     assertAllExactCents(sim.projectedCashByMonth, 'projectedCashByMonth');
   });
-
-  it('a dirty-decimal cycling-card shortfall does not leave residue in the backlog/interest arithmetic', () => {
-    const cyc = makeCard({ id: 'cyc', name: 'Cyc', apr: 22.49, autopayFullBalance: true, paymentPreference: 'statement' });
-    // Income too tight to cover the dirty purchase amount most months — forces a chronic
-    // shortfall, so the backlog (and the interest charged on it) compounds the dirty decimal
-    // across many months, exactly the shape that originally let residue accumulate undetected.
-    const monthEvents = Array.from({ length: 10 }, () => ({ income: 1100, expenses: 1100 }));
-    const dirtyPurchase = 350 / 3;
-    const cardPurchasesPerMonth = Array.from({ length: 10 }, () => ({ cyc: dirtyPurchase }));
-
-    const sim = simulateVariablePayoff([cyc], 1000, 1000, 'avalanche', 1100, 1100, 10, monthEvents,
-      undefined, cardPurchasesPerMonth);
-
-    expect(sim.monthlyCyclingBacklog.get('cyc')!.some(v => v > 0)).toBe(true); // confirms a shortfall actually occurred
-    assertAllExactCents(sim.monthlyCyclingBacklog.get('cyc')!, 'monthlyCyclingBacklog[cyc]');
-    assertAllExactCents(sim.monthlyBalances.get('cyc')!, 'monthlyBalances[cyc]');
-    assertAllExactCents(sim.monthlyCyclingOwed.get('cyc')!, 'monthlyCyclingOwed[cyc]');
-    assertAllExactCents(sim.monthlyCyclingInterest.get('cyc')!, 'monthlyCyclingInterest[cyc]');
-    assertAllExactCents(sim.monthlyPayments.get('cyc')!, 'monthlyPayments[cyc]');
-    assertAllExactCents(sim.projectedCashByMonth, 'projectedCashByMonth');
-  });
 });

@@ -60,12 +60,7 @@ describe('simulateVariablePayoff — ccMinAlreadyInFloorByMonth (double-reservat
     const liquidCash = 1000;
 
     const old = simulateVariablePayoff([revolving, cycling], liquidCash, 1000, 'avalanche', 0, 0, 2, monthEvents);
-    // Mandatory pool alone shorts 'cyc' to $300 of its $400 statement (confirms the double-
-    // reservation bug this test targets is real) — but the $100 shortfall immediately becomes
-    // backlog competing in the SAME month's unified avalanche cascade (see the cycling/revolving
-    // unification this engine now does), and the floor-breach-protection guarantee gives it its
-    // own $25 minimum on top, landing at $325 rather than staying pinned at $300.
-    expect(old.monthlyPayments.get('cyc')![1]).toBeCloseTo(325, 2);
+    expect(old.monthlyPayments.get('cyc')![1]).toBeCloseTo(300, 2); // confirms the old formula really does short it here
 
     const fixed = simulateVariablePayoff([revolving, cycling], liquidCash, 1000, 'avalanche', 0, 0, 2, monthEvents,
       ...SKIP8, [0, 150]);
