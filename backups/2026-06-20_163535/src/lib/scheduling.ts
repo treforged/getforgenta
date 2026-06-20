@@ -12,14 +12,6 @@ export type ScheduledEvent = {
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-/** Shared length of the debt-payoff/forecast simulation window, in months. The single source of
- * truth for "how far ahead do we project" — every array/loop bound representing this window
- * across the engine, the hook that drives it, and the Forecast/Debt-Payoff UI should import this
- * rather than hardcoding a literal. Lives here (a zero-dependency leaf module) rather than
- * credit-card-engine.ts so that file can import it without a circular dependency (it already
- * imports countRuleOccurrencesInMonth from this file, and re-exports this constant). */
-export const PROJECTION_MONTHS = 60;
-
 // Get next N Fridays (or any day) from a start date
 export function getNextWeekdays(dayOfWeek: number, count: number, from: Date = new Date()): Date[] {
   const dates: Date[] = [];
@@ -37,7 +29,7 @@ export function getNextWeekdays(dayOfWeek: number, count: number, from: Date = n
 export function generateScheduledEvents(
   rules: any[],
   accounts: any[],
-  months: number = PROJECTION_MONTHS,
+  months: number = 36,
   from: Date = new Date()
 ): ScheduledEvent[] {
   const events: ScheduledEvent[] = [];
