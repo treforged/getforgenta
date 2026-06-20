@@ -21,6 +21,13 @@ import { generateScheduledEvents } from '@/lib/scheduling';
 // card and a future annual bill. Cash flow is tight enough that accounting for the cycling card's
 // routine payment is what actually requires save-up before the annual bill — ignoring it (the old
 // behavior) would have let the revolving card overpay in early months with no protection at all.
+//
+// Also now locks in a fix for a double-reservation bug this exact fixture happened to trigger:
+// simulateVariablePayoff's reservedForRevolving (Card A's minimum) was being subtracted from the
+// cycling pool a second time on top of the augmented floor, which had already reserved it —
+// shorting Card B (cycling) in the annual-bill month even though total cash covered both
+// obligations. See ccMinAlreadyInFloorByMonth (credit-card-engine.ts) / ccRevolvingMinIncluded
+// (pay-schedule.ts).
 
 const DEFAULT_ASSUMPTIONS = {
   incomeGrowthEnabled: false, incomeGrowth: 0, raiseMonth: 1, raiseMode: 'pct' as const,
@@ -89,16 +96,26 @@ describe('useCardProjection floor-breach protection (cycling-card baseline payme
     expect(r.saveUpMonths.size).toBeGreaterThan(0);
 
     const seriesA = r.perCardPaymentsScaled.find(p => p.id === cardAId)!;
+    const seriesB = r.perCardPaymentsScaled.find(p => p.id === cardBId)!;
     const cardA = r.simCards.find(c => c.id === cardAId)!;
     // Months 1-3 (immediately before the annual bill) are capped down to the minimum.
     for (let m = 1; m <= 3; m++) {
       expect(seriesA.payments[m]).toBeLessThanOrEqual(cardA.minPayment + 1);
     }
-    // Month 0 is NOT artificially suppressed — its own natural surplus is allowed through since
-    // no reserve is actually needed that early. This is the reserve-based look-ahead's key
-    // improvement over an all-or-nothing "fully protect this whole month or not" flag: each
-    // month banks only its own marginal contribution toward a future shortfall instead of an
-    // unbroken chain of fully-protected months reaching back further than necessary.
-    expect(seriesA.payments[0]).toBeGreaterThan(cardA.minPayment + 1);
+    // Card B (cycling) must get its full $600 statement every active month, including the
+    // annual-bill month itself — locking in a separate, previously-unnoticed bug this exact
+    // fixture also had: the simulation's revolving-minimum reservation double-counted dollars the
+    // augmented floor had already set aside for Card A, squeezing Card B's pool and shorting it to
+    // $0 in the annual-bill month (with an $800 catch-up the month after). Once Card B is no
+    // longer shorted, the look-ahead correctly sees a bigger true expense in that month and
+    // reserves for it starting from month 0 — so Card A's month-0 payment is now also capped to
+    // the minimum. That's the more accurate outcome, not a regression: the old "month 0 gets
+    // extra" behavior relied on Card B's true obligation being under-counted.
+    for (let m = 1; m <= 5; m++) {
+      expect(seriesB.payments[m]).toBeCloseTo(600, 0);
+    }
+    for (let m = 0; m <= 3; m++) {
+      expect(seriesA.payments[m]).toBeLessThanOrEqual(cardA.minPayment + 1);
+    }
   });
 });

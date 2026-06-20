@@ -527,6 +527,16 @@ export function simulateVariablePayoff(
    * Mirrors Forecast's monthMinSafe so the debt payoff floor matches the forecast floor.
    */
   cashFloorByMonth?: number[],
+  /**
+   * Optional per-month total of revolving cards' minimum payments already reserved by
+   * cashFloorByMonth/month0SafeFloor (when that floor came from getAugmentedMinSafeCash, which
+   * bakes CC minimums in for cards with a dueDay). When provided, Step 2 subtracts this from its
+   * own reservedForRevolving before sizing cycling cards' payoff pool, so the same dollars aren't
+   * reserved twice — once by the floor shrinking tentativeAvailAboveFloor, and again here. Omit
+   * (or pass all zeros) when the floor is bare (no CC minimums baked in) — e.g. the bootstrap pass
+   * in useCardProjection.ts, which still needs reservedForRevolving as the only protection.
+   */
+  ccMinAlreadyInFloorByMonth?: number[],
 ): {
   monthlyPayments: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
@@ -691,7 +701,14 @@ export function simulateVariablePayoff(
     const reservedForRevolving = cards
       .filter(c => !paidOffCards.has(c.id) && (cardStartMonths.get(c.id) ?? 0) <= m && (balances.get(c.id) ?? 0) > 0)
       .reduce((s, c) => s + c.minPayment, 0);
-    let paidOffPool = Math.max(0, tentativeAvailAboveFloor - reservedForRevolving);
+    // When the active floor already reserved some/all of this (the augmented floor used by the
+    // outer-refinement passes in useCardProjection.ts), don't reserve it a second time here — only
+    // the gap, if any (e.g. a card missing a dueDay so the floor couldn't include it), still needs
+    // protecting at this layer. Omitted entirely by the bootstrap pass (bare floor, nothing to
+    // subtract), so this is an exact no-op there.
+    const ccMinAlreadyInFloor = ccMinAlreadyInFloorByMonth?.[m] ?? 0;
+    const effectiveReservedForRevolving = Math.max(0, reservedForRevolving - ccMinAlreadyInFloor);
+    let paidOffPool = Math.max(0, tentativeAvailAboveFloor - effectiveReservedForRevolving);
     let paidOffCashCost = 0;
     // Pay cycling cards in strategy order so highest-APR (avalanche) or lowest-balance
     // (snowball) card claims from the pool first when it runs short.
