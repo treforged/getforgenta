@@ -1266,7 +1266,13 @@ export default function Forecast() {
       const effectiveDPThisMonth = getMonthEffectiveDP(i); // cash math (0 when monthly savings cover it)
       const vehicleInsuranceThisMonth = getMonthVehicleInsurance(i);
 
-      totalLiabilityBal = b.ccDebtBalance + b.otherDebtBalance + carLoanBalanceByMonth[i];
+      // displayCCBalance (not the raw revolving-only ccDebtBalance) keeps a statement-preference
+      // card's routine monthly purchases counted as a real liability even after its revolving
+      // balance clears and it settles into cycling mode — ccDebtBalance is a deliberate one-way
+      // 0-once-cycling signal (see credit-card-engine.ts), so liabilities/net worth would otherwise
+      // understate debt for any card that pays its statement in full every month but still spends.
+      const ccLiabilityBalThisMonth = cardProjectionData?.data[i]?.displayCCBalance ?? b.ccDebtBalance;
+      totalLiabilityBal = ccLiabilityBalThisMonth + b.otherDebtBalance + carLoanBalanceByMonth[i];
 
       const investGrowthAmt = Math.round(investBal * monthlyInvestGrowth * 100) / 100;
       const retireGrowthAmt = Math.round(retireBal * monthlyRetireGrowth * 100) / 100;
@@ -1462,7 +1468,7 @@ export default function Forecast() {
 
       data.push({
         month: b.monthLabel, netWorth: Math.round(netWorth), totalAssets: Math.round(totalAssets),
-        totalLiabilities: Math.round(totalLiabilityBal), debtBalance: Math.round(b.ccDebtBalance + b.otherDebtBalance),
+        totalLiabilities: Math.round(totalLiabilityBal), debtBalance: Math.round(ccLiabilityBalThisMonth + b.otherDebtBalance),
         savingsBalance: Math.round(savingsBal), investmentBalance: Math.round(investBal),
         retirementBalance: Math.round(retireBal), liquidCash: Math.round(finalLiquid),
         endingCash,
