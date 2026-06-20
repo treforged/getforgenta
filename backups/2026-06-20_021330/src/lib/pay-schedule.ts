@@ -1,7 +1,7 @@
 // ─── Unified Pay Schedule Engine ─────────────────────────
 // Single source of truth for income calculations across all tabs
 
-import { getActiveCarLoanPayments, monthsBetween } from './vehicle-loan-engine';
+import { getActiveCarLoanPayments } from './vehicle-loan-engine';
 
 export type PayFrequency = 'weekly' | 'biweekly' | 'monthly';
 
@@ -710,7 +710,7 @@ export function getAugmentedMinSafeCash(
   carFunds: any[],
   cc: { simCards: any[]; monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]> } | null,
   monthIdx: number,
-): { monthMinSafe: number; floorItems: { name: string; amount: number; dueDay: number }[]; prePaycheckBillsTotal: number; ccRevolvingMinIncluded: number } {
+): { monthMinSafe: number; floorItems: { name: string; amount: number; dueDay: number }[]; prePaycheckBillsTotal: number } {
   const { total: baseTotal, items: baseItems } = getPrePaycheckNextMonthBills(rules, config, fundingAccountId, now);
   let prePaycheckBillsTotal = baseTotal;
   const floorItems: { name: string; amount: number; dueDay: number }[] = [...baseItems];
@@ -725,29 +725,6 @@ export function getAugmentedMinSafeCash(
     }
   }
 
-  // Insurance, unlike the loan payment above, is owed in BOTH phases — a saving-phase car
-  // already needs insurance from the day it's owned, not just once a loan exists. No independent
-  // due-day field exists for insurance, so reuse payment_start_date's (or planned_purchase_date's,
-  // before payment_start_date is set) day-of-month, matching the loan item's pattern above.
-  for (const cf of (carFunds ?? []) as any[]) {
-    const insurance = Number(cf.monthly_insurance || 0);
-    if (insurance <= 0) continue;
-    const anchorDate = cf.phase === 'loan' ? cf.loan_start_date : (cf.loan_start_date ?? cf.planned_purchase_date);
-    if (!anchorDate) continue;
-    if (monthsBetween(anchorDate, now.toISOString().split('T')[0]) < 0) continue; // not owned yet
-    const dueDayBasis = cf.payment_start_date ?? cf.planned_purchase_date;
-    if (!dueDayBasis) continue;
-    const insuranceDueDay = new Date(dueDayBasis + 'T00:00:00').getDate();
-    prePaycheckBillsTotal += insurance;
-    floorItems.push({ name: cf.vehicle_name + ' insurance', amount: insurance, dueDay: insuranceDueDay });
-  }
-
-  // Tracks only the revolving branch below (not the cycling/"else" branch, which adds a
-  // floor item with the same "<name> min" naming for an unrelated reason — protecting a cycling
-  // card's own minimum, not a revolving reservation). Lets callers that separately reserve
-  // revolving minimums elsewhere (simulateVariablePayoff's reservedForRevolving) know how much of
-  // that reservation this floor has already covered, so they don't double-reserve it.
-  let ccRevolvingMinIncluded = 0;
   if (cc) {
     for (const card of cc.simCards as any[]) {
       const revBal = cc.monthlyRevolvingBalances?.get(card.id)?.[monthIdx] ?? 1;
@@ -755,7 +732,6 @@ export function getAugmentedMinSafeCash(
         const minPay = cc.perCardMinPayments?.get(card.id)?.[monthIdx] ?? 0;
         if (minPay > 0 && card.dueDay) {
           prePaycheckBillsTotal += minPay;
-          ccRevolvingMinIncluded += minPay;
           floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
         }
       } else {
@@ -772,7 +748,7 @@ export function getAugmentedMinSafeCash(
   }
 
   const monthMinSafe = Math.max(cashFloor, prePaycheckBillsTotal);
-  return { monthMinSafe, floorItems, prePaycheckBillsTotal, ccRevolvingMinIncluded };
+  return { monthMinSafe, floorItems, prePaycheckBillsTotal };
 }
 
 /** Get remaining scheduled expenses this month from today onward */
