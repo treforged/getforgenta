@@ -49,30 +49,21 @@ describe('simulateVariablePayoff / projectCardVariable — cycling shortfall int
     // immediately becomes backlog and the floor-breach-protection guarantee tops each one up to
     // its own $25 minimum within the SAME month — neither card is zeroed out, and both end up a
     // bit higher than the mandatory-pool split alone would have given them.
-    //
-    // Values updated after fixing a real bug in Phase A's guarantee step (credit-card-engine.ts):
-    // its needFn didn't subtract paidSoFar like Phase B's does, so distributeProportionally's
-    // multi-iteration water-filling loop kept re-evaluating each card against its FULL constant
-    // target instead of its remaining target — inflating Phase A's own pool consumption (here,
-    // equally for both cards since both have the same $25 minimum) and leaving Phase B less to
-    // split by true need ratio (800:300). The fixed numbers below are closer to that 800:300 ratio
-    // than the old (buggy) ones were — confirmed against a real account where the same bug starved
-    // a lower-minimum cycling card nearly to $0 while a higher-minimum one absorbed the rest.
-    expect(sim.monthlyPayments.get('cardA')![2]).toBeCloseTo(677.38, 2);
-    expect(sim.monthlyPayments.get('cardB')![2]).toBeCloseTo(272.62, 2);
+    expect(sim.monthlyPayments.get('cardA')![2]).toBeCloseTo(672.37, 2);
+    expect(sim.monthlyPayments.get('cardB')![2]).toBeCloseTo(277.63, 2);
 
     // No interest charged in the shortfall month itself — it accrues for the NEXT cycle.
     expect(sim.monthlyCyclingInterest.get('cardB')![2]).toBe(0);
-    // The following month's bill includes interest on Card B's ~$27.38 carried backlog at 12%/12.
-    expect(sim.monthlyCyclingInterest.get('cardB')![3]).toBeCloseTo(0.27, 2);
-    // True owed entering month 3 = $300 mandatory + ~$27.65 backlog (post-interest) = ~$327.65 —
-    // more than what was actually paid in month 2 ($272.62), proving the shortfall is tracked.
-    expect(sim.monthlyCyclingOwed.get('cardB')![3]).toBeCloseTo(327.65, 2);
-    expect(sim.monthlyPayments.get('cardB')![3]).toBeCloseTo(327.65, 2);
+    // The following month's bill includes interest on Card B's ~$22.37 carried backlog at 12%/12.
+    expect(sim.monthlyCyclingInterest.get('cardB')![3]).toBeCloseTo(0.22, 2);
+    // True owed entering month 3 = $300 mandatory + ~$22.59 backlog (post-interest) = ~$322.59 —
+    // more than what was actually paid in month 2 ($277.63), proving the shortfall is tracked.
+    expect(sim.monthlyCyclingOwed.get('cardB')![3]).toBeCloseTo(322.59, 2);
+    expect(sim.monthlyPayments.get('cardB')![3]).toBeCloseTo(322.59, 2);
 
     // Card A is shorted too (proportional sharing, not winner-take-all) — it also carries
     // interest on its own smaller backlog into the next cycle.
-    expect(sim.monthlyCyclingInterest.get('cardA')![3]).toBeCloseTo(2.45, 2);
+    expect(sim.monthlyCyclingInterest.get('cardA')![3]).toBeCloseTo(2.55, 2);
 
     const projB = projectCardVariable(
       cardB, sim.monthlyPayments.get('cardB')!, 6, true, undefined,
@@ -81,17 +72,17 @@ describe('simulateVariablePayoff / projectCardVariable — cycling shortfall int
     );
 
     // Row 3 (1-indexed) = sim month 2, the shortfall month. Its endBalance must show the true
-    // ~$327.65 owed entering next cycle, not just that month's own $300 new purchases — the bug
+    // ~$322.59 owed entering next cycle, not just that month's own $300 new purchases — the bug
     // this test guards against.
     const shortfallRow = projB.months[2];
-    expect(shortfallRow.endBalance).toBeCloseTo(327.65, 2);
+    expect(shortfallRow.endBalance).toBeCloseTo(322.59, 2);
     expect(shortfallRow.interest).toBe(0);
 
     // Row 4 = sim month 3, the catch-up month. Its startBalance must match the prior row's
     // endBalance exactly (no more unexplained jump) and show the interest charged.
     const catchUpRow = projB.months[3];
     expect(catchUpRow.startBalance).toBeCloseTo(shortfallRow.endBalance, 2);
-    expect(catchUpRow.interest).toBeCloseTo(0.27, 2);
+    expect(catchUpRow.interest).toBeCloseTo(0.22, 2);
   });
 
   it('matches prior behavior when a cycling card is never shorted (no interest, display unchanged)', () => {

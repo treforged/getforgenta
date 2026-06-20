@@ -820,18 +820,9 @@ export function simulateVariablePayoff(
     // actually owes), mirroring the same guarantee revolving cards already get (see
     // reservedForRevolving above and the minimum-enforcement guard below). Without this, a card
     // can be shut out entirely ($0) in a tight month even though its minimum is tiny.
-    // needFn subtracts paidSoFar (mirroring Phase B below) so a card's need correctly drops to 0
-    // once its guarantee is met and distributeProportionally's water-filling loop excludes it from
-    // `remaining` on the next iteration. Without this, a tight pool that needs more than one
-    // iteration to fully distribute (see distributeProportionally's `guard`-bounded while loop)
-    // re-fed every card its FULL constant target on every pass instead of its remaining target —
-    // the card with the larger target compounds this fastest, absorbing several multiples of its
-    // intended guarantee before the guard cutoff stops it, starving competing cycling cards of
-    // Phase B's leftover entirely (confirmed live: a $669 pool intended to split ~$479/$190
-    // between two cycling cards instead landed $604/$65).
     paidOffPool = distributeProportionally(
       paidOffPool, paidOffCardsThisMonth,
-      id => Math.max(0, Math.min(cards.find(c => c.id === id)!.minPayment, owedByCard.get(id) ?? 0) - (paidSoFar.get(id) ?? 0)),
+      id => Math.min(cards.find(c => c.id === id)!.minPayment, owedByCard.get(id) ?? 0),
     );
 
     // Phase B — distribute the remaining pool toward full payoff, proportional to what's left
