@@ -595,7 +595,6 @@ export default function Dashboard() {
         simCards: cardProjection.simCards,
         monthlyRevolvingBalances: cardProjection.monthlyRevolvingBalances,
         perCardMinPayments: cardProjection.perCardMinPayments,
-        monthlyCyclingBacklog: cardProjection.monthlyCyclingBacklog,
       } : null,
       0,
     ),
