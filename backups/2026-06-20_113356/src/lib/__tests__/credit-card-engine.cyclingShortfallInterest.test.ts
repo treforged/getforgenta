@@ -36,25 +36,22 @@ describe('simulateVariablePayoff / projectCardVariable — cycling shortfall int
       [cardA, cardB], 1000, 1000, 'avalanche', 3000, 1500, 6, monthEvents,
     );
 
-    // Proportional sharing: the tight month's pool is split between both cards in proportion to
-    // what each owes (after each card's tiny minimum is guaranteed first), so neither card is
-    // zeroed out outright — Card A (owes $800) gets the larger share, Card B (owes $300) gets
-    // the smaller share, and BOTH fall a bit short rather than one absorbing the entire shortfall.
-    expect(sim.monthlyPayments.get('cardA')![2]).toBeCloseTo(647.37, 2);
-    expect(sim.monthlyPayments.get('cardB')![2]).toBeCloseTo(252.63, 2);
+    // Avalanche priority: Card A (24% APR) is paid first from the shared pool and gets its
+    // full $800; Card B (12% APR) gets whatever's left and is short by $200.
+    expect(sim.monthlyPayments.get('cardA')![2]).toBeCloseTo(800, 2);
+    expect(sim.monthlyPayments.get('cardB')![2]).toBeCloseTo(100, 2);
 
     // No interest charged in the shortfall month itself — it accrues for the NEXT cycle.
     expect(sim.monthlyCyclingInterest.get('cardB')![2]).toBe(0);
-    // The following month's bill includes interest on Card B's ~$47.37 carried shortfall at 12%/12.
-    expect(sim.monthlyCyclingInterest.get('cardB')![3]).toBeCloseTo(0.47, 2);
-    // True owed entering month 3 = ~$47.37 unpaid + $300 new purchases + $0.47 interest = ~$347.84
-    // — more than what was actually paid in month 2 ($252.63), proving the shortfall is tracked.
-    expect(sim.monthlyCyclingOwed.get('cardB')![3]).toBeCloseTo(347.84, 2);
-    expect(sim.monthlyPayments.get('cardB')![3]).toBeCloseTo(347.84, 2);
+    // The following month's bill includes interest on the $200 carried at 12%/12 = $2.
+    expect(sim.monthlyCyclingInterest.get('cardB')![3]).toBeCloseTo(2, 2);
+    // True owed entering month 3 = $200 unpaid + $300 new purchases + $2 interest = $502 —
+    // more than what was actually paid in month 2 ($100), proving the shortfall is tracked.
+    expect(sim.monthlyCyclingOwed.get('cardB')![3]).toBeCloseTo(502, 2);
+    expect(sim.monthlyPayments.get('cardB')![3]).toBeCloseTo(502, 2);
 
-    // Card A is shorted too (proportional sharing, not winner-take-all) — it also carries
-    // interest on its own smaller shortfall into the next cycle.
-    expect(sim.monthlyCyclingInterest.get('cardA')![3]).toBeCloseTo(3.05, 2);
+    // Card A never shorted — no interest ever charged on it.
+    expect(sim.monthlyCyclingInterest.get('cardA')!.every(v => v === 0)).toBe(true);
 
     const projB = projectCardVariable(
       cardB, sim.monthlyPayments.get('cardB')!, 6, true, undefined,
@@ -63,17 +60,19 @@ describe('simulateVariablePayoff / projectCardVariable — cycling shortfall int
     );
 
     // Row 3 (1-indexed) = sim month 2, the shortfall month. Its endBalance must show the true
-    // ~$347.84 owed entering next cycle, not just that month's own $300 new purchases — the bug
+    // $502 owed entering next cycle, not just that month's own $300 new purchases — the bug
     // this test guards against.
     const shortfallRow = projB.months[2];
-    expect(shortfallRow.endBalance).toBeCloseTo(347.84, 2);
+    expect(shortfallRow.endBalance).toBeCloseTo(502, 2);
     expect(shortfallRow.interest).toBe(0);
 
     // Row 4 = sim month 3, the catch-up month. Its startBalance must match the prior row's
-    // endBalance exactly (no more unexplained jump) and show the interest charged.
+    // endBalance exactly (no more unexplained jump) and show the $2 interest charged.
     const catchUpRow = projB.months[3];
     expect(catchUpRow.startBalance).toBeCloseTo(shortfallRow.endBalance, 2);
-    expect(catchUpRow.interest).toBeCloseTo(0.47, 2);
+    expect(catchUpRow.interest).toBeCloseTo(2, 2);
+
+    expect(projB.totalInterest).toBeGreaterThanOrEqual(2);
   });
 
   it('matches prior behavior when a cycling card is never shorted (no interest, display unchanged)', () => {

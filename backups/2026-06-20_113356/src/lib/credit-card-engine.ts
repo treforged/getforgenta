@@ -710,77 +710,25 @@ export function simulateVariablePayoff(
     const effectiveReservedForRevolving = Math.max(0, reservedForRevolving - ccMinAlreadyInFloor);
     let paidOffPool = Math.max(0, tentativeAvailAboveFloor - effectiveReservedForRevolving);
     let paidOffCashCost = 0;
-    const paidOffCardsThisMonth = [...cards].filter(c => paidOffCards.has(c.id));
-
-    // Pre-compute what each cycling card owes this cycle (last cycle's deferred purchases plus
-    // any interest carried from a prior shortfall).
-    const owedByCard = new Map<string, number>();
-    for (const card of paidOffCardsThisMonth) {
-      const principalOwed = paidOffDeferredPurchases.get(card.id) ?? 0;
-      const interestDue = pendingInterestCarry.get(card.id) ?? 0;
-      owedByCard.set(card.id, Math.round((principalOwed + interestDue) * 100) / 100);
-    }
-    const paidSoFar = new Map<string, number>(paidOffCardsThisMonth.map(c => [c.id, 0]));
-
-    // Split `pool` across `cards` proportional to each card's need (per `needFn`), capping each
-    // at its own need and redistributing any leftover (from cards whose need was smaller than
-    // their proportional share) to the cards still wanting more — classic water-filling, so no
-    // single card ever claims 100% of a tight pool while another gets $0. Previously this used a
-    // strict priority order (by APR, or by "was shorted last cycle"); with two cycling cards
-    // competing for a pool that's tight every month, strict priority made each one flip-flop
-    // between a large catch-up payment and $0 as priority alternated — proportional sharing
-    // avoids that oscillation while still giving more to whichever card needs more.
-    const distributeProportionally = (pool: number, eligible: CardData[], needFn: (id: string) => number) => {
-      let remainingPool = pool;
-      let remaining = eligible.filter(c => needFn(c.id) > 0.005);
-      let guard = 0;
-      while (remainingPool > 0.005 && remaining.length > 0 && guard < remaining.length + 1) {
-        guard++;
-        const totalNeed = remaining.reduce((s, c) => s + needFn(c.id), 0);
-        if (totalNeed <= 0.005) break;
-        let used = 0;
-        for (const card of remaining) {
-          const need = needFn(card.id);
-          const share = remainingPool * (need / totalNeed);
-          const give = Math.round(Math.min(share, need) * 100) / 100;
-          paidSoFar.set(card.id, Math.round(((paidSoFar.get(card.id) ?? 0) + give) * 100) / 100);
-          used += give;
-        }
-        remainingPool = Math.round((remainingPool - used) * 100) / 100;
-        remaining = remaining.filter(c => needFn(c.id) > 0.005);
-        if (used < 0.005) break;
-      }
-      return remainingPool;
-    };
-
-    // Phase A — guarantee every cycling card at least its minimum payment (capped at what it
-    // actually owes), mirroring the same guarantee revolving cards already get (see
-    // reservedForRevolving above and the minimum-enforcement guard below). Without this, a card
-    // can be shut out entirely ($0) in a tight month even though its minimum is tiny.
-    paidOffPool = distributeProportionally(
-      paidOffPool, paidOffCardsThisMonth,
-      id => Math.min(cards.find(c => c.id === id)!.minPayment, owedByCard.get(id) ?? 0),
-    );
-
-    // Phase B — distribute the remaining pool toward full payoff, proportional to what's left
-    // owed (so a card with a bigger carried-forward shortfall gets more of the pool, without ever
-    // zeroing out a competing card outright).
-    paidOffPool = distributeProportionally(
-      paidOffPool, paidOffCardsThisMonth,
-      id => Math.max(0, (owedByCard.get(id) ?? 0) - (paidSoFar.get(id) ?? 0)),
-    );
-
-    for (const card of paidOffCardsThisMonth) {
+    // Pay cycling cards in strategy order so highest-APR (avalanche) or lowest-balance
+    // (snowball) card claims from the pool first when it runs short.
+    const paidOffOrder = [...cards]
+      .filter(c => paidOffCards.has(c.id))
+      .sort((a, b) =>
+        strategy === 'avalanche'
+          ? b.apr - a.apr
+          : (paidOffDeferredPurchases.get(a.id) ?? 0) - (paidOffDeferredPurchases.get(b.id) ?? 0)
+      );
+    for (const card of paidOffOrder) {
       // Pay PREVIOUS month's deferred charges (billing cycle delay), plus any interest
       // carried over from a prior cycle that wasn't paid in full.
-      const owedThisCycle = owedByCard.get(card.id) ?? 0;
+      const principalOwed = paidOffDeferredPurchases.get(card.id) ?? 0;
       const interestDue = pendingInterestCarry.get(card.id) ?? 0;
+      const owedThisCycle = Math.round((principalOwed + interestDue) * 100) / 100;
       monthlyCyclingOwed.get(card.id)!.push(owedThisCycle);
       monthlyCyclingInterest.get(card.id)!.push(interestDue);
-      // Absolute backstop: minimums should always be met when there's anything owed, even in the
-      // rare case the pool above couldn't cover it (mirrors the revolving-card guard below).
-      const minRequired = Math.min(card.minPayment, owedThisCycle);
-      const pay = Math.max(paidSoFar.get(card.id) ?? 0, owedThisCycle > 0 ? minRequired : 0);
+      const pay = Math.round(Math.min(owedThisCycle, paidOffPool) * 100) / 100;
+      paidOffPool -= pay;
       monthlyPayments.get(card.id)!.push(pay);
       monthlyInterest.get(card.id)!.push(0); // cycling cards track interest via monthlyCyclingInterest instead
       paidOffCashCost += pay;
@@ -805,7 +753,7 @@ export function simulateVariablePayoff(
       const thisMonthPurchases = Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases);
       paidOffDeferredPurchases.set(card.id, unpaidPrincipal + thisMonthPurchases);
     }
-    // Cycling cards already pushed above — push 0 for cards not yet in cycling mode
+    // Cards in paidOffOrder already pushed above — push 0 for cards not yet in cycling mode
     // this month (still revolving, or not yet active) to keep all per-month arrays aligned.
     for (const card of cards) {
       if ((cardStartMonths.get(card.id) ?? 0) > m || paidOffCards.has(card.id)) continue;
