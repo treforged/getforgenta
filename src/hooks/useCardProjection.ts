@@ -57,6 +57,11 @@ export interface CardProjectionResult {
    * engine's real interest instead of back-solving it from whatever payment ends up displayed —
    * which may be a cash-floor-scaled amount different from the payment that produced the balance. */
   monthlyInterest: Map<string, number[]>;
+  /** A cycling card's accumulated backlog (unpaid statement debt), end-of-month post-payment.
+   * Lets callers (e.g. Dashboard.tsx/Forecast.tsx's own getAugmentedMinSafeCash calls) keep their
+   * displayed "Cash Floor" in lockstep with simulateVariablePayoff's own double-reservation guard
+   * for backlog cards — see pay-schedule.ts's getAugmentedMinSafeCash. */
+  monthlyCyclingBacklog: Map<string, number[]>;
   m0Income: number;
   m0Expenses: number;
   m0SafeFloor: number;
@@ -704,14 +709,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // once a sim exists to know who's revolving) — threaded into simulateVariablePayoff's
       // ccMinAlreadyInFloorByMonth so it doesn't reserve those same dollars a second time via its
       // own reservedForRevolving before sizing cycling cards' payoff pool.
-      const computeAugmentedFloor = (simResult: { monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]> }): { floor: number[]; ccMinInFloor: number[] } => {
+      const computeAugmentedFloor = (simResult: { monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]>; monthlyCyclingBacklog: Map<string, number[]> }): { floor: number[]; ccMinInFloor: number[] } => {
         const floor: number[] = [];
         const ccMinInFloor: number[] = [];
         for (let m = 0; m < 36; m++) {
           const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
           const r = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, d,
-            carFunds, { simCards: cards, monthlyRevolvingBalances: simResult.monthlyRevolvingBalances, perCardMinPayments: simResult.perCardMinPayments }, m,
+            carFunds, {
+              simCards: cards, monthlyRevolvingBalances: simResult.monthlyRevolvingBalances,
+              perCardMinPayments: simResult.perCardMinPayments, monthlyCyclingBacklog: simResult.monthlyCyclingBacklog,
+            }, m,
           );
           floor.push(r.monthMinSafe);
           ccMinInFloor.push(r.ccRevolvingMinIncluded);
@@ -734,11 +742,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // real, reducible revolving allocation — inflating the apparent shortfall and triggering
       // far more save-up than actually needed. A card that's genuinely still revolving today
       // never counts here, however the (possibly overly-optimistic) simulation pass treats it.
-      const computeCyclingPaymentByMonth = (simResult: { monthlyPayments: Map<string, number[]> }): number[] =>
+      //
+      // Sums monthlyMandatoryCyclingPayment (NOT monthlyPayments): the engine's avalanche/snowball
+      // cascade now lets a cycling card receive a second, discretionary backlog-paydown payment on
+      // top of its mandatory statement (see credit-card-engine.ts's cyclingBacklog) — that portion
+      // is reducible debt paydown, not a fixed bill, and must not be folded into this non-reducible
+      // expense figure or the look-ahead would over-reserve cash and choke off exactly the surplus
+      // this unification exists to free for genuinely-revolving cards.
+      const computeCyclingPaymentByMonth = (simResult: { monthlyMandatoryCyclingPayment: Map<string, number[]> }): number[] =>
         Array.from({ length: 36 }, (_, m) =>
           cards.reduce((s, c) => {
             if (c.balance > 0) return s;
-            return s + (simResult.monthlyPayments.get(c.id)?.[m] ?? 0);
+            return s + (simResult.monthlyMandatoryCyclingPayment.get(c.id)?.[m] ?? 0);
           }, 0),
         );
 
@@ -976,7 +991,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const mFloor = getAugmentedMinSafeCash(
           rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
           new Date(now.getFullYear(), now.getMonth() + m, 1),
-          carFunds, { simCards: cards, monthlyRevolvingBalances: sim.monthlyRevolvingBalances, perCardMinPayments: sim.perCardMinPayments }, m,
+          carFunds, {
+            simCards: cards, monthlyRevolvingBalances: sim.monthlyRevolvingBalances,
+            perCardMinPayments: sim.perCardMinPayments, monthlyCyclingBacklog: sim.monthlyCyclingBacklog,
+          }, m,
         ).monthMinSafe;
         const simRevTotal = debtPaymentTotals[m];
         const simCycTotal = Math.max(0, allPaymentTotals[m] - simRevTotal);
@@ -1097,7 +1115,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const mFloor2 = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
             new Date(now.getFullYear(), now.getMonth() + m, 1),
-            carFunds, { simCards: cards, monthlyRevolvingBalances: sim2.monthlyRevolvingBalances, perCardMinPayments: sim2.perCardMinPayments }, m,
+            carFunds, {
+              simCards: cards, monthlyRevolvingBalances: sim2.monthlyRevolvingBalances,
+              perCardMinPayments: sim2.perCardMinPayments, monthlyCyclingBacklog: sim2.monthlyCyclingBacklog,
+            }, m,
           ).monthMinSafe;
           const simRevTotal2 = debtPaymentTotals[m];
           const simCycTotal2 = Math.max(0, allPaymentTotals[m] - simRevTotal2);
@@ -1266,7 +1287,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // cap here always matches what the user sees, instead of the bare pre-paycheck-bills floor.
       const m0FloorAugmented = getAugmentedMinSafeCash(
         rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId, now,
-        carFunds, { simCards: cards, monthlyRevolvingBalances: activeSim.monthlyRevolvingBalances, perCardMinPayments: activeSim.perCardMinPayments }, 0,
+        carFunds, {
+          simCards: cards, monthlyRevolvingBalances: activeSim.monthlyRevolvingBalances,
+          perCardMinPayments: activeSim.perCardMinPayments, monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
+        }, 0,
       ).monthMinSafe;
 
       // Vehicle insurance/projected loan and mortgage for month 0 — reuses the per-month
@@ -1351,6 +1375,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         monthlyCyclingOwed: activeSim.monthlyCyclingOwed,
         monthlyCyclingInterest: activeSim.monthlyCyclingInterest,
         monthlyInterest: activeSim.monthlyInterest,
+        monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
         m0Income,
         m0Expenses,
         m0SafeFloor,

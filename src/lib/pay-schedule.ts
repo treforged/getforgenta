@@ -708,7 +708,18 @@ export function getAugmentedMinSafeCash(
   fundingAccountId: string | null,
   now: Date,
   carFunds: any[],
-  cc: { simCards: any[]; monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]> } | null,
+  cc: {
+    simCards: any[]; monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]>;
+    /** Optional — a cycling card's accumulated backlog (credit-card-engine.ts's cyclingBacklog).
+     * When provided, a backlog-carrying cycling card's minimum (already folded into
+     * prePaycheckBillsTotal below, same as any cycling card) is ALSO counted in
+     * ccRevolvingMinIncluded — needed because simulateVariablePayoff's reservedForRevolving now
+     * also reserves backlog cards' minimums (so their guarantee in Step 5's avalanche cascade
+     * isn't starved by the mandatory pool), and that reservation must not double-count dollars
+     * this floor already covers. Omit (or omit this map entirely) for callers that don't carry
+     * a CardProjectionResult with backlog data — behavior is identical to before backlog existed. */
+    monthlyCyclingBacklog?: Map<string, number[]>;
+  } | null,
   monthIdx: number,
 ): { monthMinSafe: number; floorItems: { name: string; amount: number; dueDay: number }[]; prePaycheckBillsTotal: number; ccRevolvingMinIncluded: number } {
   const { total: baseTotal, items: baseItems } = getPrePaycheckNextMonthBills(rules, config, fundingAccountId, now);
@@ -742,11 +753,12 @@ export function getAugmentedMinSafeCash(
     floorItems.push({ name: cf.vehicle_name + ' insurance', amount: insurance, dueDay: insuranceDueDay });
   }
 
-  // Tracks only the revolving branch below (not the cycling/"else" branch, which adds a
-  // floor item with the same "<name> min" naming for an unrelated reason — protecting a cycling
-  // card's own minimum, not a revolving reservation). Lets callers that separately reserve
-  // revolving minimums elsewhere (simulateVariablePayoff's reservedForRevolving) know how much of
-  // that reservation this floor has already covered, so they don't double-reserve it.
+  // Tracks the revolving branch below, PLUS the cycling/"else" branch ONLY when that card
+  // carries backlog (cc.monthlyCyclingBacklog) — a pure cycling card's "<name> min" floor item is
+  // for an unrelated reason (protecting its own minimum, not a revolving reservation) and is
+  // never double-reserved elsewhere, so it's excluded here. Lets callers that separately reserve
+  // revolving (and backlog) minimums elsewhere (simulateVariablePayoff's reservedForRevolving)
+  // know how much of that reservation this floor has already covered, so they don't double-reserve it.
   let ccRevolvingMinIncluded = 0;
   if (cc) {
     for (const card of cc.simCards as any[]) {
@@ -767,6 +779,12 @@ export function getAugmentedMinSafeCash(
         if (!card.dueDay || card.minPayment <= 0) continue;
         prePaycheckBillsTotal += card.minPayment;
         floorItems.push({ name: card.name + ' min', amount: card.minPayment, dueDay: card.dueDay });
+        // A backlog-carrying cycling card's minimum is ALSO reserved by simulateVariablePayoff's
+        // reservedForRevolving (see its own comment) — count it here so that reservation doesn't
+        // double-charge dollars this floor just covered. A cycling card with NO backlog is
+        // unaffected (reservedForRevolving never reserves for it in the first place).
+        const backlog = cc.monthlyCyclingBacklog?.get(card.id)?.[monthIdx] ?? 0;
+        if (backlog > 0) ccRevolvingMinIncluded += card.minPayment;
       }
     }
   }
