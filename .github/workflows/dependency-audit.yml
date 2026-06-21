@@ -1,0 +1,33 @@
+name: Dependency Vulnerability Audit
+
+on:
+  schedule:
+    - cron: '0 13 * * 1' # Weekly, Monday 13:00 UTC
+  pull_request:
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (high/critical fails the build)
+        run: npm audit --audit-level=high
