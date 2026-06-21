@@ -7,7 +7,6 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
-import { getCardStartDateViolation } from '@/lib/card-start-date';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
@@ -401,8 +400,6 @@ export default function Transactions() {
       updateRule.mutate(rulePayload);
       toast.success('Recurring rule updated — future transactions will reflect this change.');
     } else {
-      const violation = getCardStartDateViolation(form.date, form.payment_source, accounts ?? []);
-      if (violation) { toast.error(violation); return; }
       const payload = { date: form.date, type: form.type, amount, category: form.category, account: form.account, note: cleanNote || 'Transaction', payment_source: form.payment_source };
       if (editId && !editId.startsWith('gen:')) {
         update.mutate({ id: editId, ...payload });
@@ -447,8 +444,6 @@ export default function Transactions() {
     if (!totalAmt || totalAmt <= 0) { toast.error('Total amount must be greater than 0'); return; }
     if (!payAmt || payAmt <= 0) { toast.error('Payment amount must be greater than 0'); return; }
     if (!totalPay || totalPay <= 0) { toast.error('Number of payments must be at least 1'); return; }
-    const planViolation = getCardStartDateViolation(planForm.start_date, planForm.payment_source, accounts ?? []);
-    if (planViolation) { toast.error(planViolation); return; }
     const { clean: cleanName, flagged: nameFlagged } = filterProfanity(planForm.name.trim().slice(0, LIMITS.planName));
     if (nameFlagged) toast.warning('Plan name contained inappropriate language and was cleaned.');
     const { clean: cleanNotes, flagged: notesFlagged } = filterProfanity(planForm.notes.trim().slice(0, LIMITS.planNotes));
