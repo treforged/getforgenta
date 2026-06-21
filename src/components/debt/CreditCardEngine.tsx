@@ -26,6 +26,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import PremiumGate from '@/components/shared/PremiumGate';
 
+const LIQUID_ACCOUNT_TYPES = ['checking', 'business_checking', 'cash'];
+
 type Props = {
   accounts: any[];
   transactions: any[];
@@ -142,8 +144,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   );
 
   // Funding account selection — exclude savings
-  const liquidTypes = ['checking', 'business_checking', 'cash'];
-  const liquidAccounts = useMemo(() => accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type)), [accounts]);
+  const liquidAccounts = useMemo(() => accounts.filter((a: any) => a.active && LIQUID_ACCOUNT_TYPES.includes(a.account_type)), [accounts]);
   const defaultFunding = useMemo(() => {
     const defaultId = (profile as any)?.default_deposit_account;
     if (defaultId) {
@@ -183,7 +184,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     if (!fundingAccountId && defaultFunding) {
       setFundingAccountIdLocal(defaultFunding);
     }
-  }, [defaultFunding, fundingAccountId]);
+  }, [defaultFunding, fundingAccountId, setFundingAccountIdLocal]);
 
   // Allow-list of payment source strings that match the funding account.
   // Expenses with a source NOT in this set (CC, other checking, savings) are excluded
@@ -251,7 +252,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       const now = new Date();
       return s + amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
     }, 0);
-  }, [rules, cards, accounts, pauseSavings]);
+  }, [rules, pauseSavings, ccPaymentSources]);
 
   // Pre-paycheck next-month bills
   const prePaycheckBills = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, fundingAccountId || null), [rules, payConfig, fundingAccountId]);
@@ -704,8 +705,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
-      rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate, fundingAccountSources,
-      paymentPlans]);
+      rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate,
+      paymentPlans, prePaycheckBills.total]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
