@@ -305,18 +305,21 @@ export default function Accounts() {
   const openEdit = (a: any) => {
     const matchDebt = debts.find((d: any) => d.name.toLowerCase() === a.name.toLowerCase());
     const plaidLiability = !!a.plaid_account_id && !!a.liability_synced_at;
-    // When Plaid owns liability data, read apr/credit_limit/min_payment from the
-    // accounts row (where Plaid writes). Otherwise fall back to the debts table
-    // which reflects whatever the user manually entered.
+    // Credit cards: the Accounts row is the sole source of truth for min_payment (the debt
+    // engine never reads the debts table for it — see credit-card-engine.ts), so always read it
+    // back from here regardless of Plaid linkage. Other liability types (mortgage/auto/student)
+    // still fall back to the debts table, which remains their real source.
     setForm({
       name: a.name, account_type: a.account_type, institution: a.institution || '',
       balance: String(a.balance),
       credit_limit: String(a.credit_limit || ''),
       apr: String(a.apr || ''),
       notes: a.notes || '',
-      min_payment: plaidLiability
+      min_payment: a.account_type === 'credit_card'
         ? (a.min_payment != null && Number(a.min_payment) > 0 ? String(a.min_payment) : '')
-        : (matchDebt ? String(matchDebt.min_payment) : ''),
+        : plaidLiability
+          ? (a.min_payment != null && Number(a.min_payment) > 0 ? String(a.min_payment) : '')
+          : (matchDebt ? String(matchDebt.min_payment) : ''),
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
       apr_start_date: a.apr_start_date || '',
@@ -385,8 +388,14 @@ export default function Accounts() {
       add.mutate({ ...payload, balance });
     }
     
-    // Sync min_payment to debts table for credit card / debt accounts
-    if (isLiability(form.account_type) && form.min_payment) {
+    // Sync min_payment to the debts table for non-credit-card debt accounts (mortgage/auto/
+    // student loans, managed entirely through the debts table). Credit cards are deliberately
+    // excluded: accounts.min_payment (just written above) is their sole source of truth for the
+    // debt engine, and mirroring it into a same-named debts row would recreate the exact dual-
+    // source confusion this was meant to avoid. A credit card's debts row, if one exists for its
+    // separate target_payment feature, still gets created/kept in sync by
+    // CreditCardEngine.tsx's syncDebtAndAccount when the user sets a target payment.
+    if (isLiability(form.account_type) && form.account_type !== 'credit_card' && form.min_payment) {
       const minPay = parseFloat(form.min_payment);
       if (!isNaN(minPay) && minPay > 0) {
         const matchDebt = debts.find((d: any) => d.name.toLowerCase() === form.name.toLowerCase());

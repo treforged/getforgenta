@@ -178,15 +178,14 @@ export function buildCardData(
     const balance = Number(acct.balance);
     const apr = Number(acct.apr) || 0;
     const creditLimit = Number(acct.credit_limit) || 0;
-    // Use accounts.min_payment (Plaid-synced or user-set via Accounts tab) as source of truth.
-    // Fall back to debts table, then $25 if neither has a stored value.
-    // Never recalculate from balance — the stored static value is what's actually due.
+    // accounts.min_payment (set on the Accounts tab, Plaid-synced or user-entered) is the sole
+    // source of truth for a card's minimum payment — the debts table is a separate legacy table
+    // for mortgage/auto/student debts and must never override what's set on the Accounts page,
+    // even if a same-named debts row happens to exist with a different value. Falls back to $25
+    // only when the Accounts page genuinely has nothing stored. Never recalculate from balance —
+    // the stored static value is what's actually due.
     const acctMin = acct.min_payment != null ? Number(acct.min_payment) : null;
-    const minPay = (acctMin != null && acctMin > 0)
-      ? acctMin
-      : matchDebt && Number(matchDebt.min_payment) > 0
-        ? Number(matchDebt.min_payment)
-        : 25;
+    const minPay = (acctMin != null && acctMin > 0) ? acctMin : 25;
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
     const pref = (acct as any).payment_preference;
