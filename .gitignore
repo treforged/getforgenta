@@ -20,3 +20,14 @@ forged.jks
 
 # build output
 dist/
+.vercel
+
+# Marketing tool — OAuth token and credentials must never be committed
+tre-forged-marketing/memory/gdrive_token.json
+tre-forged-marketing/memory/gdrive_credentials.json
+
+# Security/compliance docs — untracked from the public repo 2026-06-21,
+# authoritative versioned copies now live in Google Drive (see
+# reference_compliance_docs_drive memory)
+docs/plaid-compliance-policies.md
+docs/data-retention-policy.md
