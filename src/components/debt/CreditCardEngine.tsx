@@ -1192,6 +1192,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               {paymentMode === 'variable' ? 'Variable' : 'Consistent'}
             </span>
           </div>
+          <p className="text-[9px] sm:text-[10px] text-muted-foreground mb-3 sm:mb-4">
+            A recommended payment based on your current cash flow. Not adjusted for bills further
+            out than this month.
+          </p>
 
           {month0Recs.cashWarning && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>

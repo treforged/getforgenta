@@ -17,7 +17,6 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
     totalAvailableCash,
     strategyLabel,
     cashWarning,
-    interestAvoided,
   } = debtBreakdown;
 
   const hasRecs = recommendations.length > 0;
@@ -49,6 +48,11 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
 
       {hasRecs && (
         <>
+          <p className="text-[10px] text-muted-foreground mb-3">
+            A recommended payment based on your current cash flow. Not adjusted for bills further
+            out than this month.
+          </p>
+
           {cashWarning && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-4 text-[10px] text-destructive" style={{ borderRadius: 'var(--radius)' }}>
               <AlertTriangle size={13} className="shrink-0 mt-0.5" />
@@ -57,7 +61,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
           )}
 
           {/* Summary tiles */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-4">
             <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] text-muted-foreground uppercase">Safe to Pay</p>
               <p className="text-xs font-display font-bold text-primary">{formatCurrency(totalAvailableCash, false)}</p>
@@ -65,10 +69,6 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
             <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
               <p className="text-[9px] text-muted-foreground uppercase">Minimums Due</p>
               <p className="text-xs font-display font-bold text-destructive">{formatCurrency(totalMinimumsDue, false)}</p>
-            </div>
-            <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
-              <p className="text-[9px] text-muted-foreground uppercase">Interest Avoided</p>
-              <p className="text-xs font-display font-bold text-success">{formatCurrency(interestAvoided, true)}</p>
             </div>
           </div>
 
