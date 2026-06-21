@@ -1,0 +1,18 @@
+-- public.user_subscriptions_with_email joins user_subscriptions to
+-- auth.users to expose every user's email alongside their plan, status,
+-- Stripe/RevenueCat IDs. No application code references it -- it appears to
+-- be leftover admin/debug scaffolding.
+--
+-- anon/authenticated currently lack SELECT on it, so it isn't reachable via
+-- PostgREST today. But Supabase's default public-schema grants still gave
+-- anon/authenticated INSERT/UPDATE/DELETE/TRUNCATE on it, and the view has
+-- no security_invoker -- it runs as its owner (postgres, rolbypassrls=true),
+-- so any role that *can* read it bypasses the user_subscriptions RLS policy
+-- (user_subscriptions_select_own, scoped to auth.uid() = user_id) and sees
+-- every user's row. Same class of issue as public_build_owner_names
+-- (20260621_drop_unused_public_build_owner_names_view.sql) -- the DML grants
+-- are inert only because no INSTEAD OF trigger exists; adding one later
+-- would silently reactivate an RLS bypass + PII leak.
+--
+-- Dropping it entirely since nothing reads it.
+drop view if exists public.user_subscriptions_with_email;
