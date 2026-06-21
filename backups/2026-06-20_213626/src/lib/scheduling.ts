@@ -20,29 +20,6 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  * imports countRuleOccurrencesInMonth from this file, and re-exports this constant). */
 export const PROJECTION_MONTHS = 60;
 
-/** Maps a 1-indexed "year slot" (1-5, matching the Forecast/Debt-Payoff year filters) to the
- * [startIdx, endIdx) month-index range that falls within that REAL calendar year — not a rolling
- * 12-month window from today. Month index 0 is always the current month, so Year 1 runs from
- * today through December of the current calendar year (shorter than 12 months unless today is
- * January); Years 2-5 each run a full January-December. Both Forecast.tsx and
- * CreditCardEngine.tsx's accordion use this so "Year N" means the same real year (e.g. Jan 2029
- * always falls in the year containing it) in both places, instead of two slightly different
- * rolling-window definitions. The trailing few months beyond Year 5 (Jan-current month of the
- * 6th calendar year) are intentionally not covered by any slot — Forecast's separate "All" option
- * is the only way to reach them, kept consistent with Debt Payoff having no such escape hatch.
- */
-export function getCalendarYearMonthRange(yearSlot: number, now: Date = new Date()): [number, number] {
-  const nowMonth = now.getMonth();
-  const start = Math.max(0, (yearSlot - 1) * 12 - nowMonth);
-  const end = Math.max(start, yearSlot * 12 - nowMonth);
-  return [start, end];
-}
-
-/** The real calendar year (e.g. 2026) that "Year N" (yearSlot) refers to, for button labels. */
-export function getCalendarYearLabel(yearSlot: number, now: Date = new Date()): number {
-  return now.getFullYear() + (yearSlot - 1);
-}
-
 // Get next N Fridays (or any day) from a start date
 export function getNextWeekdays(dayOfWeek: number, count: number, from: Date = new Date()): Date[] {
   const dates: Date[] = [];
