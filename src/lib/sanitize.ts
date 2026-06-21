@@ -17,6 +17,7 @@
 export function sanitizeString(value: string): string {
   return value
     .replace(/<[^>]*>/g, '')                             // strip HTML tags
+    // eslint-disable-next-line no-control-regex -- intentional: this strips control chars
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')  // strip control chars
     .trim()
     .replace(/\s+/g, ' ');                               // normalize whitespace

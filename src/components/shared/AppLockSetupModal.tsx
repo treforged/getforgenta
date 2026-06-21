@@ -59,27 +59,6 @@ export default function AppLockSetupModal() {
   const [busy, setBusy] = useState(false);
   const [flow, setFlow] = useState<'pin' | 'biometric'>('pin');
 
-  if (!showSetupModal) return null;
-
-  const handleDismiss = () => {
-    setStep('intro');
-    setPin('');
-    setConfirmPin('');
-    setError(false);
-    dismissSetupModal();
-  };
-
-  const handlePinDigit = (d: string) => {
-    if (d === '⌫') { setPin(p => p.slice(0, -1)); setError(false); return; }
-    if (d === '' || pin.length >= PIN_LENGTH) return;
-    const next = pin + d;
-    setPin(next);
-    if (next.length === PIN_LENGTH) {
-      setStep(flow === 'biometric' ? 'bio-pin-confirm' : 'pin-confirm');
-      setConfirmPin('');
-    }
-  };
-
   const handleConfirmDigit = useCallback(async (d: string) => {
     if (d === '⌫') { setConfirmPin(p => p.slice(0, -1)); setError(false); return; }
     if (d === '' || confirmPin.length >= PIN_LENGTH) return;
@@ -113,6 +92,27 @@ export default function AppLockSetupModal() {
       setBusy(false);
     }
   }, [confirmPin, pin, flow, setupPin, setupBiometricWithPin]);
+
+  if (!showSetupModal) return null;
+
+  const handleDismiss = () => {
+    setStep('intro');
+    setPin('');
+    setConfirmPin('');
+    setError(false);
+    dismissSetupModal();
+  };
+
+  const handlePinDigit = (d: string) => {
+    if (d === '⌫') { setPin(p => p.slice(0, -1)); setError(false); return; }
+    if (d === '' || pin.length >= PIN_LENGTH) return;
+    const next = pin + d;
+    setPin(next);
+    if (next.length === PIN_LENGTH) {
+      setStep(flow === 'biometric' ? 'bio-pin-confirm' : 'pin-confirm');
+      setConfirmPin('');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[9998] bg-background/80 backdrop-blur-sm flex items-center justify-center px-6">
