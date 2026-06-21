@@ -8,8 +8,14 @@ updates:
     groups:
       production-dependencies:
         dependency-type: "production"
+        update-types: ["minor", "patch"]
       development-dependencies:
         dependency-type: "development"
+        update-types: ["minor", "patch"]
+    # Major version bumps are excluded from the groups above so they always
+    # arrive as their own PR instead of silently bundled with safe patch/minor
+    # bumps - a grouped eslint 9->10 bump broke the build (2026-06-21) because
+    # eslint-plugin-react-hooks@5.2.0 caps its peer range at eslint ^9.0.0.
 
   - package-ecosystem: "github-actions"
     directory: "/"
