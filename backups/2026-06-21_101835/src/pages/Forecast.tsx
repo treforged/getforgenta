@@ -25,12 +25,6 @@ import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type Filin
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 
-const toMonthly = (amount: number, freq: string) =>
-  freq === 'weekly' ? amount * 52 / 12
-  : freq === 'biweekly' ? amount * 26 / 12
-  : freq === 'yearly' ? amount / 12
-  : amount;
-
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
   if (!open) return null;
   return (
@@ -1225,31 +1219,6 @@ export default function Forecast() {
     // look-ahead above.
     const debtPayments = baseData.map((b, i) => Math.min(b.rawDebtPayment, maxDebtPaymentByMonth[i]));
 
-    // Resolve each goal's live current_amount/monthly_contribution/contribution-start delay the
-    // same way SavingsGoals.tsx's allGoals does (linked_account balance, linked_rule amount) so
-    // this milestone timing matches what the Goals tab actually shows. Reading the raw DB fields
-    // directly (as this used to) goes stale the moment a goal is linked to an account or rule,
-    // and ignored contribution_start_date entirely, firing the milestone as if contributions had
-    // already started.
-    const goalAccountMap = new Map(accounts.map((a: any) => [a.id, a]));
-    const resolvedGoals = goals.map((g: any) => {
-      const linkedRule = g.linked_rule_id ? rules.find((r: any) => r.id === g.linked_rule_id) : null;
-      const linkedAcct = g.linked_account ? goalAccountMap.get(g.linked_account) : null;
-      const contributionStartDate = linkedRule?.start_date ?? g.contribution_start_date ?? null;
-      let delayMonths = 0;
-      if (contributionStartDate) {
-        const start = new Date(contributionStartDate + 'T00:00:00');
-        const j = (start.getFullYear() - nowDate.getFullYear()) * 12 + (start.getMonth() - nowDate.getMonth());
-        delayMonths = Math.max(0, j - 1);
-      }
-      return {
-        ...g,
-        current_amount: linkedAcct ? Number(linkedAcct.balance) : Number(g.current_amount),
-        monthly_contribution: linkedRule ? toMonthly(Number(linkedRule.amount), linkedRule.frequency) : Number(g.monthly_contribution),
-        delayMonths,
-      };
-    });
-
     // ═══ PASS 3: Build final projection data ═══
     let finalLiquid = liquidBal;
     const data: any[] = [];
@@ -1483,12 +1452,9 @@ export default function Forecast() {
         milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
         ccDebtFreeFired = true;
       }
-      resolvedGoals.forEach((g: any) => {
-        const elapsed = Math.max(0, i - g.delayMonths);
-        const prevElapsed = Math.max(0, (i - 1) - g.delayMonths);
-        const projected = Number(g.current_amount) + Number(g.monthly_contribution) * elapsed;
-        const prevProjected = Number(g.current_amount) + Number(g.monthly_contribution) * prevElapsed;
-        if (projected >= Number(g.target_amount) && (i === 0 || prevProjected < Number(g.target_amount))) {
+      goals.forEach((g: any) => {
+        const projected = Number(g.current_amount) + Number(g.monthly_contribution) * i;
+        if (projected >= Number(g.target_amount) && (i === 0 || Number(g.current_amount) + Number(g.monthly_contribution) * (i - 1) < Number(g.target_amount))) {
           milestones.push({ month: b.monthLabel, event: `${g.name} Complete! 🎯` });
         }
       });
