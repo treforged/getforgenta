@@ -743,7 +743,6 @@ export default function Builds() {
                       onItemDropAtEnd={onItemDropAtEnd}
                       paymentPlans={paymentPlans}
                       transactions={transactions}
-                      accounts={accounts ?? []}
                       paymentSourceOptions={paymentSourceOptions}
                       onLinkTransaction={handleLinkTransaction}
                       onCreateTransactionForItem={handleCreateTransactionForItem}

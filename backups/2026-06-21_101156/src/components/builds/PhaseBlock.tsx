@@ -3,7 +3,6 @@ import { ChevronDown, GripVertical, ArrowUp, ArrowDown, Pencil, EyeOff, Eye, Tra
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { filterProfanity, isSafeUrl, LIMITS } from '@/lib/content-filter';
-import { getCardStartDateViolation, type CardStartDateAccount } from '@/lib/card-start-date';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
@@ -84,7 +83,6 @@ interface PhaseBlockProps {
   onItemDropAtEnd: (e: React.DragEvent, phaseId: string) => void;
   paymentPlans: PaymentPlan[];
   transactions: any[];
-  accounts: CardStartDateAccount[];
   paymentSourceOptions: { value: string; label: string }[];
   onLinkTransaction: (itemId: string, prevTxId: string | null, newTxId: string | null) => Promise<void>;
   onCreateTransactionForItem: (itemId: string, prevTxId: string | null, tx: { date: string; amount: number; note: string; payment_source?: string }) => Promise<void>;
@@ -101,7 +99,7 @@ export default function PhaseBlock({
   onItemDragEnterPhase,
   onItemDragStart, onItemDragOver, onItemDragEnd, onItemDrop, onItemDropAtEnd,
   isExpanded, onSetExpanded,
-  paymentPlans, transactions, accounts, paymentSourceOptions,
+  paymentPlans, transactions, paymentSourceOptions,
   onLinkTransaction, onCreateTransactionForItem, onUpdateLinkedTransaction, onCreatePlanForItem,
 }: PhaseBlockProps) {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -209,14 +207,10 @@ export default function PhaseBlock({
             toast.error('Date and amount are required');
             return;
           }
-          const txViolation = getCardStartDateViolation(ed.txDate, ed.txPaymentSource, accounts);
-          if (txViolation) { toast.error(txViolation); return; }
           await onCreateTransactionForItem(item.id, prevTxId, { date: ed.txDate, amount, note: ed.txNote, payment_source: ed.txPaymentSource || undefined });
         } else if (ed.linkedTransactionId) {
           const amount = parseFloat(ed.txAmount);
           if (ed.txDate && !isNaN(amount) && amount > 0) {
-            const linkViolation = getCardStartDateViolation(ed.txDate, ed.txPaymentSource, accounts);
-            if (linkViolation) { toast.error(linkViolation); return; }
             await onUpdateLinkedTransaction(ed.linkedTransactionId, { date: ed.txDate, amount, payment_source: ed.txPaymentSource || undefined });
           }
           if (ed.linkedTransactionId !== prevTxId) {
@@ -234,8 +228,6 @@ export default function PhaseBlock({
             toast.error('Fill in all payment plan fields');
             return;
           }
-          const planViolation = getCardStartDateViolation(ed.newPlanStartDate, ed.newPlanPaymentSource, accounts);
-          if (planViolation) { toast.error(planViolation); return; }
           await onCreatePlanForItem(item.id, {
             name: ed.newPlanName,
             provider: null,
