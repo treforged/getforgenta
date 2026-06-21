@@ -777,6 +777,12 @@ export function getAugmentedMinSafeCash(
         // represents the minimum cash that must remain; the full cycling payment is a planned
         // outflow on top of the floor, not part of it.
         if (!card.dueDay || card.minPayment <= 0) continue;
+        // A card with a future card_start_date has a $0 simulated balance for an unrelated reason
+        // (simulateVariablePayoff hasn't activated it yet, see cardStartMonths) — without this
+        // check it looked identical to a genuinely paid-off cycling card and reserved its minimum
+        // in the floor every month from today, even though the card won't have its first real
+        // payment due until that start month.
+        if (card.startDate && monthsBetween(card.startDate, now.toISOString().split('T')[0]) < 0) continue;
         prePaycheckBillsTotal += card.minPayment;
         floorItems.push({ name: card.name + ' min', amount: card.minPayment, dueDay: card.dueDay });
         // A backlog-carrying cycling card's minimum is ALSO reserved by simulateVariablePayoff's
