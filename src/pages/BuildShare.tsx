@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Check, ExternalLink, ChevronDown, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePublicBuild } from '@/hooks/useSupabaseData';
+import { isSafeUrl } from '@/lib/content-filter';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 
 const PHASE_COLORS = [
@@ -290,7 +291,7 @@ export default function BuildShare() {
                           {item.brand && (
                             <div className="text-[12px] font-mono text-muted-foreground mt-0.5 break-words">{item.brand}</div>
                           )}
-                          {item.link && (
+                          {item.link && isSafeUrl(item.link).safe && (
                             <a
                               href={item.link}
                               target="_blank"
