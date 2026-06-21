@@ -24,7 +24,7 @@
     "@capacitor/ios": "^8.3.4",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
-    "@hookform/resolvers": "^3.10.0",
+    "@hookform/resolvers": "^5.4.0",
     "@launchdarkly/js-client-sdk": "^4.6.5",
     "@launchdarkly/observability": "^1.1.8",
     "@launchdarkly/session-replay": "^1.1.8",
