@@ -8,6 +8,7 @@ import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 
+// eslint-disable-next-line react-refresh/only-export-components -- small shared constant, not worth a separate file
 export const PHASE_COLORS = [
   '#c8a84b', '#ba4a4a', '#4a8cba', '#8a5ba3', '#3a8a5a',
   '#c87a3a', '#8aaa3a', '#5a7ab8', '#c84b8a', '#4bb8c8',

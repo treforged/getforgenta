@@ -35,4 +35,15 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-expressions': ['error', { allowTernary: true, allowShortCircuit: true }],
     },
   },
+  {
+    // Context files universally export a Provider component + paired useX()
+    // hook from the same file - the standard React context convention. This
+    // rule (Vite Fast Refresh granularity, zero production impact) flags that
+    // pattern by design; splitting each context into two files would fight
+    // the convention rather than fix anything real.
+    files: ['src/contexts/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 );

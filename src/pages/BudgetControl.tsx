@@ -53,6 +53,7 @@ export type PaycheckDeduction = {
   goalId?: string;    // linked savings goal (monthly_contribution auto-synced)
 };
 
+// eslint-disable-next-line react-refresh/only-export-components -- small shared constant, not worth a separate file
 export const DEDUCTION_CATALOG: { label: string; mode: 'flat' | 'pct'; preTax: boolean }[] = [
   // Benefits
   { label: 'Medical Insurance',          mode: 'flat', preTax: true  },
