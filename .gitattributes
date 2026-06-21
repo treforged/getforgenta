@@ -1,0 +1,9 @@
+# Historical file snapshots under backups/ are frozen point-in-time copies, not
+# live dependencies or source. Mark them generated/vendored so GitHub's
+# dependency graph skips their package-lock.json/package.json files entirely -
+# otherwise every backup becomes its own permanent Dependabot alert + PR target
+# frozen at whatever vulnerable state existed when that backup was taken
+# (found 2026-06-21: 34 phantom alerts + 8 pointless PRs against backup
+# lockfiles). Files stay tracked - this only affects dependency-graph scanning.
+backups/** linguist-generated=true
+backups/** linguist-vendored=true
