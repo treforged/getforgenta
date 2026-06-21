@@ -60,6 +60,11 @@ const PREMIUM_STEPS: TourStep[] = [
     body: 'Connect your bank via Plaid in Accounts. Balances update automatically — no more manual entry.',
   },
   {
+    emoji: '🚗',
+    title: 'Car Fund Tracker',
+    body: 'Plan a vehicle purchase with full affordability math — down payment, APR, monthly payment, and insurance.',
+  },
+  {
     emoji: '📄',
     title: 'PDF export',
     body: 'Download your 60-month forecast as a print-ready PDF. Put it on the wall. Watch it happen.',

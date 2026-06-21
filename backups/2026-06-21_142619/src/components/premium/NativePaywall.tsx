@@ -16,6 +16,7 @@ const FEATURE_LIST = [
   'Advanced dashboard',
   'Export to CSV/PDF',
   'Unlimited savings goals & debts',
+  'Car Fund Tracker',
   'Custom rule categories',
   'AI Advisor',
   'Priority support',
