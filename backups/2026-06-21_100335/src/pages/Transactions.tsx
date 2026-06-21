@@ -279,22 +279,22 @@ export default function Transactions() {
     });
   }, [allTransactions, filterMonth, filterType, filterCategory, filterSource]);
 
-  // Build month options as a fixed current-month-forward window (matches the projection
-  // horizon used everywhere else in the app), not from distinct months actually present in
-  // allTransactions. Deriving it from transaction dates let a long history of past months
-  // fill the cap before the walk ever reached the current/future months, hiding them from
-  // the dropdown entirely. Past months remain fully visible via "All Time" — they just don't
-  // get their own dropdown entry.
+  // Build month options from distinct months in allTransactions (up to the full projection
+  // window), plus an "All Time" option. Car loan rows alone can span PROJECTION_MONTHS, so
+  // capping this lower than that window hides months the rest of the app already projects.
   const monthOptions = useMemo(() => {
-    const start = new Date();
-    start.setDate(1);
-    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
-      const d = new Date(start.getFullYear(), start.getMonth() + i, 1);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
-      return { value, label };
+    const seen = new Set<string>();
+    for (const t of allTransactions) {
+      const m = t.date.slice(0, 7);
+      seen.add(m);
+      if (seen.size >= PROJECTION_MONTHS) break;
+    }
+    return [...seen].sort((a, b) => b.localeCompare(a)).map(m => {
+      const [y, mo] = m.split('-');
+      const label = new Date(Number(y), Number(mo) - 1, 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+      return { value: m, label };
     });
-  }, []);
+  }, [allTransactions]);
 
   const totals = useMemo(() => {
     const income = filtered.filter(t => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s, t) => s + Number(t.amount), 0);
@@ -736,8 +736,8 @@ export default function Transactions() {
 
       <div className="flex flex-wrap items-center gap-2">
         <select value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]" style={{ borderRadius: 'var(--radius)' }}>
-          <option value="all">All Time</option>
           {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          <option value="all">All Time</option>
         </select>
         {(['all', 'income', 'expense'] as const).map(t => (
           <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
