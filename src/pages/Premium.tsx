@@ -23,8 +23,6 @@ type Phase = 'pricing' | 'loading' | 'checkout';
 const isNative = Capacitor.isNativePlatform();
 
 export default function Premium() {
-  if (isNative) return <NativePaywall />;
-
   const { isPremium, hasStripeCustomer, isLoading } = useSubscription();
   const [portalLoading, setPortalLoading] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'yearly'>('yearly');
@@ -50,6 +48,8 @@ export default function Premium() {
     if (error) throw error;
     return data?.client_secret ?? null;
   }, []);
+
+  if (isNative) return <NativePaywall />;
 
   const handleStartCheckout = async () => {
     setPhase('loading');

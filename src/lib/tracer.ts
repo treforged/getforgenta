@@ -39,7 +39,7 @@ function randomHex(bytes: number): string {
 }
 
 const PII_PATTERNS: [RegExp, string][] = [
-  [/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g, "[EMAIL]"],
+  [/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, "[EMAIL]"],
   [/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*/g, "[JWT]"],
   [/sk_(live|test)_[A-Za-z0-9]+/g, "[STRIPE_KEY]"],
 ];
