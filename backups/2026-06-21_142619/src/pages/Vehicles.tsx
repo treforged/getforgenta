@@ -10,8 +10,10 @@ import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/
 import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
 import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
+import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
-import { Plus, Edit2, Trash2, Car, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, Car, Crown, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X, Check } from 'lucide-react';
+import PremiumGate from '@/components/shared/PremiumGate';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -759,6 +761,7 @@ export default function Vehicles() {
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
   const { data: profile } = useProfile();
+  const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
 
   const [activeTab, setActiveTab] = useState<'saving' | 'loan'>('saving');
@@ -1072,15 +1075,23 @@ export default function Vehicles() {
           <p className="text-xs text-muted-foreground mt-0.5">Track every vehicle from saving to payoff</p>
         </div>
         <div className="flex gap-2 shrink-0">
-          {activeTab === 'saving' && (
-            <button onClick={openAddSaving} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
-              <Plus size={12} /> Add Vehicle Goal
-            </button>
-          )}
-          {activeTab === 'loan' && (
-            <button onClick={openAddLoan} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
-              <Plus size={12} /> Add Loan
-            </button>
+          {(isPremium || isDemo || carFunds.length < 3) ? (
+            <>
+              {activeTab === 'saving' && (
+                <button onClick={openAddSaving} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+                  <Plus size={12} /> Add Vehicle Goal
+                </button>
+              )}
+              {activeTab === 'loan' && (
+                <button onClick={openAddLoan} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+                  <Plus size={12} /> Add Loan
+                </button>
+              )}
+            </>
+          ) : (
+            <Link to="/premium" className="flex items-center gap-1.5 bg-primary/20 text-primary px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
+              <Crown size={12} /> Upgrade
+            </Link>
           )}
         </div>
       </div>
@@ -1099,6 +1110,17 @@ export default function Vehicles() {
           </div>
         </div>
       )}
+
+      <PremiumGate
+        isPremium={isPremium || isDemo}
+        title="Vehicle Tracker — Premium Feature"
+        features={[
+          'Track down payment savings with auto account balance sync',
+          'Full loan amortization from purchase to payoff',
+          'Set a planned purchase date and see it wired into the 60-month Forecast',
+          'Gift/contribution tracking reduces your personal savings target',
+        ]}
+      >
 
       {loanVehicles.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1209,6 +1231,8 @@ export default function Vehicles() {
           )}
         </div>
       )}
+
+      </PremiumGate>
 
       {buyItFor && (
         <BuyItDialog cf={buyItFor} accountOptions={accountOptions} onConfirm={handleBuyIt} onClose={() => setBuyItFor(null)} />

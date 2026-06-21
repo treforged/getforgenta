@@ -11,6 +11,7 @@ const PREMIUM_FEATURES = [
   'Advanced dashboard & analytics',
   'Export to CSV / PDF',
   'Unlimited savings goals & debt trackers',
+  'Car Fund Tracker',
   'Custom rule categories',
   'AI Advisor',
   'Plaid bank account syncing',
