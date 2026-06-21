@@ -21,6 +21,7 @@ import {
 import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown, ChevronRight } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
+import { buildForecastMonthDetail, getAbsoluteMonthIndex } from '@/lib/forecast-export';
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
@@ -1671,6 +1672,16 @@ export default function Forecast() {
     return projections.data.slice(start, end);
   }, [projections.data, filterYear]);
 
+  // Detailed per-month money-flow + account-balance breakdown for the PDF/CSV exports, mirroring
+  // the Month Breakdown drawer below exactly (same source fields/formulas — see forecast-export.ts).
+  const exportDetails = useMemo(() => {
+    const calendarYearStart = filterYear === 'all' ? 0 : getCalendarYearMonthRange(parseInt(filterYear, 10))[0];
+    return filteredData.map((r: any, i: number) => {
+      const absoluteI = getAbsoluteMonthIndex(i, filterYear, calendarYearStart);
+      return buildForecastMonthDetail(r, absoluteI, cardProjectionData);
+    });
+  }, [filteredData, filterYear, cardProjectionData]);
+
   const detailedEvents = useMemo(() => {
     if (filterYear === 'all') return scheduledEvents.slice(0, 100);
     const yr = parseInt(filterYear);
@@ -1820,7 +1831,7 @@ export default function Forecast() {
                     netWorth: r.netWorth ?? 0,
                     debtBalance: r.debtBalance ?? 0,
                     savingsBalance: r.savingsBalance ?? 0,
-                  } as ForecastRow)), label);
+                  } as ForecastRow)), label, exportDetails);
                 }}
                 className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press"
                 style={{ borderRadius: 'var(--radius)' }}
@@ -1839,7 +1850,7 @@ export default function Forecast() {
                     netWorth: r.netWorth ?? 0,
                     debtBalance: r.debtBalance ?? 0,
                     savingsBalance: r.savingsBalance ?? 0,
-                  })));
+                  })), exportDetails);
                 }}
                 className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press"
                 style={{ borderRadius: 'var(--radius)' }}
