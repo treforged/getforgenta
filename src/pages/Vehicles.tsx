@@ -312,7 +312,10 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
   const displayMonthly = monthly > 0 ? monthly : (computedMonthlyNeeded ?? 0);
   const completionLabel = estimateSavingCompletion(personalGoal, cf.current_saved, displayMonthly, cf.planned_purchase_date);
 
-  const lumpSums: LumpSumPayment[] = Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [];
+  const lumpSums: LumpSumPayment[] = useMemo(
+    () => Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [],
+    [cf.lump_sum_payments]
+  );
 
   // Project the future loan so lump sums can be planned against it
   const projectedBase = useMemo(() => {
@@ -461,7 +464,10 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
 
 function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, onSaveLumpSums, liquidCash }:
   { cf: CarFund; onEdit: () => void; onDelete: () => void; onUndo: () => void; deleteConfirm: boolean; undoConfirm: boolean; onSaveLumpSums: (lumps: LumpSumPayment[]) => void; liquidCash?: number }) {
-  const lumpSums: LumpSumPayment[] = Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [];
+  const lumpSums: LumpSumPayment[] = useMemo(
+    () => Array.isArray(cf.lump_sum_payments) ? cf.lump_sum_payments : [],
+    [cf.lump_sum_payments]
+  );
 
   const baseInput = useMemo(() => {
     if (!cf.payment_start_date || !cf.loan_start_date) return null;

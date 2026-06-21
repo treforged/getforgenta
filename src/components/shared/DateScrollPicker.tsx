@@ -11,10 +11,13 @@ function ScrollColumn({ items, selected, onSelect }: {
   const isInternal = useRef(false);
   const wheelLocked = useRef(false);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
     const idx = items.findIndex(i => i.value === selected);
     if (idx >= 0 && ref.current) ref.current.scrollTop = idx * ITEM_H;
+    // Intentionally mount-only: positions instantly with no animation on first
+    // render. The useEffect below handles animated scrolling on later changes -
+    // including items/selected here would double-fire both on every change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -131,11 +134,14 @@ export default function DateScrollPicker({ value, onChange }: { value: string; o
     if (dy !== safeDay) setDy(safeDay);
   }, [dy, safeDay]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const mm = String(mo).padStart(2, '0');
     const dd = String(safeDay).padStart(2, '0');
     onChange(`${yr}-${mm}-${dd}`);
+    // Intentionally excludes onChange: the parent typically passes a fresh
+    // inline callback every render, and this should only fire when the actual
+    // date value changes, not on every parent re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yr, mo, safeDay]);
 
   const MONTHS = useMemo(() => [

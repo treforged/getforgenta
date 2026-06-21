@@ -79,6 +79,10 @@ export default function PremiumSuccess() {
     run();
 
     return () => { cancelled = true; };
+    // Intentionally mount-only: this verifies/polls a single Stripe checkout
+    // redirect exactly once per page load. Re-running on sessionId/refetch
+    // reference changes would restart the verification poll unexpectedly.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (polling) {

@@ -155,7 +155,7 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
       setLoading(false);
       toast.error(err instanceof Error ? err.message : 'Failed to open bank link');
     }
-  }, [onSuccess, relinkItemId]);
+  }, [onSuccess, onProcessing, relinkItemId]);
 
   const defaultLabel = relinkItemId ? 'Re-link Account' : 'Link Bank Account';
 

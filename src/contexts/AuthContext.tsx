@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
     setIsDemo(false);
-  }, []);
+  }, [setIsDemo]);
 
   const resetReviewerAccount = useCallback(async (userId: string) => {
     await supabase
@@ -255,7 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
-  }, [navigate]);
+  }, [navigate, resetReviewerAccount, setIsDemo]);
 
   // ── Cross-tab sign-out via BroadcastChannel ──────────────────────────────
   useEffect(() => {
@@ -285,7 +285,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     broadcastSignOut();
     await supabase.auth.signOut();
     setIsDemo(false);
-  }, [broadcastSignOut, user, resetReviewerAccount]);
+  }, [broadcastSignOut, user, resetReviewerAccount, setIsDemo]);
 
   // ── Idle session timeout ─────────────────────────────────────────────────
   // Last activity is stored in localStorage so it survives tab close/reopen.

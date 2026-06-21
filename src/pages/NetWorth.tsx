@@ -36,6 +36,9 @@ const COLORS = [
   'hsl(0, 65%, 52%)',
 ];
 
+const RETIRE_TYPES = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
+const DEFAULT_APY = 7;
+
 function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null;
   return (
@@ -106,27 +109,23 @@ export default function NetWorth() {
   }, [accounts]);
 
   // Combine live + manual, avoiding duplicates by name
-  const liveAssetNames = new Set(liveAssets.map(a => a.name.toLowerCase()));
-  const liveLiabilityNames = new Set(liveLiabilities.map(l => l.name.toLowerCase()));
-
   const allAssets = useMemo(() => {
+    const liveAssetNames = new Set(liveAssets.map(a => a.name.toLowerCase()));
     const manual = manualAssets.filter(a => !liveAssetNames.has(a.name.toLowerCase())).map(a => ({ ...a, isLive: false }));
     return [...liveAssets, ...manual];
-  }, [liveAssets, manualAssets, liveAssetNames]);
+  }, [liveAssets, manualAssets]);
 
   const allLiabilities = useMemo(() => {
+    const liveLiabilityNames = new Set(liveLiabilities.map(l => l.name.toLowerCase()));
     const manual = manualLiabilities.filter(l => !liveLiabilityNames.has(l.name.toLowerCase())).map(l => ({ ...l, isLive: false }));
     return [...liveLiabilities, ...manual];
-  }, [liveLiabilities, manualLiabilities, liveLiabilityNames]);
+  }, [liveLiabilities, manualLiabilities]);
 
   const totalAssets = allAssets.reduce((s, a) => s + Number(a.value), 0);
   const totalLiabilities = allLiabilities.reduce((s, l) => s + Number(l.balance), 0);
   const netWorth = totalAssets - totalLiabilities;
 
   // ── Retirement growth projections (all users) ───────────────────────────────
-  const RETIRE_TYPES = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
-  const DEFAULT_APY = 7;
-
   const retirementProjections = useMemo(() => {
     const prof = profile as any;
     const retireAccounts = accounts.filter((a: any) => a.active && RETIRE_TYPES.includes(a.account_type));
