@@ -2302,7 +2302,6 @@ export default function Forecast() {
                         .map(({ scaledAmt, ...c }) => c);
                       return lines.length > 0 ? lines : fallback;
                     })()),
-                    { label: '  Adjusted to keep cash safely above your floor through upcoming bills. May be lower than the Debt Payoff tab\'s recommendation for the same month.', value: '' },
                     ...((row.savingsGoalItems?.length > 0)
                       ? (row.savingsGoalItems as { name: string; amount: number }[]).map(g => ({ label: `  ${g.name}`, value: formatCurrency(g.amount, false), op: '−' as const }))
                       : (row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' as const }] : []
