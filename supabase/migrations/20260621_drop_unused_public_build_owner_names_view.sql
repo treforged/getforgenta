@@ -1,0 +1,15 @@
+-- The 2026-06-15 fix_public_rls migration created public_build_owner_names
+-- as a security-barrier view to replace direct PostgREST access for the
+-- shared-build display name. The public-build Edge Function (added the same
+-- day) made this view unnecessary by querying profiles directly via the
+-- service role, so the view was never read by application code again.
+--
+-- It was, however, still exploitable: Supabase's default public-schema
+-- grants gave anon/authenticated INSERT/UPDATE/DELETE on the view, and as a
+-- simple single-table view it was auto-updatable (is_updatable = YES). Since
+-- the view runs with its owner's privileges, DML through it bypassed
+-- profiles RLS entirely -- any unauthenticated caller could rewrite or
+-- delete the profiles row of any user who had ever enabled build sharing.
+--
+-- Dropping it entirely since nothing reads it.
+drop view if exists public.public_build_owner_names;
