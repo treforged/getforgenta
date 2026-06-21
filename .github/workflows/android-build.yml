@@ -100,14 +100,14 @@ jobs:
             -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
 
       - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: forged-release.aab
           path: android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 14
 
       - name: Upload mapping (deobfuscation) file
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: forged-release-mapping.txt
           path: android/app/build/outputs/mapping/release/mapping.txt
