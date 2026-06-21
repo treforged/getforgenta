@@ -32,6 +32,9 @@ const toMonthly = (amount: number, freq: string) =>
   : freq === 'yearly' ? amount / 12
   : amount;
 
+const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
+const DEFAULT_APY_FORECAST = 7;
+
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
   if (!open) return null;
   return (
@@ -1585,7 +1588,7 @@ export default function Forecast() {
     }
 
     return { data, milestones };
-  }, [debts, goals, carFunds, accounts, subs, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth]);
+  }, [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
@@ -1613,8 +1616,6 @@ export default function Forecast() {
     if (!payConfig) return [];
     const nowDate = new Date();
     let multiplier = 1;
-    const _profTr2 = (profile as any)?.tax_rate;
-    const txRate = _profTr2 != null ? Number(_profTr2) : 22;
     const results: { year: number; monthlyTakeHome: number; bonus: number; taxReturn: number; raiseApplied: boolean }[] = [];
 
     for (let i = 1; i <= PROJECTION_MONTHS; i++) {
@@ -1701,9 +1702,6 @@ export default function Forecast() {
 
   // Helper to check visibility — a series is visible if NOT in hiddenSeries
   const isVisible = (key: string) => !hiddenSeries.includes(key);
-
-  const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
-  const DEFAULT_APY_FORECAST = 7;
 
   const retirementProjections = useMemo(() => {
     const prof = profile as any;
