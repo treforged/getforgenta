@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           # Default shallow (depth 1) checkout wouldn't contain github.event.before, so the
           # release-notes step below could never resolve "commits in this push" and would always
