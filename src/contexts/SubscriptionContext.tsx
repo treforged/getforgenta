@@ -60,6 +60,8 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       if (error) throw error;
       return (data as unknown) as UserSubscription | null;
     },
+    refetchInterval: 24 * 60 * 60 * 1000,
+    refetchIntervalInBackground: true,
   });
 
   const resolvedIsPremium =
