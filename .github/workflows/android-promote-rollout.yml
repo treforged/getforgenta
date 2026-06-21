@@ -1,0 +1,97 @@
+name: Promote Android Staged Rollout
+
+# The upload action only creates/uploads releases - it has no "bump an existing release's
+# rollout %" mode. Google Play's staged rollout has no native auto-advance-after-N-hours
+# setting either, so this does it: every 6 hours, check how long the current production
+# release has been sitting at its initial 10% (using the last successful android-build.yml
+# run's completion time as the soak-start clock - a new push always creates a fresh release at
+# 10%, which correctly resets this timer), and promote to 100% once 24 hours have passed.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+env:
+  PACKAGE_NAME: com.treforged.forged
+  SOAK_HOURS: 24
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+
+    steps:
+      - name: Find latest successful Android Build run on main
+        id: lastrun
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_JSON=$(gh api "repos/${{ github.repository }}/actions/workflows/android-build.yml/runs?branch=main&status=success&per_page=1")
+          COMPLETED_AT=$(echo "$RUN_JSON" | jq -r '.workflow_runs[0].updated_at // empty')
+          if [ -z "$COMPLETED_AT" ]; then
+            echo "No successful android-build.yml run found yet."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "completed_at=$COMPLETED_AT" >> "$GITHUB_OUTPUT"
+
+      - name: Check soak time elapsed
+        id: elapsed
+        if: steps.lastrun.outputs.found == 'true'
+        run: |
+          COMPLETED_EPOCH=$(date -d "${{ steps.lastrun.outputs.completed_at }}" +%s)
+          NOW_EPOCH=$(date -u +%s)
+          ELAPSED_HOURS=$(( (NOW_EPOCH - COMPLETED_EPOCH) / 3600 ))
+          echo "Last successful build completed ${ELAPSED_HOURS}h ago (${{ steps.lastrun.outputs.completed_at }})."
+          if [ "$ELAPSED_HOURS" -ge "$SOAK_HOURS" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Not ready yet - needs ${SOAK_HOURS}h soak, only ${ELAPSED_HOURS}h elapsed."
+          fi
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        id: auth
+        if: steps.lastrun.outputs.found == 'true' && steps.elapsed.outputs.ready == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/androidpublisher
+
+      - name: Promote production track to 100% if still ramping
+        if: steps.lastrun.outputs.found == 'true' && steps.elapsed.outputs.ready == 'true'
+        run: |
+          BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}"
+          AUTH=(-H "Authorization: Bearer ${{ steps.auth.outputs.access_token }}")
+
+          EDIT_ID=$(curl -sf -X POST "${AUTH[@]}" "$BASE/edits" | jq -r '.id')
+          if [ -z "$EDIT_ID" ] || [ "$EDIT_ID" = "null" ]; then
+            echo "Failed to create a Play Console edit." >&2
+            exit 1
+          fi
+
+          TRACK_JSON=$(curl -sf "${AUTH[@]}" "$BASE/edits/$EDIT_ID/tracks/production")
+          STATUS=$(echo "$TRACK_JSON" | jq -r '.releases[0].status // empty')
+          FRACTION=$(echo "$TRACK_JSON" | jq -r '.releases[0].userFraction // "n/a"')
+          echo "Current production release: status=$STATUS userFraction=$FRACTION"
+
+          if [ "$STATUS" != "inProgress" ]; then
+            echo "Nothing to promote (status=$STATUS, not a staged rollout in progress)."
+            curl -sf -X DELETE "${AUTH[@]}" "$BASE/edits/$EDIT_ID" > /dev/null
+            exit 0
+          fi
+
+          PAYLOAD=$(echo "$TRACK_JSON" | jq '.releases[0].status = "completed" | del(.releases[0].userFraction)')
+          curl -sf -X PUT "${AUTH[@]}" -H "Content-Type: application/json" -d "$PAYLOAD" \
+            "$BASE/edits/$EDIT_ID/tracks/production" > /dev/null
+          curl -sf -X POST "${AUTH[@]}" "$BASE/edits/$EDIT_ID:commit" > /dev/null
+
+          echo "Promoted production release from ${FRACTION} to 100% and committed."

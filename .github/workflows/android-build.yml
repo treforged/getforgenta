@@ -24,6 +24,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Default shallow (depth 1) checkout wouldn't contain github.event.before, so the
+          # release-notes step below could never resolve "commits in this push" and would always
+          # fall back to "last 6 commits by HEAD" instead. 50 comfortably covers any normal push.
+          fetch-depth: 50
 
       - name: Authenticate to Google Cloud (Workload Identity Federation)
         id: auth
@@ -108,12 +113,36 @@ jobs:
           path: android/app/build/outputs/mapping/release/mapping.txt
           retention-days: 14
 
-      - name: Deploy to Google Play (Internal track)
+      - name: Generate release notes from this push's commits
+        run: |
+          mkdir -p whatsnew
+          if git cat-file -e "${{ github.event.before }}" 2>/dev/null; then
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          else
+            RANGE="-6"
+          fi
+          NOTES=$(git log $RANGE --format="%s" 2>/dev/null \
+            | grep -viE '^chore:' \
+            | sed -E 's/^\[[a-zA-Z0-9_-]+\]:[[:space:]]*//' \
+            | sed -E 's/^(.)/\U\1/' \
+            | sed 's/^/- /' \
+            | head -n 6)
+          if [ -z "$NOTES" ]; then
+            NOTES="Small optimizations compound over time, same principle your budget runs on. This release clears a few debts in our codebase: performance improvements, stability fixes, and a smoother experience under the hood."
+          fi
+          # Google Play's per-locale release-notes limit is 500 chars - stay under it with margin.
+          printf '%s\n' "$NOTES" | head -c 480 > whatsnew/whatsnew-en-US
+          echo "--- Generated whatsnew-en-US ---"
+          cat whatsnew/whatsnew-en-US
+
+      - name: Deploy to Google Play (Production, staged 10%)
         uses: r0adkll/upload-google-play@v1
         with:
           packageName: com.treforged.forged
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
-          tracks: internal
-          status: completed
+          tracks: production
+          status: inProgress
+          userFraction: 0.10
           mappingFile: android/app/build/outputs/mapping/release/mapping.txt
+          whatsNewDirectory: whatsnew
           serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
