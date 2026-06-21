@@ -48,11 +48,6 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
 
       {hasRecs && (
         <>
-          <p className="text-[10px] text-muted-foreground mb-3">
-            A recommended payment based on your current cash flow. Not adjusted for bills further
-            out than this month.
-          </p>
-
           {cashWarning && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-4 text-[10px] text-destructive" style={{ borderRadius: 'var(--radius)' }}>
               <AlertTriangle size={13} className="shrink-0 mt-0.5" />
