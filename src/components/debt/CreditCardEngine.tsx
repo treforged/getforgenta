@@ -11,7 +11,7 @@ import {
   mergeWithGeneratedTransactions, generateMonthTransactionsFromRules,
   type TransactionLineItem,
 } from '@/lib/pay-schedule';
-import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
+import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { type Month0Result } from '@/hooks/useCardProjection';
 import { type PaymentPlan, getPaymentDates } from '@/lib/payment-plan-generator';
@@ -1590,8 +1590,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     </div>
                     {(() => {
                       const yearIdx = parseInt(accordionYear, 10);
-                      const yearStart = (yearIdx - 1) * 12;
-                      const yearMonths = proj.months.slice(yearStart, yearStart + 12);
+                      const [yearStart, yearEnd] = getCalendarYearMonthRange(yearIdx);
+                      const yearMonths = proj.months.slice(yearStart, yearEnd);
                       // Free tier keeps the same 3-free-months value prop, only ever in Year 1 —
                       // years 2-5 (and the rest of Year 1) stay behind the paywall.
                       const freeCount = (isPremium || isDemo) ? yearMonths.length : (yearIdx === 1 ? Math.min(3, yearMonths.length) : 0);
@@ -1609,14 +1609,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                 className={`px-2.5 py-1 text-[10px] font-medium border btn-press whitespace-nowrap ${accordionYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
                                 style={{ borderRadius: 'var(--radius)' }}
                               >
-                                Year {yr}
+                                {getCalendarYearLabel(parseInt(yr, 10))}
                               </button>
                             ))}
                           </div>
                           {yearMonths.length === 0 ? (
                             <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
                               <CheckCircle2 size={14} className="shrink-0" />
-                              <span>{proj.card.name} is projected to be paid off before Year {yearIdx} — nothing to show here.</span>
+                              <span>{proj.card.name} is projected to be paid off before {getCalendarYearLabel(yearIdx)} — nothing to show here.</span>
                             </div>
                           ) : (
                             <>
@@ -1692,7 +1692,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                               isPremium={false}
                               title="See the full payoff timeline"
                               features={[
-                                `${gatedMonths.length} more month${gatedMonths.length === 1 ? '' : 's'} remaining in Year ${yearIdx} for ${proj.card.name}`,
+                                `${gatedMonths.length} more month${gatedMonths.length === 1 ? '' : 's'} remaining in ${getCalendarYearLabel(yearIdx)} for ${proj.card.name}`,
                                 'Page through all 5 years of projections, not just this one',
                                 `Save ${formatCurrency(proj.totalInterest, false)} in total interest`,
                                 'Override any month\'s payment and watch balances update live',

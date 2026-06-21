@@ -7,7 +7,7 @@ import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions, usePaymentPlans } from '@/hooks/useSupabaseData';
-import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
+import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
@@ -1633,15 +1633,17 @@ export default function Forecast() {
   const filteredData = useMemo(() => {
     if (filterYear === 'all') return projections.data;
     const yr = parseInt(filterYear);
-    return projections.data.slice((yr - 1) * 12, yr * 12);
+    const [start, end] = getCalendarYearMonthRange(yr);
+    return projections.data.slice(start, end);
   }, [projections.data, filterYear]);
 
   const detailedEvents = useMemo(() => {
     if (filterYear === 'all') return scheduledEvents.slice(0, 100);
     const yr = parseInt(filterYear);
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth() + (yr - 1) * 12, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + yr * 12, 0);
+    const [startIdx, endIdx] = getCalendarYearMonthRange(yr, now);
+    const start = new Date(now.getFullYear(), now.getMonth() + startIdx, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + endIdx, 0);
     const startStr = start.toISOString().split('T')[0];
     const endStr = end.toISOString().split('T')[0];
     return scheduledEvents.filter(e => e.date >= startStr && e.date <= endStr).slice(0, 100);
@@ -1773,7 +1775,7 @@ export default function Forecast() {
             <>
               <button
                 onClick={async () => {
-                  const label = filterYear === 'all' ? 'All 60 Months' : `Year ${filterYear}`;
+                  const label = filterYear === 'all' ? 'All 60 Months' : String(getCalendarYearLabel(parseInt(filterYear, 10)));
                   await exportForecastPdf(filteredData.map((r: any) => ({
                     month: r.month,
                     takeHome: r.takeHome ?? 0,
@@ -2119,7 +2121,7 @@ export default function Forecast() {
         <div className="flex gap-1.5 sm:gap-2 overflow-x-auto w-full pb-1">
           {(['all', '1', '2', '3', '4', '5'] as const).map(yr => (
             <button key={yr} onClick={() => setFilterYear(yr)} className={`px-3 sm:px-4 py-1 sm:py-1.5 text-xs font-medium border btn-press whitespace-nowrap ${filterYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
-              {yr === 'all' ? 'All 60 Months' : `Year ${yr}`}
+              {yr === 'all' ? 'All 60 Months' : getCalendarYearLabel(parseInt(yr, 10))}
             </button>
           ))}
         </div>
@@ -2248,7 +2250,7 @@ export default function Forecast() {
                 const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
                 // Use actual paycheck count for this month — dividing by normalized 52/12 gives wrong
                 // per-check (e.g. 4-Friday month ÷ 4.33 shows raise as lower than pre-raise amount).
-                const absoluteI = filterYear === 'all' ? i : (parseInt(filterYear, 10) - 1) * 12 + i;
+                const absoluteI = filterYear === 'all' ? i : getCalendarYearMonthRange(parseInt(filterYear, 10))[0] + i;
                 const _rowDate = new Date(new Date().getFullYear(), new Date().getMonth() + absoluteI, 1);
                 const paycheckCount = getPaychecksInMonth(payConfig, _rowDate.getFullYear(), _rowDate.getMonth()).length;
                 const perPaycheck = paycheckCount > 0
