@@ -152,7 +152,7 @@ export default function PhaseBlock({
         linkedTransactionId: linkedTx?.id ?? '',
         txDate: linkedTx?.date ?? today,
         txAmount: linkedTx ? String(linkedTx.amount) : (item.price !== null ? String(item.price) : ''),
-        txNote: linkedTx?.note ?? '',
+        txNote: linkedTx?.note ?? item.name,
         txPaymentSource: linkedTx?.payment_source ?? '',
         isNewTransaction: false,
         linkedPlanId: item.payment_plan_id ?? '',

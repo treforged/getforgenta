@@ -9,6 +9,7 @@ function ScrollColumn({ items, selected, onSelect }: {
   const ref = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isInternal = useRef(false);
+  const wheelLocked = useRef(false);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
@@ -34,6 +35,43 @@ function ScrollColumn({ items, selected, onSelect }: {
       }
     }, 100);
   };
+
+  // Native wheel scroll moves by the browser's own line/pixel delta (often 100+ px, i.e.
+  // 3-4 rows at once for a single notch). Intercept it so one wheel tick = one row. React
+  // attaches onWheel as a passive listener, so preventDefault() there is a silent no-op
+  // (logs "Unable to preventDefault inside passive event listener invocation") — the native
+  // scroll wins anyway. Has to be a real listener attached with passive: false.
+  const itemsRef = useRef(items);
+  const selectedRef = useRef(selected);
+  const onSelectRef = useRef(onSelect);
+  itemsRef.current = items;
+  selectedRef.current = selected;
+  onSelectRef.current = onSelect;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (wheelLocked.current) return;
+      wheelLocked.current = true;
+      setTimeout(() => { wheelLocked.current = false; }, 120);
+
+      const currentItems = itemsRef.current;
+      const currentSelected = selectedRef.current;
+      const idx = currentItems.findIndex(i => i.value === currentSelected);
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const nextIdx = Math.max(0, Math.min(idx + dir, currentItems.length - 1));
+      const item = currentItems[nextIdx];
+      if (item && item.value !== currentSelected) {
+        isInternal.current = true;
+        onSelectRef.current(item.value);
+        el.scrollTo({ top: nextIdx * ITEM_H, behavior: 'smooth' });
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
 
   return (
     <div className="relative flex-1">
