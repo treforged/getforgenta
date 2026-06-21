@@ -267,7 +267,7 @@ export default function Dashboard() {
     ) {
       setWizardVisible(true);
     }
-  }, [isDemo, profileLoading, debtsLoading, goalsLoading, acctLoading, profile, accounts, debts, goals]);
+  }, [isDemo, profileLoading, debtsLoading, goalsLoading, acctLoading, profile, accounts, debts, goals, isReviewer]);
 
   const handleFounderNoteDismiss = () => {
     sessionStorage.setItem(FOUNDER_NOTE_KEY, '1');
@@ -412,7 +412,7 @@ export default function Dashboard() {
     const mortgagePayment = cardProjection?.month0?.mortgagePayment ?? 0;
     if (mortgagePayment > 0) items.push({ label: 'Mortgage Payment', value: mortgagePayment });
     return items;
-  }, [pauseSavings, goals, carFunds, accounts, rules, accountMap, cardProjection]);
+  }, [pauseSavings, goals, carFunds, accounts, rules, accountMap, cardProjection, fundingAccountId]);
 
   const debtCards = useMemo(
     () => buildCardData(accounts, baseTxns, rules, debts),

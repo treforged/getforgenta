@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
@@ -373,11 +373,11 @@ export default function SavingsGoals() {
     return map;
   }, [accounts]);
 
-  const getLinkedAmount = (accountId: string) => {
+  const getLinkedAmount = useCallback((accountId: string) => {
     const acct = accountMap[accountId];
     if (!acct) return 0;
     return getAccountRemainingCashThisMonth(accountId, acct.account_type, allTxns, Number(acct.balance), cashFloor);
-  };
+  }, [accountMap, allTxns, cashFloor]);
 
   const allGoals = useMemo(() => {
     return goals.map(g => {
@@ -406,7 +406,7 @@ export default function SavingsGoals() {
         effective_apy,
       };
     });
-  }, [goals, accountMap, rules, cashFloor]);
+  }, [goals, accountMap, rules, getLinkedAmount]);
 
   const totalSaved = allGoals.reduce((s, g) => s + Number(g.current_amount), 0);
   const totalTarget = allGoals.reduce((s, g) => s + Number(g.target_amount), 0);
@@ -499,6 +499,8 @@ export default function SavingsGoals() {
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }
 
+  const formLinkedRuleId = (form as any).linked_rule_id;
+
   const formFields = useMemo(() => {
     const fields: any[] = [
       { key: 'name', label: 'Goal Name', type: 'text', placeholder: 'e.g., Emergency Fund' },
@@ -510,13 +512,13 @@ export default function SavingsGoals() {
     if (!form.linked_account) {
       fields.push({ key: 'current_amount', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' });
     }
-    if (!(form as any).linked_rule_id) {
+    if (!formLinkedRuleId) {
       fields.push({ key: 'monthly_contribution', label: 'Monthly Contribution', type: 'number', placeholder: '500', step: '0.01' });
       fields.push({ key: 'contribution_start_date', label: 'Contributions Start (optional)', type: 'date' });
     }
     fields.push({ key: 'target_date', label: 'Target Date', type: 'date' });
     return fields;
-  }, [form.goal_type, form.linked_account, (form as any).linked_rule_id, accountOptions, transferRuleOptions]);
+  }, [form.linked_account, formLinkedRuleId, accountOptions, transferRuleOptions]);
 
   if (accountsLoading) return <PageSkeleton />;
 

@@ -198,7 +198,7 @@ export default function Transactions() {
       });
     }
     return results;
-  }, [accounts, baseTxns, rules, debts, profile, fundingAccountId]);
+  }, [accounts, baseTxns, rules, debts, profile, fundingAccountId, paymentPlans]);
 
   // Map reconciliation records to transaction-like shape for rendering
   const reconciliationTxns = useMemo(() => {
