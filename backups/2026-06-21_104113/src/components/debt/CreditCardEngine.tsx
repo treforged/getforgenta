@@ -75,10 +75,6 @@ type Props = {
   monthlyInterest?: Map<string, number[]> | null;
   /** Payment plans with CC payment_source — charges are injected into per-month CC purchases so the accordion reflects installment spending. */
   paymentPlans?: PaymentPlan[];
-  /** From CardProjectionContext via the parent page — passed as a prop (not read via its own
-   * usePersistedState here) so toggling the switch on DebtPayoff.tsx updates this component's own
-   * calculations immediately, instead of only after the Cards tab unmounts/remounts. */
-  pauseSavings: boolean;
 };
 
 const STRATEGY_TIPS = {
@@ -91,11 +87,12 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, pauseSavings }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
   const { items: plaidItems } = usePlaidItems();
+  const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
   const [strategy, setStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
