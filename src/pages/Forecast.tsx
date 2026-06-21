@@ -2283,13 +2283,21 @@ export default function Forecast() {
                       // Months 1+: use simulation amounts
                       const perCard = cardProjectionData?.perCardPaymentsScaled ?? cardProjectionData?.perCardPayments;
                       if (!perCard) return fallback;
-                      const filtered = perCard.filter(c => (c.payments[absoluteI] ?? 0) > 0);
-                      if (filtered.length === 0) return fallback;
-                      const lines: { label: string; value: string; op: '−' }[] = [];
-                      for (const c of filtered) {
-                        const displayAmt = c.payments[absoluteI] ?? 0;
-                        if (displayAmt > 0) lines.push({ label: `  ${c.name}`, value: formatCurrency(displayAmt, false), op: '−' as const });
-                      }
+                      const rawAmounts = perCard
+                        .map(c => ({ name: c.name, amt: c.payments[absoluteI] ?? 0 }))
+                        .filter(c => c.amt > 0);
+                      if (rawAmounts.length === 0) return fallback;
+                      // perCardPaymentsScaled never reflects this page's own save-up cap (a future
+                      // month's larger obligation can shrink row.debtPayment well below the engine's
+                      // natural per-card recommendation) — scale each line proportionally so the
+                      // breakdown always sums to what was actually paid that month, not a bigger
+                      // number than the cash math (row.endingCash etc.) ever used.
+                      const rawSum = rawAmounts.reduce((s, c) => s + c.amt, 0);
+                      const scale = rawSum > 0 ? (row.debtPayment ?? rawSum) / rawSum : 1;
+                      const lines = rawAmounts
+                        .map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.amt * scale, false), op: '−' as const, scaledAmt: c.amt * scale }))
+                        .filter(c => c.scaledAmt > 0.005)
+                        .map(({ scaledAmt, ...c }) => c);
                       return lines.length > 0 ? lines : fallback;
                     })()),
                     ...((row.savingsGoalItems?.length > 0)
@@ -2390,8 +2398,6 @@ export default function Forecast() {
                           { label: '', value: '' },
                         ]
                       : []),
-                    { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
-                    { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
                     ...((row.assetBreakdown ?? []) as { bucket: string; id: string; name: string; balance: number }[])
                       .filter(a => a.bucket === 'retirement')
                       .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, false) })),
@@ -2403,6 +2409,7 @@ export default function Forecast() {
                       .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, false) })),
                     { label: 'Total Assets', value: formatCurrency(row.totalAssets, false) },
                     { label: '', value: '' },
+                    { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
                     ...((cardProjectionData?.simCards ?? []) as { id: string; name: string }[])
                       .map(card => ({
                         label: `  ${card.name}`,
@@ -2420,6 +2427,7 @@ export default function Forecast() {
                           return bal > 0 ? formatCurrency(Math.round(bal), false) : '—';
                         })(),
                       })),
+                    { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
                     ...((row.nonCCLiabBreakdown ?? []) as { id: string; name: string; balance: number }[])
                       .map(la => ({ label: `  ${la.name}`, value: la.balance > 0 ? formatCurrency(la.balance, false) : '—' })),
                     ...((row.carLoanBreakdown ?? []) as { name: string; balance: number }[])
