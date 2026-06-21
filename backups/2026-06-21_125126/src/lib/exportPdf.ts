@@ -2,7 +2,6 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import type { ExportRow } from './exportCsv';
-import type { ForecastMonthDetail } from './forecast-export';
 
 export interface ForecastRow {
   month: string;
@@ -147,81 +146,13 @@ const PDF_STYLES = `
   .kpi-value { font-size: 13px; font-weight: 700; margin-top: 2px; letter-spacing: -0.02em; }
   footer { margin-top: 10px; padding-top: 6px; border-top: 1px solid #e5e7eb; font-size: 8px; color: #9ca3af; }
   @media print { @page { margin: 0.8cm; size: A4 landscape; } body { padding: 0; } }
-
-  .section-title { font-size: 11px; font-weight: 700; margin: 16px 0 6px; padding-top: 10px; border-top: 2px solid #111; }
-  .month-block { border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; page-break-inside: avoid; }
-  .month-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; border-bottom: 1px solid #f3f4f6; padding-bottom: 4px; }
-  .month-head h2 { font-size: 11px; font-weight: 700; }
-  .month-head-figs { font-size: 8px; color: #374151; display: flex; gap: 12px; }
-  .month-head-figs b { color: #111827; }
-  .flow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
-  .flow-col h3, .group-label { font-size: 7.5px; text-transform: uppercase; letter-spacing: 0.07em; color: #6b7280; margin-bottom: 2px; }
-  .group-label { margin-top: 4px; }
-  table.mini { width: 100%; border-collapse: collapse; }
-  table.mini td { padding: 1.5px 4px; border-bottom: none; font-size: 8px; }
-  table.mini td:last-child { text-align: right; white-space: nowrap; }
-  table.mini tr.total td { font-weight: 700; border-top: 1px solid #d1d5db; padding-top: 2px; }
-  .empty-line { color: #9ca3af; font-style: italic; }
 `;
 
 function fmt(n: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 }
 
-function flowRowsHtml(items: { label: string; amount: number }[], sign: '+' | '−'): string {
-  if (items.length === 0) return `<tr><td class="empty-line" colspan="2">None</td></tr>`;
-  return items.map(it => `<tr><td>${it.label}</td><td>${sign}${fmt(it.amount)}</td></tr>`).join('');
-}
-
-function balanceRowsHtml(groups: { label: string; rows: { label: string; amount: number }[] }[]): string {
-  const body = groups
-    .filter(g => g.rows.length > 0)
-    .map(g => `<tr><td class="group-label" colspan="2">${g.label}</td></tr>` + g.rows.map(r => `<tr><td>${r.label}</td><td>${fmt(r.amount)}</td></tr>`).join(''))
-    .join('');
-  return body || `<tr><td class="empty-line" colspan="2">None</td></tr>`;
-}
-
-function monthDetailHtml(d: ForecastMonthDetail): string {
-  const transferRows = d.internalTransfers.length > 0
-    ? `<div class="flow-col" style="margin-top:4px"><h3>Internal Transfers (no cash impact)</h3><table class="mini">${flowRowsHtml(d.internalTransfers, '+')}</table></div>`
-    : '';
-  return `<div class="month-block">
-    <div class="month-head">
-      <h2>${d.month}</h2>
-      <div class="month-head-figs">
-        <span>Start: <b>${fmt(d.startingCash)}</b></span>
-        <span>End: <b>${fmt(d.endingCash)}</b></span>
-        <span>Cash Floor: <b>${fmt(d.cashFloor)}</b></span>
-        <span>Net Worth: <b>${fmt(d.netWorth)}</b></span>
-      </div>
-    </div>
-    <div class="flow-grid">
-      <div class="flow-col"><h3>Income</h3><table class="mini">${flowRowsHtml(d.income, '+')}</table></div>
-      <div class="flow-col"><h3>Expenses</h3><table class="mini">${flowRowsHtml(d.expenses, '−')}</table></div>
-    </div>
-    ${transferRows}
-    <div class="flow-grid">
-      <div class="flow-col">
-        <h3>Assets — Total ${fmt(d.totalAssets)}</h3>
-        <table class="mini">${balanceRowsHtml([
-          { label: 'Retirement', rows: d.retirementAccounts },
-          { label: 'Investment', rows: d.investmentAccounts },
-          { label: 'Savings', rows: d.savingsAccounts },
-        ])}</table>
-      </div>
-      <div class="flow-col">
-        <h3>Liabilities — Total ${fmt(d.totalLiabilities)}</h3>
-        <table class="mini">${balanceRowsHtml([
-          { label: 'Credit Cards', rows: d.creditCards },
-          { label: 'Other Debt', rows: d.otherLiabilities },
-          { label: 'Car Loans', rows: d.carLoans },
-        ])}</table>
-      </div>
-    </div>
-  </div>`;
-}
-
-export async function exportForecastPdf(rows: ForecastRow[], period = 'All Time', details: ForecastMonthDetail[] = []): Promise<void> {
+export async function exportForecastPdf(rows: ForecastRow[], period = 'All Time'): Promise<void> {
   const exportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
   const htmlRows = rows.map(r => {
@@ -239,10 +170,6 @@ export async function exportForecastPdf(rows: ForecastRow[], period = 'All Time'
     </tr>`;
   }).join('');
 
-  const detailSection = details.length > 0
-    ? `<div class="section-title">Monthly Detail — Income, Expenses &amp; Account Balances</div>${details.map(monthDetailHtml).join('')}`
-    : '';
-
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Forgenta — Forecast</title><style>${PDF_STYLES}</style></head>
 <body>
   <header>
@@ -255,7 +182,6 @@ export async function exportForecastPdf(rows: ForecastRow[], period = 'All Time'
     </tr></thead>
     <tbody>${htmlRows}</tbody>
   </table>
-  ${detailSection}
   <footer>Generated by Forgenta &middot; getforgenta.com</footer>
 </body></html>`;
 
