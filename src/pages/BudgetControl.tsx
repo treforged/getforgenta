@@ -92,6 +92,14 @@ const DEFAULT_DEDUCTIONS: PaycheckDeduction[] = [
   { id: 'hsa',     label: 'HSA',               value: 0, mode: 'flat', preTax: true },
 ];
 
+const RULE_TYPE_OPTIONS = [
+  { value: 'income', label: 'Income' },
+  { value: 'expense', label: 'Expense' },
+  { value: 'debt_payment', label: 'Debt Payment' },
+  { value: 'transfer', label: 'Transfer' },
+  { value: 'investment', label: 'Investment Contribution' },
+];
+
 function migrateOldDeductions(profile: any): PaycheckDeduction[] | null {
   const vals = [
     { id: '401k',    label: '401(k) Traditional', val: Number(profile?.deduction_401k_value), mode: profile?.deduction_401k_mode || 'pct',  preTax: profile?.deduction_401k_pretax  !== false },
@@ -235,7 +243,7 @@ export default function BudgetControl() {
         addRule.mutate({ ...r, active: true, due_month: null, payment_source: null, deposit_account: null, notes: r.notes || '' });
       });
     }
-  }, [rulesLoading, isDemo, user, rules.length, starterSeeded]);
+  }, [rulesLoading, isDemo, user, rules.length, starterSeeded, addRule]);
 
   // Auto-save income/tax with debounce + auto-sync income rule
   const resolveAmt = (d: PaycheckDeduction, gross: number) =>
@@ -552,15 +560,18 @@ export default function BudgetControl() {
 
   const currentMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   
-  const toCurrentMonthAmount = (r: any) => {
+  const nowYear = now.getFullYear();
+  const nowMonth = now.getMonth();
+
+  const toCurrentMonthAmount = useCallback((r: any) => {
     const amt = Number(r.amount);
     if (r.start_date) {
       const startDate = new Date(r.start_date + 'T12:00:00');
-      if (startDate > new Date(now.getFullYear(), now.getMonth() + 1, 0)) return 0;
+      if (startDate > new Date(nowYear, nowMonth + 1, 0)) return 0;
     }
     if (r.frequency === 'weekly') {
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const monthStart = new Date(nowYear, nowMonth, 1);
+      const monthEnd = new Date(nowYear, nowMonth + 1, 0);
       let count = 0;
       const d = new Date(monthStart);
       const dayOfWeek = r.due_day ?? 5;
@@ -569,20 +580,20 @@ export default function BudgetControl() {
       return amt * count;
     }
     if (r.frequency === 'biweekly') {
-      return amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
+      return amt * countRuleOccurrencesInMonth(r, nowYear, nowMonth);
     }
     if (r.frequency === 'yearly') {
       const dueMonth = (r.due_month ?? 1) - 1;
-      return dueMonth === now.getMonth() ? amt : 0;
+      return dueMonth === nowMonth ? amt : 0;
     }
     return amt;
-  };
+  }, [nowYear, nowMonth]);
 
-  const totalRecurringIncome = useMemo(() => incomeRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [incomeRules]);
-  const totalFixedExpenses = useMemo(() => fixedRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [fixedRules]);
-  const totalVariableExpenses = useMemo(() => variableRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [variableRules]);
-  const totalDebtPayments = useMemo(() => debtRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [debtRules]);
-  const totalTransfers = useMemo(() => transferRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [transferRules]);
+  const totalRecurringIncome = useMemo(() => incomeRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [incomeRules, toCurrentMonthAmount]);
+  const totalFixedExpenses = useMemo(() => fixedRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [fixedRules, toCurrentMonthAmount]);
+  const totalVariableExpenses = useMemo(() => variableRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [variableRules, toCurrentMonthAmount]);
+  const totalDebtPayments = useMemo(() => debtRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [debtRules, toCurrentMonthAmount]);
+  const totalTransfers = useMemo(() => transferRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [transferRules, toCurrentMonthAmount]);
 
   const totalCharges = totalFixedExpenses + totalVariableExpenses;
   const totalExpenses = totalCharges + totalDebtPayments + totalTransfers;
@@ -627,14 +638,6 @@ export default function BudgetControl() {
     { value: '', label: 'None' },
     ...accounts.filter((a: any) => a.active && ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'].includes(a.account_type)).map((a: any) => ({ value: a.id, label: a.name })),
   ], [accounts]);
-
-  const ruleTypeOptions = [
-    { value: 'income', label: 'Income' },
-    { value: 'expense', label: 'Expense' },
-    { value: 'debt_payment', label: 'Debt Payment' },
-    { value: 'transfer', label: 'Transfer' },
-    { value: 'investment', label: 'Investment Contribution' },
-  ];
 
   const openAdd = (type: string, category?: string) => {
     setForm({ ...emptyRuleForm, rule_type: type, category: category || 'Other' });
@@ -714,7 +717,7 @@ export default function BudgetControl() {
       { key: 'name', label: 'Name', type: 'text', placeholder: 'e.g., Rent, Paycheck', required: true },
       { key: 'amount', label: 'Amount', type: 'number', placeholder: '0.00', step: '0.01', required: true,
         ...(editId === paycheckRuleId && weeklyGross > 0 ? { disabled: true, hint: 'Controlled by gross income in Income & Tax settings' } : {}) },
-      { key: 'rule_type', label: 'Type', type: 'select', options: ruleTypeOptions },
+      { key: 'rule_type', label: 'Type', type: 'select', options: RULE_TYPE_OPTIONS },
       { key: 'frequency', label: 'Frequency', type: 'select', options: [{ value: 'weekly', label: 'Weekly' }, { value: 'biweekly', label: 'Biweekly' }, { value: 'monthly', label: 'Monthly' }, { value: 'yearly', label: 'Yearly' }] },
       { key: 'due_day', label: form.frequency === 'weekly' || form.frequency === 'biweekly' ? 'Day of Week (0=Sun, 5=Fri)' : 'Due Day of Month', type: 'number' },
     ];
