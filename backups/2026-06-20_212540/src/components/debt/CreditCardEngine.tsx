@@ -101,12 +101,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   useEffect(() => {
     if (profile?.cash_floor != null) setCashFloorLocal(Number(profile.cash_floor));
   }, [profile?.cash_floor]);
-  // Only one card's accordion open at a time — prevents the page from getting overcrowded
-  // when several cards' month-by-month projections are all expanded simultaneously.
-  const [expandedCard, setExpandedCard] = usePersistedState<string | null>('tre:debt:expanded-card', null);
-  // Shared across cards (only one is ever expanded) — lets the user page through the full
-  // 5-year projection one year at a time instead of everything rendering at once.
-  const [accordionYear, setAccordionYear] = usePersistedState<'1' | '2' | '3' | '4' | '5'>('tre:debt:accordion-year', '1');
+  const [expandedCards, setExpandedCards] = usePersistedState<string[]>('tre:debt:expanded-cards', []);
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
   const [editingStatementBal, setEditingStatementBal] = useState<string | null>(null);
   const [statementBalInput, setStatementBalInput] = useState('');
@@ -1386,13 +1381,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         {/* Individual Card Projections */}
         <div className="space-y-3">
           {projections.map(proj => {
-            const isExpanded = expandedCard === proj.card.id;
+            const isExpanded = expandedCards.includes(proj.card.id);
             const cardOverrides = overrides[proj.card.id] || {};
             const hasOverrides = Object.keys(cardOverrides).length > 0;
 
             return (
               <div key={proj.card.id} className="card-forged w-full max-w-full min-w-0">
-                <button onClick={() => setExpandedCard(isExpanded ? null : proj.card.id)}
+                <button onClick={() => setExpandedCards(isExpanded ? expandedCards.filter(id => id !== proj.card.id) : [...expandedCards, proj.card.id])}
                   className="w-full p-3 sm:p-4 flex flex-row items-start justify-between text-left hover:bg-muted/10 transition-colors">
                   <div className="flex items-start gap-2 sm:gap-3 min-w-0 flex-1">
                     <span className="w-3 sm:w-4 h-3 sm:h-4 rounded-sm shrink-0 mt-0.5" style={{ backgroundColor: proj.card.color }} />
@@ -1588,46 +1583,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         </button>
                       )}
                     </div>
-                    {(() => {
-                      const yearIdx = parseInt(accordionYear, 10);
-                      const yearStart = (yearIdx - 1) * 12;
-                      const yearMonths = proj.months.slice(yearStart, yearStart + 12);
-                      // Free tier keeps the same 3-free-months value prop, only ever in Year 1 —
-                      // years 2-5 (and the rest of Year 1) stay behind the paywall.
-                      const freeCount = (isPremium || isDemo) ? yearMonths.length : (yearIdx === 1 ? Math.min(3, yearMonths.length) : 0);
-                      const visibleMonths = yearMonths.slice(0, freeCount);
-                      const gatedMonths = yearMonths.slice(freeCount);
-                      return (
-                        <div className="w-full">
-                          {/* Year navigator — one card open at a time, so this paging through
-                              the full 5-year window never has to compete with another card's. */}
-                          <div className="flex gap-1.5 mb-2 overflow-x-auto pb-0.5">
-                            {(['1', '2', '3', '4', '5'] as const).map(yr => (
-                              <button
-                                key={yr}
-                                onClick={(e) => { e.stopPropagation(); setAccordionYear(yr); }}
-                                className={`px-2.5 py-1 text-[10px] font-medium border btn-press whitespace-nowrap ${accordionYear === yr ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
-                                style={{ borderRadius: 'var(--radius)' }}
-                              >
-                                Year {yr}
-                              </button>
-                            ))}
-                          </div>
-                          {yearMonths.length === 0 ? (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
-                              <CheckCircle2 size={14} className="shrink-0" />
-                              <span>{proj.card.name} is projected to be paid off before Year {yearIdx} — nothing to show here.</span>
-                            </div>
-                          ) : (
-                            <>
-                          {/* Column headers */}
-                          <div className="grid grid-cols-3 gap-x-3 border-b border-border pb-1.5 mb-0.5 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
-                            <div className="px-2">Month</div>
-                            <div className="px-2 text-right">Payment</div>
-                            <div className="px-2 text-right">End Balance</div>
-                          </div>
-                          {visibleMonths.map((row, localIdx) => {
-                        const idx = yearStart + localIdx;
+                    <div className="w-full">
+                      {/* Column headers */}
+                      <div className="grid grid-cols-3 gap-x-3 border-b border-border pb-1.5 mb-0.5 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
+                        <div className="px-2">Month</div>
+                        <div className="px-2 text-right">Payment</div>
+                        <div className="px-2 text-right">End Balance</div>
+                      </div>
+                      {/* Rows — free users see 3 months, premium sees 24 */}
+                      {proj.months.slice(0, (isPremium || isDemo) ? 24 : 3).map((row, idx) => {
                         const isOverridden = cardOverrides[idx] !== undefined;
                         const isEditingThis = editingMonth?.cardId === proj.card.id && editingMonth?.month === idx;
                         return (
@@ -1685,35 +1649,30 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                             </div>
                           </div>
                         );
-                          })}
-                          {/* Gate the rest of this year for free users (and all of Years 2-5) */}
-                          {gatedMonths.length > 0 && (
-                            <PremiumGate
-                              isPremium={false}
-                              title="See the full payoff timeline"
-                              features={[
-                                `${gatedMonths.length} more month${gatedMonths.length === 1 ? '' : 's'} remaining in Year ${yearIdx} for ${proj.card.name}`,
-                                'Page through all 5 years of projections, not just this one',
-                                `Save ${formatCurrency(proj.totalInterest, false)} in total interest`,
-                                'Override any month\'s payment and watch balances update live',
-                              ]}
-                            >
-                              <div>
-                                {gatedMonths.map(row => (
-                                  <div key={row.month} className="grid grid-cols-3 gap-x-3 py-1.5 border-b border-border/30">
-                                    <div className="px-2 text-[10px] font-medium">{row.label}</div>
-                                    <div className="px-2 text-right text-[10px] font-semibold text-primary">{row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}</div>
-                                    <div className="px-2 text-right text-[10px] font-semibold">{formatCurrency(Math.max(0, row.endBalance), false)}</div>
-                                  </div>
-                                ))}
+                      })}
+                      {/* Gate remaining months for free users */}
+                      {!(isPremium || isDemo) && proj.months.length > 3 && (
+                        <PremiumGate
+                          isPremium={false}
+                          title="See the full payoff timeline"
+                          features={[
+                            `${proj.months.length - 3} more month${proj.months.length - 3 === 1 ? '' : 's'} remaining for ${proj.card.name}`,
+                            `Save ${formatCurrency(proj.totalInterest, false)} in total interest`,
+                            'Override any month\'s payment and watch balances update live',
+                          ]}
+                        >
+                          <div>
+                            {proj.months.slice(3, 24).map(row => (
+                              <div key={row.month} className="grid grid-cols-3 gap-x-3 py-1.5 border-b border-border/30">
+                                <div className="px-2 text-[10px] font-medium">{row.label}</div>
+                                <div className="px-2 text-right text-[10px] font-semibold text-primary">{row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}</div>
+                                <div className="px-2 text-right text-[10px] font-semibold">{formatCurrency(Math.max(0, row.endBalance), false)}</div>
                               </div>
-                            </PremiumGate>
-                          )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })()}
+                            ))}
+                          </div>
+                        </PremiumGate>
+                      )}
+                    </div>
                   </div>
                   </div>
                 )}
