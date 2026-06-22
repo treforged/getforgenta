@@ -712,7 +712,7 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
               <label className="text-xs font-medium text-muted-foreground block mb-1">{field.label}</label>
               <input
                 type={field.type}
-                value={(form as any)[field.k]}
+                value={form[field.k as keyof typeof form]}
                 onChange={f(field.k)}
                 placeholder={field.placeholder ?? ''}
                 className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
@@ -790,7 +790,7 @@ export default function Vehicles() {
     [accounts]
   );
 
-  const cashFloor = useMemo(() => { const v = Number((profile as any)?.cash_floor); return isNaN(v) ? 1000 : v; }, [profile]);
+  const cashFloor = useMemo(() => { const v = Number(profile?.cash_floor); return isNaN(v) ? 1000 : v; }, [profile]);
 
   const allMonthTransactions = useMemo(() =>
     mergeWithGeneratedTransactions(transactions || [], rules, accounts),

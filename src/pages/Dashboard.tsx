@@ -531,9 +531,9 @@ export default function Dashboard() {
     const expenses = Object.values(expenseBreakdown).reduce((s: number, v: number) => s + v, 0);
     const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance || 0), 0);
 
-    const totalSaved = goals.reduce((s: number, g: any) => {
-      if ((g as any).linked_account && accountMap[(g as any).linked_account]) {
-        return s + Number(accountMap[(g as any).linked_account].balance);
+    const totalSaved = goals.reduce((s: number, g) => {
+      if (g.linked_account && accountMap[g.linked_account]) {
+        return s + Number(accountMap[g.linked_account].balance);
       }
       return s + Number(g.current_amount || 0);
     }, 0);
