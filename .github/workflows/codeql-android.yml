@@ -1,0 +1,75 @@
+name: "CodeQL (Android)"
+
+# Default Setup's autobuild can't reliably invoke this project's Gradle wrapper, so it falls back
+# to build-mode "none" for java-kotlin - a much lower-quality scan (guesses dependencies from
+# package names instead of a real classpath, below-threshold call-target/known-type metrics).
+# This workflow runs a real (unsigned) debug build via the same steps as android-build.yml so
+# CodeQL gets an accurate database. Scoped to java-kotlin only - Default Setup still covers
+# actions/javascript-typescript/python/swift.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'package.json'
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          build-mode: manual
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK (unsigned - no keystore needed for analysis)
+        run: |
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java-kotlin"
