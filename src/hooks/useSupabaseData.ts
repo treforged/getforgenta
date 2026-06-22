@@ -9,6 +9,7 @@ import {
   demoNetWorthSnapshots, demoCarBuilds, demoCarBuildPhases, demoCarBuildItems,
 } from '@/lib/demo-data';
 import { PaymentPlan } from '@/lib/payment-plan-generator';
+import type { Tables } from '@/integrations/supabase/types';
 
 // ─── Accounts (Centralized) ──────────────────────────────
 // FIX #13: Demo accounts now have realistic balances that produce
@@ -639,7 +640,7 @@ export function useProfile() {
   const query = useQuery({
     queryKey: ['profile', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
-    queryFn: async () => {
+    queryFn: async (): Promise<Partial<Tables<'profiles'>>> => {
       if (isDemo || !user) return { ...DEFAULT_PROFILE, display_name: 'Demo User', is_premium: true };
       try {
         const { data, error } = await supabase.from('profiles').select('*').eq('user_id', user.id).maybeSingle();
