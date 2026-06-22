@@ -685,9 +685,9 @@ export function useProfile() {
     retry: 1,
   });
   const update = useMutation({
-    mutationFn: async (item: Record<string, any>) => {
+    mutationFn: async (item: Partial<Tables<'profiles'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('profiles').update(sanitizePayload(item) as any).eq('user_id', user.id);
+      const { error } = await supabase.from('profiles').update(sanitizePayload(item)).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['profile'] }); toast.success('Settings saved'); },

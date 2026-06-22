@@ -665,16 +665,20 @@ export default function AiAdvisor() {
     const LOAN_TYPES = ['loan', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
     const loans = activeAccounts
       .filter(a => LOAN_TYPES.includes(a.account_type))
-      .map(a => ({
-        name: String(a.name ?? 'Loan'),
-        type: String(a.account_type ?? 'loan'),
-        balance: Number(a.balance ?? 0),
-        apr: Number(a.apr ?? 0),
-        // accounts has no monthly_payment column — this has always read undefined ?? 0 at
-        // runtime (kept as `any` deliberately rather than silently delete a possibly-intended
-        // future field; flagging for a human decision rather than guessing).
-        monthlyPayment: Number((a as any).monthly_payment ?? 0),
-      }));
+      .map(a => {
+        // accounts has no monthly_payment column for loan types (only credit cards store
+        // min_payment there) — the real figure lives on the matching debts row, same as
+        // debtDetails below. This was previously always 0 (reading a nonexistent column),
+        // silently telling the advisor every loan had no payment.
+        const matchDebt = debts.find(d => d.name.toLowerCase() === String(a.name ?? '').toLowerCase());
+        return {
+          name: String(a.name ?? 'Loan'),
+          type: String(a.account_type ?? 'loan'),
+          balance: Number(a.balance ?? 0),
+          apr: Number(a.apr ?? 0),
+          monthlyPayment: Number(matchDebt?.min_payment ?? 0),
+        };
+      });
 
     // Investment & retirement accounts
     const INVESTMENT_TYPES = ['brokerage', '401k', 'roth_ira', 'ira', 'hsa', 'crypto'];
