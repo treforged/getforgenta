@@ -8,7 +8,7 @@ import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useCardProjection, type CardProjectionResult } from '@/hooks/useCardProjection';
 import { buildPayConfig, type PayScheduleConfig } from '@/lib/pay-schedule';
-import { generateScheduledEvents, PROJECTION_MONTHS } from '@/lib/scheduling';
+import { generateScheduledEvents, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
 import type { FilingStatus } from '@/lib/tax-estimator';
 
 const DEFAULT_ASSUMPTIONS = {
@@ -39,7 +39,7 @@ interface CardProjectionContextValue {
   cashFloor: number;
   forecastFundingAccountId: string | null;
   syncCutoffDate: string;
-  scheduledEvents: any[];
+  scheduledEvents: ScheduledEvent[];
   debtPayoffOptions: DebtPayoffOptions;
 }
 
@@ -100,11 +100,11 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     const defaultId = profile?.default_deposit_account;
     if (defaultId) {
       const acct = (accounts ?? []).find(
-        (a: any) => a.id === defaultId && a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type),
+        a => a.id === defaultId && a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type as string),
       );
       if (acct) return acct.id as string;
     }
-    const checking = (accounts ?? []).find((a: any) => a.active && a.account_type === 'checking');
+    const checking = (accounts ?? []).find(a => a.active && a.account_type === 'checking');
     return (checking?.id as string) ?? null;
   }, [accounts, profile]);
 
@@ -112,9 +112,9 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     const today = new Date();
     const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     if (!forecastFundingAccountId) return localDate;
-    const fundingAcct = (accounts ?? []).find((a: any) => a.id === forecastFundingAccountId);
+    const fundingAcct = (accounts ?? []).find(a => a.id === forecastFundingAccountId);
     if (!fundingAcct?.plaid_item_id) return localDate;
-    const plaidItem = plaidItems.find((pi: any) => pi.plaid_item_id === fundingAcct.plaid_item_id);
+    const plaidItem = plaidItems.find(pi => pi.plaid_item_id === fundingAcct.plaid_item_id);
     if (!plaidItem?.last_synced_at) return localDate;
     return plaidItem.last_synced_at.split('T')[0];
   }, [forecastFundingAccountId, accounts, plaidItems]);

@@ -4,11 +4,11 @@ import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
-import FormModal from '@/components/shared/FormModal';
+import FormModal, { type Field } from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
-import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile } from '@/hooks/useSupabaseData';
+import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X, Check } from 'lucide-react';
@@ -778,16 +778,16 @@ export default function Vehicles() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [undoConfirm, setUndoConfirm] = useState<string | null>(null);
 
-  const savingVehicles = useMemo(() => carFunds.filter((c: any) => (c.phase ?? 'saving') === 'saving'), [carFunds]);
-  const loanVehicles = useMemo(() => carFunds.filter((c: any) => c.phase === 'loan'), [carFunds]);
+  const savingVehicles = useMemo(() => carFunds.filter(c => (c.phase ?? 'saving') === 'saving'), [carFunds]);
+  const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
 
-  const activeLoans = useMemo(() => getActiveCarLoanPayments(carFunds as unknown as CarFund[]), [carFunds]);
+  const activeLoans = useMemo(() => getActiveCarLoanPayments(carFunds), [carFunds]);
   const totalMonthlyLoanPayments = activeLoans.reduce((s, l) => s + l.payment, 0);
 
   const liquidCash = useMemo(() =>
-    (accounts as any[])
-      .filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance), 0),
+    accounts
+      .filter(a => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
+      .reduce((s, a) => s + Number(a.balance), 0),
     [accounts]
   );
 
@@ -809,14 +809,14 @@ export default function Vehicles() {
   );
 
   const accountMap = useMemo(() => {
-    const map: Record<string, any> = {};
-    (accounts as any[]).forEach((a: any) => { map[a.id] = a; });
+    const map: Record<string, AccountRow> = {};
+    accounts.forEach(a => { map[a.id] = a; });
     return map;
   }, [accounts]);
 
   const accountOptions = useMemo(() => [
     { value: '', label: 'None (Manual)' },
-    ...(accounts as any[]).filter((a: any) => a.active).map((a: any) => ({
+    ...accounts.filter(a => a.active).map(a => ({
       value: a.id,
       label: `${a.name} (${a.account_type.replace(/_/g, ' ')})`,
     })),
@@ -824,13 +824,13 @@ export default function Vehicles() {
 
   const transferRuleOptions = useMemo(() => [
     { value: '', label: 'None (manual)' },
-    ...(rules as any[])
-      .filter((r: any) => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
-      .map((r: any) => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
+    ...rules
+      .filter(r => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
+      .map(r => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
   ], [rules]);
 
   const savingFormFields = useMemo(() => {
-    const fields: any[] = [
+    const fields: Field[] = [
       { key: 'vehicle_name', label: 'Vehicle Name', type: 'text', placeholder: 'e.g., 2025 Honda Civic' },
       { key: 'target_price', label: 'Target Price', type: 'number', placeholder: '28000', step: '0.01' },
       { key: 'tax_fees', label: 'Tax & Fees', type: 'number', placeholder: '2000', step: '0.01' },
@@ -900,7 +900,7 @@ export default function Vehicles() {
     if (vNameFlagged) toast.warning('Vehicle name contained inappropriate language and was cleaned.');
     const linkedAccount = savingForm.linked_account || null;
     const linkedRule = savingForm.linked_rule_id
-      ? (rules as any[]).find((r: any) => r.id === savingForm.linked_rule_id)
+      ? rules.find(r => r.id === savingForm.linked_rule_id)
       : null;
     const effectiveSaved = linkedAccount && accountMap[linkedAccount]
       ? Number(accountMap[linkedAccount].balance)
@@ -946,7 +946,7 @@ export default function Vehicles() {
       return;
     }
     const { clean: cleanLoanVehicleName } = filterProfanity(loanForm.vehicle_name.trim().slice(0, LIMITS.vehicleName));
-    const payload: any = {
+    const payload: Partial<CarFund> & { vehicle_name: string } = {
       vehicle_name: cleanLoanVehicleName,
       loan_amount: parseFloat(loanForm.loan_amount) || 0,
       expected_apr: parseFloat(loanForm.expected_apr) || 0,
@@ -1137,10 +1137,10 @@ export default function Vehicles() {
 
       {activeTab === 'saving' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {savingVehicles.map((cf: any) => {
+          {savingVehicles.map(cf => {
             const linkedAccount = cf.linked_account ? accountMap[cf.linked_account] : null;
             const linkedRule = cf.linked_rule_id
-              ? (rules as any[]).find((r: any) => r.id === cf.linked_rule_id)
+              ? rules.find(r => r.id === cf.linked_rule_id)
               : null;
             const displayCf: CarFund = linkedAccount
               ? { ...cf, current_saved: Number(linkedAccount.balance) }
@@ -1194,7 +1194,7 @@ export default function Vehicles() {
 
       {activeTab === 'loan' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {loanVehicles.map((cf: any) => (
+          {loanVehicles.map(cf => (
             <LoanCard
               key={cf.id}
               cf={cf}

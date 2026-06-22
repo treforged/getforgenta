@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { X, Info, Check, Loader2 } from 'lucide-react';
 import DateScrollPicker from './DateScrollPicker';
 
-type Field = {
+export type Field = {
   key: string;
   label: string;
   type: 'text' | 'number' | 'date' | 'select';

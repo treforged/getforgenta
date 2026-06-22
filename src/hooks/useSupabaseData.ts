@@ -10,7 +10,7 @@ import {
 } from '@/lib/demo-data';
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
-import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
+import type { CarBuild, CarBuildPhase, CarBuildItem, CarFund } from '@/lib/types';
 
 // ─── Accounts (Centralized) ──────────────────────────────
 // FIX #13: Demo accounts now have realistic balances that produce
@@ -29,7 +29,9 @@ const demoAccounts = [
 ];
 
 
-type AccountRow = Partial<Tables<'accounts'>> & { id: string; user_id: string; name: string };
+export type AccountRow = Partial<Tables<'accounts'>> & {
+  id: string; user_id: string; name: string; account_type: string; balance: number; active: boolean;
+};
 
 export function useAccounts() {
   const { user } = useAuth();
@@ -106,6 +108,11 @@ const demoRecurringRules = [
   { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 85, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on Discover', created_at: '', updated_at: '' },
 ];
 
+export type RuleRow = Partial<Tables<'recurring_rules'>> & {
+  id: string; name: string; amount: number; rule_type: string; frequency: string; active: boolean;
+  start_date: string | null;
+};
+
 export function useRecurringRules() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
@@ -113,7 +120,7 @@ export function useRecurringRules() {
   const query = useQuery({
     queryKey: ['recurring_rules', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
-    queryFn: async () => {
+    queryFn: async (): Promise<RuleRow[]> => {
       if (isDemo || !user) return demoRecurringRules;
       const { data, error } = await supabase.from('recurring_rules').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
@@ -378,11 +385,11 @@ export function useCarFunds() {
   const query = useQuery({
     queryKey: ['car_funds', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
-    queryFn: async () => {
+    queryFn: async (): Promise<CarFund[]> => {
       if (isDemo || !user) return demoCarFunds.map((c, i) => ({ ...c, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
       const { data, error } = await supabase.from('car_funds').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as unknown as CarFund[];
     },
   });
   const add = useMutation({
@@ -460,6 +467,8 @@ export function useLumpSumTransfers() {
 }
 
 // ─── Transactions ─────────────────────────────────────────
+export type TransactionRow = Partial<Tables<'transactions'>> & { id: string; user_id: string };
+
 export function useTransactions() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
@@ -467,7 +476,7 @@ export function useTransactions() {
   const query = useQuery({
     queryKey: ['transactions', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
-    queryFn: async () => {
+    queryFn: async (): Promise<TransactionRow[]> => {
       if (isDemo || !user) return demoTransactions.map((t, i) => ({ ...t, id: String(i), user_id: 'demo', created_at: '', updated_at: '', payment_source: t.payment_source || 'bank_account' }));
       const { data, error } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false });
       if (error) throw error;

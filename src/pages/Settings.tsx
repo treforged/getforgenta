@@ -221,7 +221,7 @@ export default function SettingsPage() {
     setDirty(false);
   };
 
-  const depositAccounts = accounts.filter((a: any) => ['checking', 'savings', 'high_yield_savings', 'business_checking'].includes(a.account_type) && a.active);
+  const depositAccounts = accounts.filter(a => ['checking', 'savings', 'high_yield_savings', 'business_checking'].includes(a.account_type as string) && a.active);
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== 'DELETE') return;
@@ -259,8 +259,8 @@ export default function SettingsPage() {
       setEmailSent(true);
       setNewEmail('');
       toast.success('Verification sent — check your new email inbox to confirm the change');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update email');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update email');
     } finally {
       setEmailLoading(false);
     }
@@ -294,8 +294,8 @@ export default function SettingsPage() {
       setConfirmNewPassword('');
       toast.success('Password updated successfully');
       setTimeout(() => setPasswordSuccess(false), 4000);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update password');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update password');
     } finally {
       setPasswordLoading(false);
     }
@@ -339,7 +339,7 @@ export default function SettingsPage() {
 
       if (!credential) throw new Error('Passkey registration cancelled');
 
-      const rawId = new Uint8Array(((credential as any).rawId) as ArrayBuffer);
+      const rawId = new Uint8Array(credential.rawId);
       const credId = btoa(String.fromCharCode(...rawId)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
       localStorage.setItem('forged:signin_passkey', JSON.stringify({ credId, email: user.email }));
