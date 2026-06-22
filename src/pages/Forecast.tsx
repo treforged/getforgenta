@@ -101,6 +101,43 @@ function ForecastTooltip({ active, payload, label }: ForecastTooltipProps) {
   );
 }
 
+// One row of PASS 3's final per-month projection (Forecast's main chart/table/popup data
+// source) — every field is a real value pushed at the data.push() call below, kept as a
+// single flat interface (rather than reusing PASS 1's baseData type) since several fields
+// here are PASS-3-only derivations (endingCash, ccDisplayBalance, the breakdown arrays) with
+// no equivalent on baseData.
+interface ForecastMonthRow {
+  month: string;
+  netWorth: number; totalAssets: number; totalLiabilities: number; debtBalance: number;
+  savingsBalance: number; investmentBalance: number; retirementBalance: number; liquidCash: number;
+  endingCash: number; startingCash: number;
+  takeHome: number; totalExpenses: number;
+  debtPayment: number; displayDebtPayment: number | undefined; plannedDebtPayment: number;
+  brokerageContrib: number; retireContrib: number; paycheckRetireContrib: number; fullMonth401kContrib: number;
+  investGrowth: number; retireGrowth: number; oneTimeNet: number; ccOneTime: number;
+  monthMinSafe: number; floorBreachedByOneTime: boolean; debtWasReduced: boolean;
+  baseExpenses: number; savingsContrib: number;
+  savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[];
+  carContrib: number;
+  carContribItems: { name: string; amount: number; isPurchaseMonth: boolean }[];
+  carReserveHeld: number; carLoanPayment: number; vehicleDownPayment: number; vehicleSavedPortion: number;
+  vehicleInsurance: number; projectedCarLoan: number; carLoanExtraPayment: number;
+  carLumpItems: { name: string; amount: number }[];
+  mortgagePayment: number; transfersTotal: number;
+  transferBreakdown: { name: string; amount: number }[];
+  nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
+  otherAccountExpenseItems: { name: string; fromAcctName: string; amount: number }[];
+  lumpSumSavings: number; lumpSumBrokerage: number; lumpSumRothIra: number;
+  businessContrib: number; totalCCPurchases: number; ccDebtBalance: number; ccDisplayBalance: number;
+  paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number;
+  isRaiseMonth: boolean; recommendedDebtPayment: number;
+  floorItems: { name: string; amount: number; dueDay: number }[];
+  prePaycheckBillsTotal: number; settingsCashFloor: number;
+  assetBreakdown: { bucket: 'retirement' | 'investment' | 'savings'; id: string; name: string; balance: number }[];
+  nonCCLiabBreakdown: { id: string; name: string; account_type: string; balance: number }[];
+  carLoanBreakdown: { name: string; balance: number }[];
+}
+
 export default function Forecast() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
@@ -1262,7 +1299,7 @@ export default function Forecast() {
 
     // ═══ PASS 3: Build final projection data ═══
     let finalLiquid = liquidBal;
-    const data: any[] = [];
+    const data: ForecastMonthRow[] = [];
     const milestones: { month: string; event: string }[] = [];
 
     // p3RevBal tracks the actual revolving CC balance forward through PASS 3.
@@ -1683,7 +1720,7 @@ export default function Forecast() {
   // the Month Breakdown drawer below exactly (same source fields/formulas — see forecast-export.ts).
   const exportDetails = useMemo(() => {
     const calendarYearStart = filterYear === 'all' ? 0 : getCalendarYearMonthRange(parseInt(filterYear, 10))[0];
-    return filteredData.map((r: any, i: number) => {
+    return filteredData.map((r, i) => {
       const absoluteI = getAbsoluteMonthIndex(i, filterYear, calendarYearStart);
       return buildForecastMonthDetail(r, absoluteI, cardProjectionData as unknown as Parameters<typeof buildForecastMonthDetail>[2]);
     });
@@ -2295,7 +2332,7 @@ export default function Forecast() {
               <div className="px-1 text-right">End Cash</div>
             </div>
             {/* Rows */}
-            {displayData.map((row: any, i: number) => {
+            {displayData.map((row, i) => {
               const openDrawer = () => {
                 const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
                 const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
