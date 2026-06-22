@@ -130,20 +130,20 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
 
-      const accountMap = new Map<string, any>(accounts.map((a: any) => [a.id, a]));
+      const accountMap = new Map<string, any>(accounts.map(a => [a.id, a]));
 
       // ── Funding account resolution (mirrors cardProjectionData) ──────────────
       const liquidTypes = ['checking', 'business_checking', 'cash'];
       const liquidCash = accounts
-        .filter((a: any) => a.active && liquidTypes.includes(a.account_type))
+        .filter(a => a.active && liquidTypes.includes(a.account_type))
         .reduce((s: number, a: any) => s + Number(a.balance), 0);
       const resolvedDebtFundingId = persistedDebtFundingId || forecastFundingAccountId;
-      const debtFundingAccount = accounts.find((a: any) => a.active && a.id === resolvedDebtFundingId);
+      const debtFundingAccount = accounts.find(a => a.active && a.id === resolvedDebtFundingId);
       // Already-saved/gifted down-payment money sitting in this same account is still "available
       // cash" by default — earmark it out so it isn't offered up for CC paydown while it's spoken
       // for. Disappears on its own once a car fund's phase flips to 'loan' (see getCarFundEarmark).
       const debtFundingBalance = Math.max(0, (debtFundingAccount ? Number(debtFundingAccount.balance) : liquidCash)
-        - getCarFundEarmark(carFunds as any[], resolvedDebtFundingId));
+        - getCarFundEarmark(carFunds, resolvedDebtFundingId));
 
       // ── Scalar fallbacks ──────────────────────────────────────────────────────
       const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
@@ -157,7 +157,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           i === 0 ? syncCutoffDate : undefined,
         );
       });
-      const monthlyExpenses = rules.filter((r: any) => {
+      const monthlyExpenses = rules.filter(r => {
         if (!r.active || r.rule_type !== 'expense') return false;
         if (r.payment_source && ccSourceIdsForScalar.has(r.payment_source)) return false;
         if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
@@ -177,19 +177,19 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const highestAprCardId = cards.length > 0
         ? [...cards].sort((a, b) => b.apr - a.apr)[0].id : null;
       const ccDefaultRuleIds = new Set<string>(
-        rules.filter((r: any) =>
+        rules.filter(r =>
           r.active && r.rule_type === 'expense' &&
           !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category),
-        ).map((r: any) => r.id),
+        ).map(r => r.id),
       );
       const cardRuleIdMap = new Map<string, Set<string>>(
         cards.map(c => {
           const cKey = `account:${c.id}`;
           const ids = new Set<string>(
-            rules.filter((r: any) =>
+            rules.filter(r =>
               r.active && r.rule_type === 'expense' &&
               (r.payment_source === c.id || r.payment_source === cKey),
-            ).map((r: any) => r.id),
+            ).map(r => r.id),
           );
           if (c.id === highestAprCardId) ccDefaultRuleIds.forEach(id => ids.add(id));
           return [c.id, ids];
@@ -210,9 +210,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             const scheduledAmt = eventsInMonth
               .filter(e => e.type === 'expense' && e.ruleId && ruleIds.has(e.ruleId))
               .reduce((s, e) => s + e.amount, 0);
-            const oneTimeCCAmt = (transactions as any[])
-              .filter((t: any) =>
-                !(t as any).isGenerated &&
+            const oneTimeCCAmt = transactions
+              .filter(t =>
+                !t.isGenerated &&
                 t.date?.startsWith(monthKey) &&
                 t.type === 'expense' &&
                 (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
@@ -257,14 +257,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       for (let oi = 1; oi < PROJECTION_MONTHS; oi++) {
         const od = new Date(now.getFullYear(), now.getMonth() + oi, 1);
         const omk = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
-        const txns = (transactions as any[]).filter((t: any) =>
-          t.date && t.date.startsWith(omk) && !(t as any).isGenerated,
+        const txns = transactions.filter(t =>
+          t.date && t.date.startsWith(omk) && !t.isGenerated,
         );
         const inc = txns
-          .filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment')
+          .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
           .reduce((s: number, t: any) => s + Number(t.amount), 0);
         const exp = txns
-          .filter((t: any) => {
+          .filter(t => {
             if (t.type !== 'expense') return false;
             if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
             if (t.payment_source && ccSourceIds.has(t.payment_source)) return false;
@@ -283,34 +283,34 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       // ── forecastMonthEvents (mirrors Forecast.tsx useMemo exactly) ────────────
       const liquidAccountIds = new Set<string>(
-        accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type)).map((a: any) => a.id),
+        accounts.filter(a => a.active && liquidTypes.includes(a.account_type)).map(a => a.id),
       );
       const incomeToLiquidRuleIds = new Set<string>(
-        rules.filter((r: any) =>
+        rules.filter(r =>
           r.active && r.rule_type === 'income' &&
           (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-        ).map((r: any) => r.id),
+        ).map(r => r.id),
       );
       const explicitPaycheckRuleId = profile?.paycheck_rule_id ?? undefined;
       const paycheckRuleIds = new Set<string>();
       if (explicitPaycheckRuleId) {
         paycheckRuleIds.add(explicitPaycheckRuleId);
       } else {
-        rules.filter((r: any) =>
+        rules.filter(r =>
           r.active && r.rule_type === 'income' &&
           ['weekly', 'biweekly', 'semi_monthly'].includes(r.frequency) &&
           (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-        ).forEach((r: any) => paycheckRuleIds.add(r.id));
+        ).forEach(r => paycheckRuleIds.add(r.id));
       }
       const ccPaymentSources = new Set<string>(
-        accounts.filter((a: any) => a.active && a.account_type === 'credit_card')
-          .flatMap((a: any) => [a.id, `account:${a.id}`]),
+        accounts.filter(a => a.active && a.account_type === 'credit_card')
+          .flatMap(a => [a.id, `account:${a.id}`]),
       );
       const ccExplicitRuleIds = new Set<string>(
-        rules.filter((r: any) =>
+        rules.filter(r =>
           r.active && r.rule_type === 'expense' &&
           r.payment_source && ccPaymentSources.has(r.payment_source),
-        ).map((r: any) => r.id),
+        ).map(r => r.id),
       );
       const allCcRuleIds = new Set<string>([...ccExplicitRuleIds, ...ccDefaultRuleIds]);
       // Expense rules paid from a bank account other than the funding account (not a CC, already
@@ -318,23 +318,23 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // modeled cash flow. Mirrors Forecast.tsx's identical Set exactly (same logic, see its own
       // forecastMonthEvents) — keep the two in lockstep if this changes.
       const otherAccountRuleIds = new Set<string>(
-        rules.filter((r: any) => {
+        rules.filter(r => {
           if (!r.active || r.rule_type !== 'expense' || !r.payment_source) return false;
           if (ccPaymentSources.has(r.payment_source)) return false;
           if (!resolvedDebtFundingId) return false;
           const srcId = (r.payment_source as string).replace(/^account:/, '');
           return srcId !== resolvedDebtFundingId;
-        }).map((r: any) => r.id),
+        }).map(r => r.id),
       );
       const savingsRuleIds = new Set<string>(
-        rules.filter((r: any) =>
+        rules.filter(r =>
           r.active && r.rule_type === 'expense' &&
           (r.category === 'Savings' || r.category === 'Investing'),
-        ).map((r: any) => r.id),
+        ).map(r => r.id),
       );
       const ruleTaxRateMap = new Map<string, number>(
-        rules.filter((r: any) => r.rule_type === 'income' && r.tax_rate != null)
-          .map((r: any) => [r.id, Number(r.tax_rate)]),
+        rules.filter(r => r.rule_type === 'income' && r.tax_rate != null)
+          .map(r => [r.id, Number(r.tax_rate)]),
       );
       const forecastMonthEvents = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
@@ -384,9 +384,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // comprehensiveMExp saw this, so the real simulation had no idea the cost was coming until
       // the literal month phase flipped to 'loan', producing an activation-time step-change in
       // recommended CC payments even when nothing about the car's numbers changed.
-      const vehicleForecastByMonth = (carFunds as any[])
-        .filter((c: any) => c.phase === 'saving')
-        .map((c: any) => {
+      const vehicleForecastByMonth = carFunds
+        .filter(c => c.phase === 'saving')
+        .map(c => {
           let purchaseMonthIdx = 0;
           if (c.planned_purchase_date) {
             const parts = (c.planned_purchase_date as string).split('-').map(Number);
@@ -454,9 +454,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carLoanLumpByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const md = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
-        return (carFunds as any[])
-          .filter((cf: any) => cf.phase === 'loan')
-          .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
+        return carFunds
+          .filter(cf => cf.phase === 'loan')
+          .flatMap(cf => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
           .reduce((s: number, ls: any) => s + ls.amount, 0);
       });
 
@@ -472,17 +472,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carLoanInsuranceByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const dStr = d.toISOString().split('T')[0];
-        return (carFunds as any[])
-          .filter((cf: any) => cf.phase === 'loan' && cf.loan_start_date)
-          .filter((cf: any) => monthsBetween(cf.loan_start_date, dStr) >= 0)
-          .reduce((s: number, cf: any) => s + Number(cf.monthly_insurance || 0), 0);
+        return carFunds
+          .filter(cf => cf.phase === 'loan' && cf.loan_start_date)
+          .filter(cf => monthsBetween(cf.loan_start_date!, dStr) >= 0)
+          .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
       });
 
       // ── simulationMonthEvents (mirrors cardProjectionData exactly) ────────────
       const simRetireIds = new Set<string>(
-        (accounts as any[]).filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+        accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
       );
-      const simTransferRules = (rules as any[]).filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
+      const simTransferRules = rules.filter(r => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
       let simIncMult = 1;
       const simFirstBonusIdx = (!assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0)
         ? (() => {
@@ -499,7 +499,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const d = new Date(now.getFullYear(), now.getMonth() + idx, 1);
         const simMonthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
         if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
-          if ((assumptions as any).raiseMode === 'flat') {
+          if (assumptions.raiseMode === 'flat') {
             const currentAnnual = monthlyTakeHome * 12 * simIncMult;
             if (currentAnnual > 0) simIncMult *= (1 + assumptions.incomeGrowth / currentAnnual);
           } else {
@@ -526,14 +526,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const amt = Number(tr.amount);
           monthTransfers += amt * countRuleOccurrencesInMonth(tr, d.getFullYear(), d.getMonth(), now);
         }
-        const monthSavings = ((goals ?? []) as any[]).reduce((s: number, g: any) => {
+        const monthSavings = (goals ?? []).reduce((s, g) => {
           if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
           if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
           if (g.linked_account && simActiveTransferDests.has(g.linked_account)) return s;
           return s + Number(g.monthly_contribution);
         }, 0);
-        const carLoanThisMonth = getTotalCarLoanMonthly((carFunds ?? []) as any[], d);
-        const monthCarSaving = ((carFunds ?? []) as any[]).reduce((s: number, c: any) => {
+        const carLoanThisMonth = getTotalCarLoanMonthly(carFunds ?? [], d);
+        const monthCarSaving = (carFunds ?? []).reduce((s, c) => {
           if (c.phase !== 'saving') return s;
           if (c.linked_account) return s; // savings already in linked account (current_saved is live balance)
           const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
@@ -571,7 +571,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // savings have accumulated. When monthly savings cover all of `rem`, this is 0 — no
       // lump-sum shock in the purchase month and no save-up needed for that car event.
       const carDownPaymentByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
-        return (carFunds as any[]).reduce((s: number, c: any) => {
+        return carFunds.reduce((s: number, c: any) => {
           if (c.phase !== 'saving') return s;
           const liveSaved = c.linked_account
             ? Number(accountMap.get(c.linked_account)?.balance ?? c.current_saved ?? 0)
@@ -622,10 +622,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // above — so simulationMonthEvents' own .expenses can include them directly instead of only
       // the separate look-ahead's comprehensiveMExp seeing them.
       const mortgageAccountNames = new Set(
-        (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
-          .map((a: any) => (a.name as string).toLowerCase()),
+        accounts.filter(a => a.account_type === 'mortgage' && a.active !== false)
+          .map(a => (a.name as string).toLowerCase()),
       );
-      const monthlyMortgagePayment = (debts as any[]).filter((d: any) => mortgageAccountNames.has((d.name as string).toLowerCase()))
+      const monthlyMortgagePayment = debts.filter(d => mortgageAccountNames.has((d.name as string).toLowerCase()))
         .reduce((s: number, d: any) => s + Number(d.target_payment || d.min_payment || 0), 0);
 
       // ── Lump-sum goal transfers per month (mirrors Forecast.tsx's lumpTransferByMonth, the
@@ -634,7 +634,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const md = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
         let total = 0;
-        for (const g of (goals as any[])) {
+        for (const g of goals) {
           const lumps: any[] = Array.isArray(g.lump_sum_payments) ? g.lump_sum_payments : [];
           total += lumps.filter((ls: any) => ls.date.substring(0, 7) === mk).reduce((s: number, ls: any) => s + Number(ls.amount), 0);
         }
@@ -913,17 +913,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       // ── monthlySavingsAndCar for month 0 (mirrors CreditCardEngine exactly) ───
       const retireIds = new Set<string>(
-        accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+        accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
       );
       const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
       const activeTransferDests = new Set<string>(
-        (rules as any[]).filter((r: any) =>
+        rules.filter(r =>
           r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
           !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
           !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-        ).map((r: any) => r.deposit_account),
+        ).map(r => r.deposit_account!),
       );
-      const goalContrib = pauseSavings ? 0 : (goals as any[]).reduce((s: number, g: any) => {
+      const goalContrib = pauseSavings ? 0 : goals.reduce((s: number, g: any) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
         if (g.linked_account && retireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
@@ -934,7 +934,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // linked_account is ignored when it equals the funding account itself — that balance is
       // already counted as available cash elsewhere, so treating it as "already saved" would
       // double-count the same dollars instead of protecting them for the upcoming purchase.
-      const carReserve = pauseSavings ? 0 : (carFunds as any[]).reduce((s: number, c: any) => {
+      const carReserve = pauseSavings ? 0 : carFunds.reduce((s: number, c: any) => {
         if (c.phase !== 'saving') return s;
         const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
           ? accountMap.get(c.linked_account) : null;
@@ -956,7 +956,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           : (rem > 0 && isFinite(purchaseMonthIdx) ? Math.min(rem / (purchaseMonthIdx + 1), rem) : 0);
         return s + contrib;
       }, 0);
-      const carReserveEvent = pauseSavings ? null : (carFunds as any[]).find((c: any) => {
+      const carReserveEvent = pauseSavings ? null : carFunds.find(c => {
         if (c.phase !== 'saving') return false;
         const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
           ? accountMap.get(c.linked_account) : null;
@@ -964,7 +964,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0) - effectiveSaved);
         return rem > 0 && !(c.linked_account && c.linked_rule_id);
       });
-      const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
+      const carLoanTotal = getTotalCarLoanMonthly(carFunds);
       const monthlySavingsAndCar = goalContrib + carReserve + carLoanTotal;
 
       // ── PASS-3 equivalent: constrain per-card payments to cash-floor model ─────
@@ -972,7 +972,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // clips revolving payments when cash would drop below the floor, redirects surplus.
       const p3RevBal0 = cards.reduce((s, c) => {
         if ((sim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1) === 0) return s;
-        const acct = (accounts as any[]).find((a: any) => a.id === c.id);
+        const acct = accounts.find(a => a.id === c.id);
         return s + (acct ? Number(acct.balance || 0) : 0);
       }, 0);
 
@@ -1103,7 +1103,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // Re-run pass3RevTotals with sim2-corrected totals
         const p3RevBal0_2 = cards.reduce((s, c) => {
           if ((sim2.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1) === 0) return s;
-          const acct = (accounts as any[]).find((a: any) => a.id === c.id);
+          const acct = accounts.find(a => a.id === c.id);
           return s + (acct ? Number(acct.balance || 0) : 0);
         }, 0);
         pass3RevTotals.length = 0;
@@ -1276,7 +1276,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const liveRevolvingBal = cards.reduce((s, c) => {
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         if (revBal0 === 0) return s;
-        const acct = (accounts as any[]).find((a: any) => a.id === c.id);
+        const acct = accounts.find(a => a.id === c.id);
         return s + (acct ? Number(acct.balance || 0) : 0);
       }, 0);
 
