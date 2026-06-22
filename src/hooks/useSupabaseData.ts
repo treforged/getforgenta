@@ -348,7 +348,7 @@ export function useSavingsGoals() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: { name: string; target_amount: number; current_amount: number; monthly_contribution: number; target_date?: string }) => {
+    mutationFn: async (item: { name: string; target_amount: number; current_amount: number; monthly_contribution: number; target_date?: string | null }) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('savings_goals').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
