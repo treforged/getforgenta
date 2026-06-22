@@ -12,6 +12,7 @@ import {
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
+import type { Tables } from '@/integrations/supabase/types';
 
 export interface Month0Result {
   safeToPayTotal: number;
@@ -82,7 +83,7 @@ export interface UseCardProjectionParams {
   debts: any[];
   goals: any[];
   carFunds: any[];
-  profile: any;
+  profile: Partial<Tables<'profiles'>>;
   debtPayoffOptions: { cashFloor: number };
   payConfig: PayScheduleConfig;
   /** Pre-computed scheduled events from generateScheduledEvents(rules, accounts, PROJECTION_MONTHS) */
@@ -286,7 +287,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
         ).map((r: any) => r.id),
       );
-      const explicitPaycheckRuleId = (profile as any)?.paycheck_rule_id as string | undefined;
+      const explicitPaycheckRuleId = profile?.paycheck_rule_id ?? undefined;
       const paycheckRuleIds = new Set<string>();
       if (explicitPaycheckRuleId) {
         paycheckRuleIds.add(explicitPaycheckRuleId);
