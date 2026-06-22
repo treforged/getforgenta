@@ -1,5 +1,8 @@
 import type { CarFund } from './types';
 import { PROJECTION_MONTHS } from './credit-card-engine';
+import type { EnrichedTransaction } from './pay-schedule';
+
+export type CarLoanTransaction = EnrichedTransaction & { carFundId: string };
 
 export interface LumpSumPayment {
   id: string;
@@ -247,8 +250,8 @@ export function getTotalCarLoanMonthly(carFunds: CarFund[], asOf?: Date): number
  * cash-flow model — unlike the indefinite-insurance behavior in
  * useCardProjection.ts/Forecast.tsx, there's no reason to generate rows forever).
  */
-export function generateCarLoanTransactions(carFunds: CarFund[]): any[] {
-  const results: any[] = [];
+export function generateCarLoanTransactions(carFunds: CarFund[]): CarLoanTransaction[] {
+  const results: CarLoanTransaction[] = [];
   for (const cf of carFunds) {
     // loan_start_date and planned_purchase_date represent the same real-world date — saving-
     // phase car funds only ever populate the latter (no separate "loan start" concept until a
