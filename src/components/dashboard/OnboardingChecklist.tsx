@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Tables } from '@/integrations/supabase/types';
 
 interface Props {
-  profile: any;
+  profile: Partial<Tables<'profiles'>>;
   accounts: any[];
   debts: any[];
   goals: any[];
@@ -15,8 +16,8 @@ interface Props {
 const CHECKLIST_KEYS = ['accounts', 'budget', 'debt', 'goals'] as const;
 type ChecklistKey = typeof CHECKLIST_KEYS[number];
 
-function getTourFlags(profile: any): Record<string, boolean> {
-  return ((profile as any)?.tour_flags as Record<string, boolean>) ?? {};
+function getTourFlags(profile: Partial<Tables<'profiles'>>): Record<string, boolean> {
+  return (profile?.tour_flags as Record<string, boolean>) ?? {};
 }
 
 async function markChecklistDone(userId: string, key: ChecklistKey, existing: Record<string, boolean>) {

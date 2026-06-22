@@ -36,7 +36,7 @@ export function useDashboardLayout() {
   useEffect(() => {
     if (loading || initialized.current) return;
     initialized.current = true;
-    const raw = (profile as any)?.dashboard_layout;
+    const raw = profile?.dashboard_layout;
     setLayoutState(parseLayout(raw));
   }, [profile, loading]);
 

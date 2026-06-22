@@ -617,7 +617,7 @@ export function useBudgetItems() {
 // ─── Profile ──────────────────────────────────────────────
 // FIX #15: DEFAULT_PROFILE now has consistent values that match
 // the demo recurring rules and produce correct calculations
-const DEFAULT_PROFILE = {
+const DEFAULT_PROFILE: Partial<Tables<'profiles'>> = {
   display_name: '', currency: 'USD', budget_start_day: 1,
   monthly_income_default: 6337.50, // 1875 * 4.33 * 0.78 (net)
   show_cents: true, compact_mode: false,

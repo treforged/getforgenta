@@ -66,7 +66,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (profile && !assumptionsLoaded.current) {
-      const saved = (profile as any).forecast_assumptions;
+      const saved = profile.forecast_assumptions as (Partial<AssumptionsType> & { taxOverride?: unknown }) | null;
       if (saved && typeof saved === 'object') {
         const { taxOverride: _dropped, ...migrated } = { ...saved };
         setAssumptionsState(prev => ({ ...prev, ...migrated }));
@@ -92,12 +92,12 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
   const payConfig = useMemo(() => buildPayConfig(profile), [profile]);
 
   const cashFloor = useMemo(() => {
-    const cf = (profile as any)?.cash_floor;
+    const cf = profile?.cash_floor;
     return cf != null ? Number(cf) : 1000;
   }, [profile]);
 
   const forecastFundingAccountId = useMemo((): string | null => {
-    const defaultId = (profile as any)?.default_deposit_account;
+    const defaultId = profile?.default_deposit_account;
     if (defaultId) {
       const acct = (accounts ?? []).find(
         (a: any) => a.id === defaultId && a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type),

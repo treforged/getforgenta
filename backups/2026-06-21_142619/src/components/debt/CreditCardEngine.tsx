@@ -26,6 +26,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import PremiumGate from '@/components/shared/PremiumGate';
 
+import type { Tables } from '@/integrations/supabase/types';
+
 const LIQUID_ACCOUNT_TYPES = ['checking', 'business_checking', 'cash'];
 
 type Props = {
@@ -33,7 +35,7 @@ type Props = {
   transactions: any[];
   rules: any[];
   debts: any[];
-  profile: any;
+  profile: Partial<Tables<'profiles'>>;
   goals: any[];
   carFunds: any[];
   incomeGrowthEnabled?: boolean;
@@ -146,7 +148,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Funding account selection — exclude savings
   const liquidAccounts = useMemo(() => accounts.filter((a: any) => a.active && LIQUID_ACCOUNT_TYPES.includes(a.account_type)), [accounts]);
   const defaultFunding = useMemo(() => {
-    const defaultId = (profile as any)?.default_deposit_account;
+    const defaultId = profile?.default_deposit_account;
     if (defaultId) {
       const acct = liquidAccounts.find((a: any) => a.id === defaultId);
       if (acct) return acct.id;
