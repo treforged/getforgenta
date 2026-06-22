@@ -37,3 +37,9 @@ docs/data-retention-policy.md
 # reference_compliance_docs_drive memory). Going forward, write future reports
 # to security-reports/ locally only — never commit them.
 security-reports/*.md
+
+# Claude Code skills — local tooling, not project source, never needed on GitHub
+.claude/skills/
+
+# Graphify AST cache — regenerable, large, not useful in git history
+graphify-out/cache/
