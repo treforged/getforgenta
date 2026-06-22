@@ -1679,7 +1679,7 @@ export default function Forecast() {
     const calendarYearStart = filterYear === 'all' ? 0 : getCalendarYearMonthRange(parseInt(filterYear, 10))[0];
     return filteredData.map((r: any, i: number) => {
       const absoluteI = getAbsoluteMonthIndex(i, filterYear, calendarYearStart);
-      return buildForecastMonthDetail(r, absoluteI, cardProjectionData);
+      return buildForecastMonthDetail(r, absoluteI, cardProjectionData as unknown as Parameters<typeof buildForecastMonthDetail>[2]);
     });
   }, [filteredData, filterYear, cardProjectionData]);
 
@@ -2468,7 +2468,7 @@ export default function Forecast() {
                           // cycling statement balance (newPurchases) — matches accordion display.
                           const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[absoluteI] ?? 0;
                           const simBal = cardProjectionData?.monthlyBalances?.get(card.id)?.[absoluteI] ?? 0;
-                          const cyclingBal = cardProjectionData?.data[absoluteI]?.[card.name] ?? 0;
+                          const cyclingBal = Number(cardProjectionData?.data[absoluteI]?.[card.name] ?? 0);
                           const bal = revBal > 0 ? simBal : cyclingBal;
                           return bal > 0 ? formatCurrency(Math.round(bal), false) : '—';
                         })(),
