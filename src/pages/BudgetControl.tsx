@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import type { Json } from '@/integrations/supabase/types';
+import type { Json, Tables } from '@/integrations/supabase/types';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router-dom';
@@ -102,7 +102,7 @@ const RULE_TYPE_OPTIONS = [
   { value: 'investment', label: 'Investment Contribution' },
 ];
 
-function migrateOldDeductions(profile: any): PaycheckDeduction[] | null {
+function migrateOldDeductions(profile: Partial<Tables<'profiles'>>): PaycheckDeduction[] | null {
   const vals = [
     { id: '401k',    label: '401(k) Traditional', val: Number(profile?.deduction_401k_value), mode: profile?.deduction_401k_mode || 'pct',  preTax: profile?.deduction_401k_pretax  !== false },
     { id: 'hsa',     label: 'HSA',                val: Number(profile?.deduction_hsa),        mode: profile?.deduction_hsa_mode    || 'flat', preTax: profile?.deduction_hsa_pretax   !== false },
@@ -200,18 +200,18 @@ export default function BudgetControl() {
 
   useEffect(() => {
     if (profile) {
-      const wg = Number((profile as any).weekly_gross_income) || 1875;
-      const pf = ((profile as any).paycheck_frequency as PayFrequency) || 'weekly';
+      const wg = Number(profile.weekly_gross_income) || 1875;
+      const pf = (profile.paycheck_frequency as PayFrequency) || 'weekly';
       const perPaycheck = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
       setWeeklyGross(wg);
       setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
-      const loadedTr = (profile as any).tax_rate ?? 22;
+      const loadedTr = profile.tax_rate ?? 22;
       setTaxRate(loadedTr);
       setTaxRateStr(String(loadedTr));
-      setPaycheckDay((profile as any).paycheck_day != null ? Number((profile as any).paycheck_day) : 5);
+      setPaycheckDay(profile.paycheck_day != null ? Number(profile.paycheck_day) : 5);
       setPayFrequency(pf);
       // Load deductions: prefer new JSONB column, migrate from legacy columns if needed
-      const jsonDeds = (profile as any).paycheck_deductions as PaycheckDeduction[] | null;
+      const jsonDeds = profile.paycheck_deductions as PaycheckDeduction[] | null;
       if (jsonDeds && jsonDeds.length > 0) {
         setDeductions(jsonDeds);
         setDedDisplayValues(Object.fromEntries(jsonDeds.map(d => [d.id, String(d.value)])));
@@ -224,10 +224,10 @@ export default function BudgetControl() {
         // else keep empty — user adds deductions manually
       }
       // Load the designated paycheck rule ID
-      setPaycheckRuleId((profile as any).paycheck_rule_id ?? null);
+      setPaycheckRuleId(profile.paycheck_rule_id ?? null);
       // Load UI preferences (collapse states) — only on first profile load
       if (!uiPrefsLoaded.current) {
-        const uiPrefs = (profile as any).ui_preferences;
+        const uiPrefs = profile.ui_preferences as { deductionsCollapsed?: boolean; incomeSectionCollapsed?: boolean } | null;
         if (uiPrefs && typeof uiPrefs === 'object') {
           if (typeof uiPrefs.deductionsCollapsed === 'boolean') setDeductionsCollapsedState(uiPrefs.deductionsCollapsed);
           if (typeof uiPrefs.incomeSectionCollapsed === 'boolean') setIncomeSectionCollapsedState(uiPrefs.incomeSectionCollapsed);
@@ -517,7 +517,7 @@ export default function BudgetControl() {
 
   // Inject debt payment transactions into the stream
   const debtPaymentTxns = useMemo(() => {
-    const fundId = (profile as any)?.default_deposit_account ||
+    const fundId = profile?.default_deposit_account ||
       accounts.find((a: any) => a.account_type === 'checking' && a.active)?.id || null;
     return createDebtPaymentTransactions(debtRecommendations, fundId);
   }, [debtRecommendations, profile, accounts]);
@@ -602,7 +602,7 @@ export default function BudgetControl() {
   const remaining = totalRecurringIncome - totalExpenses;
 
   const fundingAccount = useMemo(() => {
-    const defaultId = (profile as any)?.default_deposit_account;
+    const defaultId = profile?.default_deposit_account;
     if (defaultId) {
       const acct = accounts.find((a: any) => a.id === defaultId);
       if (acct) return acct;
@@ -623,7 +623,7 @@ export default function BudgetControl() {
 
   const remainingCashOnHand = fundingAccountBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt;
 
-  const cashFloor = useMemo(() => { const v = Number((profile as any)?.cash_floor); return isNaN(v) ? 1000 : v; }, [profile]);
+  const cashFloor = useMemo(() => { const v = Number(profile?.cash_floor); return isNaN(v) ? 1000 : v; }, [profile]);
   const prePaycheckBillsTotal = useMemo(() =>
     getPrePaycheckNextMonthBills(rules, payConfig, fundingAccount?.id || null).total,
     [rules, payConfig, fundingAccount]);

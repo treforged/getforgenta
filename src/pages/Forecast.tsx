@@ -143,7 +143,7 @@ export default function Forecast() {
   // Takes priority over the state-rate default so the estimate reflects their actual W-4 setup.
   const annualFederalWithheldFromBudget = useMemo(() => {
     if (!payConfig || !profile) return 0;
-    const jsonDeds = (profile as any)?.paycheck_deductions as { value: number; mode: string; label?: string }[] | null;
+    const jsonDeds = profile?.paycheck_deductions as { value: number; mode: string; label?: string }[] | null;
     if (!jsonDeds || jsonDeds.length === 0) return 0;
     const fedDed = jsonDeds.find(d => d.label != null && /federal.*withholding|^withholding$/i.test(d.label));
     if (!fedDed || !fedDed.value) return 0;
@@ -260,7 +260,7 @@ export default function Forecast() {
     // Identify the paycheck rule(s) so we can separate them from "other income".
     // paycheck income is already captured via fallbackTakeHome in PASS 1 — including it
     // again from forecastMonthEvents would double-count it for months > 0.
-    const explicitPaycheckRuleId = (profile as any)?.paycheck_rule_id as string | undefined;
+    const explicitPaycheckRuleId = profile?.paycheck_rule_id ?? undefined;
     const paycheckRuleIds = new Set<string>();
     if (explicitPaycheckRuleId) {
       paycheckRuleIds.add(explicitPaycheckRuleId);
@@ -439,7 +439,7 @@ export default function Forecast() {
   }, [accounts, rules, scheduledEvents, syncCutoffDate]);
 
   const projections = useMemo(() => {
-    const _profTr = (profile as any)?.tax_rate;
+    const _profTr = profile?.tax_rate;
     const taxRate = _profTr != null ? Number(_profTr) : 22;
 
     const active = accounts.filter((a: any) => a.active);
@@ -496,7 +496,7 @@ export default function Forecast() {
 
     // Monthly retirement paycheck contributions — reads paycheck_deductions JSONB first,
     // falls back to legacy deduction_401k_value if no linked deductions exist
-    const prof = profile as any;
+    const prof = profile;
     const paycheckGrossForForecast = payConfig
       ? (payConfig.frequency === 'biweekly' ? payConfig.weeklyGross * 2 : payConfig.frequency === 'monthly' ? payConfig.weeklyGross * 52 / 12 : payConfig.weeklyGross)
       : 0;
@@ -504,7 +504,7 @@ export default function Forecast() {
     const retireAccountIds = new Set(retireAccounts.map((a: any) => a.id as string));
     const retireAcctIdSet = retireAccountIds; // alias for per-account tracking
     const payDeds: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
-      Array.isArray(prof?.paycheck_deductions) ? prof.paycheck_deductions : [];
+      Array.isArray(prof?.paycheck_deductions) ? (prof.paycheck_deductions as typeof payDeds) : [];
     // Per-paycheck contribution amount — multiplied by actual paycheck count per month inside the loop
     const perCheck401k = (() => {
       const linked = payDeds
@@ -1704,7 +1704,7 @@ export default function Forecast() {
   const isVisible = (key: string) => !hiddenSeries.includes(key);
 
   const retirementProjections = useMemo(() => {
-    const prof = profile as any;
+    const prof = profile;
     const retireAccounts = accounts.filter((a: any) => a.active && RETIRE_TYPES_FORECAST.includes(a.account_type));
     if (retireAccounts.length === 0) return [];
 
@@ -1712,7 +1712,7 @@ export default function Forecast() {
     const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
 
     const deductions: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
-      Array.isArray(prof?.paycheck_deductions) ? prof.paycheck_deductions : [];
+      Array.isArray(prof?.paycheck_deductions) ? (prof.paycheck_deductions as typeof deductions) : [];
 
     const retireIds = new Set(retireAccounts.map((a: any) => a.id as string));
     const transferContribByAccount: Record<string, number> = {};
