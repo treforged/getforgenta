@@ -215,7 +215,7 @@ export default function Dashboard() {
   const { data: accounts, loading: acctLoading } = useAccounts();
   const { data: profile, loading: profileLoading } = useProfile();
 
-  useRetirementAutoUpdate(profile, accounts, isDemo, isPremium);
+  useRetirementAutoUpdate(profile as Parameters<typeof useRetirementAutoUpdate>[0], accounts, isDemo, isPremium);
   const { data: debts, loading: debtsLoading } = useDebts();
   const { data: goals, loading: goalsLoading } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();

@@ -6,6 +6,8 @@
 // against the other ever silently disagreeing.
 
 import { PROJECTION_MONTHS } from './credit-card-engine';
+import type { EnrichedTransaction } from './pay-schedule';
+import type { CarFund } from './types';
 
 export interface FloorProtectionParams {
   /** Per-month net income, length PROJECTION_MONTHS. Index 0 is month 0's own (today-to-EOM) remaining income. */
@@ -29,9 +31,9 @@ export interface FloorProtectionParams {
    * the cash-flow math itself (that's already folded into expenseByMonth by the caller). */
   cyclingExcessByMonth: number[];
   /** Saving-phase car funds — used only to label a car-down-payment-driven save-up reason. */
-  carFunds: any[];
+  carFunds: CarFund[];
   /** One-time transactions — used only to label a transaction-driven save-up reason. */
-  transactions: any[];
+  transactions: EnrichedTransaction[];
   /** Card account ids (and "account:id" keys) — used only to exclude CC-charged transactions
    * from the "biggest one-time expense" reason fallback. */
   ccSourceIds: Set<string>;
@@ -116,13 +118,13 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     const monthLabel = carD.toLocaleString('en', { month: 'long', year: 'numeric' });
     let eventName = 'upcoming expense';
     if (carDownPaymentByMonth[i] > 0) {
-      const car = (carFunds as any[]).find((c: any) => {
+      const car = carFunds.find(c => {
         if (c.phase !== 'saving') return false;
         const dp = Math.max(0, Number(c.down_payment_goal || 0) - Number(c.gift_contribution || 0));
         if (dp <= 0) return false;
         let pmi: number;
         if (c.planned_purchase_date) {
-          const parts = (c.planned_purchase_date as string).split('-').map(Number);
+          const parts = c.planned_purchase_date.split('-').map(Number);
           const pd = new Date(parts[0], parts[1] - 1, parts[2]);
           pmi = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
         } else {
@@ -138,17 +140,17 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     } else {
       const od = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const omk = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
-      const monthTxns = (transactions as any[]).filter((t: any) => {
-        if (t.type !== 'expense' || (t as any).isGenerated) return false;
+      const monthTxns = transactions.filter(t => {
+        if (t.type !== 'expense' || t.isGenerated) return false;
         if (!t.date || !t.date.startsWith(omk)) return false;
         if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
         if (t.payment_source && ccSourceIds.has(t.payment_source)) return false;
         return true;
       });
-      const biggest = monthTxns.reduce((max: any, t: any) =>
-        !max || Number(t.amount) > Number(max.amount) ? t : max, null as any);
+      const biggest = monthTxns.reduce((max: EnrichedTransaction | null, t) =>
+        !max || Number(t.amount) > Number(max.amount) ? t : max, null);
       if (biggest) {
-        const label = (biggest.note as string)?.trim() || biggest.category || 'expense';
+        const label = biggest.note?.trim() || biggest.category || 'expense';
         eventName = `${formatCurrency(Number(biggest.amount), false)} ${label}`;
       }
     }
