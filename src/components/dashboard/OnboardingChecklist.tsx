@@ -4,13 +4,15 @@ import { Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
+import type { AccountRow, DebtRow } from '@/hooks/useSupabaseData';
+import type { PlaidItem } from '@/hooks/usePlaidItems';
 
 interface Props {
   profile: Partial<Tables<'profiles'>>;
-  accounts: any[];
-  debts: any[];
-  goals: any[];
-  plaidItems: any[];
+  accounts: AccountRow[];
+  debts: DebtRow[];
+  goals: Partial<Tables<'savings_goals'>>[];
+  plaidItems: PlaidItem[];
 }
 
 const CHECKLIST_KEYS = ['accounts', 'budget', 'debt', 'goals'] as const;

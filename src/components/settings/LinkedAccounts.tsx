@@ -2,12 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Link2, Unlink, Loader2, CheckCircle } from 'lucide-react';
-
-type UserIdentity = {
-  identity_id: string;
-  provider: string;
-  identity_data?: { email?: string; name?: string };
-};
+import type { UserIdentity } from '@supabase/supabase-js';
 
 const OAUTH_PROVIDERS = [
   {
@@ -40,7 +35,7 @@ export function LinkedAccounts() {
   const loadIdentities = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      setIdentities((user.identities as UserIdentity[]) ?? []);
+      setIdentities(user.identities ?? []);
       setHasPassword(user.identities?.some(i => i.provider === 'email') ?? false);
     }
     setLoading(false);
@@ -82,7 +77,7 @@ export function LinkedAccounts() {
       return;
     }
     setActionLoading(identity.provider);
-    const { error } = await supabase.auth.unlinkIdentity(identity as any);
+    const { error } = await supabase.auth.unlinkIdentity(identity);
     if (error) {
       toast.error(error.message);
     } else {

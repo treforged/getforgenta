@@ -27,6 +27,7 @@ export function initMonitoring(): void {
 export function identifyMonitoringUser(userId: string, email?: string): void {
   if (Capacitor.isNativePlatform()) return;
   import('@launchdarkly/session-replay').then(({ LDRecord }) => {
-    (LDRecord as any).identify(userId, email ? { email } : undefined);
+    (LDRecord as unknown as { identify(userId: string, opts?: { email?: string }): void })
+      .identify(userId, email ? { email } : undefined);
   }).catch(() => {});
 }

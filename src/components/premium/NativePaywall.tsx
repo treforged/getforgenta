@@ -62,7 +62,7 @@ export default function NativePaywall() {
   const pollUntilPremium = async (attempts = 10, intervalMs = 2000): Promise<boolean> => {
     for (let i = 0; i < attempts; i++) {
       const result = await refetch();
-      const sub = result.data as any;
+      const sub = result.data;
       if (sub?.plan === 'premium' && ['active', 'trialing'].includes(sub?.subscription_status ?? '')) return true;
       await new Promise(r => setTimeout(r, intervalMs));
     }

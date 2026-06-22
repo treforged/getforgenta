@@ -12,7 +12,9 @@ function parseLayout(raw: unknown): WidgetConfig[] {
   const validIds = new Set<WidgetId>(WIDGET_META.map(w => w.id));
   const saved: WidgetConfig[] = raw
     .filter((w): w is { id: WidgetId; visible: boolean } =>
-      typeof w === 'object' && w !== null && typeof (w as any).id === 'string' && validIds.has((w as any).id),
+      typeof w === 'object' && w !== null &&
+      typeof (w as Record<string, unknown>).id === 'string' &&
+      validIds.has((w as Record<string, unknown>).id as WidgetId),
     )
     .map(w => ({ id: w.id, visible: Boolean(w.visible) }));
 

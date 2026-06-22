@@ -16,7 +16,7 @@ import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
-  Link2, Unlink, Loader2, RefreshCw,
+  Link2, Unlink, Loader2, RefreshCw, type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -75,7 +75,7 @@ const RETIREMENT_TYPES = ['roth_ira', '401k'];
 const TYPE_LABELS: Record<string, string> = {};
 ACCOUNT_TYPES.forEach(t => { TYPE_LABELS[t.value] = t.label; });
 
-const TYPE_ICONS: Record<string, any> = {
+const TYPE_ICONS: Record<string, LucideIcon> = {
   checking: Building2, savings: PiggyBank, high_yield_savings: PiggyBank,
   hsa: PiggyBank, business_checking: Building2, brokerage: TrendingUp,
   roth_ira: TrendingUp, '401k': TrendingUp, cash: DollarSign,

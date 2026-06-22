@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getAugmentedMinSafeCash, buildPayConfig } from '../pay-schedule';
+import type { CarFund } from '../types';
 
 // Regression for a user-reported gap: car insurance was subtracted as a normal monthly expense
 // elsewhere, but never reserved by the cash floor itself — getAugmentedMinSafeCash protected a
@@ -8,13 +9,13 @@ import { getAugmentedMinSafeCash, buildPayConfig } from '../pay-schedule';
 const now = new Date(2026, 5, 20); // 2026-06-20
 const config = buildPayConfig({});
 
-function run(carFunds: any[]) {
-  return getAugmentedMinSafeCash([], config, 1000, null, now, carFunds, null, 0);
+function run(carFunds: Partial<CarFund>[]) {
+  return getAugmentedMinSafeCash([], config, 1000, null, now, carFunds as CarFund[], null, 0);
 }
 
 describe('getAugmentedMinSafeCash — car insurance', () => {
   it('adds insurance for a loan-phase car, anchored to payment_start_date\'s day-of-month', () => {
-    const cf = {
+    const cf: Partial<CarFund> = {
       vehicle_name: 'Real Account Car', phase: 'loan',
       monthly_insurance: 77, loan_start_date: '2026-01-01', payment_start_date: '2026-08-07',
       planned_purchase_date: null,
@@ -28,7 +29,7 @@ describe('getAugmentedMinSafeCash — car insurance', () => {
   });
 
   it('adds insurance for a saving-phase car with a past purchase date, falling back to planned_purchase_date\'s day when payment_start_date is unset', () => {
-    const cf = {
+    const cf: Partial<CarFund> = {
       vehicle_name: 'Saving Car', phase: 'saving',
       monthly_insurance: 50, loan_start_date: null, payment_start_date: null,
       planned_purchase_date: '2026-01-15',
@@ -41,7 +42,7 @@ describe('getAugmentedMinSafeCash — car insurance', () => {
   });
 
   it('does not add insurance for a saving-phase car whose purchase date is still in the future — not owned yet', () => {
-    const cf = {
+    const cf: Partial<CarFund> = {
       vehicle_name: 'Future Car', phase: 'saving',
       monthly_insurance: 90, loan_start_date: null, payment_start_date: '2026-12-01',
       planned_purchase_date: '2026-12-01',
@@ -51,7 +52,7 @@ describe('getAugmentedMinSafeCash — car insurance', () => {
   });
 
   it('adds nothing when monthly_insurance is 0', () => {
-    const cf = {
+    const cf: Partial<CarFund> = {
       vehicle_name: 'No Insurance Car', phase: 'loan',
       monthly_insurance: 0, loan_start_date: '2026-01-01', payment_start_date: '2026-08-07',
       planned_purchase_date: null,

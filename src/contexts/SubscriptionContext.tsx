@@ -53,7 +53,7 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     queryFn: async () => {
       if (!user) return null;
       const { data, error } = await supabase
-        .from('user_subscriptions' as any)
+        .from('user_subscriptions')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
