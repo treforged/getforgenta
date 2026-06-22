@@ -13,6 +13,10 @@ import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import type { Tables } from '@/integrations/supabase/types';
+import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
+import type { EnrichedTransaction } from '@/lib/pay-schedule';
+import type { ScheduledEvent } from '@/lib/scheduling';
+import type { CarFund } from '@/lib/types';
 
 export interface Month0Result {
   safeToPayTotal: number;
@@ -77,17 +81,17 @@ export interface CardProjectionResult {
 }
 
 export interface UseCardProjectionParams {
-  accounts: any[];
-  transactions: any[];
-  rules: any[];
-  debts: any[];
-  goals: any[];
-  carFunds: any[];
+  accounts: AccountRow[];
+  transactions: EnrichedTransaction[];
+  rules: RuleRow[];
+  debts: DebtRow[];
+  goals: Partial<Tables<'savings_goals'>>[];
+  carFunds: CarFund[];
   profile: Partial<Tables<'profiles'>>;
   debtPayoffOptions: { cashFloor: number };
   payConfig: PayScheduleConfig;
   /** Pre-computed scheduled events from generateScheduledEvents(rules, accounts, PROJECTION_MONTHS) */
-  scheduledEvents: any[];
+  scheduledEvents: ScheduledEvent[];
   pauseSavings: boolean;
   syncCutoffDate?: string;
   forecastFundingAccountId: string | null;
