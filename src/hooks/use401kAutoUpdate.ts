@@ -12,6 +12,10 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildPayConfig, getPaychecksInMonth, getPaycheckGross } from '@/lib/pay-schedule';
+import type { AccountRow } from './useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
+
+type ProfileRow = Partial<Tables<'profiles'>> & { user_id: string };
 
 const DEFAULT_401K_APY = 7; // fallback if account has no apy_rate set
 
@@ -26,7 +30,7 @@ function getDatesBetween(from: Date, to: Date): Date[] {
   return dates;
 }
 
-function getPaychecksBetween(profile: any, from: Date, to: Date): Date[] {
+function getPaychecksBetween(profile: ProfileRow, from: Date, to: Date): Date[] {
   const config = buildPayConfig(profile);
   const result: Date[] = [];
   // Iterate month by month between from and to
@@ -46,8 +50,8 @@ function getPaychecksBetween(profile: any, from: Date, to: Date): Date[] {
 }
 
 export function use401kAutoUpdate(
-  profile: any,
-  accounts: any[],
+  profile: ProfileRow,
+  accounts: AccountRow[],
   isDemo: boolean,
 ) {
   const ranRef = useRef(false);
@@ -61,8 +65,8 @@ export function use401kAutoUpdate(
 
     // Find the primary 401k account (highest balance if multiple)
     const retirement401k = accounts
-      .filter((a: any) => a.active && a.account_type === '401k')
-      .sort((a: any, b: any) => Number(b.balance) - Number(a.balance));
+      .filter(a => a.active && a.account_type === '401k')
+      .sort((a, b) => Number(b.balance) - Number(a.balance));
     if (retirement401k.length === 0) return;
     const primaryAccount = retirement401k[0];
 
@@ -75,7 +79,7 @@ export function use401kAutoUpdate(
 
     // First run: set last_401k_update to today without applying changes
     if (!lastUpdate) {
-      supabase.from('profiles' as any)
+      supabase.from('profiles')
         .update({ last_401k_update: today.toISOString().split('T')[0] })
         .eq('user_id', profile.user_id)
         .then(() => {});
@@ -92,7 +96,7 @@ export function use401kAutoUpdate(
     const missedPaychecks = getPaychecksBetween(profile, lastUpdate, today);
     if (missedPaychecks.length === 0) {
       // Still update the date so we don't keep rechecking
-      supabase.from('profiles' as any)
+      supabase.from('profiles')
         .update({ last_401k_update: today.toISOString().split('T')[0] })
         .eq('user_id', profile.user_id)
         .then(() => {});
@@ -121,11 +125,11 @@ export function use401kAutoUpdate(
     ranRef.current = true;
 
     Promise.all([
-      supabase.from('accounts' as any)
+      supabase.from('accounts')
         .update({ balance: newBalance })
         .eq('id', primaryAccount.id)
         .eq('user_id', profile.user_id),
-      supabase.from('profiles' as any)
+      supabase.from('profiles')
         .update({ last_401k_update: today.toISOString().split('T')[0] })
         .eq('user_id', profile.user_id),
     ]).then(() => {});

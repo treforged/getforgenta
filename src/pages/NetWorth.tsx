@@ -39,7 +39,12 @@ const COLORS = [
 const RETIRE_TYPES = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 const DEFAULT_APY = 7;
 
-function CustomTooltip({ active, payload }: any) {
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: { payload: { name?: string; month?: string }; value: number }[];
+}
+
+function CustomTooltip({ active, payload }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
@@ -82,8 +87,8 @@ export default function NetWorth() {
   // Auto-pull assets from Accounts
   const liveAssets = useMemo(() => {
     return accounts
-      .filter((a: any) => a.active && a.account_type !== 'credit_card')
-      .map((a: any) => ({
+      .filter(a => a.active && a.account_type !== 'credit_card')
+      .map(a => ({
         id: `live:${a.id}`,
         name: a.name,
         type: ACCOUNT_TYPE_MAP[a.account_type] || 'Other',
@@ -96,8 +101,8 @@ export default function NetWorth() {
   // Auto-pull liabilities from Accounts (credit cards)
   const liveLiabilities = useMemo(() => {
     return accounts
-      .filter((a: any) => a.active && a.account_type === 'credit_card')
-      .map((a: any) => ({
+      .filter(a => a.active && a.account_type === 'credit_card')
+      .map(a => ({
         id: `live:${a.id}`,
         name: a.name,
         type: 'Credit Card',
@@ -127,31 +132,30 @@ export default function NetWorth() {
 
   // ── Retirement growth projections (all users) ───────────────────────────────
   const retirementProjections = useMemo(() => {
-    const prof = profile as any;
-    const retireAccounts = accounts.filter((a: any) => a.active && RETIRE_TYPES.includes(a.account_type));
+    const retireAccounts = accounts.filter(a => a.active && RETIRE_TYPES.includes(a.account_type));
     if (retireAccounts.length === 0) return [];
 
-    const payConfig = buildPayConfig(prof);
+    const payConfig = buildPayConfig(profile);
     const paycheckGross = getPaycheckGross(payConfig);
     const paychecksPerYear = payConfig.frequency === 'biweekly' ? 26 : payConfig.frequency === 'monthly' ? 12 : 52;
 
     const deductions: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
-      Array.isArray(prof?.paycheck_deductions) ? prof.paycheck_deductions : [];
+      Array.isArray(profile?.paycheck_deductions) ? profile.paycheck_deductions as unknown as { value: number; mode: 'flat' | 'pct'; accountId?: string }[] : [];
 
     // Also count transfer rules depositing into retirement accounts
-    const retireIds = new Set(retireAccounts.map((a: any) => a.id as string));
+    const retireIds = new Set(retireAccounts.map(a => a.id));
     const transferContribByAccount: Record<string, number> = {};
     for (const r of (rules || [])) {
       if (!r.active) continue;
       if (r.rule_type !== 'transfer' && r.rule_type !== 'investment') continue;
-      const destId = r.deposit_account as string | undefined;
+      const destId = r.deposit_account ?? undefined;
       if (!destId || !retireIds.has(destId)) continue;
       const amt = Number(r.amount);
       const annualCount = r.frequency === 'weekly' ? 52 : r.frequency === 'biweekly' ? 26 : r.frequency === 'yearly' ? 1 : 12;
       transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + amt * annualCount / 12;
     }
 
-    return retireAccounts.map((a: any) => {
+    return retireAccounts.map(a => {
       const apyRate = a.apy_rate != null ? Number(a.apy_rate) : DEFAULT_APY;
       const fromDeductions = monthlyContribForAccount(deductions, a.id, paycheckGross, paychecksPerYear);
       const fromTransfers = transferContribByAccount[a.id] || 0;
@@ -203,7 +207,7 @@ export default function NetWorth() {
       const now = new Date();
       return [{ month: now.toLocaleString('en', { month: 'short' }), value: netWorth }];
     }
-    return snapshots.map((s: any) => ({
+    return snapshots.map(s => ({
       month: new Date(s.snapshot_date).toLocaleString('en', { month: 'short', day: 'numeric' }),
       value: Number(s.net_worth),
     }));
@@ -224,7 +228,7 @@ export default function NetWorth() {
   }, [snapshots]);
 
   const openAddAsset = () => { setAssetForm(emptyAssetForm); setEditAssetId(null); setShowAssetForm(true); };
-  const openEditAsset = (a: any) => { setAssetForm({ name: a.name, type: a.type, value: String(a.value), notes: a.notes || '' }); setEditAssetId(a.id); setShowAssetForm(true); };
+  const openEditAsset = (a: (typeof allAssets)[number]) => { setAssetForm({ name: a.name, type: a.type, value: String(a.value), notes: a.notes || '' }); setEditAssetId(a.id); setShowAssetForm(true); };
   const saveAsset = () => {
     const val = parseFloat(assetForm.value);
     if (!assetForm.name || isNaN(val)) return;
@@ -237,12 +241,12 @@ export default function NetWorth() {
   };
 
   const openAddLiability = () => { setLiabilityForm(emptyLiabilityForm); setEditLiabilityId(null); setShowLiabilityForm(true); };
-  const openEditLiability = (l: any) => { setLiabilityForm({ name: l.name, type: l.type, balance: String(l.balance), apr: String(l.apr || ''), notes: l.notes || '' }); setEditLiabilityId(l.id); setShowLiabilityForm(true); };
+  const openEditLiability = (l: (typeof allLiabilities)[number]) => { setLiabilityForm({ name: l.name, type: l.type, balance: String(l.balance), apr: String(l.apr || ''), notes: l.notes || '' }); setEditLiabilityId(l.id); setShowLiabilityForm(true); };
   const saveLiability = () => {
     const bal = parseFloat(liabilityForm.balance);
     if (!liabilityForm.name || isNaN(bal)) return;
     if (editLiabilityId && !editLiabilityId.startsWith('live:')) {
-      const existingLiability = manualLiabilities.find((l: any) => l.id === editLiabilityId);
+      const existingLiability = manualLiabilities.find(l => l.id === editLiabilityId);
       const projectedBalance = existingLiability ? Number(existingLiability.balance) : bal;
       const delta = bal - projectedBalance;
       updateLiability.mutate({ id: editLiabilityId, name: liabilityForm.name, type: liabilityForm.type, balance: bal, apr: parseFloat(liabilityForm.apr) || 0, notes: liabilityForm.notes });
@@ -397,7 +401,7 @@ export default function NetWorth() {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="font-bold font-display text-success whitespace-nowrap">{formatCurrency(Number(a.value), false)}</span>
-                    {!(a as any).isLive && (
+                    {!a.isLive && (
                       <>
                         <button onClick={() => openEditAsset(a)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={12} /></button>
                         <button onClick={() => handleDelete(a.id, 'asset')} className={`icon-btn ${deleteConfirm === a.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
@@ -442,7 +446,7 @@ export default function NetWorth() {
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="font-bold font-display text-destructive whitespace-nowrap">{formatCurrency(Number(l.balance), false)}</span>
-                    {!(l as any).isLive && (
+                    {!l.isLive && (
                       <>
                         <button onClick={() => openEditLiability(l)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={12} /></button>
                         <button onClick={() => handleDelete(l.id, 'liability')} className={`icon-btn ${deleteConfirm === l.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>

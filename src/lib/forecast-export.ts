@@ -9,6 +9,88 @@ export interface ForecastFlowItem {
   amount: number;
 }
 
+interface NamedAmountItem {
+  name: string;
+  amount: number;
+  isPurchaseMonth?: boolean;
+  fromAcctName?: string | null;
+}
+
+interface NamedBalanceItem {
+  name: string;
+  balance: number;
+}
+
+/** Only the fields this module reads off a Forecast.tsx projection row — not the row's full
+ * (much larger) shape, which lives in Forecast.tsx itself. Every field optional/loose on purpose:
+ * this is a read-only structural subset, not the canonical row type. */
+interface ForecastExportRow {
+  month?: string;
+  startingCash?: number;
+  endingCash?: number;
+  monthMinSafe?: number;
+  netWorth?: number;
+  totalAssets?: number;
+  totalLiabilities?: number;
+  paycheckIncome?: number;
+  takeHome?: number;
+  otherIncome?: number;
+  bonusIncome?: number;
+  taxReturnIncome?: number;
+  baseExpenses?: number;
+  debtPayment?: number;
+  displayDebtPayment?: number;
+  savingsGoalItems?: NamedAmountItem[];
+  savingsContrib?: number;
+  carContribItems?: NamedAmountItem[];
+  carContrib?: number;
+  mortgagePayment?: number;
+  carLoanPayment?: number;
+  vehicleDownPayment?: number;
+  vehicleInsurance?: number;
+  projectedCarLoan?: number;
+  carLumpItems?: NamedAmountItem[];
+  carLoanExtraPayment?: number;
+  lumpSumSavings?: number;
+  lumpSumBrokerage?: number;
+  lumpSumRothIra?: number;
+  transferBreakdown?: NamedAmountItem[];
+  businessContrib?: number;
+  oneTimeNet?: number;
+  nonCashTransferItems?: NamedAmountItem[];
+  otherAccountExpenseItems?: NamedAmountItem[];
+  assetBreakdown?: { bucket: string; name: string; balance: number }[];
+  nonCCLiabBreakdown?: NamedBalanceItem[];
+  carLoanBreakdown?: NamedBalanceItem[];
+}
+
+interface PerCardAdjustedRec {
+  name: string;
+  payment: number;
+}
+
+interface PerCardPaymentSeries {
+  name: string;
+  payments: number[];
+}
+
+interface SimCardShape {
+  id: string;
+  name: string;
+}
+
+/** Only the fields this module reads off useCardProjection's CardProjectionResult — see the same
+ * note as ForecastExportRow above. */
+interface ForecastExportCardProjectionData {
+  month0?: { perCardAdjusted?: PerCardAdjustedRec[] };
+  perCardPaymentsScaled?: PerCardPaymentSeries[];
+  perCardPayments?: PerCardPaymentSeries[];
+  simCards?: SimCardShape[];
+  monthlyRevolvingBalances?: Map<string, number[]>;
+  monthlyBalances?: Map<string, number[]>;
+  data?: Record<string, number>[];
+}
+
 export interface ForecastAccountLine {
   label: string;
   amount: number;
@@ -39,37 +121,37 @@ export interface ForecastMonthDetail {
 /** Mirrors Forecast.tsx openDrawer's per-card debt-payment breakdown (month 0 uses engine
  * recommendations; later months scale the simulation's per-card amounts to the actual capped
  * total) exactly, just returning raw numbers instead of formatted JSX lines. */
-function getPerCardDebtBreakdown(row: any, absoluteI: number, cardProjectionData: any): { name: string; amount: number }[] {
+function getPerCardDebtBreakdown(row: ForecastExportRow, absoluteI: number, cardProjectionData: ForecastExportCardProjectionData | null): { name: string; amount: number }[] {
   const fallbackAmt = row.displayDebtPayment ?? row.debtPayment ?? 0;
   const fallback = fallbackAmt > 0 ? [{ name: 'Debt Payments', amount: fallbackAmt }] : [];
 
   if (absoluteI === 0 && cardProjectionData?.month0?.perCardAdjusted) {
-    const engineRecs = cardProjectionData.month0.perCardAdjusted.filter((r: any) => r.payment > 0);
+    const engineRecs = cardProjectionData.month0.perCardAdjusted.filter(r => r.payment > 0);
     return engineRecs.length > 0
-      ? engineRecs.map((r: any) => ({ name: r.name, amount: r.payment }))
+      ? engineRecs.map(r => ({ name: r.name, amount: r.payment }))
       : fallback;
   }
 
   const perCard = cardProjectionData?.perCardPaymentsScaled ?? cardProjectionData?.perCardPayments;
   if (!perCard) return fallback;
   const rawAmounts = perCard
-    .map((c: any) => ({ name: c.name, amt: c.payments[absoluteI] ?? 0 }))
-    .filter((c: any) => c.amt > 0);
+    .map(c => ({ name: c.name, amt: c.payments[absoluteI] ?? 0 }))
+    .filter(c => c.amt > 0);
   if (rawAmounts.length === 0) return fallback;
-  const rawSum = rawAmounts.reduce((s: number, c: any) => s + c.amt, 0);
+  const rawSum = rawAmounts.reduce((s, c) => s + c.amt, 0);
   const scale = rawSum > 0 ? (row.debtPayment ?? rawSum) / rawSum : 1;
   const lines = rawAmounts
-    .map((c: any) => ({ name: c.name, amount: c.amt * scale }))
-    .filter((c: any) => c.amount > 0.005);
+    .map(c => ({ name: c.name, amount: c.amt * scale }))
+    .filter(c => c.amount > 0.005);
   return lines.length > 0 ? lines : fallback;
 }
 
 /** Mirrors Forecast.tsx openDrawer's per-card balance formula exactly: revolving cards read
  * monthlyBalances (full end balance including this month's purchases); cycling cards fall back to
  * the cycling statement balance stored on cardProjectionData.data[i][card.name]. */
-function getCreditCardBalances(absoluteI: number, cardProjectionData: any): ForecastAccountLine[] {
+function getCreditCardBalances(absoluteI: number, cardProjectionData: ForecastExportCardProjectionData | null): ForecastAccountLine[] {
   const cards = cardProjectionData?.simCards ?? [];
-  return cards.map((card: any) => {
+  return cards.map(card => {
     const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[absoluteI] ?? 0;
     const simBal = cardProjectionData?.monthlyBalances?.get(card.id)?.[absoluteI] ?? 0;
     const cyclingBal = cardProjectionData?.data?.[absoluteI]?.[card.name] ?? 0;
@@ -78,65 +160,65 @@ function getCreditCardBalances(absoluteI: number, cardProjectionData: any): Fore
   });
 }
 
-export function buildForecastMonthDetail(row: any, absoluteI: number, cardProjectionData: any): ForecastMonthDetail {
+export function buildForecastMonthDetail(row: ForecastExportRow, absoluteI: number, cardProjectionData: ForecastExportCardProjectionData | null): ForecastMonthDetail {
   const income: ForecastFlowItem[] = [];
   const expenses: ForecastFlowItem[] = [];
 
   const paycheck = row.paycheckIncome ?? row.takeHome ?? 0;
   if (paycheck > 0) income.push({ label: 'Paycheck', amount: paycheck });
-  if ((row.otherIncome ?? 0) > 0) income.push({ label: 'Other Income', amount: row.otherIncome });
-  if ((row.bonusIncome ?? 0) > 0) income.push({ label: 'Bonus', amount: row.bonusIncome });
-  if ((row.taxReturnIncome ?? 0) > 0) income.push({ label: 'Tax Return', amount: row.taxReturnIncome });
-  else if ((row.taxReturnIncome ?? 0) < 0) expenses.push({ label: 'Tax Owed', amount: Math.abs(row.taxReturnIncome) });
+  if ((row.otherIncome ?? 0) > 0) income.push({ label: 'Other Income', amount: row.otherIncome ?? 0 });
+  if ((row.bonusIncome ?? 0) > 0) income.push({ label: 'Bonus', amount: row.bonusIncome ?? 0 });
+  if ((row.taxReturnIncome ?? 0) > 0) income.push({ label: 'Tax Return', amount: row.taxReturnIncome ?? 0 });
+  else if ((row.taxReturnIncome ?? 0) < 0) expenses.push({ label: 'Tax Owed', amount: Math.abs(row.taxReturnIncome ?? 0) });
 
-  if ((row.baseExpenses ?? 0) > 0) expenses.push({ label: 'Bills & Expenses', amount: row.baseExpenses });
+  if ((row.baseExpenses ?? 0) > 0) expenses.push({ label: 'Bills & Expenses', amount: row.baseExpenses ?? 0 });
 
   for (const c of getPerCardDebtBreakdown(row, absoluteI, cardProjectionData)) {
     expenses.push({ label: `Debt: ${c.name}`, amount: c.amount });
   }
 
   if ((row.savingsGoalItems?.length ?? 0) > 0) {
-    for (const g of row.savingsGoalItems) if (g.amount > 0) expenses.push({ label: `Goal: ${g.name}`, amount: g.amount });
+    for (const g of row.savingsGoalItems ?? []) if (g.amount > 0) expenses.push({ label: `Goal: ${g.name}`, amount: g.amount });
   } else if ((row.savingsContrib ?? 0) > 0) {
-    expenses.push({ label: 'Savings Goals', amount: row.savingsContrib });
+    expenses.push({ label: 'Savings Goals', amount: row.savingsContrib ?? 0 });
   }
 
   if ((row.carContribItems?.length ?? 0) > 0) {
-    for (const v of row.carContribItems) {
+    for (const v of row.carContribItems ?? []) {
       if (v.amount > 0) expenses.push({ label: v.isPurchaseMonth ? `${v.name} (Down Payment)` : `Reserving for ${v.name}`, amount: v.amount });
     }
   } else if ((row.carContrib ?? 0) > 0) {
-    expenses.push({ label: 'Car Fund Reserve', amount: row.carContrib });
+    expenses.push({ label: 'Car Fund Reserve', amount: row.carContrib ?? 0 });
   }
 
-  if ((row.mortgagePayment ?? 0) > 0) expenses.push({ label: 'Mortgage Payment', amount: row.mortgagePayment });
-  if ((row.carLoanPayment ?? 0) > 0) expenses.push({ label: 'Car Loan Payment', amount: row.carLoanPayment });
-  if ((row.vehicleDownPayment ?? 0) > 0) expenses.push({ label: 'Vehicle Down Payment', amount: row.vehicleDownPayment });
-  if ((row.vehicleInsurance ?? 0) > 0) expenses.push({ label: 'Vehicle Insurance', amount: row.vehicleInsurance });
-  if ((row.projectedCarLoan ?? 0) > 0) expenses.push({ label: 'Est. Car Loan (Projected)', amount: row.projectedCarLoan });
+  if ((row.mortgagePayment ?? 0) > 0) expenses.push({ label: 'Mortgage Payment', amount: row.mortgagePayment ?? 0 });
+  if ((row.carLoanPayment ?? 0) > 0) expenses.push({ label: 'Car Loan Payment', amount: row.carLoanPayment ?? 0 });
+  if ((row.vehicleDownPayment ?? 0) > 0) expenses.push({ label: 'Vehicle Down Payment', amount: row.vehicleDownPayment ?? 0 });
+  if ((row.vehicleInsurance ?? 0) > 0) expenses.push({ label: 'Vehicle Insurance', amount: row.vehicleInsurance ?? 0 });
+  if ((row.projectedCarLoan ?? 0) > 0) expenses.push({ label: 'Est. Car Loan (Projected)', amount: row.projectedCarLoan ?? 0 });
 
   if ((row.carLumpItems?.length ?? 0) > 0) {
-    for (const v of row.carLumpItems) if (v.amount > 0) expenses.push({ label: `${v.name} — Extra Payment`, amount: v.amount });
+    for (const v of row.carLumpItems ?? []) if (v.amount > 0) expenses.push({ label: `${v.name} — Extra Payment`, amount: v.amount });
   } else if ((row.carLoanExtraPayment ?? 0) > 0) {
-    expenses.push({ label: 'Car Loan Extra Payment', amount: row.carLoanExtraPayment });
+    expenses.push({ label: 'Car Loan Extra Payment', amount: row.carLoanExtraPayment ?? 0 });
   }
 
-  if ((row.lumpSumSavings ?? 0) > 0) expenses.push({ label: 'Lump Sum → Savings', amount: row.lumpSumSavings });
-  if ((row.lumpSumBrokerage ?? 0) > 0) expenses.push({ label: 'Lump Sum → Brokerage', amount: row.lumpSumBrokerage });
-  if ((row.lumpSumRothIra ?? 0) > 0) expenses.push({ label: 'Lump Sum → Roth IRA', amount: row.lumpSumRothIra });
+  if ((row.lumpSumSavings ?? 0) > 0) expenses.push({ label: 'Lump Sum → Savings', amount: row.lumpSumSavings ?? 0 });
+  if ((row.lumpSumBrokerage ?? 0) > 0) expenses.push({ label: 'Lump Sum → Brokerage', amount: row.lumpSumBrokerage ?? 0 });
+  if ((row.lumpSumRothIra ?? 0) > 0) expenses.push({ label: 'Lump Sum → Roth IRA', amount: row.lumpSumRothIra ?? 0 });
 
   for (const t of row.transferBreakdown ?? []) if (t.amount > 0) expenses.push({ label: t.name, amount: t.amount });
-  if ((row.businessContrib ?? 0) > 0) expenses.push({ label: 'Business Contributions', amount: row.businessContrib });
+  if ((row.businessContrib ?? 0) > 0) expenses.push({ label: 'Business Contributions', amount: row.businessContrib ?? 0 });
 
-  if ((row.oneTimeNet ?? 0) > 0) income.push({ label: 'One-Time Income', amount: row.oneTimeNet });
-  else if ((row.oneTimeNet ?? 0) < 0) expenses.push({ label: 'One-Time Expense', amount: Math.abs(row.oneTimeNet) });
+  if ((row.oneTimeNet ?? 0) > 0) income.push({ label: 'One-Time Income', amount: row.oneTimeNet ?? 0 });
+  else if ((row.oneTimeNet ?? 0) < 0) expenses.push({ label: 'One-Time Expense', amount: Math.abs(row.oneTimeNet ?? 0) });
 
   const internalTransfers: ForecastFlowItem[] = [
-    ...(row.nonCashTransferItems ?? []).map((item: any) => ({
+    ...(row.nonCashTransferItems ?? []).map(item => ({
       label: item.fromAcctName ? `${item.name} (from ${item.fromAcctName})` : item.name,
       amount: item.amount,
     })),
-    ...(row.otherAccountExpenseItems ?? []).map((item: any) => ({
+    ...(row.otherAccountExpenseItems ?? []).map(item => ({
       label: item.fromAcctName ? `${item.name} (from ${item.fromAcctName})` : item.name,
       amount: item.amount,
     })),
@@ -152,7 +234,7 @@ export function buildForecastMonthDetail(row: any, absoluteI: number, cardProjec
   const carLoans = ((row.carLoanBreakdown ?? []) as { name: string; balance: number }[]).map(c => ({ label: c.name, amount: c.balance }));
 
   return {
-    month: row.month,
+    month: row.month ?? '',
     startingCash: row.startingCash ?? 0,
     endingCash: row.endingCash ?? 0,
     cashFloor: row.monthMinSafe ?? 0,

@@ -38,15 +38,15 @@ export default function DebtPayoff() {
   const [activeTab, setActiveTab] = useState<'cards' | 'auto' | 'mortgage' | 'student' | 'other'>('cards');
 
   const ccAccountNames = useMemo(() => new Set(
-    accounts?.filter((a: any) => a.account_type === 'credit_card').map((a: any) => a.name.toLowerCase()) ?? []
+    accounts?.filter(a => a.account_type === 'credit_card').map(a => a.name.toLowerCase()) ?? []
   ), [accounts]);
 
   const mortgageAccountNames = useMemo(() => new Set(
-    accounts?.filter((a: any) => a.account_type === 'mortgage').map((a: any) => a.name.toLowerCase()) ?? []
+    accounts?.filter(a => a.account_type === 'mortgage').map(a => a.name.toLowerCase()) ?? []
   ), [accounts]);
 
   const studentAccountNames = useMemo(() => new Set(
-    accounts?.filter((a: any) => a.account_type === 'student_loan').map((a: any) => a.name.toLowerCase()) ?? []
+    accounts?.filter(a => a.account_type === 'student_loan').map(a => a.name.toLowerCase()) ?? []
   ), [accounts]);
 
   const mortgageDebts = useMemo(() => debts?.filter(d => mortgageAccountNames.has(d.name.toLowerCase())) ?? [], [debts, mortgageAccountNames]);
@@ -88,7 +88,7 @@ export default function DebtPayoff() {
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
-  const openEdit = (d: any) => {
+  const openEdit = (d: (typeof otherDebts)[number]) => {
     setForm({ name: d.name, balance: String(d.balance), apr: String(d.apr), min_payment: String(d.min_payment), target_payment: String(d.target_payment), credit_limit: String(d.credit_limit || '') });
     setEditId(d.id); setShowForm(true);
   };
@@ -101,7 +101,7 @@ export default function DebtPayoff() {
       target_payment: parseFloat(form.target_payment) || parseFloat(form.min_payment) || 0, credit_limit: parseFloat(form.credit_limit) || 0,
     };
     if (!editId) return;
-    const existingDebt = debts?.find((d: any) => d.id === editId);
+    const existingDebt = debts?.find(d => d.id === editId);
     const projectedBalance = existingDebt ? Number(existingDebt.balance) : balance;
     const delta = balance - projectedBalance;
     update.mutate({ id: editId, ...payload });
@@ -123,11 +123,11 @@ export default function DebtPayoff() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
-  const hasCreditCards = accounts?.some((a: any) => a.account_type === 'credit_card' && a.active) ?? false;
+  const hasCreditCards = accounts?.some(a => a.account_type === 'credit_card' && a.active) ?? false;
 
-  const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds as any[]), [carFunds]);
-  const loanVehicles = useMemo(() => (carFunds as any[]).filter((c: any) => c.phase === 'loan'), [carFunds]);
-  const savingVehicles = useMemo(() => (carFunds as any[]).filter((c: any) => c.phase === 'saving'), [carFunds]);
+  const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds), [carFunds]);
+  const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
+  const savingVehicles = useMemo(() => carFunds.filter(c => c.phase === 'saving'), [carFunds]);
 
   if (accountsLoading) return <PageSkeleton />;
 
@@ -200,7 +200,7 @@ export default function DebtPayoff() {
         <button onClick={() => setActiveTab('cards')}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'cards' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{accounts?.filter((a: any) => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
+          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{accounts?.filter(a => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
         </button>
         <button onClick={() => setActiveTab('auto')}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'auto' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
@@ -255,7 +255,7 @@ export default function DebtPayoff() {
             </div>
           )}
           <div className="space-y-3">
-            {loanVehicles.map((cf: any) => {
+            {loanVehicles.map(cf => {
               if (!cf.payment_start_date || !cf.loan_start_date) return null;
               const proj = buildAmortizationSchedule({
                 loanAmount: cf.loan_amount, apr: cf.expected_apr, termMonths: cf.loan_term_months,
@@ -299,7 +299,7 @@ export default function DebtPayoff() {
           {savingVehicles.length > 0 && (
             <div className="space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Planned Loans — Estimate</p>
-              {savingVehicles.map((cf: any) => {
+              {savingVehicles.map(cf => {
                 const loanPrincipal = Math.max(0, Number(cf.target_price || 0) + Number(cf.tax_fees || 0) - Number(cf.down_payment_goal || 0));
                 const termMonths = Number(cf.loan_term_months) || 60;
                 const apr = Number(cf.expected_apr) || 0;
@@ -408,8 +408,8 @@ export default function DebtPayoff() {
           {otherDebts.length > 1 && (
             <div className="grid md:grid-cols-2 gap-4">
               {([
-                { label: 'Snowball', desc: 'Smallest balance first', sim: snowballSim, order: snowballOrder, orderLabel: (d: any) => formatCurrency(Number(d.balance), false) },
-                { label: 'Avalanche', desc: 'Highest APR first — minimizes total interest', sim: avalancheSim, order: avalancheOrder, orderLabel: (d: any) => `${Number(d.apr)}% APR` },
+                { label: 'Snowball', desc: 'Smallest balance first', sim: snowballSim, order: snowballOrder, orderLabel: (d: (typeof otherDebts)[number]) => formatCurrency(Number(d.balance), false) },
+                { label: 'Avalanche', desc: 'Highest APR first — minimizes total interest', sim: avalancheSim, order: avalancheOrder, orderLabel: (d: (typeof otherDebts)[number]) => `${Number(d.apr)}% APR` },
               ] as const).map(({ label, desc, sim, order, orderLabel }) => (
                 <div key={label} className="card-forged p-4 space-y-3">
                   <div>

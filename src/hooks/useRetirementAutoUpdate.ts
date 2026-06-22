@@ -16,11 +16,15 @@ import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { buildPayConfig, getPaychecksInMonth, getPaycheckGross } from '@/lib/pay-schedule';
 import { compoundGrowth } from '@/lib/retirement-projection';
+import type { AccountRow } from './useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
+
+type ProfileRow = Partial<Tables<'profiles'>> & { user_id: string };
 
 const DEFAULT_RETIRE_APY = 7;
 const RETIRE_ACCOUNT_TYPES = new Set(['401k', 'roth_ira', 'ira', 'brokerage', 'hsa']);
 
-function getPaychecksBetween(profile: any, from: Date, to: Date): Date[] {
+function getPaychecksBetween(profile: ProfileRow, from: Date, to: Date): Date[] {
   const config = buildPayConfig(profile);
   const result: Date[] = [];
   const start = new Date(from.getFullYear(), from.getMonth(), 1);
@@ -45,8 +49,8 @@ type DeductionEntry = {
 };
 
 export function useRetirementAutoUpdate(
-  profile: any,
-  accounts: any[],
+  profile: ProfileRow,
+  accounts: AccountRow[],
   isDemo: boolean,
   isPremium: boolean,
 ) {
@@ -61,18 +65,18 @@ export function useRetirementAutoUpdate(
     if (!isPremium) return;
 
     // Build map of retirement accounts (id → account)
-    const retireAccMap = new Map<string, any>(
+    const retireAccMap = new Map<string, AccountRow>(
       accounts
-        .filter((a: any) => a.active && RETIRE_ACCOUNT_TYPES.has(a.account_type))
-        .map((a: any) => [a.id as string, a]),
+        .filter(a => a.active && RETIRE_ACCOUNT_TYPES.has(a.account_type))
+        .map(a => [a.id, a]),
     );
 
     // Read deductions from new JSONB column
     const deductions: DeductionEntry[] = Array.isArray(profile.paycheck_deductions)
-      ? profile.paycheck_deductions
+      ? profile.paycheck_deductions as unknown as DeductionEntry[]
       : [];
 
-    type Pair = { deduction: DeductionEntry; account: any };
+    type Pair = { deduction: DeductionEntry; account: AccountRow };
     let pairs: Pair[] = deductions
       .filter(d => d.value > 0 && d.accountId && retireAccMap.has(d.accountId))
       .map(d => ({ deduction: d, account: retireAccMap.get(d.accountId!)! }));
@@ -82,8 +86,8 @@ export function useRetirementAutoUpdate(
       const val401k = Number(profile.deduction_401k_value) || 0;
       if (val401k > 0) {
         const primary = accounts
-          .filter((a: any) => a.active && a.account_type === '401k')
-          .sort((a: any, b: any) => Number(b.balance) - Number(a.balance))[0];
+          .filter(a => a.active && a.account_type === '401k')
+          .sort((a, b) => Number(b.balance) - Number(a.balance))[0];
         if (primary) {
           pairs = [{
             deduction: {
@@ -110,7 +114,7 @@ export function useRetirementAutoUpdate(
 
     // First run ever: record today's date, no balance change
     if (!lastUpdate) {
-      supabase.from('profiles' as any)
+      supabase.from('profiles')
         .update({ last_401k_update: today.toISOString().split('T')[0] })
         .eq('user_id', profile.user_id)
         .then(() => {});
@@ -125,7 +129,7 @@ export function useRetirementAutoUpdate(
     const payConfig = buildPayConfig(profile);
     const paycheckGross = getPaycheckGross(payConfig);
 
-    const writes: PromiseLike<any>[] = [];
+    const writes: PromiseLike<void>[] = [];
 
     for (const { deduction, account } of pairs) {
       // Skip Plaid-linked — Plaid sync handles balance updates
@@ -142,7 +146,7 @@ export function useRetirementAutoUpdate(
       const newBalance = Math.round((grownBalance + totalContrib) * 100) / 100;
 
       writes.push(
-        supabase.from('accounts' as any)
+        supabase.from('accounts')
           .update({ balance: newBalance })
           .eq('id', account.id)
           .eq('user_id', profile.user_id)
@@ -151,12 +155,12 @@ export function useRetirementAutoUpdate(
     }
 
     writes.push(
-      supabase.from('profiles' as any)
+      supabase.from('profiles')
         .update({ last_401k_update: today.toISOString().split('T')[0] })
         .eq('user_id', profile.user_id)
         .then(() => {}),
     );
 
-    Promise.all(writes as Promise<any>[]).then(() => {});
+    Promise.all(writes).then(() => {});
   }, [profile, accounts, isDemo, isPremium]);
 }
