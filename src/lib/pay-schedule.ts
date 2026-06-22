@@ -727,6 +727,14 @@ export function getMinSafeCash(
   return Math.max(cashFloor, prePaycheckBills);
 }
 
+/** The subset of credit-card-engine.ts's CardData that getAugmentedMinSafeCash's floor
+ * calculation actually reads — kept narrow (rather than importing the full CardData type)
+ * so callers/tests only need to provide these fields, not the entire simulated-card shape. */
+export type MinSafeCashCard = {
+  id: string; name: string; dueDay: number | null; minPayment: number;
+  paymentPreference: string | null; autopayFullBalance: boolean; startDate?: string;
+};
+
 /**
  * Cash floor augmented with active car-loan payments and credit-card minimums due, on top of
  * the bare pre-paycheck-bills floor from getMinSafeCash(). This is the single source of truth
@@ -741,7 +749,7 @@ export function getAugmentedMinSafeCash(
   now: Date,
   carFunds: CarFund[],
   cc: {
-    simCards: any[]; monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]>;
+    simCards: MinSafeCashCard[]; monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]>;
     /** Optional — a cycling card's accumulated backlog (credit-card-engine.ts's cyclingBacklog).
      * When provided, a backlog-carrying cycling card's minimum (already folded into
      * prePaycheckBillsTotal below, same as any cycling card) is ALSO counted in
@@ -793,7 +801,7 @@ export function getAugmentedMinSafeCash(
   // know how much of that reservation this floor has already covered, so they don't double-reserve it.
   let ccRevolvingMinIncluded = 0;
   if (cc) {
-    for (const card of cc.simCards as any[]) {
+    for (const card of cc.simCards) {
       const revBal = cc.monthlyRevolvingBalances?.get(card.id)?.[monthIdx] ?? 1;
       if (revBal > 0) {
         const minPay = cc.perCardMinPayments?.get(card.id)?.[monthIdx] ?? 0;
