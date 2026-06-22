@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import type { Json } from '@/integrations/supabase/types';
+import type { Json, Tables } from '@/integrations/supabase/types';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
@@ -23,6 +23,14 @@ const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
 const ROTH_IRA_LIMIT = 7000;
 const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '', linked_rule_id: '' };
+
+// allGoals' shape: a real savings_goals row enriched with values computed from
+// the linked account/rule (not DB columns themselves).
+type EnrichedGoal = Partial<Tables<'savings_goals'>> & {
+  effective_apy: number;
+  linked_rule: { name: string; amount: number; frequency: string; start_date: string | null } | null;
+  available_after_outflows: number | null;
+};
 
 type GoalLumpSum = { id: string; date: string; amount: number };
 
@@ -246,7 +254,7 @@ const toMonthly = (amount: number, freq: string) =>
   : freq === 'yearly' ? amount / 12
   : amount;
 
-function SavingsGrowthChart({ goals }: { goals: any[] }) {
+function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
   const chartData = useMemo(() => {
     const today = new Date();
     const todayYear = today.getFullYear();
@@ -261,14 +269,14 @@ function SavingsGrowthChart({ goals }: { goals: any[] }) {
           const j = (start.getFullYear() - todayYear) * 12 + (start.getMonth() - todayMonth);
           if (j > 0) monthsContributed = Math.max(0, i - (j - 1));
         }
-        const r = Number((g as any).effective_apy || 0) / 12 / 100;
+        const r = Number(g.effective_apy || 0) / 12 / 100;
         const pv = Number(g.current_amount);
         const pmt = Number(g.monthly_contribution);
         const n = monthsContributed;
         const fv = r > 0 && n > 0
           ? pv * Math.pow(1 + r, n) + pmt * (Math.pow(1 + r, n) - 1) / r
           : pv + pmt * n;
-        entry[g.name] = Math.min(fv, Number(g.target_amount));
+        entry[g.name ?? ''] = Math.min(fv, Number(g.target_amount));
       });
       months.push(entry);
     }
@@ -307,7 +315,7 @@ export default function SavingsGoals() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const cashFloor = (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000;
+  const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
 
   const liquidCash = useMemo(() =>
@@ -362,7 +370,7 @@ export default function SavingsGoals() {
   }
 }, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar]);
   const debtTxns = useMemo(() => {
-    const fundId = (profile as any)?.default_deposit_account ||
+    const fundId = profile?.default_deposit_account ||
       accounts.find((a: any) => a.account_type === 'checking' && a.active)?.id || null;
     return createDebtPaymentTransactions(debtRecs, fundId);
   }, [debtRecs, profile, accounts]);
@@ -380,29 +388,29 @@ export default function SavingsGoals() {
     return getAccountRemainingCashThisMonth(accountId, acct.account_type, allTxns, Number(acct.balance), cashFloor);
   }, [accountMap, allTxns, cashFloor]);
 
-  const allGoals = useMemo(() => {
+  const allGoals: EnrichedGoal[] = useMemo(() => {
     return goals.map(g => {
-      const linkedRule = (g as any).linked_rule_id
-        ? rules.find((r: any) => r.id === (g as any).linked_rule_id)
+      const linkedRule = g.linked_rule_id
+        ? rules.find((r: any) => r.id === g.linked_rule_id)
         : null;
-      const linkedAcct = (g as any).linked_account ? accountMap[(g as any).linked_account] : null;
+      const linkedAcct = g.linked_account ? accountMap[g.linked_account] : null;
       const rawRate = Number(linkedAcct?.apy_rate ?? linkedAcct?.apr ?? 0);
       const typeDefault = (['savings', 'high_yield_savings'].includes(linkedAcct?.account_type ?? '') ? 4.5
         : ['brokerage', 'roth_ira', '401k', 'ira', 'hsa'].includes(linkedAcct?.account_type ?? '') ? 7 : 0);
       const effective_apy = rawRate > 0 ? rawRate : typeDefault;
       return {
         ...g,
-        goal_type: (g as any).goal_type || 'Custom',
-        current_amount: (g as any).linked_account && accountMap[(g as any).linked_account]
-          ? Number(accountMap[(g as any).linked_account].balance)
+        goal_type: g.goal_type || 'Custom',
+        current_amount: g.linked_account && accountMap[g.linked_account]
+          ? Number(accountMap[g.linked_account].balance)
           : Number(g.current_amount),
-        available_after_outflows: (g as any).linked_account && accountMap[(g as any).linked_account]
-          ? getLinkedAmount((g as any).linked_account)
+        available_after_outflows: g.linked_account && accountMap[g.linked_account]
+          ? getLinkedAmount(g.linked_account)
           : null,
         monthly_contribution: linkedRule
           ? toMonthly(Number(linkedRule.amount), linkedRule.frequency)
           : Number(g.monthly_contribution),
-        contribution_start_date: linkedRule?.start_date ?? (g as any).contribution_start_date ?? null,
+        contribution_start_date: linkedRule?.start_date ?? g.contribution_start_date ?? null,
         linked_rule: linkedRule || null,
         effective_apy,
       };
@@ -429,24 +437,24 @@ export default function SavingsGoals() {
     setEditId(null); setShowForm(true);
   };
 
-  const openEdit = (g: any) => {
+  const openEdit = (g: EnrichedGoal) => {
     setForm({
-      name: g.name, target_amount: String(g.target_amount), current_amount: String(g.current_amount),
+      name: g.name ?? '', target_amount: String(g.target_amount), current_amount: String(g.current_amount),
       monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
-      goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
-      contribution_start_date: (g as any).contribution_start_date || '',
-      linked_rule_id: (g as any).linked_rule_id || '',
+      goal_type: g.goal_type || 'Custom', linked_account: g.linked_account || '',
+      contribution_start_date: g.contribution_start_date || '',
+      linked_rule_id: g.linked_rule_id || '',
     });
-    setEditId(g.id); setShowForm(true);
+    setEditId(g.id ?? null); setShowForm(true);
   };
 
-  const handleDuplicate = (g: any) => {
+  const handleDuplicate = (g: EnrichedGoal) => {
     setForm({
       name: `${g.name} (Copy)`, target_amount: String(g.target_amount), current_amount: '0',
       monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
-      goal_type: g.goal_type || 'Custom', linked_account: (g as any).linked_account || '',
-      contribution_start_date: (g as any).contribution_start_date || '',
-      linked_rule_id: (g as any).linked_rule_id || '',
+      goal_type: g.goal_type || 'Custom', linked_account: g.linked_account || '',
+      contribution_start_date: g.contribution_start_date || '',
+      linked_rule_id: g.linked_rule_id || '',
     });
     setEditId(null); setShowForm(true);
     toast.info('Goal duplicated — edit and save');
@@ -463,8 +471,8 @@ export default function SavingsGoals() {
       target_date: form.target_date || null,
       linked_account: form.linked_account || null,
       goal_type: form.goal_type || 'Custom',
-      contribution_start_date: (form as any).contribution_start_date || null,
-      linked_rule_id: (form as any).linked_rule_id || null,
+      contribution_start_date: form.contribution_start_date || null,
+      linked_rule_id: form.linked_rule_id || null,
     };
     if (editId) {
       update.mutate({ id: editId, ...payload });
@@ -500,7 +508,7 @@ export default function SavingsGoals() {
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }
 
-  const formLinkedRuleId = (form as any).linked_rule_id;
+  const formLinkedRuleId = form.linked_rule_id;
 
   const formFields = useMemo(() => {
     const fields: any[] = [
@@ -597,11 +605,11 @@ export default function SavingsGoals() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {allGoals.map(g => {
           const pct = Number(g.target_amount) > 0 ? (Number(g.current_amount) / Number(g.target_amount)) * 100 : 0;
-          const isLinked = !!(g as any).linked_account && accountMap[(g as any).linked_account];
-          const linkedAcct = isLinked ? accountMap[(g as any).linked_account] : null;
+          const isLinked = !!g.linked_account && accountMap[g.linked_account];
+          const linkedAcct = isLinked ? accountMap[g.linked_account!] : null;
           const linkedAccountType = linkedAcct?.account_type ?? '';
           const isRothIra = ['roth_ira', 'ira', '401k', 'hsa'].includes(linkedAccountType) || (g.goal_type || '').toLowerCase() === 'retirement';
-          const goalLumps: GoalLumpSum[] = Array.isArray((g as any).lump_sum_payments) ? (g as any).lump_sum_payments : [];
+          const goalLumps: GoalLumpSum[] = Array.isArray(g.lump_sum_payments) ? (g.lump_sum_payments as unknown as GoalLumpSum[]) : [];
 
           return (
             <div key={g.id} className="card-forged p-4 space-y-3 hover:border-primary/20 transition-colors">
@@ -617,20 +625,20 @@ export default function SavingsGoals() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground break-words leading-relaxed">
-                    {(g as any).linked_rule
-                      ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {(g as any).linked_rule.name}</span>
+                    {g.linked_rule
+                      ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {g.linked_rule.name}</span>
                       : `${formatCurrency(Number(g.monthly_contribution), false)}/mo contribution`
                     }
                     {isLinked && ' · Auto-synced from account'}
-                    {(g as any).available_after_outflows != null && (
-                      <span className="ml-1 text-muted-foreground">· Available after bills: {formatCurrency((g as any).available_after_outflows, false)}</span>
+                    {g.available_after_outflows != null && (
+                      <span className="ml-1 text-muted-foreground">· Available after bills: {formatCurrency(g.available_after_outflows, false)}</span>
                     )}
                   </p>
                 </div>
                 <div className="flex gap-1 shrink-0 self-end sm:self-auto">
                   <button onClick={() => handleDuplicate(g)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
                   <button onClick={() => openEdit(g)} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                  <button onClick={() => handleDelete(g.id)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
+                  <button onClick={() => handleDelete(g.id!)} className={`icon-btn ${deleteConfirm === g.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>
                 </div>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
@@ -645,12 +653,12 @@ export default function SavingsGoals() {
               {!isDemo && (
                 <GoalLumpSumPanel
                   lumpSums={goalLumps}
-                  onSave={lumps => handleSaveLumpSums(g.id, lumps)}
+                  onSave={lumps => handleSaveLumpSums(g.id!, lumps)}
                   liquidCash={liquidCash}
                   currentAmount={Number(g.current_amount)}
                   monthlyContrib={Number(g.monthly_contribution)}
                   isRothIra={isRothIra}
-                  apyRate={(g as any).effective_apy || 0}
+                  apyRate={g.effective_apy || 0}
                 />
               )}
             </div>
