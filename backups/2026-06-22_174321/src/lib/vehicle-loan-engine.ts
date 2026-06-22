@@ -220,19 +220,10 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
 
     if (proj.remainingBalance <= 0) continue;
 
-    // The row for the month in progress — its payment is already capped to (balance + interest)
-    // by buildAmortizationSchedule, so the final payoff month correctly shows a smaller true-up
-    // amount instead of the flat scheduled/actual payment. Subtract lumpSum: callers add lump sums
-    // separately (e.g. carLoanLumpByMonth in Forecast.tsx), so this must stay regular-payment-only.
-    const currentRow = proj.schedule[proj.monthsElapsed];
-    const currentPayment = currentRow
-      ? Math.round((currentRow.payment - currentRow.lumpSum) * 100) / 100
-      : proj.effectivePayment;
-
     results.push({
       carFundId: cf.id,
       vehicleName: cf.vehicle_name,
-      payment: currentPayment,
+      payment: proj.effectivePayment,
       payoffDate: proj.payoffDate,
       remainingBalance: proj.remainingBalance,
       isDeferredInterest: proj.isDeferredInterest,

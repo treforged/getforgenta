@@ -10,7 +10,6 @@ import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { usePersistedState } from '@/hooks/usePersistedState';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -36,7 +35,7 @@ export default function DebtPayoff() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = usePersistedState<'cards' | 'auto' | 'mortgage' | 'student' | 'other'>('tre:debtpayoff:activeTab', 'cards');
+  const [activeTab, setActiveTab] = useState<'cards' | 'auto' | 'mortgage' | 'student' | 'other'>('cards');
 
   const ccAccountNames = useMemo(() => new Set(
     accounts?.filter(a => a.account_type === 'credit_card').map(a => a.name.toLowerCase()) ?? []
@@ -263,7 +262,6 @@ export default function DebtPayoff() {
                 loanStartDate: cf.loan_start_date, paymentStartDate: cf.payment_start_date,
                 interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
                 actualMonthlyPayment: cf.actual_monthly_payment,
-                lumpSumPayments: cf.lump_sum_payments ?? [],
               });
               const payoffFmt = new Date(proj.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
               return (

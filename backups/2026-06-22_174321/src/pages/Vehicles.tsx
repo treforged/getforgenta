@@ -11,11 +11,10 @@ import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, 
 import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useDemo } from '@/contexts/DemoContext';
-import { usePersistedState } from '@/hooks/usePersistedState';
 import { Plus, Edit2, Trash2, Car, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X, Check } from 'lucide-react';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { CarFund } from '@/lib/types';
 import type { Json } from '@/integrations/supabase/types';
 
@@ -51,12 +50,11 @@ function fmtDate(iso: string | null | undefined) {
 
 
 function LumpSumModal({
-  mode, initialDate, initialAmount, initialCount, schedule, liquidCash, onSave, onClose,
+  mode, initialDate, initialAmount, schedule, liquidCash, onSave, onClose,
 }: {
   mode: 'add' | 'edit';
   initialDate: string;
   initialAmount: string;
-  initialCount?: string;
   schedule: { date: string; startBalance: number }[];
   liquidCash?: number;
   onSave: (entries: { date: string; amount: number }[]) => void;
@@ -64,8 +62,8 @@ function LumpSumModal({
 }) {
   const [date, setDate] = useState(initialDate);
   const [amount, setAmount] = useState(initialAmount);
-  // Editable in both modes — lets the user grow/shrink a range or turn a single month into one.
-  const [repeatMonths, setRepeatMonths] = useState(initialCount ?? '1');
+  // Repeat is add-only — editing always targets exactly the one existing entry.
+  const [repeatMonths, setRepeatMonths] = useState('1');
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -80,7 +78,7 @@ function LumpSumModal({
   const handleSave = () => {
     const amt = parseFloat(amount);
     if (!date || !amt || amt <= 0) return;
-    const count = Math.max(1, Math.min(60, parseInt(repeatMonths) || 1));
+    const count = mode === 'add' ? Math.max(1, Math.min(60, parseInt(repeatMonths) || 1)) : 1;
     const entries = Array.from({ length: count }, (_, k) => ({ date: addMonthsStr(date, k), amount: amt }));
     onSave(entries);
   };
@@ -119,21 +117,23 @@ function LumpSumModal({
               style={{ borderRadius: 'var(--radius)' }}
             />
           </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
-              Months <span className="text-muted-foreground/60">(consecutive, starting this date)</span>
-            </p>
-            <input
-              type="number"
-              min={1}
-              max={60}
-              placeholder="1"
-              value={repeatMonths}
-              onChange={e => setRepeatMonths(e.target.value)}
-              className="w-full bg-secondary border border-border px-3 py-3 text-sm text-foreground"
-              style={{ borderRadius: 'var(--radius)' }}
-            />
-          </div>
+          {mode === 'add' && (
+            <div>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                Repeat <span className="text-muted-foreground/60">(consecutive months, starting this date)</span>
+              </p>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                placeholder="1"
+                value={repeatMonths}
+                onChange={e => setRepeatMonths(e.target.value)}
+                className="w-full bg-secondary border border-border px-3 py-3 text-sm text-foreground"
+                style={{ borderRadius: 'var(--radius)' }}
+              />
+            </div>
+          )}
           {date && (bal !== null || liquidCash !== undefined) && (
             <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
               {bal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(bal, false)}</span></span>}
@@ -158,32 +158,6 @@ function LumpSumModal({
   );
 }
 
-interface LumpSumGroup {
-  ids: string[];
-  startDate: string;
-  endDate: string;
-  amount: number;
-  count: number;
-}
-
-// Merges consecutive same-amount monthly entries (e.g. from the "Repeat" add option) into a
-// single range row, so 5 separate $500 rows for Jun–Oct show as one "Jun 2026 – Oct 2026" row.
-function groupConsecutiveLumpSums(lumpSums: LumpSumPayment[]): LumpSumGroup[] {
-  const sorted = [...lumpSums].sort((a, b) => a.date.localeCompare(b.date));
-  const groups: LumpSumGroup[] = [];
-  for (const ls of sorted) {
-    const last = groups[groups.length - 1];
-    if (last && last.amount === ls.amount && addMonthsStr(last.endDate, 1) === ls.date) {
-      last.ids.push(ls.id);
-      last.endDate = ls.date;
-      last.count += 1;
-    } else {
-      groups.push({ ids: [ls.id], startDate: ls.date, endDate: ls.date, amount: ls.amount, count: 1 });
-    }
-  }
-  return groups;
-}
-
 function LumpSumPanel({
   schedule,
   lumpSums,
@@ -193,7 +167,7 @@ function LumpSumPanel({
   withLumpsPayoffDate,
   onAdd,
   onRemove,
-  onReplace,
+  onUpdate,
   label = 'Planned Extra Payments',
   liquidCash,
 }: {
@@ -204,12 +178,12 @@ function LumpSumPanel({
   basePayoffDate: string;
   withLumpsPayoffDate: string;
   onAdd: (entries: LumpSumPayment[]) => void;
-  onRemove: (ids: string[]) => void;
-  onReplace: (oldIds: string[], entries: { date: string; amount: number }[]) => void;
+  onRemove: (id: string) => void;
+  onUpdate: (ls: LumpSumPayment) => void;
   label?: string;
   liquidCash?: number;
 }) {
-  const [modal, setModal] = useState<null | { mode: 'add' } | { mode: 'edit'; ids: string[]; date: string; amount: string; count: string }>(null);
+  const [modal, setModal] = useState<null | { mode: 'add' } | { mode: 'edit'; id: string; date: string; amount: string }>(null);
 
   const getBalanceBefore = (dateStr: string) => {
     const month = dateStr.substring(0, 7);
@@ -237,23 +211,19 @@ function LumpSumPanel({
 
       {hasLumps && (
         <div className="space-y-1">
-          {groupConsecutiveLumpSums(lumpSums).map(g => {
-            const bal = getBalanceBefore(g.startDate);
-            const isRange = g.count > 1;
-            const startLabel = new Date(g.startDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            const endLabel = new Date(g.endDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+          {[...lumpSums].sort((a, b) => a.date.localeCompare(b.date)).map(ls => {
+            const bal = getBalanceBefore(ls.date);
+            const dateLabel = new Date(ls.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
             return (
-              <div key={g.ids.join(',')} className="flex items-center justify-between py-1 px-2 bg-secondary/20 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
+              <div key={ls.id} className="flex items-center justify-between py-1 px-2 bg-secondary/20 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  <span className="text-[10px] font-medium shrink-0">{isRange ? `${startLabel} – ${endLabel}` : startLabel}</span>
-                  <span className="text-[10px] text-primary font-semibold shrink-0">
-                    {formatCurrency(g.amount, false)}{isRange ? `/mo × ${g.count}` : ''}
-                  </span>
+                  <span className="text-[10px] font-medium shrink-0">{dateLabel}</span>
+                  <span className="text-[10px] text-primary font-semibold shrink-0">{formatCurrency(ls.amount, false)}</span>
                   {bal !== null && <span className="text-[10px] text-muted-foreground">Balance before: {formatCurrency(bal, false)}</span>}
                 </div>
                 <div className="flex items-center gap-1 ml-2 shrink-0">
-                  <button onClick={() => setModal({ mode: 'edit', ids: g.ids, date: g.startDate, amount: String(g.amount), count: String(g.count) })} className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
-                  <button onClick={() => onRemove(g.ids)} className="text-muted-foreground hover:text-destructive"><X size={11} /></button>
+                  <button onClick={() => setModal({ mode: 'edit', id: ls.id, date: ls.date, amount: String(ls.amount) })} className="text-muted-foreground hover:text-foreground"><Edit2 size={11} /></button>
+                  <button onClick={() => onRemove(ls.id)} className="text-muted-foreground hover:text-destructive"><X size={11} /></button>
                 </div>
               </div>
             );
@@ -275,18 +245,17 @@ function LumpSumPanel({
 
       {modal && (
         <LumpSumModal
-          key={modal.mode === 'edit' ? modal.ids.join(',') : 'add'}
+          key={modal.mode === 'edit' ? modal.id : 'add'}
           mode={modal.mode}
           initialDate={modal.mode === 'edit' ? modal.date : ''}
           initialAmount={modal.mode === 'edit' ? modal.amount : ''}
-          initialCount={modal.mode === 'edit' ? modal.count : '1'}
           schedule={schedule}
           liquidCash={liquidCash}
           onSave={(entries) => {
             if (modal.mode === 'add') {
               onAdd(entries.map(e => ({ id: crypto.randomUUID(), date: e.date, amount: e.amount })));
             } else {
-              onReplace(modal.ids, entries);
+              onUpdate({ id: modal.id, date: entries[0].date, amount: entries[0].amount });
             }
             setModal(null);
           }}
@@ -374,12 +343,8 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
   }, [projectedBase, lumpSums, cf]);
 
   const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
-  const handleRemoveLump = (ids: string[]) => onSaveLumpSums(lumpSums.filter(l => !ids.includes(l.id)));
-  const handleReplaceLumps = (oldIds: string[], entries: { date: string; amount: number }[]) =>
-    onSaveLumpSums([
-      ...lumpSums.filter(l => !oldIds.includes(l.id)),
-      ...entries.map(e => ({ id: crypto.randomUUID(), date: e.date, amount: e.amount })),
-    ]);
+  const handleRemoveLump = (id: string) => onSaveLumpSums(lumpSums.filter(l => l.id !== id));
+  const handleUpdateLump = (ls: LumpSumPayment) => onSaveLumpSums(lumpSums.map(l => l.id === ls.id ? ls : l));
   return (
     <div className="card-forged p-4 space-y-3">
       <div className="flex items-start justify-between">
@@ -482,7 +447,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
         withLumpsPayoffDate={projectedWithLumps?.payoffDate ?? projectedBase?.payoffDate ?? ''}
         onAdd={handleAddLump}
         onRemove={handleRemoveLump}
-        onReplace={handleReplaceLumps}
+        onUpdate={handleUpdateLump}
         label="Projected Extra Payments"
         liquidCash={liquidCash}
       />
@@ -525,33 +490,18 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
   const [showSchedule, setShowSchedule] = useState(false);
 
   const handleAddLump = (entries: LumpSumPayment[]) => onSaveLumpSums([...lumpSums, ...entries]);
-  const handleRemoveLump = (ids: string[]) => onSaveLumpSums(lumpSums.filter(l => !ids.includes(l.id)));
-  const handleReplaceLumps = (oldIds: string[], entries: { date: string; amount: number }[]) =>
-    onSaveLumpSums([
-      ...lumpSums.filter(l => !oldIds.includes(l.id)),
-      ...entries.map(e => ({ id: crypto.randomUUID(), date: e.date, amount: e.amount })),
-    ]);
+  const handleRemoveLump = (id: string) => onSaveLumpSums(lumpSums.filter(l => l.id !== id));
+  const handleUpdateLump = (ls: LumpSumPayment) => onSaveLumpSums(lumpSums.map(l => l.id === ls.id ? ls : l));
 
   if (!proj) return null;
 
-  // projWithLumps reflects extra payments — use it for everything the user actually sees.
-  // proj (base, no lumps) is kept only for the LumpSumPanel's "impact of extra payments" comparison below.
-  const effective = projWithLumps ?? proj;
+  const pct = cf.loan_amount > 0 ? ((cf.loan_amount - proj.remainingBalance) / cf.loan_amount) * 100 : 0;
 
-  const pct = cf.loan_amount > 0 ? ((cf.loan_amount - effective.remainingBalance) / cf.loan_amount) * 100 : 0;
+  const chartData = proj.schedule
+    .filter((_, i) => i % 3 === 0 || i === proj.schedule.length - 1)
+    .map(r => ({ month: r.month, balance: r.endBalance }));
 
-  const chartData = effective.schedule
-    .map(r => ({ month: r.month, date: r.date, balance: r.endBalance }));
-
-  // One tick per calendar year (first chart point in each year) so the x-axis reads in years, not raw payment numbers.
-  const yearTicks: string[] = [];
-  const seenYears = new Set<string>();
-  chartData.forEach(d => {
-    const year = d.date.slice(0, 4);
-    if (!seenYears.has(year)) { seenYears.add(year); yearTicks.push(d.date); }
-  });
-
-  const payoffDateFmt = new Date(effective.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const payoffDateFmt = new Date((projWithLumps?.payoffDate ?? proj.payoffDate) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
   return (
     <div className="card-forged p-4 space-y-3">
@@ -578,33 +528,33 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
         </div>
       </div>
 
-      {effective.isDeferredInterest && effective.monthsElapsed === 0 && (
+      {proj.isDeferredInterest && proj.monthsElapsed === 0 && (
         <div className="flex items-center gap-2 p-2 bg-amber-400/10 border border-amber-400/20 text-xs text-amber-400" style={{ borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={12} />
           <span>Deferred interest until {new Date((cf.interest_start_date ?? '') + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
         </div>
       )}
 
-      {effective.isNegativeAmortization && (
+      {proj.isNegativeAmortization && (
         <div className="flex items-center gap-2 p-2 bg-destructive/10 border border-destructive/20 text-xs text-destructive" style={{ borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={12} />
-          <span>Payment is below interest-only — balance is growing. Consider raising to {formatCurrency(effective.scheduledPayment, false)}/mo.</span>
+          <span>Payment is below interest-only — balance is growing. Consider raising to {formatCurrency(proj.scheduledPayment, false)}/mo.</span>
         </div>
       )}
 
       <div>
         <div className="flex justify-between text-xs mb-1">
           <span className="text-muted-foreground">Loan payoff progress</span>
-          <span className="font-medium">{formatCurrency(effective.remainingBalance, false)} remaining</span>
+          <span className="font-medium">{formatCurrency(proj.remainingBalance, false)} remaining</span>
         </div>
         <ProgressBar value={Math.min(pct, 100)} max={100} />
-        <p className="text-[10px] text-muted-foreground mt-1">{Math.round(pct)}% paid · {effective.monthsElapsed} of {effective.schedule.length} payments made</p>
+        <p className="text-[10px] text-muted-foreground mt-1">{Math.round(pct)}% paid · {proj.monthsElapsed} of {proj.schedule.length} payments made</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Monthly Payment</p>
-          <p className="text-xs font-semibold text-primary">{formatCurrency(effective.effectivePayment, false)}</p>
+          <p className="text-xs font-semibold text-primary">{formatCurrency(proj.effectivePayment, false)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Payoff Date</p>
@@ -612,38 +562,21 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Interest Paid</p>
-          <p className="text-xs font-semibold text-destructive">{formatCurrency(effective.interestPaidToDate, false)}</p>
+          <p className="text-xs font-semibold text-destructive">{formatCurrency(proj.interestPaidToDate, false)}</p>
         </div>
         <div className="bg-secondary/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
           <p className="text-[10px] text-muted-foreground">Total Interest</p>
-          <p className="text-xs font-semibold text-muted-foreground">{formatCurrency(effective.totalInterest, false)}</p>
+          <p className="text-xs font-semibold text-muted-foreground">{formatCurrency(proj.totalInterest, false)}</p>
         </div>
       </div>
 
       {chartData.length > 1 && (
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={chartData} margin={{ left: 0, right: 12, top: 8, bottom: 28 }}>
+        <ResponsiveContainer width="100%" height={120}>
+          <LineChart data={chartData} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(0,0%,15%)" />
-            {yearTicks.slice(1).map(t => (
-              <ReferenceLine key={t} x={t} stroke="hsl(0,0%,22%)" strokeDasharray="2 4" />
-            ))}
-            <XAxis
-              dataKey="date"
-              ticks={yearTicks}
-              tickFormatter={(d: string) => d.slice(0, 4)}
-              tick={{ fontSize: 12, fill: 'hsl(0,0%,100%)' }}
-              axisLine={false}
-              tickLine={false}
-              label={{ value: 'Year', position: 'insideBottom', offset: -8, fontSize: 12, fill: 'hsl(0,0%,100%)' }}
-            />
-            <YAxis tick={{ fontSize: 12, fill: 'hsl(0,0%,100%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} width={48} />
-            <Tooltip
-              contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,15%)', borderRadius: 'var(--radius)', fontSize: 12 }}
-              labelStyle={{ color: 'hsl(0,0%,100%)' }}
-              itemStyle={{ color: 'hsl(0,0%,100%)' }}
-              labelFormatter={(d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              formatter={(v: number) => [formatCurrency(v, false), 'Remaining']}
-            />
+            <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240,4%,46%)' }} axisLine={false} tickLine={false} label={{ value: 'Payment #', position: 'insideBottom', offset: -2, fontSize: 10, fill: 'hsl(240,4%,46%)' }} />
+            <YAxis tick={{ fontSize: 10, fill: 'hsl(240,4%,46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
+            <Tooltip contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,15%)', borderRadius: 'var(--radius)', fontSize: 11 }} formatter={(v: number) => [formatCurrency(v, false), 'Remaining']} />
             <Line dataKey="balance" stroke="hsl(43,56%,52%)" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
@@ -658,7 +591,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
         withLumpsPayoffDate={projWithLumps?.payoffDate ?? proj.payoffDate}
         onAdd={handleAddLump}
         onRemove={handleRemoveLump}
-        onReplace={handleReplaceLumps}
+        onUpdate={handleUpdateLump}
         liquidCash={liquidCash}
       />
 
@@ -675,7 +608,6 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
             <thead className="sticky top-0 bg-background">
               <tr className="text-muted-foreground">
                 <th className="text-left py-1 px-1">#</th>
-                <th className="text-left py-1 px-1">Month</th>
                 <th className="text-right py-1 px-1">Payment</th>
                 <th className="text-right py-1 px-1">Principal</th>
                 <th className="text-right py-1 px-1">Interest</th>
@@ -683,10 +615,9 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
               </tr>
             </thead>
             <tbody>
-              {effective.schedule.map(r => (
-                <tr key={r.month} className={`border-t border-border/20 ${r.month === effective.monthsElapsed ? 'bg-primary/5' : ''}`}>
+              {proj.schedule.map(r => (
+                <tr key={r.month} className={`border-t border-border/20 ${r.month === proj.monthsElapsed ? 'bg-primary/5' : ''}`}>
                   <td className="py-1 px-1 text-muted-foreground">{r.month}</td>
-                  <td className="py-1 px-1 text-muted-foreground">{new Date(r.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
                   <td className="py-1 px-1 text-right">{formatCurrency(r.payment, false)}</td>
                   <td className="py-1 px-1 text-right text-success">{formatCurrency(r.principal, false)}</td>
                   <td className="py-1 px-1 text-right text-destructive">{r.deferred ? '—' : formatCurrency(r.interest, false)}</td>
@@ -837,7 +768,7 @@ export default function Vehicles() {
   const { data: profile } = useProfile();
   const { isDemo } = useDemo();
 
-  const [activeTab, setActiveTab] = usePersistedState<'saving' | 'loan'>('tre:vehicles:activeTab', 'saving');
+  const [activeTab, setActiveTab] = useState<'saving' | 'loan'>('saving');
   const [showSavingForm, setShowSavingForm] = useState(false);
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [buyItFor, setBuyItFor] = useState<CarFund | null>(null);
