@@ -19,7 +19,7 @@ const DEFAULT_ASSUMPTIONS = {
   taxReturnState: 'FL', taxReturnFederalWithheld: 0, taxReturnMonth: 2, taxReturnAmountOverride: 0,
 };
 
-type AssumptionsType = typeof DEFAULT_ASSUMPTIONS;
+export type AssumptionsType = typeof DEFAULT_ASSUMPTIONS;
 
 type DebtPayoffOptions = {
   strategy: 'avalanche' | 'snowball';
