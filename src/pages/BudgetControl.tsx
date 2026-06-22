@@ -7,10 +7,10 @@ import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import MetricCard from '@/components/shared/MetricCard';
-import FormModal from '@/components/shared/FormModal';
+import FormModal, { type Field } from '@/components/shared/FormModal';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
-import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals, useCarFunds } from '@/hooks/useSupabaseData';
+import { useProfile, useAccounts, useRecurringRules, useSubscriptions, useDebts, useSavingsGoals, useCarFunds, type AccountRow, type RuleRow as RuleRowData } from '@/hooks/useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -29,6 +29,16 @@ const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
   due_day: '1', due_month: '', category: 'Other', payment_source: '', deposit_account: '', notes: '', start_date: '', end_date: '',
   tax_rate: '',
+};
+
+// Common shape across real recurring_rules rows and the synthetic subscription/debt-sync
+// "rule" entries (subsAsRules/debtPaymentRules) merged alongside them in fixedRules/debtRules.
+type BudgetRule = {
+  id: string; name: string; amount: number; rule_type: string; frequency: string; active: boolean;
+  category: string; due_day?: number | null; due_month?: number | null; start_date?: string | null;
+  end_date?: string | null; cost_type?: string | null; isSub?: boolean; isDebtSync?: boolean;
+  payment_source?: string | null; deposit_account?: string | null; notes?: string | null;
+  tax_rate?: number | null;
 };
 
 const DEFAULT_STARTER_RULES = [
@@ -271,8 +281,8 @@ export default function BudgetControl() {
       const k401 = deds.find(d => d.id === '401k' || d.label.toLowerCase().includes('401(k) traditional') || d.label.toLowerCase().includes('401k'));
       // Resolve which rule is the designated paycheck rule (only that one gets synced)
       const targetRule = paycheckRuleId
-        ? rules.find((r: any) => r.id === paycheckRuleId)
-        : rules.find((r: any) => r.rule_type === 'income' && r.active);
+        ? rules.find(r => r.id === paycheckRuleId)
+        : rules.find(r => r.rule_type === 'income' && r.active);
       updateProfile.mutate({
         weekly_gross_income: wg,
         tax_rate: tr,
@@ -285,7 +295,7 @@ export default function BudgetControl() {
         deduction_401k_value: k401?.value ?? 0,
         deduction_401k_mode: k401?.mode ?? 'pct',
         deduction_401k_pretax: k401?.preTax ?? true,
-      } as any, {
+      }, {
         onSuccess: () => {
           setAutoSaveStatus('saved');
           setTimeout(() => setAutoSaveStatus('idle'), 2000);
@@ -436,7 +446,7 @@ export default function BudgetControl() {
   const annualTakeHome = paycheckNet * paychecksPerYear;
 
   // Merge subscriptions into fixed rules view
-  const subsAsRules = useMemo(() => subs.filter((s: any) => s.active).map((s: any) => ({
+  const subsAsRules = useMemo(() => subs.filter(s => s.active).map(s => ({
     id: `sub:${s.id}`,
     name: s.name,
     amount: s.billing === 'yearly' ? Number(s.cost) : Number(s.cost),
@@ -466,24 +476,24 @@ export default function BudgetControl() {
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
     const retireIds = new Set<string>(
-      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
     );
     const now = new Date();
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const activeTransferDests = new Set<string>(
-      (rules as any[]).filter((r: any) =>
+      rules.filter(r =>
         r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
         !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
         !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map((r: any) => r.deposit_account),
+      ).map(r => r.deposit_account as string),
     );
-    const savingsTotal = (savingsGoals as any[] ?? []).reduce((s: number, g: any) => {
+    const savingsTotal = (savingsGoals ?? []).reduce((s, g) => {
       if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
       if (g.linked_account && retireIds.has(g.linked_account)) return s;
       if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
       return s + Number(g.monthly_contribution);
     }, 0);
-    const carTotal = (carFunds as any[] ?? []).reduce((s: number, c: any) => {
+    const carTotal = (carFunds ?? []).reduce((s, c) => {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
@@ -518,7 +528,7 @@ export default function BudgetControl() {
   // Inject debt payment transactions into the stream
   const debtPaymentTxns = useMemo(() => {
     const fundId = profile?.default_deposit_account ||
-      accounts.find((a: any) => a.account_type === 'checking' && a.active)?.id || null;
+      accounts.find(a => a.account_type === 'checking' && a.active)?.id || null;
     return createDebtPaymentTransactions(debtRecommendations, fundId);
   }, [debtRecommendations, profile, accounts]);
 
@@ -529,35 +539,35 @@ export default function BudgetControl() {
   );
 
   // Rules by category
-  const incomeRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'income'), [rules]);
+  const incomeRules = useMemo(() => rules.filter(r => r.rule_type === 'income'), [rules]);
   // cost_type override takes priority over category-based classification.
   // cost_type = 'fixed' → fixed bucket; 'variable' → variable bucket; null → category default.
-  const isFixedRule = (r: any): boolean => {
+  const isFixedRule = (r: BudgetRule): boolean => {
     if (r.cost_type === 'fixed') return true;
     if (r.cost_type === 'variable') return false;
     return ['Bills', 'Subscriptions', 'Debt Payments'].includes(r.category);
   };
 
-  const fixedRules = useMemo(() => {
-    const fixed = rules.filter((r: any) => r.rule_type === 'expense' && isFixedRule(r));
-    const ruleNames = new Set(fixed.map((r: any) => r.name.toLowerCase()));
+  const fixedRules = useMemo((): BudgetRule[] => {
+    const fixed = rules.filter(r => r.rule_type === 'expense' && isFixedRule(r));
+    const ruleNames = new Set(fixed.map(r => r.name.toLowerCase()));
     const uniqueSubs = subsAsRules.filter(s => !ruleNames.has(s.name.toLowerCase()));
     return [...fixed, ...uniqueSubs];
   }, [rules, subsAsRules]);
-  const variableRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'expense' && !isFixedRule(r)), [rules]);
-  
-  const manualDebtRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'debt_payment' || (r.rule_type === 'expense' && r.category === 'Debt Payments')), [rules]);
-  const debtRules = useMemo(() => {
-    const manualNames = new Set(manualDebtRules.map((r: any) => r.name.toLowerCase()));
+  const variableRules = useMemo(() => rules.filter(r => r.rule_type === 'expense' && !isFixedRule(r)), [rules]);
+
+  const manualDebtRules = useMemo(() => rules.filter(r => r.rule_type === 'debt_payment' || (r.rule_type === 'expense' && r.category === 'Debt Payments')), [rules]);
+  const debtRules = useMemo((): BudgetRule[] => {
+    const manualNames = new Set(manualDebtRules.map(r => r.name.toLowerCase()));
     const uniqueDebtSync = debtPaymentRules.filter(d => !manualNames.has(d.name.toLowerCase()));
     return [...manualDebtRules, ...uniqueDebtSync];
   }, [manualDebtRules, debtPaymentRules]);
-  
-  const transferRules = useMemo(() => rules.filter((r: any) => r.rule_type === 'transfer' || r.rule_type === 'investment'), [rules]);
+
+  const transferRules = useMemo(() => rules.filter(r => r.rule_type === 'transfer' || r.rule_type === 'investment'), [rules]);
 
   // Split fixedRules into Bills-only and Subscriptions-only for separate tabs
-  const billsRules = useMemo(() => fixedRules.filter((r: any) => !r.isSub && r.category !== 'Subscriptions'), [fixedRules]);
-  const subscriptionRules = useMemo(() => fixedRules.filter((r: any) => r.isSub || r.category === 'Subscriptions'), [fixedRules]);
+  const billsRules = useMemo(() => fixedRules.filter(r => !r.isSub && r.category !== 'Subscriptions'), [fixedRules]);
+  const subscriptionRules = useMemo(() => fixedRules.filter(r => r.isSub || r.category === 'Subscriptions'), [fixedRules]);
 
 
   const currentMonthDays = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -565,7 +575,7 @@ export default function BudgetControl() {
   const nowYear = now.getFullYear();
   const nowMonth = now.getMonth();
 
-  const toCurrentMonthAmount = useCallback((r: any) => {
+  const toCurrentMonthAmount = useCallback((r: BudgetRule) => {
     const amt = Number(r.amount);
     if (r.start_date) {
       const startDate = new Date(r.start_date + 'T12:00:00');
@@ -591,11 +601,11 @@ export default function BudgetControl() {
     return amt;
   }, [nowYear, nowMonth]);
 
-  const totalRecurringIncome = useMemo(() => incomeRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [incomeRules, toCurrentMonthAmount]);
-  const totalFixedExpenses = useMemo(() => fixedRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [fixedRules, toCurrentMonthAmount]);
-  const totalVariableExpenses = useMemo(() => variableRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [variableRules, toCurrentMonthAmount]);
-  const totalDebtPayments = useMemo(() => debtRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [debtRules, toCurrentMonthAmount]);
-  const totalTransfers = useMemo(() => transferRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), [transferRules, toCurrentMonthAmount]);
+  const totalRecurringIncome = useMemo(() => incomeRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [incomeRules, toCurrentMonthAmount]);
+  const totalFixedExpenses = useMemo(() => fixedRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [fixedRules, toCurrentMonthAmount]);
+  const totalVariableExpenses = useMemo(() => variableRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [variableRules, toCurrentMonthAmount]);
+  const totalDebtPayments = useMemo(() => debtRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [debtRules, toCurrentMonthAmount]);
+  const totalTransfers = useMemo(() => transferRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), [transferRules, toCurrentMonthAmount]);
 
   const totalCharges = totalFixedExpenses + totalVariableExpenses;
   const totalExpenses = totalCharges + totalDebtPayments + totalTransfers;
@@ -604,17 +614,17 @@ export default function BudgetControl() {
   const fundingAccount = useMemo(() => {
     const defaultId = profile?.default_deposit_account;
     if (defaultId) {
-      const acct = accounts.find((a: any) => a.id === defaultId);
+      const acct = accounts.find(a => a.id === defaultId);
       if (acct) return acct;
     }
-    return accounts.find((a: any) => a.account_type === 'checking' && a.active) || null;
+    return accounts.find(a => a.account_type === 'checking' && a.active) || null;
   }, [accounts, profile]);
 
   // Remaining Cash On Hand — uses funding account + Transactions as single source of truth
   const fundingAccountBalance = useMemo(() => {
     if (fundingAccount) return Number(fundingAccount.balance);
     const liquidTypes = ['checking', 'business_checking', 'cash'];
-    return accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
+    return accounts.filter(a => a.active && liquidTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
   }, [accounts, fundingAccount]);
 
   const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
@@ -633,12 +643,12 @@ export default function BudgetControl() {
 
   const allAccountOptions = useMemo(() => [
     { value: '', label: 'None' },
-    ...accounts.filter((a: any) => a.active).map((a: any) => ({ value: a.id, label: `${a.name} (${a.account_type.replace(/_/g, ' ')})` })),
+    ...accounts.filter(a => a.active).map(a => ({ value: a.id, label: `${a.name} (${a.account_type.replace(/_/g, ' ')})` })),
   ], [accounts]);
 
   const depositAccountOptions = useMemo(() => [
     { value: '', label: 'None' },
-    ...accounts.filter((a: any) => a.active && ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'].includes(a.account_type)).map((a: any) => ({ value: a.id, label: a.name })),
+    ...accounts.filter(a => a.active && ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'].includes(a.account_type)).map(a => ({ value: a.id, label: a.name })),
   ], [accounts]);
 
   const openAdd = (type: string, category?: string) => {
@@ -647,7 +657,7 @@ export default function BudgetControl() {
     setShowForm(true);
   };
 
-  const openEdit = (r: any) => {
+  const openEdit = (r: BudgetRule) => {
     if (r.isSub || r.isDebtSync) return;
     setForm({
       name: r.name, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
@@ -675,7 +685,7 @@ export default function BudgetControl() {
     const { clean: cleanRuleNotes, flagged: ruleNotesFlagged } = filterProfanity(form.notes.trim().slice(0, LIMITS.ruleNotes));
     if (ruleNameFlagged || ruleNotesFlagged) toast.warning('Some content contained inappropriate language and was cleaned.');
     const parsedTaxRate = parseFloat(form.tax_rate);
-    const payload: any = {
+    const payload: Partial<Tables<'recurring_rules'>> & { name: string } = {
       name: cleanRuleName, amount, rule_type: form.rule_type, frequency: form.frequency,
       due_day: parseInt(form.due_day) || 1, due_month: form.due_month ? parseInt(form.due_month) : null,
       category: form.category, payment_source: form.payment_source || null,
@@ -694,12 +704,12 @@ export default function BudgetControl() {
     setEditId(null);
   };
 
-  const toggleActive = (r: any) => {
+  const toggleActive = (r: BudgetRule) => {
     if (r.isSub || r.isDebtSync) return;
     updateRule.mutate({ id: r.id, active: !r.active });
   };
 
-  const toggleCostType = (r: any) => {
+  const toggleCostType = (r: BudgetRule) => {
     if (r.isSub || r.isDebtSync) return;
     const nextType = isFixedRule(r) ? 'variable' : 'fixed';
     updateRule.mutate({ id: r.id, cost_type: nextType });
@@ -711,11 +721,11 @@ export default function BudgetControl() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
-  const getAccountName = (id: string) => accounts.find((a: any) => a.id === id)?.name || '';
+  const getAccountName = (id: string) => accounts.find(a => a.id === id)?.name || '';
   const freqLabel = (f: string) => f === 'weekly' ? 'Weekly' : f === 'biweekly' ? 'Biweekly' : f === 'monthly' ? 'Monthly' : 'Yearly';
 
   const formFields = useMemo(() => {
-    const fields: any[] = [
+    const fields: Field[] = [
       { key: 'name', label: 'Name', type: 'text', placeholder: 'e.g., Rent, Paycheck', required: true },
       { key: 'amount', label: 'Amount', type: 'number', placeholder: '0.00', step: '0.01', required: true,
         ...(editId === paycheckRuleId && weeklyGross > 0 ? { disabled: true, hint: 'Controlled by gross income in Income & Tax settings' } : {}) },
@@ -746,7 +756,7 @@ export default function BudgetControl() {
     return fields;
   }, [form.frequency, form.rule_type, allAccountOptions, depositAccountOptions, editId, paycheckRuleId, weeklyGross]);
 
-  const handleDuplicate = (r: any) => {
+  const handleDuplicate = (r: BudgetRule) => {
     if (r.isSub || r.isDebtSync) return;
     setForm({
       name: `${r.name} (Copy)`, amount: String(r.amount), rule_type: r.rule_type, frequency: r.frequency,
@@ -777,32 +787,32 @@ export default function BudgetControl() {
 
   const openFixedCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = fixedRules
-      .filter((r: any) => r.active)
-      .map((r: any) => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
+      .filter(r => r.active)
+      .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
     lines.push({ label: 'Total Fixed Expenses', value: formatCurrency(totalFixedExpenses, false), op: '=' });
     setCalcDrawer({ title: 'Fixed Expenses This Month', lines });
   };
 
   const openVariableCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = variableRules
-      .filter((r: any) => r.active)
-      .map((r: any) => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
+      .filter(r => r.active)
+      .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
     lines.push({ label: 'Total Variable Expenses', value: formatCurrency(totalVariableExpenses, false), op: '=' });
     setCalcDrawer({ title: 'Variable Expenses This Month', lines });
   };
 
   const openDebtCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = debtRules
-      .filter((r: any) => r.active)
-      .map((r: any) => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
+      .filter(r => r.active)
+      .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
     lines.push({ label: 'Total Debt Payments', value: formatCurrency(totalDebtPayments, false), op: '=' });
     setCalcDrawer({ title: 'Debt Payments This Month', lines });
   };
 
   const openTransferCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = transferRules
-      .filter((r: any) => r.active)
-      .map((r: any) => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
+      .filter(r => r.active)
+      .map(r => ({ label: r.name, value: formatCurrency(toCurrentMonthAmount(r), false) }));
     lines.push({ label: 'Total Transfers', value: formatCurrency(totalTransfers, false), op: '=' });
     setCalcDrawer({ title: 'Transfers This Month', lines });
   };
@@ -854,14 +864,14 @@ export default function BudgetControl() {
     lines.push({ label: 'Net per paycheck', value: formatCurrency(paycheckNet, false), op: '=' });
     lines.push({ label: 'Paychecks this month', value: String(getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth()).length) });
     lines.push({ label: 'Total monthly take-home', value: formatCurrency(monthlyTakeHome, false), op: '=' });
-    incomeRules.filter((r: any) => r.active).forEach((r: any) =>
+    incomeRules.filter(r => r.active).forEach(r =>
       lines.push({ label: `  Rule: ${r.name}`, value: formatCurrency(toCurrentMonthAmount(r), false), op: '+' }),
     );
     lines.push({ label: 'Total recurring income', value: formatCurrency(totalRecurringIncome, false), op: '=' });
     setCalcDrawer({ title: 'Income This Month', lines });
   };
 
-  const RuleRow = ({ r, color = 'text-destructive' }: { r: any; color?: string }) => (
+  const RuleRow = ({ r, color = 'text-destructive' }: { r: BudgetRule; color?: string }) => (
   <div className={`flex flex-col gap-2 py-3 border-b border-border/50 last:border-0 sm:flex-row sm:items-center sm:justify-between ${!r.active ? 'opacity-40' : ''}`}>
     <div className="min-w-0 flex-1">
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -1016,7 +1026,7 @@ export default function BudgetControl() {
                   style={{ borderRadius: 'var(--radius)' }}
                 >
                   <option value="">— none —</option>
-                  {incomeRules.map((r: any) => (
+                  {incomeRules.map(r => (
                     <option key={r.id} value={r.id}>{r.name}</option>
                   ))}
                 </select>
@@ -1083,7 +1093,7 @@ export default function BudgetControl() {
               if (!grouped[g]) grouped[g] = [];
               grouped[g].push(d);
             }
-            const retirementAccounts = accounts.filter((a: any) => a.active && ['brokerage', 'roth_ira', '401k'].includes(a.account_type));
+            const retirementAccounts = accounts.filter(a => a.active && ['brokerage', 'roth_ira', '401k'].includes(a.account_type));
             return groupOrder.filter(g => grouped[g]?.length).map(group => (
               <div key={group} className="space-y-0">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 pt-2 pb-0.5">{group}</p>
@@ -1148,7 +1158,7 @@ export default function BudgetControl() {
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             <option value="">— none —</option>
-                            {retirementAccounts.map((a: any) => (
+                            {retirementAccounts.map(a => (
                               <option key={a.id} value={a.id}>{a.name}</option>
                             ))}
                           </select>
@@ -1164,7 +1174,7 @@ export default function BudgetControl() {
                             style={{ borderRadius: 'var(--radius)' }}
                           >
                             <option value="">— none —</option>
-                            {savingsGoals.map((g: any) => (
+                            {savingsGoals.map(g => (
                               <option key={g.id} value={g.id}>{g.name}</option>
                             ))}
                           </select>
@@ -1435,7 +1445,7 @@ export default function BudgetControl() {
               </div>
             </div>
             {incomeRules.length === 0 && <p className="text-sm text-muted-foreground">No income rules. Add one to auto-generate paychecks.</p>}
-            {incomeRules.map((r: any) => <RuleRow key={r.id} r={r} color="text-success" />)}
+            {incomeRules.map(r => <RuleRow key={r.id} r={r} color="text-success" />)}
           </div>
         </TabsContent>
 
@@ -1444,12 +1454,12 @@ export default function BudgetControl() {
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(billsRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
                 <button onClick={() => openAdd('expense', 'Bills')} className="flex items-center gap-1 text-xs sm:text-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Fixed</button>
               </div>
             </div>
             {billsRules.length === 0 && <p className="text-sm text-muted-foreground">No fixed expenses.</p>}
-            {billsRules.map((r: any) => <RuleRow key={r.id} r={r} />)}
+            {billsRules.map(r => <RuleRow key={r.id} r={r} />)}
           </div>
         </TabsContent>
 
@@ -1458,12 +1468,12 @@ export default function BudgetControl() {
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Subscriptions</h3>
               <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(subscriptionRules.filter((r: any) => r.active).reduce((s: number, r: any) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
+                <span className="text-sm sm:text-base font-display font-bold text-destructive">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)}/mo</span>
                 <button onClick={() => openAdd('expense', 'Subscriptions')} className="flex items-center gap-1 text-xs sm:text-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Subscription</button>
               </div>
             </div>
             {subscriptionRules.length === 0 && <p className="text-sm text-muted-foreground">No subscriptions. Rules with category "Subscriptions" appear here.</p>}
-            {subscriptionRules.map((r: any) => <RuleRow key={r.id} r={r} />)}
+            {subscriptionRules.map(r => <RuleRow key={r.id} r={r} />)}
           </div>
         </TabsContent>
 
@@ -1477,7 +1487,7 @@ export default function BudgetControl() {
               </div>
             </div>
             {variableRules.length === 0 && <p className="text-sm text-muted-foreground">No variable expenses.</p>}
-            {variableRules.map((r: any) => <RuleRow key={r.id} r={r} color="text-foreground" />)}
+            {variableRules.map(r => <RuleRow key={r.id} r={r} color="text-foreground" />)}
           </div>
         </TabsContent>
 
@@ -1491,7 +1501,7 @@ export default function BudgetControl() {
               </div>
             </div>
             {debtRules.length === 0 && <p className="text-sm text-muted-foreground">No debt payments. Add credit card accounts and visit Debt Payoff to generate recommendations.</p>}
-            {debtRules.map((r: any) => <RuleRow key={r.id} r={r} />)}
+            {debtRules.map(r => <RuleRow key={r.id} r={r} />)}
             {debtPaymentRules.length > 0 && (
               <p className="text-[9px] text-muted-foreground pt-2 border-t border-border/30">
                 Items tagged "from payoff" are auto-synced from the Debt Payoff Planner's avalanche recommendations.
@@ -1510,7 +1520,7 @@ export default function BudgetControl() {
               </div>
             </div>
             {transferRules.length === 0 && <p className="text-sm text-muted-foreground">No transfers or investment contributions configured.</p>}
-            {transferRules.map((r: any) => <RuleRow key={r.id} r={r} color="text-primary" />)}
+            {transferRules.map(r => <RuleRow key={r.id} r={r} color="text-primary" />)}
           </div>
         </TabsContent>
       </Tabs>
