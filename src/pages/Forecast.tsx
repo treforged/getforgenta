@@ -193,24 +193,24 @@ export default function Forecast() {
     try {
       const allTxns = mergeWithGeneratedTransactions(transactions, rules, accounts);
       const retireIds = new Set<string>(
-        accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+        accounts.filter((a) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a) => a.id),
       );
       const now0 = new Date();
       const monthEnd0 = new Date(now0.getFullYear(), now0.getMonth() + 1, 0);
       const activeTransferDests0 = new Set<string>(
-        (rules as any[]).filter((r: any) =>
+        (rules as any[]).filter((r) =>
           r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
           !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd0) &&
           !(r.end_date && new Date(r.end_date + 'T00:00:00') < now0),
-        ).map((r: any) => r.deposit_account),
+        ).map((r) => r.deposit_account),
       );
-      const savingsTotal = goals.reduce((s: number, g: any) => {
+      const savingsTotal = goals.reduce((s, g) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now0) return s;
         if (g.linked_account && retireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests0.has(g.linked_account)) return s;
         return s + Number(g.monthly_contribution);
       }, 0);
-      const carTotal = carFunds.reduce((s: number, c: any) => {
+      const carTotal = carFunds.reduce((s, c) => {
         if (c.phase === 'loan') return s;
         const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
         const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
@@ -223,7 +223,7 @@ export default function Forecast() {
         }
         return s + Math.min(rem / monthsToGoal, rem);
       }, 0);
-      const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
+      const carLoanTotal = getTotalCarLoanMonthly(carFunds);
       const ccIds = new Set<string>(
         (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
           .flatMap(a => [a.id, `account:${a.id}`]),
@@ -246,15 +246,15 @@ export default function Forecast() {
 
     const liquidAccountIds = new Set<string>(
       accounts
-        .filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
-        .map((a: any) => a.id),
+        .filter((a) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
+        .map((a) => a.id),
     );
 
     const incomeToLiquidRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter((r) =>
         r.active && r.rule_type === 'income' &&
         (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-      ).map((r: any) => r.id),
+      ).map((r) => r.id),
     );
 
     // Identify the paycheck rule(s) so we can separate them from "other income".
@@ -266,31 +266,31 @@ export default function Forecast() {
       paycheckRuleIds.add(explicitPaycheckRuleId);
     } else {
       // Fallback: treat periodic-pay-frequency income rules as the paycheck rule
-      rules.filter((r: any) =>
+      rules.filter((r) =>
         r.active && r.rule_type === 'income' &&
         ['weekly', 'biweekly', 'semi_monthly'].includes(r.frequency) &&
         (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-      ).forEach((r: any) => paycheckRuleIds.add(r.id));
+      ).forEach((r) => paycheckRuleIds.add(r.id));
     }
 
     const ccPaymentSources = new Set<string>(
       accounts
-        .filter((a: any) => a.active && a.account_type === 'credit_card')
-        .flatMap((a: any) => [a.id, `account:${a.id}`]),
+        .filter((a) => a.active && a.account_type === 'credit_card')
+        .flatMap((a) => [a.id, `account:${a.id}`]),
     );
 
     const ccExplicitRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter((r) =>
         r.active && r.rule_type === 'expense' &&
         r.payment_source && ccPaymentSources.has(r.payment_source),
-      ).map((r: any) => r.id),
+      ).map((r) => r.id),
     );
 
     const ccDefaultRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter((r) =>
         r.active && r.rule_type === 'expense' &&
         !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category),
-      ).map((r: any) => r.id),
+      ).map((r) => r.id),
     );
 
     const allCcRuleIds = new Set<string>([...ccExplicitRuleIds, ...ccDefaultRuleIds]);
@@ -299,20 +299,20 @@ export default function Forecast() {
     // excluded above) — that money never touches the funding account, so it must not reduce its
     // modeled cash flow. Mirrors useCardProjection.ts's identical Set exactly — keep in lockstep.
     const otherAccountRuleIds = new Set<string>(
-      rules.filter((r: any) => {
+      rules.filter((r) => {
         if (!r.active || r.rule_type !== 'expense' || !r.payment_source) return false;
         if (ccPaymentSources.has(r.payment_source)) return false;
         if (!forecastFundingAccountId) return false;
         const srcId = (r.payment_source as string).replace(/^account:/, '');
         return srcId !== forecastFundingAccountId;
-      }).map((r: any) => r.id),
+      }).map((r) => r.id),
     );
 
     const savingsRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter((r) =>
         r.active && r.rule_type === 'expense' &&
         (r.category === 'Savings' || r.category === 'Investing'),
-      ).map((r: any) => r.id),
+      ).map((r) => r.id),
     );
 
     return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
@@ -331,8 +331,8 @@ export default function Forecast() {
       // add fallbackTakeHome (computed gross→net) without double-counting the paycheck.
       // Each non-paycheck income rule may have its own tax_rate; default is 0 (no tax).
       const ruleTaxRateMap = new Map<string, number>(
-        rules.filter((r: any) => r.rule_type === 'income' && r.tax_rate != null)
-          .map((r: any) => [r.id, Number(r.tax_rate)]),
+        rules.filter((r) => r.rule_type === 'income' && r.tax_rate != null)
+          .map((r) => [r.id, Number(r.tax_rate)]),
       );
       const nonPaycheckIncome = eventsInMonth
         .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId) && !paycheckRuleIds.has(e.ruleId))
@@ -362,8 +362,8 @@ export default function Forecast() {
     const result: Record<string, { income: number; expense: number }> = {};
     const ccSources = new Set(
       accounts
-        .filter((a: any) => a.account_type === 'credit_card' && a.active)
-        .flatMap((a: any) => [a.id, `account:${a.id}`]),
+        .filter((a) => a.account_type === 'credit_card' && a.active)
+        .flatMap((a) => [a.id, `account:${a.id}`]),
     );
     const today = new Date();
     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -388,8 +388,8 @@ export default function Forecast() {
     const result: Record<string, number> = {};
     const ccSources = new Set(
       accounts
-        .filter((a: any) => a.account_type === 'credit_card' && a.active)
-        .flatMap((a: any) => [a.id, `account:${a.id}`]),
+        .filter((a) => a.account_type === 'credit_card' && a.active)
+        .flatMap((a) => [a.id, `account:${a.id}`]),
     );
     const today = new Date();
     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -410,17 +410,17 @@ export default function Forecast() {
   const ccScheduledByMonth = useMemo(() => {
     const ccPaymentSources = new Set<string>(
       accounts
-        .filter((a: any) => a.active && a.account_type === 'credit_card')
-        .flatMap((a: any) => [a.id, `account:${a.id}`]),
+        .filter((a) => a.active && a.account_type === 'credit_card')
+        .flatMap((a) => [a.id, `account:${a.id}`]),
     );
     const ccRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter((r) =>
         r.active && r.rule_type === 'expense' &&
         (
           (r.payment_source && ccPaymentSources.has(r.payment_source)) ||
           (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
         )
-      ).map((r: any) => r.id),
+      ).map((r) => r.id),
     );
     const now = new Date();
     const todayStr = syncCutoffDate;
@@ -442,7 +442,7 @@ export default function Forecast() {
     const _profTr = profile?.tax_rate;
     const taxRate = _profTr != null ? Number(_profTr) : 22;
 
-    const active = accounts.filter((a: any) => a.active);
+    const active = accounts.filter((a) => a.active);
     // FIX: Aligned with debt engine — only checking/business_checking/cash are "liquid"
     // for cash floor and debt payment purposes. Savings/HYS are tracked in savingsBal
     // separately and appear in net worth but NOT in ending cash calculations.
@@ -454,40 +454,40 @@ export default function Forecast() {
     // Starting liquid cash = funding account only (the account that pays debt/expenses).
     // Using all liquid accounts inflates starting cash and masks real floor breaches.
     const fundingAcct = forecastFundingAccountId
-      ? active.find((a: any) => a.id === forecastFundingAccountId)
-      : active.find((a: any) => a.account_type === 'checking' || a.account_type === 'business_checking');
+      ? active.find((a) => a.id === forecastFundingAccountId)
+      : active.find((a) => a.account_type === 'checking' || a.account_type === 'business_checking');
     let liquidBal = fundingAcct
       ? Number(fundingAcct.balance)
-      : active.filter((a: any) => liquidTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
+      : active.filter((a) => liquidTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
     // Already-saved/gifted down-payment money sitting in this same account is still "available
     // cash" by default — earmark it out so it isn't offered up for CC paydown while it's spoken
     // for. Disappears on its own once a car fund's phase flips to 'loan' (see getCarFundEarmark).
-    liquidBal = Math.max(0, liquidBal - getCarFundEarmark(carFunds as any[], forecastFundingAccountId));
-    let totalLiabilityBal = active.filter((a: any) => liabilityTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
+    liquidBal = Math.max(0, liquidBal - getCarFundEarmark(carFunds, forecastFundingAccountId));
+    let totalLiabilityBal = active.filter((a) => liabilityTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
 
-    const accountMap = new Map(accounts.map((a: any) => [a.id, a]));
-    const goalLinkedAccountIds = new Set(goals.filter((g: any) => g.linked_account).map((g: any) => g.linked_account as string));
+    const accountMap = new Map(accounts.map((a) => [a.id, a]));
+    const goalLinkedAccountIds = new Set(goals.filter((g) => g.linked_account).map((g) => g.linked_account as string));
 
     // Per-account balance trackers — precise projected values for popup display
-    const investAcctsForTrack = active.filter((a: any) => investTypes.includes(a.account_type));
-    const savingsAcctsForTrack = active.filter((a: any) => ['savings', 'high_yield_savings'].includes(a.account_type));
-    const investAcctIdSet = new Set<string>(investAcctsForTrack.map((a: any) => a.id as string));
-    const savingsAcctIdSet = new Set<string>(savingsAcctsForTrack.map((a: any) => a.id as string));
+    const investAcctsForTrack = active.filter((a) => investTypes.includes(a.account_type));
+    const savingsAcctsForTrack = active.filter((a) => ['savings', 'high_yield_savings'].includes(a.account_type));
+    const investAcctIdSet = new Set<string>(investAcctsForTrack.map((a) => a.id as string));
+    const savingsAcctIdSet = new Set<string>(savingsAcctsForTrack.map((a) => a.id as string));
     const perAcctInvest = new Map<string, { name: string; balance: number }>(
-      investAcctsForTrack.map((a: any) => [a.id as string, { name: a.name as string, balance: Number(a.balance) }])
+      investAcctsForTrack.map((a) => [a.id as string, { name: a.name as string, balance: Number(a.balance) }])
     );
     const perAcctSavings = new Map<string, { name: string; balance: number }>(
-      savingsAcctsForTrack.map((a: any) => [a.id as string, { name: a.name as string, balance: Number(a.balance) }])
+      savingsAcctsForTrack.map((a) => [a.id as string, { name: a.name as string, balance: Number(a.balance) }])
     );
 
     const monthlyInvestGrowth = Math.pow(1 + assumptions.investmentGrowth / 100, 1 / 12) - 1;
     const monthlySavingsInterest = Math.pow(1 + assumptions.savingsInterest / 100, 1 / 12) - 1;
 
     // Per-account weighted APY for retirement growth — falls back to global investmentGrowth
-    const retireAccounts = active.filter((a: any) => retireTypes.includes(a.account_type));
-    const totalRetireBal = retireAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
+    const retireAccounts = active.filter((a) => retireTypes.includes(a.account_type));
+    const totalRetireBal = retireAccounts.reduce((s, a) => s + Number(a.balance), 0);
     const weightedRetireApy = totalRetireBal > 0
-      ? retireAccounts.reduce((s: number, a: any) => {
+      ? retireAccounts.reduce((s, a) => {
           const apy = a.apy_rate != null ? Number(a.apy_rate) : assumptions.investmentGrowth;
           return s + apy * (Number(a.balance) / totalRetireBal);
         }, 0)
@@ -501,7 +501,7 @@ export default function Forecast() {
       ? (payConfig.frequency === 'biweekly' ? payConfig.weeklyGross * 2 : payConfig.frequency === 'monthly' ? payConfig.weeklyGross * 52 / 12 : payConfig.weeklyGross)
       : 0;
     const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
-    const retireAccountIds = new Set(retireAccounts.map((a: any) => a.id as string));
+    const retireAccountIds = new Set(retireAccounts.map((a) => a.id as string));
     const retireAcctIdSet = retireAccountIds; // alias for per-account tracking
     const payDeds: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
       Array.isArray(prof?.paycheck_deductions) ? (prof.paycheck_deductions as typeof payDeds) : [];
@@ -525,7 +525,7 @@ export default function Forecast() {
           m.set(d.accountId!, (m.get(d.accountId!) ?? 0) + (d.mode === 'pct' ? paycheckGrossForForecast * (d.value / 100) : d.value));
         }
       } else {
-        const fallback = retireAccounts.find((a: any) => a.account_type === '401k') ?? retireAccounts[0];
+        const fallback = retireAccounts.find((a) => a.account_type === '401k') ?? retireAccounts[0];
         if (fallback) m.set(fallback.id as string, perCheck401k);
       }
       return m;
@@ -533,17 +533,17 @@ export default function Forecast() {
 
     // Per-account retire tracker and goal pools (savings accounts already in perAcctSavings above)
     const perAcctRetire = new Map<string, { name: string; balance: number }>(
-      retireAccounts.map((a: any) => [a.id as string, { name: a.name as string, balance: Number(a.balance) }])
+      retireAccounts.map((a) => [a.id as string, { name: a.name as string, balance: Number(a.balance) }])
     );
     // Goal pools: goals not linked to a savings/retire/invest account
     const goalPools = new Map<string, { name: string; balance: number }>(
       (goals as any[])
-        .filter((g: any) => {
+        .filter((g) => {
           if (!g.linked_account) return true;
           if (savingsAcctIdSet.has(g.linked_account) || retireAcctIdSet.has(g.linked_account) || investAcctIdSet.has(g.linked_account)) return false;
           return true;
         })
-        .map((g: any) => [g.id as string, { name: g.name as string, balance: Number(g.current_amount) }])
+        .map((g) => [g.id as string, { name: g.name as string, balance: Number(g.current_amount) }])
     );
     // Aggregate scalars derived from per-account Maps (fixes retire-linked goal double-counting)
     let retireBal = Array.from(perAcctRetire.values()).reduce((s, a) => s + a.balance, 0);
@@ -553,7 +553,7 @@ export default function Forecast() {
 
     const nowDate = new Date();
 
-    const monthlyCarContrib = pauseSavings ? 0 : carFunds.reduce((s: number, c: any) => {
+    const monthlyCarContrib = pauseSavings ? 0 : carFunds.reduce((s, c) => {
       if (c.phase === 'loan') return s;
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
@@ -562,20 +562,20 @@ export default function Forecast() {
     const activeCarLoanByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 15);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
-      const regular = getTotalCarLoanMonthly(carFunds as any[], md);
-      const lumpTotal = (carFunds as any[])
-        .filter((cf: any) => cf.phase === 'loan')
-        .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
-        .reduce((s: number, ls: any) => s + ls.amount, 0);
+      const regular = getTotalCarLoanMonthly(carFunds, md);
+      const lumpTotal = (carFunds)
+        .filter((cf) => cf.phase === 'loan')
+        .flatMap((cf) => (cf.lump_sum_payments ?? []).filter((ls) => ls.date.substring(0, 7) === mk))
+        .reduce((s, ls) => s + ls.amount, 0);
       return regular + lumpTotal;
     });
     const activeCarLoanLumpSumByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
-      return (carFunds as any[])
-        .filter((cf: any) => cf.phase === 'loan')
-        .flatMap((cf: any) => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
-        .reduce((s: number, ls: any) => s + ls.amount, 0);
+      return (carFunds)
+        .filter((cf) => cf.phase === 'loan')
+        .flatMap((cf) => (cf.lump_sum_payments ?? []).filter((ls) => ls.date.substring(0, 7) === mk))
+        .reduce((s, ls) => s + ls.amount, 0);
     });
     // Insurance on phase='loan' car funds per month — activeCarLoanByMonth above covers the
     // regular payment and lump sums for an active loan, but nothing here ever added the car's
@@ -591,17 +591,17 @@ export default function Forecast() {
     const activeCarLoanInsuranceByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const dStr = d.toISOString().split('T')[0];
-      return (carFunds as any[])
-        .filter((cf: any) => cf.phase === 'loan' && cf.loan_start_date)
-        .filter((cf: any) => monthsBetween(cf.loan_start_date, dStr) >= 0)
-        .reduce((s: number, cf: any) => s + Number(cf.monthly_insurance || 0), 0);
+      return (carFunds)
+        .filter((cf): cf is typeof cf & { loan_start_date: string } => cf.phase === 'loan' && !!cf.loan_start_date)
+        .filter((cf) => monthsBetween(cf.loan_start_date, dStr) >= 0)
+        .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
     });
 
     // Lump sum contributions from savings goals — one-time future transfers
     // Destination type inferred from the goal's linked account type
     const retireAccountTypes = new Set(['401k', 'roth_ira', 'ira', 'hsa']);
     const brokerageAccountTypes = new Set(['brokerage', 'investment']);
-    const activeAccountMap = Object.fromEntries((accounts as any[]).filter((a: any) => a.active !== false).map((a: any) => [a.id, a]));
+    const activeAccountMap = Object.fromEntries((accounts as any[]).filter((a) => a.active !== false).map((a) => [a.id, a]));
     const lumpTransferByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
@@ -609,7 +609,7 @@ export default function Forecast() {
       const perAccount = new Map<string, number>();
       for (const g of (goals as any[])) {
         const lumps: any[] = Array.isArray(g.lump_sum_payments) ? g.lump_sum_payments : [];
-        const monthTotal = lumps.filter((ls: any) => ls.date.substring(0, 7) === mk).reduce((s: number, ls: any) => s + Number(ls.amount), 0);
+        const monthTotal = lumps.filter((ls) => ls.date.substring(0, 7) === mk).reduce((s, ls) => s + Number(ls.amount), 0);
         if (monthTotal === 0) continue;
         const acctType = g.linked_account ? (activeAccountMap[g.linked_account]?.account_type ?? '') : '';
         if (retireAccountTypes.has(acctType) || (g.goal_type ?? '').toLowerCase() === 'retirement') roth_ira += monthTotal;
@@ -624,18 +624,18 @@ export default function Forecast() {
 
     // Mortgage — hard floor deduction before CC payoff (same priority as car loans)
     const mortgageAccountNames = new Set(
-      (accounts as any[]).filter((a: any) => a.account_type === 'mortgage' && a.active !== false)
-        .map((a: any) => (a.name as string).toLowerCase())
+      (accounts as any[]).filter((a) => a.account_type === 'mortgage' && a.active !== false)
+        .map((a) => (a.name as string).toLowerCase())
     );
     const mortgageMonthlyPayment = debts
-      .filter((d: any) => mortgageAccountNames.has((d.name as string).toLowerCase()))
-      .reduce((s: number, d: any) => s + Number(d.target_payment || d.min_payment || 0), 0);
+      .filter((d) => mortgageAccountNames.has((d.name as string).toLowerCase()))
+      .reduce((s, d) => s + Number(d.target_payment || d.min_payment || 0), 0);
 
     // Month-aware projections for saving-phase vehicles: contrib stops at purchase month,
     // projected loan payment starts at purchase month
-    const vehicleProjections = pauseSavings ? [] : (carFunds as any[])
-      .filter((c: any) => c.phase === 'saving')
-      .map((c: any) => {
+    const vehicleProjections = pauseSavings ? [] : (carFunds)
+      .filter((c) => c.phase === 'saving')
+      .map((c) => {
         // Use live account balance when the vehicle is linked to a separate savings account.
         // Ignore linked_account when it's the funding account itself — that balance is already
         // counted as available cash elsewhere, so treating it as "already saved" would double-
@@ -715,19 +715,19 @@ export default function Forecast() {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const items: { name: string; amount: number }[] = [];
-      for (const cf of carFunds as any[]) {
+      for (const cf of carFunds) {
         const amt = (cf.lump_sum_payments ?? [])
-          .filter((ls: any) => ls.date.substring(0, 7) === mk)
-          .reduce((s: number, ls: any) => s + Number(ls.amount), 0);
+          .filter((ls) => ls.date.substring(0, 7) === mk)
+          .reduce((s, ls) => s + Number(ls.amount), 0);
         if (amt > 0) items.push({ name: cf.vehicle_name as string, amount: Math.round(amt) });
       }
       return items;
     });
     // Non-CC liability accounts with matched debt payments for per-account popup display
     const nonCCLiabAccts = active
-      .filter((a: any) => liabilityTypes.includes(a.account_type) && a.account_type !== 'credit_card')
-      .map((a: any) => {
-        const matched = (debts as any[]).find((d: any) => (d.name as string).toLowerCase() === (a.name as string).toLowerCase());
+      .filter((a) => liabilityTypes.includes(a.account_type) && a.account_type !== 'credit_card')
+      .map((a) => {
+        const matched = (debts as any[]).find((d) => (d.name as string).toLowerCase() === (a.name as string).toLowerCase());
         return {
           id: a.id as string,
           name: a.name as string,
@@ -740,8 +740,8 @@ export default function Forecast() {
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(PROJECTION_MONTHS).fill(0);
     const carLoanPerFund: { name: string; balances: number[] }[] = [];
-    for (const cf of carFunds as any[]) {
-      const fundName = (cf.vehicle_name ?? cf.name ?? 'Vehicle') as string;
+    for (const cf of carFunds) {
+      const fundName = cf.vehicle_name ?? 'Vehicle';
       if (cf.phase === 'loan' && cf.loan_start_date && cf.payment_start_date) {
         const fundBalances = new Array(PROJECTION_MONTHS).fill(0);
         try {
@@ -796,7 +796,7 @@ export default function Forecast() {
           const calD = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
           const calMk = `${calD.getFullYear()}-${String(calD.getMonth() + 1).padStart(2, '0')}`;
           const lumpAmt = i > purchaseMonthIdx
-            ? (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === calMk).reduce((s: number, ls: any) => s + ls.amount, 0)
+            ? (cf.lump_sum_payments ?? []).filter((ls) => ls.date.substring(0, 7) === calMk).reduce((s, ls) => s + ls.amount, 0)
             : 0;
           bal = Math.max(0, bal + interest - Math.min(scheduled + lumpAmt, bal + interest));
         }
@@ -813,7 +813,7 @@ export default function Forecast() {
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       return vehicleProjections.reduce((s, v) => {
         if (!isFinite(v.paymentStartMonthIdx) || i < v.paymentStartMonthIdx || i >= v.paymentStartMonthIdx + v.termMonths) return s;
-        return s + v.lumpSumPayments.filter((ls: any) => ls.date.substring(0, 7) === mk).reduce((ls_s: number, ls: any) => ls_s + ls.amount, 0);
+        return s + v.lumpSumPayments.filter((ls) => ls.date.substring(0, 7) === mk).reduce((ls_s, ls) => ls_s + ls.amount, 0);
       }, 0);
     };
     const getMonthProjLoan = (i: number) => getMonthProjLoanRegular(i) + getMonthProjLumpSum(i);
@@ -829,7 +829,7 @@ export default function Forecast() {
       (s, v) => s + (isFinite(v.purchaseMonthIdx) && i >= v.purchaseMonthIdx ? v.insurance : 0), 0)
       + activeCarLoanInsuranceByMonth[i];
 
-    const transferRulesAll = rules.filter((r: any) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
+    const transferRulesAll = rules.filter((r) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
 
     // ═══ PASS 1: Compute base values without debt payment adjustments ═══
     const baseData: {
@@ -853,8 +853,8 @@ export default function Forecast() {
     // "Other Account Expenses (no cash impact)" section. Hoisted out of the per-month loop below
     // since it only depends on accounts, not the month being computed.
     const ccPaymentSourcesForOtherAcct = new Set<string>(
-      accounts.filter((a: any) => a.active && a.account_type === 'credit_card')
-        .flatMap((a: any) => [a.id, `account:${a.id}`]),
+      accounts.filter((a) => a.active && a.account_type === 'credit_card')
+        .flatMap((a) => [a.id, `account:${a.id}`]),
     );
 
     // Index of the first (or only) bonus month in the projection window — used for non-recurring bonus
@@ -949,7 +949,7 @@ export default function Forecast() {
       // Month 0: starting cash already reflects all paid expenses; never fall back to the
       // full-month budget amount or past bills that have already cleared would be re-charged.
       const filteredExpenses = forecastMonthEvents[i]?.expenses ?? 0;
-      const budgetFallback = budgetItems.reduce((s: number, b: any) => s + Number(b.amount), 0);
+      const budgetFallback = budgetItems.reduce((s, b) => s + Number(b.amount), 0);
       let baseExpenses: number;
       if (i === 0) {
         baseExpenses = filteredExpenses;
@@ -1119,11 +1119,11 @@ export default function Forecast() {
         ?? (debtBalancesByMonth[i]?.totalBalance ?? 0);
 
       const nonCCLiabilities = active
-        .filter((a: any) => !['credit_card'].includes(a.account_type) && liabilityTypes.includes(a.account_type))
-        .reduce((s: number, a: any) => s + Number(a.balance), 0);
+        .filter((a) => !['credit_card'].includes(a.account_type) && liabilityTypes.includes(a.account_type))
+        .reduce((s, a) => s + Number(a.balance), 0);
       const otherDebtPayments = debts
-        .filter((dd: any) => !accounts.some((a: any) => a.account_type === 'credit_card' && a.name.toLowerCase() === dd.name.toLowerCase()))
-        .reduce((s: number, dd: any) => s + Number(dd.target_payment), 0);
+        .filter((dd: any) => !accounts.some((a) => a.account_type === 'credit_card' && a.name.toLowerCase() === dd.name.toLowerCase()))
+        .reduce((s, dd) => s + Number(dd.target_payment), 0);
       const otherDebtBalance = Math.max(0, nonCCLiabilities - otherDebtPayments * i);
 
       // Shared with Dashboard.tsx and useCardProjection.ts via getAugmentedMinSafeCash so the
@@ -1143,12 +1143,12 @@ export default function Forecast() {
       // Respect contribution_start_date; exclude goals linked to retirement accounts (paycheck deduction)
       // and goals whose linked account is funded by an active transfer rule this month (avoid double count)
       const savingsGoalItems: { name: string; amount: number; goalId: string; linkedAccount?: string }[] = [];
-      const monthlySavingsContrib = goals.reduce((s: number, g: any) => {
+      const monthlySavingsContrib = goals.reduce((s, g) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && retireAccountIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDestIds.has(g.linked_account)) return s;
         const contrib = Number(g.monthly_contribution);
-        if (contrib > 0) savingsGoalItems.push({ name: g.name, amount: contrib, goalId: g.id as string, linkedAccount: g.linked_account as string | undefined });
+        if (contrib > 0) savingsGoalItems.push({ name: g.name ?? 'Goal', amount: contrib, goalId: g.id as string, linkedAccount: g.linked_account as string | undefined });
         return s + contrib;
       }, 0);
 
@@ -1186,12 +1186,12 @@ export default function Forecast() {
     // min_payment directly — those can disagree (accounts.min_payment takes precedence in
     // buildCardData when present), which previously made Forecast think less was due than the
     // engine actually required, letting month-0 debt payments diverge from cardProjectionData.
-    const ccCards = active.filter((a: any) => a.account_type === 'credit_card');
+    const ccCards = active.filter((a) => a.account_type === 'credit_card');
     const ccMinTotal = (cardProjectionData?.simCards ?? []).length > 0
-      ? (cardProjectionData!.simCards as any[]).reduce((s: number, c: any) => s + Number(c.minPayment || 0), 0)
+      ? (cardProjectionData!.simCards as any[]).reduce((s, c) => s + Number(c.minPayment || 0), 0)
       : debts
-        .filter((d: any) => ccCards.some((a: any) => a.name.toLowerCase() === d.name.toLowerCase()))
-        .reduce((s: number, d: any) => s + Number(d.min_payment), 0);
+        .filter((d) => ccCards.some((a) => a.name.toLowerCase() === d.name.toLowerCase()))
+        .reduce((s, d) => s + Number(d.min_payment), 0);
 
     // ═══ PASS 2: Look-ahead — save up for upcoming cash shortfalls ═══
     // Runs its own independent floor-protection pass, sharing the reserve-based algorithm in
@@ -1208,7 +1208,7 @@ export default function Forecast() {
     const cyclingByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) =>
       Math.max(0, (cardProjectionData?.allPaymentTotals?.[i] ?? 0) - (cardProjectionData?.debtPaymentTotals?.[i] ?? 0)),
     );
-    const ccSourceIds = new Set<string>(ccCards.flatMap((a: any) => [a.id as string, `account:${a.id}`]));
+    const ccSourceIds = new Set<string>(ccCards.flatMap((a) => [a.id as string, `account:${a.id}`]));
     const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths } = computeFloorProtection({
       incomeByMonth: baseData.map(b => b.netIncome),
       expenseByMonth: baseData.map((b, i) =>
@@ -1235,9 +1235,9 @@ export default function Forecast() {
     // directly (as this used to) goes stale the moment a goal is linked to an account or rule,
     // and ignored contribution_start_date entirely, firing the milestone as if contributions had
     // already started.
-    const goalAccountMap = new Map(accounts.map((a: any) => [a.id, a]));
-    const resolvedGoals = goals.map((g: any) => {
-      const linkedRule = g.linked_rule_id ? rules.find((r: any) => r.id === g.linked_rule_id) : null;
+    const goalAccountMap = new Map(accounts.map((a) => [a.id, a]));
+    const resolvedGoals = goals.map((g) => {
+      const linkedRule = g.linked_rule_id ? rules.find((r) => r.id === g.linked_rule_id) : null;
       const linkedAcct = g.linked_account ? goalAccountMap.get(g.linked_account) : null;
       const contributionStartDate = linkedRule?.start_date ?? g.contribution_start_date ?? null;
       let delayMonths = 0;
@@ -1266,10 +1266,10 @@ export default function Forecast() {
     // sim's projection as the gate would pin ending cash to the floor long after all
     // debt is actually paid. p3RevBal uses live account balances as the starting point
     // and deducts the actual revolving payments + surplus each month.
-    const liveRevolvingBal = (cardProjectionData?.simCards ?? []).reduce((s: number, c: any) => {
+    const liveRevolvingBal = (cardProjectionData?.simCards ?? []).reduce((s, c) => {
       const revBal0 = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[0] ?? 1;
       if (revBal0 === 0) return s; // cycling card — paid in full each month, not revolving
-      const acct = active.find((a: any) => a.id === c.id);
+      const acct = active.find((a) => a.id === c.id);
       return s + (acct ? Number(acct.balance || 0) : 0);
     }, 0);
     let p3RevBal = liveRevolvingBal;
@@ -1363,7 +1363,7 @@ export default function Forecast() {
       // where p3RevBal fell below the true balance because monthly interest wasn't added back.
       // The engine's monthlyRevolvingBalances[i] already has the planned revolving payment deducted,
       // so revolvingPayment is not subtracted again here.
-      const ccEngRevBalEnd = (cardProjectionData?.simCards ?? []).reduce((s: number, c: any) => {
+      const ccEngRevBalEnd = (cardProjectionData?.simCards ?? []).reduce((s, c) => {
         const revBal0 = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[0] ?? 1;
         if (revBal0 === 0) return s;
         return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
@@ -1487,7 +1487,7 @@ export default function Forecast() {
         milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
         ccDebtFreeFired = true;
       }
-      resolvedGoals.forEach((g: any) => {
+      resolvedGoals.forEach((g) => {
         const elapsed = Math.max(0, i - g.delayMonths);
         const prevElapsed = Math.max(0, (i - 1) - g.delayMonths);
         const projected = Number(g.current_amount) + Number(g.monthly_contribution) * elapsed;
@@ -1705,7 +1705,7 @@ export default function Forecast() {
 
   const retirementProjections = useMemo(() => {
     const prof = profile;
-    const retireAccounts = accounts.filter((a: any) => a.active && RETIRE_TYPES_FORECAST.includes(a.account_type));
+    const retireAccounts = accounts.filter((a) => a.active && RETIRE_TYPES_FORECAST.includes(a.account_type));
     if (retireAccounts.length === 0) return [];
 
     const paycheckGross = getPaycheckGross(payConfig);
@@ -1714,7 +1714,7 @@ export default function Forecast() {
     const deductions: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
       Array.isArray(prof?.paycheck_deductions) ? (prof.paycheck_deductions as typeof deductions) : [];
 
-    const retireIds = new Set(retireAccounts.map((a: any) => a.id as string));
+    const retireIds = new Set(retireAccounts.map((a) => a.id as string));
     const transferContribByAccount: Record<string, number> = {};
     for (const r of (rules || [])) {
       if (!r.active) continue;
@@ -1727,7 +1727,7 @@ export default function Forecast() {
       transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + monthly;
     }
 
-    return retireAccounts.map((a: any) => {
+    return retireAccounts.map((a) => {
       const apyRate = a.apy_rate != null ? Number(a.apy_rate) : DEFAULT_APY_FORECAST;
       const fromDeductions = monthlyContribForAccount(deductions, a.id, paycheckGross, paychecksPerYear);
       const fromTransfers = transferContribByAccount[a.id] || 0;
@@ -1819,7 +1819,7 @@ export default function Forecast() {
               <button
                 onClick={async () => {
                   const label = filterYear === 'all' ? 'All 60 Months' : String(getCalendarYearLabel(parseInt(filterYear, 10)));
-                  await exportForecastPdf(filteredData.map((r: any) => ({
+                  await exportForecastPdf(filteredData.map((r) => ({
                     month: r.month,
                     takeHome: r.takeHome ?? 0,
                     totalExpenses: r.totalExpenses ?? 0,
@@ -1838,7 +1838,7 @@ export default function Forecast() {
               </button>
               <button
                 onClick={async () => {
-                  await exportForecastCsv(filteredData.map((r: any): ForecastRow => ({
+                  await exportForecastCsv(filteredData.map((r): ForecastRow => ({
                     month: r.month,
                     takeHome: r.takeHome ?? 0,
                     totalExpenses: r.totalExpenses ?? 0,
@@ -2392,7 +2392,7 @@ export default function Forecast() {
                         const items: { name: string; amount: number; dueDay?: number }[] = row.floorItems ?? [];
                         const preTotal = row.prePaycheckBillsTotal ?? 0;
                         const settingsFloor = row.settingsCashFloor ?? 0;
-                        const savingCarFunds = ((carFunds ?? []) as any[]).filter((cf: any) => cf.phase === 'saving');
+                        const savingCarFunds = (carFunds ?? []).filter((cf) => cf.phase === 'saving');
                         setFloorCalcDrawer({
                           title: `${row.month} — Cash Floor`,
                           lines: [
@@ -2415,7 +2415,7 @@ export default function Forecast() {
                               ? [
                                   { label: '', value: '' },
                                   { label: 'Saving toward vehicle purchase:', value: '' },
-                                  ...savingCarFunds.map((cf: any) => ({
+                                  ...savingCarFunds.map((cf) => ({
                                     label: `  ${cf.vehicle_name ?? 'Vehicle'}${cf.planned_purchase_date ? ` — target ${new Date(cf.planned_purchase_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}`,
                                     value: '',
                                   })),
