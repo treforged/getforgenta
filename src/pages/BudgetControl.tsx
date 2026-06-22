@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import type { Json } from '@/integrations/supabase/types';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router-dom';
@@ -170,7 +171,7 @@ export default function BudgetControl() {
   const saveUiPrefs = useCallback((prefs: Record<string, boolean>) => {
     if (uiPrefsSaveTimer.current) clearTimeout(uiPrefsSaveTimer.current);
     uiPrefsSaveTimer.current = setTimeout(() => {
-      updateProfile.mutate({ ui_preferences: prefs } as any);
+      updateProfile.mutate({ ui_preferences: prefs as unknown as Json });
     }, 600);
   }, [updateProfile]);
   const setDeductionsCollapsed = (v: boolean) => {
@@ -316,7 +317,7 @@ export default function BudgetControl() {
               payment_source: null,
               deposit_account: null,
               notes: '',
-            } as any);
+            });
           }
           // Sync savings goal monthly_contribution for any linked deduction
           deds.forEach(d => {
@@ -1009,7 +1010,7 @@ export default function BudgetControl() {
                   onChange={e => {
                     const id = e.target.value || null;
                     setPaycheckRuleId(id);
-                    updateProfile.mutate({ paycheck_rule_id: id } as any);
+                    updateProfile.mutate({ paycheck_rule_id: id });
                   }}
                   className="bg-secondary border border-border px-2 py-2 text-sm text-foreground w-full sm:w-auto min-w-0 sm:max-w-[130px]"
                   style={{ borderRadius: 'var(--radius)' }}

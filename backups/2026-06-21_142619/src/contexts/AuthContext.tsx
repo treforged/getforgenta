@@ -50,15 +50,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetReviewerAccount = useCallback(async (userId: string) => {
     await supabase
       .from('profiles')
-      .update({ founder_note_seen: false, onboarding_completed: false } as any)
+      .update({ founder_note_seen: false, onboarding_completed: false })
       .eq('user_id', userId);
-    await (supabase as any)
+    await supabase
       .from('plaid_items')
       .update({ last_synced_at: new Date().toISOString() })
       .eq('user_id', userId);
 
     // ── Cash floor: unwind this month's CC payments until balance is restored ──
-    const { data: profile } = await (supabase as any)
+    const { data: profile } = await supabase
       .from('profiles')
       .select('cash_floor, default_deposit_account')
       .eq('user_id', userId)
@@ -67,16 +67,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (floor > 0) {
       let fundingId: string | null = profile?.default_deposit_account ?? null;
       if (!fundingId) {
-        const { data: allAccounts } = await (supabase as any)
+        const { data: allAccounts } = await supabase
           .from('accounts')
           .select('id, account_type')
           .eq('user_id', userId)
           .eq('active', true)
           .order('created_at');
-        fundingId = (allAccounts as any[])?.find((a: any) => a.account_type === 'checking')?.id ?? null;
+        fundingId = allAccounts?.find((a) => a.account_type === 'checking')?.id ?? null;
       }
       if (fundingId) {
-        const { data: acct } = await (supabase as any)
+        const { data: acct } = await supabase
           .from('accounts')
           .select('balance')
           .eq('id', fundingId)
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (balance < floor) {
           const now = new Date();
           const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-          const { data: debtTxns } = await (supabase as any)
+          const { data: debtTxns } = await supabase
             .from('transactions')
             .select('id, amount')
             .eq('user_id', userId)
@@ -97,19 +97,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Delete newest debt payments one by one until balance clears the floor
           let running = balance;
           const toDelete: string[] = [];
-          for (const txn of (debtTxns ?? []) as any[]) {
+          for (const txn of debtTxns ?? []) {
             if (running >= floor) break;
             running += Number(txn.amount);
             toDelete.push(txn.id);
           }
           if (toDelete.length > 0) {
             await Promise.all([
-              (supabase as any)
+              supabase
                 .from('transactions')
                 .delete()
                 .in('id', toDelete)
                 .eq('user_id', userId),
-              (supabase as any)
+              supabase
                 .from('accounts')
                 .update({ balance: running })
                 .eq('id', fundingId)
@@ -127,8 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return d.toISOString().split('T')[0];
     };
     const [carRes, goalRes] = await Promise.all([
-      (supabase as any).from('car_funds').select('id').eq('user_id', userId),
-      (supabase as any).from('savings_goals').select('id').eq('user_id', userId),
+      supabase.from('car_funds').select('id').eq('user_id', userId),
+      supabase.from('savings_goals').select('id').eq('user_id', userId),
     ]);
     const carLumpSets: { id: string; date: string; amount: number; label: string }[][] = [
       [
@@ -149,15 +149,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ],
     ];
     await Promise.all([
-      ...((carRes.data ?? []) as any[]).map((fund: any, i: number) =>
-        (supabase as any)
+      ...(carRes.data ?? []).map((fund, i: number) =>
+        supabase
           .from('car_funds')
           .update({ lump_sum_payments: carLumpSets[i] ?? carLumpSets[0] })
           .eq('id', fund.id)
           .eq('user_id', userId),
       ),
-      ...((goalRes.data ?? []) as any[]).map((goal: any, i: number) =>
-        (supabase as any)
+      ...(goalRes.data ?? []).map((goal, i: number) =>
+        supabase
           .from('savings_goals')
           .update({ lump_sum_payments: goalLumpSets[i] ?? goalLumpSets[0] })
           .eq('id', goal.id)

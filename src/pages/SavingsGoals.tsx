@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import type { Json } from '@/integrations/supabase/types';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
@@ -480,7 +481,7 @@ export default function SavingsGoals() {
   };
 
   const handleSaveLumpSums = (goalId: string, lumps: GoalLumpSum[]) => {
-    update.mutate({ id: goalId, lump_sum_payments: lumps } as any);
+    update.mutate({ id: goalId, lump_sum_payments: lumps as unknown as Json });
   };
 
   function estimateCompletion(g: any): string {

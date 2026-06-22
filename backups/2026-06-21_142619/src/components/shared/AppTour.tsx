@@ -60,11 +60,6 @@ const PREMIUM_STEPS: TourStep[] = [
     body: 'Connect your bank via Plaid in Accounts. Balances update automatically — no more manual entry.',
   },
   {
-    emoji: '🚗',
-    title: 'Car Fund Tracker',
-    body: 'Plan a vehicle purchase with full affordability math — down payment, APR, monthly payment, and insurance.',
-  },
-  {
     emoji: '📄',
     title: 'PDF export',
     body: 'Download your 60-month forecast as a print-ready PDF. Put it on the wall. Watch it happen.',
@@ -110,7 +105,7 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
         .eq('user_id', user.id)
         .maybeSingle()
         .then(({ data }) => {
-          const flags = ((data as any)?.tour_flags as Record<string, boolean>) ?? {};
+          const flags = (data?.tour_flags as Record<string, boolean>) ?? {};
           if (flags[FLAG_KEY[variant]]) {
             // DB says done — populate device cache and stay hidden
             localStorage.setItem(LOCAL_KEY[variant], '1');
@@ -133,10 +128,10 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data } = await supabase.from('profiles').select('tour_flags').eq('user_id', user.id).maybeSingle();
-      const existing = ((data as any)?.tour_flags as Record<string, boolean>) ?? {};
+      const existing = (data?.tour_flags as Record<string, boolean>) ?? {};
       await supabase.from('profiles').update({
         tour_flags: { ...existing, [FLAG_KEY[variant]]: true },
-      } as any).eq('user_id', user.id);
+      }).eq('user_id', user.id);
     }
     onDone?.();
   };

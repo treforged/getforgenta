@@ -229,8 +229,8 @@ export default function Dashboard() {
 
   // Signal Swift cover that the dashboard has mounted and is ready to paint.
   useEffect(() => {
-    (window as any).__forgenta_dashboard_ready = true;
-    return () => { (window as any).__forgenta_dashboard_ready = false; };
+    window.__forgenta_dashboard_ready = true;
+    return () => { window.__forgenta_dashboard_ready = false; };
   }, []);
 
   const { cardProjection, pauseSavings, debtStrategy } = useCardProjectionContext();

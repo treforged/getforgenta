@@ -129,7 +129,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     setCashFloorLocal(val);
     if (cashFloorSaveTimer.current) clearTimeout(cashFloorSaveTimer.current);
     cashFloorSaveTimer.current = setTimeout(() => {
-      updateProfile.mutate({ cash_floor: val } as any);
+      updateProfile.mutate({ cash_floor: val });
     }, 1000);
   };
 
@@ -157,7 +157,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const [fundingAccountId, setFundingAccountIdLocal] = usePersistedState<string>('tre:debt:fundingAccount', defaultFunding);
   const setFundingAccountId = (id: string) => {
     setFundingAccountIdLocal(id);
-    updateProfile.mutate({ default_deposit_account: id } as any);
+    updateProfile.mutate({ default_deposit_account: id });
   };
 
   const liquidCash = liquidAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
@@ -934,7 +934,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const handleSaveStatementBal = (card: CardData) => {
     const val = statementBalInput.trim();
     if (val === '') {
-      updateAccount.mutate({ id: card.id, statement_balance: null } as any);
+      updateAccount.mutate({ id: card.id, statement_balance: null });
       setEditingStatementBal(null);
       return;
     }
@@ -943,7 +943,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       toast.error('Enter a valid balance amount');
       return;
     }
-    updateAccount.mutate({ id: card.id, statement_balance: parsed } as any);
+    updateAccount.mutate({ id: card.id, statement_balance: parsed });
     setEditingStatementBal(null);
     toast.success(`Statement balance for ${card.name} set to ${formatCurrency(parsed, false)}`);
   };
@@ -1475,7 +1475,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       return (
                         <button
                           key={label}
-                          onClick={() => { if (!active) updateAccount.mutate({ id: proj.card.id, payment_preference: key } as any); }}
+                          onClick={() => { if (!active) updateAccount.mutate({ id: proj.card.id, payment_preference: key }); }}
                           className={`flex-1 py-1.5 text-[10px] font-medium border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
                           style={{ borderRadius: 'var(--radius)' }}
                           aria-pressed={active}
@@ -1504,8 +1504,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <button
                         onClick={() => {
                           const next = !proj.card.statementBalancePhase;
-                          updateAccount.mutate({ id: proj.card.id, statement_balance_phase: next } as any);
-                          if (!next) updateAccount.mutate({ id: proj.card.id, statement_balance: null } as any);
+                          updateAccount.mutate({ id: proj.card.id, statement_balance_phase: next });
+                          if (!next) updateAccount.mutate({ id: proj.card.id, statement_balance: null });
                         }}
                         className={`shrink-0 px-2.5 py-1 text-[10px] font-semibold border transition-colors ${proj.card.statementBalancePhase ? 'bg-success/20 text-success border-success/40' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
                         style={{ borderRadius: 'var(--radius)' }}
@@ -1554,7 +1554,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                             </button>
                             {proj.card.statementBalance != null && (
                               <button
-                                onClick={() => updateAccount.mutate({ id: proj.card.id, statement_balance: null } as any)}
+                                onClick={() => updateAccount.mutate({ id: proj.card.id, statement_balance: null })}
                                 className="text-[9px] text-muted-foreground hover:text-destructive"
                                 title="Clear override"
                               >
