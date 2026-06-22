@@ -2,11 +2,11 @@ import { useState, useMemo, useCallback } from 'react';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
-import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations, usePaymentPlans, useCarFunds } from '@/hooks/useSupabaseData';
+import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations, usePaymentPlans, useCarFunds, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
-import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay } from '@/lib/pay-schedule';
+import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, type EnrichedTransaction } from '@/lib/pay-schedule';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
@@ -21,6 +21,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, getMonthlyPlanCashExpenses, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
+import type { Tables } from '@/integrations/supabase/types';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 
@@ -63,7 +64,7 @@ export default function Transactions() {
   const [filterMonth, setFilterMonth] = useState<string>(currentMonthStr);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [editChoiceId, setEditChoiceId] = useState<string | null>(null);
-  const [editChoiceRule, setEditChoiceRule] = useState<any>(null);
+  const [editChoiceRule, setEditChoiceRule] = useState<RuleRow | null>(null);
 
   // Payment plan state
   const [showPlanForm, setShowPlanForm] = useState(false);
@@ -74,8 +75,8 @@ export default function Transactions() {
 
   // Build account lookup map
   const accountMap = useMemo(() => {
-    const map: Record<string, any> = {};
-    accounts.forEach((a: any) => { map[a.id] = a; map[`account:${a.id}`] = a; });
+    const map: Record<string, AccountRow> = {};
+    accounts.forEach(a => { map[a.id] = a; map[`account:${a.id}`] = a; });
     return map;
   }, [accounts]);
 
@@ -89,9 +90,9 @@ export default function Transactions() {
   }, [accountMap]);
 
   // Base transaction stream (real + generated recurring) shared across pages
-  const baseTxns = useMemo(() => {
+  const baseTxns: EnrichedTransaction[] = useMemo(() => {
     return mergeWithGeneratedTransactions(transactions, rules, accounts)
-      .map((t: any) => ({ ...t, isGenerated: Boolean((t as any).isGenerated), isDebtPayment: false }));
+      .map(t => ({ ...t, isGenerated: Boolean(t.isGenerated), isDebtPayment: false }));
   }, [transactions, rules, accounts]);
 
   // Generate debt payment transactions from Debt Payoff schedule
@@ -99,10 +100,10 @@ export default function Transactions() {
   const fundingAccountId = useMemo(() => {
     const defaultId = profile?.default_deposit_account;
     if (defaultId) {
-      const acct = accounts.find((a: any) => a.id === defaultId && a.active);
+      const acct = accounts.find(a => a.id === defaultId && a.active);
       if (acct) return acct.id;
     }
-    const checking = accounts.find((a: any) => a.account_type === 'checking' && a.active);
+    const checking = accounts.find(a => a.account_type === 'checking' && a.active);
     return checking?.id || '';
   }, [accounts, profile]);
 
@@ -110,10 +111,10 @@ export default function Transactions() {
 
   // Savings/investing rule IDs for "paused" badge
   const savingsRuleIdsForBadge = useMemo(() => new Set<string>(
-    rules.filter((r: any) =>
+    rules.filter(r =>
       r.active && r.rule_type === 'expense' &&
       (r.category === 'Savings' || r.category === 'Investing'),
-    ).map((r: any) => r.id),
+    ).map(r => r.id),
   ), [rules]);
 
   const debtPaymentTransactions = useMemo(() => {
@@ -125,9 +126,9 @@ export default function Transactions() {
 
     const liquidTypes = ['checking', 'business_checking', 'cash'];
     const liquidCash = accounts
-      .filter((a: any) => a.active && liquidTypes.includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const fundingAcct = accounts.find((a: any) => a.id === fundingAccountId && a.active);
+      .filter(a => a.active && liquidTypes.includes(a.account_type))
+      .reduce((s, a) => s + Number(a.balance), 0);
+    const fundingAcct = accounts.find(a => a.id === fundingAccountId && a.active);
     const fundingBalance = fundingAcct ? Number(fundingAcct.balance) : liquidCash;
     const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
 
@@ -138,8 +139,8 @@ export default function Transactions() {
 
     // Full remaining month income (day 31) — same window as CreditCardEngine variableSim
     const month0Income = getRemainingTransactionIncomeByDay(baseTxns, 31);
-    const month0Expenses = (baseTxns as any[])
-      .filter((t: any) => {
+    const month0Expenses = baseTxns
+      .filter(t => {
         if (t.type !== 'expense') return false;
         if (!t.date || !t.date.startsWith(monthStr)) return false;
         if (t.date < todayStr) return false;
@@ -147,19 +148,19 @@ export default function Transactions() {
         if (t.category === 'Balance Adjustment') return false;
         return true;
       })
-      .reduce((s: number, t: any) => s + Number(t.amount), 0);
+      .reduce((s, t) => s + Number(t.amount), 0);
 
     // Scalar fallbacks for months 1+ (only month 0 matters here)
     const payConfig = buildPayConfig(profile);
     const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
     const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
     const _now = new Date();
-    const monthlyExpenses = rules.filter((r: any) => {
+    const monthlyExpenses = rules.filter(r => {
       if (!r.active || r.rule_type !== 'expense') return false;
       if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
       if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
       return true;
-    }).reduce((s: number, r: any) => {
+    }).reduce((s, r) => {
       const amt = Number(r.amount);
       return s + amt * countRuleOccurrencesInMonth(r, _now.getFullYear(), _now.getMonth());
     }, 0) + getMonthlyPlanCashExpenses(paymentPlans ?? [], _now.getFullYear(), _now.getMonth(), ccPaymentSources);
@@ -172,11 +173,11 @@ export default function Transactions() {
     );
 
     const checkingAccount = fundingAccountId
-      ? accounts.find((a: any) => a.id === fundingAccountId && a.active)
-      : accounts.find((a: any) => a.account_type === 'checking' && a.active);
+      ? accounts.find(a => a.id === fundingAccountId && a.active)
+      : accounts.find(a => a.account_type === 'checking' && a.active);
     const paymentSource = checkingAccount ? `account:${checkingAccount.id}` : 'bank_account';
 
-    const results: any[] = [];
+    const results: EnrichedTransaction[] = [];
     for (const card of cards) {
       const pay = (sim.monthlyPayments.get(card.id) || [])[0] ?? 0;
       if (pay <= 0) continue;
@@ -201,8 +202,8 @@ export default function Transactions() {
   }, [accounts, baseTxns, rules, debts, profile, fundingAccountId, paymentPlans]);
 
   // Map reconciliation records to transaction-like shape for rendering
-  const reconciliationTxns = useMemo(() => {
-    return (reconciliations || []).map((r: any) => ({
+  const reconciliationTxns: EnrichedTransaction[] = useMemo(() => {
+    return (reconciliations || []).map(r => ({
       id: `recon:${r.id}`,
       date: r.effective_date,
       type: r.delta >= 0 ? 'income' : 'expense',
@@ -219,7 +220,7 @@ export default function Transactions() {
   }, [reconciliations]);
 
   const planTransactions = useMemo(() => generatePaymentPlanTransactions(paymentPlans), [paymentPlans]);
-  const carLoanTransactions = useMemo(() => generateCarLoanTransactions((carFunds ?? []) as any[]), [carFunds]);
+  const carLoanTransactions = useMemo(() => generateCarLoanTransactions(carFunds ?? []), [carFunds]);
 
   // Merge real + generated recurring + debt payments + reconciliations + plan payments + car loans
   const allTransactions = useMemo(() => {
@@ -233,10 +234,10 @@ export default function Transactions() {
 
   const paymentSourceOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
-    accounts.filter((a: any) => a.active).forEach((a: any) => {
+    accounts.filter(a => a.active).forEach(a => {
       const typeLabel = a.account_type === 'credit_card' ? 'Credit Card'
         : a.account_type === 'high_yield_savings' ? 'HYS'
-        : a.account_type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+        : a.account_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       opts.push({ value: `account:${a.id}`, label: `${a.name} (${typeLabel})` });
     });
     if (opts.length === 1) {
@@ -246,7 +247,7 @@ export default function Transactions() {
     return opts;
   }, [accounts]);
 
-  const getSourceLabel = useCallback((source: string) => {
+  const getSourceLabel = useCallback((source: string | null | undefined) => {
     if (!source) return 'Unassigned';
     // Try direct match
     const opt = paymentSourceOptions.find(o => o.value === source);
@@ -264,7 +265,7 @@ export default function Transactions() {
   }, [paymentSourceOptions, accountMap]);
 
   // Check if a source account is missing/deleted
-  const isSourceMissing = useCallback((source: string) => {
+  const isSourceMissing = useCallback((source: string | null | undefined) => {
     if (!source || source === 'cash' || source === 'bank_account' || source === 'credit_card') return false;
     const id = source.startsWith('account:') ? source.slice(8) : source;
     return !accountMap[id] && !accountMap[`account:${id}`];
@@ -314,14 +315,14 @@ export default function Transactions() {
 
   const openAdd = () => { setForm(emptyForm); setEditId(null); setShowForm(true); };
 
-  const openEditDirect = (t: any) => {
+  const openEditDirect = (t: EnrichedTransaction) => {
     setForm({ date: t.date, type: t.type, amount: String(t.amount), category: t.category, account: t.account || 'Checking', note: t.note || '', payment_source: normalizeSource(t.payment_source) || '' });
     setEditId(t.id); setShowForm(true);
   };
 
-  const handleEditClick = (t: any) => {
+  const handleEditClick = (t: EnrichedTransaction) => {
     if (t.isGenerated && t.ruleId) {
-      const rule = rules.find((r: any) => r.id === t.ruleId);
+      const rule = rules.find(r => r.id === t.ruleId);
       setEditChoiceId(t.id);
       setEditChoiceRule(rule || null);
       return;
@@ -329,7 +330,7 @@ export default function Transactions() {
     openEditDirect(t);
   };
 
-  const handleEditOccurrence = (t: any) => {
+  const handleEditOccurrence = (t: EnrichedTransaction) => {
     // Create as a real transaction (overrides this generated occurrence)
     setForm({ date: t.date, type: t.type, amount: String(t.amount), category: t.category, account: t.account || 'Checking', note: t.note || '', payment_source: normalizeSource(t.payment_source) || '' });
     setEditId(null); // null = new transaction (override)
@@ -361,7 +362,7 @@ export default function Transactions() {
     toast.info('Editing the recurring rule — changes affect all future occurrences.');
   };
 
-  const duplicateTransaction = (t: any) => {
+  const duplicateTransaction = (t: EnrichedTransaction) => {
     setForm({
       date: new Date().toISOString().split('T')[0],
       type: t.type,
@@ -385,7 +386,7 @@ export default function Transactions() {
     if (editId && editId.startsWith('rule:')) {
       // Update the recurring rule
       const ruleId = editId.slice(5);
-      const rulePayload: any = {
+      const rulePayload: { id: string } & Partial<Tables<'recurring_rules'>> = {
         id: ruleId,
         amount,
         name: cleanNote || 'Transaction',
@@ -783,24 +784,24 @@ export default function Transactions() {
         {filtered.length === 0 ? (
           <div className="p-8 text-center"><p className="text-sm text-muted-foreground">No transactions found.</p></div>
         ) : filtered.map(t => {
-          const isRecon = (t as any).isReconciliation;
+          const isRecon = t.isReconciliation;
           const sourceMissing = !isRecon && isSourceMissing(t.payment_source);
-          const reconDelta = (t as any).reconciliationDelta as number | undefined;
+          const reconDelta = t.reconciliationDelta;
           return (
-            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${(t as any).isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-amber-500/40' : ''}`}>
+            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-amber-500/40' : ''}`}>
               <div className="flex items-center gap-3">
                 {isRecon
                   ? <SlidersHorizontal size={14} className="text-amber-500" />
-                  : <span className="text-base leading-none w-5 text-center shrink-0">{(t as any).isDebtPayment ? '💳' : (t as any).isCarLoanPayment ? '🚗' : t.type === 'income' ? '💰' : (CATEGORY_EMOJI[t.category] ?? '📦')}</span>
+                  : <span className="text-base leading-none w-5 text-center shrink-0">{t.isDebtPayment ? '💳' : t.isCarLoanPayment ? '🚗' : t.type === 'income' ? '💰' : (CATEGORY_EMOJI[t.category] ?? '📦')}</span>
                 }
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="text-xs font-medium">{t.note || '—'}</p>
-                    {t.isGenerated && !(t as any).isDebtPayment && <Repeat size={10} className="text-primary" />}
-                    {(t as any).isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
-                    {(t as any).isPlanPayment && <span className="text-[9px] text-blue-600 bg-blue-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
-                    {(t as any).isCarLoanPayment && <span className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>car loan</span>}
-                    {pauseSavings && (t as any).ruleId && savingsRuleIdsForBadge.has((t as any).ruleId) && (
+                    {t.isGenerated && !t.isDebtPayment && <Repeat size={10} className="text-primary" />}
+                    {t.isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
+                    {t.isPlanPayment && <span className="text-[9px] text-blue-600 bg-blue-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
+                    {t.isCarLoanPayment && <span className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>car loan</span>}
+                    {pauseSavings && t.ruleId && savingsRuleIdsForBadge.has(t.ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
                     {isRecon && <span className="text-[9px] text-amber-600 bg-amber-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
