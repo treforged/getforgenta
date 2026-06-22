@@ -63,7 +63,7 @@ export function PhoneAuth() {
   const handleRemove = async () => {
     setRemoving(true);
     // Supabase: set phone to empty string removes it
-    const { error } = await supabase.auth.updateUser({ phone: '' } as any);
+    const { error } = await supabase.auth.updateUser({ phone: '' });
     if (error) {
       toast.error(error.message);
     } else {

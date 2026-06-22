@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { loginSchema, signUpSchema } from '@/lib/schemas';
@@ -36,7 +37,7 @@ async function checkDeviceTrusted(userId: string): Promise<boolean> {
   if (!deviceId) return false;
   try {
     const { data } = await supabase.from('profiles').select('trusted_devices').eq('user_id', userId).single();
-    const devices = ((data as any)?.trusted_devices ?? []) as TrustedDevice[];
+    const devices = (data?.trusted_devices as TrustedDevice[] | null) ?? [];
     const device = devices.find(d => d.device_id === deviceId);
     if (!device) return false;
     return Date.now() - new Date(device.trusted_at).getTime() < 30 * 24 * 60 * 60 * 1000;
@@ -50,11 +51,11 @@ async function updateDeviceLastSeen(userId: string): Promise<void> {
   if (!deviceId) return;
   try {
     const { data: pd } = await supabase.from('profiles').select('trusted_devices').eq('user_id', userId).single();
-    const devices = ((pd as any)?.trusted_devices ?? []) as TrustedDevice[];
+    const devices = (pd?.trusted_devices as TrustedDevice[] | null) ?? [];
     const updated = devices.map(d =>
       d.device_id === deviceId ? { ...d, last_seen: new Date().toISOString() } : d
     );
-    await supabase.from('profiles').update({ trusted_devices: updated } as any).eq('user_id', userId);
+    await supabase.from('profiles').update({ trusted_devices: updated as unknown as Json }).eq('user_id', userId);
   } catch { /* non-critical */ }
 }
 
@@ -91,11 +92,11 @@ export default function Auth() {
     let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted || data.session) return;
-      (window as any).__forgenta_dashboard_ready = true;
+      window.__forgenta_dashboard_ready = true;
     });
     return () => {
       mounted = false;
-      (window as any).__forgenta_dashboard_ready = false;
+      window.__forgenta_dashboard_ready = false;
     };
   }, []);
 
@@ -172,11 +173,11 @@ export default function Auth() {
       const deviceId = crypto.randomUUID();
       localStorage.setItem(TRUSTED_DEVICE_KEY, deviceId);
       const { data: pd } = await supabase.from('profiles').select('trusted_devices').eq('user_id', pendingUserId).single();
-      const existing = ((pd as any)?.trusted_devices ?? []) as TrustedDevice[];
+      const existing = (pd?.trusted_devices as TrustedDevice[] | null) ?? [];
       const now = new Date().toISOString();
       await supabase.from('profiles').update({
-        trusted_devices: [...existing, { device_id: deviceId, name: getDeviceName(), trusted_at: now, last_seen: now }],
-      } as any).eq('user_id', pendingUserId);
+        trusted_devices: [...existing, { device_id: deviceId, name: getDeviceName(), trusted_at: now, last_seen: now }] as unknown as Json,
+      }).eq('user_id', pendingUserId);
     } catch { /* non-critical */ } finally {
       setLoading(false);
       navigate('/dashboard', { replace: true });
@@ -407,11 +408,13 @@ export default function Auth() {
             }
           }
           const { data: factorsData } = await supabase.auth.mfa.listFactors();
-          const rawFactors = factorsData as any;
+          // The installed @supabase/supabase-js types don't yet include the "email"
+          // MFA factor type on this response, even though the API can return it.
+          const rawFactors = factorsData as unknown as { email?: { id: string; status: string; factor_type: string }[] } | null;
           const allFactors = [
             ...(factorsData?.totp ?? []),
             ...(factorsData?.phone ?? []),
-            ...((rawFactors?.email ?? []) as any[]),
+            ...(rawFactors?.email ?? []),
           ];
           const factor = allFactors.find(f => f.status === 'verified');
           if (factor) {

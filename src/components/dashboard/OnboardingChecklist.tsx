@@ -22,7 +22,7 @@ function getTourFlags(profile: any): Record<string, boolean> {
 async function markChecklistDone(userId: string, key: ChecklistKey, existing: Record<string, boolean>) {
   await supabase
     .from('profiles')
-    .update({ tour_flags: { ...existing, [`checklist_${key}`]: true } } as any)
+    .update({ tour_flags: { ...existing, [`checklist_${key}`]: true } })
     .eq('user_id', userId);
 }
 
@@ -95,7 +95,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
     markedRef.current = true;
     supabase
       .from('profiles')
-      .update({ onboarding_completed: true } as any)
+      .update({ onboarding_completed: true })
       .eq('user_id', user.id)
       .then(() => {
         setTimeout(() => setVisible(false), 1200);

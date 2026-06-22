@@ -169,8 +169,8 @@ export default function Onboarding() {
   // New users land here after OAuth sign-up; without this the cover waits the full
   // 6s fallback before dismissing.
   useEffect(() => {
-    (window as any).__forgenta_dashboard_ready = true;
-    return () => { (window as any).__forgenta_dashboard_ready = false; };
+    window.__forgenta_dashboard_ready = true;
+    return () => { window.__forgenta_dashboard_ready = false; };
   }, []);
 
   // Auto-skip for existing accounts that already have profile data

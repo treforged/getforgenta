@@ -47,7 +47,7 @@ export function usePlaidItems() {
     enabled: !isDemo && !!user,
     queryFn: async (): Promise<PlaidItem[]> => {
       if (!user) return [];
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('plaid_items')
         .select('id, plaid_item_id, institution_id, institution_name, last_synced_at, created_at')
         .eq('user_id', user.id)

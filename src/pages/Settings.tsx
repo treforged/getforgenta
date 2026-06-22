@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
@@ -216,7 +217,7 @@ export default function SettingsPage() {
       paycheck_start_date: paycheckStartDate || null,
       default_deposit_account: defaultDepositAccount || null,
       auto_generate_recurring: autoGenerateRecurring,
-    } as any);
+    });
     setDirty(false);
   };
 
@@ -359,7 +360,7 @@ export default function SettingsPage() {
   const handleRevokeDevice = async (deviceId: string) => {
     try {
       const updated = trustedDevices.filter(d => d.device_id !== deviceId);
-      await supabase.from('profiles').update({ trusted_devices: updated } as any).eq('user_id', user!.id);
+      await supabase.from('profiles').update({ trusted_devices: updated as unknown as Json }).eq('user_id', user!.id);
       setTrustedDevices(updated);
       if (localStorage.getItem('forged:trusted_device_id') === deviceId) {
         localStorage.removeItem('forged:trusted_device_id');

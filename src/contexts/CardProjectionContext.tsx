@@ -81,7 +81,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
         const next = typeof val === 'function' ? val(prev) : val;
         if (assumptionsSaveTimer.current) clearTimeout(assumptionsSaveTimer.current);
         assumptionsSaveTimer.current = setTimeout(() => {
-          updateProfile.mutate({ forecast_assumptions: next } as any);
+          updateProfile.mutate({ forecast_assumptions: next });
         }, 800);
         return next;
       });

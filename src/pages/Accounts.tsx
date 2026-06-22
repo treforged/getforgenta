@@ -180,13 +180,13 @@ export default function Accounts() {
       if (!currentUser) throw new Error('Not authenticated');
 
       // Fresh fetch of ALL user accounts from DB (bypasses stale React state)
-      const { data: allAccountsRaw, error: fetchErr } = await (supabase as any)
+      const { data: allAccountsRaw, error: fetchErr } = await supabase
         .from('accounts')
         .select('id, name, institution, plaid_account_id, plaid_item_id, balance, active')
         .eq('user_id', currentUser.id);
       if (fetchErr) throw new Error(fetchErr.message);
 
-      const allAccounts = (allAccountsRaw ?? []) as any[];
+      const allAccounts = allAccountsRaw ?? [];
       const plaidCreatedAccounts = allAccounts.filter((a: any) => a.plaid_account_id);
 
       let matched = 0;
@@ -203,7 +203,7 @@ export default function Accounts() {
         if (!plaidCreated) continue;
 
         // Delete the Plaid-created duplicate FIRST — frees the unique constraint on plaid_account_id
-        const { error: deleteErr } = await (supabase as any)
+        const { error: deleteErr } = await supabase
           .from('accounts')
           .delete()
           .eq('id', plaidCreated.id)
@@ -216,7 +216,7 @@ export default function Accounts() {
         }
 
         // Now stamp Plaid link fields onto the existing manual account
-        const { error: updateErr } = await (supabase as any)
+        const { error: updateErr } = await supabase
           .from('accounts')
           .update({
             plaid_account_id: plaidCreated.plaid_account_id,
@@ -436,7 +436,7 @@ export default function Accounts() {
     }
     setUnlinkConfirm(null);
     try {
-      const { error } = await supabase.from('accounts').update({ plaid_account_id: null, plaid_item_id: null } as any).eq('id', accountId);
+      const { error } = await supabase.from('accounts').update({ plaid_account_id: null, plaid_item_id: null }).eq('id', accountId);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['accounts'] });
       toast.success('Account unlinked. Balance will no longer auto-sync.');

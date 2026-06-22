@@ -20,7 +20,7 @@ export default function FounderNoteModal({ onDismiss }: Props) {
     if (user) {
       await supabase
         .from('profiles')
-        .update({ founder_note_seen: true } as any)
+        .update({ founder_note_seen: true })
         .eq('user_id', user.id);
       // Invalidate cached profile so future Dashboard mounts read the updated value.
       qc.invalidateQueries({ queryKey: ['profile'] });

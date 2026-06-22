@@ -303,7 +303,7 @@ export default function Builds() {
       note: tx.note,
       payment_source: tx.payment_source ?? null,
       car_build_item_id: itemId,
-    } as any);
+    });
   }
 
   async function handleUpdateLinkedTransaction(

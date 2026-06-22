@@ -66,8 +66,8 @@ if (Capacitor.isNativePlatform()) {
 // AppDelegate polls this flag on fresh process start before lifting the cover.
 function AppReadySignal() {
   useEffect(() => {
-    (window as any).__forgenta_app_ready = true;
-    return () => { (window as any).__forgenta_app_ready = false; };
+    window.__forgenta_app_ready = true;
+    return () => { window.__forgenta_app_ready = false; };
   }, []);
   return null;
 }

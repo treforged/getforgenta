@@ -43,7 +43,7 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
   const markComplete = async () => {
     sessionStorage.removeItem(WIZARD_STEP_KEY);
     if (user) {
-      await supabase.from('profiles').update({ onboarding_completed: true } as any).eq('user_id', user.id);
+      await supabase.from('profiles').update({ onboarding_completed: true }).eq('user_id', user.id);
     }
     onComplete();
   };

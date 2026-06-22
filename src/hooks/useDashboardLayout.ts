@@ -3,6 +3,7 @@ import { useProfile } from './useSupabaseData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { DEFAULT_LAYOUT, WIDGET_META, type WidgetConfig, type WidgetId } from '@/lib/dashboard-widgets';
 
 function parseLayout(raw: unknown): WidgetConfig[] {
@@ -46,7 +47,7 @@ export function useDashboardLayout() {
       saveTimer.current = setTimeout(async () => {
         await supabase
           .from('profiles')
-          .update({ dashboard_layout: newLayout } as any)
+          .update({ dashboard_layout: newLayout as unknown as Json })
           .eq('user_id', user.id);
       }, 800);
     },

@@ -471,7 +471,7 @@ export function useTransactions() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string; car_build_item_id?: string | null }) => {
+    mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string | null; car_build_item_id?: string | null }) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { data, error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' }) as any).select().single();
       if (error) throw error;
@@ -648,7 +648,7 @@ export function useProfile() {
           // Auto-create profile if missing
           const { data: newProfile, error: insertErr } = await supabase
             .from('profiles')
-            .insert({ user_id: user.id } as any)
+            .insert({ user_id: user.id })
             .select()
             .maybeSingle();
           if (insertErr) {

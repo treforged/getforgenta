@@ -789,18 +789,18 @@ export default function AiAdvisor() {
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);
     Promise.all([
-      (supabase as any)
+      supabase
         .from('ai_advisor_history')
         .select('id, question, result, created_at, conversation_id')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(100),
-      (supabase as any)
+      supabase
         .from('ai_usage_events')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .gte('created_at', todayStart.toISOString()),
-      (supabase as any)
+      supabase
         .from('profiles')
         .select('ai_consent_accepted, ai_consent_version')
         .eq('user_id', user.id)
@@ -874,7 +874,7 @@ export default function AiAdvisor() {
   const handleConsentAccept = async () => {
     setConsentSaving(true);
     setConsentError(null);
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('profiles')
       .update({
         ai_consent_accepted: true,
