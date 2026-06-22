@@ -256,12 +256,11 @@ export default function Dashboard() {
   useEffect(() => {
     if (isDemo || profileLoading || debtsLoading || goalsLoading || acctLoading || onboardingInitRef.current) return;
     onboardingInitRef.current = true;
-    const p = profile as any;
     const alreadySeenThisSession = sessionStorage.getItem(FOUNDER_NOTE_KEY) === '1';
-    if (p?.founder_note_seen === false && !alreadySeenThisSession) {
+    if (profile?.founder_note_seen === false && !alreadySeenThisSession) {
       setFounderNoteVisible(true);
     } else if (
-      p?.onboarding_completed === false &&
+      profile?.onboarding_completed === false &&
       !sessionStorage.getItem('forged:onboarding_wizard_dismissed') &&
       (isReviewer || (accounts.length === 0 && debts.length === 0 && goals.length === 0))
     ) {
@@ -272,9 +271,8 @@ export default function Dashboard() {
   const handleFounderNoteDismiss = () => {
     sessionStorage.setItem(FOUNDER_NOTE_KEY, '1');
     setFounderNoteVisible(false);
-    const p = profile as any;
     if (
-      p?.onboarding_completed === false &&
+      profile?.onboarding_completed === false &&
       !sessionStorage.getItem('forged:onboarding_wizard_dismissed') &&
       (isReviewer || (accounts.length === 0 && debts.length === 0 && goals.length === 0))
     ) {
@@ -311,7 +309,7 @@ export default function Dashboard() {
   );
 
   const fundingAccountId = useMemo(() => {
-    const defaultId = (profile as any)?.default_deposit_account;
+    const defaultId = profile?.default_deposit_account;
     if (defaultId) return defaultId;
     const checking = accounts.find((a: any) => a.account_type === 'checking' && a.active);
     return checking?.id || null;
@@ -564,7 +562,7 @@ export default function Dashboard() {
   const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, syncCutoffDate, debtFundingSources, CC_DEFAULT_CATEGORIES), [allMonthTransactions, syncCutoffDate, debtFundingSources]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
 
-  const cashFloor = (profile as any)?.cash_floor != null ? Number((profile as any).cash_floor) : 1000;
+  const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
 
 
   const month0SaveUpNote = useMemo(() => {
@@ -1332,7 +1330,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!isDemo && !(profile as any)?.onboarding_completed && !profileLoading && (
+      {!isDemo && !profile?.onboarding_completed && !profileLoading && (
         <OnboardingChecklist profile={profile} accounts={accounts} debts={debts} goals={goals} plaidItems={plaidItems} />
       )}
 
