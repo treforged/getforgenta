@@ -18,7 +18,9 @@ import { type PaymentPlan, getPaymentDates } from '@/lib/payment-plan-generator'
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDebts, useAccounts, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';
+import { useDebts, useAccounts, useProfile, useRecurringRules, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
+import type { EnrichedTransaction } from '@/lib/pay-schedule';
+import type { CarFund } from '@/lib/types';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { toast } from 'sonner';
@@ -31,13 +33,13 @@ import type { Tables } from '@/integrations/supabase/types';
 const LIQUID_ACCOUNT_TYPES = ['checking', 'business_checking', 'cash'];
 
 type Props = {
-  accounts: any[];
-  transactions: any[];
-  rules: any[];
-  debts: any[];
+  accounts: AccountRow[];
+  transactions: EnrichedTransaction[];
+  rules: RuleRow[];
+  debts: DebtRow[];
   profile: Partial<Tables<'profiles'>>;
-  goals: any[];
-  carFunds: any[];
+  goals: Partial<Tables<'savings_goals'>>[];
+  carFunds: CarFund[];
   incomeGrowthEnabled?: boolean;
   incomeGrowth?: number;
   raiseMonth?: number;
