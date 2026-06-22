@@ -16,7 +16,7 @@ import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filtering';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
-import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans } from '@/hooks/useSupabaseData';
+import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, type AccountRow } from '@/hooks/useSupabaseData';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -65,12 +65,18 @@ import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
 import type { WidgetId } from '@/lib/dashboard-widgets';
 
-function ChartTooltip({ active, payload, label }: any) {
+interface ChartTooltipProps {
+  active?: boolean;
+  payload?: { dataKey: string | number; name: string; value: number; color: string }[];
+  label?: string;
+}
+
+function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
       <p className="font-medium text-foreground mb-1">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div key={p.dataKey} className="flex justify-between gap-4">
           <span className="text-muted-foreground">{p.name}</span>
           <span className="font-semibold" style={{ color: p.color }}>{formatCurrency(p.value, false)}</span>
@@ -98,7 +104,12 @@ const BREAKDOWN_COLORS = [
   'hsl(15, 75%, 52%)', 'hsl(100, 45%, 44%)', 'hsl(0, 65%, 52%)',
 ];
 
-function BreakdownTooltip({ active, payload }: any) {
+interface BreakdownTooltipProps {
+  active?: boolean;
+  payload?: { payload: { name: string }; value: number }[];
+}
+
+function BreakdownTooltip({ active, payload }: BreakdownTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
@@ -106,6 +117,14 @@ function BreakdownTooltip({ active, payload }: any) {
       <p className="text-primary font-semibold">{formatCurrency(payload[0].value, false)}</p>
     </div>
   );
+}
+
+interface DashboardGoalEntry {
+  id: string;
+  name: string;
+  current_amount: number;
+  target_amount: number;
+  isCar?: boolean;
 }
 
 const ACCOUNT_TYPE_TO_GROUP: Record<string, string> = {
@@ -244,9 +263,9 @@ export default function Dashboard() {
     if (isDemo) return;
     supabase.auth.mfa.listFactors().then(({ data }) => {
       if (!data) return;
-      const raw = data as any;
-      const all = [...(data.totp ?? []), ...(data.phone ?? []), ...((raw.email ?? []) as any[])];
-      const hasVerified = all.some((f: any) => f.status === 'verified');
+      const raw = data as unknown as { email?: { status: string }[] };
+      const all = [...(data.totp ?? []), ...(data.phone ?? []), ...(raw.email ?? [])];
+      const hasVerified = all.some(f => f.status === 'verified');
       setShowSecurityBanner(!hasVerified);
     });
   }, [isDemo]);
@@ -290,8 +309,8 @@ export default function Dashboard() {
   const monthlyNetIncome = useMemo(() => getMonthlyNetIncome(payConfig), [payConfig]);
 
   const accountMap = useMemo(() => {
-    const map: Record<string, any> = {};
-    accounts.forEach((a: any) => {
+    const map: Record<string, AccountRow> = {};
+    accounts.forEach(a => {
       map[a.id] = a;
       map[`account:${a.id}`] = a;
     });
@@ -311,7 +330,7 @@ export default function Dashboard() {
   const fundingAccountId = useMemo(() => {
     const defaultId = profile?.default_deposit_account;
     if (defaultId) return defaultId;
-    const checking = accounts.find((a: any) => a.account_type === 'checking' && a.active);
+    const checking = accounts.find(a => a.account_type === 'checking' && a.active);
     return checking?.id || null;
   }, [accounts, profile]);
 
@@ -325,24 +344,24 @@ export default function Dashboard() {
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
     const retireIds = new Set<string>(
-      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
     );
     const now = new Date();
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const activeTransferDests = new Set<string>(
-      (rules as any[]).filter((r: any) =>
+      rules.filter(r =>
         r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
         !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
         !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map((r: any) => r.deposit_account),
+      ).map(r => r.deposit_account as string),
     );
-    const savingsTotal = goals.reduce((s: number, g: any) => {
+    const savingsTotal = goals.reduce((s, g) => {
       if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
       if (g.linked_account && retireIds.has(g.linked_account)) return s;
       if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
       return s + Number(g.monthly_contribution);
     }, 0);
-    const carTotal = (carFunds as any[]).reduce((s: number, c: any) => {
+    const carTotal = carFunds.reduce((s, c) => {
       if (c.phase === 'loan') return s;
       const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
       const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
@@ -355,33 +374,33 @@ export default function Dashboard() {
       }
       return s + Math.min(rem / monthsToGoal, rem);
     }, 0);
-    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
+    const carLoanTotal = getTotalCarLoanMonthly(carFunds);
     return savingsTotal + carTotal + carLoanTotal;
   }, [pauseSavings, goals, carFunds, accounts, rules]);
 
   const month0SavingsBreakdown = useMemo((): { label: string; value: number }[] => {
     if (pauseSavings) return [];
     const retireIds = new Set<string>(
-      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
     );
     const now = new Date();
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const activeTransferDests = new Set<string>(
-      (rules as any[]).filter((r: any) =>
+      rules.filter(r =>
         r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
         !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
         !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map((r: any) => r.deposit_account),
+      ).map(r => r.deposit_account as string),
     );
     const items: { label: string; value: number }[] = [];
-    for (const g of goals as any[]) {
+    for (const g of goals) {
       if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) continue;
       if (g.linked_account && retireIds.has(g.linked_account)) continue;
       if (g.linked_account && activeTransferDests.has(g.linked_account)) continue;
       const contrib = Number(g.monthly_contribution);
-      if (contrib > 0) items.push({ label: g.name, value: contrib });
+      if (contrib > 0) items.push({ label: g.name ?? '', value: contrib });
     }
-    for (const c of carFunds as any[]) {
+    for (const c of carFunds) {
       if (c.phase === 'loan') continue;
       const gift = Number(c.gift_contribution || 0);
       const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - gift);
@@ -423,9 +442,9 @@ export default function Dashboard() {
     const today = new Date();
     const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     if (!fundingAccountId) return localDate;
-    const fundingAcct = accounts.find((a: any) => a.id === fundingAccountId);
+    const fundingAcct = accounts.find(a => a.id === fundingAccountId);
     if (!fundingAcct?.plaid_item_id) return localDate;
-    const plaidItem = plaidItems.find((pi: any) => pi.plaid_item_id === fundingAcct.plaid_item_id);
+    const plaidItem = plaidItems.find(pi => pi.plaid_item_id === fundingAcct.plaid_item_id);
     if (!plaidItem?.last_synced_at) return localDate;
     return plaidItem.last_synced_at.split('T')[0];
   }, [fundingAccountId, accounts, plaidItems]);
@@ -436,7 +455,7 @@ export default function Dashboard() {
     // income/expense windows with the Debt Payoff page.
     const now = new Date();
     const ccIds = new Set<string>(
-      (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
+      accounts.filter(a => a.active && a.account_type === 'credit_card')
         .flatMap(a => [a.id, `account:${a.id}`]),
     );
     const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now.getFullYear(), now.getMonth(), ccIds);
@@ -458,18 +477,18 @@ export default function Dashboard() {
       return { liquidCash: 0, totalAssets: 0, totalLiabilities: 0, netWorth: 0, ccDebt: 0, ccLimit: 0 };
     }
 
-    const active = accounts.filter((a: any) => a.active);
+    const active = accounts.filter(a => a.active);
     const liquidTypes = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'];
     const investTypes = ['brokerage'];
     const retireTypes = ['roth_ira', '401k'];
     const liabilityTypes = ['credit_card', 'student_loan', 'auto_loan', 'other_liability'];
     const assetTypes = [...liquidTypes, ...investTypes, ...retireTypes, 'other_asset'];
 
-    const liquidCash = active.filter((a: any) => liquidTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
-    const totalAssets = active.filter((a: any) => assetTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
-    const totalLiabilities = active.filter((a: any) => liabilityTypes.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
-    const ccDebt = active.filter((a: any) => a.account_type === 'credit_card').reduce((s: number, a: any) => s + Number(a.balance || 0), 0);
-    const ccLimit = active.filter((a: any) => a.account_type === 'credit_card' && a.credit_limit).reduce((s: number, a: any) => s + Number(a.credit_limit || 0), 0);
+    const liquidCash = active.filter(a => liquidTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance || 0), 0);
+    const totalAssets = active.filter(a => assetTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance || 0), 0);
+    const totalLiabilities = active.filter(a => liabilityTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance || 0), 0);
+    const ccDebt = active.filter(a => a.account_type === 'credit_card').reduce((s, a) => s + Number(a.balance || 0), 0);
+    const ccLimit = active.filter(a => a.account_type === 'credit_card' && a.credit_limit).reduce((s, a) => s + Number(a.credit_limit || 0), 0);
 
     return { liquidCash, totalAssets, totalLiabilities, netWorth: totalAssets - totalLiabilities, ccDebt, ccLimit };
   }, [accounts]);
@@ -477,26 +496,26 @@ export default function Dashboard() {
   const liveAssetsForBreakdown = useMemo(() => {
     const assetAccountTypes = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa', 'other_asset'];
     return accounts
-      .filter((a: any) => a.active && assetAccountTypes.includes(a.account_type))
-      .map((a: any) => ({ id: `live:${a.id}`, name: a.name, type: ACCOUNT_TYPE_TO_GROUP[a.account_type] || 'Other', value: Number(a.balance), isLive: true }));
+      .filter(a => a.active && assetAccountTypes.includes(a.account_type))
+      .map(a => ({ id: `live:${a.id}`, name: a.name, type: ACCOUNT_TYPE_TO_GROUP[a.account_type] || 'Other', value: Number(a.balance), isLive: true }));
   }, [accounts]);
 
   const liveLiabilitiesForBreakdown = useMemo(() => {
     const liabilityAccountTypes = ['credit_card', 'mortgage', 'student_loan', 'auto_loan', 'other_liability'];
     return accounts
-      .filter((a: any) => a.active && liabilityAccountTypes.includes(a.account_type))
-      .map((a: any) => ({ id: `live:${a.id}`, name: a.name, type: ACCOUNT_TYPE_TO_GROUP[a.account_type] || 'Other Liability', balance: Number(a.balance), isLive: true }));
+      .filter(a => a.active && liabilityAccountTypes.includes(a.account_type))
+      .map(a => ({ id: `live:${a.id}`, name: a.name, type: ACCOUNT_TYPE_TO_GROUP[a.account_type] || 'Other Liability', balance: Number(a.balance), isLive: true }));
   }, [accounts]);
 
   const allAssetsForBreakdown = useMemo(() => {
-    const liveNames = new Set(liveAssetsForBreakdown.map((a: any) => a.name.toLowerCase()));
-    const manual = (manualAssets as any[]).filter((a: any) => !liveNames.has(a.name.toLowerCase())).map((a: any) => ({ ...a, isLive: false }));
+    const liveNames = new Set(liveAssetsForBreakdown.map(a => a.name.toLowerCase()));
+    const manual = manualAssets.filter(a => !liveNames.has(a.name.toLowerCase())).map(a => ({ ...a, isLive: false }));
     return [...liveAssetsForBreakdown, ...manual];
   }, [liveAssetsForBreakdown, manualAssets]);
 
   const allLiabilitiesForBreakdown = useMemo(() => {
-    const liveNames = new Set(liveLiabilitiesForBreakdown.map((l: any) => l.name.toLowerCase()));
-    const manual = (manualLiabilities as any[]).filter((l: any) => !liveNames.has(l.name.toLowerCase())).map((l: any) => ({ ...l, isLive: false }));
+    const liveNames = new Set(liveLiabilitiesForBreakdown.map(l => l.name.toLowerCase()));
+    const manual = manualLiabilities.filter(l => !liveNames.has(l.name.toLowerCase())).map(l => ({ ...l, isLive: false }));
     return [...liveLiabilitiesForBreakdown, ...manual];
   }, [liveLiabilitiesForBreakdown, manualLiabilities]);
 
@@ -504,7 +523,7 @@ export default function Dashboard() {
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
   const currentMonthTransactions = useMemo(
-    () => allMonthTransactions.filter((t: any) => t.date?.startsWith(currentMonthStr)),
+    () => allMonthTransactions.filter(t => t.date?.startsWith(currentMonthStr)),
     [allMonthTransactions, currentMonthStr],
   );
 
@@ -525,11 +544,11 @@ export default function Dashboard() {
 
   const summary = useMemo(() => {
     const income = currentMonthTransactions
-      .filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment')
-      .reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+      .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
 
     const expenses = Object.values(expenseBreakdown).reduce((s: number, v: number) => s + v, 0);
-    const totalDebt = debts.reduce((s: number, d: any) => s + Number(d.balance || 0), 0);
+    const totalDebt = debts.reduce((s, d) => s + Number(d.balance || 0), 0);
 
     const totalSaved = goals.reduce((s: number, g) => {
       if (g.linked_account && accountMap[g.linked_account]) {
@@ -601,7 +620,7 @@ export default function Dashboard() {
   );
 
   const fundingBalance = useMemo(() => {
-    const fundAcct = accounts.find((a: any) => a.id === fundingAccountId);
+    const fundAcct = accounts.find(a => a.id === fundingAccountId);
     if (fundAcct) return Number(fundAcct.balance);
     return accountSummary.liquidCash;
   }, [accounts, fundingAccountId, accountSummary]);
@@ -685,8 +704,8 @@ export default function Dashboard() {
       if (i === 0) {
         months.push({ month: monthName, income: summary.income, expenses: summary.expenses, net: summary.cashFlow });
       } else {
-        const monthTxns = baseTxns.filter((t: any) => t.date?.startsWith(monthStr));
-        const inc = monthTxns.filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const monthTxns = baseTxns.filter(t => t.date?.startsWith(monthStr));
+        const inc = monthTxns.filter(t => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s, t) => s + Number(t.amount), 0);
         const expBreakdown = categorizeExpenses(monthTxns, true);
         const exp = Object.values(expBreakdown).reduce((s: number, v: number) => s + v, 0);
         months.push({ month: monthName, income: Math.round(inc), expenses: Math.round(exp), net: Math.round(inc - exp) });
@@ -721,14 +740,14 @@ export default function Dashboard() {
     cutoff.setDate(cutoff.getDate() - 7);
     const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
     return [...allMonthTransactions]
-      .filter((t: any) => t.date <= todayStr && t.date >= cutoffStr)
+      .filter(t => t.date <= todayStr && t.date >= cutoffStr)
       .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, 6);
   }, [allMonthTransactions]);
 
   const carGoalData = useMemo(() => {
     if (carFunds && carFunds.length > 0) {
-      const c = carFunds[0] as any;
+      const c = carFunds[0];
       const linkedAcctBal = c.linked_account && accountMap[c.linked_account]
         ? Number(accountMap[c.linked_account].balance)
         : null;
@@ -751,9 +770,9 @@ export default function Dashboard() {
         term: Number(c.loan_term_months), isCarFund: true,
       };
     }
-    const carGoal = goals?.find((g: any) => g.goal_type === 'Car Fund');
+    const carGoal = goals?.find(g => g.goal_type === 'Car Fund');
     if (carGoal) {
-      return { name: (carGoal as any).name, saved: Number((carGoal as any).current_amount), target: Number((carGoal as any).target_amount), fullDownPayment: Number((carGoal as any).target_amount), gift: 0, monthlyNeeded: 0, price: 0, apr: 0, term: 0, isCarFund: false };
+      return { name: carGoal.name, saved: Number(carGoal.current_amount), target: Number(carGoal.target_amount), fullDownPayment: Number(carGoal.target_amount), gift: 0, monthlyNeeded: 0, price: 0, apr: 0, term: 0, isCarFund: false };
     }
     return null;
   }, [carFunds, goals, accountMap]);
@@ -790,7 +809,7 @@ export default function Dashboard() {
   };
 
   const openIncomeCalc = () => {
-    const incomeItems = currentMonthTransactions.filter((t: any) => t.type === 'income');
+    const incomeItems = currentMonthTransactions.filter(t => t.type === 'income');
     const paycheckCount = getPaychecksInMonth(payConfig, now.getFullYear(), now.getMonth());
     const lines: { label: string; value: string; op?: string }[] = [
       { label: `Pay Schedule: ${payConfig.frequency}`, value: `${payConfig.paycheckDay === 5 ? 'Fri' : `Day ${payConfig.paycheckDay}`}` },
@@ -798,8 +817,8 @@ export default function Dashboard() {
       { label: 'Paychecks this month', value: String(paycheckCount.length) },
       { label: `${incomeItems.length} income transactions`, value: '' },
     ];
-    incomeItems.slice(0, 8).forEach((t: any) => {
-      lines.push({ label: `  ${(t as any).note || t.category}`, value: formatCurrency(Number(t.amount), false), op: '+' });
+    incomeItems.slice(0, 8).forEach(t => {
+      lines.push({ label: `  ${t.note || t.category}`, value: formatCurrency(Number(t.amount), false), op: '+' });
     });
     lines.push({ label: 'Total Monthly Income', value: formatCurrency(summary.income, false), op: '=' });
     setCalcDrawer({ title: 'Monthly Income', lines });
@@ -831,24 +850,24 @@ export default function Dashboard() {
   };
 
   const openNetWorthCalc = () => {
-    const active = accounts.filter((a: any) => a.active);
+    const active = accounts.filter(a => a.active);
     const lines: { label: string; value: string; op?: string }[] = [];
-    const assetAccts = active.filter((a: any) => !['credit_card', 'student_loan', 'auto_loan', 'other_liability'].includes(a.account_type));
-    const liabAccts = active.filter((a: any) => ['credit_card', 'student_loan', 'auto_loan', 'other_liability'].includes(a.account_type));
+    const assetAccts = active.filter(a => !['credit_card', 'student_loan', 'auto_loan', 'other_liability'].includes(a.account_type));
+    const liabAccts = active.filter(a => ['credit_card', 'student_loan', 'auto_loan', 'other_liability'].includes(a.account_type));
     lines.push({ label: `Assets (${assetAccts.length} accounts)`, value: '' });
-    assetAccts.forEach((a: any) => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '+' }));
+    assetAccts.forEach(a => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '+' }));
     lines.push({ label: 'Total Assets', value: formatCurrency(accountSummary.totalAssets, false), op: '=' });
     lines.push({ label: `Liabilities (${liabAccts.length} accounts)`, value: '' });
-    liabAccts.forEach((a: any) => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '−' }));
+    liabAccts.forEach(a => lines.push({ label: `  ${a.name}`, value: formatCurrency(Number(a.balance), false), op: '−' }));
     lines.push({ label: 'Total Liabilities', value: formatCurrency(accountSummary.totalLiabilities, false), op: '=' });
     lines.push({ label: 'Net Worth', value: formatCurrency(accountSummary.netWorth, false), op: '=' });
     setCalcDrawer({ title: 'Net Worth', lines });
   };
 
   const openLiquidCashCalc = () => {
-    const active = accounts.filter((a: any) => a.active && ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'].includes(a.account_type));
+    const active = accounts.filter(a => a.active && ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'].includes(a.account_type));
     const lines: { label: string; value: string; op?: string }[] = [];
-    active.forEach((a: any) => lines.push({ label: a.name, value: formatCurrency(Number(a.balance), false), op: '+' }));
+    active.forEach(a => lines.push({ label: a.name, value: formatCurrency(Number(a.balance), false), op: '+' }));
     lines.push({ label: 'Total Liquid Cash', value: formatCurrency(accountSummary.liquidCash, false), op: '=' });
     setCalcDrawer({ title: 'Liquid Cash', lines });
   };
@@ -1100,7 +1119,7 @@ export default function Dashboard() {
                 <Link to="/transactions" className="text-xs text-primary hover:underline font-medium">View All</Link>
               </div>
               <div className="space-y-1">
-                {recentTxns.map((t: any) => (
+                {recentTxns.map(t => (
                   <div
                     key={t.id}
                     className="flex items-center justify-between py-2.5 px-2 border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
@@ -1137,14 +1156,14 @@ export default function Dashboard() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
             <div className="grid md:grid-cols-3 gap-5">
               {(() => {
-                const retireGoal = goals.find((g: any) => g.goal_type === 'Retirement');
-                const otherGoals = [...goals.filter((g: any) => g.goal_type !== 'Retirement')].sort((a: any, b: any) => {
+                const retireGoal = goals.find(g => g.goal_type === 'Retirement');
+                const otherGoals = [...goals.filter(g => g.goal_type !== 'Retirement')].sort((a, b) => {
                   if (a.goal_type === 'Emergency Fund') return -1;
                   if (b.goal_type === 'Emergency Fund') return 1;
                   return 0;
                 });
-                const carEntry = carFunds[0] ? (() => {
-                  const c = carFunds[0] as any;
+                const carEntry: DashboardGoalEntry[] = carFunds[0] ? (() => {
+                  const c = carFunds[0];
                   const livebal = c.linked_account && accountMap[c.linked_account] ? Number(accountMap[c.linked_account].balance) : Number(c.current_saved);
                   const personalGoal = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
                   return [{ id: 'car-dash', name: c.vehicle_name, current_amount: livebal, target_amount: personalGoal, isCar: true }];
@@ -1153,8 +1172,8 @@ export default function Dashboard() {
                   ...(retireGoal ? [retireGoal] : []),
                   ...otherGoals.slice(0, retireGoal ? 1 : 2),
                   ...carEntry,
-                ].slice(0, 3);
-              })().map((g: any) => {
+                ].slice(0, 3) as DashboardGoalEntry[];
+              })().map(g => {
                 const pct = Number(g.target_amount) > 0 ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) : 0;
                 return (
                   <div key={g.id} className="space-y-3 p-4 bg-muted/30 border border-border" style={{ borderRadius: 'var(--radius)' }}>
@@ -1207,8 +1226,8 @@ export default function Dashboard() {
                       <div className="flex justify-center sm:block shrink-0">
                         <ResponsiveContainer width={140} height={140}>
                           <PieChart>
-                            <Pie data={allAssetsForBreakdown.map((a: any) => ({ name: a.name, value: Number(a.value) }))} cx="50%" cy="50%" innerRadius={36} outerRadius={62} dataKey="value" strokeWidth={0}>
-                              {allAssetsForBreakdown.map((_: any, i: number) => <Cell key={i} fill={BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length]} />)}
+                            <Pie data={allAssetsForBreakdown.map(a => ({ name: a.name, value: Number(a.value) }))} cx="50%" cy="50%" innerRadius={36} outerRadius={62} dataKey="value" strokeWidth={0}>
+                              {allAssetsForBreakdown.map((_, i) => <Cell key={i} fill={BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length]} />)}
                             </Pie>
                             <Tooltip content={<BreakdownTooltip />} />
                           </PieChart>
@@ -1216,7 +1235,7 @@ export default function Dashboard() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0 space-y-1">
-                      {allAssetsForBreakdown.map((a: any, idx: number) => (
+                      {allAssetsForBreakdown.map((a, idx) => (
                         <div key={a.id} className="flex items-center justify-between gap-2 py-1 text-xs min-w-0">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BREAKDOWN_COLORS[idx % BREAKDOWN_COLORS.length] }} />
@@ -1237,8 +1256,8 @@ export default function Dashboard() {
                       <div className="flex justify-center sm:block shrink-0">
                         <ResponsiveContainer width={140} height={140}>
                           <PieChart>
-                            <Pie data={allLiabilitiesForBreakdown.map((l: any) => ({ name: l.name, value: Number(l.balance) }))} cx="50%" cy="50%" innerRadius={36} outerRadius={62} dataKey="value" strokeWidth={0}>
-                              {allLiabilitiesForBreakdown.map((_: any, i: number) => <Cell key={i} fill={BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length]} />)}
+                            <Pie data={allLiabilitiesForBreakdown.map(l => ({ name: l.name, value: Number(l.balance) }))} cx="50%" cy="50%" innerRadius={36} outerRadius={62} dataKey="value" strokeWidth={0}>
+                              {allLiabilitiesForBreakdown.map((_, i) => <Cell key={i} fill={BREAKDOWN_COLORS[i % BREAKDOWN_COLORS.length]} />)}
                             </Pie>
                             <Tooltip content={<BreakdownTooltip />} />
                           </PieChart>
@@ -1246,7 +1265,7 @@ export default function Dashboard() {
                       </div>
                     )}
                     <div className="flex-1 min-w-0 space-y-1">
-                      {allLiabilitiesForBreakdown.map((l: any, idx: number) => (
+                      {allLiabilitiesForBreakdown.map((l, idx) => (
                         <div key={l.id} className="flex items-center justify-between gap-2 py-1 text-xs min-w-0">
                           <div className="flex items-center gap-1.5 min-w-0">
                             <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BREAKDOWN_COLORS[idx % BREAKDOWN_COLORS.length] }} />
