@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression test for a real user-reported bug: the Forecast page showed several real months
 // below the cash floor that the Debt Payoff tab (sourced from this hook) never protected
@@ -55,10 +57,10 @@ describe('useCardProjection vehicle projected-loan lump-sum payments', () => {
       { id: 'income-1', name: 'Paycheck', amount: 2200, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: checkingId, active: true, category: 'Other' },
       { id: 'bill-1', name: 'Rent', amount: 1200, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: checkingId, deposit_account: null, active: true, category: 'Bills' },
     ];
-    const profile: any = { weekly_gross_income: 0.01 };
+    const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
     const payConfig = buildPayConfig(profile);
-    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
     const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const { result } = renderHook(() => useCardProjection({
@@ -73,7 +75,7 @@ describe('useCardProjection vehicle projected-loan lump-sum payments', () => {
       assumptions: DEFAULT_ASSUMPTIONS,
       syncCutoffDate,
       paymentPlans: [],
-    } as any));
+    } as unknown as UseCardProjectionParams));
 
     const r = result.current!;
     expect(r).not.toBeNull();

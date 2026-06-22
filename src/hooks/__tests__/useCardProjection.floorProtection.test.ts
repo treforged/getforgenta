@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression test for a bug where the floor-breach look-ahead only ran (and only capped a
 // month's debt payment) when a month was flagged as a "large event" — a recorded one-time DB
@@ -56,16 +58,16 @@ describe('useCardProjection floor-breach protection (no flagged large event)', (
       { id: 'bill-1', name: 'Rent', amount: 1200, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: checkingId, deposit_account: null, active: true, category: 'Bills' },
       { id: 'bill-2', name: 'Annual Insurance Premium', amount: 1800, rule_type: 'expense', frequency: 'yearly', due_month: dueMonth, due_day: 15, payment_source: checkingId, deposit_account: null, active: true, category: 'Insurance' },
     ];
-    const transactions: any[] = [];
-    const carFunds: any[] = [];
-    const goals: any[] = [];
+    const transactions: Partial<Tables<'transactions'>>[] = [];
+    const carFunds: Partial<Tables<'car_funds'>>[] = [];
+    const goals: Partial<Tables<'savings_goals'>>[] = [];
     // weekly_gross_income set to a negligible non-zero value (not 0 — Number(0) || 1875 would
     // fall back to the 1875 default) so the profile-based default paycheck doesn't drown out the
     // rules-based $4000/month income this test relies on for predictable cash-flow math.
-    const profile: any = { weekly_gross_income: 0.01 };
+    const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
     const payConfig = buildPayConfig(profile);
-    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
     const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const { result } = renderHook(() => useCardProjection({
@@ -80,7 +82,7 @@ describe('useCardProjection floor-breach protection (no flagged large event)', (
       assumptions: DEFAULT_ASSUMPTIONS,
       syncCutoffDate,
       paymentPlans: [],
-    } as any));
+    } as unknown as UseCardProjectionParams));
 
     const r = result.current!;
     expect(r).not.toBeNull();

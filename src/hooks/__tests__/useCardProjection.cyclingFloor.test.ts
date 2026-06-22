@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression test for a second floor-breach-protection gap found while verifying parity with
 // Forecast.tsx's own PASS-2: the look-ahead's cash-flow model only ever subtracted the unusual
@@ -65,13 +67,13 @@ describe('useCardProjection floor-breach protection (cycling-card baseline payme
       // the simulated cycling payment this test exists to verify.
       { id: 'bill-3', name: 'Groceries on Card B', amount: 600, rule_type: 'expense', frequency: 'monthly', due_day: 10, payment_source: cardBId, deposit_account: null, active: true, category: 'Groceries' },
     ];
-    const transactions: any[] = [];
-    const carFunds: any[] = [];
-    const goals: any[] = [];
-    const profile: any = { weekly_gross_income: 0.01 };
+    const transactions: Partial<Tables<'transactions'>>[] = [];
+    const carFunds: Partial<Tables<'car_funds'>>[] = [];
+    const goals: Partial<Tables<'savings_goals'>>[] = [];
+    const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
     const payConfig = buildPayConfig(profile);
-    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
     const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const { result } = renderHook(() => useCardProjection({
@@ -86,7 +88,7 @@ describe('useCardProjection floor-breach protection (cycling-card baseline payme
       assumptions: DEFAULT_ASSUMPTIONS,
       syncCutoffDate,
       paymentPlans: [],
-    } as any));
+    } as unknown as UseCardProjectionParams));
 
     const r = result.current!;
     expect(r).not.toBeNull();

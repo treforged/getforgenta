@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression test for a bug where month-0 cashPreDebt used m0Income/m0Expenses sourced from
 // getRemainingTransactionIncomeByDay/getRemainingTransactionExpensesByDay (a transaction-merge
@@ -40,13 +42,13 @@ describe('useCardProjection month-0 income/expenses', () => {
       { id: 'income-1', name: 'Paycheck', amount: 1000, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: checkingId, active: true, category: 'Other' },
       { id: 'bill-1', name: 'Subscription', amount: 20, rule_type: 'expense', frequency: 'monthly', due_day: billDueDay, payment_source: checkingId, deposit_account: null, active: true, category: 'Subscriptions' },
     ];
-    const transactions: any[] = [];
-    const carFunds: any[] = [];
-    const goals: any[] = [];
-    const profile: any = null;
+    const transactions: Partial<Tables<'transactions'>>[] = [];
+    const carFunds: Partial<Tables<'car_funds'>>[] = [];
+    const goals: Partial<Tables<'savings_goals'>>[] = [];
+    const profile: Partial<Tables<'profiles'>> | null = null;
 
     const payConfig = buildPayConfig(profile);
-    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
     const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
     const { result } = renderHook(() => useCardProjection({
@@ -61,7 +63,7 @@ describe('useCardProjection month-0 income/expenses', () => {
       assumptions: DEFAULT_ASSUMPTIONS,
       syncCutoffDate,
       paymentPlans: [],
-    } as any));
+    } as unknown as UseCardProjectionParams));
 
     expect(result.current).not.toBeNull();
     // The $20 subscription is due later this month and from a non-CC source — it must show up

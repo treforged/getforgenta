@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression test for a bug introduced while building the reserve-based look-ahead (see
 // useCardProjection.cyclingFloor.test.ts): the look-ahead bootstraps an uncapped simulation pass
@@ -60,13 +62,13 @@ describe('useCardProjection cycling classification', () => {
       // one-time spike the look-ahead needs to protect against.
       { id: 'bill-3', name: 'Recurring purchase on cycling card', amount: 2200, rule_type: 'expense', frequency: 'monthly', due_day: 11, payment_source: cyclingCardId, deposit_account: null, active: true, category: 'Other' },
     ];
-    const transactions: any[] = [
+    const transactions: Partial<Tables<'transactions'>>[] = [
       { date: `${spikeMonthKey}-11`, type: 'expense', amount: 1800, category: 'Other', payment_source: `account:${cyclingCardId}`, note: 'one-time spike' },
     ];
-    const profile: any = { weekly_gross_income: 0.01 };
+    const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
     const payConfig = buildPayConfig(profile);
-    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
     const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const { result } = renderHook(() => useCardProjection({
@@ -81,7 +83,7 @@ describe('useCardProjection cycling classification', () => {
       assumptions: DEFAULT_ASSUMPTIONS,
       syncCutoffDate,
       paymentPlans: [],
-    } as any));
+    } as unknown as UseCardProjectionParams));
 
     const r = result.current!;
     expect(r).not.toBeNull();
