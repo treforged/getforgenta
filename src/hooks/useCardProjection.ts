@@ -139,7 +139,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
 
-      const accountMap = new Map<string, any>(accounts.map(a => [a.id, a]));
+      const accountMap = new Map<string, AccountRow>(accounts.map(a => [a.id, a]));
 
       // ── Funding account resolution (mirrors cardProjectionData) ──────────────
       const liquidTypes = ['checking', 'business_checking', 'cash'];
