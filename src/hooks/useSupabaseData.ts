@@ -28,6 +28,8 @@ const demoAccounts = [
 ];
 
 
+type AccountRow = Partial<Tables<'accounts'>> & { id: string; user_id: string; name: string };
+
 export function useAccounts() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
@@ -35,17 +37,17 @@ export function useAccounts() {
   const query = useQuery({
     queryKey: ['accounts', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
-    queryFn: async () => {
+    queryFn: async (): Promise<AccountRow[]> => {
       if (isDemo || !user) return demoAccounts;
-      const { data, error } = await supabase.from('accounts' as any).select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('accounts').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('accounts' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
+      const { error } = await supabase.from('accounts').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); toast.success('Account added'); },
@@ -54,7 +56,7 @@ export function useAccounts() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('accounts' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('accounts').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); toast.success('Account updated'); },
@@ -63,7 +65,7 @@ export function useAccounts() {
   const remove = useMutation({
     mutationFn: async (id: string) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('accounts' as any).delete().eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('accounts').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['accounts'] }); toast.success('Account deleted'); },
@@ -112,9 +114,9 @@ export function useRecurringRules() {
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoRecurringRules;
-      const { data, error } = await supabase.from('recurring_rules' as any).select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('recurring_rules').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
   const add = useMutation({
@@ -123,7 +125,7 @@ export function useRecurringRules() {
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
       }
-      const { error } = await supabase.from('recurring_rules' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
+      const { error } = await supabase.from('recurring_rules').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['recurring_rules'] }); toast.success('Recurring rule added'); },
@@ -135,7 +137,7 @@ export function useRecurringRules() {
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
       }
-      const { error } = await supabase.from('recurring_rules' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('recurring_rules').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['recurring_rules'] }); toast.success('Recurring rule updated'); },
@@ -144,7 +146,7 @@ export function useRecurringRules() {
   const remove = useMutation({
     mutationFn: async (id: string) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('recurring_rules' as any).delete().eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('recurring_rules').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['recurring_rules'] }); toast.success('Recurring rule deleted'); },
@@ -298,9 +300,9 @@ export function useAccountReconciliations() {
     enabled: !isDemo && !!user,
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase.from('account_reconciliations' as any).select('*').eq('user_id', user.id).order('effective_date', { ascending: false });
+      const { data, error } = await supabase.from('account_reconciliations').select('*').eq('user_id', user.id).order('effective_date', { ascending: false });
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
   const add = useMutation({
@@ -313,7 +315,7 @@ export function useAccountReconciliations() {
       projected_balance: number;
     }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('account_reconciliations' as any).insert({ ...item, user_id: user.id });
+      const { error } = await supabase.from('account_reconciliations').insert({ ...item, user_id: user.id });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['account_reconciliations'] }); },
@@ -521,15 +523,15 @@ export function useSubscriptions() {
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoSubs.map((s, i) => ({ ...s, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
-      const { data, error } = await supabase.from('subscriptions' as any).select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('subscriptions').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('subscriptions' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
+      const { error } = await supabase.from('subscriptions').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['subscriptions'] }); toast.success('Subscription added'); },
@@ -538,7 +540,7 @@ export function useSubscriptions() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('subscriptions' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('subscriptions').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['subscriptions'] }); toast.success('Subscription updated'); },
@@ -547,7 +549,7 @@ export function useSubscriptions() {
   const remove = useMutation({
     mutationFn: async (id: string) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('subscriptions' as any).delete().eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('subscriptions').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['subscriptions'] }); toast.success('Subscription deleted'); },
@@ -579,15 +581,15 @@ export function useBudgetItems() {
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoBudgetItems.map((b, i) => ({ ...b, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
-      const { data, error } = await supabase.from('budget_items' as any).select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('budget_items').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: any) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('budget_items' as any).insert(sanitizePayload({ ...item, user_id: user.id }));
+      const { error } = await supabase.from('budget_items').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['budget_items'] }); toast.success('Budget item added'); },
@@ -596,7 +598,7 @@ export function useBudgetItems() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('budget_items' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('budget_items').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['budget_items'] }); toast.success('Budget item updated'); },
@@ -605,7 +607,7 @@ export function useBudgetItems() {
   const remove = useMutation({
     mutationFn: async (id: string) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('budget_items' as any).delete().eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('budget_items').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['budget_items'] }); toast.success('Budget item deleted'); },
@@ -699,12 +701,12 @@ export function useNetWorthSnapshots() {
       }
       if (!user) return [];
       const { data, error } = await supabase
-        .from('net_worth_snapshots' as any)
+        .from('net_worth_snapshots')
         .select('*')
         .eq('user_id', user.id)
         .order('snapshot_date', { ascending: true });
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
 
@@ -717,7 +719,7 @@ export function useNetWorthSnapshots() {
     }) => {
       if (isDemo || !user) return; // silently skip in demo
       const { error } = await supabase
-        .from('net_worth_snapshots' as any)
+        .from('net_worth_snapshots')
         .upsert(
           { ...item, user_id: user.id },
           { onConflict: 'user_id,snapshot_date' },
@@ -778,15 +780,15 @@ export function usePaymentPlans() {
     enabled: isDemo || !!user,
     queryFn: async () => {
       if (isDemo || !user) return demoPaymentPlans;
-      const { data, error } = await supabase.from('payment_plans' as any).select('*').eq('user_id', user.id).order('created_at');
+      const { data, error } = await supabase.from('payment_plans').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
   const add = useMutation({
     mutationFn: async (item: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'>) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { data, error } = await supabase.from('payment_plans' as any).insert(sanitizePayload({ ...item, user_id: user.id })).select().single();
+      const { data, error } = await supabase.from('payment_plans').insert(sanitizePayload({ ...item, user_id: user.id })).select().single();
       if (error) throw error;
       return data as unknown as PaymentPlan;
     },
@@ -796,7 +798,7 @@ export function usePaymentPlans() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('payment_plans' as any).update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('payment_plans').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment_plans'] }); toast.success('Payment plan updated'); },
@@ -805,7 +807,7 @@ export function usePaymentPlans() {
   const remove = useMutation({
     mutationFn: async (id: string) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('payment_plans' as any).delete().eq('id', id).eq('user_id', user.id);
+      const { error } = await supabase.from('payment_plans').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment_plans'] }); toast.success('Payment plan removed'); },
@@ -828,7 +830,7 @@ export function useCarBuilds() {
     queryFn: async () => {
       if (isDemo || !user) return demoCarBuilds;
       const { data, error } = await supabase
-        .from('car_builds' as any)
+        .from('car_builds')
         .select('*')
         .eq('user_id', user.id)
         .order('sort_order');
@@ -841,7 +843,7 @@ export function useCarBuilds() {
     mutationFn: async (item: { name: string; year?: number | null; make?: string | null; model?: string | null; notes?: string | null; sort_order?: number }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
-        .from('car_builds' as any)
+        .from('car_builds')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
         .select()
         .single();
@@ -856,7 +858,7 @@ export function useCarBuilds() {
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
-        .from('car_builds' as any)
+        .from('car_builds')
         .update(sanitizePayload(item))
         .eq('id', id)
         .eq('user_id', user.id);
@@ -870,7 +872,7 @@ export function useCarBuilds() {
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
-        .from('car_builds' as any)
+        .from('car_builds')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id);
@@ -880,19 +882,7 @@ export function useCarBuilds() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const reorder = useMutation({
-    mutationFn: async (rows: { id: string; sort_order: number }[]) => {
-      if (!user) throw new Error('Not authenticated');
-      const { error } = await supabase
-        .from('car_builds' as any)
-        .upsert(rows.map(r => ({ ...r, user_id: user.id })), { onConflict: 'id' });
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_builds'] }); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  return { data: (query.data ?? _EMPTY_ARR) as any[], loading: query.isLoading, error: query.error, add, update, remove, reorder };
+  return { data: query.data ?? _EMPTY_ARR, loading: query.isLoading, error: query.error, add, update, remove };
 }
 
 // ─── Car Build Phases ────────────────────────────────────
@@ -908,7 +898,7 @@ export function useCarBuildPhases(buildId: string | null) {
       if (isDemo || !user) return demoCarBuildPhases.filter(p => p.build_id === buildId);
       if (!buildId) return [];
       const { data, error } = await supabase
-        .from('car_build_phases' as any)
+        .from('car_build_phases')
         .select('*')
         .eq('build_id', buildId)
         .eq('user_id', user.id)
@@ -922,7 +912,7 @@ export function useCarBuildPhases(buildId: string | null) {
     mutationFn: async (item: { title: string; build_id: string; sort_order?: number }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
-        .from('car_build_phases' as any)
+        .from('car_build_phases')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
         .select()
         .single();
@@ -937,7 +927,7 @@ export function useCarBuildPhases(buildId: string | null) {
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
-        .from('car_build_phases' as any)
+        .from('car_build_phases')
         .update(sanitizePayload(item))
         .eq('id', id)
         .eq('user_id', user.id);
@@ -951,7 +941,7 @@ export function useCarBuildPhases(buildId: string | null) {
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
-        .from('car_build_phases' as any)
+        .from('car_build_phases')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id);
@@ -966,7 +956,7 @@ export function useCarBuildPhases(buildId: string | null) {
       if (!user || !buildId) throw new Error('Not authenticated');
       const results = await Promise.all(
         rows.map(r =>
-          supabase.from('car_build_phases' as any)
+          supabase.from('car_build_phases')
             .update({ sort_order: r.sort_order })
             .eq('id', r.id)
             .eq('user_id', user.id)
@@ -995,7 +985,7 @@ export function useCarBuildItems(buildId: string | null) {
       if (isDemo || !user) return demoCarBuildItems.filter(item => item.build_id === buildId);
       if (!buildId) return [];
       const { data, error } = await supabase
-        .from('car_build_items' as any)
+        .from('car_build_items')
         .select('*')
         .eq('build_id', buildId)
         .eq('user_id', user.id)
@@ -1009,7 +999,7 @@ export function useCarBuildItems(buildId: string | null) {
     mutationFn: async (item: { name: string; phase_id: string; build_id: string; brand?: string | null; price?: number | null; link?: string | null; sort_order?: number }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
-        .from('car_build_items' as any)
+        .from('car_build_items')
         .insert(sanitizePayload({ ...item, user_id: user.id }))
         .select()
         .single();
@@ -1024,7 +1014,7 @@ export function useCarBuildItems(buildId: string | null) {
     mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
-        .from('car_build_items' as any)
+        .from('car_build_items')
         .update(sanitizePayload(item))
         .eq('id', id)
         .eq('user_id', user.id);
@@ -1038,7 +1028,7 @@ export function useCarBuildItems(buildId: string | null) {
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
-        .from('car_build_items' as any)
+        .from('car_build_items')
         .delete()
         .eq('id', id)
         .eq('user_id', user.id);
@@ -1053,7 +1043,7 @@ export function useCarBuildItems(buildId: string | null) {
       if (!user || !buildId) throw new Error('Not authenticated');
       const results = await Promise.all(
         rows.map(r =>
-          supabase.from('car_build_items' as any)
+          supabase.from('car_build_items')
             .update({ sort_order: r.sort_order, phase_id: r.phase_id })
             .eq('id', r.id)
             .eq('user_id', user.id)
