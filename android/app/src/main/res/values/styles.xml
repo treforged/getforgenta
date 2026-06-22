@@ -5,8 +5,11 @@
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <!-- Customize your theme here. -->
         <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        <!-- colorPrimaryDark deliberately omitted: AppCompat maps it to the deprecated
+             Window.setStatusBarColor()/android:statusBarColor edge-to-edge parameter that
+             Google Play flags. EdgeToEdge.enable() + WindowInsetsControllerCompat (SystemBars
+             plugin) own bar appearance instead — see values-v35/styles.xml. -->
     </style>
 
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
