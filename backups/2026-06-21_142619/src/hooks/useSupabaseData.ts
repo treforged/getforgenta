@@ -330,7 +330,7 @@ export function useSavingsGoals() {
   const query = useQuery({
     queryKey: ['savings_goals', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
-    queryFn: async () => {
+    queryFn: async (): Promise<Partial<Tables<'savings_goals'>>[]> => {
       if (isDemo || !user) return demoSavingsGoals.map((g, i) => ({ ...g, id: String(i), user_id: 'demo', created_at: '', updated_at: '' }));
       const { data, error } = await supabase.from('savings_goals').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
