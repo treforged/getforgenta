@@ -39,8 +39,17 @@ export interface Month0Result {
   mortgagePayment: number;
 }
 
+export interface ProjectionDataRow {
+  month: string;
+  totalCCBalance: number;
+  displayCCBalance: number;
+  totalInterest: number;
+  utilization: number;
+  [cardName: string]: string | number;
+}
+
 export interface CardProjectionResult {
-  data: any[];
+  data: ProjectionDataRow[];
   cards: { name: string; color: string }[];
   simCards: CardData[];
   debtPaymentTotals: number[];
@@ -136,7 +145,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const liquidTypes = ['checking', 'business_checking', 'cash'];
       const liquidCash = accounts
         .filter(a => a.active && liquidTypes.includes(a.account_type))
-        .reduce((s: number, a: any) => s + Number(a.balance), 0);
+        .reduce((s, a) => s + Number(a.balance), 0);
       const resolvedDebtFundingId = persistedDebtFundingId || forecastFundingAccountId;
       const debtFundingAccount = accounts.find(a => a.active && a.id === resolvedDebtFundingId);
       // Already-saved/gifted down-payment money sitting in this same account is still "available
@@ -169,7 +178,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
         if (pauseSavings && (r.category === 'Savings' || r.category === 'Investing')) return false;
         return true;
-      }).reduce((s: number, r: any) => {
+      }).reduce((s, r) => {
         return s + Number(r.amount) * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
       }, 0) + (planCashExpensesEarly[0] ?? 0);
 
@@ -217,7 +226,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
                 t.type === 'expense' &&
                 (t.payment_source === card.id || t.payment_source === `account:${card.id}`),
               )
-              .reduce((s: number, t: any) => s + Number(t.amount), 0);
+              .reduce((s, t) => s + Number(t.amount), 0);
             cardPurchases[card.id] = scheduledAmt + oneTimeCCAmt;
           }
         }
@@ -262,7 +271,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         );
         const inc = txns
           .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
-          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+          .reduce((s, t) => s + Number(t.amount), 0);
         const exp = txns
           .filter(t => {
             if (t.type !== 'expense') return false;
@@ -270,7 +279,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             if (t.payment_source && ccSourceIds.has(t.payment_source)) return false;
             return true;
           })
-          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+          .reduce((s, t) => s + Number(t.amount), 0);
         oneTimeArr.push({ income: inc, expenses: exp });
       }
 
@@ -456,8 +465,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
         return carFunds
           .filter(cf => cf.phase === 'loan')
-          .flatMap(cf => (cf.lump_sum_payments ?? []).filter((ls: any) => ls.date.substring(0, 7) === mk))
-          .reduce((s: number, ls: any) => s + ls.amount, 0);
+          .flatMap(cf => (cf.lump_sum_payments ?? []).filter(ls => ls.date.substring(0, 7) === mk))
+          .reduce((s, ls) => s + ls.amount, 0);
       });
 
       // ── Insurance on phase='loan' car funds per month — getTotalCarLoanMonthly/carLoanLumpByMonth
@@ -571,7 +580,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // savings have accumulated. When monthly savings cover all of `rem`, this is 0 — no
       // lump-sum shock in the purchase month and no save-up needed for that car event.
       const carDownPaymentByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
-        return carFunds.reduce((s: number, c: any) => {
+        return carFunds.reduce((s, c) => {
           if (c.phase !== 'saving') return s;
           const liveSaved = c.linked_account
             ? Number(accountMap.get(c.linked_account)?.balance ?? c.current_saved ?? 0)
@@ -626,7 +635,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           .map(a => (a.name as string).toLowerCase()),
       );
       const monthlyMortgagePayment = debts.filter(d => mortgageAccountNames.has((d.name as string).toLowerCase()))
-        .reduce((s: number, d: any) => s + Number(d.target_payment || d.min_payment || 0), 0);
+        .reduce((s, d) => s + Number(d.target_payment || d.min_payment || 0), 0);
 
       // ── Lump-sum goal transfers per month (mirrors Forecast.tsx's lumpTransferByMonth, the
       // .total figure only — per-account categorization is a display concern handled elsewhere).
@@ -635,8 +644,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
         let total = 0;
         for (const g of goals) {
-          const lumps: any[] = Array.isArray(g.lump_sum_payments) ? g.lump_sum_payments : [];
-          total += lumps.filter((ls: any) => ls.date.substring(0, 7) === mk).reduce((s: number, ls: any) => s + Number(ls.amount), 0);
+          const lumps = Array.isArray(g.lump_sum_payments)
+            ? (g.lump_sum_payments as unknown as { date: string; amount: number }[])
+            : [];
+          total += lumps.filter(ls => ls.date.substring(0, 7) === mk).reduce((s, ls) => s + Number(ls.amount), 0);
         }
         return total;
       });
@@ -844,7 +855,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
       const data = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-        const row: any = { month: d.toLocaleString('en', { month: 'short', year: 'numeric' }), totalCCBalance: 0, displayCCBalance: 0, totalInterest: 0 };
+        const row: ProjectionDataRow = { month: d.toLocaleString('en', { month: 'short', year: 'numeric' }), totalCCBalance: 0, displayCCBalance: 0, totalInterest: 0, utilization: 0 };
         for (const p of projs) {
           const m = p.months[i];
           if (m) {
@@ -923,7 +934,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
         ).map(r => r.deposit_account!),
       );
-      const goalContrib = pauseSavings ? 0 : goals.reduce((s: number, g: any) => {
+      const goalContrib = pauseSavings ? 0 : goals.reduce((s, g) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
         if (g.linked_account && retireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
@@ -934,7 +945,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // linked_account is ignored when it equals the funding account itself — that balance is
       // already counted as available cash elsewhere, so treating it as "already saved" would
       // double-count the same dollars instead of protecting them for the upcoming purchase.
-      const carReserve = pauseSavings ? 0 : carFunds.reduce((s: number, c: any) => {
+      const carReserve = pauseSavings ? 0 : carFunds.reduce((s, c) => {
         if (c.phase !== 'saving') return s;
         const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
           ? accountMap.get(c.linked_account) : null;
