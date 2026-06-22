@@ -9,7 +9,8 @@ import {
   demoNetWorthSnapshots, demoCarBuilds, demoCarBuildPhases, demoCarBuildItems,
 } from '@/lib/demo-data';
 import { PaymentPlan } from '@/lib/payment-plan-generator';
-import type { Tables } from '@/integrations/supabase/types';
+import type { Tables, TablesInsert } from '@/integrations/supabase/types';
+import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
 
 // ─── Accounts (Centralized) ──────────────────────────────
 // FIX #13: Demo accounts now have realistic balances that produce
@@ -45,7 +46,7 @@ export function useAccounts() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: any) => {
+    mutationFn: async (item: Omit<TablesInsert<'accounts'>, 'user_id'>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('accounts').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
@@ -54,7 +55,7 @@ export function useAccounts() {
     onError: (e: Error) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'accounts'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('accounts').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -120,7 +121,7 @@ export function useRecurringRules() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: any) => {
+    mutationFn: async (item: Omit<TablesInsert<'recurring_rules'>, 'user_id'>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
@@ -132,7 +133,7 @@ export function useRecurringRules() {
     onError: (e: Error) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'recurring_rules'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
@@ -225,7 +226,7 @@ export function useLiabilities() {
     onError: (e) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'liabilities'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('liabilities').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -254,7 +255,7 @@ export function useDebts() {
     queryKey: ['debts', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
     queryFn: async () => {
-      if (isDemo || !user) return demoDebts.map((d, i) => ({ ...d, id: String(i), user_id: 'demo', created_at: '', updated_at: '', credit_limit: (d as any).credit_limit || 0 }));
+      if (isDemo || !user) return demoDebts.map((d, i) => ({ ...d, id: String(i), user_id: 'demo', created_at: '', updated_at: '', credit_limit: d.credit_limit || 0 }));
       const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
       return data ?? [];
@@ -263,14 +264,14 @@ export function useDebts() {
   const add = useMutation({
     mutationFn: async (item: { name: string; balance: number; apr: number; min_payment: number; target_payment: number; credit_limit?: number }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('debts').insert(sanitizePayload({ ...item, user_id: user.id }) as any);
+      const { error } = await supabase.from('debts').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['debts'] }); toast.success('Debt added'); },
     onError: (e) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'debts'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('debts').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -349,7 +350,7 @@ export function useSavingsGoals() {
     onError: (e) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'savings_goals'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('savings_goals').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -385,7 +386,7 @@ export function useCarFunds() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: any) => {
+    mutationFn: async (item: Omit<TablesInsert<'car_funds'>, 'user_id'>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('car_funds').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
@@ -394,7 +395,7 @@ export function useCarFunds() {
     onError: (e) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_funds'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('car_funds').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -438,7 +439,7 @@ export function useLumpSumTransfers() {
     onError: (e) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'lump_sum_transfers'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('lump_sum_transfers').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -467,7 +468,7 @@ export function useTransactions() {
     queryKey: ['transactions', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
     queryFn: async () => {
-      if (isDemo || !user) return demoTransactions.map((t, i) => ({ ...t, id: String(i), user_id: 'demo', created_at: '', updated_at: '', payment_source: (t as any).payment_source || 'bank_account' }));
+      if (isDemo || !user) return demoTransactions.map((t, i) => ({ ...t, id: String(i), user_id: 'demo', created_at: '', updated_at: '', payment_source: t.payment_source || 'bank_account' }));
       const { data, error } = await supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false });
       if (error) throw error;
       return data ?? [];
@@ -476,7 +477,7 @@ export function useTransactions() {
   const add = useMutation({
     mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string | null; car_build_item_id?: string | null }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { data, error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' }) as any).select().single();
+      const { data, error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' })).select().single();
       if (error) throw error;
       return data;
     },
@@ -484,7 +485,7 @@ export function useTransactions() {
     onError: (e) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'transactions'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('transactions').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -529,7 +530,7 @@ export function useSubscriptions() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: any) => {
+    mutationFn: async (item: Omit<TablesInsert<'subscriptions'>, 'user_id'>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('subscriptions').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
@@ -538,7 +539,7 @@ export function useSubscriptions() {
     onError: (e: Error) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'subscriptions'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('subscriptions').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -587,7 +588,7 @@ export function useBudgetItems() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: any) => {
+    mutationFn: async (item: Omit<TablesInsert<'budget_items'>, 'user_id'>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('budget_items').insert(sanitizePayload({ ...item, user_id: user.id }));
       if (error) throw error;
@@ -596,7 +597,7 @@ export function useBudgetItems() {
     onError: (e: Error) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'budget_items'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('budget_items').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -796,7 +797,7 @@ export function usePaymentPlans() {
     onError: (e: Error) => toast.error(e.message),
   });
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'payment_plans'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('payment_plans').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
@@ -817,7 +818,7 @@ export function usePaymentPlans() {
 }
 
 // ─── Car Builds ──────────────────────────────────────────
-const _EMPTY_ARR: any[] = [];
+const _EMPTY_ARR: CarBuild[] = [];
 
 export function useCarBuilds() {
   const { user } = useAuth();
@@ -827,15 +828,15 @@ export function useCarBuilds() {
   const query = useQuery({
     queryKey: ['car_builds', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
-    queryFn: async () => {
-      if (isDemo || !user) return demoCarBuilds;
+    queryFn: async (): Promise<CarBuild[]> => {
+      if (isDemo || !user) return demoCarBuilds as CarBuild[];
       const { data, error } = await supabase
         .from('car_builds')
         .select('*')
         .eq('user_id', user.id)
         .order('sort_order');
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return (data ?? []) as CarBuild[];
     },
   });
 
@@ -848,14 +849,14 @@ export function useCarBuilds() {
         .select()
         .single();
       if (error) throw error;
-      return data as any;
+      return data as CarBuild;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_builds'] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_builds'>>) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('car_builds')
@@ -904,7 +905,7 @@ export function useCarBuildPhases(buildId: string | null) {
         .eq('user_id', user.id)
         .order('sort_order');
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
 
@@ -917,14 +918,14 @@ export function useCarBuildPhases(buildId: string | null) {
         .select()
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_build_phases', buildId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_build_phases'>>) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('car_build_phases')
@@ -969,7 +970,7 @@ export function useCarBuildPhases(buildId: string | null) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return { data: (query.data ?? []) as any[], loading: query.isLoading, error: query.error, add, update, remove, reorder };
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove, reorder };
 }
 
 // ─── Car Build Items ─────────────────────────────────────
@@ -991,7 +992,7 @@ export function useCarBuildItems(buildId: string | null) {
         .eq('user_id', user.id)
         .order('sort_order');
       if (error) throw error;
-      return (data as any[]) ?? [];
+      return data ?? [];
     },
   });
 
@@ -1004,14 +1005,14 @@ export function useCarBuildItems(buildId: string | null) {
         .select()
         .single();
       if (error) throw error;
-      return data as any;
+      return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_build_items', buildId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const update = useMutation({
-    mutationFn: async ({ id, ...item }: { id: string; [key: string]: any }) => {
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_build_items'>>) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
         .from('car_build_items')
@@ -1056,7 +1057,7 @@ export function useCarBuildItems(buildId: string | null) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return { data: (query.data ?? []) as any[], loading: query.isLoading, error: query.error, add, update, remove, reorder };
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove, reorder };
 }
 
 // ─── Public build by share token (no auth required) ──────────────────────────
@@ -1085,9 +1086,9 @@ export function usePublicBuild(shareToken: string | undefined) {
       );
       if (!res.ok) return null;
       return res.json() as Promise<{
-        build: any;
-        phases: any[];
-        items: any[];
+        build: CarBuild;
+        phases: CarBuildPhase[];
+        items: CarBuildItem[];
         displayName: string | null;
       }>;
     },
