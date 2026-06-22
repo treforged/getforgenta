@@ -16,6 +16,7 @@ import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import type { CarFund } from '@/lib/types';
+import type { Json } from '@/integrations/supabase/types';
 
 const toMonthly = (amount: number, freq: string) =>
   freq === 'weekly' ? amount * 52 / 12
@@ -1176,7 +1177,7 @@ export default function Vehicles() {
                 linkedAccountName={linkedAccount?.name ?? null}
                 monthlyContrib={monthlyContrib}
                 computedMonthlyNeeded={computedMonthlyNeeded}
-                onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps })}
+                onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps as unknown as Json })}
                 liquidCash={liquidCash}
                 availableAboveFloor={availableAboveFloor}
               />
@@ -1202,7 +1203,7 @@ export default function Vehicles() {
               onUndo={() => handleUndo(cf)}
               deleteConfirm={deleteConfirm === cf.id}
               undoConfirm={undoConfirm === cf.id}
-              onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps })}
+              onSaveLumpSums={(lumps) => update.mutate({ id: cf.id, lump_sum_payments: lumps as unknown as Json })}
               liquidCash={liquidCash}
             />
           ))}
