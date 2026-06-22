@@ -148,14 +148,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   );
 
   // Funding account selection — exclude savings
-  const liquidAccounts = useMemo(() => accounts.filter((a: any) => a.active && LIQUID_ACCOUNT_TYPES.includes(a.account_type)), [accounts]);
+  const liquidAccounts = useMemo(() => accounts.filter(a => a.active && LIQUID_ACCOUNT_TYPES.includes(a.account_type)), [accounts]);
   const defaultFunding = useMemo(() => {
     const defaultId = profile?.default_deposit_account;
     if (defaultId) {
-      const acct = liquidAccounts.find((a: any) => a.id === defaultId);
+      const acct = liquidAccounts.find(a => a.id === defaultId);
       if (acct) return acct.id;
     }
-    const checking = liquidAccounts.find((a: any) => a.account_type === 'checking');
+    const checking = liquidAccounts.find(a => a.account_type === 'checking');
     return checking?.id || liquidAccounts[0]?.id || '';
   }, [liquidAccounts, profile]);
   const [fundingAccountId, setFundingAccountIdLocal] = usePersistedState<string>('tre:debt:fundingAccount', defaultFunding);
@@ -164,11 +164,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     updateProfile.mutate({ default_deposit_account: id });
   };
 
-  const liquidCash = liquidAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
+  const liquidCash = liquidAccounts.reduce((s, a) => s + Number(a.balance), 0);
   // Use defaultFunding as fallback so fundingAccount resolves correctly while
   // accounts are still loading and fundingAccountId may be '' (no localStorage value yet).
   const resolvedFundingId = fundingAccountId || defaultFunding;
-  const fundingAccount = liquidAccounts.find((a: any) => a.id === resolvedFundingId);
+  const fundingAccount = liquidAccounts.find(a => a.id === resolvedFundingId);
   const fundingBalance = fundingAccount ? Number(fundingAccount.balance) : liquidCash;
 
   // Use Plaid last_synced_at as cutoff so estimated liquid cash rolls over at 9am ET
@@ -177,7 +177,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const today = new Date();
     const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     if (!fundingAccount?.plaid_item_id) return localDate;
-    const plaidItem = plaidItems.find((pi: any) => pi.plaid_item_id === fundingAccount.plaid_item_id);
+    const plaidItem = plaidItems.find(pi => pi.plaid_item_id === fundingAccount.plaid_item_id);
     if (!plaidItem?.last_synced_at) return localDate;
     return plaidItem.last_synced_at.split('T')[0];
   }, [fundingAccount, plaidItems]);
@@ -204,12 +204,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const now = new Date();
     const paycheckIncome = getNormalizedMonthNetIncome(payConfig);
     const nonPaycheckIncome = rules
-      .filter((r: any) =>
+      .filter(r =>
         r.active &&
         r.rule_type === 'income' &&
         !['paycheck', 'salary', 'wages', 'pay'].some(kw => r.name?.toLowerCase().includes(kw))
       )
-      .reduce((s: number, r: any) => {
+      .reduce((s, r) => {
         const amt = Number(r.amount);
         const count = countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
         return s + amt * count;
@@ -243,7 +243,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // CC-tagged rules are tracked via cardPurchasesPerMonth in the engine (Step 2.5).
     // Including them here AND there would double-count, draining available cash
     // and causing UNSTABLE flags every month → no extra payments ever applied.
-    return rules.filter((r: any) => {
+    return rules.filter(r => {
       if (!r.active || r.rule_type !== 'expense') return false;
       // Safety: if no CC accounts loaded yet, include all expenses (no CC data to filter on)
       if (ccPaymentSources.size === 0) return true;
@@ -251,7 +251,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false; // default-card CC
       if (pauseSavings && (r.category === 'Savings' || r.category === 'Investing')) return false;
       return true;
-    }).reduce((s: number, r: any) => {
+    }).reduce((s, r) => {
       const amt = Number(r.amount);
       const now = new Date();
       return s + amt * countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
@@ -324,28 +324,28 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const scheduledEvents = generateScheduledEvents(rules, accounts, PROJECTION_MONTHS);
 
     const liquidAccountIds = new Set<string>(
-      accounts.filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
-        .map((a: any) => a.id),
+      accounts.filter(a => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
+        .map(a => a.id),
     );
 
     const incomeToLiquidRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter(r =>
         r.active && r.rule_type === 'income' &&
         (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-      ).map((r: any) => r.id),
+      ).map(r => r.id),
     );
 
     const ccPaymentSources = new Set<string>(cards.flatMap(c => [c.id, `account:${c.id}`]));
     const ccExplicitRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter(r =>
         r.active && r.rule_type === 'expense' && r.payment_source && ccPaymentSources.has(r.payment_source),
-      ).map((r: any) => r.id),
+      ).map(r => r.id),
     );
     const highestAprCardId = cards.length > 0 ? [...cards].sort((a, b) => b.apr - a.apr)[0].id : '';
     const ccDefaultRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter(r =>
         r.active && r.rule_type === 'expense' && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category),
-      ).map((r: any) => r.id),
+      ).map(r => r.id),
     );
     const allCcRuleIds = new Set<string>([...ccExplicitRuleIds, ...ccDefaultRuleIds]);
 
@@ -353,10 +353,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       cards.map(c => {
         const cKey = `account:${c.id}`;
         const ids = new Set<string>(
-          rules.filter((r: any) =>
+          rules.filter(r =>
             r.active && r.rule_type === 'expense' &&
             (r.payment_source === c.id || r.payment_source === cKey),
-          ).map((r: any) => r.id),
+          ).map(r => r.id),
         );
         if (c.id === highestAprCardId) ccDefaultRuleIds.forEach(id => ids.add(id));
         return [c.id, ids];
@@ -364,9 +364,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     );
 
     const savingsRuleIds = new Set<string>(
-      rules.filter((r: any) =>
+      rules.filter(r =>
         r.active && r.rule_type === 'expense' && (r.category === 'Savings' || r.category === 'Investing'),
-      ).map((r: any) => r.id),
+      ).map(r => r.id),
     );
 
     const evMonthEvents: { income: number; expenses: number }[] = [];
@@ -429,8 +429,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // CC account IDs used to exclude CC-charged one-time expenses from future cash-flow months.
     const ccIds = new Set(
       accounts
-        .filter((a: any) => a.account_type === 'credit_card' && a.active)
-        .flatMap((a: any) => [a.id, `account:${a.id}`])
+        .filter(a => a.account_type === 'credit_card' && a.active)
+        .flatMap(a => [a.id, `account:${a.id}`])
     );
 
     // One-time (non-generated) transactions per future month — applied AFTER debt allocation
@@ -447,20 +447,20 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     for (let i = 1; i < PROJECTION_MONTHS; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const txns = (allTransactions as any[]).filter((t: any) =>
-        t.date && t.date.startsWith(mk) && !(t as any).isGenerated,
+      const txns = allTransactions.filter(t =>
+        t.date && t.date.startsWith(mk) && !t.isGenerated,
       );
       const inc = txns
-        .filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment')
-        .reduce((s: number, t: any) => s + Number(t.amount), 0);
+        .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
+        .reduce((s, t) => s + Number(t.amount), 0);
       const exp = txns
-        .filter((t: any) => {
+        .filter(t => {
           if (t.type !== 'expense') return false;
           if (t.category === 'Debt Payments' || t.category === 'Balance Adjustment') return false;
           if (t.payment_source && ccIds.has(t.payment_source)) return false;
           return true;
         })
-        .reduce((s: number, t: any) => s + Number(t.amount), 0);
+        .reduce((s, t) => s + Number(t.amount), 0);
       oneTimeByMonth.push({ income: inc, expenses: exp });
 
       // Build per-card one-time CC purchases for this month
@@ -469,11 +469,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       for (const card of cards) {
         const cKey = `account:${card.id}`;
         const oneTimePurchases = txns
-          .filter((t: any) =>
+          .filter(t =>
             t.type === 'expense' &&
             (t.payment_source === card.id || t.payment_source === cKey),
           )
-          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+          .reduce((s, t) => s + Number(t.amount), 0);
         if (oneTimePurchases > 0) {
           monthCCPurchases[card.id] = (monthCCPurchases[card.id] || 0) + oneTimePurchases;
         }
@@ -553,7 +553,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Car loans live outside rules so they are absent from monthEvents; add them explicitly.
     const activeCarLoanByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-      return getTotalCarLoanMonthly(carFunds as any[], d);
+      return getTotalCarLoanMonthly(carFunds, d);
     });
 
     // Savings goals + transfer rules + saving-phase car contributions — mirrors what
@@ -563,11 +563,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     //   transfer/investment rules → type !== 'expense', filtered out of monthEvents
     //   saving-phase car → from carFunds, not rules
     const simRetireIds = new Set<string>(
-      (accounts as any[]).filter((a: any) =>
+      accounts.filter(a =>
         a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)
-      ).map((a: any) => a.id),
+      ).map(a => a.id),
     );
-    const simTransferRules = (rules as any[]).filter((r: any) =>
+    const simTransferRules = rules.filter(r =>
       r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'),
     );
 
@@ -586,14 +586,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         monthTransfers += amt * countRuleOccurrencesInMonth(tr, d.getFullYear(), d.getMonth(), now);
       }
 
-      const monthSavings = pauseSavings ? 0 : (goals as any[]).reduce((s: number, g: any) => {
+      const monthSavings = pauseSavings ? 0 : goals.reduce((s, g) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
         return s + Number(g.monthly_contribution);
       }, 0);
 
-      const monthCarSaving = pauseSavings ? 0 : (carFunds as any[]).reduce((s: number, c: any) => {
+      const monthCarSaving = pauseSavings ? 0 : carFunds.reduce((s, c) => {
         if (c.phase !== 'saving') return s;
         if (c.linked_account) return s; // balance is live in current_saved — no monthly checking deduction
         const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
@@ -715,24 +715,24 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
     const retireIds = new Set<string>(
-      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
     );
     const now = new Date();
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const activeTransferDests = new Set<string>(
-      (rules as any[]).filter((r: any) =>
+      rules.filter(r =>
         r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
         !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
         !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map((r: any) => r.deposit_account),
+      ).map(r => r.deposit_account as string),
     );
-    const savingsTotal = (goals as any[]).reduce((s: number, g: any) => {
+    const savingsTotal = goals.reduce((s, g) => {
       if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
       if (g.linked_account && retireIds.has(g.linked_account)) return s;
       if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
       return s + Number(g.monthly_contribution);
     }, 0);
-    const carTotal = (carFunds as any[]).reduce((s: number, c: any) => {
+    const carTotal = carFunds.reduce((s, c) => {
       if (c.phase === 'loan') return s;
       if (c.linked_account) return s; // savings are in the checking pool — no separate monthly reservation
       const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
@@ -751,7 +751,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       const reserve = Math.min(rem / monthsToGoal, rem);
       return s + reserve;
     }, 0);
-    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[]);
+    const carLoanTotal = getTotalCarLoanMonthly(carFunds);
     return savingsTotal + carTotal + carLoanTotal;
   }, [goals, carFunds, accounts, rules, pauseSavings]);
 
@@ -761,7 +761,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Declared after monthlySavingsAndCar to avoid temporal dead zone on first render.
   const recommendedSafeMinimum = useMemo(() => {
     const now = new Date();
-    const carLoanTotal = getTotalCarLoanMonthly(carFunds as any[], now);
+    const carLoanTotal = getTotalCarLoanMonthly(carFunds, now);
     let ccFloor = 0;
     for (const card of cards) {
       const revBal = variableSim.monthlyRevolvingBalances?.get(card.id)?.[0] ?? 1;
@@ -911,7 +911,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
 
   const syncDebtAndAccount = (card: CardData, updates: { min_payment?: number; target_payment?: number }) => {
-    const matchDebt = debts.find((d: any) => d.name.toLowerCase() === card.name.toLowerCase());
+    const matchDebt = debts.find(d => d.name.toLowerCase() === card.name.toLowerCase());
     if (matchDebt) {
       updateDebt.mutate({ id: matchDebt.id, ...updates });
     } else {
@@ -1177,7 +1177,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               onChange={e => setFundingAccountId(e.target.value)}
               className="flex-1 min-w-0 bg-secondary border border-border px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}
             >
-              {liquidAccounts.map((a: any) => (
+              {liquidAccounts.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
