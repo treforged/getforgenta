@@ -16,8 +16,8 @@
     "hash": "4c3473c31c9e9dda480c8f59991ff4f8"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\vite.config.ts": {
-    "mtime": 1778592335.302452,
-    "hash": "8678d48b6f7d4de8bbcd75dcced5cb6c"
+    "mtime": 1782097076.5028236,
+    "hash": "45d5e008d77e1b4372ccaf2d318ddd72"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\android\\build.gradle": {
     "mtime": 1776351320.0,
@@ -5776,16 +5776,16 @@
     "hash": "a461053364b449e4586625d9905b62de"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\components\\dashboard\\OnboardingChecklist.tsx": {
-    "mtime": 1782093846.1543677,
-    "hash": "300f4f6abd298a905524bb23e63aee66"
+    "mtime": 1782096659.793141,
+    "hash": "6167e7660db520fa86f0da5a17d7b32b"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\components\\dashboard\\SubscriptionExpiryBanner.tsx": {
     "mtime": 1782066575.84786,
     "hash": "6d9e41b23adf2f77e230f5b0020980bd"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\components\\debt\\CreditCardEngine.tsx": {
-    "mtime": 1782093846.2075136,
-    "hash": "d472ae7842aa28e298e6a9603d947667"
+    "mtime": 1782095534.4322505,
+    "hash": "aea66ab631194bbc5e6bdfe4c869b726"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\components\\onboarding\\OnboardingWizard.tsx": {
     "mtime": 1782093846.427394,
@@ -5824,28 +5824,32 @@
     "hash": "0ce792f752eefd437cfdd794d0ac7d17"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\contexts\\CardProjectionContext.tsx": {
-    "mtime": 1782093846.5509927,
-    "hash": "9e03150e5af3646da94cb3758f0c9f88"
+    "mtime": 1782095534.4512556,
+    "hash": "abfe894e993417fa3423e9df4a96ceee"
+  },
+  "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\hooks\\useCardProjection.ts": {
+    "mtime": 1782095534.4707627,
+    "hash": "a2724bab3347b0c321505816feca8433"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\hooks\\useDashboardLayout.ts": {
-    "mtime": 1782093846.602009,
-    "hash": "d7792015aebae0d029046251c7b63000"
+    "mtime": 1782095534.4982755,
+    "hash": "ef360cd3160d29af11016b25ca67d373"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\hooks\\usePlaidItems.ts": {
     "mtime": 1782093846.6560514,
     "hash": "0e2266cf31d44a71699dadd16215723d"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\hooks\\useSupabaseData.ts": {
-    "mtime": 1782093846.7125661,
-    "hash": "b895761d133aabf9a67ecdeba10fb8eb"
+    "mtime": 1782096412.591592,
+    "hash": "4a9f016c9b07124c2ce95fc7f62561ee"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\integrations\\supabase\\types.ts": {
     "mtime": 1782092615.453985,
     "hash": "a1df132c94003ab90b9de8cffb28d7ec"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\Accounts.tsx": {
-    "mtime": 1782093846.7666316,
-    "hash": "7f1162ccb4d3b9d460c81f3da9592edf"
+    "mtime": 1782096659.8111439,
+    "hash": "0b52bd6f2a332b5532c018319852bcb6"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\AiAdvisor.tsx": {
     "mtime": 1782093846.8186872,
@@ -5856,20 +5860,20 @@
     "hash": "7a5e482604591d9970ee29ed2dcdf5fd"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\BudgetControl.tsx": {
-    "mtime": 1782093846.9328482,
-    "hash": "406f8caa30bfbdd9ed597a5c39642aef"
+    "mtime": 1782095931.8428085,
+    "hash": "68b26baf8758e51a88f0b012247e3c2a"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\Builds.tsx": {
     "mtime": 1782093846.987386,
     "hash": "42466f1665494d80fc072157ff8a854c"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\Dashboard.tsx": {
-    "mtime": 1782093847.177755,
-    "hash": "768857d40a4af0dc0bdb9e463249fc71"
+    "mtime": 1782096659.8292048,
+    "hash": "7a7708c3ca574d45e55a03fbb3b83337"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\Forecast.tsx": {
-    "mtime": 1782084614.1350658,
-    "hash": "49627141d34018f3d9b766affaeec2d8"
+    "mtime": 1782095931.8804042,
+    "hash": "a334539434e6275954a44888654676d9"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\NetWorth.tsx": {
     "mtime": 1782083802.2014506,
@@ -5888,20 +5892,20 @@
     "hash": "b02d210ef5b6f9795382d96b9d4782c5"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\SavingsGoals.tsx": {
-    "mtime": 1782093847.0424063,
-    "hash": "08d47d41be296ac279b2b0392d86414c"
+    "mtime": 1782096412.573589,
+    "hash": "8836abaae36b1b32e43b445940cd13e2"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\Settings.tsx": {
-    "mtime": 1782093847.1197257,
-    "hash": "6c2655feba86dc1f2af3f7059c4aba9b"
+    "mtime": 1782096659.7536316,
+    "hash": "8cf52b4fef2f5c34f580d97a8bacc2cb"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\Transactions.tsx": {
     "mtime": 1782084122.3826497,
     "hash": "931cc56ae690f6313e12aed2f9ead874"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\backups\\2026-06-21_142619\\src\\pages\\Vehicles.tsx": {
-    "mtime": 1782083802.2577882,
-    "hash": "e6c421da95a45d70da8ec5cd0f7a739f"
+    "mtime": 1782096659.773633,
+    "hash": "7ef78b5ee20d389390f04b288bcc35a6"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\ios\\App\\App\\AppDelegate.swift": {
     "mtime": 1779464313.4725912,
@@ -6232,8 +6236,8 @@
     "hash": "3288c20662ea5d830e048f53bbc4b9a3"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\vite-env.d.ts": {
-    "mtime": 1782093385.5176723,
-    "hash": "d84ad3e020a3fac7d3d17e6f744bd083"
+    "mtime": 1782098594.0384674,
+    "hash": "d67bbf515a6162aefb72e575640db316"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\builds\\BuildFormModal.tsx": {
     "mtime": 1781417979.668743,
@@ -6252,8 +6256,8 @@
     "hash": "c798f8b04c453fb98c31ee55b0c31af5"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\builds\\PhaseBlock.tsx": {
-    "mtime": 1782084952.2975414,
-    "hash": "a461053364b449e4586625d9905b62de"
+    "mtime": 1782098741.4880695,
+    "hash": "9b3d1b65b6927631a0409e351f16f2ab"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\dashboard\\DashboardCustomizer.tsx": {
     "mtime": 1778951638.3731232,
@@ -6272,16 +6276,16 @@
     "hash": "955d4b0f2fcba14d427a332e053a830a"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\dashboard\\OnboardingChecklist.tsx": {
-    "mtime": 1782092949.8418007,
-    "hash": "300f4f6abd298a905524bb23e63aee66"
+    "mtime": 1782096504.0230227,
+    "hash": "6167e7660db520fa86f0da5a17d7b32b"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\dashboard\\SubscriptionExpiryBanner.tsx": {
     "mtime": 1782066589.1389449,
     "hash": "efcd25fdbcbb692a0048834611ef2461"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\debt\\CreditCardEngine.tsx": {
-    "mtime": 1782093014.1213386,
-    "hash": "d472ae7842aa28e298e6a9603d947667"
+    "mtime": 1782095304.767207,
+    "hash": "aea66ab631194bbc5e6bdfe4c869b726"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\debug\\BlackScreenDebug.tsx": {
     "mtime": 1779468177.3655715,
@@ -6360,8 +6364,8 @@
     "hash": "87408d0fc2a29d0023a03cb50435fef8"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\shared\\FormModal.tsx": {
-    "mtime": 1781545680.1800435,
-    "hash": "b9ae529282981d0da5a173df03dd3a90"
+    "mtime": 1782099925.289098,
+    "hash": "e9a808694fee74a45f2bb67e8250130d"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\shared\\FounderNoteModal.tsx": {
     "mtime": 1782093051.2700956,
@@ -6384,8 +6388,8 @@
     "hash": "f5627a4eb87d777379a15b5f87461469"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\shared\\PlaidLinkButton.tsx": {
-    "mtime": 1782083500.6224873,
-    "hash": "ccf915a7b5ff7156fd3842ca8d861470"
+    "mtime": 1782098630.1054413,
+    "hash": "afb51333a5916d0cada3434752c628f3"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\components\\shared\\PremiumGate.tsx": {
     "mtime": 1777327755.221856,
@@ -6424,8 +6428,8 @@
     "hash": "0ce792f752eefd437cfdd794d0ac7d17"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\contexts\\CardProjectionContext.tsx": {
-    "mtime": 1782093146.642632,
-    "hash": "9e03150e5af3646da94cb3758f0c9f88"
+    "mtime": 1782098556.992078,
+    "hash": "83a6b909318dfd6b65370edcbbad7f54"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\contexts\\DemoContext.tsx": {
     "mtime": 1778217068.0376627,
@@ -6440,24 +6444,24 @@
     "hash": "8093731975f02b40c11fb6de742e5c7e"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\use401kAutoUpdate.ts": {
-    "mtime": 1777327755.228856,
-    "hash": "34d9de02984fe1f210f1e0dda8411083"
+    "mtime": 1782132552.9425235,
+    "hash": "32f1448d1c32e019da0cb86a606bfb49"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useAppLock.ts": {
     "mtime": 1779255690.346416,
     "hash": "987d7015ef6e832cebdc93017858a0ed"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useCardProjection.ts": {
-    "mtime": 1782009472.4848857,
-    "hash": "11fc0814736a57e7ccc2ebbe7f9c43a2"
+    "mtime": 1782095404.223072,
+    "hash": "a2724bab3347b0c321505816feca8433"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useCookieConsent.ts": {
     "mtime": 1777327755.231367,
     "hash": "4c2752fc486c56adbf0b5323f6492c00"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useDashboardLayout.ts": {
-    "mtime": 1782093201.750646,
-    "hash": "d7792015aebae0d029046251c7b63000"
+    "mtime": 1782095363.624792,
+    "hash": "ef360cd3160d29af11016b25ca67d373"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useInAppReview.ts": {
     "mtime": 1778809943.2546415,
@@ -6472,64 +6476,64 @@
     "hash": "0e2266cf31d44a71699dadd16215723d"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useRetirementAutoUpdate.ts": {
-    "mtime": 1777327755.2343714,
-    "hash": "c81155831ef2eafc2a7941f103296012"
+    "mtime": 1782132638.7319536,
+    "hash": "c55fc25a5b6280220849386c172d4209"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useSubscription.ts": {
     "mtime": 1778216351.3249917,
     "hash": "634d55f50ad6edae53215c73a55e13fa"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useSupabaseData.ts": {
-    "mtime": 1782094050.30689,
-    "hash": "ea23ae70174a9ec784fdacc9e7afe1d1"
+    "mtime": 1782134031.832809,
+    "hash": "d61a7bd9d8c9cb2c37dbef543f022c96"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\useWidgetSync.ts": {
     "mtime": 1778866127.1837008,
     "hash": "311fadd9b9b2f203163429a13247450f"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.activeLoanInsurance.test.ts": {
-    "mtime": 1781923724.6455605,
-    "hash": "87608cab69add86adb63415f11ac2db8"
+    "mtime": 1782131563.3321187,
+    "hash": "83fda1ce64350f5e13a5e50bb7052ebc"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.carEarmark.test.ts": {
-    "mtime": 1781926924.0412805,
-    "hash": "1d5695d3ed0be0e9206619f636bd78fb"
+    "mtime": 1782131594.1961355,
+    "hash": "6026d68965d73a28300a0a06a72a8e6f"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.carLoanActivationDiscontinuity.test.ts": {
-    "mtime": 1781927174.2033453,
-    "hash": "24b5855399da04f31e706c4bfc9d6e49"
+    "mtime": 1782131650.8344376,
+    "hash": "06d0ae41ba2e632f84ea2a7538fea982"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.cyclingBalanceDisplay.test.ts": {
-    "mtime": 1781642519.7271729,
-    "hash": "52906a96c6acd2bb6f78e1c86c81de6a"
+    "mtime": 1782131521.3018405,
+    "hash": "93995854e8ce6528b2bad2cfe3b97f8c"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.cyclingFloor.test.ts": {
-    "mtime": 1781937277.8043523,
-    "hash": "8fb15124071ddf1dfbc1690c61c112c4"
+    "mtime": 1782131441.8218977,
+    "hash": "058928bc5e98a46bcc55f3147f5fb0e8"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.cyclingMisclassification.test.ts": {
-    "mtime": 1781635854.1548836,
-    "hash": "4040b03409af8a038151db9fb828ccb2"
+    "mtime": 1782131482.4083297,
+    "hash": "d9bc030b627234dd80b80abdbfd49dea"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.floorProtection.test.ts": {
-    "mtime": 1781629967.6809678,
-    "hash": "b9af25350bcfe318b12ec97f15b5cb0b"
+    "mtime": 1782131401.8120499,
+    "hash": "d7143a052fd631e82719ae9961f44d52"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.minPayment.test.ts": {
-    "mtime": 1781628473.908197,
-    "hash": "94a26229923cf57714e621b8f5b26adb"
+    "mtime": 1782131314.9121392,
+    "hash": "d7a50d6279d1ff209bbc815738401d49"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.month0income.test.ts": {
-    "mtime": 1781617175.9154482,
-    "hash": "5927aa88d5a565d818e7e4d859f92311"
+    "mtime": 1782131363.4181886,
+    "hash": "2839a3bc6d2dd01a6cd894ab24de6427"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.otherAccountExpense.test.ts": {
-    "mtime": 1781940850.3845284,
-    "hash": "c95f4e9b42de21ebf9ba16f0a2b7be62"
+    "mtime": 1782131701.0515988,
+    "hash": "2f1b47c7578569d3903364a75d041851"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useCardProjection.vehicleLumpSum.test.ts": {
-    "mtime": 1781640998.197395,
-    "hash": "54810ec63c97620328314ae2f7ea5bb0"
+    "mtime": 1782131724.51291,
+    "hash": "b07b48983c6e6afc9181b2a6fe8af639"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\hooks\\__tests__\\useWidgetSync.test.ts": {
     "mtime": 1778866366.8649423,
@@ -6580,8 +6584,8 @@
     "hash": "aae4c4a0e1905c6c43d00e88ddc3e65f"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\debt-transaction-generator.ts": {
-    "mtime": 1781981638.8491685,
-    "hash": "b6d212215da77c856717343b4cba358f"
+    "mtime": 1782134156.2635608,
+    "hash": "a35c4e9caf1333246b8a551a554efc14"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\debugLog.ts": {
     "mtime": 1779317265.9495573,
@@ -6592,8 +6596,8 @@
     "hash": "7d37d4c34d5c3e0de91dc674e8642f4c"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\expense-filtering.ts": {
-    "mtime": 1777327755.2453685,
-    "hash": "25c97f680c9c5a256ed17f9e1c4864e3"
+    "mtime": 1782132749.5603366,
+    "hash": "d5cfbe830ff2b95c7cf91049e97cc765"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\exportCsv.ts": {
     "mtime": 1782060426.028228,
@@ -6604,20 +6608,20 @@
     "hash": "b7e784a0858d149da8073216fc0ceb44"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\floor-protection.ts": {
-    "mtime": 1781981800.1972725,
-    "hash": "26e25088c8310f5422be1965afdbdb2a"
+    "mtime": 1782132470.6541824,
+    "hash": "cd9120547abb44b6d25555ce1cfbe682"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\forecast-export.ts": {
-    "mtime": 1782060396.1250246,
-    "hash": "7b6205ac203db58d57ce8873cd7cf03a"
+    "mtime": 1782132992.3649774,
+    "hash": "ca24711a3b4109f0144384a5452b4b64"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\monitoring.ts": {
     "mtime": 1778620634.7161884,
     "hash": "24b18842c9b99088ca9cf73967305747"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\pay-schedule.ts": {
-    "mtime": 1782022057.9170892,
-    "hash": "07b168faa9e694e7a80f753d401b51fb"
+    "mtime": 1782132195.3356535,
+    "hash": "d754710cc8e5664fedaa93db0228df03"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\payment-plan-generator.ts": {
     "mtime": 1781277449.1170902,
@@ -6636,8 +6640,8 @@
     "hash": "27b9c4a24b065a7272f28148d4567e3d"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\scheduling.ts": {
-    "mtime": 1782005602.2055907,
-    "hash": "8cb7301794d30f7088499597dd3a6103"
+    "mtime": 1782098509.90852,
+    "hash": "2594a55461733ef8f2f4e9e515821cab"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\lib\\schemas.ts": {
     "mtime": 1779940192.6886168,
@@ -6736,8 +6740,8 @@
     "hash": "06a33e7b929c66f5df2104deb856ae44"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Accounts.tsx": {
-    "mtime": 1782093248.023637,
-    "hash": "7f1162ccb4d3b9d460c81f3da9592edf"
+    "mtime": 1782099501.577715,
+    "hash": "e1afe1f8a579cb85f54cc6ae82d512e2"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\AiAdvisor.tsx": {
     "mtime": 1782093282.6825724,
@@ -6752,28 +6756,28 @@
     "hash": "4b6bacf0d423f67e5e73009044c93920"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\BudgetControl.tsx": {
-    "mtime": 1782093657.9050605,
-    "hash": "406f8caa30bfbdd9ed597a5c39642aef"
+    "mtime": 1782134816.3105197,
+    "hash": "62083c7a27e073ee75d5824f57307b77"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Builds.tsx": {
-    "mtime": 1782093665.4132023,
-    "hash": "42466f1665494d80fc072157ff8a854c"
+    "mtime": 1782099218.0300286,
+    "hash": "b9eafe53de9a737ed41f629166334758"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\BuildShare.tsx": {
     "mtime": 1782023459.915136,
     "hash": "d23ae7018568bb6fabf0e8cc935b3827"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Dashboard.tsx": {
-    "mtime": 1782093415.6236074,
-    "hash": "768857d40a4af0dc0bdb9e463249fc71"
+    "mtime": 1782133858.121915,
+    "hash": "a162633be5ae5d3431536d781be30dc3"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\DebtPayoff.tsx": {
-    "mtime": 1782052724.8717241,
-    "hash": "214d17b81f11d59c7a979f985a9d1c61"
+    "mtime": 1782133311.3227694,
+    "hash": "e8baaf0482aea0d0efca68b4f6d05f72"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Forecast.tsx": {
-    "mtime": 1782084572.1899228,
-    "hash": "49627141d34018f3d9b766affaeec2d8"
+    "mtime": 1782095872.9387307,
+    "hash": "a334539434e6275954a44888654676d9"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Landing.tsx": {
     "mtime": 1778800160.2863228,
@@ -6784,8 +6788,8 @@
     "hash": "e6279cc1a557f78f13d5cbc2f7ac849c"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\NetWorth.tsx": {
-    "mtime": 1782083695.9633634,
-    "hash": "03680ac08053d37adf5b1cc51c6f011f"
+    "mtime": 1782133190.5096552,
+    "hash": "575fa9b5c96ed120e4f361c39aa5bb94"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\NotFound.tsx": {
     "mtime": 1777327755.272472,
@@ -6796,8 +6800,8 @@
     "hash": "b4d1f44297d82cc096633fb36091c958"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\PlaidOAuth.tsx": {
-    "mtime": 1777327755.27447,
-    "hash": "241e167e3797475fa3c436df8275976c"
+    "mtime": 1782098616.5090532,
+    "hash": "f1a60d19ab04b0e6310a9d0b054a4bb7"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Premium.tsx": {
     "mtime": 1782082803.2348173,
@@ -6812,20 +6816,20 @@
     "hash": "b02d210ef5b6f9795382d96b9d4782c5"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\SavingsGoals.tsx": {
-    "mtime": 1782093676.7953427,
-    "hash": "08d47d41be296ac279b2b0392d86414c"
+    "mtime": 1782101080.9446626,
+    "hash": "9e410e28a7094ef0501c1589bec9ffd4"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Settings.tsx": {
-    "mtime": 1782093711.48828,
-    "hash": "6c2655feba86dc1f2af3f7059c4aba9b"
+    "mtime": 1782099164.472184,
+    "hash": "e81d4f45615159128c31b3a8f75004d8"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Transactions.tsx": {
     "mtime": 1782084004.0344298,
     "hash": "931cc56ae690f6313e12aed2f9ead874"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\pages\\Vehicles.tsx": {
-    "mtime": 1782083760.309435,
-    "hash": "e6c421da95a45d70da8ec5cd0f7a739f"
+    "mtime": 1782099989.4593995,
+    "hash": "aa5f70e66a52abc9d97ae5c454169bd8"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\src\\plugins\\widget-bridge.ts": {
     "mtime": 1778866124.790664,
@@ -7184,12 +7188,12 @@
     "hash": "e7cc02795778430e33605aba2b00d4dd"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\docs\\data-retention-policy.md": {
-    "mtime": 1775955978.972959,
-    "hash": "377dc3e04a49e7d5a63cecc9e1bfb070"
+    "mtime": 1782094411.462802,
+    "hash": "f7c44571e68b92d3849b53f57b8d3578"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\docs\\plaid-compliance-policies.md": {
-    "mtime": 1782066625.9344337,
-    "hash": "70f24678dc626f857fd46d0caeed9d41"
+    "mtime": 1782094406.156616,
+    "hash": "829c9e07fa94fa0d8d86f95df947451b"
   },
   "C:\\Users\\tvonh\\Desktop\\getforgenta\\docs\\release-notes-template.md": {
     "mtime": 1778561810.8754153,
