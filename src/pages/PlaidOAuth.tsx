@@ -19,7 +19,7 @@ const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
 const LINK_TOKEN_KEY = 'forged:plaid_link_token';
 
 async function loadPlaidScript(): Promise<void> {
-  if (typeof window !== 'undefined' && (window as any).Plaid) return;
+  if (typeof window !== 'undefined' && window.Plaid) return;
   return new Promise((resolve, reject) => {
     if (document.getElementById('plaid-link-js')) { resolve(); return; }
     const script = document.createElement('script');
@@ -53,10 +53,11 @@ export default function PlaidOAuth() {
 
         const receivedRedirectUri = window.location.href;
 
-        const handler = (window as any).Plaid.create({
+        if (!window.Plaid) throw new Error('Plaid script failed to load');
+        const handler = window.Plaid.create({
           token: linkToken,
           receivedRedirectUri,
-          onSuccess: async (public_token: string, metadata: any) => {
+          onSuccess: async (public_token, metadata) => {
             try {
               localStorage.removeItem(LINK_TOKEN_KEY);
               const institution = metadata?.institution ?? {};
@@ -88,7 +89,7 @@ export default function PlaidOAuth() {
               navigate('/accounts');
             }
           },
-          onExit: (err: any) => {
+          onExit: (err) => {
             localStorage.removeItem(LINK_TOKEN_KEY);
             if (err) console.warn('Plaid OAuth exit:', err);
             navigate('/accounts');

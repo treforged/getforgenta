@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
-import { useAccounts, useDebts, useAccountReconciliations, useNetWorthSnapshots } from '@/hooks/useSupabaseData';
+import { useAccounts, useDebts, useAccountReconciliations, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
@@ -24,7 +25,12 @@ import {
 } from 'recharts';
 import { ArrowUpRight } from 'lucide-react';
 
-function NWTooltip({ active, payload }: any) {
+interface NWTooltipProps {
+  active?: boolean;
+  payload?: { payload: { month: string }; value: number }[];
+}
+
+function NWTooltip({ active, payload }: NWTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
@@ -149,10 +155,10 @@ export default function Accounts() {
   const name = institutionName ?? 'Your bank';
   setPlaidSyncResult({ institutionName: name, accounts: syncedAccounts });
 
-  const manualAccounts = accounts.filter((a: any) => !a.plaid_account_id && a.active);
+  const manualAccounts = accounts.filter(a => !a.plaid_account_id && a.active);
 
   const matchableAccounts = syncedAccounts.filter((synced) =>
-    manualAccounts.some((manual: any) => {
+    manualAccounts.some((manual) => {
       const syncedName = synced.name.trim().toLowerCase();
       const manualName = manual.name.trim().toLowerCase();
       return syncedName === manualName;
@@ -187,18 +193,18 @@ export default function Accounts() {
       if (fetchErr) throw new Error(fetchErr.message);
 
       const allAccounts = allAccountsRaw ?? [];
-      const plaidCreatedAccounts = allAccounts.filter((a: any) => a.plaid_account_id);
+      const plaidCreatedAccounts = allAccounts.filter(a => a.plaid_account_id);
 
       let matched = 0;
       for (const entry of toMatch) {
         // Use fresh DB data to find existing account (not stale React state)
-        const existingAccount = allAccounts.find((a: any) => a.id === entry.matchedAccountId);
+        const existingAccount = allAccounts.find(a => a.id === entry.matchedAccountId);
         if (!existingAccount) continue;
 
-        const plaidAccountId = (entry.plaidAccount as any).plaid_account_id;
+        const plaidAccountId = entry.plaidAccount.plaid_account_id;
         const plaidCreated = plaidAccountId
-          ? plaidCreatedAccounts.find((a: any) => a.plaid_account_id === plaidAccountId)
-          : plaidCreatedAccounts.find((a: any) => a.name === entry.plaidAccount.name);
+          ? plaidCreatedAccounts.find(a => a.plaid_account_id === plaidAccountId)
+          : plaidCreatedAccounts.find(a => a.name === entry.plaidAccount.name);
 
         if (!plaidCreated) continue;
 
@@ -248,16 +254,16 @@ export default function Accounts() {
     }
   }, [matchEntries, invalidatePlaid, qc]);
 
-  const activeAccounts = useMemo(() => accounts.filter((a: any) => a.active), [accounts]);
+  const activeAccounts = useMemo(() => accounts.filter(a => a.active), [accounts]);
 
   const summary = useMemo(() => {
     const active = activeAccounts;
-    const liquidCash = active.filter((a: any) => LIQUID_TYPES.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const investments = active.filter((a: any) => INVESTMENT_TYPES.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const retirement = active.filter((a: any) => RETIREMENT_TYPES.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const ccDebt = active.filter((a: any) => a.account_type === 'credit_card').reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const totalLiabilities = active.filter((a: any) => LIABILITY_TYPES.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
-    const totalAssets = active.filter((a: any) => ASSET_TYPES.includes(a.account_type)).reduce((s: number, a: any) => s + Number(a.balance), 0);
+    const liquidCash = active.filter(a => LIQUID_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
+    const investments = active.filter(a => INVESTMENT_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
+    const retirement = active.filter(a => RETIREMENT_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
+    const ccDebt = active.filter(a => a.account_type === 'credit_card').reduce((s, a) => s + Number(a.balance), 0);
+    const totalLiabilities = active.filter(a => LIABILITY_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
+    const totalAssets = active.filter(a => ASSET_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
     const netWorth = totalAssets - totalLiabilities;
     return { liquidCash, investments, retirement, ccDebt, totalLiabilities, totalAssets, netWorth };
   }, [activeAccounts]);
@@ -267,7 +273,7 @@ export default function Accounts() {
       const now = new Date();
       return [{ month: now.toLocaleString('en', { month: 'short' }), value: summary.netWorth }];
     }
-    return snapshots.map((s: any) => ({
+    return snapshots.map(s => ({
       month: new Date(s.snapshot_date).toLocaleString('en', { month: 'short', day: 'numeric' }),
       value: Number(s.net_worth),
     }));
@@ -287,8 +293,8 @@ export default function Accounts() {
   }, [snapshots]);
 
   const filteredAccounts = useMemo(() => {
-    if (filterType === 'assets') return accounts.filter((a: any) => ASSET_TYPES.includes(a.account_type));
-    if (filterType === 'liabilities') return accounts.filter((a: any) => LIABILITY_TYPES.includes(a.account_type));
+    if (filterType === 'assets') return accounts.filter(a => ASSET_TYPES.includes(a.account_type));
+    if (filterType === 'liabilities') return accounts.filter(a => LIABILITY_TYPES.includes(a.account_type));
     return accounts;
   }, [accounts, filterType]);
 
@@ -302,8 +308,8 @@ export default function Accounts() {
   const [editingPlaidAprSynced, setEditingPlaidAprSynced] = useState(false);
   const [editingPlaidMinSynced, setEditingPlaidMinSynced] = useState(false);
 
-  const openEdit = (a: any) => {
-    const matchDebt = debts.find((d: any) => d.name.toLowerCase() === a.name.toLowerCase());
+  const openEdit = (a: AccountRow) => {
+    const matchDebt = debts.find(d => d.name.toLowerCase() === a.name.toLowerCase());
     const plaidLiability = !!a.plaid_account_id && !!a.liability_synced_at;
     // Credit cards: the Accounts row is the sole source of truth for min_payment (the debt
     // engine never reads the debts table for it — see credit-card-engine.ts), so always read it
@@ -323,7 +329,7 @@ export default function Accounts() {
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
       apr_start_date: a.apr_start_date || '',
-      card_start_date: (a as any).card_start_date || '',
+      card_start_date: a.card_start_date || '',
     });
     setEditingPlaidLinked(!!a.plaid_account_id);
     setEditingPlaidLiability(plaidLiability);
@@ -337,7 +343,7 @@ export default function Accounts() {
     if (!form.name || isNaN(balance)) return;
     const dueDayRaw = parseInt(form.payment_due_day);
     const dueDayVal = form.account_type === 'credit_card' && !isNaN(dueDayRaw) && dueDayRaw >= 1 && dueDayRaw <= 28 ? dueDayRaw : null;
-    const payload: any = {
+    const payload: Partial<Tables<'accounts'>> & { name: string } = {
       name: form.name, account_type: form.account_type, institution: form.institution,
       credit_limit: parseFloat(form.credit_limit) || null, apr: parseFloat(form.apr) || null,
       notes: form.notes, active: true,
@@ -361,7 +367,7 @@ export default function Accounts() {
         payload.min_payment_plaid_synced = false;
       } else if (editingPlaidLiability) {
         // Plaid-linked, no user input — compute from APR as fallback.
-        const existingAcct = accounts.find((a: any) => a.id === editId);
+        const existingAcct = accounts.find(a => a.id === editId);
         const acctBalance = existingAcct ? Number(existingAcct.balance) : balance;
         const newApr = parseFloat(form.apr);
         if (!isNaN(newApr) && newApr > 0 && acctBalance > 0) {
@@ -371,7 +377,7 @@ export default function Accounts() {
       }
     }
     if (editId) {
-      const existingAccount = accounts.find((a: any) => a.id === editId);
+      const existingAccount = accounts.find(a => a.id === editId);
       const projectedBalance = existingAccount ? Number(existingAccount.balance) : balance;
       update.mutate({ id: editId, ...payload });
       if (!editingPlaidLinked && balance !== projectedBalance) {
@@ -398,7 +404,7 @@ export default function Accounts() {
     if (isLiability(form.account_type) && form.account_type !== 'credit_card' && form.min_payment) {
       const minPay = parseFloat(form.min_payment);
       if (!isNaN(minPay) && minPay > 0) {
-        const matchDebt = debts.find((d: any) => d.name.toLowerCase() === form.name.toLowerCase());
+        const matchDebt = debts.find(d => d.name.toLowerCase() === form.name.toLowerCase());
         if (matchDebt) {
           updateDebt.mutate({ id: matchDebt.id, min_payment: minPay, balance, apr: parseFloat(form.apr) || 0 });
         } else {
@@ -414,9 +420,9 @@ export default function Accounts() {
     setShowForm(false); setEditId(null);
   };
 
-  const toggleActive = (a: any) => update.mutate({ id: a.id, active: !a.active });
+  const toggleActive = (a: AccountRow) => update.mutate({ id: a.id, active: !a.active });
 
-  const handleDelete = (a: any) => {
+  const handleDelete = (a: AccountRow) => {
     setDeleteConfirm({ id: a.id, name: a.name, isLinked: !!a.plaid_account_id });
   };
 
@@ -718,7 +724,7 @@ export default function Accounts() {
         {!loading && filteredAccounts.length === 0 && (
           <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">No accounts yet. Add one above.</p></div>
         )}
-        {filteredAccounts.map((a: any) => {
+        {filteredAccounts.map(a => {
           const Icon = TYPE_ICONS[a.account_type] || Wallet;
           const liability = isLiability(a.account_type);
           return (
@@ -836,12 +842,12 @@ export default function Accounts() {
             <div className="space-y-2">
               {plaidItems.map(item => {
                 const linkedAccounts = (accounts ?? []).filter(
-                  (a: any) => a.plaid_item_id === item.plaid_item_id
+                  a => a.plaid_item_id === item.plaid_item_id
                 );
-                const linkedCreditCards = linkedAccounts.filter((a: any) => a.account_type === 'credit_card');
+                const linkedCreditCards = linkedAccounts.filter(a => a.account_type === 'credit_card');
                 const neverSynced = item.last_synced_at === null;
                 const noAccounts = item.last_synced_at !== null && linkedAccounts.length === 0;
-                const missingLiabilities = linkedCreditCards.length > 0 && linkedCreditCards.some((a: any) => !a.liability_synced_at);
+                const missingLiabilities = linkedCreditCards.length > 0 && linkedCreditCards.some(a => !a.liability_synced_at);
                 const needsRelink = neverSynced || noAccounts || missingLiabilities;
                 return (
                   <div key={item.id} className="space-y-2 border-b border-border/30 last:border-0 pb-2 last:pb-0">
@@ -942,13 +948,13 @@ export default function Accounts() {
                   >
                     <option value="">Keep as new account</option>
                     {accounts
-  .filter((a: any) => {
+  .filter(a => {
     if (a.plaid_account_id || !a.active) return false;
     const plaidName = entry.plaidAccount.name.trim().toLowerCase();
     const accountName = a.name.trim().toLowerCase();
     return plaidName === accountName;
   })
-  .map((a: any) => (
+  .map(a => (
     <option key={a.id} value={a.id}>
       {a.name}
     </option>

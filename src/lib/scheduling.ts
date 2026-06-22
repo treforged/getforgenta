@@ -1,6 +1,13 @@
 // ─── Date-Aware Scheduling Engine ────────────────────────
 // Generates upcoming events from recurring rules and accounts
 
+import type { Tables } from '@/integrations/supabase/types';
+
+type RuleRow = Partial<Tables<'recurring_rules'>> & {
+  id: string; name: string; amount: number; rule_type: string; frequency: string; active: boolean;
+};
+type AccountRow = Partial<Tables<'accounts'>>;
+
 export type ScheduledEvent = {
   date: string;
   name: string;
@@ -58,8 +65,8 @@ export function getNextWeekdays(dayOfWeek: number, count: number, from: Date = n
 
 // Generate scheduled events for the next N months from recurring rules
 export function generateScheduledEvents(
-  rules: any[],
-  accounts: any[],
+  rules: RuleRow[],
+  accounts: AccountRow[],
   months: number = PROJECTION_MONTHS,
   from: Date = new Date()
 ): ScheduledEvent[] {
@@ -75,9 +82,9 @@ export function generateScheduledEvents(
     const effectiveEnd = ruleEnd < endDate ? ruleEnd : endDate;
 
     const accountName = rule.deposit_account
-      ? accounts.find((a: any) => a.id === rule.deposit_account)?.name
+      ? accounts.find(a => a.id === rule.deposit_account)?.name
       : rule.payment_source
-        ? accounts.find((a: any) => a.id === rule.payment_source)?.name
+        ? accounts.find(a => a.id === rule.payment_source)?.name
         : undefined;
 
     if (rule.frequency === 'weekly') {
@@ -89,7 +96,7 @@ export function generateScheduledEvents(
           date: d.toISOString().split('T')[0],
           name: rule.name,
           amount: Number(rule.amount),
-          type: rule.rule_type,
+          type: rule.rule_type as ScheduledEvent['type'],
           source: accountName,
           ruleId: rule.id,
         });
@@ -103,7 +110,7 @@ export function generateScheduledEvents(
           date: d.toISOString().split('T')[0],
           name: rule.name,
           amount: Number(rule.amount),
-          type: rule.rule_type,
+          type: rule.rule_type as ScheduledEvent['type'],
           source: accountName,
           ruleId: rule.id,
         });
@@ -118,7 +125,7 @@ export function generateScheduledEvents(
           date: d.toISOString().split('T')[0],
           name: rule.name,
           amount: Number(rule.amount),
-          type: rule.rule_type,
+          type: rule.rule_type as ScheduledEvent['type'],
           source: accountName,
           ruleId: rule.id,
         });
@@ -134,7 +141,7 @@ export function generateScheduledEvents(
           date: d.toISOString().split('T')[0],
           name: rule.name,
           amount: Number(rule.amount),
-          type: rule.rule_type,
+          type: rule.rule_type as ScheduledEvent['type'],
           source: accountName,
           ruleId: rule.id,
         });

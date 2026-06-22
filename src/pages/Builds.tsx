@@ -6,6 +6,7 @@ import { Browser } from '@capacitor/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useCarBuilds, useCarBuildPhases, useCarBuildItems, usePaymentPlans, useTransactions, useAccounts } from '@/hooks/useSupabaseData';
+import type { PaymentPlan } from '@/lib/payment-plan-generator';
 import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
 import PhaseBlock from '@/components/builds/PhaseBlock';
@@ -61,10 +62,11 @@ export default function Builds() {
 
   const paymentSourceOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
-    (accounts ?? []).filter((a: any) => a.active).forEach((a: any) => {
-      const typeLabel = a.account_type === 'credit_card' ? 'Credit Card'
-        : a.account_type === 'high_yield_savings' ? 'HYS'
-        : a.account_type.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+    (accounts ?? []).filter(a => a.active).forEach(a => {
+      const accountType = a.account_type ?? '';
+      const typeLabel = accountType === 'credit_card' ? 'Credit Card'
+        : accountType === 'high_yield_savings' ? 'HYS'
+        : accountType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
       opts.push({ value: `account:${a.id}`, label: `${a.name} (${typeLabel})` });
     });
     if (opts.length === 1) {
@@ -252,7 +254,7 @@ export default function Builds() {
       ? Math.max(...phaseItems.map(it => it.sort_order)) + 1
       : 0;
     const newItem = await addItem.mutateAsync({ phase_id: phaseId, build_id: buildId, name: 'New Item', sort_order: nextOrder });
-    return (newItem as any)?.id ?? null;
+    return newItem?.id ?? null;
   }
 
   async function handleUpdateItem(id: string, data: Partial<CarBuildItem & { phase_id?: string }>) {
@@ -315,7 +317,7 @@ export default function Builds() {
 
   async function handleCreatePlanForItem(
     itemId: string,
-    plan: any,
+    plan: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'>,
   ) {
     const created = await addPaymentPlan.mutateAsync(plan);
     if (created?.id) {

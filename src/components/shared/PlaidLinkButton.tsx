@@ -23,7 +23,7 @@ const LINK_TOKEN_KEY = 'forged:plaid_link_token';
 const OAUTH_REDIRECT_URI: string | null = import.meta.env.VITE_PLAID_OAUTH_REDIRECT_URI ?? null;
 
 async function loadPlaidScript(): Promise<void> {
-  if (typeof window !== 'undefined' && (window as any).Plaid) return;
+  if (typeof window !== 'undefined' && window.Plaid) return;
   return new Promise((resolve, reject) => {
     if (document.getElementById('plaid-link-js')) { resolve(); return; }
     const script = document.createElement('script');
@@ -94,9 +94,10 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
       const { link_token } = tokenBody;
       localStorage.setItem(LINK_TOKEN_KEY, link_token);
 
-      const handler = (window as any).Plaid.create({
+      if (!window.Plaid) throw new Error('Plaid script failed to load');
+      const handler = window.Plaid.create({
         token: link_token,
-        onSuccess: async (public_token: string, metadata: any) => {
+        onSuccess: async (public_token, metadata) => {
           onProcessing?.(true);
           try {
             localStorage.removeItem(LINK_TOKEN_KEY);
@@ -141,12 +142,12 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
             onProcessing?.(false);
           }
         },
-        onExit: (err: any) => {
+        onExit: (err) => {
           localStorage.removeItem(LINK_TOKEN_KEY);
           if (err) console.warn('Plaid Link exited with error:', err);
           setLoading(false);
         },
-        onEvent: (_eventName: string) => {},
+        onEvent: () => {},
       });
 
       setLoading(false);

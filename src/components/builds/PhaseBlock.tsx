@@ -6,6 +6,7 @@ import { filterProfanity, isSafeUrl, LIMITS } from '@/lib/content-filter';
 import { getCardStartDateViolation, type CardStartDateAccount } from '@/lib/card-start-date';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
+import type { TransactionRow } from '@/hooks/useSupabaseData';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 
 // eslint-disable-next-line react-refresh/only-export-components -- small shared constant, not worth a separate file
@@ -84,7 +85,7 @@ interface PhaseBlockProps {
   onItemDrop: (e: React.DragEvent, itemId: string, phaseId: string) => void;
   onItemDropAtEnd: (e: React.DragEvent, phaseId: string) => void;
   paymentPlans: PaymentPlan[];
-  transactions: any[];
+  transactions: TransactionRow[];
   accounts: CardStartDateAccount[];
   paymentSourceOptions: { value: string; label: string }[];
   onLinkTransaction: (itemId: string, prevTxId: string | null, newTxId: string | null) => Promise<void>;
@@ -140,7 +141,7 @@ export default function PhaseBlock({
   function openItemEditPanel(item: CarBuildItem, e: React.MouseEvent) {
     e.stopPropagation();
     if (openItemEdit === item.id) { setOpenItemEdit(null); return; }
-    const linkedTx = transactions.find((t: any) => t.car_build_item_id === item.id);
+    const linkedTx = transactions.find(t => t.car_build_item_id === item.id);
     const today = new Date().toISOString().split('T')[0];
     const mode: LinkMode = linkedTx ? 'transaction' : (item.payment_plan_id ? 'plan' : 'none');
     setItemEdits(prev => ({
@@ -193,7 +194,7 @@ export default function PhaseBlock({
     };
     if (ed.moveToPhaseId !== item.phase_id) updates.phase_id = ed.moveToPhaseId;
 
-    const prevLinkedTx = transactions.find((t: any) => t.car_build_item_id === item.id);
+    const prevLinkedTx = transactions.find(t => t.car_build_item_id === item.id);
     const prevTxId = prevLinkedTx?.id ?? null;
 
     setSavingItemId(item.id);
@@ -262,7 +263,7 @@ export default function PhaseBlock({
     }
   }
 
-  function updateItemEdit(itemId: string, field: keyof ItemEditState, value: any) {
+  function updateItemEdit<K extends keyof ItemEditState>(itemId: string, field: K, value: ItemEditState[K]) {
     setItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], [field]: value } }));
   }
 
@@ -375,7 +376,7 @@ export default function PhaseBlock({
         <div className="border-t border-border">
           {items.map((item, ii) => {
             const isItemTarget = dragOverItemId === item.id && !isMobile;
-            const linkedTx = transactions.find((t: any) => t.car_build_item_id === item.id);
+            const linkedTx = transactions.find(t => t.car_build_item_id === item.id);
             const linkedPlan = item.payment_plan_id ? paymentPlans.find(p => p.id === item.payment_plan_id) : null;
             return (
               <div key={item.id}>
@@ -541,7 +542,7 @@ export default function PhaseBlock({
                                     value={itemEdits[item.id].linkedTransactionId}
                                     onChange={e => {
                                       const txId = e.target.value;
-                                      const tx = transactions.find((t: any) => t.id === txId);
+                                      const tx = transactions.find(t => t.id === txId);
                                       setFinancingField(item.id, {
                                         linkedTransactionId: txId,
                                         txDate: tx?.date ?? itemEdits[item.id].txDate,
@@ -552,9 +553,9 @@ export default function PhaseBlock({
                                   >
                                     <option value="">Select transaction…</option>
                                     {transactions
-                                      .filter((t: any) => t.type === 'expense')
+                                      .filter(t => t.type === 'expense')
                                       .slice(0, 100)
-                                      .map((t: any) => (
+                                      .map(t => (
                                         <option key={t.id} value={t.id}>
                                           {t.date} · ${Number(t.amount).toLocaleString()} · {t.note || t.category}
                                         </option>
