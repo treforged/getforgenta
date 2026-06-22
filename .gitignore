@@ -8,6 +8,10 @@ node_modules/
 scripts/.scout-env
 scripts/.scout-seen.json
 scripts/reddit-scout.log
+
+# Forgenta Backup Sync — local state and logs
+backups/.drive-sync-state.json
+scripts/backup-drive-sync.log
 .env.local
 .env.*.local
 .env.development
