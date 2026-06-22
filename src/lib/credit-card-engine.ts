@@ -1224,13 +1224,13 @@ export function generateRecommendations(
   monthlyExpenses: number,
   paymentMode: 'variable' | 'consistent' = 'variable',
   payConfig?: PayScheduleConfig,
-  rules?: any[],
+  rules?: RuleRow[],
   fundingAccountId?: string | null,
   prePaycheckBillsTotal?: number,
   fundingBalance?: number,
   oneTimeExpensesThisMonth?: number,
   oneTimeIncomeThisMonth?: number,
-  transactions?: any[],
+  transactions?: EnrichedTransaction[],
   primaryDueDay?: number,
   monthlySavingsAndCar?: number,
   syncCutoffDate?: string,
@@ -1460,11 +1460,11 @@ export type MonthlyDebtBreakdown = {
 };
 
 function buildCurrentMonthRecommendationSummary(
-  accounts: any[],
-  transactions: any[],
-  rules: any[],
-  debts: any[],
-  profile: any,
+  accounts: AccountRow[],
+  transactions: EnrichedTransaction[],
+  rules: RuleRow[],
+  debts: DebtRow[],
+  profile: Partial<Tables<'profiles'>> | null | undefined,
   monthlySavingsAndCar?: number,
   safeMinimumOverride?: number,
   syncCutoffDate?: string,
@@ -1475,13 +1475,13 @@ function buildCurrentMonthRecommendationSummary(
   if (cards.length === 0) return null;
 
   const liquidTypes = ['checking', 'business_checking', 'cash'];
-  const liquidAccounts = accounts.filter((a: any) => a.active && liquidTypes.includes(a.account_type));
-  const liquidCash = liquidAccounts.reduce((s: number, a: any) => s + Number(a.balance), 0);
+  const liquidAccounts = accounts.filter(a => a.active && liquidTypes.includes(a.account_type));
+  const liquidCash = liquidAccounts.reduce((s, a) => s + Number(a.balance), 0);
   const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
   const pc = buildPayConfig(profile);
   const monthlyTakeHome = getMonthNetIncome(pc, new Date().getFullYear(), new Date().getMonth());
   const now0 = new Date();
-  const monthlyExpenses = rules.filter((r: any) => {
+  const monthlyExpenses = rules.filter(r => {
     if (!r.active) return false;
     if (r.rule_type === 'transfer' || r.rule_type === 'investment') {
       if (r.start_date && new Date(r.start_date + 'T00:00:00') > now0) return false;
@@ -1490,7 +1490,7 @@ function buildCurrentMonthRecommendationSummary(
     }
     if (r.rule_type !== 'expense') return false;
     return true;
-  }).reduce((s: number, r: any) => {
+  }).reduce((s, r) => {
     const amt = Number(r.amount);
     return s + amt * countRuleOccurrencesInMonth(r, now0.getFullYear(), now0.getMonth(), now0);
   }, 0);
@@ -1498,15 +1498,15 @@ function buildCurrentMonthRecommendationSummary(
   const defaultId = profile?.default_deposit_account || null;
   let fundingAccountId: string | null = null;
   if (defaultId) {
-    const acct = liquidAccounts.find((a: any) => a.id === defaultId);
+    const acct = liquidAccounts.find(a => a.id === defaultId);
     if (acct) fundingAccountId = acct.id;
   }
   if (!fundingAccountId) {
-    const checking = liquidAccounts.find((a: any) => a.account_type === 'checking');
+    const checking = liquidAccounts.find(a => a.account_type === 'checking');
     fundingAccountId = checking?.id || liquidAccounts[0]?.id || null;
   }
 
-  const fundAcct = liquidAccounts.find((a: any) => a.id === fundingAccountId);
+  const fundAcct = liquidAccounts.find(a => a.id === fundingAccountId);
   const fundBal = fundAcct ? Number(fundAcct.balance) : liquidCash;
   const { total: ppBills } = getPrePaycheckNextMonthBills(rules, pc, fundingAccountId);
 
@@ -1524,11 +1524,11 @@ function buildCurrentMonthRecommendationSummary(
 }
 
 export function getMonthlyDebtBreakdown(
-  accounts: any[],
-  transactions: any[],
-  rules: any[],
-  debts: any[],
-  profile: any,
+  accounts: AccountRow[],
+  transactions: EnrichedTransaction[],
+  rules: RuleRow[],
+  debts: DebtRow[],
+  profile: Partial<Tables<'profiles'>> | null | undefined,
   monthlySavingsAndCar?: number,
   safeMinimumOverride?: number,
   syncCutoffDate?: string,
@@ -1557,11 +1557,11 @@ export function getMonthlyDebtBreakdown(
 }
 
 export function getCurrentMonthDebtRecommendations(
-  accounts: any[],
-  transactions: any[],
-  rules: any[],
-  debts: any[],
-  profile: any,
+  accounts: AccountRow[],
+  transactions: EnrichedTransaction[],
+  rules: RuleRow[],
+  debts: DebtRow[],
+  profile: Partial<Tables<'profiles'>> | null | undefined,
   monthlySavingsAndCar?: number,
   extraMonthlyExpenses = 0,
 ): { cardId: string; cardName: string; payment: number; dueDay: number | null; reason: string }[] {
