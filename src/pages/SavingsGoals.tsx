@@ -7,9 +7,9 @@ import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
-import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts } from '@/hooks/useSupabaseData';
+import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts, type AccountRow } from '@/hooks/useSupabaseData';
 import ProgressBar from '@/components/shared/ProgressBar';
-import FormModal from '@/components/shared/FormModal';
+import FormModal, { type Field } from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-react';
@@ -319,33 +319,33 @@ export default function SavingsGoals() {
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
 
   const liquidCash = useMemo(() =>
-    (accounts as any[])
-      .filter((a: any) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance), 0),
+    accounts
+      .filter(a => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
+      .reduce((s, a) => s + Number(a.balance), 0),
     [accounts]
   );
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
     const retireIds = new Set<string>(
-      accounts.filter((a: any) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a: any) => a.id),
+      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
     );
     const now = new Date();
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const activeTransferDests = new Set<string>(
-      (rules as any[]).filter((r: any) =>
+      rules.filter(r =>
         r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
         !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
         !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map((r: any) => r.deposit_account),
+      ).map(r => r.deposit_account as string),
     );
-    const savingsTotal = (goals as any[] ?? []).reduce((s: number, g: any) => {
+    const savingsTotal = goals.reduce((s, g) => {
       if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
       if (g.linked_account && retireIds.has(g.linked_account)) return s;
       if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
       return s + Number(g.monthly_contribution);
     }, 0);
-    const carTotal = (carFunds as any[] ?? []).reduce((s: number, c: any) => {
+    const carTotal = carFunds.reduce((s, c) => {
       const rem = Number(c.down_payment_goal) - Number(c.current_saved);
       return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
     }, 0);
@@ -371,14 +371,14 @@ export default function SavingsGoals() {
 }, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar]);
   const debtTxns = useMemo(() => {
     const fundId = profile?.default_deposit_account ||
-      accounts.find((a: any) => a.account_type === 'checking' && a.active)?.id || null;
+      accounts.find(a => a.account_type === 'checking' && a.active)?.id || null;
     return createDebtPaymentTransactions(debtRecs, fundId);
   }, [debtRecs, profile, accounts]);
   const allTxns = useMemo(() => mergeDebtPaymentsIntoStream(baseTxns, debtTxns), [baseTxns, debtTxns]);
 
   const accountMap = useMemo(() => {
-    const map: Record<string, any> = {};
-    accounts.forEach((a: any) => { map[a.id] = a; });
+    const map: Record<string, AccountRow> = {};
+    accounts.forEach(a => { map[a.id] = a; });
     return map;
   }, [accounts]);
 
@@ -391,7 +391,7 @@ export default function SavingsGoals() {
   const allGoals: EnrichedGoal[] = useMemo(() => {
     return goals.map(g => {
       const linkedRule = g.linked_rule_id
-        ? rules.find((r: any) => r.id === g.linked_rule_id)
+        ? rules.find(r => r.id === g.linked_rule_id)
         : null;
       const linkedAcct = g.linked_account ? accountMap[g.linked_account] : null;
       const rawRate = Number(linkedAcct?.apy_rate ?? linkedAcct?.apr ?? 0);
@@ -422,14 +422,14 @@ export default function SavingsGoals() {
 
   const accountOptions = useMemo(() => [
     { value: '', label: 'None (Manual)' },
-    ...accounts.filter((a: any) => a.active).map((a: any) => ({ value: a.id, label: `${a.name} (${a.account_type.replace(/_/g, ' ')})` })),
+    ...accounts.filter(a => a.active).map(a => ({ value: a.id, label: `${a.name} (${a.account_type.replace(/_/g, ' ')})` })),
   ], [accounts]);
 
   const transferRuleOptions = useMemo(() => [
     { value: '', label: 'None (manual)' },
     ...rules
-      .filter((r: any) => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
-      .map((r: any) => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
+      .filter(r => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
+      .map(r => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
   ], [rules]);
 
   const openAdd = (goalType = 'Custom') => {
@@ -465,7 +465,9 @@ export default function SavingsGoals() {
     if (!form.name || isNaN(target_amount)) return;
     const { clean: cleanName, flagged: nameFlagged } = filterProfanity(form.name.trim().slice(0, LIMITS.goalName));
     if (nameFlagged) toast.warning('Goal name contained inappropriate language and was cleaned.');
-    const payload: any = {
+    const payload: Partial<Tables<'savings_goals'>> & {
+      name: string; target_amount: number; current_amount: number; monthly_contribution: number;
+    } = {
       name: cleanName, target_amount, current_amount: parseFloat(form.current_amount) || 0,
       monthly_contribution: parseFloat(form.monthly_contribution) || 0,
       target_date: form.target_date || null,
@@ -492,7 +494,7 @@ export default function SavingsGoals() {
     update.mutate({ id: goalId, lump_sum_payments: lumps as unknown as Json });
   };
 
-  function estimateCompletion(g: any): string {
+  function estimateCompletion(g: EnrichedGoal): string {
     const remaining = Number(g.target_amount) - Number(g.current_amount);
     if (remaining <= 0) return 'Complete';
     if (Number(g.monthly_contribution) <= 0) return 'Set contribution';
@@ -511,7 +513,7 @@ export default function SavingsGoals() {
   const formLinkedRuleId = form.linked_rule_id;
 
   const formFields = useMemo(() => {
-    const fields: any[] = [
+    const fields: Field[] = [
       { key: 'name', label: 'Goal Name', type: 'text', placeholder: 'e.g., Emergency Fund' },
       { key: 'goal_type', label: 'Goal Type', type: 'select', options: GOAL_TYPES.map(t => ({ value: t, label: t })) },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
