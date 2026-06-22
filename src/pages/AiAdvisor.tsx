@@ -71,6 +71,14 @@ interface Conversation {
   created_at: string;
 }
 
+interface AiHistoryRow {
+  id: string;
+  question: string | null;
+  result: Json;
+  created_at: string;
+  conversation_id: string | null;
+}
+
 const QUICK_QUESTIONS = [
   'Am I on track to be debt-free this year?',
   'Where should I cut spending first?',
@@ -811,27 +819,27 @@ export default function AiAdvisor() {
         .maybeSingle(),
     ]).then(([{ data }, { count }, { data: profile }]) => {
       if (data && data.length > 0) {
-        const grouped = new Map<string, any[]>();
-        (data as any[]).forEach((row: any) => {
-          const key = (row.conversation_id as string | null) ?? (row.id as string);
+        const grouped = new Map<string, AiHistoryRow[]>();
+        data.forEach(row => {
+          const key = row.conversation_id ?? row.id;
           if (!grouped.has(key)) grouped.set(key, []);
           grouped.get(key)!.push(row);
         });
         const convos: Conversation[] = Array.from(grouped.entries())
           .map(([key, rows]) => {
-            const sorted = [...rows].sort((a: any, b: any) =>
+            const sorted = [...rows].sort((a, b) =>
               new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
             );
             return {
               id: key,
-              title: (sorted[0] as any).question as string | null,
-              entries: sorted.map((r: any) => ({
-                id: r.id as string,
-                question: r.question as string | null,
-                result: r.result as AdviceResult,
-                created_at: r.created_at as string,
+              title: sorted[0].question,
+              entries: sorted.map(r => ({
+                id: r.id,
+                question: r.question,
+                result: r.result as unknown as AdviceResult,
+                created_at: r.created_at,
               })),
-              created_at: (sorted[0] as any).created_at as string,
+              created_at: sorted[0].created_at,
             };
           })
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -960,7 +968,11 @@ export default function AiAdvisor() {
       if (fnErr) {
         let errMsg = 'AI request failed. Please try again.';
         try {
-          const ctx = await (fnErr as any)?.context?.json?.();
+          // Supabase's FunctionsHttpError carries a .context Response at runtime, but its type
+          // declaration doesn't expose it — narrow through unknown rather than `any`.
+          const errWithContext = fnErr as unknown as { context?: { json?: () => Promise<unknown> } };
+          const ctx = await errWithContext.context?.json?.() as
+            { error?: string; usage?: AdviceResult['usage'] } | undefined;
           if (ctx?.error === 'ai_consent_required') {
             setActiveEntries(prev => prev.filter(e => e.id !== pendingId));
             setConsentStatus('pending');
