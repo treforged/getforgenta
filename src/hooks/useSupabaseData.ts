@@ -254,6 +254,10 @@ export function useLiabilities() {
 }
 
 // ─── Debts ────────────────────────────────────────────────
+export type DebtRow = Partial<Tables<'debts'>> & {
+  id: string; name: string; balance: number; apr: number; min_payment: number; target_payment: number;
+};
+
 export function useDebts() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
@@ -261,7 +265,7 @@ export function useDebts() {
   const query = useQuery({
     queryKey: ['debts', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
-    queryFn: async () => {
+    queryFn: async (): Promise<DebtRow[]> => {
       if (isDemo || !user) return demoDebts.map((d, i) => ({ ...d, id: String(i), user_id: 'demo', created_at: '', updated_at: '', credit_limit: d.credit_limit || 0 }));
       const { data, error } = await supabase.from('debts').select('*').eq('user_id', user.id).order('created_at');
       if (error) throw error;
