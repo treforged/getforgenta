@@ -12,7 +12,7 @@ import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTI
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross } from '@/lib/pay-schedule';
+import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -80,12 +80,18 @@ function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolea
   );
 }
 
-function ForecastTooltip({ active, payload, label }: any) {
+interface ForecastTooltipProps {
+  active?: boolean;
+  payload?: { dataKey: string; color: string; name: string; value: number }[];
+  label?: string;
+}
+
+function ForecastTooltip({ active, payload, label }: ForecastTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-card border border-border p-2 sm:p-3 text-xs space-y-1 max-w-[140px] sm:max-w-xs" style={{ borderRadius: 'var(--radius)' }}>
       <p className="font-display font-bold text-foreground mb-1">{label}</p>
-      {payload.map((p: any) => (
+      {payload.map((p) => (
         <div key={p.dataKey} className="flex items-center justify-between gap-2 sm:gap-3">
           <span className="flex items-center gap-1 truncate"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />{p.name}</span>
           <span className="font-display font-bold shrink-0">{formatCurrency(p.value, false)}</span>
@@ -162,7 +168,7 @@ export default function Forecast() {
   const planExpensesByMonth = useMemo(() => {
     const now = new Date();
     const ccIds = new Set<string>(
-      (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
+      accounts.filter(a => a.active && a.account_type === 'credit_card')
         .flatMap(a => [a.id, `account:${a.id}`]),
     );
     return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
@@ -198,11 +204,11 @@ export default function Forecast() {
       const now0 = new Date();
       const monthEnd0 = new Date(now0.getFullYear(), now0.getMonth() + 1, 0);
       const activeTransferDests0 = new Set<string>(
-        (rules as any[]).filter((r) =>
+        rules.filter((r) =>
           r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
           !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd0) &&
           !(r.end_date && new Date(r.end_date + 'T00:00:00') < now0),
-        ).map((r) => r.deposit_account),
+        ).map((r) => r.deposit_account as string),
       );
       const savingsTotal = goals.reduce((s, g) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now0) return s;
@@ -225,7 +231,7 @@ export default function Forecast() {
       }, 0);
       const carLoanTotal = getTotalCarLoanMonthly(carFunds);
       const ccIds = new Set<string>(
-        (accounts as any[]).filter(a => a.active && a.account_type === 'credit_card')
+        accounts.filter(a => a.active && a.account_type === 'credit_card')
           .flatMap(a => [a.id, `account:${a.id}`]),
       );
       const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now0.getFullYear(), now0.getMonth(), ccIds);
@@ -368,7 +374,7 @@ export default function Forecast() {
     const today = new Date();
     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     for (const t of transactions) {
-      if ((t as any).isGenerated) continue;
+      if ((t as EnrichedTransaction).isGenerated) continue;
       const monthKey = t.date?.substring(0, 7);
       if (!monthKey) continue;
       // Exclude transactions on or before the last Plaid sync date — the account balance
@@ -394,7 +400,7 @@ export default function Forecast() {
     const today = new Date();
     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
     for (const t of transactions) {
-      if ((t as any).isGenerated) continue;
+      if ((t as EnrichedTransaction).isGenerated) continue;
       if (t.type !== 'expense') continue;
       if (!t.payment_source || !ccSources.has(t.payment_source)) continue;
       const monthKey = t.date?.substring(0, 7);
@@ -537,7 +543,7 @@ export default function Forecast() {
     );
     // Goal pools: goals not linked to a savings/retire/invest account
     const goalPools = new Map<string, { name: string; balance: number }>(
-      (goals as any[])
+      goals
         .filter((g) => {
           if (!g.linked_account) return true;
           if (savingsAcctIdSet.has(g.linked_account) || retireAcctIdSet.has(g.linked_account) || investAcctIdSet.has(g.linked_account)) return false;
@@ -601,14 +607,14 @@ export default function Forecast() {
     // Destination type inferred from the goal's linked account type
     const retireAccountTypes = new Set(['401k', 'roth_ira', 'ira', 'hsa']);
     const brokerageAccountTypes = new Set(['brokerage', 'investment']);
-    const activeAccountMap = Object.fromEntries((accounts as any[]).filter((a) => a.active !== false).map((a) => [a.id, a]));
+    const activeAccountMap = Object.fromEntries(accounts.filter((a) => a.active !== false).map((a) => [a.id, a]));
     const lumpTransferByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
       let savings = 0, brokerage = 0, roth_ira = 0;
       const perAccount = new Map<string, number>();
-      for (const g of (goals as any[])) {
-        const lumps: any[] = Array.isArray(g.lump_sum_payments) ? g.lump_sum_payments : [];
+      for (const g of goals) {
+        const lumps = (Array.isArray(g.lump_sum_payments) ? g.lump_sum_payments : []) as unknown as { date: string; amount: number }[];
         const monthTotal = lumps.filter((ls) => ls.date.substring(0, 7) === mk).reduce((s, ls) => s + Number(ls.amount), 0);
         if (monthTotal === 0) continue;
         const acctType = g.linked_account ? (activeAccountMap[g.linked_account]?.account_type ?? '') : '';
@@ -624,7 +630,7 @@ export default function Forecast() {
 
     // Mortgage — hard floor deduction before CC payoff (same priority as car loans)
     const mortgageAccountNames = new Set(
-      (accounts as any[]).filter((a) => a.account_type === 'mortgage' && a.active !== false)
+      accounts.filter((a) => a.account_type === 'mortgage' && a.active !== false)
         .map((a) => (a.name as string).toLowerCase())
     );
     const mortgageMonthlyPayment = debts
@@ -727,7 +733,7 @@ export default function Forecast() {
     const nonCCLiabAccts = active
       .filter((a) => liabilityTypes.includes(a.account_type) && a.account_type !== 'credit_card')
       .map((a) => {
-        const matched = (debts as any[]).find((d) => (d.name as string).toLowerCase() === (a.name as string).toLowerCase());
+        const matched = debts.find((d) => (d.name as string).toLowerCase() === (a.name as string).toLowerCase());
         return {
           id: a.id as string,
           name: a.name as string,
@@ -1122,7 +1128,7 @@ export default function Forecast() {
         .filter((a) => !['credit_card'].includes(a.account_type) && liabilityTypes.includes(a.account_type))
         .reduce((s, a) => s + Number(a.balance), 0);
       const otherDebtPayments = debts
-        .filter((dd: any) => !accounts.some((a) => a.account_type === 'credit_card' && a.name.toLowerCase() === dd.name.toLowerCase()))
+        .filter((dd) => !accounts.some((a) => a.account_type === 'credit_card' && a.name.toLowerCase() === dd.name.toLowerCase()))
         .reduce((s, dd) => s + Number(dd.target_payment), 0);
       const otherDebtBalance = Math.max(0, nonCCLiabilities - otherDebtPayments * i);
 
@@ -1188,7 +1194,7 @@ export default function Forecast() {
     // engine actually required, letting month-0 debt payments diverge from cardProjectionData.
     const ccCards = active.filter((a) => a.account_type === 'credit_card');
     const ccMinTotal = (cardProjectionData?.simCards ?? []).length > 0
-      ? (cardProjectionData!.simCards as any[]).reduce((s, c) => s + Number(c.minPayment || 0), 0)
+      ? cardProjectionData!.simCards.reduce((s, c) => s + Number(c.minPayment || 0), 0)
       : debts
         .filter((d) => ccCards.some((a) => a.name.toLowerCase() === d.name.toLowerCase()))
         .reduce((s, d) => s + Number(d.min_payment), 0);
@@ -1352,7 +1358,7 @@ export default function Forecast() {
       // running-cash model and the two only roughly agree. Still clamped to Forecast's own
       // ceiling so a rare disagreement between the two models can never let this page pay out
       // more than its own independent floor check considers safe.
-      const hookScaledTotal = (cardProjectionData?.perCardPaymentsScaled as any[] | undefined)
+      const hookScaledTotal = cardProjectionData?.perCardPaymentsScaled
         ?.reduce((s, p) => s + (p.payments[i] ?? 0), 0) ?? null;
       const safetyCeiling = cyclingPayment + revolvingPayment;
       monthDebtPayment = hookScaledTotal !== null ? Math.min(hookScaledTotal, safetyCeiling) : safetyCeiling;
@@ -2401,7 +2407,7 @@ export default function Forecast() {
                             ...(items.length > 0
                               ? [
                                   { label: 'Fixed monthly obligations (next mo.):', value: '' },
-                                  ...items.map((it: any) => ({
+                                  ...items.map((it) => ({
                                     label: `  ${it.name}${it.dueDay ? ` (day ${it.dueDay})` : ''}`,
                                     value: formatCurrency(it.amount, false),
                                     op: '+' as const,
