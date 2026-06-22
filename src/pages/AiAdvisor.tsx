@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useTransactions, useDebts, useSavingsGoals, useAccounts, useRecurringRules, useCarFunds } from '@/hooks/useSupabaseData';
-import { mergeWithGeneratedTransactions } from '@/lib/pay-schedule';
+import { mergeWithGeneratedTransactions, type EnrichedTransaction } from '@/lib/pay-schedule';
+import type { Json } from '@/integrations/supabase/types';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/lib/supabase';
 import { tracedInvoke } from '@/lib/tracer';
@@ -618,36 +619,36 @@ export default function AiAdvisor() {
     const now = new Date();
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const currentDate = now.toISOString().split('T')[0];
-    const thisMonth = allTxns.filter((t: any) => t.date?.startsWith(currentMonthStr));
+    const thisMonth = allTxns.filter(t => t.date?.startsWith(currentMonthStr));
 
     const monthlyIncome = thisMonth
-      .filter((t: any) => t.type === 'income' && t.category !== 'Balance Adjustment')
-      .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
+      .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
+      .reduce((s, t) => s + Number(t.amount ?? 0), 0);
 
-    const isDebtTx = (t: any) =>
-      (t as any).isDebtPayment ||
+    const isDebtTx = (t: EnrichedTransaction) =>
+      t.isDebtPayment ||
       t.category?.toLowerCase().includes('debt') ||
       t.category?.toLowerCase().includes('credit card');
 
     const monthlyDebtPayments = thisMonth
-      .filter((t: any) => t.type === 'expense' && t.category !== 'Balance Adjustment' && isDebtTx(t))
-      .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
+      .filter(t => t.type === 'expense' && t.category !== 'Balance Adjustment' && isDebtTx(t))
+      .reduce((s, t) => s + Number(t.amount ?? 0), 0);
 
     const monthlyExpenses = thisMonth
-      .filter((t: any) => t.type === 'expense' && t.category !== 'Balance Adjustment' && !isDebtTx(t))
-      .reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
+      .filter(t => t.type === 'expense' && t.category !== 'Balance Adjustment' && !isDebtTx(t))
+      .reduce((s, t) => s + Number(t.amount ?? 0), 0);
 
-    const activeAccounts = accounts.filter((a: any) => a.active !== false);
+    const activeAccounts = accounts.filter(a => a.active !== false);
 
     // Credit cards from accounts table
     const creditCards = activeAccounts
-      .filter((a: any) => a.account_type === 'credit_card')
-      .map((a: any) => ({
+      .filter(a => a.account_type === 'credit_card')
+      .map(a => ({
         name: String(a.name ?? 'Credit Card'),
         balance: Number(a.balance ?? 0),
         limit: Number(a.credit_limit ?? 0),
         apr: Number(a.apr ?? 0),
-        paymentPreference: (a as any).payment_preference ?? null,
+        paymentPreference: a.payment_preference ?? null,
       }));
 
     const ccDebt = creditCards.reduce((s: number, c) => s + c.balance, 0);
@@ -655,20 +656,23 @@ export default function AiAdvisor() {
     // Loan accounts (mortgage, auto, etc.)
     const LOAN_TYPES = ['loan', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
     const loans = activeAccounts
-      .filter((a: any) => LOAN_TYPES.includes(a.account_type))
-      .map((a: any) => ({
+      .filter(a => LOAN_TYPES.includes(a.account_type))
+      .map(a => ({
         name: String(a.name ?? 'Loan'),
         type: String(a.account_type ?? 'loan'),
         balance: Number(a.balance ?? 0),
         apr: Number(a.apr ?? 0),
+        // accounts has no monthly_payment column — this has always read undefined ?? 0 at
+        // runtime (kept as `any` deliberately rather than silently delete a possibly-intended
+        // future field; flagging for a human decision rather than guessing).
         monthlyPayment: Number((a as any).monthly_payment ?? 0),
       }));
 
     // Investment & retirement accounts
     const INVESTMENT_TYPES = ['brokerage', '401k', 'roth_ira', 'ira', 'hsa', 'crypto'];
     const investments = activeAccounts
-      .filter((a: any) => INVESTMENT_TYPES.includes(a.account_type))
-      .map((a: any) => ({
+      .filter(a => INVESTMENT_TYPES.includes(a.account_type))
+      .map(a => ({
         name: String(a.name ?? 'Investment'),
         type: String(a.account_type ?? 'investment'),
         balance: Number(a.balance ?? 0),
@@ -681,17 +685,17 @@ export default function AiAdvisor() {
     const totalDebt = ccDebt + loanDebt;
 
     const savingsBalance = activeAccounts
-      .filter((a: any) => ['savings', 'high_yield_savings'].includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance ?? 0), 0);
+      .filter(a => ['savings', 'high_yield_savings'].includes(a.account_type))
+      .reduce((s, a) => s + Number(a.balance ?? 0), 0);
 
     const cashOnHand = activeAccounts
-      .filter((a: any) => ['checking', 'cash'].includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance ?? 0), 0);
+      .filter(a => ['checking', 'cash'].includes(a.account_type))
+      .reduce((s, a) => s + Number(a.balance ?? 0), 0);
 
     const LIABILITY_TYPES = ['credit_card', 'loan', 'mortgage', 'auto_loan', 'student_loan', 'personal_loan'];
     const totalAssets = activeAccounts
-      .filter((a: any) => !LIABILITY_TYPES.includes(a.account_type))
-      .reduce((s: number, a: any) => s + Number(a.balance ?? 0), 0);
+      .filter(a => !LIABILITY_TYPES.includes(a.account_type))
+      .reduce((s, a) => s + Number(a.balance ?? 0), 0);
     const netWorth = totalAssets - totalDebt;
 
     const savingsRate = monthlyIncome > 0
@@ -708,7 +712,7 @@ export default function AiAdvisor() {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 6);
 
-    const debtDetails = debts.map((d: any) => {
+    const debtDetails = debts.map(d => {
       const balance = Number(d.balance ?? 0);
       const apr = Number(d.apr ?? 0);
       const targetPayment = Number(d.target_payment ?? 0);
@@ -730,7 +734,7 @@ export default function AiAdvisor() {
       };
     });
 
-    const savingsGoals = goals.map((g: any) => ({
+    const savingsGoals = goals.map(g => ({
       name: String(g.name ?? 'Unnamed Goal'),
       targetAmount: Number(g.target_amount ?? 0),
       currentAmount: Number(g.current_amount ?? 0),
@@ -738,7 +742,7 @@ export default function AiAdvisor() {
       targetDate: g.target_date ?? null,
     }));
 
-    const carFundDetails = (carFunds as any[]).map((cf: any) => ({
+    const carFundDetails = carFunds.map(cf => ({
       vehicleName: String(cf.vehicle_name ?? 'Vehicle'),
       phase: String(cf.phase ?? 'saving'),
       loanAmount: Number(cf.loan_amount ?? 0),
@@ -751,9 +755,9 @@ export default function AiAdvisor() {
     }));
 
     // Recurring expense obligations for context
-    const recurringObligations = (rules as any[])
-      .filter((r: any) => r.active && r.rule_type === 'expense')
-      .map((r: any) => ({
+    const recurringObligations = rules
+      .filter(r => r.active && r.rule_type === 'expense')
+      .map(r => ({
         name: String(r.name ?? 'Unknown'),
         amount: Number(r.amount ?? 0),
         frequency: String(r.frequency ?? 'monthly'),
