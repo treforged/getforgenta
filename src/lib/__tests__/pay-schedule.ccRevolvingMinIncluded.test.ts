@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getAugmentedMinSafeCash, buildPayConfig } from '../pay-schedule';
+import { getAugmentedMinSafeCash, buildPayConfig, type MinSafeCashCard } from '../pay-schedule';
 
 // getAugmentedMinSafeCash now also reports how much of its own floor is attributable to
 // revolving cards' minimum payments specifically (ccRevolvingMinIncluded) — used by
@@ -16,7 +16,7 @@ const now = new Date(2026, 5, 20);
 const config = buildPayConfig({});
 
 function run(
-  simCards: any[], monthlyRevolvingBalances: Map<string, number[]>, perCardMinPayments: Map<string, number[]>,
+  simCards: MinSafeCashCard[], monthlyRevolvingBalances: Map<string, number[]>, perCardMinPayments: Map<string, number[]>,
   monthlyCyclingBacklog?: Map<string, number[]>,
 ) {
   return getAugmentedMinSafeCash([], config, 1000, null, now, [], { simCards, monthlyRevolvingBalances, perCardMinPayments, monthlyCyclingBacklog }, 0);
