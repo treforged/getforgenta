@@ -1,3 +1,5 @@
+import type { EnrichedTransaction } from './pay-schedule';
+
 export type PaymentPlanFrequency = 'weekly' | 'biweekly' | 'monthly';
 
 export type PaymentPlan = {
@@ -70,8 +72,10 @@ export function getMonthlyPlanCashExpenses(
   return total;
 }
 
-export function generatePaymentPlanTransactions(plans: PaymentPlan[]): any[] {
-  const results: any[] = [];
+export type PlanTransaction = EnrichedTransaction & { planId: string; paymentIndex: number };
+
+export function generatePaymentPlanTransactions(plans: PaymentPlan[]): PlanTransaction[] {
+  const results: PlanTransaction[] = [];
   for (const plan of plans) {
     if (!plan.active) continue;
     const dates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);

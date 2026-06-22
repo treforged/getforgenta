@@ -16,8 +16,8 @@ export interface ExportRow {
   type: string;
   amount: number | string;
   category: string;
-  note: string;
-  payment_source?: string;
+  note?: string | null;
+  payment_source?: string | null;
 }
 
 export async function exportTransactionsCsv(rows: ExportRow[], filename = 'transactions.csv'): Promise<void> {
