@@ -3,8 +3,11 @@ import {
   PayScheduleConfig, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
   getRemainingIncomeByDay, getRemainingExpensesByDay, getRemainingNonPaycheckIncomeByDay,
   buildPayConfig, getPrePaycheckNextMonthBills, getMonthNetIncome,
+  type EnrichedTransaction,
 } from './pay-schedule';
 import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
+import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
 // debt/forecast surface) gets this without needing a second import line — scheduling.ts is the
 // canonical source since it has zero internal dependencies, avoiding a circular import (this
@@ -114,19 +117,19 @@ export function calcMinPayment(balance: number, apr: number): number {
   return Math.max(25, Math.ceil(interestCharge + pctMin));
 }
 
-export function getDefaultCardForExpense(category: string, accounts: any[]): string | null {
+export function getDefaultCardForExpense(category: string, accounts: AccountRow[]): string | null {
   if (!CC_DEFAULT_CATEGORIES.has(category)) return null;
   const activeCards = accounts
-    .filter((a: any) => a.account_type === 'credit_card' && a.active)
-    .sort((a: any, b: any) => (Number(b.apr) || 0) - (Number(a.apr) || 0));
+    .filter(a => a.account_type === 'credit_card' && a.active)
+    .sort((a, b) => (Number(b.apr) || 0) - (Number(a.apr) || 0));
   return activeCards.length > 0 ? `account:${activeCards[0].id}` : null;
 }
 
 export function buildCardData(
-  accounts: any[], transactions: any[], rules: any[], debts: any[], colorStartIndex = 0,
+  accounts: AccountRow[], transactions: EnrichedTransaction[], rules: RuleRow[], debts: DebtRow[], colorStartIndex = 0,
 ): CardData[] {
   if (!accounts || !transactions || !rules || !debts) return [];
-  const ccAccounts = accounts.filter((a: any) => a.account_type === 'credit_card' && a.active);
+  const ccAccounts = accounts.filter(a => a.account_type === 'credit_card' && a.active);
 
   return ccAccounts.map((acct, i) => {
     const acctKey = `account:${acct.id}`;
@@ -138,13 +141,13 @@ export function buildCardData(
     const todayStr = now.toISOString().split('T')[0];
     const currentMonthStr = todayStr.slice(0, 7); // 'YYYY-MM'
     const monthPurchases = transactions
-      .filter((t: any) =>
+      .filter(t =>
         t.type === 'expense' &&
         (t.payment_source === acctKey || t.payment_source === acct.id) &&
         t.date >= todayStr &&
         t.date.startsWith(currentMonthStr),
       )
-      .reduce((s: number, t: any) => s + Number(t.amount), 0);
+      .reduce((s, t) => s + Number(t.amount), 0);
 
     // Use next month (full month, no today-cutoff) so monthlyNewPurchases represents a
     // complete billing cycle. The current month is partial — most recurring bills already
@@ -153,17 +156,17 @@ export function buildCardData(
     const projRef = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
     const recurringExplicit = rules
-      .filter((r: any) => r.active && r.rule_type === 'expense' && (r.payment_source === acctKey || r.payment_source === acct.id))
-      .reduce((s: number, r: any) =>
+      .filter(r => r.active && r.rule_type === 'expense' && (r.payment_source === acctKey || r.payment_source === acct.id))
+      .reduce((s, r) =>
         s + Number(r.amount) * countRuleOccurrencesInMonth(r, projRef.getFullYear(), projRef.getMonth()),
       0);
 
-    const highestAprCard = [...ccAccounts].sort((a: any, b: any) => (Number(b.apr) || 0) - (Number(a.apr) || 0))[0];
+    const highestAprCard = [...ccAccounts].sort((a, b) => (Number(b.apr) || 0) - (Number(a.apr) || 0))[0];
     const isDefaultCard = highestAprCard?.id === acct.id;
 
     const recurringDefault = isDefaultCard ? rules
-      .filter((r: any) => r.active && r.rule_type === 'expense' && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
-      .reduce((s: number, r: any) =>
+      .filter(r => r.active && r.rule_type === 'expense' && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
+      .reduce((s, r) =>
         s + Number(r.amount) * countRuleOccurrencesInMonth(r, projRef.getFullYear(), projRef.getMonth()),
       0) : 0;
 
@@ -171,10 +174,10 @@ export function buildCardData(
 
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const monthRepayments = transactions
-      .filter((t: any) => t.type === 'expense' && t.category === 'Debt Payments' && t.note?.toLowerCase().includes(acct.name.toLowerCase()) && t.date >= monthStart)
-      .reduce((s: number, t: any) => s + Number(t.amount), 0);
+      .filter(t => t.type === 'expense' && t.category === 'Debt Payments' && t.note?.toLowerCase().includes(acct.name.toLowerCase()) && t.date >= monthStart)
+      .reduce((s, t) => s + Number(t.amount), 0);
 
-    const matchDebt = debts.find((d: any) => d.name.toLowerCase() === acct.name.toLowerCase());
+    const matchDebt = debts.find(d => d.name.toLowerCase() === acct.name.toLowerCase());
     const balance = Number(acct.balance);
     const apr = Number(acct.apr) || 0;
     const creditLimit = Number(acct.credit_limit) || 0;
@@ -188,11 +191,11 @@ export function buildCardData(
     const minPay = (acctMin != null && acctMin > 0) ? acctMin : 25;
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
-    const pref = (acct as any).payment_preference;
+    const pref = acct.payment_preference;
     const paymentPreference: 'statement' | 'full' | null =
       pref === 'statement' ? 'statement' : pref === 'full' ? 'full' : null;
-    const statementBalancePhase = Boolean((acct as any).statement_balance_phase);
-    const statementBalance = (acct as any).statement_balance != null ? Number((acct as any).statement_balance) : null;
+    const statementBalancePhase = Boolean(acct.statement_balance_phase);
+    const statementBalance = acct.statement_balance != null ? Number(acct.statement_balance) : null;
     const simBalance = statementBalance !== null ? statementBalance : balance;
     const autopayFullBalance = simBalance <= 0;
 
@@ -203,8 +206,8 @@ export function buildCardData(
       monthlyNewPurchases, monthlyRepayments: monthRepayments,
       color: getCardColor(colorStartIndex + i),
       paymentPreference, autopayFullBalance,
-      dueDay: (acct as any).payment_due_day ?? null,
-      startDate: (acct as any).card_start_date || undefined,
+      dueDay: acct.payment_due_day ?? null,
+      startDate: acct.card_start_date || undefined,
       statementBalancePhase, statementBalance,
     };
   });

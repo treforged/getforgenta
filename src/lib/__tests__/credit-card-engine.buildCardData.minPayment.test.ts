@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildCardData } from '../credit-card-engine';
+import type { AccountRow } from '@/hooks/useSupabaseData';
 
 // Regression for a real data-integrity gap: a credit card with no accounts.min_payment set fell
 // back to a same-named row in the legacy `debts` table, which could carry a stale or simply
@@ -11,9 +12,9 @@ import { buildCardData } from '../credit-card-engine';
 // target_payment, a separate feature with no Accounts-page equivalent, and for mortgage/auto/
 // student debts entirely, which aren't touched by this change).
 
-function makeAccount(overrides: Partial<Record<string, any>>) {
+function makeAccount(overrides: Partial<AccountRow>): AccountRow {
   return {
-    id: 'card-1', name: 'Card', account_type: 'credit_card', balance: 1000,
+    id: 'card-1', user_id: 'test', name: 'Card', account_type: 'credit_card', balance: 1000,
     credit_limit: 5000, apr: 20, payment_due_day: 1, active: true,
     min_payment: null, payment_preference: null,
     ...overrides,
