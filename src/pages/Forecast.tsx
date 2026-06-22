@@ -875,7 +875,7 @@ export default function Forecast() {
 
       // Apply annual raise as a step in the specified month (not continuous compounding)
       if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && i > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
-        if ((assumptions as any).raiseMode === 'flat') {
+        if (assumptions.raiseMode === 'flat') {
           const currentAnnual = payConfig.weeklyGross * 52 * incomeMultiplier;
           if (currentAnnual > 0) incomeMultiplier *= (1 + assumptions.incomeGrowth / currentAnnual);
         } else {
@@ -1622,7 +1622,7 @@ export default function Forecast() {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       let raiseApplied = false;
       if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
-        if ((assumptions as any).raiseMode === 'flat') {
+        if (assumptions.raiseMode === 'flat') {
           const currentAnnual = payConfig.weeklyGross * 52 * multiplier;
           if (currentAnnual > 0) multiplier *= (1 + assumptions.incomeGrowth / currentAnnual);
         } else {
@@ -1917,13 +1917,15 @@ export default function Forecast() {
           <div>
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Growth & Returns</p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { key: 'investmentGrowth', label: 'Investment %' },
-                { key: 'savingsInterest', label: 'Savings Interest %' },
-              ].map(({ key, label }) => (
+              {(
+                [
+                  { key: 'investmentGrowth', label: 'Investment %' },
+                  { key: 'savingsInterest', label: 'Savings Interest %' },
+                ] as { key: 'investmentGrowth' | 'savingsInterest'; label: string }[]
+              ).map(({ key, label }) => (
                 <div key={key}>
                   <label className="text-[9px] text-muted-foreground uppercase">{label}</label>
-                  <input type="number" value={(assumptions as any)[key]}
+                  <input type="number" value={assumptions[key]}
                     onChange={e => setAssumptions(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
                     className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="0.1" />
                 </div>
@@ -1949,17 +1951,17 @@ export default function Forecast() {
                   {(['pct', 'flat'] as const).map(m => (
                     <button key={m}
                       onClick={() => setAssumptions(prev => ({ ...prev, raiseMode: m }))}
-                      className={`flex-1 py-1.5 text-xs font-medium transition-colors ${(assumptions as any).raiseMode === m ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
+                      className={`flex-1 py-1.5 text-xs font-medium transition-colors ${assumptions.raiseMode === m ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground hover:text-foreground'}`}>
                       {m === 'pct' ? '%' : '$'}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-[9px] text-muted-foreground uppercase">{(assumptions as any).raiseMode === 'flat' ? 'Raise $/yr' : 'Raise %'}</label>
+                <label className="text-[9px] text-muted-foreground uppercase">{assumptions.raiseMode === 'flat' ? 'Raise $/yr' : 'Raise %'}</label>
                 <input type="number" value={assumptions.incomeGrowth}
                   onChange={e => setAssumptions(prev => ({ ...prev, incomeGrowth: parseFloat(e.target.value) || 0 }))}
-                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={(assumptions as any).raiseMode === 'flat' ? '500' : '0.1'} />
+                  className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step={assumptions.raiseMode === 'flat' ? '500' : '0.1'} />
               </div>
               <div>
                 <label className="text-[9px] text-muted-foreground uppercase">Effective Month</label>
