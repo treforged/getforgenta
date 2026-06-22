@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { getAugmentedMinSafeCash, buildPayConfig } from '../pay-schedule';
+import type { Tables } from '@/integrations/supabase/types';
+
+interface SimCard {
+  id: string; name: string; balance: number; minPayment: number; paymentPreference: string;
+  autopayFullBalance: boolean; dueDay: number; startDate?: string;
+}
 
 // Regression for a real account: Venture X has a card_start_date a couple months in the future
 // (the card doesn't exist yet / hasn't been opened), but getAugmentedMinSafeCash's cycling-card
@@ -8,9 +14,9 @@ import { getAugmentedMinSafeCash, buildPayConfig } from '../pay-schedule';
 // paid-off cycling card and had its minimum payment reserved in the cash floor every month from
 // today, months before the card will have any real payment due.
 
-const profile: any = { weekly_gross_income: 0.01 };
+const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
-function makeCard(overrides: Partial<Record<string, any>>) {
+function makeCard(overrides: Partial<SimCard>): SimCard {
   return {
     id: 'vx', name: 'Venture X', balance: 0, minPayment: 25, paymentPreference: 'statement',
     autopayFullBalance: true, dueDay: 7, startDate: undefined,

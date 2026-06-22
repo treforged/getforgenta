@@ -31,11 +31,11 @@ export function TwoFactorAuth() {
     setLoading(true);
     const { data, error } = await supabase.auth.mfa.listFactors();
     if (!error && data) {
-      const raw = data as any;
+      const raw = data as unknown as { email?: MfaFactor[] };
       const all = [
         ...(data.totp ?? []),
         ...(data.phone ?? []),
-        ...((raw.email as MfaFactor[] | undefined) ?? []),
+        ...(raw.email ?? []),
       ] as MfaFactor[];
       setFactors(all);
     }

@@ -259,9 +259,9 @@ function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
     const today = new Date();
     const todayYear = today.getFullYear();
     const todayMonth = today.getMonth();
-    const months: Record<string, any>[] = [];
+    const months: Record<string, string | number>[] = [];
     for (let i = 0; i < 12; i++) {
-      const entry: Record<string, any> = { month: new Date(todayYear, todayMonth + i).toLocaleString('en', { month: 'short', year: '2-digit' }) };
+      const entry: Record<string, string | number> = { month: new Date(todayYear, todayMonth + i).toLocaleString('en', { month: 'short', year: '2-digit' }) };
       goals.forEach(g => {
         let monthsContributed = i;
         if (g.contribution_start_date) {
