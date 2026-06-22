@@ -157,20 +157,20 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (profile) {
-      setDisplayName((profile as any).display_name || '');
-      setCurrency((profile as any).currency || 'USD');
-      setWeeklyGrossIncome(String((profile as any).weekly_gross_income || 1875));
-      setStartDay(String((profile as any).budget_start_day || 1));
-      setShowCents((profile as any).show_cents ?? true);
-      setCompactMode((profile as any).compact_mode ?? false);
-      setTaxRate(String((profile as any).tax_rate ?? 22));
-      setCashFloor(String((profile as any).cash_floor ?? 1000));
-      setPaycheckFrequency((profile as any).paycheck_frequency || 'weekly');
-      setPaycheckDay(String((profile as any).paycheck_day ?? 5));
-      setPaycheckStartDate((profile as any).paycheck_start_date || '');
-      setDefaultDepositAccount((profile as any).default_deposit_account || '');
-      setAutoGenerateRecurring((profile as any).auto_generate_recurring ?? true);
-      setTrustedDevices(((profile as any).trusted_devices ?? []) as TrustedDevice[]);
+      setDisplayName(profile.display_name || '');
+      setCurrency(profile.currency || 'USD');
+      setWeeklyGrossIncome(String(profile.weekly_gross_income || 1875));
+      setStartDay(String(profile.budget_start_day || 1));
+      setShowCents(profile.show_cents ?? true);
+      setCompactMode(profile.compact_mode ?? false);
+      setTaxRate(String(profile.tax_rate ?? 22));
+      setCashFloor(String(profile.cash_floor ?? 1000));
+      setPaycheckFrequency(profile.paycheck_frequency || 'weekly');
+      setPaycheckDay(String(profile.paycheck_day ?? 5));
+      setPaycheckStartDate(profile.paycheck_start_date || '');
+      setDefaultDepositAccount(profile.default_deposit_account || '');
+      setAutoGenerateRecurring(profile.auto_generate_recurring ?? true);
+      setTrustedDevices((profile.trusted_devices ?? []) as unknown as TrustedDevice[]);
       setDirty(false);
     }
   }, [profile]);
@@ -323,7 +323,7 @@ export default function SettingsPage() {
         publicKey: {
           challenge,
           rp: { name: 'Forgenta Budget OS', id: window.location.hostname },
-          user: { id: userIdBytes, name: user.email ?? user.id, displayName: (profile as any)?.display_name || user.email || 'User' },
+          user: { id: userIdBytes, name: user.email ?? user.id, displayName: profile?.display_name || user.email || 'User' },
           pubKeyCredParams: [
             { type: 'public-key', alg: -7 },   // ES256
             { type: 'public-key', alg: -257 },  // RS256

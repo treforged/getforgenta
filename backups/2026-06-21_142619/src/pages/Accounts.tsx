@@ -344,7 +344,7 @@ export default function Accounts() {
       apy_rate: APY_TYPES.includes(form.account_type) && form.apy_rate !== '' ? parseFloat(form.apy_rate) : null,
       ...(form.account_type === 'credit_card' ? {
         payment_due_day: dueDayVal,
-        card_start_date: (form as any).card_start_date || null,
+        card_start_date: form.card_start_date || null,
       } : {}),
       apr_start_date: LOAN_TYPES.includes(form.account_type) && form.apr_start_date ? form.apr_start_date : null,
     };

@@ -59,7 +59,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
       label: 'Set your income',
       description: 'Gross pay, deductions, and paycheck frequency',
       path: '/budget',
-      autoDone: Number((profile as any)?.gross_income) > 0,
+      autoDone: Number(profile?.gross_income) > 0,
     },
     {
       key: 'debt',
