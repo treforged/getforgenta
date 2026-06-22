@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression test for a real user-reported bug: Forecast's monthly popup showed a cycling
 // card's balance as missing/zero for a month with a real, large one-time purchase, even though
@@ -33,7 +35,7 @@ describe('useCardProjection cycling-card balance display', () => {
       // static baseline projectCardVariable used to fall back to) is 0 for this card.
       { id: cyclingCardId, name: 'Cycling Card', account_type: 'credit_card', balance: 0, credit_limit: 10000, apr: 18, payment_due_day: 7, active: true, min_payment: 0, payment_preference: 'statement' },
     ];
-    const debts: any[] = [];
+    const debts: Partial<Tables<'debts'>>[] = [];
     const rules = [
       { id: 'income-1', name: 'Paycheck', amount: 3500, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: checkingId, active: true, category: 'Other' },
     ];
@@ -45,10 +47,10 @@ describe('useCardProjection cycling-card balance display', () => {
     const now = new Date();
     const purchaseDate = new Date(now.getFullYear(), now.getMonth() + 2, 15);
     transactions[0].date = `${purchaseDate.getFullYear()}-${String(purchaseDate.getMonth() + 1).padStart(2, '0')}-15`;
-    const profile: any = { weekly_gross_income: 0.01 };
+    const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
     const payConfig = buildPayConfig(profile);
-    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
     const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const { result } = renderHook(() => useCardProjection({
@@ -63,7 +65,7 @@ describe('useCardProjection cycling-card balance display', () => {
       assumptions: DEFAULT_ASSUMPTIONS,
       syncCutoffDate,
       paymentPlans: [],
-    } as any));
+    } as unknown as UseCardProjectionParams));
 
     const r = result.current!;
     expect(r).not.toBeNull();

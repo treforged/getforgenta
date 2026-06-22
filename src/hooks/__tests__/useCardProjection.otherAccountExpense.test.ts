@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression for a real user-reported bug: an expense rule paid from a DIFFERENT bank account
 // (e.g. "Claude" $20/mo paid from "General Operations", not the funding account "TOTAL CHECKING")
@@ -21,7 +23,7 @@ const CHECKING = 'checking-1';
 const OTHER_CHECKING = 'other-checking-1';
 const CARD = 'card-1';
 
-function run(extraRule: any[]) {
+function run(extraRule: Partial<Tables<'recurring_rules'>>[]) {
   const accounts = [
     { id: CHECKING, name: 'TOTAL CHECKING', account_type: 'checking', balance: 3000, active: true },
     { id: OTHER_CHECKING, name: 'General Operations', account_type: 'checking', balance: 70, active: true },
@@ -35,10 +37,10 @@ function run(extraRule: any[]) {
     { id: 'bill-1', name: 'Rent', amount: 1800, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: CHECKING, deposit_account: null, active: true, category: 'Bills' },
     ...extraRule,
   ];
-  const profile: any = { weekly_gross_income: 0.01 };
+  const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
   const payConfig = buildPayConfig(profile);
-  const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+  const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
   const now = new Date();
   const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
@@ -48,7 +50,7 @@ function run(extraRule: any[]) {
     payConfig, scheduledEvents, pauseSavings: false,
     forecastFundingAccountId: CHECKING, debtStrategy: 'avalanche', persistedDebtFundingId: null,
     assumptions: DEFAULT_ASSUMPTIONS, syncCutoffDate, paymentPlans: [],
-  } as any)).result.current!;
+  } as unknown as UseCardProjectionParams)).result.current!;
 }
 
 describe('useCardProjection — expense rules paid from a different bank account', () => {

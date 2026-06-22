@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression for a real user-reported bug: a saving-phase car's already-saved + gift-covered down
 // payment sat in the same account used to fund credit-card payments, but was never excluded from
@@ -16,7 +18,7 @@ const DEFAULT_ASSUMPTIONS = {
   taxReturnEnabled: false, taxReturnAmountOverride: 0, taxReturnMonth: 2,
 };
 
-function run(carFunds: any[], checkingBalance = 5000) {
+function run(carFunds: Partial<Tables<'car_funds'>>[], checkingBalance = 5000) {
   const checkingId = 'checking-1';
   const cardId = 'card-1';
 
@@ -31,10 +33,10 @@ function run(carFunds: any[], checkingBalance = 5000) {
     { id: 'income-1', name: 'Paycheck', amount: 4000, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: checkingId, active: true, category: 'Other' },
     { id: 'bill-1', name: 'Rent', amount: 1200, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: checkingId, deposit_account: null, active: true, category: 'Bills' },
   ];
-  const profile: any = { weekly_gross_income: 0.01 };
+  const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
   const payConfig = buildPayConfig(profile);
-  const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+  const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
   const now = new Date();
   const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
@@ -50,7 +52,7 @@ function run(carFunds: any[], checkingBalance = 5000) {
     assumptions: DEFAULT_ASSUMPTIONS,
     syncCutoffDate,
     paymentPlans: [],
-  } as any)).result.current!;
+  } as unknown as UseCardProjectionParams)).result.current!;
 }
 
 describe('useCardProjection — car-fund down-payment earmark', () => {

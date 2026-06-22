@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression test for a bug where scaling a month's combined revolving payment down to protect
 // cash for a future one-time expense applied the same scale factor to every card uniformly. That
@@ -42,15 +44,15 @@ describe('useCardProjection minimum-payment protection', () => {
     // A large one-time expense a few months out — big enough relative to cash flow that PASS-2
     // needs to reduce earlier months' debt payments to protect the floor when it hits.
     const futureMonth = new Date(now.getFullYear(), now.getMonth() + 3, 15);
-    const transactions: any[] = [
+    const transactions: Partial<Tables<'transactions'>>[] = [
       { id: 'one-time-1', date: `${futureMonth.getFullYear()}-${String(futureMonth.getMonth() + 1).padStart(2, '0')}-15`, type: 'expense', amount: 3500, category: 'Other', payment_source: `account:${checkingId}` },
     ];
-    const carFunds: any[] = [];
-    const goals: any[] = [];
-    const profile: any = null;
+    const carFunds: Partial<Tables<'car_funds'>>[] = [];
+    const goals: Partial<Tables<'savings_goals'>>[] = [];
+    const profile: Partial<Tables<'profiles'>> | null = null;
 
     const payConfig = buildPayConfig(profile);
-    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
     const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
     const { result } = renderHook(() => useCardProjection({
@@ -65,7 +67,7 @@ describe('useCardProjection minimum-payment protection', () => {
       assumptions: DEFAULT_ASSUMPTIONS,
       syncCutoffDate,
       paymentPlans: [],
-    } as any));
+    } as unknown as UseCardProjectionParams));
 
     const r = result.current;
     expect(r).not.toBeNull();
@@ -117,13 +119,13 @@ describe('useCardProjection minimum-payment protection', () => {
       { id: 'income-1', name: 'Paycheck', amount: 3000, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: checkingId, active: true, category: 'Other' },
       { id: 'bill-1', name: 'Rent', amount: 1000, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: checkingId, deposit_account: null, active: true, category: 'Bills' },
     ];
-    const transactions: any[] = [];
-    const carFunds: any[] = [];
-    const goals: any[] = [];
-    const profile: any = null;
+    const transactions: Partial<Tables<'transactions'>>[] = [];
+    const carFunds: Partial<Tables<'car_funds'>>[] = [];
+    const goals: Partial<Tables<'savings_goals'>>[] = [];
+    const profile: Partial<Tables<'profiles'>> | null = null;
 
     const payConfig = buildPayConfig(profile);
-    const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+    const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
     const now = new Date();
     const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
@@ -139,7 +141,7 @@ describe('useCardProjection minimum-payment protection', () => {
       assumptions: DEFAULT_ASSUMPTIONS,
       syncCutoffDate,
       paymentPlans: [],
-    } as any));
+    } as unknown as UseCardProjectionParams));
 
     const r = result.current!;
     expect(r).not.toBeNull();

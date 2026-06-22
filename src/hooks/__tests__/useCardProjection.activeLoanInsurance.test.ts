@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useCardProjection } from '../useCardProjection';
+import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
+import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
 
 // Regression test for a real user-reported bug: a car fund's monthly_insurance disappeared from
 // every cash-flow total the instant its phase flipped from 'saving' to 'loan'. Root cause:
@@ -22,7 +24,7 @@ const DEFAULT_ASSUMPTIONS = {
   taxReturnEnabled: false, taxReturnAmountOverride: 0, taxReturnMonth: 2,
 };
 
-function renderWithCarFund(carFunds: any[]) {
+function renderWithCarFund(carFunds: Partial<Tables<'car_funds'>>[]) {
   const now = new Date();
   const checkingId = 'checking-1';
   const cardId = 'card-1';
@@ -38,10 +40,10 @@ function renderWithCarFund(carFunds: any[]) {
     { id: 'income-1', name: 'Paycheck', amount: 4000, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: checkingId, active: true, category: 'Other' },
     { id: 'bill-1', name: 'Rent', amount: 1200, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: checkingId, deposit_account: null, active: true, category: 'Bills' },
   ];
-  const profile: any = { weekly_gross_income: 0.01 };
+  const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 
   const payConfig = buildPayConfig(profile);
-  const scheduledEvents = generateScheduledEvents(rules as any[], accounts as any[], 36);
+  const scheduledEvents = generateScheduledEvents(rules as unknown as RuleRow[], accounts as unknown as AccountRow[], 36);
   const syncCutoffDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
 
   return renderHook(() => useCardProjection({
@@ -56,7 +58,7 @@ function renderWithCarFund(carFunds: any[]) {
     assumptions: DEFAULT_ASSUMPTIONS,
     syncCutoffDate,
     paymentPlans: [],
-  } as any));
+  } as unknown as UseCardProjectionParams));
 }
 
 describe('useCardProjection — active loan insurance', () => {
