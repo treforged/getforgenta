@@ -2,6 +2,38 @@
 // Single source of truth for income calculations across all tabs
 
 import { getActiveCarLoanPayments, monthsBetween } from './vehicle-loan-engine';
+import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
+import type { Tables } from '@/integrations/supabase/types';
+import type { CarFund } from './types';
+
+/**
+ * A transaction as consumed/produced by this module's merge pipeline — either a real DB row
+ * (TransactionRow) or one synthesized from a recurring rule/debt recommendation, plus the
+ * computed flags downstream UI uses to badge/filter entries (isGenerated, isDebtPayment, etc.).
+ * Only id/date/type/amount/category are guaranteed — synthesized entries don't have a user_id,
+ * account, or created_at.
+ */
+export type EnrichedTransaction = {
+  id: string;
+  date: string;
+  type: string;
+  amount: number;
+  category: string;
+  note?: string | null;
+  account?: string | null;
+  payment_source?: string | null;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  car_build_item_id?: string | null;
+  isGenerated?: boolean;
+  isDebtPayment?: boolean;
+  isCarLoanPayment?: boolean;
+  isPlanPayment?: boolean;
+  isReconciliation?: boolean;
+  reconciliationDelta?: number;
+  ruleId?: string;
+};
 
 export type PayFrequency = 'weekly' | 'biweekly' | 'monthly';
 
@@ -121,7 +153,7 @@ function resolveDeductionAmt(value: number, mode: string, gross: number): number
 }
 
 /** Build config from profile data */
-export function buildPayConfig(profile: any): PayScheduleConfig {
+export function buildPayConfig(profile: Partial<Tables<'profiles'>> | null | undefined): PayScheduleConfig {
   const wg = Number(profile?.weekly_gross_income) || 1875;
   const pf = (profile?.paycheck_frequency as PayFrequency) || 'weekly';
   const paycheckGross = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
@@ -196,7 +228,7 @@ export function getRemainingIncomeByDay(config: PayScheduleConfig, dueDay: numbe
  * This captures: side jobs, recurring transfers IN, freelance income, etc.
  */
 export function getRemainingNonPaycheckIncomeByDay(
-  rules: any[], dueDay: number, fundingAccountId: string | null
+  rules: RuleRow[], dueDay: number, fundingAccountId: string | null
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -248,7 +280,7 @@ export function getRemainingNonPaycheckIncomeByDay(
  * Get remaining one-time income transactions before a specific day in the current month.
  */
 export function getRemainingOneTimeIncomeByDay(
-  transactions: any[], dueDay: number = 31
+  transactions: EnrichedTransaction[], dueDay: number = 31
 ): number {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
@@ -261,7 +293,7 @@ export function getRemainingOneTimeIncomeByDay(
   let total = 0;
   for (const t of transactions) {
     if (t.type !== 'income') continue;
-    if ((t as any).isGenerated) continue;
+    if (t.isGenerated) continue;
     if (!t.date || t.date < todayStr || t.date > monthEndStr) continue;
     const txDay = parseInt(t.date.split('-')[2]);
     if (txDay >= now.getDate() && txDay <= effectiveDueDay) {
@@ -275,7 +307,7 @@ export function getRemainingOneTimeIncomeByDay(
  * Get remaining one-time expense transactions before a specific day in the current month.
  */
 export function getRemainingOneTimeExpensesByDay(
-  transactions: any[], dueDay: number = 31
+  transactions: EnrichedTransaction[], dueDay: number = 31
 ): number {
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0];
@@ -288,7 +320,7 @@ export function getRemainingOneTimeExpensesByDay(
   let total = 0;
   for (const t of transactions) {
     if (t.type !== 'expense') continue;
-    if ((t as any).isGenerated) continue;
+    if (t.isGenerated) continue;
     if (!t.date || t.date < todayStr || t.date > monthEndStr) continue;
     const txDay = parseInt(t.date.split('-')[2]);
     if (txDay >= now.getDate() && txDay <= effectiveDueDay) {
@@ -305,7 +337,7 @@ export function getRemainingOneTimeExpensesByDay(
  * Does NOT double-count with Budget Control rules.
  */
 export function getRemainingTransactionIncomeByDay(
-  transactions: any[], dueDay: number = 31, cutoffDate?: string
+  transactions: EnrichedTransaction[], dueDay: number = 31, cutoffDate?: string
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -345,7 +377,7 @@ export function getRemainingTransactionIncomeByDay(
  * Can optionally exclude debt payment transactions (since those are what we're computing).
  */
 export function getRemainingTransactionExpensesByDay(
-  transactions: any[],
+  transactions: EnrichedTransaction[],
   dueDay: number = 31,
   excludeDebtPayments = false,
   fundingAccountSources: Set<string> = new Set(),
@@ -397,7 +429,7 @@ export interface TransactionLineItem {
 
 /** Returns each income transaction in the due-date window as a line item (same filter as getRemainingTransactionIncomeByDay). */
 export function getRemainingTransactionIncomeItemsByDay(
-  transactions: any[], dueDay: number = 31, cutoffDate?: string
+  transactions: EnrichedTransaction[], dueDay: number = 31, cutoffDate?: string
 ): TransactionLineItem[] {
   const now = new Date();
   const today = now.getDate();
@@ -434,7 +466,7 @@ export function getRemainingTransactionIncomeItemsByDay(
 
 /** Returns each expense transaction in the due-date window as a line item (same filter as getRemainingTransactionExpensesByDay). */
 export function getRemainingTransactionExpenseItemsByDay(
-  transactions: any[],
+  transactions: EnrichedTransaction[],
   dueDay: number = 31,
   excludeDebtPayments = false,
   fundingAccountSources: Set<string> = new Set(),
@@ -481,7 +513,7 @@ export function getRemainingTransactionExpenseItemsByDay(
  * Get ALL remaining income from Transactions for the rest of the current month.
  * Single source of truth for Budget Control Remaining Cash On Hand.
  */
-export function getRemainingTransactionIncomeThisMonth(transactions: any[], cutoffDate?: string): number {
+export function getRemainingTransactionIncomeThisMonth(transactions: EnrichedTransaction[], cutoffDate?: string): number {
   const now = new Date();
   const today = now.getDate();
   const year = now.getFullYear();
@@ -506,7 +538,7 @@ export function getRemainingTransactionIncomeThisMonth(transactions: any[], cuto
  * payment_source that fall into those categories are also excluded.
  */
 export function getRemainingTransactionExpensesThisMonth(
-  transactions: any[],
+  transactions: EnrichedTransaction[],
   excludeDebtPayments = false,
   cutoffDate?: string,
   fundingAccountSources: Set<string> = new Set(),
@@ -535,7 +567,7 @@ export function getRemainingTransactionExpensesThisMonth(
 /**
  * Get remaining debt payment transactions for the rest of the current month.
  */
-export function getRemainingTransactionDebtPaymentsThisMonth(transactions: any[], cutoffDate?: string): number {
+export function getRemainingTransactionDebtPaymentsThisMonth(transactions: EnrichedTransaction[], cutoffDate?: string): number {
   const now = new Date();
   const today = now.getDate();
   const year = now.getFullYear();
@@ -554,7 +586,7 @@ export function getRemainingTransactionDebtPaymentsThisMonth(transactions: any[]
 
 /** Get remaining expenses from today through a specific day in the current month */
 export function getRemainingExpensesByDay(
-  rules: any[], dueDay: number, fundingAccountId: string | null
+  rules: RuleRow[], dueDay: number, fundingAccountId: string | null
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -610,7 +642,7 @@ export function getFirstPaycheckInMonth(config: PayScheduleConfig, year: number,
  * These must be reserved from the current month's ending cash.
  */
 export function getPrePaycheckNextMonthBills(
-  rules: any[],
+  rules: RuleRow[],
   config: PayScheduleConfig,
   fundingAccountId: string | null,
   now = new Date(),
@@ -685,7 +717,7 @@ export function getPrePaycheckNextMonthBills(
  * = max(cashFloor, prePaycheckNextMonthBills)
  */
 export function getMinSafeCash(
-  rules: any[],
+  rules: RuleRow[],
   config: PayScheduleConfig,
   cashFloor: number,
   fundingAccountId: string | null,
@@ -702,12 +734,12 @@ export function getMinSafeCash(
  * cap "available cash" so the cap always matches what's displayed as "Cash Floor".
  */
 export function getAugmentedMinSafeCash(
-  rules: any[],
+  rules: RuleRow[],
   config: PayScheduleConfig,
   cashFloor: number,
   fundingAccountId: string | null,
   now: Date,
-  carFunds: any[],
+  carFunds: CarFund[],
   cc: {
     simCards: any[]; monthlyRevolvingBalances: Map<string, number[]>; perCardMinPayments: Map<string, number[]>;
     /** Optional — a cycling card's accumulated backlog (credit-card-engine.ts's cyclingBacklog).
@@ -726,7 +758,7 @@ export function getAugmentedMinSafeCash(
   let prePaycheckBillsTotal = baseTotal;
   const floorItems: { name: string; amount: number; dueDay: number }[] = [...baseItems];
 
-  for (const cf of (carFunds ?? []) as any[]) {
+  for (const cf of carFunds ?? []) {
     if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
     const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
     const carPayments = getActiveCarLoanPayments([cf], now);
@@ -740,7 +772,7 @@ export function getAugmentedMinSafeCash(
   // already needs insurance from the day it's owned, not just once a loan exists. No independent
   // due-day field exists for insurance, so reuse payment_start_date's (or planned_purchase_date's,
   // before payment_start_date is set) day-of-month, matching the loan item's pattern above.
-  for (const cf of (carFunds ?? []) as any[]) {
+  for (const cf of carFunds ?? []) {
     const insurance = Number(cf.monthly_insurance || 0);
     if (insurance <= 0) continue;
     const anchorDate = cf.phase === 'loan' ? cf.loan_start_date : (cf.loan_start_date ?? cf.planned_purchase_date);
@@ -800,7 +832,7 @@ export function getAugmentedMinSafeCash(
 }
 
 /** Get remaining scheduled expenses this month from today onward */
-export function getRemainingExpensesThisMonth(rules: any[], accounts: any[], now = new Date()): number {
+export function getRemainingExpensesThisMonth(rules: RuleRow[], accounts: AccountRow[], now = new Date()): number {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   let total = 0;
@@ -847,7 +879,7 @@ export function getIncomeBeforeDay(config: PayScheduleConfig, year: number, mont
 /**
  * Get expenses due from a funding account before a specific day of month (inclusive).
  */
-export function getExpensesBeforeDay(rules: any[], year: number, month: number, dueDay: number, fundingAccountId: string | null): number {
+export function getExpensesBeforeDay(rules: RuleRow[], year: number, month: number, dueDay: number, fundingAccountId: string | null): number {
   const monthEnd = new Date(year, month + 1, 0);
   let total = 0;
 
@@ -889,7 +921,7 @@ export function getExpensesBeforeDay(rules: any[], year: number, month: number, 
  * Get non-paycheck income from rules before a specific day in a specific month (for future months).
  */
 export function getNonPaycheckIncomeBeforeDay(
-  rules: any[], year: number, month: number, dueDay: number, fundingAccountId: string | null
+  rules: RuleRow[], year: number, month: number, dueDay: number, fundingAccountId: string | null
 ): number {
   const monthEnd = new Date(year, month + 1, 0);
   let total = 0;
@@ -934,7 +966,7 @@ export function getNonPaycheckIncomeBeforeDay(
  */
 export function getSafeToPayByDueDate(
   config: PayScheduleConfig,
-  rules: any[],
+  rules: RuleRow[],
   fundingBalance: number,
   cashFloor: number,
   fundingAccountId: string | null,
@@ -953,26 +985,26 @@ export function getSafeToPayByDueDate(
  * produce the same generated transaction set before merging with real DB transactions.
  */
 export function generateMonthTransactionsFromRules(
-  rules: any[],
-  accounts: any[],
+  rules: RuleRow[],
+  accounts: AccountRow[],
   year: number,
   month: number, // 0-indexed
-): any[] {
+): EnrichedTransaction[] {
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 0);
-  const generated: any[] = [];
+  const generated: EnrichedTransaction[] = [];
 
-  const accountMap: Record<string, any> = {};
-  accounts.forEach((a: any) => { accountMap[a.id] = a; accountMap[`account:${a.id}`] = a; });
+  const accountMap: Record<string, AccountRow> = {};
+  accounts.forEach(a => { accountMap[a.id] = a; accountMap[`account:${a.id}`] = a; });
 
-  const normalizeSource = (src: string | null) => {
+  const normalizeSource = (src: string | null | undefined) => {
     if (!src) return '';
     if (src.startsWith('account:')) return src;
     if (accountMap[src]) return `account:${src}`;
     return src;
   };
 
-  rules.filter((r: any) => r.active).forEach((r: any) => {
+  rules.filter(r => r.active).forEach(r => {
     const rawSource = r.rule_type === 'income'
       ? (r.deposit_account || r.payment_source)
       : (r.payment_source || r.deposit_account);
@@ -1042,9 +1074,9 @@ export function generateMonthTransactionsFromRules(
 }
 
 export function generateCurrentMonthTransactionsFromRules(
-  rules: any[],
-  accounts: any[],
-): any[] {
+  rules: RuleRow[],
+  accounts: AccountRow[],
+): EnrichedTransaction[] {
   const now = new Date();
   return generateMonthTransactionsFromRules(rules, accounts, now.getFullYear(), now.getMonth());
 }
@@ -1054,10 +1086,10 @@ export function generateCurrentMonthTransactionsFromRules(
  * Deduplicates by matching date + note + amount to avoid double-counting.
  */
 export function mergeWithGeneratedTransactions(
-  realTransactions: any[],
-  rules: any[],
-  accounts: any[],
-): any[] {
+  realTransactions: EnrichedTransaction[],
+  rules: RuleRow[],
+  accounts: AccountRow[],
+): EnrichedTransaction[] {
   const now = new Date();
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const currentMonthReal = realTransactions.filter(t => t.date?.startsWith(monthStr));
@@ -1079,9 +1111,9 @@ export function mergeWithGeneratedTransactions(
 export function createDebtPaymentTransactions(
   recommendations: { cardId: string; cardName: string; payment: number; dueDay?: number | null }[],
   fundingAccountId: string | null,
-): any[] {
+): EnrichedTransaction[] {
   const now = new Date();
-  const results: any[] = [];
+  const results: EnrichedTransaction[] = [];
   for (const rec of recommendations) {
     if (rec.payment <= 0) continue;
     const dueDay = rec.dueDay || 31;
@@ -1110,15 +1142,15 @@ export function createDebtPaymentTransactions(
  * Real (user-entered) debt payment transactions are preserved.
  */
 export function mergeDebtPaymentsIntoStream(
-  baseTxns: any[],
-  debtPaymentTxns: any[],
-): any[] {
-  const withoutInjected = baseTxns.filter(t => !(t as any).isDebtPayment);
+  baseTxns: EnrichedTransaction[],
+  debtPaymentTxns: EnrichedTransaction[],
+): EnrichedTransaction[] {
+  const withoutInjected = baseTxns.filter(t => !t.isDebtPayment);
   const now = new Date();
   const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const realDebtNotes = new Set(
     withoutInjected
-      .filter(t => t.category === 'Debt Payments' && t.date?.startsWith(monthStr) && !(t as any).isGenerated)
+      .filter(t => t.category === 'Debt Payments' && t.date?.startsWith(monthStr) && !t.isGenerated)
       .map(t => (t.note || '').toLowerCase())
   );
   const uniqueGenerated = debtPaymentTxns.filter(g => !realDebtNotes.has((g.note || '').toLowerCase()));
@@ -1134,7 +1166,7 @@ export function mergeDebtPaymentsIntoStream(
 export function getAccountRemainingCashThisMonth(
   accountId: string,
   accountType: string,
-  allTransactions: any[],
+  allTransactions: EnrichedTransaction[],
   accountBalance: number,
   _cashFloor?: number,
 ): number {

@@ -110,7 +110,7 @@ const demoRecurringRules = [
 
 export type RuleRow = Partial<Tables<'recurring_rules'>> & {
   id: string; name: string; amount: number; rule_type: string; frequency: string; active: boolean;
-  start_date: string | null;
+  start_date: string | null; category: string;
 };
 
 export function useRecurringRules() {
@@ -467,7 +467,9 @@ export function useLumpSumTransfers() {
 }
 
 // ─── Transactions ─────────────────────────────────────────
-export type TransactionRow = Partial<Tables<'transactions'>> & { id: string; user_id: string };
+export type TransactionRow = Partial<Tables<'transactions'>> & {
+  id: string; user_id: string; date: string; type: string; amount: number; category: string;
+};
 
 export function useTransactions() {
   const { user } = useAuth();
