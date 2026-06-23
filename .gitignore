@@ -26,9 +26,8 @@ forged.jks
 dist/
 .vercel
 
-# Marketing tool — OAuth token and credentials must never be committed
-tre-forged-marketing/memory/gdrive_token.json
-tre-forged-marketing/memory/gdrive_credentials.json
+# Marketing tool — local-only, not project source
+tre-forged-marketing/
 
 # Security/compliance docs — untracked from the public repo 2026-06-21,
 # authoritative versioned copies now live in Google Drive (see
@@ -45,5 +44,15 @@ security-reports/*.md
 # Claude Code skills — local tooling, not project source, never needed on GitHub
 .claude/skills/
 
-# Graphify AST cache — regenerable, large, not useful in git history
-graphify-out/cache/
+# Claude Code personal settings/permission allowlist and planning notes — machine-specific,
+# not shareable team config or project source
+.claude/settings.local.json
+.claude/plan/
+
+# Graphify knowledge graph — regenerable (`python -m graphify update .`), mirrors to the
+# Obsidian vault separately (scripts/sync-graph-to-obsidian.ps1), not useful in git history
+graphify-out/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
