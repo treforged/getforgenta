@@ -223,7 +223,7 @@ Write the reply now:`;
 // ── Email ─────────────────────────────────────────────────────────────────────
 
 function esc(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function buildEmailHtml(posts) {

@@ -48,6 +48,7 @@ jobs:
         with:
           languages: java-kotlin
           build-mode: manual
+          config-file: ./.github/codeql/codeql-config.yml
 
       - name: Install dependencies
         run: npm ci

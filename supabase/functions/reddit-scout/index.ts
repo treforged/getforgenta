@@ -205,7 +205,7 @@ async function generateReply(post: RedditPost): Promise<string> {
 
 function buildEmailHtml(posts: ScoredPost[]): string {
   const esc = (s: string) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   const rows = posts
     .map((p) => {
