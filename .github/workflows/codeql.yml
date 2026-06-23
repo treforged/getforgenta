@@ -1,0 +1,43 @@
+name: "CodeQL (Actions, JS/TS, Python)"
+
+# GitHub doesn't allow Default Setup and a custom/advanced CodeQL workflow to coexist on a repo -
+# it's all-or-nothing ("CodeQL analyses from advanced configurations cannot be processed when the
+# default setup is enabled"). java-kotlin and swift moved to their own Advanced workflows
+# (codeql-android.yml, codeql-ios.yml) because Default Setup's autobuild couldn't handle them; this
+# workflow covers the remaining languages that don't need a real build (build-mode: none), so
+# disabling Default Setup entirely doesn't leave them unscanned.
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript, python]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
