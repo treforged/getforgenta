@@ -1162,7 +1162,7 @@ export default function Dashboard() {
                   if (b.goal_type === 'Emergency Fund') return 1;
                   return 0;
                 });
-                const carEntry: DashboardGoalEntry[] = carFunds[0] ? (() => {
+                const carEntry: DashboardGoalEntry[] = (carFunds[0] && carFunds[0].phase !== 'loan') ? (() => {
                   const c = carFunds[0];
                   const livebal = c.linked_account && accountMap[c.linked_account] ? Number(accountMap[c.linked_account].balance) : Number(c.current_saved);
                   const personalGoal = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
@@ -1192,7 +1192,7 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-              {goals.length === 0 && !carFunds[0] && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No savings goals yet.</p>}
+              {goals.length === 0 && (!carFunds[0] || carFunds[0].phase === 'loan') && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No savings goals yet.</p>}
             </div>
           </div>
         );
