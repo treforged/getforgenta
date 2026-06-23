@@ -8,6 +8,7 @@ import {
 } from "../_shared/rate-limit.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createTracer, hashId } from "../_shared/tracer.ts";
+import { stripHtmlTags } from "../_shared/sanitize.ts";
 
 const PAYLOAD_SIZE_LIMIT = 2048;
 
@@ -124,7 +125,7 @@ Deno.serve(async (req) => {
 
     // Sanitize and extract origin from the validated return_url (strip any injected content)
     const sanitizedReturnUrl = parsed.return_url
-      ? parsed.return_url.replace(/<[^>]*>/g, '').trim()
+      ? stripHtmlTags(parsed.return_url).trim()
       : null;
     const origin = sanitizedReturnUrl
       ? new URL(sanitizedReturnUrl).origin

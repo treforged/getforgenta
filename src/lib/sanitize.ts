@@ -8,6 +8,20 @@
  */
 
 /**
+ * Strip HTML tags to a fixed point (re-runs until no more matches), so a tag
+ * straddling a removed match (e.g. `<scr<script>ipt>`) can't survive a single pass.
+ */
+function stripHtmlTags(value: string): string {
+  let result = value;
+  let previous: string;
+  do {
+    previous = result;
+    result = previous.replace(/<[^>]*>/g, '');
+  } while (result !== previous);
+  return result;
+}
+
+/**
  * Sanitize a single string value:
  * - Strip all HTML tags
  * - Remove ASCII control characters (except tab/newline)
@@ -15,8 +29,7 @@
  * - Collapse internal runs of whitespace to a single space
  */
 export function sanitizeString(value: string): string {
-  return value
-    .replace(/<[^>]*>/g, '')                             // strip HTML tags
+  return stripHtmlTags(value)
     // eslint-disable-next-line no-control-regex -- intentional: this strips control chars
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')  // strip control chars
     .trim()

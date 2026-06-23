@@ -1,0 +1,8 @@
+name: "Forgenta CodeQL config"
+
+# backups/ is full of frozen historical file snapshots, not live source - scanning them just
+# duplicates every finding already reported against the live file, once per snapshot that
+# happened to contain it (same root cause as the 34 phantom Dependabot alerts fixed 2026-06-21
+# via .gitattributes linguist-vendored).
+paths-ignore:
+  - backups/**
