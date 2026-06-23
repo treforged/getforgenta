@@ -567,11 +567,11 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
           <span className="text-[10px] bg-success/15 text-success px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>Active Loan</span>
           <button
             onClick={onUndo}
-            className={`icon-btn text-sm flex items-center gap-1 px-2 ${undoConfirm ? 'text-amber-400' : 'text-muted-foreground hover:text-amber-400'}`}
+            className={`icon-btn text-xs flex items-center gap-1 px-1.5 ${undoConfirm ? 'text-amber-400' : 'text-muted-foreground hover:text-amber-400'}`}
             title={undoConfirm ? 'Click again to confirm undo' : 'Undo purchase — revert to saving phase'}
           >
-            <Undo2 size={16} />
-            {undoConfirm && <span className="text-xs font-medium">Confirm?</span>}
+            <Undo2 size={13} />
+            {undoConfirm && <span className="text-[10px] font-medium">Confirm?</span>}
           </button>
           <button onClick={onEdit} className="icon-btn text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
           <button onClick={onDelete} className={`icon-btn ${deleteConfirm ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={14} /></button>

@@ -1758,16 +1758,10 @@ export default function Forecast() {
       Array.isArray(prof?.paycheck_deductions) ? (prof.paycheck_deductions as typeof deductions) : [];
 
     const retireIds = new Set(retireAccounts.map((a) => a.id as string));
-    const today = new Date(syncCutoffDate + 'T00:00:00');
     const transferContribByAccount: Record<string, number> = {};
     for (const r of (rules || [])) {
       if (!r.active) continue;
       if (r.rule_type !== 'transfer' && r.rule_type !== 'investment') continue;
-      // Only count rules that are currently in effect — matches the main forecast loop's
-      // start_date/end_date handling so this panel doesn't include not-yet-started or
-      // already-ended transfers in its forward-looking milestones.
-      if (r.start_date && new Date(r.start_date + 'T00:00:00') > today) continue;
-      if (r.end_date && new Date(r.end_date + 'T00:00:00') < today) continue;
       const destId = r.deposit_account as string | undefined;
       if (!destId || !retireIds.has(destId)) continue;
       const amt = Number(r.amount);
@@ -1784,7 +1778,7 @@ export default function Forecast() {
       const milestones = projectMilestones(Number(a.balance), monthlyContrib, apyRate);
       return { account: a, apyRate, monthlyContrib, milestones };
     });
-  }, [accounts, profile, rules, payConfig, syncCutoffDate]);
+  }, [accounts, profile, rules, payConfig]);
 
   const freePreview = !isPremium && !isDemo;
   const displayData = freePreview ? filteredData.slice(0, 12) : filteredData;
