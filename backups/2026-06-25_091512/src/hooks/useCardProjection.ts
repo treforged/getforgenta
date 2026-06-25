@@ -120,7 +120,6 @@ export interface UseCardProjectionParams {
     taxReturnEnabled: boolean;
     taxReturnAmountOverride?: number;
     taxReturnMonth: number;
-    promotions?: { id: string; effectiveDate: string; newAnnualSalary: number }[];
   };
 }
 
@@ -494,8 +493,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       );
       const simTransferRules = rules.filter(r => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
       let simIncMult = 1;
-      const simSortedPromotions = [...(assumptions.promotions ?? [])].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
-      let simNextPromotionIdx = 0;
       const simFirstBonusIdx = (!assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0)
         ? (() => {
             for (let k = 1; k < PROJECTION_MONTHS; k++) {
@@ -510,15 +507,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (idx === 0) return e;
         const d = new Date(now.getFullYear(), now.getMonth() + idx, 1);
         const simMonthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-        const simMonthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        // Scheduled promotions snap simIncMult to the new salary (gross basis, matching
-        // weekly_gross_income) so the raise/bonus math below keeps compounding/scaling off
-        // the new value afterward — mirrors the same pattern in Forecast.tsx's two loops.
-        while (simNextPromotionIdx < simSortedPromotions.length && simSortedPromotions[simNextPromotionIdx].effectiveDate.slice(0, 7) <= simMonthKey) {
-          const annualBase = payConfig.weeklyGross * 52;
-          if (annualBase > 0) simIncMult = simSortedPromotions[simNextPromotionIdx].newAnnualSalary / annualBase;
-          simNextPromotionIdx++;
-        }
         if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
           if (assumptions.raiseMode === 'flat') {
             const currentAnnual = monthlyTakeHome * 12 * simIncMult;
