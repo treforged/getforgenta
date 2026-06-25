@@ -677,6 +677,10 @@ export function getPrePaycheckNextMonthBills(
       const sd = new Date(r.start_date + 'T12:00:00');
       if (sd > nextMonthEnd) continue;
     }
+    if (r.end_date) {
+      const ed = new Date(r.end_date + 'T12:00:00');
+      if (ed < nextMonthStart) continue;
+    }
 
     const amt = Number(r.amount);
 
