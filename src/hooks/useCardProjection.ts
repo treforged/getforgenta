@@ -1173,15 +1173,22 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
-      // For save-up months where revolving debt is already cleared, cap allPaymentTotals at
-      // maxDebtPaymentByMonth so cycling card payments (e.g. Amex Gold statement balance)
-      // are reduced — consistent with Forecast PASS 3's effectiveTotalPayments cap.
-      // Without this, Debt Payoff shows full cycling payments in save-up months while
-      // Forecast correctly shows reduced amounts.
+      // For save-up months where revolving debt is already cleared, cap only the DISCRETIONARY
+      // portion of allPaymentTotals (backlog paydown) — not the mandatory cycling payments.
+      // Mandatory cycling payments (Venture X's $1,800 statement etc.) must be paid regardless
+      // of save-up; capping them to ccMinTotal was wrong because ccMinTotal reflects revolving
+      // card minimums, not cycling card statements. Only the excess above the mandatory cycling
+      // amount (i.e. backlog paydown that could be deferred) is subject to the save-up cap.
+      const mandatoryCyclingByMonth = computeCyclingPaymentByMonth(activeSim);
       for (const m of saveUpMonths) {
         const cap = maxDebtPaymentByMonth[m];
         if (!isFinite(cap) || debtPaymentTotals[m] > 0) continue;
-        if (allPaymentTotals[m] > cap) allPaymentTotals[m] = cap;
+        const mandatory = mandatoryCyclingByMonth[m] ?? 0;
+        const discretionary = Math.max(0, allPaymentTotals[m] - mandatory);
+        const discretionaryCap = Math.max(0, cap - mandatory);
+        if (discretionary > discretionaryCap) {
+          allPaymentTotals[m] = mandatory + discretionaryCap;
+        }
       }
 
       // Scale per-card: cycling cards keep full sim amount; revolving cards scale to pass-3 totals.
@@ -1260,14 +1267,22 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const simAmt = Math.round(activeSim.monthlyPayments.get(c.id)?.[m] ?? 0);
           const revBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
           if (revBal === 0) {
-            // Cycling card — in save-up months with no revolving debt, scale down proportionally
+            // Cycling card — in save-up months with no revolving debt, preserve the mandatory
+            // cycling payment and scale only the discretionary backlog-paydown portion.
             if (saveUpMonths.has(m) && debtPaymentTotals[m] === 0) {
-              const totalCycFull = cards.reduce((s, cc) => {
+              const cardMandatory = activeSim.monthlyMandatoryCyclingPayment.get(c.id)?.[m] ?? 0;
+              const cardDiscretionary = Math.max(0, simAmt - cardMandatory);
+              const totalDiscretionaryCapped = Math.max(0, allPaymentTotals[m] - (mandatoryCyclingByMonth[m] ?? 0));
+              const totalCardDiscretionary = cards.reduce((s, cc) => {
                 if ((activeSim.monthlyRevolvingBalances.get(cc.id)?.[m] ?? 0) > 0) return s;
-                return s + Math.round(activeSim.monthlyPayments.get(cc.id)?.[m] ?? 0);
+                const ccAmt = Math.round(activeSim.monthlyPayments.get(cc.id)?.[m] ?? 0);
+                const ccMandatory = activeSim.monthlyMandatoryCyclingPayment.get(cc.id)?.[m] ?? 0;
+                return s + Math.max(0, ccAmt - ccMandatory);
               }, 0);
-              const scale = totalCycFull > 0 ? Math.min(1, allPaymentTotals[m] / totalCycFull) : 1;
-              return Math.round(simAmt * scale);
+              const discretionaryShare = totalCardDiscretionary > 0
+                ? Math.round(cardDiscretionary * (totalDiscretionaryCapped / totalCardDiscretionary))
+                : 0;
+              return Math.min(simAmt, cardMandatory + discretionaryShare);
             }
             return simAmt;
           }
