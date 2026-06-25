@@ -18,7 +18,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
 } from 'recharts';
-import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown, ChevronRight } from 'lucide-react';
+import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown, ChevronRight, Plus } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
 import { buildForecastMonthDetail, getAbsoluteMonthIndex } from '@/lib/forecast-export';
@@ -891,6 +891,8 @@ export default function Forecast() {
       otherAccountExpenseItems: { name: string; fromAcctName: string; amount: number }[];
     }[] = [];
     let incomeMultiplier = 1;
+    const sortedPromotions = [...(assumptions.promotions ?? [])].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+    let nextPromotionIdx = 0;
 
     // Expense rules paid from a non-CC, non-funding-account source — tracked for the popup's
     // "Other Account Expenses (no cash impact)" section. Hoisted out of the per-month loop below
@@ -915,6 +917,17 @@ export default function Forecast() {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const monthLabel = d.toLocaleString('en', { month: 'short', year: 'numeric' });
       const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+      // Scheduled promotions snap the multiplier directly to the new salary (rather than
+      // multiplying it) so the raise/bonus math below — which both just read whatever the
+      // current multiplier is — automatically compounds/scales off the new value afterward.
+      // A promotion dated on/before this month applies the first time the loop reaches it,
+      // including immediately at month 0 if the date has already passed.
+      while (nextPromotionIdx < sortedPromotions.length && sortedPromotions[nextPromotionIdx].effectiveDate.slice(0, 7) <= monthKey) {
+        const annualBase = payConfig.weeklyGross * 52;
+        if (annualBase > 0) incomeMultiplier = sortedPromotions[nextPromotionIdx].newAnnualSalary / annualBase;
+        nextPromotionIdx++;
+      }
 
       // Apply annual raise as a step in the specified month (not continuous compounding)
       if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && i > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
@@ -1659,10 +1672,18 @@ export default function Forecast() {
     if (!payConfig) return [];
     const nowDate = new Date();
     let multiplier = 1;
+    const sortedPromotions = [...(assumptions.promotions ?? [])].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
+    let nextPromotionIdx = 0;
     const results: { year: number; monthlyTakeHome: number; bonus: number; taxReturn: number; raiseApplied: boolean }[] = [];
 
     for (let i = 1; i <= PROJECTION_MONTHS; i++) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      while (nextPromotionIdx < sortedPromotions.length && sortedPromotions[nextPromotionIdx].effectiveDate.slice(0, 7) <= monthKey) {
+        const annualBase = payConfig.weeklyGross * 52;
+        if (annualBase > 0) multiplier = sortedPromotions[nextPromotionIdx].newAnnualSalary / annualBase;
+        nextPromotionIdx++;
+      }
       let raiseApplied = false;
       if (assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && d.getMonth() + 1 === assumptions.raiseMonth) {
         if (assumptions.raiseMode === 'flat') {
@@ -1805,10 +1826,11 @@ export default function Forecast() {
               <button onClick={() => setAssumptionsTutorialSeen(true)} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
-              These five inputs directly drive every number in the 60-month projection. Changing them instantly re-runs the full forecast.
+              These inputs directly drive every number in the 60-month projection. Changing them instantly re-runs the full forecast.
             </p>
             <div className="space-y-2">
               {[
+                { label: 'Promotions', desc: 'Schedule a one-time jump to a new annual salary on a specific date. Raises and % bonuses keep applying to the new amount afterward.' },
                 { label: 'Income Growth %', desc: 'Annual raise applied to your take-home. 3% means your income increases 3% each year.' },
                 { label: 'Investment Growth %', desc: 'Annual return applied to investment account balances in the projection.' },
                 { label: 'Savings Interest %', desc: 'Annual APY applied to savings and HYSA account balances.' },
@@ -1979,6 +2001,47 @@ export default function Forecast() {
                     className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="0.1" />
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Promotions */}
+          <div>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Promotions</p>
+            <div className="space-y-2">
+              {assumptions.promotions.map(promo => (
+                <div key={promo.id} className="border border-border/40 p-2" style={{ borderRadius: 'var(--radius)' }}>
+                  <div className="flex items-start justify-between gap-1 mb-1.5">
+                    <span className="text-xs font-semibold text-foreground">Promotion</span>
+                    <button
+                      onClick={() => setAssumptions(prev => ({ ...prev, promotions: prev.promotions.filter(p => p.id !== promo.id) }))}
+                      className="text-muted-foreground hover:text-destructive shrink-0 p-1.5 -mr-1.5" title="Remove promotion">
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[9px] text-muted-foreground uppercase">Effective Date</label>
+                      <input type="date" value={promo.effectiveDate}
+                        onChange={e => setAssumptions(prev => ({ ...prev, promotions: prev.promotions.map(p => p.id === promo.id ? { ...p, effectiveDate: e.target.value } : p) }))}
+                        className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} />
+                    </div>
+                    <div>
+                      <label className="text-[9px] text-muted-foreground uppercase">New Annual Salary</label>
+                      <input type="number" value={promo.newAnnualSalary || ''}
+                        onChange={e => setAssumptions(prev => ({ ...prev, promotions: prev.promotions.map(p => p.id === promo.id ? { ...p, newAnnualSalary: parseFloat(e.target.value) || 0 } : p) }))}
+                        className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground font-display font-bold" style={{ borderRadius: 'var(--radius)' }} step="1000" placeholder="$" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => setAssumptions(prev => ({ ...prev, promotions: [...prev.promotions, { id: crypto.randomUUID(), effectiveDate: '', newAnnualSalary: 0 }] }))}
+                className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+                <Plus size={13} /> Add Promotion
+              </button>
+              {assumptions.promotions.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">Snaps your projected salary to the new amount starting that month — raises and % bonuses continue applying to the new value afterward.</p>
+              )}
             </div>
           </div>
 

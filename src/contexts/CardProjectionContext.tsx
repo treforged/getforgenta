@@ -17,9 +17,11 @@ const DEFAULT_ASSUMPTIONS = {
   bonusEnabled: false, bonusAmount: 0, bonusMode: 'flat' as 'flat' | 'pct', bonusMonth: 12, bonusRecurring: true,
   taxReturnEnabled: false, taxReturnFilingStatus: 'single' as FilingStatus, taxReturnDependents: 0,
   taxReturnState: 'FL', taxReturnFederalWithheld: 0, taxReturnMonth: 2, taxReturnAmountOverride: 0,
+  promotions: [] as { id: string; effectiveDate: string; newAnnualSalary: number }[],
 };
 
 export type AssumptionsType = typeof DEFAULT_ASSUMPTIONS;
+export type PromotionEntry = AssumptionsType['promotions'][number];
 
 type DebtPayoffOptions = {
   strategy: 'avalanche' | 'snowball';
