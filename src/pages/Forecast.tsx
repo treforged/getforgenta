@@ -130,7 +130,7 @@ interface ForecastMonthRow {
   lumpSumSavings: number; lumpSumBrokerage: number; lumpSumRothIra: number;
   businessContrib: number; totalCCPurchases: number; ccDebtBalance: number; ccDisplayBalance: number;
   paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number;
-  isRaiseMonth: boolean; recommendedDebtPayment: number;
+  isRaiseMonth: boolean; promotionNewSalary: number; recommendedDebtPayment: number;
   floorItems: { name: string; amount: number; dueDay: number }[];
   prePaycheckBillsTotal: number; settingsCashFloor: number;
   assetBreakdown: { bucket: 'retirement' | 'investment' | 'savings'; id: string; name: string; balance: number }[];
@@ -880,6 +880,7 @@ export default function Forecast() {
       rawDebtPayment: number; monthTransfers: number; monthBrokerageContrib: number; monthRetireContrib: number; monthBusinessContrib: number; monthSavingsTransferContrib: number; oneTimeNet: number;
       ccDebtBalance: number; otherDebtBalance: number; monthMinSafe: number; monthlySavingsContrib: number;
       paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
+      promotionNewSalary: number;
       paycheckRetireContrib: number; fullMonth401kContrib: number;
       transferBreakdown: { name: string; amount: number }[];
       nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
@@ -923,9 +924,11 @@ export default function Forecast() {
       // current multiplier is — automatically compounds/scales off the new value afterward.
       // A promotion dated on/before this month applies the first time the loop reaches it,
       // including immediately at month 0 if the date has already passed.
+      let promotionNewSalary = 0;
       while (nextPromotionIdx < sortedPromotions.length && sortedPromotions[nextPromotionIdx].effectiveDate.slice(0, 7) <= monthKey) {
         const annualBase = payConfig.weeklyGross * 52;
         if (annualBase > 0) incomeMultiplier = sortedPromotions[nextPromotionIdx].newAnnualSalary / annualBase;
+        promotionNewSalary = sortedPromotions[nextPromotionIdx].newAnnualSalary;
         nextPromotionIdx++;
       }
 
@@ -1215,7 +1218,7 @@ export default function Forecast() {
       baseData.push({
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
         monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, monthSavingsTransferContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
-        paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth,
+        paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth, promotionNewSalary,
         paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown, nonCashTransferItems,
         floorItems, prePaycheckBillsTotal, savingsGoalItems, carContribItems, perAccountTransferContribs,
         otherAccountExpenseItems,
@@ -1619,6 +1622,7 @@ export default function Forecast() {
         bonusIncome: Math.round(b.bonusIncome),
         taxReturnIncome: Math.round(b.taxReturnIncome),
         isRaiseMonth: b.isRaiseMonth,
+        promotionNewSalary: Math.round(b.promotionNewSalary),
         recommendedDebtPayment: Math.round(debtPayments[i]),
         floorItems: b.floorItems ?? [],
         prePaycheckBillsTotal: Math.round(b.prePaycheckBillsTotal ?? 0),
@@ -2419,6 +2423,7 @@ export default function Forecast() {
                   lines: [
                     ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
                     ...(row.isRaiseMonth ? [{ label: `⬆ Raise applied — new ${freqLabel} paycheck: ${formatCurrency(perPaycheck, false)}`, value: '' }] : []),
+                    ...((row.promotionNewSalary ?? 0) > 0 ? [{ label: `💼 Promotion applied — new annual salary: ${formatCurrency(row.promotionNewSalary, false)}`, value: '' }] : []),
                     { label: isCurrentMonth ? 'Current Cash' : 'Starting Cash', value: formatCurrency(row.startingCash, false) },
                     { label: 'Paycheck', value: formatCurrency(row.paycheckIncome ?? row.takeHome, false), op: '+' },
                     ...((row.otherIncome ?? 0) > 0 ? [{ label: 'Other Income', value: formatCurrency(row.otherIncome, false), op: '+' }] : []),
