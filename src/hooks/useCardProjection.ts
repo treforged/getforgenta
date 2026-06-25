@@ -703,7 +703,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // cycling payment needs monthlyPayments) — see the iterative refinement below this
       // function for why it has to be callable more than once, each time against a fresher
       // simulation.
-      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[]) =>
+      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[], ccMinByMonth?: number[]) =>
         computeFloorProtection({
           incomeByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome)),
           expenseByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => comprehensiveMExp(m, cyclingPaymentByMonth)),
@@ -716,6 +716,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           floorByMonth,
           startingBalance: debtFundingBalance,
           ccMinTotal,
+          ccMinByMonth,
           cyclingExcessByMonth,
           carFunds, transactions, ccSourceIds, now, formatCurrency,
         });
@@ -822,7 +823,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         augmentedCashFloorByMonth = augmented.floor;
         ccMinInFloorByMonth = augmented.ccMinInFloor;
         const cyclingPaymentByMonth = computeCyclingPaymentByMonth(sim);
-        lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth);
+        const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
+          cards.reduce((s, c) => s + (sim.perCardMinPayments.get(c.id)?.[m] ?? 0), 0),
+        );
+        lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth, ccMinByMonth);
         sim = simulateVariablePayoff(
           cards,
           debtFundingBalance,

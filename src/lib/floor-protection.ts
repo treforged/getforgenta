@@ -26,6 +26,9 @@ export interface FloorProtectionParams {
   startingBalance: number;
   /** Combined CC minimum payment total — debt payments are never reduced below this. */
   ccMinTotal: number;
+  /** Per-month CC minimum from simulation — when provided, overrides ccMinTotal per month so
+   * post-payoff months use 0 instead of today's static live minimums. Falls back to ccMinTotal. */
+  ccMinByMonth?: number[];
   /** Per-month cycling-card statement EXCESS over baseline — used only for "what caused this"
    * save-up reason labeling (the historical "$X CC purchase statement payment" label), not for
    * the cash-flow math itself (that's already folded into expenseByMonth by the caller). */
@@ -73,9 +76,11 @@ export interface FloorProtectionResult {
 export function computeFloorProtection(params: FloorProtectionParams): FloorProtectionResult {
   const {
     incomeByMonth, expenseByMonth, oneTimeNetByMonth, carDownPaymentByMonth, floorByMonth,
-    startingBalance, ccMinTotal, cyclingExcessByMonth, carFunds, transactions, ccSourceIds,
-    now, formatCurrency,
+    startingBalance, ccMinTotal, ccMinByMonth, cyclingExcessByMonth, carFunds, transactions,
+    ccSourceIds, now, formatCurrency,
   } = params;
+
+  const ccMin = (m: number) => ccMinByMonth?.[m] ?? ccMinTotal;
 
   const maxDebtPaymentByMonth: number[] = Array(PROJECTION_MONTHS).fill(Infinity);
   const saveUpMonths = new Set<number>();
@@ -89,7 +94,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   // Per-month net cash flow if only the minimum is ever sent to debt — the most that could
   // possibly be preserved that month. Feeds the backward pass below.
   const netAtMin: number[] = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
-    incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - ccMinTotal,
+    incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - ccMin(m),
   );
 
   const reserveNeeded: number[] = Array(PROJECTION_MONTHS + 1).fill(0);
@@ -107,7 +112,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     let rawBal = startingBalance;
     for (let m = 0; m < PROJECTION_MONTHS; m++) {
       const mFloor = floorByMonth[m];
-      const natural = Math.max(ccMinTotal, Math.max(0, rawBal + incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - mFloor));
+      const natural = Math.max(ccMin(m), Math.max(0, rawBal + incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - mFloor));
       rawBal += incomeByMonth[m] - expenseByMonth[m] - natural + oneTimeNetByMonth[m] - carDownPaymentByMonth[m];
       if (rawBal < mFloor - 0.01) rawBreachMonths.push(m);
     }
@@ -166,13 +171,14 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     const oneTimeNet = oneTimeNetByMonth[m];
     const carDP = carDownPaymentByMonth[m];
     const mFloor = floorByMonth[m];
-    const natural = Math.max(ccMinTotal, Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - mFloor));
+    const mCcMin = ccMin(m);
+    const natural = Math.max(mCcMin, Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - mFloor));
 
     if (reserveNeeded[m + 1] > 0) {
       const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];
       const requiredEndBal = nextFloor + reserveNeeded[m + 1];
       const availableForDebt = Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - requiredEndBal);
-      const cap = Math.max(ccMinTotal, availableForDebt);
+      const cap = Math.max(mCcMin, availableForDebt);
       maxDebtPaymentByMonth[m] = cap;
       const actualPay = Math.min(cap, natural);
       if (cap < natural - 1) {
