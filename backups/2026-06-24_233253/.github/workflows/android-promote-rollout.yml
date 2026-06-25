@@ -72,31 +72,13 @@ jobs:
           BASE="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${PACKAGE_NAME}"
           AUTH=(-H "Authorization: Bearer ${{ steps.auth.outputs.access_token }}")
 
-          # curl -f swallows the response body on HTTP errors, which is exactly the detail
-          # needed to diagnose an API rejection (validation error, conflicting edit, etc).
-          # Every call below writes its body to a temp file and checks the status code
-          # explicitly, printing the body on failure instead of failing silently.
-
-          EDIT_STATUS=$(curl -s -o /tmp/edit_resp.json -w '%{http_code}' -X POST "${AUTH[@]}" "$BASE/edits")
-          if [ "$EDIT_STATUS" -ge 400 ]; then
-            echo "Failed to create a Play Console edit (HTTP $EDIT_STATUS):" >&2
-            cat /tmp/edit_resp.json >&2
-            exit 1
-          fi
-          EDIT_ID=$(jq -r '.id' /tmp/edit_resp.json)
+          EDIT_ID=$(curl -sf -X POST "${AUTH[@]}" "$BASE/edits" | jq -r '.id')
           if [ -z "$EDIT_ID" ] || [ "$EDIT_ID" = "null" ]; then
             echo "Failed to create a Play Console edit." >&2
-            cat /tmp/edit_resp.json >&2
             exit 1
           fi
 
-          TRACK_STATUS=$(curl -s -o /tmp/track_resp.json -w '%{http_code}' "${AUTH[@]}" "$BASE/edits/$EDIT_ID/tracks/production")
-          if [ "$TRACK_STATUS" -ge 400 ]; then
-            echo "Failed to fetch the production track (HTTP $TRACK_STATUS):" >&2
-            cat /tmp/track_resp.json >&2
-            exit 1
-          fi
-          TRACK_JSON=$(cat /tmp/track_resp.json)
+          TRACK_JSON=$(curl -sf "${AUTH[@]}" "$BASE/edits/$EDIT_ID/tracks/production")
           STATUS=$(echo "$TRACK_JSON" | jq -r '.releases[0].status // empty')
           FRACTION=$(echo "$TRACK_JSON" | jq -r '.releases[0].userFraction // "n/a"')
           echo "Current production release: status=$STATUS userFraction=$FRACTION"
@@ -108,20 +90,8 @@ jobs:
           fi
 
           PAYLOAD=$(echo "$TRACK_JSON" | jq '.releases[0].status = "completed" | del(.releases[0].userFraction)')
-
-          PUT_STATUS=$(curl -s -o /tmp/put_resp.json -w '%{http_code}' -X PUT "${AUTH[@]}" -H "Content-Type: application/json" -d "$PAYLOAD" \
-            "$BASE/edits/$EDIT_ID/tracks/production")
-          if [ "$PUT_STATUS" -ge 400 ]; then
-            echo "Failed to update the production track to 100% (HTTP $PUT_STATUS):" >&2
-            cat /tmp/put_resp.json >&2
-            exit 1
-          fi
-
-          COMMIT_STATUS=$(curl -s -o /tmp/commit_resp.json -w '%{http_code}' -X POST "${AUTH[@]}" "$BASE/edits/$EDIT_ID:commit")
-          if [ "$COMMIT_STATUS" -ge 400 ]; then
-            echo "Failed to commit the edit (HTTP $COMMIT_STATUS):" >&2
-            cat /tmp/commit_resp.json >&2
-            exit 1
-          fi
+          curl -sf -X PUT "${AUTH[@]}" -H "Content-Type: application/json" -d "$PAYLOAD" \
+            "$BASE/edits/$EDIT_ID/tracks/production" > /dev/null
+          curl -sf -X POST "${AUTH[@]}" "$BASE/edits/$EDIT_ID:commit" > /dev/null
 
           echo "Promoted production release from ${FRACTION} to 100% and committed."
