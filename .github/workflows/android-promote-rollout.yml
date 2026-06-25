@@ -99,7 +99,8 @@ jobs:
           TRACK_JSON=$(cat /tmp/track_resp.json)
           STATUS=$(echo "$TRACK_JSON" | jq -r '.releases[0].status // empty')
           FRACTION=$(echo "$TRACK_JSON" | jq -r '.releases[0].userFraction // "n/a"')
-          echo "Current production release: status=$STATUS userFraction=$FRACTION"
+          RELEASE_COUNT=$(echo "$TRACK_JSON" | jq '.releases | length')
+          echo "Current production release: status=$STATUS userFraction=$FRACTION (releases[] has $RELEASE_COUNT entries)"
 
           if [ "$STATUS" != "inProgress" ]; then
             echo "Nothing to promote (status=$STATUS, not a staged rollout in progress)."
@@ -107,7 +108,12 @@ jobs:
             exit 0
           fi
 
-          PAYLOAD=$(echo "$TRACK_JSON" | jq '.releases[0].status = "completed" | del(.releases[0].userFraction)')
+          # The API rejects a track update that leaves more than one release with status
+          # "completed" ("Only one completed release is allowed") - releases[] can carry
+          # historical entries (e.g. a prior fully-rolled-out release) alongside the current
+          # staged rollout. Promoting must replace the whole array with just the one release
+          # being completed, not mutate releases[0] in place while leaving the rest untouched.
+          PAYLOAD=$(echo "$TRACK_JSON" | jq '.releases = [(.releases[0] | .status = "completed" | del(.userFraction))]')
 
           PUT_STATUS=$(curl -s -o /tmp/put_resp.json -w '%{http_code}' -X PUT "${AUTH[@]}" -H "Content-Type: application/json" -d "$PAYLOAD" \
             "$BASE/edits/$EDIT_ID/tracks/production")
