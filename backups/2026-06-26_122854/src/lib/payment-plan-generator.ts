@@ -14,9 +14,6 @@ export type PaymentPlan = {
   total_payments: number;
   category: string;
   payment_source: string | null;
-  /** 'upfront' = full amount charged to card day 1, paid monthly (Chase Plan It style).
-   *  'monthly_charge' = fixed amount hits card each month (BNPL/Amazon style). */
-  plan_type: 'upfront' | 'monthly_charge';
   notes: string | null;
   active: boolean;
   created_at: string;

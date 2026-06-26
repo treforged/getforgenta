@@ -5,7 +5,7 @@ import {
   buildCardData, simulateVariablePayoff, projectCardVariable,
   CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS,
 } from '@/lib/credit-card-engine';
-import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, getPlanProgress } from '@/lib/payment-plan-generator';
+import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getMinSafeCash, getAugmentedMinSafeCash,
   getNormalizedMonthNetIncome, getMonthNetIncome,
@@ -141,34 +141,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
   return useMemo(() => {
     try {
-      const rawCards = buildCardData(accounts, transactions, rules, debts);
-      if (rawCards.length === 0) return null;
+      const cards = buildCardData(accounts, transactions, rules, debts);
+      if (cards.length === 0) return null;
 
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
-
-      // ── Plan-derived installment fields (upfront plans override manual Accounts tab fields) ──
-      // Active upfront plans (Chase Plan It style) have their remaining balance and monthly
-      // payment aggregated per card. Multiple plans on the same card are summed.
-      const cardIdsSet = new Set(rawCards.map(c => c.id));
-      const cards = rawCards.map(card => {
-        const cardUpfrontPlans = (paymentPlans ?? []).filter(p =>
-          p.active && p.plan_type === 'upfront' && p.payment_source === card.id,
-        );
-        if (cardUpfrontPlans.length === 0) return card;
-        let totalInstBal = 0;
-        let totalInstMonthly = 0;
-        for (const plan of cardUpfrontPlans) {
-          const { remaining } = getPlanProgress(plan);
-          totalInstBal += Math.max(0, remaining * plan.payment_amount);
-          totalInstMonthly += plan.payment_amount;
-        }
-        return {
-          ...card,
-          installmentBalance: Math.round(totalInstBal * 100) / 100,
-          installmentMonthlyPayment: Math.round(totalInstMonthly * 100) / 100,
-        };
-      });
 
       const accountMap = new Map<string, AccountRow>(accounts.map(a => [a.id, a]));
 
@@ -196,27 +173,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccSourceIdsForScalar,
           i === 0 ? syncCutoffDate : undefined,
         );
-      });
-
-      // ── BNPL installment charges per card per month (monthly_charge plans) ───────────────
-      // These charges are already included in cardPurchasesPerMonth via generatePaymentPlanTransactions.
-      // The engine needs this separately to reserve a mandatory payment and exclude the charge
-      // from the revolving cascade target (so it isn't double-counted as revolving debt).
-      const installmentChargeByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
-        const charges: { [cardId: string]: number } = {};
-        for (const plan of paymentPlans ?? []) {
-          if (!plan.active || plan.plan_type !== 'monthly_charge' || !plan.payment_source) continue;
-          if (!cardIdsSet.has(plan.payment_source)) continue;
-          const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-          const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-          const dates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
-          const chargesInMonth = dates.filter(date => date.startsWith(monthStr)).length;
-          if (chargesInMonth > 0) {
-            const cardId = plan.payment_source;
-            charges[cardId] = (charges[cardId] ?? 0) + chargesInMonth * plan.payment_amount;
-          }
-        }
-        return charges;
       });
       const monthlyExpenses = rules.filter(r => {
         if (!r.active || r.rule_type !== 'expense') return false;
@@ -864,8 +820,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         m0SafeFloor,
         undefined,
         cashFloorByMonth,
-        undefined,
-        installmentChargeByMonth,
       );
 
       // Outer refinement: each pass computes the augmented floor (the same getAugmentedMinSafeCash
@@ -905,7 +859,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           lookAhead.maxDebtPaymentByMonth,
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
-          installmentChargeByMonth,
         );
       }
       const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason } = lookAhead;
@@ -1148,7 +1101,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           cappedMaxDebt,
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
-          installmentChargeByMonth,
         );
         perCardPayments = cards.map(c => ({
           name: c.name, id: c.id,
