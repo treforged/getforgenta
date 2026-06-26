@@ -13,10 +13,15 @@ type SimResult = {
   monthlyRevolvingBalances: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
   monthlyInterest: Map<string, number[]>;
+  monthlyCyclingOwed: Map<string, number[]>;
+  monthlyCyclingInterest: Map<string, number[]>;
   monthlyCyclingBacklog: Map<string, number[]>;
+  monthlyMandatoryCyclingPayment: Map<string, number[]>;
   perCardPaymentsScaled: { id: string; payments: number[] }[];
   allPaymentTotals: number[];
   debtPaymentTotals: number[];
+  saveUpMonths: Set<number>;
+  maxDebtPaymentByMonth: number[];
 };
 
 function monthLabel(offsetFromNow: number): string {
@@ -30,22 +35,54 @@ function fmt(n: number): string {
   return n.toFixed(2);
 }
 
+function fmtCap(cap: number | undefined): string {
+  if (cap === undefined || !isFinite(cap)) return '';
+  return fmt(cap);
+}
+
 export function buildDebugRows(sim: SimResult, months = 36) {
+  // Determine which cards are cycling (have monthlyCyclingOwed data)
+  const cyclingIds = new Set(
+    sim.simCards
+      .filter(c => (sim.monthlyCyclingOwed.get(c.id) ?? []).some(v => v > 0))
+      .map(c => c.id),
+  );
+
   const rows: Record<string, string | number>[] = [];
   for (let m = 0; m < months; m++) {
-    const row: Record<string, string | number> = { Month: monthLabel(m) };
+    const cap = sim.maxDebtPaymentByMonth[m];
+    const row: Record<string, string | number> = {
+      Month: monthLabel(m),
+      saveUp: sim.saveUpMonths.has(m) ? 'Y' : '',
+      debtCap: fmtCap(cap),
+    };
     let totalBal = 0;
     for (const card of sim.simCards) {
-      const bal = sim.monthlyRevolvingBalances.get(card.id)?.[m] ?? 0;
-      const pay = sim.perCardPaymentsScaled.find(p => p.id === card.id)?.payments[m] ?? 0;
-      const int = sim.monthlyInterest.get(card.id)?.[m] ?? 0;
-      const backlog = sim.monthlyCyclingBacklog.get(card.id)?.[m] ?? 0;
+      const isCycling = cyclingIds.has(card.id);
       const label = card.name.replace(/\s+/g, '_');
-      row[`${label}_bal`] = fmt(bal);
-      row[`${label}_pay`] = fmt(pay);
-      if (int > 0) row[`${label}_int`] = fmt(int);
-      if (backlog > 0) row[`${label}_backlog`] = fmt(backlog);
-      totalBal += bal;
+
+      if (isCycling) {
+        // monthlyCyclingOwed = mandatory statement + existing backlog, before payment
+        const owed = sim.monthlyCyclingOwed.get(card.id)?.[m] ?? 0;
+        const mandatory = sim.monthlyMandatoryCyclingPayment.get(card.id)?.[m] ?? 0;
+        const pay = sim.perCardPaymentsScaled.find(p => p.id === card.id)?.payments[m] ?? 0;
+        const int = sim.monthlyCyclingInterest.get(card.id)?.[m] ?? 0;
+        const backlog = sim.monthlyCyclingBacklog.get(card.id)?.[m] ?? 0;
+        row[`${label}_owed`] = fmt(owed);
+        row[`${label}_pay`] = fmt(pay);
+        row[`${label}_mandatory`] = fmt(mandatory);
+        if (int > 0) row[`${label}_int`] = fmt(int);
+        if (backlog > 0) row[`${label}_backlog`] = fmt(backlog);
+        totalBal += owed;
+      } else {
+        const bal = sim.monthlyRevolvingBalances.get(card.id)?.[m] ?? 0;
+        const pay = sim.perCardPaymentsScaled.find(p => p.id === card.id)?.payments[m] ?? 0;
+        const int = sim.monthlyInterest.get(card.id)?.[m] ?? 0;
+        row[`${label}_bal`] = fmt(bal);
+        row[`${label}_pay`] = fmt(pay);
+        if (int > 0) row[`${label}_int`] = fmt(int);
+        totalBal += bal;
+      }
     }
     row['total_liabilities'] = fmt(totalBal);
     row['total_payment'] = fmt(sim.allPaymentTotals[m] ?? 0);
