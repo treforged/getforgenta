@@ -767,7 +767,10 @@ export function simulateVariablePayoff(
         (!paidOffCards.has(c.id) && (balances.get(c.id) ?? 0) > 0) ||
         (paidOffCards.has(c.id) && (cyclingBacklog.get(c.id) ?? 0) > 0)
       ))
-      .reduce((s, c) => s + c.minPayment, 0);
+      .reduce((s, c) => {
+        if (paidOffCards.has(c.id)) return s + c.minPayment; // cycling backlog: Step 5 cascade pays full static min
+        return s + Math.min(c.minPayment, balances.get(c.id) ?? 0); // revolving: clip to actual balance
+      }, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
     // outer-refinement passes in useCardProjection.ts), don't reserve it a second time here — only
     // the gap, if any (e.g. a card missing a dueDay so the floor couldn't include it), still needs
