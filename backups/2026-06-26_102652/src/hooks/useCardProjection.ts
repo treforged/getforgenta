@@ -789,14 +789,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
           cards.reduce((s, c) => {
             if (c.balance > 0) return s;
-            const actual = simResult.monthlyMandatoryCyclingPayment.get(c.id)?.[m] ?? 0;
-            // cardPurchasesPerMonth[m-1] = purchases deferred into month m's statement.
-            // When the bootstrap underpays the mandatory, "actual" is too low, so the look-ahead
-            // only saves enough to repeat the underpayment. Using max(actual, intended) ensures
-            // the look-ahead always reserves the full statement amount, breaking the deadlock.
-            // Month 0 is always an empty map (no deferred history), so intended is 0 there.
-            const intended = m > 0 ? (cardPurchasesPerMonth[m - 1]?.[c.id] ?? 0) : 0;
-            return s + Math.max(actual, intended);
+            return s + (simResult.monthlyMandatoryCyclingPayment.get(c.id)?.[m] ?? 0);
           }, 0),
         );
 
