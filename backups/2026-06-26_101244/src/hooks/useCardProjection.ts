@@ -77,12 +77,6 @@ export interface CardProjectionResult {
    * displayed "Cash Floor" in lockstep with simulateVariablePayoff's own double-reservation guard
    * for backlog cards — see pay-schedule.ts's getAugmentedMinSafeCash. */
   monthlyCyclingBacklog: Map<string, number[]>;
-  /** Mandatory statement payment made to each cycling card per month (before backlog cascade).
-   * Exposed so simDebug and other consumers can distinguish mandatory vs discretionary payments. */
-  monthlyMandatoryCyclingPayment: Map<string, number[]>;
-  /** Per-month cap on Step-5 debt payments from the look-ahead floor-protection pass.
-   * Infinity = uncapped; finite = save-up month. Exposed for debugging interest-accrual causes. */
-  maxDebtPaymentByMonth: number[];
   m0Income: number;
   m0Expenses: number;
   m0SafeFloor: number;
@@ -1430,8 +1424,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         monthlyCyclingInterest: activeSim.monthlyCyclingInterest,
         monthlyInterest: activeSim.monthlyInterest,
         monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
-        monthlyMandatoryCyclingPayment: activeSim.monthlyMandatoryCyclingPayment,
-        maxDebtPaymentByMonth,
         m0Income,
         m0Expenses,
         m0SafeFloor,
