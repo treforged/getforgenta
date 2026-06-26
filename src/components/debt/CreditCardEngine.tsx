@@ -782,6 +782,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [cashFloor, prePaycheckBills.total, cards, carFunds, variableSim, monthlySavingsAndCar]);
 
   const month0Recs = useMemo(() => {
+    const now = new Date();
+    const todayDay = now.getDate();
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const nextMonthName = MONTHS[(now.getMonth() + 1) % 12];
     const perCardAdj = month0?.perCardAdjusted ?? [];
     const totalAvailableCash = month0?.safeToPayTotal ?? 0;
     const strategyLabel = strategy === 'avalanche' ? 'Avalanche' : 'Snowball';
@@ -791,6 +795,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsdue) < 0;
     const recs = perCardAdj.map(item => {
       const card = cards.find(c => c.id === item.id);
+      const dueDay = card?.dueDay ?? null;
+      // Due date already passed this month → payment is next month's, just save for it.
+      const pastDue = !card?.autopayFullBalance && dueDay !== null && dueDay < todayDay;
       let reason = '';
       let isMinimumOnly = false;
       if (card?.autopayFullBalance || (card && card.balance <= 0)) {
@@ -798,6 +805,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         if (card?.paymentPreference === 'statement') reason = 'Statement balance';
         else if (card?.paymentPreference === 'full') reason = 'Full balance';
         else reason = 'Autopay Full Balance';
+      } else if (pastDue) {
+        const suffix = dueDay === 1 ? 'st' : dueDay === 2 ? 'nd' : dueDay === 3 ? 'rd' : 'th';
+        reason = `Saving for ${nextMonthName} ${dueDay}${suffix}`;
       } else {
         const min = Math.min(card?.minPayment ?? 0, card?.balance ?? 0);
         isMinimumOnly = item.payment <= min + 0.01;
@@ -813,7 +823,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         color: card?.color ?? '#888',
         payment: item.payment,
         maxPayment: item.maxPayment,
-        dueDay: card?.dueDay ?? null,
+        dueDay,
+        pastDue,
+        nextMonthName,
         reason,
         isMinimumOnly,
       };
@@ -1354,15 +1366,22 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <span className="text-[9px] sm:text-[10px] text-success bg-success/10 px-1.5 py-0.5 flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={9} /> autopay
                       </span>
+                    ) : r.pastDue ? (
+                      <span className="text-[9px] sm:text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>saving</span>
                     ) : r.isMinimumOnly ? (
                       <span className="text-[9px] sm:text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>min</span>
                     ) : (
                       <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>priority</span>
                     )}
                     <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate">{r.reason}</span>
-                    {r.dueDay && (
-                      <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><CalendarDays size={8} /> Due {r.dueDay}th</span>
-                    )}
+                    {r.dueDay && (() => {
+                      const suffix = r.dueDay === 1 ? 'st' : r.dueDay === 2 ? 'nd' : r.dueDay === 3 ? 'rd' : 'th';
+                      return (
+                        <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                          <CalendarDays size={8} /> Due {r.pastDue ? `${r.nextMonthName} ` : ''}{r.dueDay}{suffix}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {hasHoldbackCap && month0?.holdbackEvent && (
