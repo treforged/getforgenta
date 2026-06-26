@@ -79,8 +79,9 @@ describe('useCardProjection minimum-payment protection', () => {
       for (let m = 0; m < 36; m++) {
         const revBal = r!.monthlyRevolvingBalances.get(card.id)?.[m] ?? 0;
         const pay = series!.payments[m];
-        // A card with a remaining revolving balance must either be paid at least its minimum,
-        // or have its full remaining balance paid off (a smaller final payment is correct then).
+        // A card with a remaining revolving balance must either be paid at least its configured
+        // minimum payment, or have its full remaining balance paid off (a smaller final payment
+        // is correct then).
         if (revBal > 0 && pay > 0 && pay < card.minPayment - 1 && pay < revBal - 1) {
           violations.push(`month ${m}, ${card.name}: paid ${pay}, min ${card.minPayment}, revBal ${revBal}`);
         }

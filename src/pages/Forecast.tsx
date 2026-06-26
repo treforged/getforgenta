@@ -1414,7 +1414,11 @@ export default function Forecast() {
       const hookScaledTotal = cardProjectionData?.perCardPaymentsScaled
         ?.reduce((s, p) => s + (p.payments[i] ?? 0), 0) ?? null;
       const safetyCeiling = cyclingPayment + revolvingPayment;
-      monthDebtPayment = hookScaledTotal !== null ? Math.min(hookScaledTotal, safetyCeiling) : safetyCeiling;
+      // Use the hook's authoritative total directly — removing the safetyCeiling cap makes the
+      // Forecast popup's per-card amounts identical to the Debt Payoff tab (both read the same
+      // perCardPaymentsScaled source). The cap caused the popup's scale factor to be < 1,
+      // shrinking displayed payments below the simulation's actual values.
+      monthDebtPayment = hookScaledTotal ?? safetyCeiling;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
       // Step 3: redirect surplus above floor to debt. Cap uses CC engine's post-payment revolving
