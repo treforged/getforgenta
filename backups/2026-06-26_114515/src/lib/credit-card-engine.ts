@@ -31,10 +31,6 @@ export type CardData = {
   startDate?: string;
   statementBalancePhase: boolean;
   statementBalance: number | null;
-  /** Remaining interest-free installment plan balance on this card (0 = none). */
-  installmentBalance?: number;
-  /** Fixed monthly payment required by the installment plan (0 = none). */
-  installmentMonthlyPayment?: number;
 };
 
 export type CardMonthRow = {
@@ -211,8 +207,6 @@ export function buildCardData(
       dueDay: acct.payment_due_day ?? null,
       startDate: acct.card_start_date || undefined,
       statementBalancePhase, statementBalance,
-      installmentBalance: Math.max(0, Number(acct.installment_balance) || 0),
-      installmentMonthlyPayment: Math.max(0, Number(acct.installment_monthly_payment) || 0),
     };
   });
 }
@@ -221,7 +215,6 @@ export function buildCardData(
 export function projectCard(card: CardData, months = PROJECTION_MONTHS): CardProjection {
   const rows: CardMonthRow[] = [];
   let bal = card.balance;
-  let instBal = card.installmentBalance ?? 0;
   let totalInterest = 0;
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
@@ -249,18 +242,12 @@ export function projectCard(card: CardData, months = PROJECTION_MONTHS): CardPro
       continue;
     }
 
-    // Interest accrues only on the revolving (non-installment) portion.
-    const revBal = Math.max(0, bal - instBal);
     const interest = (card.paymentPreference === 'statement' && inGrace)
       ? 0
-      : Math.round(revBal * monthlyRate * 100) / 100;
-    // Installment mandatory payment (reduces both total balance and installment balance).
-    const instPay = instBal > 0 && (card.installmentMonthlyPayment ?? 0) > 0
-      ? Math.min(card.installmentMonthlyPayment!, instBal) : 0;
-    const payment = bal <= 0 ? 0 : Math.min(card.targetPayment, bal + newPurchases + interest - instPay);
-    if (card.paymentPreference === 'statement') inGrace = payment >= startBal - instBal + interest - 0.01;
-    instBal = Math.max(0, instBal - instPay);
-    bal = startBal + newPurchases + interest - payment - instPay;
+      : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
+    const payment = bal <= 0 ? 0 : Math.min(card.targetPayment, bal + newPurchases + interest);
+    if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
+    bal = startBal + newPurchases + interest - payment;
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment, endBalance: Math.round(bal * 100) / 100, utilization });
@@ -616,8 +603,6 @@ export function simulateVariablePayoff(
 
   // ── Step 1 — Initialise ────────────────────────────────────
   const balances = new Map<string, number>(cards.map(c => [c.id, c.balance]));
-  // Tracks each card's remaining interest-free installment plan balance month by month.
-  const installmentBals = new Map<string, number>(cards.map(c => [c.id, c.installmentBalance ?? 0]));
   const monthlyPayments = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyRevolvingBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
@@ -735,10 +720,7 @@ export function simulateVariablePayoff(
         perCardMinPayments.get(card.id)!.push(backlog > 0 ? calcMinPayment(backlog, card.apr) : 0);
       } else {
         const bal = balances.get(card.id) ?? 0;
-        const instBal = installmentBals.get(card.id) ?? 0;
-        const revBal = Math.max(0, bal - instBal);
-        const instMinPay = instBal > 0 ? Math.min(card.installmentMonthlyPayment ?? 0, instBal) : 0;
-        perCardMinPayments.get(card.id)!.push(bal > 0 ? (calcMinPayment(revBal, card.apr) + instMinPay) : 0);
+        perCardMinPayments.get(card.id)!.push(bal > 0 ? calcMinPayment(bal, card.apr) : 0);
       }
     }
 
@@ -785,11 +767,7 @@ export function simulateVariablePayoff(
       ))
       .reduce((s, c) => {
         if (paidOffCards.has(c.id)) return s + calcMinPayment(cyclingBacklog.get(c.id) ?? 0, c.apr);
-        const bal = balances.get(c.id) ?? 0;
-        const instBal = installmentBals.get(c.id) ?? 0;
-        const revBal = Math.max(0, bal - instBal);
-        const instMinPay = instBal > 0 ? Math.min(c.installmentMonthlyPayment ?? 0, instBal) : 0;
-        return s + calcMinPayment(revBal, c.apr) + instMinPay;
+        return s + calcMinPayment(balances.get(c.id) ?? 0, c.apr);
       }, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
     // outer-refinement passes in useCardProjection.ts), don't reserve it a second time here — only
@@ -917,22 +895,6 @@ export function simulateVariablePayoff(
       paidOffCards.has(c.id) && (cyclingBacklog.get(c.id) ?? 0) > 0.005 && (cardStartMonths.get(c.id) ?? 0) <= m,
     );
 
-    // ── Step 2.5 — Mandatory installment plan payments ──────────────────────────────────────
-    // Installment portions are interest-free but require a fixed payment each month. Computed
-    // here so Step 3 (interest) can exclude the installment balance, and Step 5 (cascade) can
-    // deduct them from availableCash before allocating surplus. Actual balance updates happen
-    // in Step 6 after the cascade — so installmentBals[card] still reflects the START-of-month
-    // value through Steps 3–5, which the grace-period and paidOff-transition checks need.
-    const installmentPayByCard = new Map<string, number>();
-    let installmentCashCost = 0;
-    for (const card of debtCards) {
-      const instBal = installmentBals.get(card.id) ?? 0;
-      if (instBal <= 0 || (card.installmentMonthlyPayment ?? 0) <= 0) continue;
-      const instPay = Math.round(Math.min(card.installmentMonthlyPayment!, instBal) * 100) / 100;
-      installmentPayByCard.set(card.id, instPay);
-      installmentCashCost += instPay;
-    }
-
     // ── Step 3 — Compute interest on STARTING balances ────────
     // Interest is charged only on the balance carried from last month.
     // For statement-balance preference cards in grace period (last payment covered
@@ -942,10 +904,7 @@ export function simulateVariablePayoff(
     for (const card of debtCards) {
       const bal = balances.get(card.id) ?? 0;
       const inGrace = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
-      // Interest accrues only on the revolving (non-installment) portion.
-      const instBal = installmentBals.get(card.id) ?? 0;
-      const effectiveBal = Math.max(0, bal - instBal);
-      const interest = inGrace ? 0 : Math.round(effectiveBal * (card.apr / 100 / 12) * 100) / 100;
+      const interest = inGrace ? 0 : Math.round(Math.max(0, bal) * (card.apr / 100 / 12) * 100) / 100;
       interestMap.set(card.id, interest);
     }
 
@@ -969,35 +928,27 @@ export function simulateVariablePayoff(
     // in to begin with, so their full backlog amount is always the target.
     const cascadeTarget = (card: CardData): number => {
       if (balBeforePayment.has(card.id)) {
-        // Cascade targets only the revolving (non-installment) portion — the installment
-        // payment is already handled as a mandatory deduction in Step 2.5/Step 6.
-        const instBal = installmentBals.get(card.id) ?? 0;
         if (card.paymentPreference === 'statement') {
           const startBal = balances.get(card.id) ?? 0;
           const interest = interestMap.get(card.id) ?? 0;
-          return Math.max(0, startBal - instBal + interest);
+          return Math.max(0, startBal + interest);
         }
-        return Math.max(0, balBeforePayment.get(card.id)! - instBal);
+        return balBeforePayment.get(card.id)!;
       }
       return cyclingBacklog.get(card.id) ?? 0;
     };
 
     // ── Step 5 — Available surplus for debt payoff ────────────
-    // Minimum for revolving cards excludes the installment portion (handled separately as
-    // installmentCashCost). Minimum for backlog cards is unchanged.
     const totalMins = [...debtCards, ...backlogCards].reduce((s, c) => {
       const owed = owedForCard(c.id);
-      const instBal = installmentBals.get(c.id) ?? 0;
-      const instPay = installmentPayByCard.get(c.id) ?? 0;
-      const revOwed = Math.max(0, owed - instBal);
-      return s + Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed) + instPay;
+      return s + Math.min(Math.max(25, Math.round(owed * 0.02 * 100) / 100), owed);
     }, 0);
 
     // availableCash = what's left above the floor after income, expenses, paid-off costs,
-    // mandatory installment payments, and one-time items for this month.
+    // and one-time items for this month.
     // Month 0 uses month0SafeFloor (= max(cashFloor, ppBills)) so the projection matches recommendations.
     // effectiveFloor and oneTimeNet are computed at top of this iteration (before Step 2).
-    let availableCash = currentCash + monthIncome - monthExpenses - effectiveFloor - paidOffCashCost + oneTimeNet - installmentCashCost;
+    let availableCash = currentCash + monthIncome - monthExpenses - effectiveFloor - paidOffCashCost + oneTimeNet;
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });
       availableCash = 0;
@@ -1022,14 +973,11 @@ export function simulateVariablePayoff(
       const sortedForBreached = [...debtCards, ...backlogCards].sort(
         (a, b) => owedForCard(a.id) - owedForCard(b.id),
       );
-      // Deduct mandatory installment payments first — they are as non-negotiable as revolving mins.
-      let remainingForMins = Math.max(0, currentCash - installmentCashCost);
+      let remainingForMins = Math.max(0, currentCash);
       let atRiskWarningEmitted = false;
       for (const card of sortedForBreached) {
         const owed = owedForCard(card.id);
-        const instBal = installmentBals.get(card.id) ?? 0;
-        const revOwed = Math.max(0, owed - instBal);
-        const min = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
+        const min = Math.min(Math.max(25, Math.round(owed * 0.02 * 100) / 100), owed);
         if (remainingForMins >= min) {
           payments.set(card.id, min);
           remainingForMins -= min;
@@ -1062,9 +1010,7 @@ export function simulateVariablePayoff(
       let remaining = availableCash;
       for (const card of strategyOrder) {
         const owedStep5 = owedForCard(card.id);
-        const instBal = installmentBals.get(card.id) ?? 0;
-        const revOwed = Math.max(0, owedStep5 - instBal);
-        const min = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed, remaining);
+        const min = Math.min(Math.max(25, Math.round(owedStep5 * 0.02 * 100) / 100), owedStep5, remaining);
         payments.set(card.id, min);
         remaining -= min;
       }
@@ -1090,14 +1036,13 @@ export function simulateVariablePayoff(
 
     // ── Minimum enforcement guard ──────────────────────────────────────
     // After all allocation, ensure every active debt card (and backlog card) receives at least
-    // the revolving-portion minimum. Installment payment is already tracked in installmentPayByCard.
+    // Math.min(minPayment, amountOwed). Prevents rounding or edge-case paths from silently
+    // skipping a minimum payment.
     for (const card of [...debtCards, ...backlogCards]) {
       const owed = owedForCard(card.id);
-      const instBal = installmentBals.get(card.id) ?? 0;
-      const revOwed = Math.max(0, owed - instBal);
       const currentPay = payments.get(card.id) ?? 0;
-      const minRequired = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
-      if (currentPay < minRequired && revOwed > 0) {
+      const minRequired = Math.min(Math.max(25, Math.round(owed * 0.02 * 100) / 100), owed);
+      if (currentPay < minRequired && owed > 0) {
         payments.set(card.id, minRequired);
       }
     }
@@ -1109,21 +1054,18 @@ export function simulateVariablePayoff(
       const interest = interestMap.get(card.id) ?? 0;
       const purchases = cardPurchasesThisMonth(card);
       const pay = Math.round((payments.get(card.id) ?? 0) * 100) / 100;
-      // Installment payment is mandatory and separate from the revolving cascade.
-      const instPayThisMonth = installmentPayByCard.get(card.id) ?? 0;
-      const totalPay = Math.round((pay + instPayThisMonth) * 100) / 100;
-      monthlyPayments.get(card.id)!.push(totalPay);
+      monthlyPayments.get(card.id)!.push(pay);
       monthlyInterest.get(card.id)!.push(interest);
-      totalDebtPayments += totalPay;
+      totalDebtPayments += pay;
 
       const bbp = balBeforePayment.get(card.id) ?? 0; // startBal + interest + purchases
       // Round to cents here, not just where this value is later displayed — otherwise tiny
       // floating-point residue (e.g. 1337.1300000000006) silently carries into next month's
       // startBal and compounds across the whole simulation.
-      const endBal = Math.round(Math.max(0, bbp - totalPay) * 100) / 100;
+      const endBal = Math.round(Math.max(0, bbp - pay) * 100) / 100;
       const finalBal = endBal < 1 ? 0 : endBal; // clear sub-dollar dust
       balances.set(card.id, finalBal);
-      // When the total balance just reached $0, pre-seed deferred purchases so the
+      // When the revolving balance just reached $0, pre-seed deferred purchases so the
       // first paidOff month pays monthlyNewPurchases instead of $0 (billing-delay artifact).
       // Fall back to monthlyNewPurchases for statement/autopay cards whose rules aren't tagged
       // with this card's payment_source (cardPurchasesThisMonth would be 0 → $0/$— display).
@@ -1135,17 +1077,13 @@ export function simulateVariablePayoff(
       }
 
       // Statement-preference cards never hit finalBal === 0 while carrying revolving debt
-      // (end balance = purchases > 0). Transition them to paidOffCards when the REVOLVING
-      // portion has dropped to purchases level — i.e., revolving debt is gone. Uses the
-      // start-of-month installment balance (not yet reduced) to isolate the revolving carry-over.
-      const startInstBal = installmentBals.get(card.id) ?? 0; // still pre-Step-6 value
-      const revolvingFinalBal = finalBal - startInstBal + instPayThisMonth; // revolving remaining
+      // (end balance = purchases > 0). Transition them to paidOffCards when the remaining
+      // balance equals only the recurring purchases — i.e., revolving debt is gone.
       if (
         card.paymentPreference === 'statement' &&
         !paidOffCards.has(card.id) &&
         finalBal > 0 &&
-        revolvingFinalBal >= 0 &&
-        revolvingFinalBal <= cardPurchasesThisMonth(card) + 0.01
+        finalBal <= cardPurchasesThisMonth(card) + 0.01
       ) {
         paidOffCards.add(card.id);
         paidOffDeferredPurchases.set(card.id,
@@ -1153,8 +1091,12 @@ export function simulateVariablePayoff(
         balances.set(card.id, 0);
       }
 
-      // If this card's total balance just reached $0 (either path above), retroactively correct
-      // the cycling display arrays pushed as 0-placeholders in Step 2.
+      // If this card's revolving balance just reached $0 (either path above), the ground-truth
+      // isCycling check downstream will treat THIS month as cycling — but monthlyCyclingOwed/
+      // monthlyCyclingInterest were already pushed as 0 placeholders back in Step 2, before this
+      // transition was known. Retroactively correct them to the real revolving figures for this
+      // month (the balance carried in, and this month's actual interest) so the display shows
+      // continuity with last month's end balance instead of a stale $0/no-interest placeholder.
       if ((balances.get(card.id) ?? 0) === 0) {
         const owedArr = monthlyCyclingOwed.get(card.id);
         const interestArr = monthlyCyclingInterest.get(card.id);
@@ -1162,22 +1104,16 @@ export function simulateVariablePayoff(
         if (interestArr && interestArr.length > 0) interestArr[interestArr.length - 1] = interest;
       }
 
-      // Update grace state: grace applies next month if the revolving carry-over
-      // (startBal minus installment portion, plus interest) was fully covered by the
-      // revolving cascade payment. installmentBals still holds the start-of-month value.
+      // Update grace state: grace applies next month if this month's payment covered
+      // the full statement balance (startBal + interest), i.e., nothing carried over.
       if (card.paymentPreference === 'statement') {
-        graceMap.set(card.id, pay >= startBal - startInstBal + interest - 0.01);
+        graceMap.set(card.id, pay >= startBal + interest - 0.01);
       }
 
-      // Now reduce installment balance by this month's installment payment.
-      if (instPayThisMonth > 0) {
-        installmentBals.set(card.id, Math.max(0, Math.round((startInstBal - instPayThisMonth) * 100) / 100));
-      }
-
-      if (totalPay > 0) {
+      if (pay > 0) {
         debtPaymentTransactions.push({
           date: payDateStr, description: `${card.name} Payment`,
-          amount: totalPay, account: fundingAccountId ?? '',
+          amount: pay, account: fundingAccountId ?? '',
           category: 'Debt Payments', card: card.id,
           type: 'debt_payoff', projected: true,
         });

@@ -73,8 +73,6 @@ export type Database = {
           created_at: string
           credit_limit: number | null
           id: string
-          installment_balance: number | null
-          installment_monthly_payment: number | null
           institution: string
           liability_synced_at: string | null
           min_payment: number | null
@@ -102,8 +100,6 @@ export type Database = {
           created_at?: string
           credit_limit?: number | null
           id?: string
-          installment_balance?: number | null
-          installment_monthly_payment?: number | null
           institution?: string
           liability_synced_at?: string | null
           min_payment?: number | null
@@ -131,8 +127,6 @@ export type Database = {
           created_at?: string
           credit_limit?: number | null
           id?: string
-          installment_balance?: number | null
-          installment_monthly_payment?: number | null
           institution?: string
           liability_synced_at?: string | null
           min_payment?: number | null
