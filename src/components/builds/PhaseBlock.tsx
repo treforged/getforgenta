@@ -248,6 +248,7 @@ export default function PhaseBlock({
             total_payments: totalPmts,
             category: 'Car',
             payment_source: ed.newPlanPaymentSource || null,
+            plan_type: 'upfront',
             notes: null,
             active: true,
           });

@@ -555,6 +555,14 @@ export function simulateVariablePayoff(
    * in useCardProjection.ts, which still needs reservedForRevolving as the only protection.
    */
   ccMinAlreadyInFloorByMonth?: number[],
+  /**
+   * Optional per-month per-card BNPL (monthly_charge) installment charges. These hit the card
+   * as new purchases each month (already in cardPurchasesPerMonth) but are interest-free, so
+   * they require a mandatory payment equal to the charge amount. The cascade target for the card
+   * is reduced by this charge so the revolving cascade doesn't try to pay it twice.
+   * installmentChargeByMonth[m][cardId] = total BNPL charge for that card in month m.
+   */
+  installmentChargeByMonth?: { [cardId: string]: number }[],
 ): {
   monthlyPayments: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
@@ -923,14 +931,30 @@ export function simulateVariablePayoff(
     // deduct them from availableCash before allocating surplus. Actual balance updates happen
     // in Step 6 after the cascade — so installmentBals[card] still reflects the START-of-month
     // value through Steps 3–5, which the grace-period and paidOff-transition checks need.
+    //
+    // installmentPayByCard = total mandatory payment (upfront plan + BNPL) for each card.
+    // upfrontInstPayByCard = upfront plan payment only — used in Step 6 to reduce installmentBals.
+    //   BNPL charges wash out within the month (charge = payment) so installmentBals is unaffected.
     const installmentPayByCard = new Map<string, number>();
+    const upfrontInstPayByCard = new Map<string, number>();
     let installmentCashCost = 0;
     for (const card of debtCards) {
+      // Upfront installment plan (e.g. Chase Plan It): fixed monthly payment on existing balance
       const instBal = installmentBals.get(card.id) ?? 0;
-      if (instBal <= 0 || (card.installmentMonthlyPayment ?? 0) <= 0) continue;
-      const instPay = Math.round(Math.min(card.installmentMonthlyPayment!, instBal) * 100) / 100;
-      installmentPayByCard.set(card.id, instPay);
-      installmentCashCost += instPay;
+      if (instBal > 0 && (card.installmentMonthlyPayment ?? 0) > 0) {
+        const instPay = Math.round(Math.min(card.installmentMonthlyPayment!, instBal) * 100) / 100;
+        installmentPayByCard.set(card.id, instPay);
+        upfrontInstPayByCard.set(card.id, instPay);
+        installmentCashCost += instPay;
+      }
+      // BNPL monthly charge (e.g. Amazon BNPL): charge hits card as new purchase, payment
+      // covers it in full — cascade should not also try to pay this portion.
+      const bnplCharge = installmentChargeByMonth?.[m]?.[card.id] ?? 0;
+      if (bnplCharge > 0) {
+        const bnplPay = Math.round(bnplCharge * 100) / 100;
+        installmentPayByCard.set(card.id, (installmentPayByCard.get(card.id) ?? 0) + bnplPay);
+        installmentCashCost += bnplPay;
+      }
     }
 
     // ── Step 3 — Compute interest on STARTING balances ────────
@@ -977,7 +1001,10 @@ export function simulateVariablePayoff(
           const interest = interestMap.get(card.id) ?? 0;
           return Math.max(0, startBal - instBal + interest);
         }
-        return Math.max(0, balBeforePayment.get(card.id)! - instBal);
+        // For non-statement cards, also subtract the BNPL charge for this month — it appears in
+        // balBeforePayment as a new purchase but is paid mandatorily (not by the revolving cascade).
+        const bnplPay = installmentChargeByMonth?.[m]?.[card.id] ?? 0;
+        return Math.max(0, balBeforePayment.get(card.id)! - instBal - bnplPay);
       }
       return cyclingBacklog.get(card.id) ?? 0;
     };
@@ -1139,7 +1166,10 @@ export function simulateVariablePayoff(
       // portion has dropped to purchases level — i.e., revolving debt is gone. Uses the
       // start-of-month installment balance (not yet reduced) to isolate the revolving carry-over.
       const startInstBal = installmentBals.get(card.id) ?? 0; // still pre-Step-6 value
-      const revolvingFinalBal = finalBal - startInstBal + instPayThisMonth; // revolving remaining
+      // Use upfront-only installment pay — BNPL payment washes out (charge=pay) and doesn't
+      // change the revolving carry-over calculation.
+      const upfrontInstPay = upfrontInstPayByCard.get(card.id) ?? 0;
+      const revolvingFinalBal = finalBal - startInstBal + upfrontInstPay; // revolving remaining
       if (
         card.paymentPreference === 'statement' &&
         !paidOffCards.has(card.id) &&
@@ -1169,9 +1199,11 @@ export function simulateVariablePayoff(
         graceMap.set(card.id, pay >= startBal - startInstBal + interest - 0.01);
       }
 
-      // Now reduce installment balance by this month's installment payment.
-      if (instPayThisMonth > 0) {
-        installmentBals.set(card.id, Math.max(0, Math.round((startInstBal - instPayThisMonth) * 100) / 100));
+      // Reduce installment balance by the UPFRONT plan payment only.
+      // BNPL payments (in instPayThisMonth but not upfrontInstPay) wash out within the month
+      // (charge = payment) and do not reduce the tracked installment balance.
+      if (upfrontInstPay > 0) {
+        installmentBals.set(card.id, Math.max(0, Math.round((startInstBal - upfrontInstPay) * 100) / 100));
       }
 
       if (totalPay > 0) {

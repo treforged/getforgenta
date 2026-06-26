@@ -657,6 +657,7 @@ export type Database = {
           notes: string | null
           payment_amount: number
           payment_source: string | null
+          plan_type: string
           provider: string | null
           start_date: string
           total_amount: number
@@ -673,6 +674,7 @@ export type Database = {
           notes?: string | null
           payment_amount: number
           payment_source?: string | null
+          plan_type?: string
           provider?: string | null
           start_date: string
           total_amount: number
@@ -689,6 +691,7 @@ export type Database = {
           notes?: string | null
           payment_amount?: number
           payment_source?: string | null
+          plan_type?: string
           provider?: string | null
           start_date?: string
           total_amount?: number
