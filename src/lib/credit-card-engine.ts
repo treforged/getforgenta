@@ -1011,13 +1011,12 @@ export function simulateVariablePayoff(
 
     // ── Step 5 — Available surplus for debt payoff ────────────
     // Minimum for revolving cards excludes the installment portion (handled separately as
-    // installmentCashCost). Minimum for backlog cards is unchanged.
+    // installmentCashCost, already deducted from availableCash). Minimum for backlog cards is unchanged.
     const totalMins = [...debtCards, ...backlogCards].reduce((s, c) => {
       const owed = owedForCard(c.id);
       const instBal = installmentBals.get(c.id) ?? 0;
-      const instPay = installmentPayByCard.get(c.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);
-      return s + Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed) + instPay;
+      return s + Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
     }, 0);
 
     // availableCash = what's left above the floor after income, expenses, paid-off costs,
