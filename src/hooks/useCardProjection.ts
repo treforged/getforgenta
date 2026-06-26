@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { formatCurrency } from '@/lib/calculations';
+import { attachSimDebug } from '@/lib/simDebug';
 import {
   buildCardData, simulateVariablePayoff, projectCardVariable,
   CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS,
@@ -1408,7 +1409,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         };
       });
 
-      return {
+      const hookResult = {
         data,
         cards: projs.map(p => ({ name: p.card.name, color: p.card.color })),
         simCards: cards,
@@ -1444,6 +1445,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           mortgagePayment: Math.round(m0MortgagePayment),
         },
       };
+      if (import.meta.env.DEV) attachSimDebug(hookResult);
+      return hookResult;
     } catch (e) {
       console.error('[useCardProjection] projection failed:', e);
       return null;

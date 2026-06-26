@@ -914,6 +914,29 @@ export default function Forecast() {
         })()
       : -1;
 
+    // Non-CC debt amortization — compute the projected balance for each non-CC debt record
+    // using proper interest accrual (balance × monthly_rate - payment) rather than the
+    // previous flat linear decay (staticBalance - payment × i) that ignored APR entirely
+    // and underestimated later-month balances for any loan with a non-zero APR.
+    const nonCCDebtItems = debts.filter(
+      dd => !accounts.some(a => a.account_type === 'credit_card' && a.name.toLowerCase() === (dd.name ?? '').toLowerCase())
+    );
+    const nonCCDebtBalanceByMonth = (() => {
+      const arr = new Array<number>(PROJECTION_MONTHS).fill(0);
+      for (const dd of nonCCDebtItems) {
+        let bal = Number(dd.balance);
+        const monthlyRate = (Number(dd.apr) || 0) / 1200;
+        const payment = Number(dd.target_payment) || 0;
+        for (let m = 0; m < PROJECTION_MONTHS; m++) {
+          arr[m] += Math.max(0, bal);
+          bal = monthlyRate > 0
+            ? Math.max(0, bal * (1 + monthlyRate) - payment)
+            : Math.max(0, bal - payment);
+        }
+      }
+      return arr;
+    })();
+
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const monthLabel = d.toLocaleString('en', { month: 'short', year: 'numeric' });
@@ -1177,13 +1200,7 @@ export default function Forecast() {
       const ccDebtBalance = cardProjectionData?.data[i]?.totalCCBalance
         ?? (debtBalancesByMonth[i]?.totalBalance ?? 0);
 
-      const nonCCLiabilities = active
-        .filter((a) => !['credit_card'].includes(a.account_type) && liabilityTypes.includes(a.account_type))
-        .reduce((s, a) => s + Number(a.balance), 0);
-      const otherDebtPayments = debts
-        .filter((dd) => !accounts.some((a) => a.account_type === 'credit_card' && a.name.toLowerCase() === dd.name.toLowerCase()))
-        .reduce((s, dd) => s + Number(dd.target_payment), 0);
-      const otherDebtBalance = Math.max(0, nonCCLiabilities - otherDebtPayments * i);
+      const otherDebtBalance = nonCCDebtBalanceByMonth[i];
 
       // Shared with Dashboard.tsx and useCardProjection.ts via getAugmentedMinSafeCash so the
       // floor displayed here always matches the floor actually used to cap available cash.
