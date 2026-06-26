@@ -57,7 +57,7 @@ type Props = {
   /** Full PROJECTION_MONTHS-length payment arrays from useCardProjection — when provided, projections use Forecast's sim instead of the internal variableSim. */
   perCardPayments?: { id: string; payments: number[] }[] | null;
   /** Cash-floor-constrained version of perCardPayments (pass-3 scaled). Preferred over perCardPayments when provided. */
-  perCardPaymentsScaled?: { id: string; payments: number[] }[] | null;
+  perCardPaymentsScaled?: { id: string; payments: number[]; surpluses?: number[] }[] | null;
   /** Sim revolving balances from useCardProjection — passed to projectCardVariable to fix cycling detection for statement cards. */
   monthlyRevolvingBalances?: Map<string, number[]> | null;
   /** True amount owed per cycling billing cycle (principal + carried interest) from
@@ -1642,6 +1642,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         const idx = yearStart + localIdx;
                         const isOverridden = cardOverrides[idx] !== undefined;
                         const isEditingThis = editingMonth?.cardId === proj.card.id && editingMonth?.month === idx;
+                        const surplusAmt = perCardPaymentsScaled?.find(p => p.id === proj.card.id)?.surpluses?.[idx] ?? 0;
                         return (
                           <div key={row.month} className={`border-b border-border/30 hover:bg-muted/10 ${isOverridden ? 'bg-primary/5' : ''}`}>
                             {/* Main row: Month | Payment | End Balance */}
@@ -1682,6 +1683,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                 <span>Start: {formatCurrency(row.startBalance, false)}</span>
                                 {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
                                 {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
+                                {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt, false)} surplus redirect</span>}
                                 <span className={row.utilization > 30 ? 'text-destructive' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
                                   {row.utilization.toFixed(1)}% utilization
                                 </span>
