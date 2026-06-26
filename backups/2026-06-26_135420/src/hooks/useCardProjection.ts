@@ -56,7 +56,7 @@ export interface CardProjectionResult {
   debtPaymentTotals: number[];
   allPaymentTotals: number[];
   perCardPayments: { name: string; id: string; payments: number[] }[];
-  perCardPaymentsScaled: { name: string; id: string; payments: number[]; surpluses: number[] }[];
+  perCardPaymentsScaled: { name: string; id: string; payments: number[] }[];
   monthlyRevolvingBalances: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
   perCardMinPayments: Map<string, number[]>;
@@ -1366,9 +1366,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const extra = extraPerCardByMonth.get(c.id)?.[m] ?? 0;
           return Math.round(simAmt * scale + extra);
         }),
-        surpluses: Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
-          extraPerCardByMonth.get(c.id)?.[m] ?? 0,
-        ),
       }));
 
       // ── month0 computation ────────────────────────────────────────────────────
