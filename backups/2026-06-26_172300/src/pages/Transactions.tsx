@@ -987,27 +987,29 @@ export default function Transactions() {
                   {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="text-xs text-muted-foreground block mb-1">Payment Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['upfront', 'monthly_charge'] as const).map(pt => (
-                    <button
-                      key={pt}
-                      type="button"
-                      onClick={() => setPlanForm(p => ({ ...p, plan_type: pt }))}
-                      className={`py-2 px-3 text-xs font-medium border transition-colors ${planForm.plan_type === pt ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
-                      style={{ borderRadius: 'var(--radius)' }}
-                    >
-                      {pt === 'upfront' ? 'Upfront' : 'Over Time'}
-                    </button>
-                  ))}
+              {planForm.payment_source && (accounts ?? []).find(a => a.id === planForm.payment_source && a.account_type === 'credit_card') && (
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Interest-Free Plan Type</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['upfront', 'monthly_charge'] as const).map(pt => (
+                      <button
+                        key={pt}
+                        type="button"
+                        onClick={() => setPlanForm(p => ({ ...p, plan_type: pt }))}
+                        className={`py-2 px-3 text-xs font-medium border transition-colors ${planForm.plan_type === pt ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
+                        style={{ borderRadius: 'var(--radius)' }}
+                      >
+                        {pt === 'upfront' ? 'Charged Upfront' : 'Monthly Charge'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {planForm.plan_type === 'upfront'
+                      ? 'Full amount already on card, paid off monthly (e.g. Chase Plan It)'
+                      : 'Fixed amount charges to card each month (e.g. Amazon BNPL)'}
+                  </p>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {planForm.plan_type === 'upfront'
-                    ? 'Full amount charged to card upfront, paid off in installments (e.g. Chase Plan It)'
-                    : 'Fixed amount charges to card each month until paid (e.g. Amazon BNPL)'}
-                </p>
-              </div>
+              )}
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Notes</label>
                 <input

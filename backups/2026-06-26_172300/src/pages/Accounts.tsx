@@ -121,7 +121,7 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
   return { text: `Updated ${lastSync.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: missedSync };
 }
 
-const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '' };
+const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '', installment_balance: '', installment_monthly_payment: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 export default function Accounts() {
@@ -330,6 +330,8 @@ export default function Accounts() {
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
       apr_start_date: a.apr_start_date || '',
       card_start_date: a.card_start_date || '',
+      installment_balance: a.installment_balance != null && Number(a.installment_balance) > 0 ? String(a.installment_balance) : '',
+      installment_monthly_payment: a.installment_monthly_payment != null && Number(a.installment_monthly_payment) > 0 ? String(a.installment_monthly_payment) : '',
     });
     setEditingPlaidLinked(!!a.plaid_account_id);
     setEditingPlaidLiability(plaidLiability);
@@ -356,6 +358,14 @@ export default function Accounts() {
     };
     // Never overwrite Plaid-managed balance — it is owned by the sync job
     if (!editingPlaidLinked) payload.balance = balance;
+    // Installment plan fields — only for credit cards.
+    if (form.account_type === 'credit_card') {
+      const instBal = parseFloat(form.installment_balance);
+      const instPay = parseFloat(form.installment_monthly_payment);
+      payload.installment_balance = !isNaN(instBal) && instBal > 0 ? instBal : null;
+      payload.installment_monthly_payment = !isNaN(instPay) && instPay > 0 ? instPay : null;
+    }
+
     // Always write min_payment to the accounts row for credit cards so the
     // debt engine reads a consistent value from accounts (not the debts table).
     if (form.account_type === 'credit_card') {
@@ -989,6 +999,8 @@ export default function Accounts() {
               { key: 'credit_limit', label: 'Credit Limit', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidLiability, hint: editingPlaidLiability ? 'Managed by Plaid' : undefined },
               { key: 'payment_due_day', label: 'Payment Due Day (1–28)', type: 'number' as const, placeholder: 'e.g. 15', step: '1', hint: 'Day of month your payment is due. Max 28 — not all months have 29–31.' },
               { key: 'card_start_date', label: 'Start Date (future cards)', type: 'date' as const, hint: 'Leave blank for existing cards. Set a future date to begin purchases from that month.' },
+              { key: 'installment_balance', label: 'Installment Plan Balance (optional)', type: 'number' as const, placeholder: '0.00', step: '0.01', hint: 'Remaining interest-free balance on a buy-now-pay-later or plan-it plan. Interest is excluded from this portion.' },
+              { key: 'installment_monthly_payment', label: 'Monthly Installment Payment (optional)', type: 'number' as const, placeholder: '0.00', step: '0.01', hint: 'Fixed monthly payment required for the installment plan. Treated as a mandatory bill separate from the revolving payoff cascade.' },
             ] : []),
             { key: 'apr', label: 'APR % (optional)', type: 'number' as const, placeholder: '0', step: '0.01', disabled: editingPlaidAprSynced, hint: editingPlaidAprSynced ? 'Managed by Plaid' : undefined },
             ...(APY_TYPES.includes(form.account_type) ? [
