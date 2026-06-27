@@ -349,12 +349,14 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
     [cf.lump_sum_payments]
   );
 
-  // Project the future loan so lump sums can be planned against it
+  // Project the future loan so lump sums can be planned against it.
+  // Use the stored payment_start_date when available so the projected schedule matches
+  // Forecast/useCardProjection — falls back to purchase_date + 1 month for existing records.
   const projectedBase = useMemo(() => {
     if (!cf.planned_purchase_date) return null;
     const loanAmt = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
     if (loanAmt <= 0 || cf.loan_term_months <= 0) return null;
-    const payStart = addMonthsStr(cf.planned_purchase_date, 1);
+    const payStart = cf.payment_start_date || addMonthsStr(cf.planned_purchase_date, 1);
     return buildAmortizationSchedule({
       loanAmount: loanAmt, apr: cf.expected_apr, termMonths: cf.loan_term_months,
       loanStartDate: cf.planned_purchase_date, paymentStartDate: payStart, interestStartDate: payStart,
@@ -365,7 +367,7 @@ function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfirm, linkedAccoun
   const projectedWithLumps = useMemo(() => {
     if (!projectedBase || lumpSums.length === 0) return projectedBase;
     const loanAmt = Math.max(0, cf.target_price + cf.tax_fees - cf.down_payment_goal);
-    const payStart = addMonthsStr(cf.planned_purchase_date!, 1);
+    const payStart = cf.payment_start_date || addMonthsStr(cf.planned_purchase_date!, 1);
     return buildAmortizationSchedule({
       loanAmount: loanAmt, apr: cf.expected_apr, termMonths: cf.loan_term_months,
       loanStartDate: cf.planned_purchase_date!, paymentStartDate: payStart, interestStartDate: payStart,
