@@ -1462,7 +1462,16 @@ export default function Forecast() {
       // keeps per-card popup amounts in sync with the Debt Payoff tab. Clamp to safetyCeiling
       // when the hook's total exceeds it (rare disagreement between the two cash models) so
       // this page never pays out more than its own independent floor check considers safe.
-      monthDebtPayment = hookScaledTotal !== null ? Math.min(hookScaledTotal, safetyCeiling) : safetyCeiling;
+      // Exception: when activeSim (sim2) diverges from the original sim on a catch-up payment
+      // (e.g., a cycling card that temporarily built revolving balance), hookScaledTotal can
+      // legitimately exceed the original-sim-derived ceiling. Allow it when paying the full
+      // hookScaledTotal still leaves cash safely above floor — the floor check is the real gate.
+      const effectiveCeiling = (
+        hookScaledTotal !== null &&
+        hookScaledTotal > safetyCeiling &&
+        cashPreDebt - hookScaledTotal >= b.monthMinSafe
+      ) ? hookScaledTotal : safetyCeiling;
+      monthDebtPayment = hookScaledTotal !== null ? Math.min(hookScaledTotal, effectiveCeiling) : effectiveCeiling;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
       // Step 3: redirect surplus above floor to debt. Cap uses CC engine's post-payment revolving
