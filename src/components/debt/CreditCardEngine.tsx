@@ -789,8 +789,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const perCardAdj = month0?.perCardAdjusted ?? [];
     const totalAvailableCash = month0?.safeToPayTotal ?? 0;
     const strategyLabel = strategy === 'avalanche' ? 'Avalanche' : 'Snowball';
+    const m0MonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const totalMinimumsdue = cards
       .filter(c => !c.autopayFullBalance && c.balance > 0)
+      .filter(c => {
+        if (!c.dueDay) return true;
+        const dueDateStr = `${m0MonthStr}-${String(c.dueDay).padStart(2, '0')}`;
+        return dueDateStr > syncCutoffDate;
+      })
       .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
     const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsdue) < 0;
     const recs = perCardAdj.map(item => {
@@ -831,7 +837,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       };
     });
     return { totalAvailableCash, totalMinimumsdue, cashWarning, strategyLabel, recs };
-  }, [month0, cards, strategy]);
+  }, [month0, cards, strategy, syncCutoffDate]);
 
   const projections: CardProjection[] = useMemo(() => {
     // Month 0: use pass-3 constrained amount (matches "Recommended This Month" panel).

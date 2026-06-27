@@ -650,8 +650,15 @@ export default function Dashboard() {
       return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, autopayTotal: 0, strategyLabel, cashWarning: false, interestAvoided: 0 };
     }
     const totalAvailableCash = m0.safeToPayTotal;
+    const now = new Date();
+    const m0MonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const totalMinimumsDue = simCards
       .filter(c => !c.autopayFullBalance && c.balance > 0)
+      .filter(c => {
+        if (!c.dueDay) return true;
+        const dueDateStr = `${m0MonthStr}-${String(c.dueDay).padStart(2, '0')}`;
+        return dueDateStr > syncCutoffDate;
+      })
       .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
     const autopayTotal = simCards
       .filter(c => c.autopayFullBalance)
@@ -683,7 +690,7 @@ export default function Dashboard() {
     const totalRecommended = recommendations.reduce((s, r) => s + r.payment, 0);
     const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsDue) < 0;
     return { recommendations, totalMinimumsDue, totalRecommended, totalAvailableCash, autopayTotal, strategyLabel, cashWarning, interestAvoided: 0 };
-  }, [cardProjection, debtCards, debtStrategy]);
+  }, [cardProjection, debtCards, debtStrategy, syncCutoffDate]);
 
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
 

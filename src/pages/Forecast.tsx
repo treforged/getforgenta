@@ -634,11 +634,18 @@ export default function Forecast() {
     const activeCarLoanInsuranceByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
       const dStr = d.toISOString().split('T')[0];
+      const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       return (carFunds)
         .filter((cf): cf is typeof cf & { loan_start_date: string } => cf.phase === 'loan' && !!cf.loan_start_date)
         .filter((cf) => {
           const insuranceAnchor = cf.insurance_start_date ?? cf.loan_start_date;
-          return monthsBetween(insuranceAnchor, dStr) >= 0;
+          if (monthsBetween(insuranceAnchor, dStr) < 0) return false;
+          // Month 0: skip if the insurance due date already cleared through Plaid.
+          if (i === 0 && syncCutoffDate) {
+            const insuranceDueDay = new Date(insuranceAnchor + 'T00:00:00').getDate();
+            if (`${mk}-${String(insuranceDueDay).padStart(2, '0')}` <= syncCutoffDate) return false;
+          }
+          return true;
         })
         .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
     });
