@@ -765,23 +765,14 @@ export function getAugmentedMinSafeCash(
     monthlyCyclingBacklog?: Map<string, number[]>;
   } | null,
   monthIdx: number,
-  syncCutoffDate?: string,
 ): { monthMinSafe: number; floorItems: { name: string; amount: number; dueDay: number }[]; prePaycheckBillsTotal: number; ccRevolvingMinIncluded: number } {
   const { total: baseTotal, items: baseItems } = getPrePaycheckNextMonthBills(rules, config, fundingAccountId, now);
   let prePaycheckBillsTotal = baseTotal;
   const floorItems: { name: string; amount: number; dueDay: number }[] = [...baseItems];
 
-  // For month 0: a due date already past syncCutoffDate means Plaid already captured that
-  // payment — the live balance reflects it, so reserving it in the floor double-counts it.
-  const m0MonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const dueSynced = (dueDay: number) =>
-    monthIdx === 0 && !!syncCutoffDate &&
-    `${m0MonthStr}-${String(dueDay).padStart(2, '0')}` <= syncCutoffDate;
-
   for (const cf of carFunds ?? []) {
     if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
     const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
-    if (dueSynced(loanDueDay)) continue;
     const carPayments = getActiveCarLoanPayments([cf], now);
     for (const cp of carPayments) {
       prePaycheckBillsTotal += cp.payment;
@@ -802,7 +793,6 @@ export function getAugmentedMinSafeCash(
     const dueDayBasis = cf.payment_start_date ?? cf.planned_purchase_date;
     if (!dueDayBasis) continue;
     const insuranceDueDay = new Date(dueDayBasis + 'T00:00:00').getDate();
-    if (dueSynced(insuranceDueDay)) continue;
     prePaycheckBillsTotal += insurance;
     floorItems.push({ name: cf.vehicle_name + ' insurance', amount: insurance, dueDay: insuranceDueDay });
   }
@@ -820,7 +810,6 @@ export function getAugmentedMinSafeCash(
       if (revBal > 0) {
         const minPay = cc.perCardMinPayments?.get(card.id)?.[monthIdx] ?? 0;
         if (minPay > 0 && card.dueDay) {
-          if (dueSynced(card.dueDay)) continue;
           prePaycheckBillsTotal += minPay;
           ccRevolvingMinIncluded += minPay;
           floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
@@ -838,7 +827,6 @@ export function getAugmentedMinSafeCash(
         // in the floor every month from today, even though the card won't have its first real
         // payment due until that start month.
         if (card.startDate && monthsBetween(card.startDate, now.toISOString().split('T')[0]) < 0) continue;
-        if (dueSynced(card.dueDay)) continue;
         prePaycheckBillsTotal += card.minPayment;
         floorItems.push({ name: card.name + ' min', amount: card.minPayment, dueDay: card.dueDay });
         // A backlog-carrying cycling card's minimum is ALSO reserved by simulateVariablePayoff's

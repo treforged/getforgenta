@@ -614,9 +614,9 @@ export default function Dashboard() {
         perCardMinPayments: cardProjection.perCardMinPayments,
         monthlyCyclingBacklog: cardProjection.monthlyCyclingBacklog,
       } : null,
-      0, syncCutoffDate,
+      0,
     ),
-    [rules, payConfig, cashFloor, fundingAccountId, carFunds, cardProjection, syncCutoffDate],
+    [rules, payConfig, cashFloor, fundingAccountId, carFunds, cardProjection],
   );
 
   const fundingBalance = useMemo(() => {
