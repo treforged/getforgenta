@@ -356,9 +356,13 @@ export function projectCardVariable(
     // Use sim revolving balance as ground truth when available: avoids ~$0.01 rounding
     // drift in the local inGrace check that prevents statement cards from ever transitioning.
     const simRevBal = revolvingBalances?.[m - 1];
+    const trueEndBal = trueBalanceByMonth?.[m - 1];
+    // Remain in the revolving display branch while an installment balance is still owed, even
+    // after the revolving portion clears to 0 — the cycling path tracks CC purchases ($0 for
+    // upfront plans), so the balance chart would appear flat at $0 while thousands remain owed.
     const isCycling = hasPref && (
       simRevBal !== undefined ? simRevBal === 0 : (bal <= 0 || payoffMonth !== null)
-    );
+    ) && !((card.installmentBalance ?? 0) > 0 && trueEndBal !== undefined && trueEndBal > 0);
 
     if (!hasPref && bal <= 0 && payoffMonth !== null) break;
     if (isCycling && m > months) break;
@@ -387,7 +391,6 @@ export function projectCardVariable(
       continue;
     }
 
-    const trueEndBal = trueBalanceByMonth?.[m - 1];
     let interest: number;
     let payment: number;
     if (trueEndBal !== undefined) {
