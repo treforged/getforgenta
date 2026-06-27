@@ -296,7 +296,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // purchases so the payoff simulation sees the recurring balance growth.
       if (paymentPlans && paymentPlans.length > 0) {
         for (const plan of paymentPlans) {
-          if (!plan.active || !plan.payment_source || plan.plan_type !== 'monthly_charge') continue;
+          if (!plan.active || !plan.payment_source) continue;
           const cardId = sourceToCardId.get(plan.payment_source);
           if (!cardId) continue;
           const planDates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
