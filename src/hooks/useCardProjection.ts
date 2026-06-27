@@ -151,9 +151,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Active upfront plans (Chase Plan It style) have their remaining balance and monthly
       // payment aggregated per card. Multiple plans on the same card are summed.
       const cardIdsSet = new Set(rawCards.map(c => c.id));
+      // payment_source values in payment_plans are stored as 'account:UUID' (from paymentSourceOptions).
+      // This map normalizes both 'UUID' and 'account:UUID' to the bare card ID so all plan lookups
+      // below resolve correctly regardless of which format is stored.
+      const sourceToCardId = new Map<string, string>(
+        rawCards.flatMap(c => [[c.id, c.id], [`account:${c.id}`, c.id]]),
+      );
       const cards = rawCards.map(card => {
         const cardUpfrontPlans = (paymentPlans ?? []).filter(p =>
-          p.active && p.plan_type === 'upfront' && p.payment_source === card.id,
+          p.active && p.plan_type === 'upfront' && sourceToCardId.get(p.payment_source ?? '') === card.id,
         );
         if (cardUpfrontPlans.length === 0) return card;
         let totalInstBal = 0;
@@ -206,13 +212,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const charges: { [cardId: string]: number } = {};
         for (const plan of paymentPlans ?? []) {
           if (!plan.active || plan.plan_type !== 'monthly_charge' || !plan.payment_source) continue;
-          if (!cardIdsSet.has(plan.payment_source)) continue;
+          const cardId = sourceToCardId.get(plan.payment_source);
+          if (!cardId) continue;
           const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
           const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
           const dates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
           const chargesInMonth = dates.filter(date => date.startsWith(monthStr)).length;
           if (chargesInMonth > 0) {
-            const cardId = plan.payment_source;
             charges[cardId] = (charges[cardId] ?? 0) + chargesInMonth * plan.payment_amount;
           }
         }
@@ -289,9 +295,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Plans paid via CC increase the card balance each month — inject as new
       // purchases so the payoff simulation sees the recurring balance growth.
       if (paymentPlans && paymentPlans.length > 0) {
-        const sourceToCardId = new Map<string, string>(
-          cards.flatMap(c => [[c.id, c.id], [`account:${c.id}`, c.id]]),
-        );
         for (const plan of paymentPlans) {
           if (!plan.active || !plan.payment_source) continue;
           const cardId = sourceToCardId.get(plan.payment_source);
