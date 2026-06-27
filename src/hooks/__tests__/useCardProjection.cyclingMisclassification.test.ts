@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
+import { calcMinPayment } from '@/lib/credit-card-engine';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
@@ -94,7 +95,10 @@ describe('useCardProjection cycling classification', () => {
     // leave most months free to pay above the minimum.
     const series = r.perCardPaymentsScaled.find(p => p.id === revolvingCardId)!;
     const card = r.simCards.find(c => c.id === revolvingCardId)!;
-    const monthsAtMinimum = series.payments.slice(0, 12).filter(p => p <= card.minPayment + 1).length;
+    const monthsAtMinimum = series.payments.slice(0, 12).filter((p, m) => {
+      const bal = r.monthlyRevolvingBalances.get(revolvingCardId)?.[m] ?? 0;
+      return p <= calcMinPayment(bal, card.apr) + 1;
+    }).length;
     expect(monthsAtMinimum).toBeLessThan(6);
   });
 });

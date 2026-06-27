@@ -414,6 +414,7 @@ export type Database = {
           expected_apr: number
           gift_contribution: number
           id: string
+          insurance_start_date: string | null
           interest_start_date: string | null
           linked_account: string | null
           linked_rule_id: string | null
@@ -440,6 +441,7 @@ export type Database = {
           expected_apr?: number
           gift_contribution?: number
           id?: string
+          insurance_start_date?: string | null
           interest_start_date?: string | null
           linked_account?: string | null
           linked_rule_id?: string | null
@@ -466,6 +468,7 @@ export type Database = {
           expected_apr?: number
           gift_contribution?: number
           id?: string
+          insurance_start_date?: string | null
           interest_start_date?: string | null
           linked_account?: string | null
           linked_rule_id?: string | null

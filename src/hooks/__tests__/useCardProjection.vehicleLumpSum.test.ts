@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
+import { calcMinPayment } from '@/lib/credit-card-engine';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
@@ -93,7 +94,7 @@ describe('useCardProjection vehicle projected-loan lump-sum payments', () => {
     for (let m = 0; m < 36; m++) {
       const revBal = r.monthlyRevolvingBalances.get(cardId)?.[m] ?? 0;
       const pay = series.payments[m];
-      if (revBal > 0 && pay > 0 && pay < card.minPayment - 1 && pay < revBal - 1) {
+      if (revBal > 0 && pay > 0 && pay < calcMinPayment(revBal, card.apr) - 1 && pay < revBal - 1) {
         violations.push(`month ${m}: paid ${pay}, min ${card.minPayment}, revBal ${revBal}`);
       }
     }

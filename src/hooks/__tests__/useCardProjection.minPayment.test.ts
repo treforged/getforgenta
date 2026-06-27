@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useCardProjection, type UseCardProjectionParams } from '../useCardProjection';
+import { calcMinPayment } from '@/lib/credit-card-engine';
 import { buildPayConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import type { AccountRow, RuleRow } from '@/hooks/useSupabaseData';
@@ -82,7 +83,7 @@ describe('useCardProjection minimum-payment protection', () => {
         // A card with a remaining revolving balance must either be paid at least its configured
         // minimum payment, or have its full remaining balance paid off (a smaller final payment
         // is correct then).
-        if (revBal > 0 && pay > 0 && pay < card.minPayment - 1 && pay < revBal - 1) {
+        if (revBal > 0 && pay > 0 && pay < calcMinPayment(revBal, card.apr) - 1 && pay < revBal - 1) {
           violations.push(`month ${m}, ${card.name}: paid ${pay}, min ${card.minPayment}, revBal ${revBal}`);
         }
       }
@@ -93,7 +94,7 @@ describe('useCardProjection minimum-payment protection', () => {
     for (const item of r!.month0.perCardAdjusted) {
       const card = r!.simCards.find(c => c.id === item.id);
       const revBal = r!.monthlyRevolvingBalances.get(item.id)?.[0] ?? 0;
-      if (revBal > 0 && item.payment > 0 && item.payment < (card?.minPayment ?? 0) - 1 && item.payment < revBal - 1) {
+      if (revBal > 0 && item.payment > 0 && item.payment < calcMinPayment(revBal, card?.apr ?? 0) - 1 && item.payment < revBal - 1) {
         violations.push(`month 0 (perCardAdjusted), ${item.name}: paid ${item.payment}, min ${card?.minPayment}`);
       }
     }

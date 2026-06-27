@@ -636,7 +636,10 @@ export default function Forecast() {
       const dStr = d.toISOString().split('T')[0];
       return (carFunds)
         .filter((cf): cf is typeof cf & { loan_start_date: string } => cf.phase === 'loan' && !!cf.loan_start_date)
-        .filter((cf) => monthsBetween(cf.loan_start_date, dStr) >= 0)
+        .filter((cf) => {
+          const insuranceAnchor = cf.insurance_start_date ?? cf.loan_start_date;
+          return monthsBetween(insuranceAnchor, dStr) >= 0;
+        })
         .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
     });
 
@@ -745,7 +748,13 @@ export default function Forecast() {
               lumpSumPayments: c.lump_sum_payments ?? [],
             }).schedule.length
           : Number(c.loan_term_months);
-        return { contrib, purchaseMonthIdx, paymentStartMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: effectiveTermMonths, lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string, linkedAccountId: (c.linked_account as string | null) ?? null };
+        let insuranceStartMonthIdx = purchaseMonthIdx;
+        if (c.insurance_start_date) {
+          const parts = (c.insurance_start_date as string).split('-').map(Number);
+          const isd = new Date(parts[0], parts[1] - 1, parts[2]);
+          insuranceStartMonthIdx = Math.max(0, (isd.getFullYear() - nowDate.getFullYear()) * 12 + (isd.getMonth() - nowDate.getMonth()));
+        }
+        return { contrib, purchaseMonthIdx, paymentStartMonthIdx, insuranceStartMonthIdx, projPayment, downPayment: Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0)), effectiveDP, insurance: Number(c.monthly_insurance), termMonths: effectiveTermMonths, lumpSumPayments: (c.lump_sum_payments ?? []) as { id: string; date: string; amount: number }[], vehicleName: c.vehicle_name as string, linkedAccountId: (c.linked_account as string | null) ?? null };
       });
     // Per-vehicle lump sum breakdown for forecast popup (every car fund, any phase). Previously
     // filtered to phase === 'loan' only, plus a second pass over vehicleProjections (saving-phase
@@ -869,7 +878,7 @@ export default function Forecast() {
     // need insurance the day you own the car, not when the first loan bill posts. The loan
     // payment itself stays anchored to paymentStartMonthIdx elsewhere; only insurance differs.
     const getMonthVehicleInsurance = (i: number) => vehicleProjections.reduce(
-      (s, v) => s + (isFinite(v.purchaseMonthIdx) && i >= v.purchaseMonthIdx ? v.insurance : 0), 0)
+      (s, v) => s + (isFinite(v.insuranceStartMonthIdx) && i >= v.insuranceStartMonthIdx ? v.insurance : 0), 0)
       + activeCarLoanInsuranceByMonth[i];
 
     const transferRulesAll = rules.filter((r) => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));

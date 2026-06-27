@@ -54,6 +54,7 @@ export type CarFund = {
   loan_start_date: string | null;
   payment_start_date: string | null;
   interest_start_date: string | null;
+  insurance_start_date: string | null;
   actual_monthly_payment: number;
   linked_account: string | null;
   linked_rule_id: string | null;
