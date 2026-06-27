@@ -22,13 +22,15 @@ import { toast } from 'sonner';
 const CHART_COLORS = ['hsl(43, 56%, 52%)', 'hsl(142, 50%, 40%)', 'hsl(200, 60%, 50%)', 'hsl(280, 50%, 50%)'];
 const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Retirement', 'Custom'];
 const ROTH_IRA_LIMIT = 7000;
-const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '', linked_rule_id: '' };
+const emptyForm = { name: '', target_amount: '', current_amount: '', monthly_contribution: '', target_date: '', goal_type: 'Custom', linked_account: '', contribution_start_date: '' };
 
 // allGoals' shape: a real savings_goals row enriched with values computed from
 // the linked account/rule (not DB columns themselves).
+type LinkedRuleInfo = { name: string; amount: number; frequency: string; start_date: string | null };
+
 type EnrichedGoal = Partial<Tables<'savings_goals'>> & {
   effective_apy: number;
-  linked_rule: { name: string; amount: number; frequency: string; start_date: string | null } | null;
+  linked_rules: LinkedRuleInfo[];
   available_after_outflows: number | null;
 };
 
@@ -314,6 +316,7 @@ export default function SavingsGoals() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
@@ -390,14 +393,24 @@ export default function SavingsGoals() {
 
   const allGoals: EnrichedGoal[] = useMemo(() => {
     return goals.map(g => {
-      const linkedRule = g.linked_rule_id
-        ? rules.find(r => r.id === g.linked_rule_id)
-        : null;
+      // Support multiple linked rules; fall back to legacy single linked_rule_id
+      const ruleIds: string[] = (g.linked_rule_ids ?? []).length > 0
+        ? (g.linked_rule_ids ?? [])
+        : g.linked_rule_id ? [g.linked_rule_id] : [];
+      const linkedRules: LinkedRuleInfo[] = ruleIds
+        .map(id => rules.find(r => r.id === id))
+        .filter((r): r is NonNullable<typeof r> => r != null)
+        .map(r => ({ name: r.name, amount: r.amount, frequency: r.frequency, start_date: r.start_date ?? null }));
       const linkedAcct = g.linked_account ? accountMap[g.linked_account] : null;
       const rawRate = Number(linkedAcct?.apy_rate ?? linkedAcct?.apr ?? 0);
       const typeDefault = (['savings', 'high_yield_savings'].includes(linkedAcct?.account_type ?? '') ? 4.5
         : ['brokerage', 'roth_ira', '401k', 'ira', 'hsa'].includes(linkedAcct?.account_type ?? '') ? 7 : 0);
       const effective_apy = rawRate > 0 ? rawRate : typeDefault;
+      const linkedMonthly = linkedRules.reduce((s, r) => s + toMonthly(r.amount, r.frequency), 0);
+      const earliestStart = linkedRules
+        .map(r => r.start_date)
+        .filter((d): d is string => d != null)
+        .sort()[0] ?? null;
       return {
         ...g,
         goal_type: g.goal_type || 'Custom',
@@ -407,11 +420,11 @@ export default function SavingsGoals() {
         available_after_outflows: g.linked_account && accountMap[g.linked_account]
           ? getLinkedAmount(g.linked_account)
           : null,
-        monthly_contribution: linkedRule
-          ? toMonthly(Number(linkedRule.amount), linkedRule.frequency)
+        monthly_contribution: linkedRules.length > 0
+          ? linkedMonthly
           : Number(g.monthly_contribution),
-        contribution_start_date: linkedRule?.start_date ?? g.contribution_start_date ?? null,
-        linked_rule: linkedRule || null,
+        contribution_start_date: earliestStart ?? g.contribution_start_date ?? null,
+        linked_rules: linkedRules,
         effective_apy,
       };
     });
@@ -434,6 +447,7 @@ export default function SavingsGoals() {
 
   const openAdd = (goalType = 'Custom') => {
     setForm({ ...emptyForm, goal_type: goalType });
+    setSelectedRuleIds([]);
     setEditId(null); setShowForm(true);
   };
 
@@ -443,8 +457,12 @@ export default function SavingsGoals() {
       monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
       goal_type: g.goal_type || 'Custom', linked_account: g.linked_account || '',
       contribution_start_date: g.contribution_start_date || '',
-      linked_rule_id: g.linked_rule_id || '',
     });
+    // Populate from linked_rule_ids, falling back to legacy single linked_rule_id
+    const ids = (g.linked_rule_ids ?? []).length > 0
+      ? (g.linked_rule_ids ?? [])
+      : g.linked_rule_id ? [g.linked_rule_id] : [];
+    setSelectedRuleIds(ids);
     setEditId(g.id ?? null); setShowForm(true);
   };
 
@@ -454,8 +472,11 @@ export default function SavingsGoals() {
       monthly_contribution: String(g.monthly_contribution), target_date: g.target_date || '',
       goal_type: g.goal_type || 'Custom', linked_account: g.linked_account || '',
       contribution_start_date: g.contribution_start_date || '',
-      linked_rule_id: g.linked_rule_id || '',
     });
+    const ids = (g.linked_rule_ids ?? []).length > 0
+      ? (g.linked_rule_ids ?? [])
+      : g.linked_rule_id ? [g.linked_rule_id] : [];
+    setSelectedRuleIds(ids);
     setEditId(null); setShowForm(true);
     toast.info('Goal duplicated — edit and save');
   };
@@ -474,7 +495,8 @@ export default function SavingsGoals() {
       linked_account: form.linked_account || null,
       goal_type: form.goal_type || 'Custom',
       contribution_start_date: form.contribution_start_date || null,
-      linked_rule_id: form.linked_rule_id || null,
+      linked_rule_ids: selectedRuleIds,
+      linked_rule_id: selectedRuleIds.length === 1 ? selectedRuleIds[0] : null,
     };
     if (editId) {
       update.mutate({ id: editId, ...payload });
@@ -510,26 +532,23 @@ export default function SavingsGoals() {
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }
 
-  const formLinkedRuleId = form.linked_rule_id;
-
   const formFields = useMemo(() => {
     const fields: Field[] = [
       { key: 'name', label: 'Goal Name', type: 'text', placeholder: 'e.g., Emergency Fund' },
       { key: 'goal_type', label: 'Goal Type', type: 'select', options: GOAL_TYPES.map(t => ({ value: t, label: t })) },
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
-      { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync amount & start date)', type: 'select', options: transferRuleOptions },
       { key: 'target_amount', label: 'Target Amount', type: 'number', placeholder: '10000', step: '0.01' },
     ];
     if (!form.linked_account) {
       fields.push({ key: 'current_amount', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' });
     }
-    if (!formLinkedRuleId) {
+    if (selectedRuleIds.length === 0) {
       fields.push({ key: 'monthly_contribution', label: 'Monthly Contribution', type: 'number', placeholder: '500', step: '0.01' });
       fields.push({ key: 'contribution_start_date', label: 'Contributions Start (optional)', type: 'date' });
     }
     fields.push({ key: 'target_date', label: 'Target Date', type: 'date' });
     return fields;
-  }, [form.linked_account, formLinkedRuleId, accountOptions, transferRuleOptions]);
+  }, [form.linked_account, selectedRuleIds.length, accountOptions]);
 
   if (accountsLoading) return <PageSkeleton />;
 
@@ -627,8 +646,8 @@ export default function SavingsGoals() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground break-words leading-relaxed">
-                    {g.linked_rule
-                      ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {g.linked_rule.name}</span>
+                    {g.linked_rules && g.linked_rules.length > 0
+                      ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
                       : `${formatCurrency(Number(g.monthly_contribution), false)}/mo contribution`
                     }
                     {isLinked && ' · Auto-synced from account'}
@@ -682,7 +701,44 @@ export default function SavingsGoals() {
           onClose={() => setShowForm(false)}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Goal' : 'Add Goal'}
-        />
+        >
+          <div className="space-y-2">
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider">Transfer Rules (auto-sync contributions)</label>
+            {transferRuleOptions.filter(o => o.value).length === 0 ? (
+              <p className="text-xs text-muted-foreground">No active transfer or investment rules found.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {transferRuleOptions.filter(o => o.value).map(o => {
+                  const active = selectedRuleIds.includes(o.value);
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => setSelectedRuleIds(prev =>
+                        active ? prev.filter(id => id !== o.value) : [...prev, o.value]
+                      )}
+                      className={`px-3 py-1.5 text-xs border transition-colors ${active ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border hover:text-foreground'}`}
+                      style={{ borderRadius: 'var(--radius)' }}
+                    >
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {selectedRuleIds.length > 0 && (
+              <p className="text-[10px] text-muted-foreground">
+                Total: {formatCurrency(
+                  selectedRuleIds.reduce((s, id) => {
+                    const r = rules.find(r => r.id === id);
+                    return r ? s + toMonthly(r.amount, r.frequency) : s;
+                  }, 0),
+                  false
+                )}/mo · Monthly contribution and start date auto-synced from rules
+              </p>
+            )}
+          </div>
+        </FormModal>
       )}
     </div>
   );
