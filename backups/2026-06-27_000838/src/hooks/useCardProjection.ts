@@ -641,21 +641,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         .filter(c => !c.autopayFullBalance && c.balance > 0)
         .reduce((s, c) => s + c.minPayment, 0);
 
-      // Per-month mandatory installment cash cost. The engine deducts this separately from
-      // availableCash (Step 2.5), so the look-ahead must also model it as an expense rather
-      // than as part of ccMin — otherwise save-up caps include the installment amount and the
-      // engine pays it twice (once as cascade, once as installmentCashCost), draining $300+
-      // per save-up month more than the look-ahead predicted, causing floor breaches.
-      const installmentCostByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
-        cards.reduce((s, c) => {
-          const instBal = c.installmentBalance ?? 0;
-          const instPmt = c.installmentMonthlyPayment ?? 0;
-          if (instBal <= 0 || instPmt <= 0) return s;
-          const remaining = Math.max(0, instBal - m * instPmt);
-          return s + (remaining > 0 ? Math.min(instPmt, remaining) : 0);
-        }, 0)
-      );
-
       // ── Car down-payment amounts per month (for combined look-ahead) ──────────
       // effectiveDP = what must still come from checking in the purchase month after monthly
       // savings have accumulated. When monthly savings cover all of `rem`, this is 0 — no
@@ -772,18 +757,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // cycling payment needs monthlyPayments) — see the iterative refinement below this
       // function for why it has to be callable more than once, each time against a fresher
       // simulation.
-      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[], ccMinByMonth?: number[]) => {
-        // Strip installment from ccMinByMonth so the save-up cap reflects only the revolving
-        // minimum. Installment is modeled as an expense below — the engine pays it separately
-        // via installmentCashCost, so the look-ahead must not also include it in the cascade cap.
-        const ccMinRevOnly = ccMinByMonth?.map((total, m) =>
-          Math.max(0, total - installmentCostByMonth[m])
-        );
-        return computeFloorProtection({
+      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[], ccMinByMonth?: number[]) =>
+        computeFloorProtection({
           incomeByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => m === 0 ? m0Income : (simulationMonthEvents[m]?.income ?? monthlyTakeHome)),
-          expenseByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
-            comprehensiveMExp(m, cyclingPaymentByMonth) + installmentCostByMonth[m]
-          ),
+          expenseByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => comprehensiveMExp(m, cyclingPaymentByMonth)),
           oneTimeNetByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
             if (m === 0) return 0;
             const ot = oneTimeArr[m] ?? { income: 0, expenses: 0 };
@@ -793,11 +770,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           floorByMonth,
           startingBalance: debtFundingBalance,
           ccMinTotal,
-          ccMinByMonth: ccMinRevOnly,
+          ccMinByMonth,
           cyclingExcessByMonth,
           carFunds, transactions, ccSourceIds, now, formatCurrency,
         });
-      };
 
       // Merge car DP into one-time expenses so simulateVariablePayoff deducts it from
       // currentCash in the DP month — without this the simulation overstates available
