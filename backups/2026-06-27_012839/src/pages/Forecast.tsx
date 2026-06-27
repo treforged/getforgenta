@@ -1313,24 +1313,19 @@ export default function Forecast() {
     // already started.
     const goalAccountMap = new Map(accounts.map((a) => [a.id, a]));
     const resolvedGoals = goals.map((g) => {
-      const ruleIds: string[] = (g.linked_rule_ids ?? []).length > 0
-        ? (g.linked_rule_ids ?? [])
-        : g.linked_rule_id ? [g.linked_rule_id] : [];
-      const linkedRules = ruleIds.map(id => rules.find(r => r.id === id)).filter((r): r is NonNullable<typeof r> => r != null);
+      const linkedRule = g.linked_rule_id ? rules.find((r) => r.id === g.linked_rule_id) : null;
       const linkedAcct = g.linked_account ? goalAccountMap.get(g.linked_account) : null;
-      const earliestStart = linkedRules.map(r => r.start_date).filter((d): d is string => d != null).sort()[0] ?? null;
-      const contributionStartDate = earliestStart ?? g.contribution_start_date ?? null;
+      const contributionStartDate = linkedRule?.start_date ?? g.contribution_start_date ?? null;
       let delayMonths = 0;
       if (contributionStartDate) {
         const start = new Date(contributionStartDate + 'T00:00:00');
         const j = (start.getFullYear() - nowDate.getFullYear()) * 12 + (start.getMonth() - nowDate.getMonth());
         delayMonths = Math.max(0, j - 1);
       }
-      const linkedMonthly = linkedRules.reduce((s, r) => s + toMonthly(Number(r.amount), r.frequency), 0);
       return {
         ...g,
         current_amount: linkedAcct ? Number(linkedAcct.balance) : Number(g.current_amount),
-        monthly_contribution: linkedRules.length > 0 ? linkedMonthly : Number(g.monthly_contribution),
+        monthly_contribution: linkedRule ? toMonthly(Number(linkedRule.amount), linkedRule.frequency) : Number(g.monthly_contribution),
         delayMonths,
       };
     });

@@ -1042,21 +1042,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         ).map(r => r.deposit_account!),
       );
       const goalContrib = pauseSavings ? 0 : goals.reduce((s, g) => {
-        const ruleIds: string[] = (g.linked_rule_ids ?? []).length > 0
-          ? (g.linked_rule_ids ?? [])
-          : g.linked_rule_id ? [g.linked_rule_id] : [];
-        const linkedRules = ruleIds.map(id => rules.find(r => r.id === id)).filter((r): r is NonNullable<typeof r> => r != null);
-        const startDate = linkedRules.map(r => r.start_date).filter((d): d is string => d != null).sort()[0]
-          ?? g.contribution_start_date ?? null;
-        if (startDate && new Date(startDate + 'T00:00:00') > now) return s;
+        if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
         if (g.linked_account && retireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
-        const ruleMonthly = (amt: number, freq: string) =>
-          freq === 'weekly' ? amt * 52 / 12 : freq === 'biweekly' ? amt * 26 / 12 : amt;
-        const monthly = linkedRules.length > 0
-          ? linkedRules.reduce((t, r) => t + ruleMonthly(Number(r.amount), r.frequency), 0)
-          : Number(g.monthly_contribution);
-        return s + monthly;
+        return s + Number(g.monthly_contribution);
       }, 0);
       // Mirrors Forecast.tsx's vehicleProjections.contrib formula exactly (purchaseMonthIdx-based
       // denominator, linked_rule_id-gated skip) so the two pipelines never drift apart again.

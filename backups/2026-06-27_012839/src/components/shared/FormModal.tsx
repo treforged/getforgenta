@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect } from 'react';
 import { X, Info, Check, Loader2 } from 'lucide-react';
 import DateScrollPicker from './DateScrollPicker';
 
@@ -25,10 +25,9 @@ type Props = {
   saving?: boolean;
   saveLabel?: string;
   notice?: string;
-  children?: ReactNode;
 };
 
-export default function FormModal({ title, fields, values, onChange, onSave, onClose, saving, saveLabel = 'Save', notice, children }: Props) {
+export default function FormModal({ title, fields, values, onChange, onSave, onClose, saving, saveLabel = 'Save', notice }: Props) {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
@@ -111,7 +110,6 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
               {f.hint && <p className="text-[10px] text-muted-foreground mt-0.5">{f.hint}</p>}
             </div>
           ))}
-          {children}
         </div>
 
         {/* Sticky save button — always visible */}

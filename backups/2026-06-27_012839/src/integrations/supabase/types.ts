@@ -1015,7 +1015,6 @@ export type Database = {
           id: string
           linked_account: string | null
           linked_rule_id: string | null
-          linked_rule_ids: string[]
           lump_sum_payments: Json
           monthly_contribution: number
           name: string
@@ -1032,7 +1031,6 @@ export type Database = {
           id?: string
           linked_account?: string | null
           linked_rule_id?: string | null
-          linked_rule_ids?: string[]
           lump_sum_payments?: Json
           monthly_contribution?: number
           name: string
@@ -1049,7 +1047,6 @@ export type Database = {
           id?: string
           linked_account?: string | null
           linked_rule_id?: string | null
-          linked_rule_ids?: string[]
           lump_sum_payments?: Json
           monthly_contribution?: number
           name?: string
