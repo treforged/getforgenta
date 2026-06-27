@@ -1414,6 +1414,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             // Cycling card — in save-up months with no revolving debt, preserve the mandatory
             // cycling payment and scale only the discretionary backlog-paydown portion.
             if (saveUpMonths.has(m) && debtPaymentTotals[m] === 0) {
+              // Statement/full-balance preference cards must pay the full statement balance each
+              // cycle to avoid interest — that amount is not discretionary, so never cap it.
+              if (c.paymentPreference === 'statement' || c.paymentPreference === 'full') return simAmt;
               const cardMandatory = activeSim.monthlyMandatoryCyclingPayment.get(c.id)?.[m] ?? 0;
               const cardDiscretionary = Math.max(0, simAmt - cardMandatory);
               const totalDiscretionaryCapped = Math.max(0, allPaymentTotals[m] - (mandatoryCyclingByMonth[m] ?? 0));
