@@ -1449,8 +1449,14 @@ export default function Forecast() {
       // running-cash model and the two only roughly agree. Still clamped to Forecast's own
       // ceiling so a rare disagreement between the two models can never let this page pay out
       // more than its own independent floor check considers safe.
-      const hookScaledTotal = cardProjectionData?.perCardPaymentsScaled
-        ?.reduce((s, p) => s + (p.payments[i] ?? 0), 0) ?? null;
+      // When all month-0 CC payments have already settled before syncCutoffDate (safeToPayTotal === 0),
+      // perCardPaymentsScaled still carries the engine's pass-3 revolving amounts — routing those via
+      // hookScaledTotal would double-count payments already captured in the live Plaid balance. Use 0
+      // so the math matches what the engine actually recommends for this settled month.
+      const m0AllSettled = i === 0 && (cardProjectionData?.month0?.safeToPayTotal ?? 1) === 0;
+      const hookScaledTotal = m0AllSettled
+        ? 0
+        : (cardProjectionData?.perCardPaymentsScaled?.reduce((s, p) => s + (p.payments[i] ?? 0), 0) ?? null);
       const safetyCeiling = cyclingPayment + revolvingPayment;
       // Prefer the hook's total when it's within Forecast's own floor-safety ceiling — that
       // keeps per-card popup amounts in sync with the Debt Payoff tab. Clamp to safetyCeiling
@@ -1464,12 +1470,14 @@ export default function Forecast() {
       // where p3RevBal fell below the true balance because monthly interest wasn't added back.
       // The engine's monthlyRevolvingBalances[i] already has the planned revolving payment deducted,
       // so revolvingPayment is not subtracted again here.
+      // Skip surplus routing in month 0 when all payments are settled — future-dated income should
+      // remain visible as projected ending cash, not be silently pre-routed to CC debt.
       const ccEngRevBalEnd = (cardProjectionData?.simCards ?? []).reduce((s, c) => {
         const revBal0 = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[0] ?? 1;
         if (revBal0 === 0) return s;
         return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
       }, 0);
-      if (!strictSaveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
+      if (!m0AllSettled && !strictSaveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
         const surplus = Math.min(finalLiquid - b.monthMinSafe, Math.max(0, ccEngRevBalEnd - cumulativeSurplus));
         if (surplus > 0) {
           monthDebtPayment += surplus;
