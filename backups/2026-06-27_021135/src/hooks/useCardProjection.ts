@@ -491,14 +491,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
                 lumpSumPayments: c.lump_sum_payments ?? [],
               }).schedule.length
             : Number(c.loan_term_months) || 0;
-          let insuranceStartMonthIdx = purchaseMonthIdx;
-          if (c.insurance_start_date) {
-            const parts = (c.insurance_start_date as string).split('-').map(Number);
-            const isd = new Date(parts[0], parts[1] - 1, parts[2]);
-            insuranceStartMonthIdx = Math.max(0, (isd.getFullYear() - now.getFullYear()) * 12 + (isd.getMonth() - now.getMonth()));
-          }
           return {
-            purchaseMonthIdx, paymentStartMonthIdx, insuranceStartMonthIdx, projPayment, termMonths: effectiveTermMonths, insurance: Number(c.monthly_insurance || 0),
+            purchaseMonthIdx, paymentStartMonthIdx, projPayment, termMonths: effectiveTermMonths, insurance: Number(c.monthly_insurance || 0),
             // Extra payments the user plans to make once this saving-phase car is financed —
             // mirrors Forecast.tsx's getMonthProjLumpSum.
             lumpSumPayments: (c.lump_sum_payments ?? []) as { date: string; amount: number }[],
@@ -508,9 +502,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return vehicleForecastByMonth.reduce((s, v) => {
-          // Insurance follows insuranceStartMonthIdx — defaults to purchaseMonthIdx unless the
-          // user set a separate insurance_start_date (e.g. coverage starts a month later).
-          const insurance = m >= v.insuranceStartMonthIdx ? v.insurance : 0;
+          // Insurance follows the purchase date (purchaseMonthIdx), not the payment-start date —
+          // needed the day you own the car, not when the first bill posts. The loan payment
+          // itself stays anchored to paymentStartMonthIdx; only insurance differs.
+          const insurance = m >= v.purchaseMonthIdx ? v.insurance : 0;
           const inLoanWindow = m >= v.paymentStartMonthIdx && m < v.paymentStartMonthIdx + v.termMonths;
           const projLoan = inLoanWindow ? v.projPayment : 0;
           const lumpSum = inLoanWindow
@@ -546,10 +541,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const dStr = d.toISOString().split('T')[0];
         return carFunds
           .filter(cf => cf.phase === 'loan' && cf.loan_start_date)
-          .filter(cf => {
-            const insuranceAnchor = cf.insurance_start_date ?? cf.loan_start_date!;
-            return monthsBetween(insuranceAnchor, dStr) >= 0;
-          })
+          .filter(cf => monthsBetween(cf.loan_start_date!, dStr) >= 0)
           .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
       });
 

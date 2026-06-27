@@ -123,7 +123,7 @@ describe('useCardProjection — active loan insurance', () => {
       loan_amount: 0, expected_apr: 6, loan_term_months: 60,
       loan_start_date: null, payment_start_date: futureStart, interest_start_date: null,
       actual_monthly_payment: 0, monthly_insurance: 150,
-      linked_account: null, linked_rule_id: null, loan_payment_account: null, planned_purchase_date: today,
+      linked_account: null, linked_rule_id: null, loan_payment_account: null, insurance_start_date: null, planned_purchase_date: today,
       lump_sum_payments: [],
     }];
 
@@ -148,7 +148,7 @@ describe('useCardProjection — active loan insurance', () => {
       loan_amount: 0, expected_apr: 6, loan_term_months: 0,
       loan_start_date: null, payment_start_date: today, interest_start_date: null,
       actual_monthly_payment: 0, monthly_insurance: 150,
-      linked_account: null, linked_rule_id: null, loan_payment_account: null, planned_purchase_date: today,
+      linked_account: null, linked_rule_id: null, loan_payment_account: null, insurance_start_date: null, planned_purchase_date: today,
       lump_sum_payments: [],
     }];
     const loanPhaseCarFunds = [{

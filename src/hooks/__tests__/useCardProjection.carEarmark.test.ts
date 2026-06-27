@@ -65,7 +65,7 @@ describe('useCardProjection — car-fund down-payment earmark', () => {
       loan_amount: 0, expected_apr: 10.18, loan_term_months: 48,
       loan_start_date: null, payment_start_date: '2026-08-07', interest_start_date: null,
       actual_monthly_payment: 0, monthly_insurance: 0,
-      linked_account: checkingId, linked_rule_id: null, loan_payment_account: null,
+      linked_account: checkingId, linked_rule_id: null, loan_payment_account: null, insurance_start_date: null,
       planned_purchase_date: '2026-06-21', lump_sum_payments: [],
     }];
     const withCar = run(carFunds);
@@ -81,7 +81,7 @@ describe('useCardProjection — car-fund down-payment earmark', () => {
       loan_amount: 0, expected_apr: 10.18, loan_term_months: 48,
       loan_start_date: null, payment_start_date: '2026-08-07', interest_start_date: null,
       actual_monthly_payment: 0, monthly_insurance: 0,
-      linked_account: 'separate-savings-acct', linked_rule_id: null, loan_payment_account: null,
+      linked_account: 'separate-savings-acct', linked_rule_id: null, loan_payment_account: null, insurance_start_date: null,
       planned_purchase_date: '2026-06-21', lump_sum_payments: [],
     }];
     const withCar = run(carFunds);
@@ -102,7 +102,7 @@ describe('useCardProjection — car-fund down-payment earmark', () => {
       loan_amount: 0, expected_apr: 0, loan_term_months: 0,
       loan_start_date: null, payment_start_date: '2026-08-07', interest_start_date: null,
       actual_monthly_payment: 0, monthly_insurance: 0,
-      linked_account: checkingId, linked_rule_id: null, loan_payment_account: null,
+      linked_account: checkingId, linked_rule_id: null, loan_payment_account: null, insurance_start_date: null,
       planned_purchase_date: '2026-06-21', lump_sum_payments: [],
     }];
     const loanCarFunds = [{ ...savingCarFunds[0], phase: 'loan', loan_amount: 0, loan_start_date: '2026-06-21' }];

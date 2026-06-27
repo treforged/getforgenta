@@ -29,13 +29,13 @@ const emptySavingForm = {
   vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', gift_contribution: '',
   current_saved: '', monthly_insurance: '', expected_apr: '', loan_term_months: '60',
   linked_account: '', linked_rule_id: '', planned_purchase_date: '',
-  payment_start_date: '', insurance_start_date: '',
+  payment_start_date: '',
 };
 
 const emptyLoanForm = {
   vehicle_name: '', loan_amount: '', expected_apr: '', loan_term_months: '60',
   loan_start_date: '', payment_start_date: '', interest_start_date: '', actual_monthly_payment: '',
-  monthly_insurance: '', loan_payment_account: '', insurance_start_date: '',
+  monthly_insurance: '', loan_payment_account: '',
 };
 
 function addMonthsStr(dateStr: string, n: number): string {
@@ -719,7 +719,6 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
     interest_start_date: cf.payment_start_date ?? nextMonth,
     actual_monthly_payment: '',
     loan_payment_account: cf.loan_payment_account ?? '',
-    insurance_start_date: cf.insurance_start_date ?? '',
   });
 
   const scheduledPmt = useMemo(() => {
@@ -753,7 +752,6 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
       interest_start_date: form.interest_start_date || form.payment_start_date,
       actual_monthly_payment: parseFloat(form.actual_monthly_payment) || 0,
       loan_payment_account: form.loan_payment_account || null,
-      insurance_start_date: form.insurance_start_date || null,
     });
   };
 
@@ -781,7 +779,6 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
             { k: 'loan_start_date', label: 'Loan Start Date', type: 'date' },
             { k: 'payment_start_date', label: 'First Payment Date', type: 'date' },
             { k: 'interest_start_date', label: 'Interest Start Date', type: 'date' },
-            { k: 'insurance_start_date', label: 'Insurance Start Date (if different from loan start)', type: 'date' },
           ].map(field => (
             <div key={field.k}>
               <label className="text-xs font-medium text-muted-foreground block mb-1">{field.label}</label>
@@ -920,7 +917,6 @@ export default function Vehicles() {
     }
     fields.push(
       { key: 'monthly_insurance', label: 'Monthly Insurance Est.', type: 'number', placeholder: '180', step: '0.01' },
-      { key: 'insurance_start_date', label: 'Insurance Start Date (if different from purchase date)', type: 'date' },
       { key: 'expected_apr', label: 'Expected Loan APR %', type: 'number', placeholder: '5.9', step: '0.01' },
       { key: 'loan_term_months', label: 'Loan Term (months)', type: 'number', placeholder: '60' },
     );
@@ -945,7 +941,6 @@ export default function Vehicles() {
       linked_rule_id: cf.linked_rule_id ?? '',
       planned_purchase_date: cf.planned_purchase_date ?? '',
       payment_start_date: cf.payment_start_date ?? '',
-      insurance_start_date: cf.insurance_start_date ?? '',
     });
     setEditId(cf.id); setShowSavingForm(true);
   };
@@ -958,7 +953,6 @@ export default function Vehicles() {
       interest_start_date: cf.interest_start_date ?? '', actual_monthly_payment: String(cf.actual_monthly_payment || ''),
       monthly_insurance: String(cf.monthly_insurance),
       loan_payment_account: cf.loan_payment_account ?? '',
-      insurance_start_date: cf.insurance_start_date ?? '',
     });
     setEditId(cf.id); setShowLoanForm(true);
   };
@@ -1006,7 +1000,6 @@ export default function Vehicles() {
       loan_amount: 0, loan_start_date: null,
       payment_start_date: savingForm.payment_start_date || null,
       interest_start_date: null, actual_monthly_payment: 0,
-      insurance_start_date: savingForm.insurance_start_date || null,
     };
     if (editId) update.mutate({ id: editId, ...payload });
     else add.mutate(payload);
@@ -1035,7 +1028,6 @@ export default function Vehicles() {
       actual_monthly_payment: parseFloat(loanForm.actual_monthly_payment) || 0,
       monthly_insurance: parseFloat(loanForm.monthly_insurance) || 0,
       loan_payment_account: loanForm.loan_payment_account || null,
-      insurance_start_date: loanForm.insurance_start_date || null,
       phase: 'loan' as const,
     };
     // Only zero out saving-phase identity fields when creating a brand-new direct loan (no
@@ -1333,7 +1325,6 @@ export default function Vehicles() {
             { key: 'interest_start_date', label: 'Interest Start Date', type: 'date' },
             { key: 'actual_monthly_payment', label: 'Payment Override (blank = scheduled)', type: 'number', placeholder: '0', step: '0.01' },
             { key: 'monthly_insurance', label: 'Monthly Insurance', type: 'number', placeholder: '180', step: '0.01' },
-            { key: 'insurance_start_date', label: 'Insurance Start Date (if different from loan start)', type: 'date' },
             { key: 'loan_payment_account', label: 'Monthly Payment Account', type: 'select', options: accountOptions },
           ]}
           values={loanForm}

@@ -15,7 +15,7 @@ function makeCarFund(overrides: Partial<CarFund>): CarFund {
     loan_term_months: 60, phase: 'saving', loan_amount: 0,
     loan_start_date: null, payment_start_date: null, interest_start_date: null,
     actual_monthly_payment: 0, linked_account: null, linked_rule_id: null, loan_payment_account: null,
-    planned_purchase_date: null, gift_contribution: 0, lump_sum_payments: [], created_at: '2026-01-01',
+    planned_purchase_date: null, gift_contribution: 0, lump_sum_payments: [], insurance_start_date: null, created_at: '2026-01-01',
     ...overrides,
   };
 }

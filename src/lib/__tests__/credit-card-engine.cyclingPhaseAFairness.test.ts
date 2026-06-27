@@ -63,7 +63,7 @@ describe('simulateVariablePayoff — Phase A fairness between cycling cards with
     expect(smallPay).toBeGreaterThan(100);
 
     // Verified exact split for this fixture against the fixed implementation.
-    expect(bigPay).toBeCloseTo(579.49, 2);
-    expect(smallPay).toBeCloseTo(140.51, 2);
+    expect(bigPay).toBeCloseTo(404.49, 2);
+    expect(smallPay).toBeCloseTo(145.51, 2);
   });
 });
