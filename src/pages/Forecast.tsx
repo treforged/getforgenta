@@ -1222,7 +1222,7 @@ export default function Forecast() {
           perCardMinPayments: cardProjectionData.perCardMinPayments,
           monthlyCyclingBacklog: cardProjectionData.monthlyCyclingBacklog,
         } : null,
-        i,
+        i, syncCutoffDate,
       );
 
       // Respect contribution_start_date; exclude goals linked to retirement accounts (paycheck deduction)

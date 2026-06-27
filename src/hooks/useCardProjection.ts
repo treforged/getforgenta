@@ -497,22 +497,34 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             const isd = new Date(parts[0], parts[1] - 1, parts[2]);
             insuranceStartMonthIdx = Math.max(0, (isd.getFullYear() - now.getFullYear()) * 12 + (isd.getMonth() - now.getMonth()));
           }
+          // Due days for month-0 syncCutoffDate gating in getVehicleExtrasForMonth.
+          const paymentDueDay = c.payment_start_date ? new Date(c.payment_start_date + 'T00:00:00').getDate() : null;
+          const insuranceDueDay = (c.insurance_start_date ?? c.planned_purchase_date)
+            ? new Date((c.insurance_start_date ?? c.planned_purchase_date)! + 'T00:00:00').getDate() : null;
           return {
             purchaseMonthIdx, paymentStartMonthIdx, insuranceStartMonthIdx, projPayment, termMonths: effectiveTermMonths, insurance: Number(c.monthly_insurance || 0),
+            paymentDueDay, insuranceDueDay,
             // Extra payments the user plans to make once this saving-phase car is financed —
             // mirrors Forecast.tsx's getMonthProjLumpSum.
             lumpSumPayments: (c.lump_sum_payments ?? []) as { date: string; amount: number }[],
           };
         });
+      const m0SyncCutoff = syncCutoffDate ?? todayStr;
       const getVehicleExtrasForMonth = (m: number) => {
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return vehicleForecastByMonth.reduce((s, v) => {
+          // Month 0: skip items whose due date is already past syncCutoffDate — Plaid balance
+          // already reflects them; counting them again understates available cash.
+          const insuranceSynced = m === 0 && v.insuranceDueDay !== null
+            && `${mk}-${String(v.insuranceDueDay).padStart(2, '0')}` <= m0SyncCutoff;
+          const paymentSynced = m === 0 && v.paymentDueDay !== null
+            && `${mk}-${String(v.paymentDueDay).padStart(2, '0')}` <= m0SyncCutoff;
           // Insurance follows insuranceStartMonthIdx — defaults to purchaseMonthIdx unless the
           // user set a separate insurance_start_date (e.g. coverage starts a month later).
-          const insurance = m >= v.insuranceStartMonthIdx ? v.insurance : 0;
+          const insurance = m >= v.insuranceStartMonthIdx && !insuranceSynced ? v.insurance : 0;
           const inLoanWindow = m >= v.paymentStartMonthIdx && m < v.paymentStartMonthIdx + v.termMonths;
-          const projLoan = inLoanWindow ? v.projPayment : 0;
+          const projLoan = inLoanWindow && !paymentSynced ? v.projPayment : 0;
           const lumpSum = inLoanWindow
             ? v.lumpSumPayments.filter(ls => ls.date.substring(0, 7) === mk).reduce((s2, ls) => s2 + Number(ls.amount), 0)
             : 0;
@@ -544,11 +556,20 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carLoanInsuranceByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
         const dStr = d.toISOString().split('T')[0];
+        const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return carFunds
           .filter(cf => cf.phase === 'loan' && cf.loan_start_date)
           .filter(cf => {
             const insuranceAnchor = cf.insurance_start_date ?? cf.loan_start_date!;
             return monthsBetween(insuranceAnchor, dStr) >= 0;
+          })
+          .filter(cf => {
+            // Month 0: skip if insurance due day already past syncCutoffDate (Plaid captured it).
+            if (i !== 0) return true;
+            const dueDayBasis = cf.insurance_start_date ?? cf.payment_start_date ?? cf.loan_start_date;
+            if (!dueDayBasis) return true;
+            const insurDay = new Date(dueDayBasis + 'T00:00:00').getDate();
+            return `${mk}-${String(insurDay).padStart(2, '0')}` > m0SyncCutoff;
           })
           .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
       });
@@ -837,7 +858,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             carFunds, {
               simCards: cards, monthlyRevolvingBalances: simResult.monthlyRevolvingBalances,
               perCardMinPayments: simResult.perCardMinPayments, monthlyCyclingBacklog: simResult.monthlyCyclingBacklog,
-            }, m,
+            }, m, syncCutoffDate,
           );
           floor.push(r.monthMinSafe);
           ccMinInFloor.push(r.ccRevolvingMinIncluded);
@@ -1101,7 +1122,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0) - effectiveSaved);
         return rem > 0 && !(c.linked_account && c.linked_rule_id);
       });
-      const carLoanTotal = getTotalCarLoanMonthly(carFunds);
+      // Exclude loan payments whose current-month due date is already past syncCutoffDate —
+      // the Plaid balance already reflects those payments; counting them again understates cash.
+      const m0CarFundsForLoan = (carFunds ?? []).filter(cf => {
+        if (cf.phase !== 'loan' || !cf.payment_start_date) return true;
+        const payDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
+        const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        return `${currentMonthStr}-${String(payDay).padStart(2, '0')}` > m0SyncCutoff;
+      });
+      const carLoanTotal = getTotalCarLoanMonthly(m0CarFundsForLoan);
       const monthlySavingsAndCar = goalContrib + carReserve + carLoanTotal;
 
       // ── PASS-3 equivalent: constrain per-card payments to cash-floor model ─────
@@ -1136,7 +1165,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           carFunds, {
             simCards: cards, monthlyRevolvingBalances: sim.monthlyRevolvingBalances,
             perCardMinPayments: sim.perCardMinPayments, monthlyCyclingBacklog: sim.monthlyCyclingBacklog,
-          }, m,
+          }, m, syncCutoffDate,
         ).monthMinSafe;
         const simRevTotal = debtPaymentTotals[m];
         const simCycTotal = Math.max(0, allPaymentTotals[m] - simRevTotal);
@@ -1261,7 +1290,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             carFunds, {
               simCards: cards, monthlyRevolvingBalances: sim2.monthlyRevolvingBalances,
               perCardMinPayments: sim2.perCardMinPayments, monthlyCyclingBacklog: sim2.monthlyCyclingBacklog,
-            }, m,
+            }, m, syncCutoffDate,
           ).monthMinSafe;
           const simRevTotal2 = debtPaymentTotals[m];
           const simCycTotal2 = Math.max(0, allPaymentTotals[m] - simRevTotal2);
@@ -1451,7 +1480,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         carFunds, {
           simCards: cards, monthlyRevolvingBalances: activeSim.monthlyRevolvingBalances,
           perCardMinPayments: activeSim.perCardMinPayments, monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
-        }, 0,
+        }, 0, syncCutoffDate,
       ).monthMinSafe;
 
       // Vehicle insurance/projected loan and mortgage for month 0 — reuses the per-month
