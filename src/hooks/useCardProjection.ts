@@ -1551,6 +1551,22 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         };
       });
 
+      // Zero out revolving cards whose current-month due date already passed syncCutoffDate.
+      // Those payments cleared through Plaid and are already in the live balance; recommending
+      // them again would double-count cash that's already gone.
+      const m0MonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const perCardAdjustedFinal = syncCutoffDate ? perCardAdjusted.map(pca => {
+        const card = cards.find(c => c.id === pca.id);
+        if (!card || !card.dueDay) return pca;
+        if ((activeSim.monthlyRevolvingBalances.get(card.id)?.[0] ?? 1) === 0) return pca;
+        const dueDateStr = `${m0MonthStr}-${String(card.dueDay).padStart(2, '0')}`;
+        return dueDateStr <= syncCutoffDate ? { ...pca, payment: 0 } : pca;
+      }) : perCardAdjusted;
+      const revolvingPaymentFinal = perCardAdjustedFinal
+        .filter(pca => (activeSim.monthlyRevolvingBalances.get(pca.id)?.[0] ?? 1) > 0)
+        .reduce((s, pca) => s + pca.payment, 0);
+      const safeToPayTotalFinal = Math.round(cyclingPayment + revolvingPaymentFinal);
+
       const hookResult = {
         data,
         cards: projs.map(p => ({ name: p.card.name, color: p.card.color })),
@@ -1575,13 +1591,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         strictSaveUpMonths,
         saveUpReason,
         month0: {
-          safeToPayTotal: Math.round(safeToPayTotal),
+          safeToPayTotal: safeToPayTotalFinal,
           maxCapacity: Math.round(maxCapacity),
           holdback: Math.round(holdback),
           holdbackEvent,
           cyclingPayment: Math.round(cyclingPayment),
-          revolvingPayment: Math.round(revolvingPayment),
-          perCardAdjusted,
+          revolvingPayment: Math.round(revolvingPaymentFinal),
+          perCardAdjusted: perCardAdjustedFinal,
           m0SafeFloor: Math.round(m0FloorAugmented),
           carReserve: Math.round(carReserve),
           carReserveEvent: carReserveEvent ? { vehicleName: carReserveEvent.vehicle_name as string } : null,

@@ -1445,11 +1445,11 @@ export default function Forecast() {
       const hookScaledTotal = cardProjectionData?.perCardPaymentsScaled
         ?.reduce((s, p) => s + (p.payments[i] ?? 0), 0) ?? null;
       const safetyCeiling = cyclingPayment + revolvingPayment;
-      // Use the hook's authoritative total directly — it already ran the same floor-protection
-      // logic, so capping it further to Forecast's independently-derived ceiling only causes
-      // popup per-card amounts to drift from what the Debt Payoff tab shows. Fall back to
-      // safetyCeiling only when hook data is unavailable.
-      monthDebtPayment = hookScaledTotal ?? safetyCeiling;
+      // Prefer the hook's total when it's within Forecast's own floor-safety ceiling — that
+      // keeps per-card popup amounts in sync with the Debt Payoff tab. Clamp to safetyCeiling
+      // when the hook's total exceeds it (rare disagreement between the two cash models) so
+      // this page never pays out more than its own independent floor check considers safe.
+      monthDebtPayment = hookScaledTotal !== null ? Math.min(hookScaledTotal, safetyCeiling) : safetyCeiling;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
       // Step 3: redirect surplus above floor to debt. Cap uses CC engine's post-payment revolving
