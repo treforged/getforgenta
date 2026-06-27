@@ -169,9 +169,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           totalInstBal += Math.max(0, remaining * plan.payment_amount);
           totalInstMonthly += plan.payment_amount;
         }
+        // Cap installment balance at the card's live balance — the payment plan's total may
+        // exceed what Plaid reports if the user entered an amount larger than the charge.
+        const cappedInstBal = Math.min(Math.round(totalInstBal * 100) / 100, card.balance);
         return {
           ...card,
-          installmentBalance: Math.round(totalInstBal * 100) / 100,
+          installmentBalance: cappedInstBal,
           installmentMonthlyPayment: Math.round(totalInstMonthly * 100) / 100,
         };
       });
