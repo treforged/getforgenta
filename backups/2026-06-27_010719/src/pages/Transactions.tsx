@@ -31,6 +31,7 @@ const emptyPlanForm = {
   name: '',
   provider: '',
   total_amount: '',
+  payment_amount: '',
   frequency: 'monthly' as PaymentPlanFrequency,
   start_date: new Date().toISOString().split('T')[0],
   total_payments: '',
@@ -428,6 +429,7 @@ export default function Transactions() {
       name: plan.name,
       provider: plan.provider ?? '',
       total_amount: String(plan.total_amount),
+      payment_amount: String(plan.payment_amount),
       frequency: plan.frequency,
       start_date: plan.start_date,
       total_payments: String(plan.total_payments),
@@ -442,10 +444,11 @@ export default function Transactions() {
 
   const handleSavePlan = () => {
     const totalAmt = parseFloat(planForm.total_amount);
+    const payAmt = parseFloat(planForm.payment_amount);
     const totalPay = parseInt(planForm.total_payments, 10);
-    const payAmt = totalAmt / totalPay;
     if (!planForm.name.trim()) { toast.error('Plan name is required'); return; }
     if (!totalAmt || totalAmt <= 0) { toast.error('Total amount must be greater than 0'); return; }
+    if (!payAmt || payAmt <= 0) { toast.error('Payment amount must be greater than 0'); return; }
     if (!totalPay || totalPay <= 0) { toast.error('Number of payments must be at least 1'); return; }
     const planViolation = getCardStartDateViolation(planForm.start_date, planForm.payment_source, accounts ?? []);
     if (planViolation) { toast.error(planViolation); return; }
@@ -916,15 +919,17 @@ export default function Transactions() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground block mb-1">Per Payment</label>
-                  <div
-                    className="w-full bg-muted/40 border border-border px-3 py-2 text-xs text-muted-foreground"
+                  <label className="text-xs text-muted-foreground block mb-1">Payment Amount *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={planForm.payment_amount}
+                    onChange={e => setPlanForm(p => ({ ...p, payment_amount: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground"
                     style={{ borderRadius: 'var(--radius)' }}
-                  >
-                    {planForm.total_amount && planForm.total_payments && parseInt(planForm.total_payments, 10) > 0
-                      ? formatCurrency(parseFloat(planForm.total_amount) / parseInt(planForm.total_payments, 10), false)
-                      : '—'}
-                  </div>
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1014,13 +1019,11 @@ export default function Transactions() {
                   style={{ borderRadius: 'var(--radius)' }}
                 />
               </div>
-              {planForm.total_amount && planForm.total_payments && parseInt(planForm.total_payments, 10) > 0 && (
+              {planForm.payment_amount && planForm.total_payments && (
                 <div className="p-3 bg-muted/30 text-xs text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
-                  {formatCurrency(parseFloat(planForm.total_amount) / parseInt(planForm.total_payments, 10), false)}
-                  {' / '}
-                  {planForm.frequency === 'weekly' ? 'week' : planForm.frequency === 'biweekly' ? '2 weeks' : 'month'}
+                  Total scheduled: {formatCurrency(parseFloat(planForm.payment_amount || '0') * parseInt(planForm.total_payments || '0', 10), false)}
                   {' · '}
-                  {planForm.total_payments} payments from {planForm.start_date}
+                  {planForm.frequency === 'weekly' ? 'weekly' : planForm.frequency === 'biweekly' ? 'every 2 weeks' : 'monthly'} from {planForm.start_date}
                 </div>
               )}
               <button
