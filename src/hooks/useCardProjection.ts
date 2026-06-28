@@ -1194,6 +1194,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
 
         pass3RevTotals.push(Math.round(revPay + surplus));
+        // DEBUG: trace p3Cash at key months
+        if (m <= 5 || (m >= 25 && m <= 32)) {
+          // eslint-disable-next-line no-console
+          console.log(`[p3Cash m=${m}] p3Cash=${p3Cash.toFixed(2)} mInc=${mInc.toFixed(2)} mExp=${mExp.toFixed(2)} simCycTotal=${simCycTotal.toFixed(2)} revPay=${revPay.toFixed(2)} surplus=${surplus.toFixed(2)} p3RevBal=${p3RevBal.toFixed(2)}`);
+        }
       }
 
       // If pass-3 constrains month 0 below what the raw sim allocated, re-run with a
