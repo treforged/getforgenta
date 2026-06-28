@@ -1498,6 +1498,11 @@ export default function Forecast() {
       // Once CC Debt Free fires, lock at 0 — the engine's own trajectory (without PASS 3 surplus)
       // can lag several months behind actual payoff and would otherwise reopen surplus routing.
       p3RevBal = ccDebtFreeFired ? 0 : Math.max(0, ccEngRevBalEnd - cumulativeSurplus);
+      // DEBUG: trace finalLiquid at key months
+      if (i <= 5 || (i >= 25 && i <= 32)) {
+        // eslint-disable-next-line no-console
+        console.log(`[Forecast i=${i}] finalLiquid=${finalLiquid.toFixed(2)} cashPreDebt=${cashPreDebt.toFixed(2)} monthDebtPayment=${monthDebtPayment.toFixed(2)} hookScaledTotal=${hookScaledTotal != null ? hookScaledTotal.toFixed(2) : 'null'} safetyCeiling=${safetyCeiling.toFixed(2)} cumulativeSurplus=${cumulativeSurplus.toFixed(2)} p3RevBal=${p3RevBal.toFixed(2)}`);
+      }
 
       // Step 4: per-account balance tracking
       const actualGoalsSavings = b.monthlySavingsContrib;
