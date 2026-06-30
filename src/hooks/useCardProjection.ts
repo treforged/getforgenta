@@ -98,6 +98,11 @@ export interface CardProjectionResult {
    * so the Debt Payoff tab's PAYOFF ETA shows the same projected payoff date. Null if revolving
    * debt is not cleared within PROJECTION_MONTHS. */
   forecastRevolvingPayoffMonth: number | null;
+  /** 1-indexed month when the simulation's total revolving balance (across all revolving cards)
+   * first hits $0 — based on activeSim.monthlyRevolvingBalances, which reflects the actual
+   * per-card payoff schedule including "full" preference cards like Discover. Used by the
+   * Debt Payoff tab's PAYOFF ETA so it aligns with when the SIM truly clears all revolving debt. */
+  simRevolvingPayoffMonth: number | null;
   month0: Month0Result;
 }
 
@@ -1619,6 +1624,24 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         .reduce((s, pca) => s + pca.payment, 0);
       const safeToPayTotalFinal = Math.round(cyclingPayment + revolvingPaymentFinal);
 
+      // First month where activeSim's total revolving balance reaches $0 (all revolving cards paid).
+      // Mirrors the ccEngRevBalEnd <= 0 check in Forecast.tsx's milestone condition.
+      let simRevolvingPayoffMonth: number | null = null;
+      const simRevolvingCardIds = cards
+        .filter(c => (activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 0) > 0)
+        .map(c => c.id);
+      if (simRevolvingCardIds.length > 0) {
+        for (let m = 0; m < PROJECTION_MONTHS; m++) {
+          const totalRevBal = simRevolvingCardIds.reduce(
+            (s, id) => s + Math.max(0, activeSim.monthlyRevolvingBalances.get(id)?.[m] ?? 0), 0
+          );
+          if (totalRevBal <= 0) {
+            simRevolvingPayoffMonth = m + 1;
+            break;
+          }
+        }
+      }
+
       const hookResult = {
         data,
         cards: projs.map(p => ({ name: p.card.name, color: p.card.color })),
@@ -1643,6 +1666,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         strictSaveUpMonths,
         saveUpReason,
         forecastRevolvingPayoffMonth,
+        simRevolvingPayoffMonth,
         month0: {
           safeToPayTotal: safeToPayTotalFinal,
           maxCapacity: Math.round(maxCapacity),
