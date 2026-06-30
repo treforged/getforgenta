@@ -1370,7 +1370,6 @@ export default function Forecast() {
       return s + (acct ? Number(acct.balance || 0) : 0);
     }, 0);
     let p3RevBal = liveRevolvingBal;
-    let prevP3RevBal = p3RevBal;
     // virtualRevBal tracks what Discover's balance would be if step-3 payments were real:
     // starts at the live balance, decreases each month by the simulation's net change
     // (which already includes interest) and by any step-3 surplus routed that month.
@@ -1380,6 +1379,11 @@ export default function Forecast() {
     // to Discover.
     let virtualRevBal = liveRevolvingBal;
     let prevCcEngRevBalEnd = liveRevolvingBal;
+    // Tracks cumulative extra step-3 surplus payments sent to revolving debt beyond the SIM's plan.
+    // Used to compute "adjusted remaining balance" = ccEngRevBalEnd - cumulativeStep3Extra,
+    // which is the forecast's authoritative view of what's still owed after all extra routing.
+    let cumulativeStep3Extra = 0;
+    let prevAdjustedRevBal = liveRevolvingBal;
     let ccDebtFreeFired = false;
     const forecastRPM = cardProjectionData?.forecastRevolvingPayoffMonth ?? null;
     // Cash being set aside toward a saving-phase vehicle's down payment hasn't left any account
@@ -1495,26 +1499,24 @@ export default function Forecast() {
         if (revBal0 === 0) return s;
         return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
       }, 0);
-      // Track virtualRevBal using the Forecast's actual step-2 revolving payment (revolvingPayment),
-      // not the simulation's unscaled balance drop. The simulation can route large avalanche amounts
-      // (e.g. $3,600 in a single month) that the Forecast cannot match due to floor/save-up
-      // constraints. Using ccEngRevBalEnd directly would over-reduce virtualRevBal and fire
-      // CC Debt Free prematurely (months or years too early).
-      //
-      // Correct formula: virtualRevBal[i] = virtualRevBal[i-1] - revolvingPayment[i] + interestAndNewPurchases[i]
-      // where interestAndNewPurchases is derived from the simulation's balance equation:
-      //   ccEngRevBal[i] = ccEngRevBal[i-1] - simRevPay[i] + interest[i] + newPurchases[i]
-      //   → interestAndNewPurchases = ccEngRevBal[i] - ccEngRevBal[i-1] + simRevolvingPayment[i]
-      // (simRevolvingPayment = debtPaymentTotals[i], the simulation's raw revolving payment.)
+      // virtualRevBal tracks the SIM's revolving payment plan (revolvingPayment + interest/new-purchases).
+      // cumulativeStep3Extra tracks additional forecast surplus sent to revolving debt beyond the SIM's plan.
+      // "adjusted remaining" = ccEngRevBalEnd - cumulativeStep3Extra is the authoritative remaining balance
+      // that accounts for both the SIM's planned payments AND forecast step-3 pre-payments.
       if (!ccDebtFreeFired) {
         const interestAndNewPurchases = Math.max(0, ccEngRevBalEnd - prevCcEngRevBalEnd + simRevolvingPayment);
         virtualRevBal = Math.max(0, virtualRevBal - revolvingPayment + interestAndNewPurchases);
         prevCcEngRevBalEnd = ccEngRevBalEnd;
-        if (!m0AllSettled && !strictSaveUpMonths.has(i) && virtualRevBal > 0 && finalLiquid > b.monthMinSafe) {
-          const surplus = Math.min(finalLiquid - b.monthMinSafe, virtualRevBal);
+        // adjustedRevBal = what's still truly owed after all forecast payments (SIM plan + step-3 extras).
+        // When virtualRevBal = 0 but the SIM still has remaining balance, adjustedRevBal continues routing
+        // surplus until the combined payments cover the full balance.
+        const adjustedRevBal = Math.max(0, ccEngRevBalEnd - cumulativeStep3Extra);
+        if (!m0AllSettled && !strictSaveUpMonths.has(i) && adjustedRevBal > 0 && finalLiquid > b.monthMinSafe) {
+          const surplus = Math.min(finalLiquid - b.monthMinSafe, adjustedRevBal);
           if (surplus > 0) {
             monthDebtPayment += surplus;
             finalLiquid -= surplus;
+            cumulativeStep3Extra += surplus;
             virtualRevBal = Math.max(0, virtualRevBal - surplus);
           }
         }
@@ -1625,11 +1627,16 @@ export default function Forecast() {
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
       const netWorth = totalAssets - totalLiabilityBal;
 
-      if (!ccDebtFreeFired && p3RevBal <= 0 && ccEngRevBalEnd <= 0 &&
-        (prevP3RevBal > 0 || prevCcEngRevBalEnd > 0)) {
+      // Milestone fires when the forecast's combined payments (SIM plan + step-3 extras) have covered
+      // the full revolving balance: adjustedRevBal = ccEngRevBalEnd - cumulativeStep3Extra <= 0.
+      // This fires LATER than the old p3RevBal-only check (which could fire before the SIM's large
+      // avalanche payments) but EARLIER than ccEngRevBalEnd <= 0 (which would wait 200+ months).
+      const adjustedRevBalFinal = Math.max(0, ccEngRevBalEnd - cumulativeStep3Extra);
+      if (!ccDebtFreeFired && adjustedRevBalFinal <= 0 && prevAdjustedRevBal > 0) {
         milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
         ccDebtFreeFired = true;
       }
+      prevAdjustedRevBal = adjustedRevBalFinal;
       resolvedGoals.forEach((g) => {
         const elapsed = Math.max(0, i - g.delayMonths);
         const prevElapsed = Math.max(0, (i - 1) - g.delayMonths);
@@ -1728,7 +1735,6 @@ export default function Forecast() {
           .map(cf => ({ name: cf.name, balance: cf.balances[i] ?? 0 }))
           .filter(cf => cf.balance > 0),
       });
-      prevP3RevBal = p3RevBal;
     }
 
     return { data, milestones };
