@@ -1105,11 +1105,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
               {(() => {
                 const simEta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
-                const eta = forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0
-                  ? forecastRevolvingPayoffMonth
-                  : (simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0
-                    ? simRevolvingPayoffMonth
-                    : simEta);
+                // When forecast-adjusted balances are provided, the per-card projections already
+                // encode the correct Forecast-aligned payoff timing, so simEta IS the answer.
+                // Fall back to forecastRevolvingPayoffMonth (PASS 3) or simRevolvingPayoffMonth
+                // only when no forecast-adjusted data is available.
+                const eta = forecastAdjustedRevolvingBalances != null
+                  ? simEta
+                  : (forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0
+                    ? forecastRevolvingPayoffMonth
+                    : (simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0
+                      ? simRevolvingPayoffMonth
+                      : simEta));
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
                 return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>{eta > 0 ? `${eta} mo` : 'Paid'}</p>;
               })()}

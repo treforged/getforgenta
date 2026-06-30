@@ -9,6 +9,7 @@ import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
+import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
 
@@ -31,7 +32,33 @@ export default function DebtPayoff() {
     assumptions,
     pauseSavings,
     setPauseSavings,
+    forecastStep3ExtraByMonth,
   } = useCardProjectionContext();
+  // Distribute Forecast's authoritative step-3 cumulative surplus per card (avalanche order)
+  // to produce forecast-aligned revolving balances. This mirrors Forecast.tsx lines 2685-2694
+  // so the Debt Payoff accordion and trajectory chart match the Forecast's CC Debt Free timing.
+  const forecastAdjustedRevolvingBalances = useMemo(() => {
+    if (!forecastStep3ExtraByMonth || !cardProjection) return null;
+    const { simCards, monthlyRevolvingBalances, monthlyBalances } = cardProjection;
+    const result = new Map<string, number[]>(simCards.map(c => [c.id, []]));
+    for (let m = 0; m < PROJECTION_MONTHS; m++) {
+      let rem3 = forecastStep3ExtraByMonth[m] ?? 0;
+      for (const c of simCards) {
+        const revBal0 = monthlyRevolvingBalances.get(c.id)?.[0] ?? 0;
+        if (revBal0 === 0) {
+          result.get(c.id)?.push(0);
+          continue;
+        }
+        const simBal = monthlyBalances.get(c.id)?.[m] ?? 0;
+        const adj = Math.min(rem3, simBal);
+        rem3 -= adj;
+        const revBal = monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
+        result.get(c.id)?.push(Math.max(0, revBal - adj));
+      }
+    }
+    return result;
+  }, [forecastStep3ExtraByMonth, cardProjection]);
+
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -370,7 +397,7 @@ export default function DebtPayoff() {
           paymentPlans={paymentPlans ?? []}
           forecastRevolvingPayoffMonth={cardProjection?.forecastRevolvingPayoffMonth ?? null}
           simRevolvingPayoffMonth={cardProjection?.simRevolvingPayoffMonth ?? null}
-          forecastAdjustedRevolvingBalances={cardProjection?.forecastAdjustedRevolvingBalances ?? null}
+          forecastAdjustedRevolvingBalances={forecastAdjustedRevolvingBalances}
           pauseSavings={pauseSavings}
         />
       )}
