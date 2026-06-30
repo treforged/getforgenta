@@ -1494,10 +1494,14 @@ export default function Forecast() {
           cumulativeSurplus += surplus;
         }
       }
-      // Sync p3RevBal to engine's interest-inclusive end-of-month balance minus all surplus sent.
-      // Once CC Debt Free fires, lock at 0 — the engine's own trajectory (without PASS 3 surplus)
-      // can lag several months behind actual payoff and would otherwise reopen surplus routing.
-      p3RevBal = ccDebtFreeFired ? 0 : Math.max(0, ccEngRevBalEnd - cumulativeSurplus);
+      // Track p3RevBal directly from the engine's post-payment revolving balance. The prior formula
+      // (ccEngRevBalEnd - cumulativeSurplus) caused premature CC Debt Free: the simulation's own
+      // large avalanche payments (e.g. $1,707 in May 2027) rapidly dropped ccEngRevBalEnd while
+      // cumulativeSurplus (step-3 extras) converged to the same value — firing the milestone while
+      // Discover still had $4,077 revolving. cumulativeSurplus still correctly caps step-3 routing
+      // to prevent over-payment; it just no longer drives the milestone or this gate signal.
+      // Lock at 0 once CC Debt Free fires to prevent reopening surplus routing.
+      p3RevBal = ccDebtFreeFired ? 0 : Math.max(0, ccEngRevBalEnd);
 
       // Step 4: per-account balance tracking
       const actualGoalsSavings = b.monthlySavingsContrib;
