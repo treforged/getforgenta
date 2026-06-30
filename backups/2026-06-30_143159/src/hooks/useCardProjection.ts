@@ -103,11 +103,6 @@ export interface CardProjectionResult {
    * per-card payoff schedule including "full" preference cards like Discover. Used by the
    * Debt Payoff tab's PAYOFF ETA so it aligns with when the SIM truly clears all revolving debt. */
   simRevolvingPayoffMonth: number | null;
-  /** Per-card revolving balance trajectory with step-3 surplus applied cumulatively in avalanche
-   * order — mirrors Forecast.tsx's adjustedRevBal = max(0, simBal - cumulativeStep3Extra) per card.
-   * Use as both revBals and trueBalances in projectCardVariable so the Debt Payoff chart and
-   * per-card payoff label match the Forecast's CC Debt Free milestone timing. */
-  forecastAdjustedRevolvingBalances: Map<string, number[]>;
   month0: Month0Result;
 }
 
@@ -1436,23 +1431,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
-      // Build per-card forecast-adjusted revolving balances by accumulating each card's slice of
-      // the step-3 surplus (already avalanche-distributed in extraPerCardByMonth) and subtracting
-      // from the SIM's monthly balance. Mirrors adjustedRevBal = max(0, simBal - cumulativeStep3Extra)
-      // in Forecast.tsx but resolved per-card so the Debt Payoff chart and payoff labels match.
-      const forecastAdjustedRevolvingBalances = new Map<string, number[]>(cards.map(c => [c.id, []]));
-      {
-        const cumExtraPerCard = new Map<string, number>(cards.map(c => [c.id, 0]));
-        for (let m = 0; m < PROJECTION_MONTHS; m++) {
-          for (const c of cards) {
-            const extra = extraPerCardByMonth.get(c.id)?.[m] ?? 0;
-            cumExtraPerCard.set(c.id, (cumExtraPerCard.get(c.id) ?? 0) + extra);
-            const simBal = activeSim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
-            forecastAdjustedRevolvingBalances.get(c.id)!.push(Math.max(0, simBal - (cumExtraPerCard.get(c.id) ?? 0)));
-          }
-        }
-      }
-
       // When pass3RevTotals[m] requires scaling DOWN below the natural simulated total, applying
       // the same scale factor to every card uniformly can push an individual card below its own
       // minimum payment even though the combined total still covers every card's minimum in
@@ -1689,7 +1667,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         saveUpReason,
         forecastRevolvingPayoffMonth,
         simRevolvingPayoffMonth,
-        forecastAdjustedRevolvingBalances,
         month0: {
           safeToPayTotal: safeToPayTotalFinal,
           maxCapacity: Math.round(maxCapacity),
