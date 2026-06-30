@@ -1625,10 +1625,8 @@ export default function Forecast() {
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
       const netWorth = totalAssets - totalLiabilityBal;
 
-      if (!ccDebtFreeFired && (
-        (p3RevBal <= 0 && prevP3RevBal > 0) ||
-        (forecastRPM !== null && i + 1 === forecastRPM)
-      )) {
+      if (!ccDebtFreeFired && p3RevBal <= 0 && ccEngRevBalEnd <= 0 &&
+        (prevP3RevBal > 0 || prevCcEngRevBalEnd > 0)) {
         milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
         ccDebtFreeFired = true;
       }

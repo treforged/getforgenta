@@ -85,6 +85,10 @@ type Props = {
    * simulation — when provided, replaces the simulation-only PAYOFF ETA so the Debt Payoff tab
    * matches the Forecast's CC Debt Free milestone. Null if not yet paid within PROJECTION_MONTHS. */
   forecastRevolvingPayoffMonth?: number | null;
+  /** SIM-based revolving payoff month (1-indexed) — first month activeSim's total revolving
+   * balance hits $0. Aligns PAYOFF ETA with when "full" pref cards (e.g. Discover) are truly
+   * at $0, matching the Forecast's CC Debt Free milestone condition (ccEngRevBalEnd <= 0). */
+  simRevolvingPayoffMonth?: number | null;
   /** From CardProjectionContext via the parent page — passed as a prop (not read via its own
    * usePersistedState here) so toggling the switch on DebtPayoff.tsx updates this component's own
    * calculations immediately, instead of only after the Cards tab unmounts/remounts. */
@@ -101,7 +105,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, pauseSavings }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -1095,9 +1099,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
               {(() => {
                 const simEta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
-                const eta = forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0
-                  ? forecastRevolvingPayoffMonth
-                  : simEta;
+                const eta = simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0
+                  ? simRevolvingPayoffMonth
+                  : (forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0
+                    ? forecastRevolvingPayoffMonth
+                    : simEta);
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
                 return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>{eta > 0 ? `${eta} mo` : 'Paid'}</p>;
               })()}
