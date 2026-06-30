@@ -89,6 +89,11 @@ type Props = {
    * balance hits $0. Aligns PAYOFF ETA with when "full" pref cards (e.g. Discover) are truly
    * at $0, matching the Forecast's CC Debt Free milestone condition (ccEngRevBalEnd <= 0). */
   simRevolvingPayoffMonth?: number | null;
+  /** Forecast-adjusted per-card revolving balances from useCardProjection — step-3 surplus applied
+   * cumulatively per card in avalanche order. When provided, replaces both revBals and trueBalances
+   * in projectCardVariable so the chart and per-card payoff labels match the Forecast's CC Debt
+   * Free milestone timing instead of the SIM-only trajectory. */
+  forecastAdjustedRevolvingBalances?: Map<string, number[]> | null;
   /** From CardProjectionContext via the parent page — passed as a prop (not read via its own
    * usePersistedState here) so toggling the switch on DebtPayoff.tsx updates this component's own
    * calculations immediately, instead of only after the Cards tab unmounts/remounts. */
@@ -105,7 +110,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, forecastAdjustedRevolvingBalances, pauseSavings }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -866,11 +871,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           if (cardOverrides[i] !== undefined) return cardOverrides[i];
           return i === 0 ? m0Pay : p;
         });
-        const revBals = (monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(c.id) ?? [];
+        const adjRevBals = forecastAdjustedRevolvingBalances?.get(c.id);
+        const revBals = adjRevBals ?? (monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(c.id) ?? [];
         const cyclingOwed = (monthlyCyclingOwed ?? variableSim.monthlyCyclingOwed)?.get(c.id) ?? [];
         const cyclingInterest = (monthlyCyclingInterest ?? variableSim.monthlyCyclingInterest)?.get(c.id) ?? [];
-        const trueBalances = (monthlyBalances ?? variableSim.monthlyBalances)?.get(c.id) ?? [];
-        const trueInterest = (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
+        const trueBalances = adjRevBals ?? (monthlyBalances ?? variableSim.monthlyBalances)?.get(c.id) ?? [];
+        const trueInterest = adjRevBals ? undefined : (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
         return projectCardVariable(c, payments, PROJECTION_MONTHS, true, cardPurchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
       }
       if (Object.keys(cardOverrides).length > 0) {
@@ -1099,10 +1105,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
               {(() => {
                 const simEta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
-                const eta = simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0
-                  ? simRevolvingPayoffMonth
-                  : (forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0
-                    ? forecastRevolvingPayoffMonth
+                const eta = forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0
+                  ? forecastRevolvingPayoffMonth
+                  : (simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0
+                    ? simRevolvingPayoffMonth
                     : simEta);
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
                 return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>{eta > 0 ? `${eta} mo` : 'Paid'}</p>;
