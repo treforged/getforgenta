@@ -43,10 +43,10 @@ interface CardProjectionContextValue {
   syncCutoffDate: string;
   scheduledEvents: ScheduledEvent[];
   debtPayoffOptions: DebtPayoffOptions;
-  /** Per-month cumulative step-3 surplus from Forecast.tsx's actual PASS 2 cash model.
-   * Written by Forecast.tsx after it renders; null until Forecast has mounted and run. */
+  /** Per-month cumulative step-3 surplus routed to revolving debt — from the hook's PASS 3
+   * computation. Always available (no page-navigation dependency). Null only when cardProjection
+   * has not loaded yet. */
   forecastStep3ExtraByMonth: number[] | null;
-  setForecastStep3ExtraByMonth: (val: number[] | null) => void;
 }
 
 const CardProjectionContext = createContext<CardProjectionContextValue | null>(null);
@@ -61,11 +61,6 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
   const { data: profile, update: updateProfile } = useProfile();
   const { data: paymentPlans } = usePaymentPlans();
   const { items: plaidItems } = usePlaidItems();
-
-  const [forecastStep3ExtraByMonth, setForecastStep3ExtraByMonthState] = useState<number[] | null>(null);
-  const setForecastStep3ExtraByMonth = useCallback((val: number[] | null) => {
-    setForecastStep3ExtraByMonthState(val);
-  }, []);
 
   const [pauseSavings, setPauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
   const [debtStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
@@ -190,12 +185,11 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     syncCutoffDate,
     scheduledEvents,
     debtPayoffOptions,
-    forecastStep3ExtraByMonth,
-    setForecastStep3ExtraByMonth,
+    forecastStep3ExtraByMonth: cardProjection?.forecastStep3ExtraByMonth ?? null,
   }), [
     cardProjection, assumptions, setAssumptions, pauseSavings, setPauseSavings,
     debtStrategy, payConfig, cashFloor, forecastFundingAccountId, syncCutoffDate,
-    scheduledEvents, debtPayoffOptions, forecastStep3ExtraByMonth, setForecastStep3ExtraByMonth,
+    scheduledEvents, debtPayoffOptions,
   ]);
 
   return (

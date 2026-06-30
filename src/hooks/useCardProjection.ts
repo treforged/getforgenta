@@ -108,6 +108,10 @@ export interface CardProjectionResult {
    * Use as both revBals and trueBalances in projectCardVariable so the Debt Payoff chart and
    * per-card payoff label match the Forecast's CC Debt Free milestone timing. */
   forecastAdjustedRevolvingBalances: Map<string, number[]>;
+  /** Cumulative total step-3 surplus routed to revolving debt up to and including month m.
+   * Mirrors Forecast.tsx's cumulativeStep3Extra so DebtPayoff can distribute it per-card without
+   * depending on Forecast.tsx being rendered. Indexed 0..PROJECTION_MONTHS-1. */
+  forecastStep3ExtraByMonth: number[];
   month0: Month0Result;
 }
 
@@ -1436,6 +1440,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
+      // Build cumulative step-3 total per month (sum across all cards) — mirrors
+      // cumulativeStep3Extra in Forecast.tsx. Exposed so DebtPayoff can distribute it
+      // per-card in avalanche order without depending on Forecast.tsx being rendered.
+      let _forecastCumExtra = 0;
+      const forecastStep3ExtraByMonth: number[] = Array(PROJECTION_MONTHS).fill(0);
+      for (let m = 0; m < PROJECTION_MONTHS; m++) {
+        for (const c of cards) {
+          _forecastCumExtra += extraPerCardByMonth.get(c.id)?.[m] ?? 0;
+        }
+        forecastStep3ExtraByMonth[m] = _forecastCumExtra;
+      }
+
       // Build per-card forecast-adjusted revolving balances by accumulating each card's slice of
       // the step-3 surplus (already avalanche-distributed in extraPerCardByMonth) and subtracting
       // from the SIM's monthly balance. Mirrors adjustedRevBal = max(0, simBal - cumulativeStep3Extra)
@@ -1690,6 +1706,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         forecastRevolvingPayoffMonth,
         simRevolvingPayoffMonth,
         forecastAdjustedRevolvingBalances,
+        forecastStep3ExtraByMonth,
         month0: {
           safeToPayTotal: safeToPayTotalFinal,
           maxCapacity: Math.round(maxCapacity),
