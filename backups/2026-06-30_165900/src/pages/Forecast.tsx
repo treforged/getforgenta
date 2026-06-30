@@ -1,4 +1,4 @@
-﻿import { useState, useMemo, useCallback, useEffect } from 'react';
+﻿import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
@@ -157,7 +157,6 @@ export default function Forecast() {
     cardProjection: cardProjectionData,
     assumptions,
     setAssumptions,
-    setForecastStep3ExtraByMonth,
     pauseSavings,
     debtStrategy,
     payConfig,
@@ -1752,12 +1751,6 @@ export default function Forecast() {
 
     return { data, milestones };
   }, [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget]);
-
-  // Write Forecast's authoritative step-3 cumulative extras to shared context so DebtPayoff
-  // can align its per-card balances and payoff ETA with the Forecast's CC Debt Free milestone.
-  useEffect(() => {
-    setForecastStep3ExtraByMonth(projections?.data.map(r => r.revolving3Extra) ?? null);
-  }, [projections, setForecastStep3ExtraByMonth]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
