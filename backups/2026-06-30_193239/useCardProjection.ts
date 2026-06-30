@@ -1331,9 +1331,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const mOneTimeNet2 = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
           // m===0 still needs getVehicleExtrasForMonth(0) added explicitly (see the identical note
           // on mExp above) — m>0 already has it via simulationMonthEvents[m].expenses.
-          const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0]
+          const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0)
             : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
-            + monthlyMortgagePayment + lumpTransferByMonth[m] + mOneTimeNet2;
+            + monthlyMortgagePayment + mOneTimeNet2;
           const mFloor2 = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
             new Date(now.getFullYear(), now.getMonth() + m, 1),
