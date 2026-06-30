@@ -1371,7 +1371,15 @@ export default function Forecast() {
     }, 0);
     let p3RevBal = liveRevolvingBal;
     let prevP3RevBal = p3RevBal;
-    let cumulativeSurplus = 0;
+    // virtualRevBal tracks what Discover's balance would be if step-3 payments were real:
+    // starts at the live balance, decreases each month by the simulation's net change
+    // (which already includes interest) and by any step-3 surplus routed that month.
+    // This replaces the old cumulativeSurplus cap, which hit 0 prematurely whenever
+    // the simulation's own large avalanche payments dropped ccEngRevBalEnd faster than
+    // cumulativeSurplus accumulated — causing surplus cash to pile up instead of routing
+    // to Discover.
+    let virtualRevBal = liveRevolvingBal;
+    let prevCcEngRevBalEnd = liveRevolvingBal;
     let ccDebtFreeFired = false;
     // Cash being set aside toward a saving-phase vehicle's down payment hasn't left any account
     // yet — it's still the user's cash. Track it separately and add it back to displayed Ending
@@ -1486,22 +1494,33 @@ export default function Forecast() {
         if (revBal0 === 0) return s;
         return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
       }, 0);
-      if (!m0AllSettled && !strictSaveUpMonths.has(i) && p3RevBal > 0 && finalLiquid > b.monthMinSafe) {
-        const surplus = Math.min(finalLiquid - b.monthMinSafe, Math.max(0, ccEngRevBalEnd - cumulativeSurplus));
-        if (surplus > 0) {
-          monthDebtPayment += surplus;
-          finalLiquid -= surplus;
-          cumulativeSurplus += surplus;
+      // Track virtualRevBal using the Forecast's actual step-2 revolving payment (revolvingPayment),
+      // not the simulation's unscaled balance drop. The simulation can route large avalanche amounts
+      // (e.g. $3,600 in a single month) that the Forecast cannot match due to floor/save-up
+      // constraints. Using ccEngRevBalEnd directly would over-reduce virtualRevBal and fire
+      // CC Debt Free prematurely (months or years too early).
+      //
+      // Correct formula: virtualRevBal[i] = virtualRevBal[i-1] - revolvingPayment[i] + interestAndNewPurchases[i]
+      // where interestAndNewPurchases is derived from the simulation's balance equation:
+      //   ccEngRevBal[i] = ccEngRevBal[i-1] - simRevPay[i] + interest[i] + newPurchases[i]
+      //   → interestAndNewPurchases = ccEngRevBal[i] - ccEngRevBal[i-1] + simRevolvingPayment[i]
+      // (simRevolvingPayment = debtPaymentTotals[i], the simulation's raw revolving payment.)
+      if (!ccDebtFreeFired) {
+        const interestAndNewPurchases = Math.max(0, ccEngRevBalEnd - prevCcEngRevBalEnd + simRevolvingPayment);
+        virtualRevBal = Math.max(0, virtualRevBal - revolvingPayment + interestAndNewPurchases);
+        prevCcEngRevBalEnd = ccEngRevBalEnd;
+        if (!m0AllSettled && !strictSaveUpMonths.has(i) && virtualRevBal > 0 && finalLiquid > b.monthMinSafe) {
+          const surplus = Math.min(finalLiquid - b.monthMinSafe, virtualRevBal);
+          if (surplus > 0) {
+            monthDebtPayment += surplus;
+            finalLiquid -= surplus;
+            virtualRevBal = Math.max(0, virtualRevBal - surplus);
+          }
         }
       }
-      // Track p3RevBal directly from the engine's post-payment revolving balance. The prior formula
-      // (ccEngRevBalEnd - cumulativeSurplus) caused premature CC Debt Free: the simulation's own
-      // large avalanche payments (e.g. $1,707 in May 2027) rapidly dropped ccEngRevBalEnd while
-      // cumulativeSurplus (step-3 extras) converged to the same value — firing the milestone while
-      // Discover still had $4,077 revolving. cumulativeSurplus still correctly caps step-3 routing
-      // to prevent over-payment; it just no longer drives the milestone or this gate signal.
-      // Lock at 0 once CC Debt Free fires to prevent reopening surplus routing.
-      p3RevBal = ccDebtFreeFired ? 0 : Math.max(0, ccEngRevBalEnd);
+      // p3RevBal = virtualRevBal: CC Debt Free fires when the virtual balance (step-2 + step-3
+      // payments tracked against real interest and new purchases) reaches zero.
+      p3RevBal = ccDebtFreeFired ? 0 : Math.max(0, virtualRevBal);
 
       // Step 4: per-account balance tracking
       const actualGoalsSavings = b.monthlySavingsContrib;
