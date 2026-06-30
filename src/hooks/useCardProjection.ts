@@ -93,6 +93,11 @@ export interface CardProjectionResult {
    * for redirecting any genuine surplus left over once its own protection is already in place. */
   strictSaveUpMonths: Set<number>;
   saveUpReason: Map<number, { eventName: string; monthLabel: string }>;
+  /** 1-indexed month count (matches payoffMonth convention) when the virtual revolving balance
+   * first reaches zero in the pass-3 simulation — mirrors Forecast.tsx's CC Debt Free milestone
+   * so the Debt Payoff tab's PAYOFF ETA shows the same projected payoff date. Null if revolving
+   * debt is not cleared within PROJECTION_MONTHS. */
+  forecastRevolvingPayoffMonth: number | null;
   month0: Month0Result;
 }
 
@@ -1155,6 +1160,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const pass3RevTotals: number[] = [];
       let p3Cash = debtFundingBalance;
       let p3RevBal = p3RevBal0;
+      let prevCcRevBal = p3RevBal0;
+      let forecastRevolvingPayoffMonth: number | null = null;
 
       for (let m = 0; m < PROJECTION_MONTHS; m++) {
         const mInc   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
@@ -1193,14 +1200,31 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           : 0;
         const revPay = Math.min(simRevTotal, availForRev);
 
+        // Derive interest + new purchases from simulation's balance equation:
+        //   ccRevBal[m] = ccRevBal[m-1] - simRevPay[m] + interest[m] + newPurchases[m]
+        //   → interestAndNewPurchases = ccRevBal[m] - ccRevBal[m-1] + simRevPay[m]
+        // Mirrors Forecast.tsx's virtualRevBal formula so the payoff month aligns with CC Debt Free.
+        const curCcRevBal = p3RevBal > 0
+          ? cards.reduce((s, c) => {
+              if ((sim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1) === 0) return s;
+              return s + (sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0);
+            }, 0)
+          : 0;
+        const intNew = p3RevBal > 0 ? Math.max(0, curCcRevBal - prevCcRevBal + simRevTotal) : 0;
+        prevCcRevBal = curCcRevBal;
+
         p3Cash = cashPreDebt - simCycTotal - revPay;
-        p3RevBal = Math.max(0, p3RevBal - revPay);
+        p3RevBal = Math.max(0, p3RevBal - revPay + intNew);
 
         let surplus = 0;
         if (!strictSaveUpMonths.has(m) && p3RevBal > 0 && p3Cash > mFloor) {
           surplus = Math.min(p3Cash - mFloor, p3RevBal);
           p3Cash -= surplus;
           p3RevBal = Math.max(0, p3RevBal - surplus);
+        }
+
+        if (forecastRevolvingPayoffMonth === null && p3RevBal <= 0 && p3RevBal0 > 0) {
+          forecastRevolvingPayoffMonth = m + 1;
         }
 
         pass3RevTotals.push(Math.round(revPay + surplus));
@@ -1284,8 +1308,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           return s + (acct ? Number(acct.balance || 0) : 0);
         }, 0);
         pass3RevTotals.length = 0;
+        forecastRevolvingPayoffMonth = null;
         let p3Cash2 = debtFundingBalance;
         let p3RevBal2 = p3RevBal0_2;
+        let prevCcRevBal2 = p3RevBal0_2;
         for (let m = 0; m < PROJECTION_MONTHS; m++) {
           const mInc2   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
           const mOneTimeNet2 = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
@@ -1315,13 +1341,26 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             ? Math.max(ccMinForM2, Math.max(0, cashPreDebt2 - simCycTotal2 - mFloor2))
             : 0;
           const revPay2 = Math.min(simRevTotal2, availForRev2);
+
+          const curCcRevBal2 = p3RevBal2 > 0
+            ? cards.reduce((s, c) => {
+                if ((sim2.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1) === 0) return s;
+                return s + (sim2.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0);
+              }, 0)
+            : 0;
+          const intNew2 = p3RevBal2 > 0 ? Math.max(0, curCcRevBal2 - prevCcRevBal2 + simRevTotal2) : 0;
+          prevCcRevBal2 = curCcRevBal2;
+
           p3Cash2 = cashPreDebt2 - simCycTotal2 - revPay2;
-          p3RevBal2 = Math.max(0, p3RevBal2 - revPay2);
+          p3RevBal2 = Math.max(0, p3RevBal2 - revPay2 + intNew2);
           let surplus2 = 0;
           if (!strictSaveUpMonths.has(m) && p3RevBal2 > 0 && p3Cash2 > mFloor2) {
             surplus2 = Math.min(p3Cash2 - mFloor2, p3RevBal2);
             p3Cash2 -= surplus2;
             p3RevBal2 = Math.max(0, p3RevBal2 - surplus2);
+          }
+          if (forecastRevolvingPayoffMonth === null && p3RevBal2 <= 0 && p3RevBal0_2 > 0) {
+            forecastRevolvingPayoffMonth = m + 1;
           }
           pass3RevTotals.push(Math.round(revPay2 + surplus2));
         }
@@ -1603,6 +1642,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         saveUpMonths,
         strictSaveUpMonths,
         saveUpReason,
+        forecastRevolvingPayoffMonth,
         month0: {
           safeToPayTotal: safeToPayTotalFinal,
           maxCapacity: Math.round(maxCapacity),
