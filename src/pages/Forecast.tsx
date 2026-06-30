@@ -1381,6 +1381,7 @@ export default function Forecast() {
     let virtualRevBal = liveRevolvingBal;
     let prevCcEngRevBalEnd = liveRevolvingBal;
     let ccDebtFreeFired = false;
+    const forecastRPM = cardProjectionData?.forecastRevolvingPayoffMonth ?? null;
     // Cash being set aside toward a saving-phase vehicle's down payment hasn't left any account
     // yet — it's still the user's cash. Track it separately and add it back to displayed Ending
     // Cash each month, removing it once the purchase month arrives (the money's been spent by
@@ -1624,7 +1625,10 @@ export default function Forecast() {
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
       const netWorth = totalAssets - totalLiabilityBal;
 
-      if (p3RevBal <= 0 && prevP3RevBal > 0) {
+      if (!ccDebtFreeFired && (
+        (p3RevBal <= 0 && prevP3RevBal > 0) ||
+        (forecastRPM !== null && i + 1 === forecastRPM)
+      )) {
         milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
         ccDebtFreeFired = true;
       }
