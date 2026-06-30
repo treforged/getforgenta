@@ -888,20 +888,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // is reducible debt paydown, not a fixed bill, and must not be folded into this non-reducible
       // expense figure or the look-ahead would over-reserve cash and choke off exactly the surplus
       // this unification exists to free for genuinely-revolving cards.
-      const computeCyclingPaymentByMonth = (simResult: {
-        monthlyMandatoryCyclingPayment: Map<string, number[]>;
-        monthlyRevolvingBalances: Map<string, number[]>;
-      }): number[] =>
+      const computeCyclingPaymentByMonth = (simResult: { monthlyMandatoryCyclingPayment: Map<string, number[]> }): number[] =>
         Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
           cards.reduce((s, c) => {
-            // Use the simulation's per-month revolving balance rather than the card's static
-            // initial balance (c.balance). A cycling card with a non-zero initial balance
-            // (e.g. Amex Gold at $700 mid-cycle) was excluded from cycling reservation for
-            // ALL months — including future months after it pays off. The look-ahead then
-            // never reserved cash for those statement payments, letting revolving paydown drain
-            // savings freely and leaving the cycling pool short in month 2+.
-            const revBal = simResult.monthlyRevolvingBalances.get(c.id)?.[m] ?? c.balance;
-            if (revBal > 0) return s;
+            if (c.balance > 0) return s;
             const actual = simResult.monthlyMandatoryCyclingPayment.get(c.id)?.[m] ?? 0;
             // cardPurchasesPerMonth[m-1] = purchases deferred into month m's statement.
             // When the bootstrap underpays the mandatory, "actual" is too low, so the look-ahead
@@ -1204,6 +1194,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
 
         pass3RevTotals.push(Math.round(revPay + surplus));
+        // DEBUG: trace p3Cash at key months
+        if (m <= 5 || (m >= 25 && m <= 32)) {
+          // eslint-disable-next-line no-console
+          console.log(`[p3Cash m=${m}] p3Cash=${p3Cash.toFixed(2)} mInc=${mInc.toFixed(2)} mExp=${mExp.toFixed(2)} simCycTotal=${simCycTotal.toFixed(2)} revPay=${revPay.toFixed(2)} surplus=${surplus.toFixed(2)} p3RevBal=${p3RevBal.toFixed(2)}`);
+        }
       }
 
       // If pass-3 constrains month 0 below what the raw sim allocated, re-run with a
