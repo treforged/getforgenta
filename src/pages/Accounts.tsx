@@ -340,7 +340,11 @@ export default function Accounts() {
 
   const handleSave = () => {
     const balance = parseFloat(form.balance);
-    if (!form.name || isNaN(balance)) return;
+    if (!form.name.trim()) { toast.error('Account name is required'); return; }
+    if (!form.account_type) { toast.error('Account type is required'); return; }
+    const hasStartDate = !!(form.card_start_date || form.apr_start_date);
+    const resolvedBalance = (form.balance === '' || isNaN(balance)) ? (hasStartDate ? 0 : NaN) : balance;
+    if (isNaN(resolvedBalance)) { toast.error('A valid balance is required'); return; }
     const dueDayRaw = parseInt(form.payment_due_day);
     const dueDayVal = form.account_type === 'credit_card' && !isNaN(dueDayRaw) && dueDayRaw >= 1 && dueDayRaw <= 28 ? dueDayRaw : null;
     const payload: Partial<Tables<'accounts'>> & { name: string } = {
@@ -355,7 +359,7 @@ export default function Accounts() {
       apr_start_date: LOAN_TYPES.includes(form.account_type) && form.apr_start_date ? form.apr_start_date : null,
     };
     // Never overwrite Plaid-managed balance — it is owned by the sync job
-    if (!editingPlaidLinked) payload.balance = balance;
+    if (!editingPlaidLinked) payload.balance = resolvedBalance;
     // Always write min_payment to the accounts row for credit cards so the
     // debt engine reads a consistent value from accounts (not the debts table).
     if (form.account_type === 'credit_card') {
@@ -368,7 +372,7 @@ export default function Accounts() {
       } else if (editingPlaidLiability) {
         // Plaid-linked, no user input — compute from APR as fallback.
         const existingAcct = accounts.find(a => a.id === editId);
-        const acctBalance = existingAcct ? Number(existingAcct.balance) : balance;
+        const acctBalance = existingAcct ? Number(existingAcct.balance) : resolvedBalance;
         const newApr = parseFloat(form.apr);
         if (!isNaN(newApr) && newApr > 0 && acctBalance > 0) {
           const monthly = (acctBalance * (newApr / 100)) / 12;
@@ -378,20 +382,20 @@ export default function Accounts() {
     }
     if (editId) {
       const existingAccount = accounts.find(a => a.id === editId);
-      const projectedBalance = existingAccount ? Number(existingAccount.balance) : balance;
+      const projectedBalance = existingAccount ? Number(existingAccount.balance) : resolvedBalance;
       update.mutate({ id: editId, ...payload });
-      if (!editingPlaidLinked && balance !== projectedBalance) {
+      if (!editingPlaidLinked && resolvedBalance !== projectedBalance) {
         addReconciliation.mutate({
           account_id: editId,
           source_table: 'accounts',
           effective_date: new Date().toISOString().split('T')[0],
-          delta: balance - projectedBalance,
-          actual_balance: balance,
+          delta: resolvedBalance - projectedBalance,
+          actual_balance: resolvedBalance,
           projected_balance: projectedBalance,
         });
       }
     } else {
-      add.mutate({ ...payload, balance });
+      add.mutate({ ...payload, balance: resolvedBalance });
     }
     
     // Sync min_payment to the debts table for non-credit-card debt accounts (mortgage/auto/
@@ -406,10 +410,10 @@ export default function Accounts() {
       if (!isNaN(minPay) && minPay > 0) {
         const matchDebt = debts.find(d => d.name.toLowerCase() === form.name.toLowerCase());
         if (matchDebt) {
-          updateDebt.mutate({ id: matchDebt.id, min_payment: minPay, balance, apr: parseFloat(form.apr) || 0 });
+          updateDebt.mutate({ id: matchDebt.id, min_payment: minPay, balance: resolvedBalance, apr: parseFloat(form.apr) || 0 });
         } else {
           addDebt.mutate({
-            name: form.name, balance, apr: parseFloat(form.apr) || 0,
+            name: form.name, balance: resolvedBalance, apr: parseFloat(form.apr) || 0,
             min_payment: minPay, target_payment: minPay,
             credit_limit: parseFloat(form.credit_limit) || 0,
           });
