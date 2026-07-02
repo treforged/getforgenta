@@ -405,10 +405,7 @@ export function projectCardVariable(
       const trueInterest = trueInterestByMonth?.[m - 1];
       interest = trueInterest !== undefined
         ? Math.round(trueInterest * 100) / 100
-        // Safety clamp: the back-solve assumes `payment` exactly produced trueEndBal, which is false
-        // when the displayed payment is scaled/zeroed — it could otherwise yield a large NEGATIVE
-        // "interest" (the -$4,581 phantom). Interest can never be negative.
-        : Math.max(0, Math.round((trueEndBal - startBal - newPurchases + payment) * 100) / 100);
+        : Math.round((trueEndBal - startBal - newPurchases + payment) * 100) / 100;
       bal = Math.round(trueEndBal * 100) / 100;
     } else {
       const fallbackInterest = (card.paymentPreference === 'statement' && inGrace)
@@ -1175,20 +1172,12 @@ export function simulateVariablePayoff(
       // change the revolving carry-over calculation.
       const upfrontInstPay = upfrontInstPayByCard.get(card.id) ?? 0;
       const revolvingFinalBal = finalBal - startInstBal + upfrontInstPay; // revolving remaining
-      // Remaining 0%-installment balance AFTER this month's plan payment. A statement card whose
-      // revolving portion is gone may still be carrying a 0% installment (e.g. Prime Visa's Amazon
-      // plan) — retiring it here would set balances to 0 and drop it from debtCards, silently
-      // deleting the installment remainder and halting its fixed monthly payment. Keep it an active
-      // debt card (revolving = 0, so no interest and no surplus target) until the plan amortizes to
-      // $0; only then does it truly reach a zero balance and transition.
-      const remainingInstAfterPay = Math.max(0, Math.round((startInstBal - upfrontInstPay) * 100) / 100);
       if (
         card.paymentPreference === 'statement' &&
         !paidOffCards.has(card.id) &&
         finalBal > 0 &&
         revolvingFinalBal >= 0 &&
-        revolvingFinalBal <= cardPurchasesThisMonth(card) + 0.01 &&
-        remainingInstAfterPay <= 0.01
+        revolvingFinalBal <= cardPurchasesThisMonth(card) + 0.01
       ) {
         paidOffCards.add(card.id);
         paidOffDeferredPurchases.set(card.id,

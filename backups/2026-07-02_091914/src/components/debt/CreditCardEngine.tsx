@@ -876,14 +876,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         const cyclingOwed = (monthlyCyclingOwed ?? variableSim.monthlyCyclingOwed)?.get(c.id) ?? [];
         const cyclingInterest = (monthlyCyclingInterest ?? variableSim.monthlyCyclingInterest)?.get(c.id) ?? [];
         const trueBalances = adjRevBals ?? (monthlyBalances ?? variableSim.monthlyBalances)?.get(c.id) ?? [];
-        // Always surface the sim's REAL per-month interest, even when forecast-adjusted balances
-        // drive the chart trajectory. Previously this was dropped (undefined) whenever adjRevBals
-        // existed, forcing projectCardVariable to BACK-SOLVE interest from the adjusted balances —
-        // which produced a large negative phantom (e.g. Discover's -$4,581) when the adjusted
-        // balance stepped down while the displayed month-0 payment was $0. The "Monthly Interest"
-        // tile sums this, so the phantom surfaced as fake interest. The engine's monthlyInterest is
-        // the genuine figure (e.g. Discover's ~$143/mo at 19.49%).
-        const trueInterest = (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
+        const trueInterest = adjRevBals ? undefined : (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
         return projectCardVariable(c, payments, PROJECTION_MONTHS, true, cardPurchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
       }
       if (Object.keys(cardOverrides).length > 0) {

@@ -1638,12 +1638,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const card = cards.find(c => c.id === pca.id);
         if (!card || !card.dueDay) return pca;
         if ((activeSim.monthlyRevolvingBalances.get(card.id)?.[0] ?? 1) === 0) return pca;
-        // Only treat a passed due date as "already paid" for autopay-full cards, whose statement
-        // genuinely clears automatically and is already reflected in the live Plaid balance. A
-        // non-autopay card (e.g. Discover, Prime Visa) that still carries a revolving balance is NOT
-        // auto-settled — recommending $0 there hid real debt the user still owes and made the
-        // recommendation diverge from the sim, which kept applying the (floor-bounded) paydown.
-        if (!card.autopayFullBalance) return pca;
         const dueDateStr = `${m0MonthStr}-${String(card.dueDay).padStart(2, '0')}`;
         return dueDateStr <= syncCutoffDate ? { ...pca, payment: 0 } : pca;
       }) : perCardAdjusted;
