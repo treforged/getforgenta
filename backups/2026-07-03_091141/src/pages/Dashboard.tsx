@@ -458,7 +458,7 @@ export default function Dashboard() {
       accounts.filter(a => a.active && a.account_type === 'credit_card')
         .flatMap(a => [a.id, `account:${a.id}`]),
     );
-    const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now.getFullYear(), now.getMonth(), ccIds, syncCutoffDate);
+    const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now.getFullYear(), now.getMonth(), ccIds);
     return getMonthlyDebtBreakdown(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, undefined, syncCutoffDate, planExpenses);
   }, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar, syncCutoffDate, paymentPlans]);
 
@@ -581,18 +581,6 @@ export default function Dashboard() {
   const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, syncCutoffDate, debtFundingSources, CC_DEFAULT_CATEGORIES), [allMonthTransactions, syncCutoffDate, debtFundingSources]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions, syncCutoffDate), [allMonthTransactions, syncCutoffDate]);
 
-  // Remaining-this-month cash outflow from checking-sourced payment plans (CC-sourced plans hit
-  // card balances, not cash, so getMonthlyPlanCashExpenses excludes them). These aren't in the
-  // transaction stream, so fold them into the month-end-cash / surplus / available-to-deploy math
-  // below. Cutoff-aware: plan payments already made this month are baked into the live balance.
-  const planCashThisMonth = useMemo(() => {
-    const now = new Date();
-    const ccIds = new Set<string>(
-      accounts.filter(a => a.active && a.account_type === 'credit_card').flatMap(a => [a.id, `account:${a.id}`]),
-    );
-    return getMonthlyPlanCashExpenses(paymentPlans ?? [], now.getFullYear(), now.getMonth(), ccIds, syncCutoffDate);
-  }, [accounts, paymentPlans, syncCutoffDate]);
-
   const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
 
 
@@ -638,8 +626,8 @@ export default function Dashboard() {
   }, [accounts, fundingAccountId, accountSummary]);
 
   const monthEndCash = useMemo(
-    () => fundingBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt - planCashThisMonth,
-    [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt, planCashThisMonth],
+    () => fundingBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt,
+    [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt],
   );
 
   // Implicit engine holdback: everything the engine reserves beyond the stated cashFloor
@@ -648,9 +636,9 @@ export default function Dashboard() {
   const month0ImpliedSavings = useMemo(() => {
     const safeToPayTotal = cardProjection?.month0?.safeToPayTotal;
     if (safeToPayTotal == null) return 0;
-    const projSurplus = fundingBalance + remainingTxIncome - remainingTxExpenses - planCashThisMonth;
+    const projSurplus = fundingBalance + remainingTxIncome - remainingTxExpenses;
     return Math.max(0, projSurplus - forecastFloor0.monthMinSafe - safeToPayTotal);
-  }, [cardProjection, fundingBalance, remainingTxIncome, remainingTxExpenses, planCashThisMonth, forecastFloor0]);
+  }, [cardProjection, fundingBalance, remainingTxIncome, remainingTxExpenses, forecastFloor0]);
 
   // Debt recommendations for Dashboard widget — driven by useCardProjection pass-3 (month0)
   // so floor, save-up reserves, income timing, and goals all match the Debt Payoff tab exactly.
@@ -807,7 +795,6 @@ export default function Dashboard() {
       { label: 'Remaining Income', value: formatCurrency(remainingTxIncome, false), op: '+' },
       { label: 'Remaining Expenses', value: formatCurrency(remainingTxExpenses, false), op: '−' },
       { label: 'Remaining Debt Payments', value: formatCurrency(remainingTxDebt, false), op: '−' },
-      ...(planCashThisMonth > 0 ? [{ label: 'Payment Plans (from checking)', value: formatCurrency(planCashThisMonth, false), op: '−' }] : []),
       { label: 'Projected Month-End Cash', value: formatCurrency(monthEndCash, false), op: '=' },
       { label: '', value: '' },
       { label: 'Minimum Payments Due (this month)', value: formatCurrency(engineMinimums, false) },
@@ -925,8 +912,8 @@ export default function Dashboard() {
             fundingBalance={fundingBalance}
             remainingIncome={remainingTxIncome}
             spentSoFar={summary.expenses + totalDebtPayments}
-            expectedRemainingExpenses={remainingTxExpenses + planCashThisMonth}
-            projectedSurplus={fundingBalance + remainingTxIncome - remainingTxExpenses - planCashThisMonth}
+            expectedRemainingExpenses={remainingTxExpenses}
+            projectedSurplus={fundingBalance + remainingTxIncome - remainingTxExpenses}
             cashFloor={forecastFloor0.monthMinSafe}
             savingsAndReserves={month0ImpliedSavings}
             savingsBreakdown={month0SavingsBreakdown}

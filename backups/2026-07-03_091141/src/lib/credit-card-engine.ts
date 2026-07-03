@@ -1352,11 +1352,6 @@ export function generateRecommendations(
   primaryDueDay?: number,
   monthlySavingsAndCar?: number,
   syncCutoffDate?: string,
-  // Remaining-this-month cash outflow from payment plans sourced from the funding/checking account
-  // (not credit-card-sourced plans, which hit card balances). These are real upcoming outflows that
-  // reduce the cash available to deploy toward debt, but they don't appear in the transaction stream,
-  // so subtract them from availableAboveFloor below. Already cutoff-scoped by the caller.
-  month0PlanOutflow = 0,
 ): RecommendationSummary {
   // Preference cards = zero-balance cycling cards only (balance <= 0 encoded in autopayFullBalance).
   // Positive-balance full/statement cards compete under normal strategy in revolvingCards —
@@ -1381,10 +1376,6 @@ export function generateRecommendations(
 
   let remainingTransactionIncome = 0;
   let remainingTransactionExpenses = 0;
-  // Whether we fell back to the monthlyExpenses scalar (which already has plan cash outflow folded
-  // in by the caller). In that degenerate no-transactions/no-rules case, don't subtract
-  // month0PlanOutflow again below — it would double-count.
-  let usedScalarExpenses = false;
 
   if (transactions && transactions.length > 0) {
     const fundingSources = fundingAccountId
@@ -1401,7 +1392,6 @@ export function generateRecommendations(
   } else {
     remainingTransactionIncome = monthlyTakeHome;
     remainingTransactionExpenses = monthlyExpenses;
-    usedScalarExpenses = true;
   }
 
   const remainingPaycheckIncome = remainingTransactionIncome;
@@ -1415,11 +1405,8 @@ export function generateRecommendations(
 
   // Preference cards (statement/full) are allocated first, capped by cash above floor.
   // Subtract outflows (bank bills through due date) so upcoming expenses aren't ignored.
-  // Payment-plan cash outflows (checking-sourced) don't appear in the transaction stream, so
-  // subtract them here too — otherwise they never reduce the cash available to deploy toward debt.
-  const planOutflow = usedScalarExpenses ? 0 : month0PlanOutflow;
   const availableAboveFloor = Math.max(0,
-    effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum - planOutflow
+    effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum
   );
   let preferencePool = availableAboveFloor;
   let autopayTotal = 0;
@@ -1650,7 +1637,7 @@ function buildCurrentMonthRecommendationSummary(
     cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses + extraMonthlyExpenses,
     'variable', pc, rules, fundingAccountId, safeMinimumOverride ?? ppBills, fundBal,
     undefined, undefined, transactions, primaryDueDay, monthlySavingsAndCar,
-    syncCutoffDate, extraMonthlyExpenses,
+    syncCutoffDate,
   );
 }
 
