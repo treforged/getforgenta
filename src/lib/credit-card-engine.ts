@@ -136,29 +136,32 @@ export function buildCardData(
   return ccAccounts.map((acct, i) => {
     const acctKey = `account:${acct.id}`;
     const now = new Date();
-    // Only count CC transactions in the CURRENT month from TODAY forward.
-    // Past purchases are already in the card's live balance.
-    // Future-month one-time purchases must NOT be summed here — they are
-    // attributed per-month via cardPurchasesPerMonth in the simulation.
     const todayStr = now.toISOString().split('T')[0];
-    const currentMonthStr = todayStr.slice(0, 7); // 'YYYY-MM'
-    const monthPurchases = transactions
-      .filter(t =>
-        t.type === 'expense' &&
-        (t.payment_source === acctKey || t.payment_source === acct.id) &&
-        t.date >= todayStr &&
-        t.date.startsWith(currentMonthStr),
-      )
-      .reduce((s, t) => s + Number(t.amount), 0);
 
-    // Use next month (full month, no today-cutoff) so monthlyNewPurchases represents a
-    // complete billing cycle. The current month is partial — most recurring bills already
-    // fired and are baked into the live balance, so using it understates future monthly
-    // spending and causes the projection to flatline at whatever charges remain this month.
+    // monthlyNewPurchases is the card's RECURRING monthly spend estimate — it is re-applied to
+    // every projected month by the simulation (cardPurchasesThisMonth falls back to it for m >= 1).
+    // It must therefore be derived from recurring rules ONLY. One-time transactions (e.g. a single
+    // "Car registration" charge) are already attributed to their own month via cardPurchasesPerMonth
+    // / ccOneTimeByMonth; summing them here would re-charge that one-time amount every month and
+    // balloon the card's projected balance (a 'full'/'statement' card that never reaches $0 even
+    // with no recurring spend). See docs/debt-model-fixes-plan.md.
+    // Use next month (full month, no today-cutoff) so the estimate represents a complete billing
+    // cycle — the current month is partial (most recurring bills already fired and are baked into
+    // the live balance), so using it would understate future monthly spending.
     const projRef = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+    // Exclude yearly rules from this flat monthly estimate. A yearly charge is a once-a-year
+    // spike, not ongoing monthly spend — amortizing it (countRuleOccurrencesInMonth returns 1/12
+    // for yearly) makes a card look like it carries that fraction every month (e.g. Prime Visa
+    // showing ~$419/mo that includes /12 slices of Pet Insurance, Costco, Amazon Prime, etc.).
+    // Yearly items are already attributed to their actual due month via the scheduled-purchase
+    // path (cardPurchasesPerMonth / ccScheduledByMonth), so they spike there and must not also be
+    // spread here. If the user wanted a charge spread evenly they'd have set it to monthly.
+    const isRecurringMonthlySpend = (r: RuleRow) =>
+      r.active && r.rule_type === 'expense' && r.frequency !== 'yearly';
+
     const recurringExplicit = rules
-      .filter(r => r.active && r.rule_type === 'expense' && (r.payment_source === acctKey || r.payment_source === acct.id))
+      .filter(r => isRecurringMonthlySpend(r) && (r.payment_source === acctKey || r.payment_source === acct.id))
       .reduce((s, r) =>
         s + Number(r.amount) * countRuleOccurrencesInMonth(r, projRef.getFullYear(), projRef.getMonth()),
       0);
@@ -167,12 +170,12 @@ export function buildCardData(
     const isDefaultCard = highestAprCard?.id === acct.id;
 
     const recurringDefault = isDefaultCard ? rules
-      .filter(r => r.active && r.rule_type === 'expense' && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
+      .filter(r => isRecurringMonthlySpend(r) && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
       .reduce((s, r) =>
         s + Number(r.amount) * countRuleOccurrencesInMonth(r, projRef.getFullYear(), projRef.getMonth()),
       0) : 0;
 
-    const monthlyNewPurchases = Math.max(monthPurchases, recurringExplicit + recurringDefault);
+    const monthlyNewPurchases = recurringExplicit + recurringDefault;
 
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const monthRepayments = transactions

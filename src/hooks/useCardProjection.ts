@@ -1037,7 +1037,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         for (const card of cards) {
           const simBal = sim.monthlyBalances.get(card.id)?.[i] ?? 0;
           if (simBal > 0) displayBal += simBal;
-          else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += card.monthlyNewPurchases;
+          // Paid-off statement/full card: its ongoing liability is THIS month's actual purchases
+          // (recurring monthly/biweekly + scheduled yearly spikes in their due month + one-time),
+          // read from cardPurchasesPerMonth exactly like the per-card row above (~line 1027) and the
+          // "CC Purchases" popup. The flat card.monthlyNewPurchases estimate is wrong here: it
+          // amortizes yearly items across every month instead of spiking them in their due month,
+          // and it omits cards whose purchases only begin later (e.g. Venture X in an out-year).
+          else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += cardPurchasesPerMonth[i]?.[card.id] ?? card.monthlyNewPurchases;
         }
         row.displayCCBalance = Math.round(Math.max(0, displayBal));
         row.totalInterest = Math.round(row.totalInterest);
