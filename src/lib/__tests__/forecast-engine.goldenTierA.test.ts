@@ -9,12 +9,17 @@
 // forecast-inputs.real.json is gitignored (kept local only). When it is absent the test
 // self-skips (CI stays green without the snapshot); when present it hard-asserts.
 //
-// Baseline note: on the captured data (07-01) the milestone lands on **Feb 2027**, not the
-// Jun-2027 figure from the original plan. That shift is data-driven (a second 0% "upfront"
-// payment plan on Prime Visa tipped its whole balance into the CC sim's installment bucket, and
-// a due-day-1 statement carve-out on Discover), NOT the refactor — the extracted body is
-// byte-identical to the pre-extraction useMemo. When the due-day-1 fix (roadmap item) lands it
-// will deliberately move this anchor; update it there as a reviewed behavior change.
+// Baseline note: the milestone now lands on **Apr 2027** on the captured (post-P0-fix) data.
+// History: the byte-identical Stage-2 extraction reproduced Feb 2027; the P0 debt fixes
+// (installment-wipe, phantom due-day carve-out, Monthly-Interest mislabel) plus the sim fixes
+// (one-time-purchase "balloon" removal in getCardSpendingEstimate, displayCCBalance per-month
+// purchases) moved Discover's real floor-bounded payoff to Apr 2027 — Discover is the last
+// revolving card to clear. Those sim fixes live upstream of the frozen cardProjectionData this
+// fixture carries, so they don't change calculateForecast's output here; the Feb→Apr shift is
+// the captured cardProjectionData reflecting the P0 fixes. This anchor will move again when the
+// milestone-timing fix lands (the milestone currently fires the month surplus *covers* the
+// balance, ~one month before the balance actually reaches $0); update it there as a reviewed
+// behavior change.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
@@ -29,7 +34,7 @@ const maybeIt = hasFixture ? it : it.skip;
 describe('forecast-engine — Tier A golden (real data)', () => {
   afterEach(() => vi.useRealTimers());
 
-  maybeIt('reproduces the captured baseline: CC Debt Free = Feb 2027, surplus-driven, Discover last', () => {
+  maybeIt('reproduces the captured baseline: CC Debt Free = Apr 2027, surplus-driven, Discover last', () => {
     const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
     // The engine reads new Date() internally, so anchor the clock to the capture instant —
@@ -49,7 +54,7 @@ describe('forecast-engine — Tier A golden (real data)', () => {
     // Core invariant the extraction must preserve: the CC Debt Free milestone month.
     const ccFree = result.milestones.find((m) => m.event.startsWith('CC Debt Free'));
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
-    expect(ccFree!.month).toBe('Feb 2027');
+    expect(ccFree!.month).toBe('Apr 2027');
 
     // Mechanism sanity: the milestone is reached by cumulative step-3 surplus covering the sim's
     // revolving balance, and the displayed CC liability falls materially from month 0 to then.
