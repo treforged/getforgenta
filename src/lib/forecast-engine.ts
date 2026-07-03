@@ -1023,8 +1023,19 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // which is the forecast's authoritative view of what's still owed after all extra routing.
     let cumulativeStep3Extra = 0;
     let prevAdjustedRevBal = liveRevolvingBal;
+    // ccDebtFreeFired gates the step-3 surplus routing + display adjustment below: it flips the
+    // month the forecast's combined payments COVER the revolving balance (~1 mo before the real
+    // balance reaches $0). Keep it there — it controls money movement, not the milestone.
     let ccDebtFreeFired = false;
-    const forecastRPM = cardProjectionData?.forecastRevolvingPayoffMonth ?? null;
+    // ccMilestoneFired is separate: the user-facing "CC Debt Free" milestone must land on the month
+    // the real revolving balance actually reaches $0 (Discover, the last interest-bearing card),
+    // NOT the earlier surplus-covers month — otherwise a Discover payment shows AFTER the milestone
+    // with no matching $0. Prefer the SIM's true all-revolving-clear month (simRevolvingPayoffMonth);
+    // fall back to the surplus-covers signal, then to ccDebtFreeFired when no signal is available.
+    let ccMilestoneFired = false;
+    const rawPayoffMonth = cardProjectionData?.simRevolvingPayoffMonth
+      ?? cardProjectionData?.forecastRevolvingPayoffMonth ?? null;
+    const ccDebtFreePayoffIdx = rawPayoffMonth != null && rawPayoffMonth > 0 ? rawPayoffMonth - 1 : null;
     // Cash being set aside toward a saving-phase vehicle's down payment hasn't left any account
     // yet — it's still the user's cash. Track it separately and add it back to displayed Ending
     // Cash each month, removing it once the purchase month arrives (the money's been spent by
@@ -1276,16 +1287,27 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
       const netWorth = totalAssets - totalLiabilityBal;
 
-      // Milestone fires when the forecast's combined payments (SIM plan + step-3 extras) have covered
-      // the full revolving balance: adjustedRevBal = ccEngRevBalEnd - cumulativeStep3Extra <= 0.
-      // This fires LATER than the old p3RevBal-only check (which could fire before the SIM's large
-      // avalanche payments) but EARLIER than ccEngRevBalEnd <= 0 (which would wait 200+ months).
+      // ccDebtFreeFired flips the month the forecast's combined payments (SIM plan + step-3 extras)
+      // COVER the full revolving balance: adjustedRevBal = ccEngRevBalEnd - cumulativeStep3Extra <= 0.
+      // This gates the surplus routing + display adjustment above (do NOT emit the milestone here —
+      // that fires ~1 month before the real balance reaches $0).
       const adjustedRevBalFinal = Math.max(0, ccEngRevBalEnd - cumulativeStep3Extra);
       if (!ccDebtFreeFired && adjustedRevBalFinal <= 0 && prevAdjustedRevBal > 0) {
-        milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
         ccDebtFreeFired = true;
       }
       prevAdjustedRevBal = adjustedRevBalFinal;
+
+      // CC Debt Free milestone: fire on the real revolving-$0 month (ccDebtFreePayoffIdx, from the
+      // SIM's true payoff signal). When no signal is available, fall back to the surplus-covers flag
+      // so the milestone still fires within the horizon.
+      if (!ccMilestoneFired) {
+        const fireBySignal = ccDebtFreePayoffIdx !== null && i === ccDebtFreePayoffIdx;
+        const fireByFallback = ccDebtFreePayoffIdx === null && ccDebtFreeFired;
+        if (fireBySignal || fireByFallback) {
+          milestones.push({ month: b.monthLabel, event: 'CC Debt Free! 🎉' });
+          ccMilestoneFired = true;
+        }
+      }
       resolvedGoals.forEach((g) => {
         const elapsed = Math.max(0, i - g.delayMonths);
         const prevElapsed = Math.max(0, (i - 1) - g.delayMonths);

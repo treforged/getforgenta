@@ -9,17 +9,18 @@
 // forecast-inputs.real.json is gitignored (kept local only). When it is absent the test
 // self-skips (CI stays green without the snapshot); when present it hard-asserts.
 //
-// Baseline note: the milestone now lands on **Apr 2027** on the captured (post-P0-fix) data.
-// History: the byte-identical Stage-2 extraction reproduced Feb 2027; the P0 debt fixes
-// (installment-wipe, phantom due-day carve-out, Monthly-Interest mislabel) plus the sim fixes
-// (one-time-purchase "balloon" removal in getCardSpendingEstimate, displayCCBalance per-month
-// purchases) moved Discover's real floor-bounded payoff to Apr 2027 — Discover is the last
-// revolving card to clear. Those sim fixes live upstream of the frozen cardProjectionData this
-// fixture carries, so they don't change calculateForecast's output here; the Feb→Apr shift is
-// the captured cardProjectionData reflecting the P0 fixes. This anchor will move again when the
-// milestone-timing fix lands (the milestone currently fires the month surplus *covers* the
-// balance, ~one month before the balance actually reaches $0); update it there as a reviewed
-// behavior change.
+// Baseline note: the CC Debt Free milestone now fires on the SIM's TRUE revolving-$0 month
+// (cardProjectionData.simRevolvingPayoffMonth), not the earlier "surplus covers the balance"
+// month. History: the byte-identical Stage-2 extraction reproduced Feb 2027; the P0 debt fixes
+// plus the sim balloon/displayCCBalance fixes moved the surplus-covers month to Apr 2027; the
+// Phase-3 milestone-timing fix then repointed the milestone at simRevolvingPayoffMonth (~1 month
+// later, when Discover — the last interest-bearing card — actually reaches $0), so a Discover
+// payment no longer shows after the milestone.
+//
+// This test derives the expected milestone month FROM the fixture's own frozen
+// simRevolvingPayoffMonth (so it survives fixture refreshes) AND pins the human-readable calendar
+// month as a secondary anchor. On the current (post-balloon-fix) fixture captured 2026-07-03,
+// simRevolvingPayoffMonth = 11 → data index 10 → May 2027 (month 0 = Jul 2026).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
@@ -34,7 +35,7 @@ const maybeIt = hasFixture ? it : it.skip;
 describe('forecast-engine — Tier A golden (real data)', () => {
   afterEach(() => vi.useRealTimers());
 
-  maybeIt('reproduces the captured baseline: CC Debt Free = Apr 2027, surplus-driven, Discover last', () => {
+  maybeIt('CC Debt Free milestone fires on the SIM true revolving-$0 month, Discover last', () => {
     const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
     // The engine reads new Date() internally, so anchor the clock to the capture instant —
@@ -51,17 +52,24 @@ describe('forecast-engine — Tier A golden (real data)', () => {
     expect(bal('Apple Card')).toBe(0);
     expect(bal('Discover it Card')).toBeGreaterThan(0);
 
-    // Core invariant the extraction must preserve: the CC Debt Free milestone month.
+    // Phase-3 invariant: the milestone lands on the SIM's true all-revolving-clear month
+    // (simRevolvingPayoffMonth, 1-based → data index simRevolvingPayoffMonth - 1), derived from the
+    // fixture's own frozen cardProjectionData so it survives fixture refreshes.
+    const payoffMonth = inputs.cardProjectionData?.simRevolvingPayoffMonth
+      ?? inputs.cardProjectionData?.forecastRevolvingPayoffMonth;
+    expect(payoffMonth, 'fixture must carry a revolving payoff signal').toBeTruthy();
+    const expectedIdx = (payoffMonth as number) - 1;
+
     const ccFree = result.milestones.find((m) => m.event.startsWith('CC Debt Free'));
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
-    expect(ccFree!.month).toBe('Apr 2027');
+    expect(ccFree!.month).toBe(result.data[expectedIdx].month);
+    // Secondary human-readable anchor for the current fixture (re-pin if the fixture is refreshed).
+    expect(ccFree!.month).toBe('May 2027');
 
-    // Mechanism sanity: the milestone is reached by cumulative step-3 surplus covering the sim's
-    // revolving balance, and the displayed CC liability falls materially from month 0 to then.
+    // Mechanism sanity: the displayed CC liability falls materially from month 0 to the payoff month.
     const idx = result.data.findIndex((r) => r.month === ccFree!.month);
-    expect(idx).toBeGreaterThan(0);
+    expect(idx).toBe(expectedIdx);
     expect(result.data[0].ccDisplayBalance).toBeGreaterThan(1000);
-    expect(result.data[idx].revolving3Extra).toBeGreaterThan(4000);
     expect(result.data[idx].ccDisplayBalance).toBeLessThan(result.data[0].ccDisplayBalance);
   });
 });
