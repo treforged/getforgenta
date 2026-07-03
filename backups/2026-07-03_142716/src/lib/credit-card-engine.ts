@@ -432,21 +432,6 @@ export function projectCardVariable(
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
-    // Reconciliation guard (dev only): when we display the engine's ground-truth end balance, the
-    // row must satisfy End = Start + purchases + interest − payment. If it doesn't, the displayed
-    // payment came from a different model than the balance (the class of bug that produced balances
-    // dropping without matching payments). Surface it loudly instead of letting it pass silently.
-    if (import.meta.env?.DEV && trueEndBal !== undefined && m <= months) {
-      const residual = Math.round((bal - (startBal + newPurchases + interest - payment)) * 100) / 100;
-      // Tolerate sub-dollar noise from displaying whole-dollar-rounded payments; only flag a real
-      // model mismatch (e.g. an installment/plan payment that moves the balance but isn't shown in
-      // the payment column). $1 comfortably clears rounding while catching the hundreds-of-dollars
-      // divergences that motivated this guard.
-      if (Math.abs(residual) > 1) {
-        // eslint-disable-next-line no-console
-        console.warn(`[projectCardVariable] ${card.name} ${label} does not reconcile: End ${bal} ≠ Start ${startBal} + purch ${newPurchases} + int ${interest} − pay ${Math.round(payment * 100) / 100} (residual ${residual})`);
-      }
-    }
     if (payoffMonth === null && startBal > 0) {
       if (card.paymentPreference === 'statement') {
         // inGrace = payment covered opening balance + interest this cycle,
