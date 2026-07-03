@@ -11,6 +11,7 @@ import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
+import { useForecastProjections } from '@/hooks/useForecastProjections';
 import { usePersistedState } from '@/hooks/usePersistedState';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
@@ -32,8 +33,16 @@ export default function DebtPayoff() {
     assumptions,
     pauseSavings,
     setPauseSavings,
-    forecastStep3ExtraByMonth,
   } = useCardProjectionContext();
+  // Run the SAME authoritative forecast engine the Forecast page runs, so Debt Payoff is correct
+  // on a cold load without first visiting Forecast (previously the step-3 extras lived only in
+  // context, written by the Forecast page's effect). revolving3Extra is the per-month cumulative
+  // step-3 surplus routed to revolving debt.
+  const { projections } = useForecastProjections();
+  const forecastStep3ExtraByMonth = useMemo(
+    () => projections?.data.map(r => r.revolving3Extra) ?? null,
+    [projections],
+  );
   // Distribute Forecast's authoritative step-3 cumulative surplus per card (avalanche order)
   // to produce forecast-aligned revolving balances. This mirrors Forecast.tsx lines 2685-2694
   // so the Debt Payoff accordion and trajectory chart match the Forecast's CC Debt Free timing.

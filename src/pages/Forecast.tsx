@@ -26,6 +26,7 @@ import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type Filin
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
+import { useForecastProjections } from '@/hooks/useForecastProjections';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 const DEFAULT_APY_FORECAST = 7;
@@ -114,7 +115,6 @@ export default function Forecast() {
     cardProjection: cardProjectionData,
     assumptions,
     setAssumptions,
-    setForecastStep3ExtraByMonth,
     pauseSavings,
     debtStrategy,
     payConfig,
@@ -141,324 +141,20 @@ export default function Forecast() {
   }, [setHiddenSeries]);
 
 
-  // Annualize the "Federal Withholding" deduction from Budget Control, if the user has set one.
-  // Takes priority over the state-rate default so the estimate reflects their actual W-4 setup.
-  const annualFederalWithheldFromBudget = useMemo(() => {
-    if (!payConfig || !profile) return 0;
-    const jsonDeds = profile?.paycheck_deductions as { value: number; mode: string; label?: string }[] | null;
-    if (!jsonDeds || jsonDeds.length === 0) return 0;
-    const fedDed = jsonDeds.find(d => d.label != null && /federal.*withholding|^withholding$/i.test(d.label));
-    if (!fedDed || !fedDed.value) return 0;
-    const paycheckGross = payConfig.frequency === 'biweekly' ? payConfig.weeklyGross * 2
-      : payConfig.frequency === 'monthly' ? payConfig.weeklyGross * 52 / 12
-      : payConfig.weeklyGross;
-    const perPaycheck = fedDed.mode === 'pct' ? paycheckGross * (fedDed.value / 100) : fedDed.value;
-    const paychecksPerYear = payConfig.frequency === 'biweekly' ? 26 : payConfig.frequency === 'monthly' ? 12 : 52;
-    return Math.round(perPaycheck * paychecksPerYear);
-  }, [payConfig, profile]);
-
-
-  const prePaycheckBillsInfo = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId), [rules, payConfig, forecastFundingAccountId]);
-  const monthlyAggregates = useMemo(() => aggregateByMonth(scheduledEvents), [scheduledEvents]);
-
-  const planExpensesByMonth = useMemo(() => {
-    const now = new Date();
-    const ccIds = new Set<string>(
-      accounts.filter(a => a.active && a.account_type === 'credit_card')
-        .flatMap(a => [a.id, `account:${a.id}`]),
-    );
-    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      return getMonthlyPlanCashExpenses(
-        paymentPlans ?? [], d.getFullYear(), d.getMonth(), ccIds,
-        i === 0 ? syncCutoffDate : undefined,
-      );
-    });
-  }, [accounts, paymentPlans, syncCutoffDate]);
-
-  const debtPaymentsByMonth = useMemo(() =>
-    getDebtPaymentsByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, PROJECTION_MONTHS, planExpensesByMonth),
-    [accounts, transactions, rules, debts, profile, debtPayoffOptions, planExpensesByMonth],
-  );
-
-  const debtBalancesByMonth = useMemo(() =>
-    getDebtBalancesByMonth(accounts, transactions, rules, debts, profile, debtPayoffOptions, PROJECTION_MONTHS, planExpensesByMonth),
-    [accounts, transactions, rules, debts, profile, debtPayoffOptions, planExpensesByMonth],
-  );
-
-  // Current-month debt breakdown — pins forecast month 0 to the same calc as Debt Payoff + Dashboard.
-  // safeToPayTotal = totalRecommended (sum of all card payments) = rawDebtPayment for month 0.
-  // autopayTotal is kept at 0 here since it's already included in totalRecommended — the loop
-  // previously added it separately causing double-counting after totalAvailableCash was changed
-  // to represent the actual recommended payment rather than the pre-autopay pool.
-  const currentMonthRecommendedDebt = useMemo(() => {
-    try {
-      const allTxns = mergeWithGeneratedTransactions(transactions, rules, accounts);
-      const retireIds = new Set<string>(
-        accounts.filter((a) => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map((a) => a.id),
-      );
-      const now0 = new Date();
-      const monthEnd0 = new Date(now0.getFullYear(), now0.getMonth() + 1, 0);
-      const activeTransferDests0 = new Set<string>(
-        rules.filter((r) =>
-          r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
-          !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd0) &&
-          !(r.end_date && new Date(r.end_date + 'T00:00:00') < now0),
-        ).map((r) => r.deposit_account as string),
-      );
-      const savingsTotal = goals.reduce((s, g) => {
-        if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now0) return s;
-        if (g.linked_account && retireIds.has(g.linked_account)) return s;
-        if (g.linked_account && activeTransferDests0.has(g.linked_account)) return s;
-        return s + Number(g.monthly_contribution);
-      }, 0);
-      const carTotal = carFunds.reduce((s, c) => {
-        if (c.phase === 'loan') return s;
-        const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
-        const rem = Math.max(0, giftAdjDownPmt - Number(c.current_saved));
-        if (rem <= 0) return s;
-        let monthsToGoal = 12;
-        if (c.planned_purchase_date) {
-          const parts = (c.planned_purchase_date as string).split('-').map(Number);
-          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-          monthsToGoal = Math.max(1, (pd.getFullYear() - now0.getFullYear()) * 12 + (pd.getMonth() - now0.getMonth()));
-        }
-        return s + Math.min(rem / monthsToGoal, rem);
-      }, 0);
-      const carLoanTotal = getTotalCarLoanMonthly(carFunds);
-      const ccIds = new Set<string>(
-        accounts.filter(a => a.active && a.account_type === 'credit_card')
-          .flatMap(a => [a.id, `account:${a.id}`]),
-      );
-      const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now0.getFullYear(), now0.getMonth(), ccIds);
-      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses);
-      const safeToPayTotal = breakdown.totalRecommended;
-      const autopayTotal = 0;
-      return { safeToPayTotal, autopayTotal, recommendations: breakdown.recommendations };
-    } catch { return null; }
-  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate, paymentPlans]);
-
-  // ── Shared CC-filtered month events ─────────────────────────────────────────
-  // Excludes CC-tagged expense rules from cash expenses so the main projections
-  // engine doesn't double-count them with the debt engine's autopay pass-through
-  // payments after cards are paid off.
-  const forecastMonthEvents = useMemo((): { income: number; nonPaycheckIncome: number; expenses: number }[] => {
-    const now = new Date();
-    const todayStr = syncCutoffDate;
-
-    const liquidAccountIds = new Set<string>(
-      accounts
-        .filter((a) => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
-        .map((a) => a.id),
-    );
-
-    const incomeToLiquidRuleIds = new Set<string>(
-      rules.filter((r) =>
-        r.active && r.rule_type === 'income' &&
-        (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-      ).map((r) => r.id),
-    );
-
-    // Identify the paycheck rule(s) so we can separate them from "other income".
-    // paycheck income is already captured via fallbackTakeHome in PASS 1 — including it
-    // again from forecastMonthEvents would double-count it for months > 0.
-    const explicitPaycheckRuleId = profile?.paycheck_rule_id ?? undefined;
-    const paycheckRuleIds = new Set<string>();
-    if (explicitPaycheckRuleId) {
-      paycheckRuleIds.add(explicitPaycheckRuleId);
-    } else {
-      // Fallback: treat periodic-pay-frequency income rules as the paycheck rule
-      rules.filter((r) =>
-        r.active && r.rule_type === 'income' &&
-        ['weekly', 'biweekly', 'semi_monthly'].includes(r.frequency) &&
-        (!r.deposit_account || liquidAccountIds.has(r.deposit_account)),
-      ).forEach((r) => paycheckRuleIds.add(r.id));
-    }
-
-    const ccPaymentSources = new Set<string>(
-      accounts
-        .filter((a) => a.active && a.account_type === 'credit_card')
-        .flatMap((a) => [a.id, `account:${a.id}`]),
-    );
-
-    const ccExplicitRuleIds = new Set<string>(
-      rules.filter((r) =>
-        r.active && r.rule_type === 'expense' &&
-        r.payment_source && ccPaymentSources.has(r.payment_source),
-      ).map((r) => r.id),
-    );
-
-    const ccDefaultRuleIds = new Set<string>(
-      rules.filter((r) =>
-        r.active && r.rule_type === 'expense' &&
-        !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category),
-      ).map((r) => r.id),
-    );
-
-    const allCcRuleIds = new Set<string>([...ccExplicitRuleIds, ...ccDefaultRuleIds]);
-
-    // Expense rules paid from a bank account other than the funding account (not a CC, already
-    // excluded above) — that money never touches the funding account, so it must not reduce its
-    // modeled cash flow. Mirrors useCardProjection.ts's identical Set exactly — keep in lockstep.
-    const otherAccountRuleIds = new Set<string>(
-      rules.filter((r) => {
-        if (!r.active || r.rule_type !== 'expense' || !r.payment_source) return false;
-        if (ccPaymentSources.has(r.payment_source)) return false;
-        if (!forecastFundingAccountId) return false;
-        const srcId = (r.payment_source as string).replace(/^account:/, '');
-        return srcId !== forecastFundingAccountId;
-      }).map((r) => r.id),
-    );
-
-    const savingsRuleIds = new Set<string>(
-      rules.filter((r) =>
-        r.active && r.rule_type === 'expense' &&
-        (r.category === 'Savings' || r.category === 'Investing'),
-      ).map((r) => r.id),
-    );
-
-    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-
-      const eventsInMonth = scheduledEvents.filter(e =>
-        e.date.startsWith(monthKey) && (i > 0 || e.date > todayStr),
-      );
-
-      const income = eventsInMonth
-        .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId))
-        .reduce((s, e) => s + e.amount, 0);
-
-      // nonPaycheckIncome excludes the paycheck rule so PASS 1 / simulationMonthEvents can
-      // add fallbackTakeHome (computed gross→net) without double-counting the paycheck.
-      // Each non-paycheck income rule may have its own tax_rate; default is 0 (no tax).
-      const ruleTaxRateMap = new Map<string, number>(
-        rules.filter((r) => r.rule_type === 'income' && r.tax_rate != null)
-          .map((r) => [r.id, Number(r.tax_rate)]),
-      );
-      const nonPaycheckIncome = eventsInMonth
-        .filter(e => e.type === 'income' && e.ruleId && incomeToLiquidRuleIds.has(e.ruleId) && !paycheckRuleIds.has(e.ruleId))
-        .reduce((s, e) => {
-          const tr = e.ruleId ? (ruleTaxRateMap.get(e.ruleId) ?? 0) : 0;
-          return s + e.amount * (1 - tr / 100);
-        }, 0);
-
-      const expenses = eventsInMonth
-        .filter(e =>
-          e.type === 'expense' &&
-          !(e.ruleId && allCcRuleIds.has(e.ruleId)) &&
-          !(e.ruleId && otherAccountRuleIds.has(e.ruleId)) &&
-          !(pauseSavings && e.ruleId && savingsRuleIds.has(e.ruleId)),
-        )
-        .reduce((s, e) => s + e.amount, 0);
-
-      return { income, nonPaycheckIncome, expenses };
-    });
-  }, [accounts, rules, scheduledEvents, pauseSavings, profile, syncCutoffDate, forecastFundingAccountId]);
-
-  // One-time manual transactions for forecast.
-  // CC-tagged expenses are excluded — they increase CC balance (tracked by the debt
-  // engine via cardPurchasesPerMonth) and do NOT reduce checking account cash.
-  // Past transactions in the current month are excluded — starting cash already reflects them.
-  const oneTimeByMonth = useMemo(() => {
-    const result: Record<string, { income: number; expense: number }> = {};
-    const ccSources = new Set(
-      accounts
-        .filter((a) => a.account_type === 'credit_card' && a.active)
-        .flatMap((a) => [a.id, `account:${a.id}`]),
-    );
-    const today = new Date();
-    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    for (const t of transactions) {
-      if ((t as EnrichedTransaction).isGenerated) continue;
-      const monthKey = t.date?.substring(0, 7);
-      if (!monthKey) continue;
-      // Exclude transactions on or before the last Plaid sync date — the account balance
-      // already reflects them. Uses syncCutoffDate (sync-aligned) so the boundary matches
-      // the actual balance snapshot, not the UTC clock.
-      if (monthKey === currentMonthKey && t.date && t.date <= syncCutoffDate) continue;
-      if (!result[monthKey]) result[monthKey] = { income: 0, expense: 0 };
-      if (t.type === 'income') result[monthKey].income += Number(t.amount);
-      else if (!t.payment_source || !ccSources.has(t.payment_source)) result[monthKey].expense += Number(t.amount);
-    }
-    return result;
-  }, [transactions, accounts, syncCutoffDate]);
-
-  // CC-only one-time purchases per month — display-only, does NOT affect cash floor math.
-  // Past transactions in the current month are excluded — starting cash already reflects them.
-  const ccOneTimeByMonth = useMemo(() => {
-    const result: Record<string, number> = {};
-    const ccSources = new Set(
-      accounts
-        .filter((a) => a.account_type === 'credit_card' && a.active)
-        .flatMap((a) => [a.id, `account:${a.id}`]),
-    );
-    const today = new Date();
-    const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    for (const t of transactions) {
-      if ((t as EnrichedTransaction).isGenerated) continue;
-      if (t.type !== 'expense') continue;
-      if (!t.payment_source || !ccSources.has(t.payment_source)) continue;
-      const monthKey = t.date?.substring(0, 7);
-      if (!monthKey) continue;
-      if (monthKey === currentMonthKey && t.date && t.date <= syncCutoffDate) continue;
-      result[monthKey] = (result[monthKey] || 0) + Number(t.amount);
-    }
-    return result;
-  }, [transactions, accounts, syncCutoffDate]);
-
-  // Scheduled CC rule purchases per month — the recurring spend on credit cards.
-  // Combined with ccOneTimeByMonth to show total CC purchases in the popup.
-  const ccScheduledByMonth = useMemo(() => {
-    const ccPaymentSources = new Set<string>(
-      accounts
-        .filter((a) => a.active && a.account_type === 'credit_card')
-        .flatMap((a) => [a.id, `account:${a.id}`]),
-    );
-    const ccRuleIds = new Set<string>(
-      rules.filter((r) =>
-        r.active && r.rule_type === 'expense' &&
-        (
-          (r.payment_source && ccPaymentSources.has(r.payment_source)) ||
-          (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
-        )
-      ).map((r) => r.id),
-    );
-    const now = new Date();
-    const todayStr = syncCutoffDate;
-    return Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      return scheduledEvents
-        .filter(e =>
-          e.type === 'expense' &&
-          e.date.startsWith(monthKey) &&
-          (i > 0 || e.date > todayStr) &&
-          e.ruleId && ccRuleIds.has(e.ruleId),
-        )
-        .reduce((s, e) => s + e.amount, 0);
-    });
-  }, [accounts, rules, scheduledEvents, syncCutoffDate]);
-
-  // Stage-2 extraction: the PASS 1/2/3 cash walk now lives in src/lib/forecast-engine.ts.
-  // Forecast supplies its computed inputs and renders the engine's result — identical numbers,
-  // one shared code path (see docs/forecast-engine-plan.md). engineInputs is memoized on the
-  // exact same dependency set the old useMemo used so memoization behavior is unchanged.
-  const engineInputs = useMemo<ForecastInputs>(() => ({
-    debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules,
-    monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData,
-    payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions,
-    currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor,
-    pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget,
-  }), [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget]);
-
-  const projections = useMemo(() => calculateForecast(engineInputs), [engineInputs]);
-
-  // Write Forecast's authoritative step-3 cumulative extras to shared context so DebtPayoff
-  // can align its per-card balances and payoff ETA with the Forecast's CC Debt Free milestone.
-  useEffect(() => {
-    setForecastStep3ExtraByMonth(projections?.data.map(r => r.revolving3Extra) ?? null);
-  }, [projections, setForecastStep3ExtraByMonth]);
+  const {
+    projections,
+    monthlyAggregates,
+    debtPaymentsByMonth,
+    debtBalancesByMonth,
+    oneTimeByMonth,
+    ccOneTimeByMonth,
+    ccScheduledByMonth,
+    currentMonthRecommendedDebt,
+    forecastMonthEvents,
+    planExpensesByMonth,
+    annualFederalWithheldFromBudget,
+    prePaycheckBillsInfo,
+  } = useForecastProjections();
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
