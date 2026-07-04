@@ -34,14 +34,15 @@ describe('simulateVariablePayoff — unified cycling/revolving avalanche cascade
 
     const sim = simulateVariablePayoff([rev, cycA, cycB], 1200, 1000, 'avalanche', 2400, 1500, months, monthEvents);
 
-    // Tight months: rev pinned at its formula minimum — confirms the scenario actually reproduces
-    // chronic cycling-pool pressure, not just "there's always plenty of cash for everyone."
-    // The exact value varies slightly each month as the balance (and thus formula min) decays,
-    // so we assert a range rather than an exact figure.
+    // Tight months: rev pinned at its CONTRACT minimum — confirms the scenario actually reproduces
+    // chronic cycling-pool pressure, not just "there's always plenty of cash for everyone." rev's
+    // $100 stated minimum exceeds the ~2% formula once its balance decays, and revolvingMinDue now
+    // floors the enforced minimum at that contract figure, so rev pins at a flat $100 (previously
+    // it drifted 75-95 on the bare formula, under-paying the lender's real minimum).
     for (let m = 1; m < 6; m++) {
       const pay = sim.monthlyPayments.get('rev')![m];
-      expect(pay).toBeGreaterThan(75);  // not abandoned — at least near formula min
-      expect(pay).toBeLessThan(95);     // pinned at minimum, not receiving surplus
+      expect(pay).toBeGreaterThanOrEqual(100); // pinned at the $100 contract minimum (revolvingMinDue)
+      expect(pay).toBeLessThan(110);           // still just the minimum, not receiving surplus
     }
     // The two cycling cards genuinely build backlog during the tight months — confirms the
     // pressure is real, not an artifact of the fixture.

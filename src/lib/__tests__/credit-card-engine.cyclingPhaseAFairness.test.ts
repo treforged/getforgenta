@@ -62,8 +62,12 @@ describe('simulateVariablePayoff — Phase A fairness between cycling cards with
     // barely more than its bare minimum despite a real, fundable need).
     expect(smallPay).toBeGreaterThan(100);
 
-    // Verified exact split for this fixture against the fixed implementation.
-    expect(bigPay).toBeCloseTo(404.49, 2);
+    // Verified exact split for this fixture against the fixed implementation. bigPay rose from
+    // 404.49 to 579.49 once revolvingMinDue guarantees the big card its full $200 CONTRACT minimum
+    // in Phase A (previously Phase A guaranteed only the lower ~2% formula figure). The low-minimum
+    // card still gets a meaningful, fundable share (145.51 > its bare $20), so the fairness
+    // invariant this test guards is intact — only the exact split shifts to honor the real minimum.
+    expect(bigPay).toBeCloseTo(579.49, 2);
     expect(smallPay).toBeCloseTo(145.51, 2);
   });
 });

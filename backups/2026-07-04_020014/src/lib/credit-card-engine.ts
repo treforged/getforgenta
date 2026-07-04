@@ -119,32 +119,6 @@ export function calcMinPayment(balance: number, apr: number): number {
   return Math.max(25, Math.round(balance * (1 + apr / 1200) * 0.02 * 100) / 100);
 }
 
-/**
- * The minimum that must actually be paid toward a card's REVOLVING balance this month.
- *
- * A card's real contract minimum (accounts.min_payment, Plaid-synced or user-entered — surfaced as
- * card.minPayment) is frequently HIGHER than the 2%-of-balance formula once the balance has been
- * paid down (e.g. Discover: $229 contract min vs ~$46 formula at a $2,300 balance). The simulation
- * must honor whichever is greater so a card is never throttled below what the lender actually
- * requires, dragging its real payoff out by months. Bounded above by revOwed so the last payment
- * never overshoots the balance.
- *
- * card.minPayment is the card's TOTAL stated minimum; when the card carries a 0%-installment plan
- * that plan's monthly payment is handled separately (installmentPayByCard / installmentCashCost),
- * so subtract it here to get the revolving-only portion of the contract minimum and avoid
- * double-counting the installment against the revolving cascade.
- *
- * This is the payment/reservation layer only — the pre-paycheck cash floor deliberately stays on
- * the plain calcMinPayment formula (see getAugmentedMinSafeCash / perCardMinPayments): reserving
- * the higher contract min in the floor would inflate min-safe-cash dollar-for-dollar and starve the
- * surplus that pays debt down, which is exactly what we're trying to avoid.
- */
-export function revolvingMinDue(card: CardData, revOwed: number): number {
-  if (revOwed <= 0) return 0;
-  const contractRevMin = Math.max(0, (card.minPayment ?? 0) - (card.installmentMonthlyPayment ?? 0));
-  return Math.min(Math.max(contractRevMin, calcMinPayment(revOwed, card.apr)), revOwed);
-}
-
 export function getDefaultCardForExpense(category: string, accounts: AccountRow[]): string | null {
   if (!CC_DEFAULT_CATEGORIES.has(category)) return null;
   const activeCards = accounts
@@ -842,20 +816,12 @@ export function simulateVariablePayoff(
         (paidOffCards.has(c.id) && (cyclingBacklog.get(c.id) ?? 0) > 0)
       ))
       .reduce((s, c) => {
-        // Reserve the SAME contract minimum the Step 5 cascade will actually enforce
-        // (revolvingMinDue), not the plain 2% formula. If this reservation is smaller than what the
-        // cascade pays, the extra the cascade pulls toward the revolving card comes out of general
-        // cash the mandatory cycling pool was counting on — draining it downstream and shorting
-        // cycling cards a cycle or two later (the useCardProjection.cyclingFloor regression). The
-        // double-reservation guard below (ccMinAlreadyInFloor) still nets the floor's formula-sized
-        // share back out, so the floor reserves `formula` and this layer reserves the rest
-        // (`contract − formula`) — together exactly the contract min, and no more.
-        if (paidOffCards.has(c.id)) return s + revolvingMinDue(c, cyclingBacklog.get(c.id) ?? 0);
+        if (paidOffCards.has(c.id)) return s + calcMinPayment(cyclingBacklog.get(c.id) ?? 0, c.apr);
         const bal = balances.get(c.id) ?? 0;
         const instBal = installmentBals.get(c.id) ?? 0;
         const revBal = Math.max(0, bal - instBal);
         const instMinPay = instBal > 0 ? Math.min(c.installmentMonthlyPayment ?? 0, instBal) : 0;
-        return s + revolvingMinDue(c, revBal) + instMinPay;
+        return s + calcMinPayment(revBal, c.apr) + instMinPay;
       }, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
     // outer-refinement passes in useCardProjection.ts), don't reserve it a second time here — only
@@ -1074,7 +1040,7 @@ export function simulateVariablePayoff(
       const owed = owedForCard(c.id);
       const instBal = installmentBals.get(c.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);
-      return s + revolvingMinDue(c, revOwed);
+      return s + Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
     }, 0);
 
     // availableCash = what's left above the floor after income, expenses, paid-off costs,
@@ -1087,16 +1053,10 @@ export function simulateVariablePayoff(
       availableCash = 0;
     }
 
-    // Cap debt allocation in save-up months (look-ahead pre-pass set these to ccMinTotal).
-    // B2: the cap can never force the deployable cash below this month's true minimums (totalMins,
-    // now the contract-min sum via revolvingMinDue). Without the max(mDebtCap, totalMins) floor a
-    // save-up cap sized on the 2% formula could drop availableCash below the contract minimums the
-    // cascade is about to enforce, forcing the min-enforcement guard to override it and silently
-    // over-draining cash beyond what the look-ahead reserved. Still bounded above by the real
-    // availableCash, so this never invents cash the month doesn't have.
+    // Cap debt allocation in save-up months (look-ahead pre-pass set these to ccMinTotal)
     const mDebtCap = maxDebtPaymentByMonth?.[m];
-    if (mDebtCap !== undefined && isFinite(mDebtCap)) {
-      availableCash = Math.min(availableCash, Math.max(mDebtCap, totalMins));
+    if (mDebtCap !== undefined && isFinite(mDebtCap) && availableCash > mDebtCap) {
+      availableCash = mDebtCap;
     }
 
     const payments = new Map<string, number>(cards.map(c => [c.id, 0]));
@@ -1119,7 +1079,7 @@ export function simulateVariablePayoff(
         const owed = owedForCard(card.id);
         const instBal = installmentBals.get(card.id) ?? 0;
         const revOwed = Math.max(0, owed - instBal);
-        const min = revolvingMinDue(card, revOwed);
+        const min = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
         if (remainingForMins >= min) {
           payments.set(card.id, min);
           remainingForMins -= min;
@@ -1154,7 +1114,7 @@ export function simulateVariablePayoff(
         const owedStep5 = owedForCard(card.id);
         const instBal = installmentBals.get(card.id) ?? 0;
         const revOwed = Math.max(0, owedStep5 - instBal);
-        const min = Math.min(revolvingMinDue(card, revOwed), remaining);
+        const min = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed, remaining);
         payments.set(card.id, min);
         remaining -= min;
       }
@@ -1186,7 +1146,7 @@ export function simulateVariablePayoff(
       const instBal = installmentBals.get(card.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);
       const currentPay = payments.get(card.id) ?? 0;
-      const minRequired = revolvingMinDue(card, revOwed);
+      const minRequired = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
       if (currentPay < minRequired && revOwed > 0) {
         payments.set(card.id, minRequired);
       }
