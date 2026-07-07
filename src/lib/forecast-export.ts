@@ -4,6 +4,8 @@
 // revolving/cycling balance selection — so the export can never show different numbers than the
 // in-app popup for the same month. If that drawer's logic changes, this needs the same change.
 
+import { cumulativeSurplusesByCard, adjustedDisplayBalance } from './step3-display';
+
 export interface ForecastFlowItem {
   label: string;
   amount: number;
@@ -71,7 +73,9 @@ interface PerCardAdjustedRec {
 
 interface PerCardPaymentSeries {
   name: string;
+  id: string;
   payments: number[];
+  surpluses?: number[];
 }
 
 interface SimCardShape {
@@ -147,15 +151,20 @@ function getPerCardDebtBreakdown(row: ForecastExportRow, absoluteI: number, card
 }
 
 /** Mirrors Forecast.tsx openDrawer's per-card balance formula exactly: revolving cards read
- * monthlyBalances (full end balance including this month's purchases); cycling cards fall back to
- * the cycling statement balance stored on cardProjectionData.data[i][card.name]. */
+ * monthlyBalances minus the cumulative PASS-3 surplus already routed to the card (shared
+ * step3-display adjustment — same numbers as the popup and Debt Payoff accordion); cycling cards
+ * fall back to the cycling statement balance stored on cardProjectionData.data[i][card.name]. */
 function getCreditCardBalances(absoluteI: number, cardProjectionData: ForecastExportCardProjectionData | null): ForecastAccountLine[] {
   const cards = cardProjectionData?.simCards ?? [];
+  const cumSurplus = cumulativeSurplusesByCard(
+    (cardProjectionData?.perCardPaymentsScaled ?? []).map(c => ({ id: c.id, surpluses: c.surpluses ?? [] })),
+  );
   return cards.map(card => {
     const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[absoluteI] ?? 0;
     const simBal = cardProjectionData?.monthlyBalances?.get(card.id)?.[absoluteI] ?? 0;
     const cyclingBal = cardProjectionData?.data?.[absoluteI]?.[card.name] ?? 0;
-    const balance = revBal > 0 ? simBal : cyclingBal;
+    const cum = cumSurplus.get(card.id)?.[absoluteI] ?? 0;
+    const balance = revBal > 0 ? adjustedDisplayBalance(simBal, cum) : cyclingBal;
     return { label: card.name, amount: Math.round(balance) };
   });
 }
