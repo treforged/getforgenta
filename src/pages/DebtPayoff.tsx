@@ -32,12 +32,15 @@ export default function DebtPayoff() {
     pauseSavings,
     setPauseSavings,
   } = useCardProjectionContext();
-  // The Debt Payoff accordion + trajectory show the sim's own per-card balances and payments
-  // directly (from cardProjection) so every row reconciles: End = Start + interest − payment. An
-  // earlier "forecastAdjustedRevolvingBalances" overlay subtracted the forecast's step-3 surplus
-  // from the displayed balance without a matching payment, which made balances drop faster than the
-  // shown payment, flatline paid-off cards to $0 while payments continued, and resurface a phantom
-  // tail. Removed — the payoff ETA now tracks the sim's real revolving-$0 month (see CreditCardEngine).
+  // The Debt Payoff accordion + trajectory display per-card balances via the shared step3-display
+  // adjustment (sim balance minus cumulative PASS-3 surplus routed to the card) so they match the
+  // Forecast month popup and CSV export. Unlike the earlier reverted
+  // "forecastAdjustedRevolvingBalances" overlay — which subtracted the surplus WITHOUT a matching
+  // payment line, so balances dropped faster than the shown payment — the accordion now also shows
+  // the surplus-redirect line each month, so rows reconcile:
+  // End = Start + purchases + interest − payment − surplus. Raw sim balances remain the model
+  // (projectCardVariable inputs and payoff detection untouched); ETA tracks the sim's real
+  // revolving-$0 month (see CreditCardEngine).
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);

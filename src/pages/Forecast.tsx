@@ -26,6 +26,7 @@ import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type Filin
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
+import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { useForecastProjections } from '@/hooks/useForecastProjections';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
@@ -249,6 +250,13 @@ export default function Forecast() {
 
   // Detailed per-month money-flow + account-balance breakdown for the PDF/CSV exports, mirroring
   // the Month Breakdown drawer below exactly (same source fields/formulas — see forecast-export.ts).
+  // Cumulative PASS-3 surplus redirected to each card — shared display adjustment (step3-display)
+  // used by the month popup so per-card balances match Debt Payoff's accordion and the export.
+  const step3CumSurplus = useMemo(
+    () => cumulativeSurplusesByCard(cardProjectionData?.perCardPaymentsScaled),
+    [cardProjectionData],
+  );
+
   const exportDetails = useMemo(() => {
     const calendarYearStart = filterYear === 'all' ? 0 : getCalendarYearMonthRange(parseInt(filterYear, 10))[0];
     return filteredData.map((r, i) => {
@@ -1081,39 +1089,22 @@ export default function Forecast() {
                     { label: 'Total Assets', value: formatCurrency(row.totalAssets, false) },
                     { label: '', value: '' },
                     { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
-                    ...(() => {
-                      // Distribute step-3 extras across revolving cards in cascade order (highest APR
-                      // first, matching the SIM's own payment priority). By the time step-3 fires,
-                      // the SIM has already concentrated payments on higher-priority cards, so the
-                      // extras effectively reduce the last remaining revolving card's balance.
-                      let rem3 = row.revolving3Extra ?? 0;
-                      const cardAdj = new Map<string, number>();
-                      for (const c of (cardProjectionData?.simCards ?? []) as { id: string; name: string }[]) {
-                        const revBal0 = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[0] ?? 0;
-                        if (revBal0 === 0) continue;
-                        const simBal = cardProjectionData?.monthlyBalances?.get(c.id)?.[absoluteI] ?? 0;
-                        const adj = Math.min(rem3, simBal);
-                        cardAdj.set(c.id, adj);
-                        rem3 -= adj;
-                      }
-                      return ((cardProjectionData?.simCards ?? []) as { id: string; name: string }[]).map(card => ({
-                        label: `  ${card.name}`,
-                        value: (() => {
-                          // Detect revolving vs cycling via monthlyRevolvingBalances (> 0 = revolving).
-                          // For revolving cards: use monthlyBalances (= full endBal including new purchases
-                          // this month) so statement-preference cards like Prime Visa show the real balance,
-                          // not just the carry-over after stripping current-month charges.
-                          // For cycling cards: revBal is 0, fall back to data[i][name] which stores the
-                          // cycling statement balance (newPurchases) — matches accordion display.
-                          const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[absoluteI] ?? 0;
-                          const simBal = cardProjectionData?.monthlyBalances?.get(card.id)?.[absoluteI] ?? 0;
-                          const cyclingBal = Number(cardProjectionData?.data[absoluteI]?.[card.name] ?? 0);
-                          const adj = cardAdj.get(card.id) ?? 0;
-                          const bal = revBal > 0 ? Math.max(0, simBal - adj) : cyclingBal;
-                          return bal > 0 ? formatCurrency(Math.round(bal), false) : '—';
-                        })(),
-                      }));
-                    })(),
+                    ...((cardProjectionData?.simCards ?? []) as { id: string; name: string }[]).map(card => ({
+                      label: `  ${card.name}`,
+                      value: (() => {
+                        // Detect revolving vs cycling via monthlyRevolvingBalances (> 0 = revolving).
+                        // Revolving cards show the shared step3-display adjusted balance (sim balance
+                        // minus cumulative PASS-3 surplus routed to this card) so this popup matches
+                        // the Debt Payoff accordion/chart and the CSV export. Cycling cards fall back
+                        // to data[i][name], the cycling statement balance — matches accordion display.
+                        const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(card.id)?.[absoluteI] ?? 0;
+                        const simBal = cardProjectionData?.monthlyBalances?.get(card.id)?.[absoluteI] ?? 0;
+                        const cyclingBal = Number(cardProjectionData?.data[absoluteI]?.[card.name] ?? 0);
+                        const cum = step3CumSurplus.get(card.id)?.[absoluteI] ?? 0;
+                        const bal = revBal > 0 ? adjustedDisplayBalance(simBal, cum) : cyclingBal;
+                        return bal > 0 ? formatCurrency(Math.round(bal), false) : '—';
+                      })(),
+                    })),
                     { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
                     ...((row.nonCCLiabBreakdown ?? []) as { id: string; name: string; balance: number }[])
                       .map(la => ({ label: `  ${la.name}`, value: la.balance > 0 ? formatCurrency(la.balance, false) : '—' })),
