@@ -21,10 +21,6 @@ export type CardData = {
   apr: number;
   creditLimit: number;
   minPayment: number;
-  /** True when the user marked min_payment as manually set (accounts.min_payment_is_manual):
-   * minPayment is then honored EXACTLY — including $0 (e.g. a card whose whole balance sits on
-   * 0% payment plans with nothing due) — with no 2%-formula or $25-floor fallback anywhere. */
-  minPaymentIsManual?: boolean;
   targetPayment: number;
   monthlyNewPurchases: number;
   monthlyRepayments: number;
@@ -146,9 +142,6 @@ export function calcMinPayment(balance: number, apr: number): number {
 export function revolvingMinDue(card: CardData, revOwed: number): number {
   if (revOwed <= 0) return 0;
   const contractRevMin = Math.max(0, (card.minPayment ?? 0) - (card.installmentMonthlyPayment ?? 0));
-  // Manual minimums are exact by definition — the user (or a $0 Plaid liability they confirmed)
-  // says this IS what's due, so the formula must never re-inflate it (manual $0 stays $0).
-  if (card.minPaymentIsManual) return Math.min(contractRevMin, revOwed);
   return Math.min(Math.max(contractRevMin, calcMinPayment(revOwed, card.apr)), revOwed);
 }
 
@@ -226,10 +219,7 @@ export function buildCardData(
     // only when the Accounts page genuinely has nothing stored. Never recalculate from balance —
     // the stored static value is what's actually due.
     const acctMin = acct.min_payment != null ? Number(acct.min_payment) : null;
-    // Manual flag (accounts.min_payment_is_manual): the stored value is exact — including 0 —
-    // so skip both the >0 guard and the $25 fallback. A manual card with nothing stored is $0.
-    const minPaymentIsManual = Boolean(acct.min_payment_is_manual);
-    const minPay = minPaymentIsManual ? (acctMin ?? 0) : ((acctMin != null && acctMin > 0) ? acctMin : 25);
+    const minPay = (acctMin != null && acctMin > 0) ? acctMin : 25;
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
     const pref = acct.payment_preference;
@@ -242,7 +232,7 @@ export function buildCardData(
 
     return {
       id: acct.id, name: acct.name, balance: simBalance, apr, creditLimit,
-      minPayment: minPay, minPaymentIsManual,
+      minPayment: minPay,
       targetPayment: Math.max(targetPay, minPay),
       monthlyNewPurchases, monthlyRepayments: monthRepayments,
       color: getCardColor(colorStartIndex + i),
@@ -821,20 +811,13 @@ export function simulateVariablePayoff(
         // reservedForRevolving/getAugmentedMinSafeCash) — a bare 0 here would make it look like
         // it needs no protection even though monthlyCyclingBacklog (see Step 6) reports otherwise.
         const backlog = cyclingBacklog.get(card.id) ?? 0;
-        perCardMinPayments.get(card.id)!.push(
-          backlog > 0
-            ? (card.minPaymentIsManual ? revolvingMinDue(card, backlog) : calcMinPayment(backlog, card.apr))
-            : 0,
-        );
+        perCardMinPayments.get(card.id)!.push(backlog > 0 ? calcMinPayment(backlog, card.apr) : 0);
       } else {
         const bal = balances.get(card.id) ?? 0;
         const instBal = installmentBals.get(card.id) ?? 0;
         const revBal = Math.max(0, bal - instBal);
         const instMinPay = upfrontDueFor(card, instBal);
-        // Manual cards reserve their exact contract revolving min (possibly $0) instead of the
-        // formula, so the floor never protects a minimum the lender isn't actually charging.
-        const revMinPay = card.minPaymentIsManual ? revolvingMinDue(card, revBal) : calcMinPayment(revBal, card.apr);
-        perCardMinPayments.get(card.id)!.push(bal > 0 ? (revMinPay + instMinPay) : 0);
+        perCardMinPayments.get(card.id)!.push(bal > 0 ? (calcMinPayment(revBal, card.apr) + instMinPay) : 0);
       }
     }
 

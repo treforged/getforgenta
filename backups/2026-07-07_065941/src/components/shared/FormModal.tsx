@@ -5,7 +5,7 @@ import DateScrollPicker from './DateScrollPicker';
 export type Field = {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'date' | 'select' | 'checkbox';
+  type: 'text' | 'number' | 'date' | 'select';
   placeholder?: string;
   options?: { value: string; label: string }[];
   required?: boolean;
@@ -76,19 +76,6 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
                   {f.required && <option value="" disabled>{f.placeholder || 'Select…'}</option>}
                   {f.options?.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
-              ) : f.type === 'checkbox' ? (
-                // Checkbox values ride the same string-valued form state: 'true' when checked,
-                // '' when not. placeholder doubles as the inline label text next to the box.
-                <label className={`flex items-center gap-2 mt-1 py-2 ${f.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
-                  <input
-                    type="checkbox"
-                    checked={values[f.key] === 'true'}
-                    disabled={f.disabled}
-                    onChange={e => onChange(f.key, e.target.checked ? 'true' : '')}
-                    className="w-4 h-4 accent-primary shrink-0"
-                  />
-                  {f.placeholder && <span className="text-sm text-foreground">{f.placeholder}</span>}
-                </label>
               ) : f.type === 'date' ? (
                 <div className="mt-1">
                   {!values[f.key] ? (

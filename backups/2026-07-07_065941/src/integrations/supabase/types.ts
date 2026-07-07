@@ -78,7 +78,6 @@ export type Database = {
           institution: string
           liability_synced_at: string | null
           min_payment: number | null
-          min_payment_is_manual: boolean
           min_payment_plaid_synced: boolean | null
           name: string
           notes: string | null
@@ -108,7 +107,6 @@ export type Database = {
           institution?: string
           liability_synced_at?: string | null
           min_payment?: number | null
-          min_payment_is_manual?: boolean
           min_payment_plaid_synced?: boolean | null
           name: string
           notes?: string | null
@@ -138,7 +136,6 @@ export type Database = {
           institution?: string
           liability_synced_at?: string | null
           min_payment?: number | null
-          min_payment_is_manual?: boolean
           min_payment_plaid_synced?: boolean | null
           name?: string
           notes?: string | null
