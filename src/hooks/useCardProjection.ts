@@ -5,7 +5,7 @@ import {
   buildCardData, simulateVariablePayoff, projectCardVariable,
   CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue,
 } from '@/lib/credit-card-engine';
-import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, getPlanProgress } from '@/lib/payment-plan-generator';
+import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getMinSafeCash, getAugmentedMinSafeCash,
   getNormalizedMonthNetIncome, getMonthNetIncome,
@@ -163,34 +163,29 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const todayStr = now.toISOString().split('T')[0];
 
       // ── Plan-derived installment fields (upfront plans override manual Accounts tab fields) ──
-      // Active upfront plans (Chase Plan It style) have their remaining balance and monthly
-      // payment aggregated per card. Multiple plans on the same card are summed.
-      const cardIdsSet = new Set(rawCards.map(c => c.id));
-      // payment_source values in payment_plans are stored as 'account:UUID' (from paymentSourceOptions).
-      // This map normalizes both 'UUID' and 'account:UUID' to the bare card ID so all plan lookups
-      // below resolve correctly regardless of which format is stored.
+      // Shared derivation (deriveUpfrontPlanFields) — the SAME function CreditCardEngine.tsx's
+      // internal sim uses, so both tabs model card-charged upfront plans identically. Installment
+      // due dates are anchored to the card's due date one full statement cycle after the purchase
+      // (purchased Jun 23, due day 7 → first installment Aug 7), NOT the purchase date — anchoring
+      // at start_date counted installments as paid before they were ever due, which understated
+      // the 0% carve-out and leaked plan principal into the revolving balance at the card's full
+      // APR (the avalanche then flooded that phantom high-APR debt with surplus while real
+      // interest-accruing cards sat at their minimums).
+      // payment_source values in payment_plans are stored as 'account:UUID' (from
+      // paymentSourceOptions); deriveUpfrontPlanFields normalizes both forms internally.
       const sourceToCardId = new Map<string, string>(
         rawCards.flatMap(c => [[c.id, c.id], [`account:${c.id}`, c.id]]),
       );
+      const { installmentByCard, upfrontPayByMonth } = deriveUpfrontPlanFields(
+        rawCards, paymentPlans ?? [], PROJECTION_MONTHS, now, syncCutoffDate,
+      );
       const cards = rawCards.map(card => {
-        const cardUpfrontPlans = (paymentPlans ?? []).filter(p =>
-          p.active && p.plan_type === 'upfront' && sourceToCardId.get(p.payment_source ?? '') === card.id,
-        );
-        if (cardUpfrontPlans.length === 0) return card;
-        let totalInstBal = 0;
-        let totalInstMonthly = 0;
-        for (const plan of cardUpfrontPlans) {
-          const { remaining } = getPlanProgress(plan);
-          totalInstBal += Math.max(0, remaining * plan.payment_amount);
-          totalInstMonthly += plan.payment_amount;
-        }
-        // Cap installment balance at the card's live balance — the payment plan's total may
-        // exceed what Plaid reports if the user entered an amount larger than the charge.
-        const cappedInstBal = Math.min(Math.round(totalInstBal * 100) / 100, card.balance);
+        const derived = installmentByCard.get(card.id);
+        if (!derived) return card;
         return {
           ...card,
-          installmentBalance: cappedInstBal,
-          installmentMonthlyPayment: Math.round(totalInstMonthly * 100) / 100,
+          installmentBalance: derived.balance,
+          installmentMonthlyPayment: derived.monthlyPayment,
         };
       });
 
@@ -693,14 +688,21 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // than as part of ccMin — otherwise save-up caps include the installment amount and the
       // engine pays it twice (once as cascade, once as installmentCashCost), draining $300+
       // per save-up month more than the look-ahead predicted, causing floor breaches.
+      // Plan-covered cards use the due-date-anchored schedule (upfrontPayByMonth — $0 before a
+      // plan's first real due date); only cards with MANUAL Accounts-tab installment fields fall
+      // back to the flat month-0-anchored decrement. Keeping this consistent with the engine's
+      // own Step 2.5 (which receives the same upfrontPayByMonth) is what stops the look-ahead
+      // reserving for installment cash a month or two before it actually leaves.
       const installmentCostByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
         cards.reduce((s, c) => {
+          if (installmentByCard.has(c.id)) return s; // schedule-based, added below
           const instBal = c.installmentBalance ?? 0;
           const instPmt = c.installmentMonthlyPayment ?? 0;
           if (instBal <= 0 || instPmt <= 0) return s;
           const remaining = Math.max(0, instBal - m * instPmt);
           return s + (remaining > 0 ? Math.min(instPmt, remaining) : 0);
         }, 0)
+        + Object.values(upfrontPayByMonth[m] ?? {}).reduce((a, b) => a + b, 0)
       );
 
       // ── Car down-payment amounts per month (for combined look-ahead) ──────────
@@ -950,6 +952,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         cashFloorByMonth,
         undefined,
         installmentChargeByMonth,
+        upfrontPayByMonth,
       );
 
       // Outer refinement: each pass computes the augmented floor (the same getAugmentedMinSafeCash
@@ -1007,6 +1010,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
           installmentChargeByMonth,
+          upfrontPayByMonth,
         );
       }
       const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason } = lookAhead;
@@ -1294,6 +1298,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
           installmentChargeByMonth,
+          upfrontPayByMonth,
         );
         perCardPayments = cards.map(c => ({
           name: c.name, id: c.id,

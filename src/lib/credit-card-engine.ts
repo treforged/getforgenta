@@ -613,6 +613,15 @@ export function simulateVariablePayoff(
    * installmentChargeByMonth[m][cardId] = total BNPL charge for that card in month m.
    */
   installmentChargeByMonth?: { [cardId: string]: number }[],
+  /**
+   * Optional per-month per-card UPFRONT-plan installment payment schedule (due-date-anchored —
+   * see deriveUpfrontPlanFields in payment-plan-generator.ts). When provided, a card's mandatory
+   * upfront installment for month m is upfrontPayByMonth[m][cardId] (possibly $0 before the
+   * plan's first real due date) instead of a flat card.installmentMonthlyPayment starting at
+   * month 0. When omitted, the flat legacy behavior is preserved exactly — callers without plan
+   * data (tests, standalone projections) are unaffected.
+   */
+  upfrontPayByMonth?: { [cardId: string]: number }[],
 ): {
   monthlyPayments: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
@@ -772,6 +781,18 @@ export function simulateVariablePayoff(
     const oneTimeNet = m === 0 ? 0
       : (oneTimeByMonth?.[m]?.income ?? 0) - (oneTimeByMonth?.[m]?.expenses ?? 0);
 
+    // This month's mandatory upfront-plan installment for a card. Schedule-aware when the
+    // caller supplied upfrontPayByMonth (due-date-anchored — $0 before the plan's first real
+    // due date), flat card.installmentMonthlyPayment otherwise (legacy behavior). Used by
+    // perCardMinPayments, reservedForRevolving, and Step 2.5 so all three layers agree on
+    // what installment cash actually leaves this month.
+    const upfrontDueFor = (card: CardData, instBal: number): number => {
+      if (instBal <= 0) return 0;
+      if (upfrontPayByMonth) return Math.min(upfrontPayByMonth[m]?.[card.id] ?? 0, instBal);
+      return (card.installmentMonthlyPayment ?? 0) > 0
+        ? Math.min(card.installmentMonthlyPayment!, instBal) : 0;
+    };
+
     // Push 0 for cards that haven't reached their start month — keeps arrays aligned.
     // Also collect balance-sensitive minimum for each card this month (Option A).
     for (const card of cards) {
@@ -795,7 +816,7 @@ export function simulateVariablePayoff(
         const bal = balances.get(card.id) ?? 0;
         const instBal = installmentBals.get(card.id) ?? 0;
         const revBal = Math.max(0, bal - instBal);
-        const instMinPay = instBal > 0 ? Math.min(card.installmentMonthlyPayment ?? 0, instBal) : 0;
+        const instMinPay = upfrontDueFor(card, instBal);
         perCardMinPayments.get(card.id)!.push(bal > 0 ? (calcMinPayment(revBal, card.apr) + instMinPay) : 0);
       }
     }
@@ -854,7 +875,7 @@ export function simulateVariablePayoff(
         const bal = balances.get(c.id) ?? 0;
         const instBal = installmentBals.get(c.id) ?? 0;
         const revBal = Math.max(0, bal - instBal);
-        const instMinPay = instBal > 0 ? Math.min(c.installmentMonthlyPayment ?? 0, instBal) : 0;
+        const instMinPay = upfrontDueFor(c, instBal);
         return s + revolvingMinDue(c, revBal) + instMinPay;
       }, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
@@ -999,11 +1020,11 @@ export function simulateVariablePayoff(
     for (const card of debtCards) {
       // Upfront installment plan (e.g. Chase Plan It): fixed monthly payment on existing balance
       const instBal = installmentBals.get(card.id) ?? 0;
-      if (instBal > 0 && (card.installmentMonthlyPayment ?? 0) > 0) {
-        const instPay = Math.round(Math.min(card.installmentMonthlyPayment!, instBal) * 100) / 100;
-        installmentPayByCard.set(card.id, instPay);
-        upfrontInstPayByCard.set(card.id, instPay);
-        installmentCashCost += instPay;
+      const upfrontDue = Math.round(upfrontDueFor(card, instBal) * 100) / 100;
+      if (upfrontDue > 0) {
+        installmentPayByCard.set(card.id, upfrontDue);
+        upfrontInstPayByCard.set(card.id, upfrontDue);
+        installmentCashCost += upfrontDue;
       }
       // BNPL monthly charge (e.g. Amazon BNPL): charge hits card as new purchase, payment
       // covers it in full — cascade should not also try to pay this portion.

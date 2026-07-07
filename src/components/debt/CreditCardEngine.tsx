@@ -14,7 +14,7 @@ import {
 import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { type Month0Result } from '@/hooks/useCardProjection';
-import { type PaymentPlan, getPaymentDates } from '@/lib/payment-plan-generator';
+import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -225,7 +225,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return paycheckIncome + nonPaycheckIncome;
   }, [payConfig, rules]);
 
-  const cards: CardData[] = useMemo(() => buildCardData(accounts, transactions, rules, debts), [accounts, transactions, rules, debts]);
+  // Same plan-derived installment carve-out useCardProjection applies (shared
+  // deriveUpfrontPlanFields) — without it this component's internal fallback sim treated a
+  // card's full balance as APR-accruing revolving debt even when most of it is an interest-free
+  // upfront plan, which both mis-prioritized the avalanche and charged phantom interest.
+  const { installmentByCard: upfrontInstByCard, upfrontPayByMonth } = useMemo(() => {
+    const rawCards = buildCardData(accounts, transactions, rules, debts);
+    return deriveUpfrontPlanFields(rawCards, paymentPlans ?? [], PROJECTION_MONTHS, new Date(), syncCutoffDate);
+  }, [accounts, transactions, rules, debts, paymentPlans, syncCutoffDate]);
+  const cards: CardData[] = useMemo(() => buildCardData(accounts, transactions, rules, debts).map(card => {
+    const derived = upfrontInstByCard.get(card.id);
+    if (!derived) return card;
+    return { ...card, installmentBalance: derived.balance, installmentMonthlyPayment: derived.monthlyPayment };
+  }), [accounts, transactions, rules, debts, upfrontInstByCard]);
 
   // When any revolving card is due on a day that already passed this month, the next
   // payment falls in next month. Generate those transactions so income/expense helpers
@@ -499,6 +511,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       );
       for (const plan of paymentPlans) {
         if (!plan.active || !plan.payment_source) continue;
+        // Only monthly_charge (BNPL) plans hit the card as NEW purchases each month. An
+        // 'upfront' plan's full amount is already in the live balance from day 1 — injecting
+        // its installments as purchases here double-counted the whole plan on top of the
+        // balance (matching useCardProjection's own cardPurchasesPerMonth filter).
+        if (plan.plan_type !== 'monthly_charge') continue;
         const cardId = sourceToCardId.get(plan.payment_source);
         if (!cardId) continue;
         const planDates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
@@ -708,11 +725,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       Math.max(cashFloor, prePaycheckBills.total), // month0SafeFloor — match recommendations
       maxDebtPaymentByMonth,
       cashFloorByMonth,
+      undefined,
+      undefined,
+      upfrontPayByMonth,
     );
     // Return augmentedCCPurchases alongside the sim so projections can use it
     // to pass per-month purchase amounts to projectCardVariable.
     return { ...sim, augmentedCCPurchases };
-  }, [cards, fundingBalance, cashFloor, strategy, monthlyTakeHome,
+  }, [cards, upfrontPayByMonth, fundingBalance, cashFloor, strategy, monthlyTakeHome,
       monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
