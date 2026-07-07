@@ -121,7 +121,7 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
   return { text: `Updated ${lastSync.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`, isStale: missedSync };
 }
 
-const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '' };
+const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', min_payment_is_manual: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
 export default function Accounts() {
@@ -322,10 +322,15 @@ export default function Accounts() {
       apr: String(a.apr || ''),
       notes: a.notes || '',
       min_payment: a.account_type === 'credit_card'
-        ? (a.min_payment != null && Number(a.min_payment) > 0 ? String(a.min_payment) : '')
+        // Manual-min cards show the stored value verbatim — including 0, which the >0 guard
+        // below would otherwise blank out (a manual $0 is a real, meaningful minimum).
+        ? (a.min_payment_is_manual
+            ? (a.min_payment != null ? String(a.min_payment) : '')
+            : (a.min_payment != null && Number(a.min_payment) > 0 ? String(a.min_payment) : ''))
         : plaidLiability
           ? (a.min_payment != null && Number(a.min_payment) > 0 ? String(a.min_payment) : '')
           : (matchDebt ? String(matchDebt.min_payment) : ''),
+      min_payment_is_manual: a.account_type === 'credit_card' && a.min_payment_is_manual ? 'true' : '',
       apy_rate: a.apy_rate != null ? String(a.apy_rate) : '',
       payment_due_day: a.payment_due_day != null ? String(a.payment_due_day) : '',
       apr_start_date: a.apr_start_date || '',
@@ -363,8 +368,15 @@ export default function Accounts() {
     // Always write min_payment to the accounts row for credit cards so the
     // debt engine reads a consistent value from accounts (not the debts table).
     if (form.account_type === 'credit_card') {
+      const manualMin = form.min_payment_is_manual === 'true';
+      payload.min_payment_is_manual = manualMin;
       const userMinPay = form.min_payment ? parseFloat(form.min_payment) : NaN;
-      if (!isNaN(userMinPay) && userMinPay > 0) {
+      if (manualMin) {
+        // Manual minimum: store exactly what was typed — including 0 (blank counts as 0) —
+        // and release Plaid ownership; sync never overwrites a manual min (see plaid-sync).
+        payload.min_payment = !isNaN(userMinPay) && userMinPay >= 0 ? userMinPay : 0;
+        payload.min_payment_plaid_synced = false;
+      } else if (!isNaN(userMinPay) && userMinPay > 0) {
         // User explicitly entered a value — use it and release Plaid ownership so
         // future syncs don't overwrite the override.
         payload.min_payment = userMinPay;
@@ -1000,6 +1012,9 @@ export default function Accounts() {
             ] : []),
             ...(LIABILITY_TYPES.includes(form.account_type) ? [
               { key: 'min_payment', label: 'Minimum Payment', type: 'number' as const, placeholder: '25', step: '0.01', hint: editingPlaidMinSynced ? 'Plaid-synced — enter a value here to override' : undefined },
+            ] : []),
+            ...(form.account_type === 'credit_card' ? [
+              { key: 'min_payment_is_manual', label: 'Manual Minimum', type: 'checkbox' as const, placeholder: 'I set this minimum manually', hint: 'Uses the amount above exactly — even $0 (e.g. everything on 0% payment plans) — and Plaid sync will never overwrite it.' },
             ] : []),
             ...(LOAN_TYPES.includes(form.account_type) ? [
               { key: 'apr_start_date', label: 'Interest Start Date (optional)', type: 'date' as const, hint: 'Date interest began accruing — used for total interest calculations.' },

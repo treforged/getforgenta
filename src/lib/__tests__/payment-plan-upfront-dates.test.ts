@@ -124,7 +124,7 @@ describe('simulateVariablePayoff — upfrontPayByMonth schedule', () => {
     const monthEvents = Array.from({ length: 4 }, () => ({ income: 3000, expenses: 1500 }));
 
     // Schedule: first installment due in month 1 (due-date-anchored), none in month 0.
-    const schedule = [{}, { c1: 250 }, { c1: 250 }, {}];
+    const schedule: { [cardId: string]: number }[] = [{}, { c1: 250 }, { c1: 250 }, {}];
     const scheduled = simulateVariablePayoff([mk()], 5000, 1000, 'avalanche', 3000, 1500, 4, monthEvents,
       ...SKIP10, schedule);
     // Flat legacy behavior: installment paid from month 0 while balance lasts.
