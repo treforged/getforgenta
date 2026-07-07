@@ -214,13 +214,6 @@ to undo a change.
 
 ## Agent cost discipline (token efficiency)
 
-- For bug fixes and scoped changes, use the `lean-fix` skill: triage size
-  first (small fixes stay inline — agents cost more than they save);
-  otherwise Explore agent for search, strongest model for diagnosis+plan,
-  Sonnet agent for implementation, cheap reviewer for the diff. The strong
-  model always owns root-cause diagnosis — never a cheaper one.
-- Keep searches and file dumps out of the main thread: multi-file hunts go
-  to an Explore subagent whose tool output never lands in main context.
 - Use `/multi-plan` before spawning agents — decomposing upfront saves
   redundant agent calls downstream.
 - Independent subtasks → parallel agents via `/multi-execute`.
