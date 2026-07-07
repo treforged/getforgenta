@@ -5,7 +5,6 @@ import {
   buildCardData, simulateVariablePayoff, projectCardVariable,
   CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue,
 } from '@/lib/credit-card-engine';
-import { buildResimOverrides } from './cardProjectionResim';
 import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getMinSafeCash, getAugmentedMinSafeCash,
@@ -109,17 +108,6 @@ export interface CardProjectionResult {
    * Use as both revBals and trueBalances in projectCardVariable so the Debt Payoff chart and
    * per-card payoff label match the Forecast's CC Debt Free milestone timing. */
   forecastAdjustedRevolvingBalances: Map<string, number[]>;
-  /** Phase 2 Option C convergence: re-run the ACTIVE simulation with the forecast engine's
-   * authoritative per-month revolving debt cash (ForecastRow.revolvingDebtCash) as
-   * debtCashTargetByMonth (sim param #20) and rebuild every sim-derived field — with NO pass-3
-   * replica, NO scaling and NO surplus distribution, because the sim's payments ARE the plan
-   * (per-card surpluses all zero; the engine's step3-display adjustments become no-ops).
-   *
-   * Month 0 is live-anchored: callers MUST pass target[0] = NaN (the sim's isFinite check skips
-   * it) — month0/saveUp/look-ahead outputs are kept from this base result. A fresh closure every
-   * compute: do NOT put it in downstream useMemo dep arrays; consumers key on the
-   * CardProjectionResult object identity instead. */
-  resimulateWithDebtCash: (target: number[]) => CardProjectionResult;
   month0: Month0Result;
 }
 
@@ -1288,11 +1276,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const simCycTotal0 = Math.max(0, allPaymentTotals[0] - debtPaymentTotals[0]);
       const m0TotalBudget = pass3RevTotals[0] + simCycTotal0;
       let activeSim = sim;
-      // Which simulateVariablePayoff arg variant produced activeSim — replayed verbatim by
-      // resimulateWithDebtCash below. The refined-loop sim and the capped-retry sim2 differ
-      // only in the month-0 expense figure and the max-debt cap array.
-      let activeSimM0Expenses = m0Expenses + (planCashExpensesEarly[0] ?? 0);
-      let activeSimMaxDebt: number[] | undefined = maxDebtPaymentByMonth;
       if (m0TotalBudget < allPaymentTotals[0] - 1) {
         const cappedMaxDebt = [...maxDebtPaymentByMonth];
         cappedMaxDebt[0] = m0TotalBudget;
@@ -1324,8 +1307,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ),
         }));
         activeSim = sim2;
-        activeSimM0Expenses = m0Expenses;
-        activeSimMaxDebt = cappedMaxDebt;
 
         // Update data[i].totalCCBalance from sim2 so Forecast PASS 2 recomputeSimCash pins
         // cash to floor in the correct months. PASS 2 uses b.ccDebtBalance > 0 to decide
@@ -1717,40 +1698,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
-      // Phase 2 Option C step 3: replay the ACTIVE sim's exact args with the engine's per-month
-      // revolving debt cash as param #20, rebuild sim-derived fields via the pure builder, keep
-      // the live-anchored month-0 machinery and look-ahead outputs from this base result. See
-      // the CardProjectionResult.resimulateWithDebtCash JSDoc for the month-0 NaN contract.
-      const resimulateWithDebtCash = (target: number[]): CardProjectionResult => {
-        const simT = simulateVariablePayoff(
-          cards,
-          debtFundingBalance,
-          debtPayoffOptions.cashFloor,
-          debtStrategy,
-          monthlyTakeHome,
-          monthlyExpenses,
-          PROJECTION_MONTHS,
-          simulationMonthEvents,
-          undefined,
-          cardPurchasesPerMonth,
-          m0Income,
-          activeSimM0Expenses,
-          oneTimeArrWithDP,
-          m0SafeFloor,
-          activeSimMaxDebt,
-          augmentedCashFloorByMonth,
-          ccMinInFloorByMonth,
-          installmentChargeByMonth,
-          upfrontPayByMonth,
-          target,
-        );
-        const overrides = buildResimOverrides(simT, {
-          cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth,
-        });
-        return { ...hookResult, ...overrides, resimulateWithDebtCash };
-      };
-
-      const hookResult: CardProjectionResult = {
+      const hookResult = {
         data,
         cards: projs.map(p => ({ name: p.card.name, color: p.card.color })),
         simCards: cards,
@@ -1776,7 +1724,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         forecastRevolvingPayoffMonth,
         simRevolvingPayoffMonth,
         forecastAdjustedRevolvingBalances,
-        resimulateWithDebtCash,
         month0: {
           safeToPayTotal: safeToPayTotalFinal,
           maxCapacity: Math.round(maxCapacity),
