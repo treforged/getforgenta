@@ -1,4 +1,47 @@
-# Handoff — 2026-07-07 (session 3, context-gated mid-planning) — branch debt-model-fixes-p0
+# Handoff — 2026-07-07 (session 4, plan finalized, awaiting approval) — branch debt-model-fixes-p0
+
+## RESOLVED (session 4): where the convergence loop lives → (c)+(a) hybrid, loop in CardProjectionProvider
+Verified session 4: useForecastProjections is called ONLY by Forecast.tsx:158 (its docstring
+claiming "both pages" is stale). Provider already owns EVERY ForecastInputs dependency except
+`useBudgetItems` (one cached react-query hook — cheap to add). calculateForecast is pure; the
+only hook barrier is useCardProjection, solved by exposing a plain `resimulateWithDebtCash`
+closure from it. So: extract inputs assembly into a shared hook, run the loop synchronously in
+one provider useMemo, publish the CONVERGED cardProjection + projections through context —
+DebtPayoff/Dashboard pick up convergence with zero changes.
+
+## FULL PLAN (presented for approval end of session 4)
+1. forecast-engine.ts (additive): new ForecastRow field `revolvingDebtCash` =
+   round(monthDebtPayment - cyclingPayment) captured AFTER step-3 surplus routing (surplus is
+   all revolving); 0 when m0AllSettled or no revolving activity. cyclingPayment is already in
+   scope at :1101; emit at the data.push (:1343).
+2. credit-card-engine.ts: simulateVariablePayoff param #20 `debtCashTargetByMonth?: number[]`.
+   When present for month m: revolving cash = min(max(target[m], activeMinSum), totalOwed),
+   allocated through the EXISTING avalanche/snowball per-card cascade. Min-payment invariant
+   always wins over a lower target (floor-forced months). Param absent ⇒ byte-identical.
+3. useCardProjection.ts: expose `resimulateWithDebtCash(target): CardProjectionResult` on the
+   result — re-runs activeSim with param #20 and rebuilds perCardPaymentsScaled with
+   payments = sim.monthlyPayments directly and surpluses = 0 (extraPerCardByMonth zeroed).
+4. New src/hooks/useForecastEngineInputs.ts: extract useForecastProjections' derivation body
+   (annualFederalWithheld, monthlyAggregates, planExpensesByMonth, debtPayments/BalancesByMonth,
+   currentMonthRecommendedDebt, forecastMonthEvents, oneTime/ccOneTime/ccScheduledByMonth,
+   engineInputs assembly) verbatim, parameterized on cardProjectionData.
+5. CardProjectionContext.tsx: add useBudgetItems + inputs hook; convergence useMemo:
+   engine(base) → target = rows.revolvingDebtCash → resimulateWithDebtCash(target) → engine
+   again → compare monthly debtPayment arrays; ≤3 passes, $1/month tolerance; converged ⇒
+   publish converged projection+projections, else ⇒ publish base (Option A display machinery
+   stays as zero-regression fallback). Context value gains projections/engineInputs/intermediates.
+6. useForecastProjections.ts: slim to a thin context reader preserving its return shape
+   (Forecast.tsx untouched).
+Tests (TDD-first vs real fixture): engine emits revolvingDebtCash & reconciles with cumulative
+revolving3Extra; sim target honored / min-invariant / cap-at-owed / absent ⇒ identical;
+integration: at fixed point per-card surpluses = 0, popup == accordion payments AND balances,
+golden Tier-A unchanged (fallback path keeps it green).
+Live verify (Option A checklist): Sep 2026 Prime $4,060 / Discover $6,377 balances hold; popup
+Prime payment ($1,260) now equals accordion ($860+$98 gap closed).
+Risk flag: engine passes now run app-wide in provider (~3 sims + 3 engine runs per data change);
+acceptable, gate lazily later if perf complains.
+
+## ── Original session-3 handoff below (audit anchors still valid) ──
 
 ## Goal
 Phase 2 Option C convergence rework (user said "lets do Phase 2 Option C"): converge the
