@@ -80,6 +80,25 @@ One shared display derivation, engine CASH walk untouched:
   user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'. Never push. Browser `find` MCP tool burns
   rate limit — prefer screenshots+coordinates.
 
+## Phase 2 — Option C convergence rework (USER-CONFIRMED 2026-07-07: "we want no gaps")
+After steps 1-8 above ship and live-verify, do NOT stop at the display unification — Tre wants
+the residual gaps closed too. Those gaps are exactly the walk divergence documented above:
+- Popup payment lines (engine-scaled to row.debtPayment) vs accordion payment+surplus lines
+  still differ in months where the engine's cash walk clamps below or routes above the hook's
+  plan (fixture: Jul/Aug 2026 clamp, Mar 2027 +$702 surplus).
+- Displayed balances subtract the hook's PLANNED extras, which the engine's cash sometimes
+  never actually pays (Aug 2026 $347) — optimistic vs Ending Cash.
+Scope: feed the forecast's ACTUAL monthly debt cash (engine walk) back into the card sim so
+sim balances/payments/extras reflect real routing — i.e. converge the two walks into one.
+Plan as its own dedicated session (this was attempted before and REVERTED repo-wide — read
+memory `project_cycling_debt_engine` "cycling-gate convergence fix attempted+reverted" first;
+understand why it failed before designing). Constraints: simulateVariablePayoff params are
+positional (new ones at END); golden Tier-A fixture will need re-pinning if numbers move —
+justify every anchor change against live data; TDD against the real fixture; iterate
+engine→sim→engine to a fixed point with a bounded iteration count. Definition of done:
+popup payments == accordion payments+surplus AND balances == on every month, no ETA/milestone
+regression, Ending Cash consistent with displayed debt.
+
 ## Backlog (unchanged)
 Milestone eyeball on Forecast tab; Transactions.tsx plan-progress purchase-date anchoring;
 3 activeLoanInsurance test failures.
