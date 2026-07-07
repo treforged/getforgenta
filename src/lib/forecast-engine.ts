@@ -68,6 +68,11 @@ export interface ForecastMonthRow {
   nonCCLiabBreakdown: { id: string; name: string; account_type: string; balance: number }[];
   carLoanBreakdown: { name: string; balance: number }[];
   revolving3Extra: number;
+  /** Actual cash routed to REVOLVING CC debt this month (step-2 revolving share of debtPayment
+   * plus this month's step-3 surplus; excludes cycling/statement payments). The authoritative
+   * per-month debt cash the Phase-2 convergence loop feeds back to the card sim as
+   * debtCashTargetByMonth. */
+  revolvingDebtCash: number;
 }
 
 // Inputs to the projection engine. At the Stage-2 extraction boundary these are exactly the
@@ -1421,6 +1426,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           .map(cf => ({ name: cf.name, balance: cf.balances[i] ?? 0 }))
           .filter(cf => cf.balance > 0),
         revolving3Extra: cumulativeStep3Extra,
+        // monthDebtPayment here is post-step-3 (surplus included, and surplus is revolving cash
+        // by definition); cyclingPayment is the step-2 mandatory cycling share. Clamped at 0 for
+        // months where the paid total lands below the cycling share (e.g. m0AllSettled, or a
+        // hookScaledTotal that is all-cycling after revolving payoff).
+        revolvingDebtCash: Math.max(0, Math.round(monthDebtPayment - cyclingPayment)),
       });
     }
 

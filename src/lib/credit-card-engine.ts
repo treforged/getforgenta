@@ -632,6 +632,18 @@ export function simulateVariablePayoff(
    * data (tests, standalone projections) are unaffected.
    */
   upfrontPayByMonth?: { [cardId: string]: number }[],
+  /**
+   * Phase 2 Option C convergence — the forecast engine's authoritative per-month REVOLVING debt
+   * cash (its step-2 revolving share + that month's step-3 surplus; see ForecastRow.
+   * revolvingDebtCash). When provided for month m it REPLACES the sim's own revolving-cascade
+   * cash pool (Step 5's availableCash): the cascade allocates exactly
+   * min(max(target, contract minimums), owed) — covering both clamp months AND surplus months
+   * (maxDebtPaymentByMonth alone can't force paying MORE, it's only a cap). Per-card minimums
+   * always win over a lower target, so a floor-forced engine month can never produce
+   * min-payment violations (2026-06-19 lesson). The cycling mandatory pool (Step 2) and
+   * installment payments are unaffected. Omitted ⇒ byte-identical legacy behavior.
+   */
+  debtCashTargetByMonth?: number[],
 ): {
   monthlyPayments: Map<string, number[]>;
   monthlyBalances: Map<string, number[]>;
@@ -1135,6 +1147,17 @@ export function simulateVariablePayoff(
     const mDebtCap = maxDebtPaymentByMonth?.[m];
     if (mDebtCap !== undefined && isFinite(mDebtCap)) {
       availableCash = Math.min(availableCash, Math.max(mDebtCap, totalMins));
+    }
+
+    // Convergence target (Phase 2 Option C): the forecast engine's authoritative revolving debt
+    // cash for this month REPLACES the sim's own pool — the engine's cash walk is the source of
+    // truth, so this may push availableCash above what the sim's approximate walk thinks exists
+    // (surplus months) or below it (clamp months). Floored at totalMins so contract minimums are
+    // never violated by a lower target; the cascade below still caps every card at what it owes,
+    // so excess target cash is never spent. Wins over mDebtCap when both are provided.
+    const mDebtTarget = debtCashTargetByMonth?.[m];
+    if (mDebtTarget !== undefined && isFinite(mDebtTarget)) {
+      availableCash = Math.max(mDebtTarget, totalMins);
     }
 
     const payments = new Map<string, number>(cards.map(c => [c.id, 0]));
