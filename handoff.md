@@ -1,103 +1,47 @@
-# Handoff — 2026-07-07 (session 2) — branch debt-model-fixes-p0
+# Handoff — 2026-07-07 (session 3) — branch debt-model-fixes-p0
 
-## Goal
-**Forecast-popup CC balance mismatch, Option A (user-confirmed)**: Forecast month popup's
-per-card CC balances and the Debt Payoff accordion/chart must agree for the same month,
-rows must reconcile (End = Start + purchases + interest − payment − surplus), no ETA /
-Ending Cash / milestone regression. Implementation is ~40% done (engine + tests GREEN);
-popup/export/accordion edits remain.
+## Status: Option A CC display unification SHIPPED + LIVE-VERIFIED ✅
 
-## Root cause (CONFIRMED via fixture diagnostic — do not re-derive)
-Ran a scratch test against `src/lib/__tests__/fixtures/forecast-inputs.real.json` (gitignored)
-comparing engine vs hook derivations month-by-month. Findings:
-- The hook's replica pass-3 walk (useCardProjection.ts:1353-1404 → `pass3RevTotals` →
-  `extraPerCardByMonth`/`surpluses`) and the engine's real walk (forecast-engine.ts step-3)
-  are STRUCTURALLY divergent, in BOTH directions — not a fixable skip-condition:
-  - Aug 2026: hook plans +$347 extra to Prime (inside perCardPaymentsScaled) but engine only
-    pays $568 total that month (floor-clamped) — the extra never actually happens in engine cash.
-  - Mar 2027: engine routes +$702 step-3 surplus the hook replica never sees.
-- Three displays disagreed: popup subtracted engine `revolving3Extra` (cumA); DebtPayoff showed
-  raw sim balances + hook surplus lines (cumB) without subtracting; export subtracted nothing.
-- Fixture numbers: by Sep 2026 cumA=$2 vs cumB=$350 (Prime); live 07-07 data: cumA=$369 vs
-  cumB=$210. Fully reconciling the two walks = option C (deferred convergence rework).
+Commit `75eef32` ([forecast/debt]: unify per-card CC balance display via step3-display helper).
+All surfaces (Forecast month popup, CSV export getCreditCardBalances, Debt Payoff accordion
+Start/End + gated rows + chart) now derive revolving card balances via the shared
+`src/lib/step3-display.ts` helpers (sim balance − cumulative PASS-3 surplus, floored at 0,
+gated on monthlyRevolvingBalances > 0; cycling statement balances untouched).
 
-## Decided design (Option A, settled — implement as specified)
-One shared display derivation, engine CASH walk untouched:
-- NEW `src/lib/step3-display.ts` (DONE): `cumulativeSurplusesByCard(perCardPaymentsScaled)` +
-  `adjustedDisplayBalance(simBal, cumSurplus)` = max(0, simBal − cum). Display rule everywhere:
-  card line = revolving? max(0, monthlyBalances[i] − cum[i]) : cycling statement (untouched).
-  Gate on monthlyRevolvingBalances.get(id)[i] > 0.
-- Engine (DONE): forecast-engine.ts revolvingAdj (was min(cumulativeStep3Extra, ccEngRevBalEnd)
-  at old line ~1184) now = Σ per-card gated subtraction via the helper; import added; precompute
-  `hookCumSurplusByCard` before the month loop. `cumulativeStep3Extra` / step-3 routing /
-  milestones / Ending Cash intentionally NOT touched.
+Live verification (localhost:8080, 2026-07-07):
+- Sep 2026 popup: Prime $4,060 / Discover $6,377 — accordion Sep 2026 End: $4,060 / $6,377 ✓
+- Popup per-card lines now sum to Total CC ($10,436, $1 rounding) ✓
+- Accordion rows reconcile: End = Start + purchases + interest − payment − surplus ✓
+  (Prime Sep: 4,863 + 148 + 6.55 − 860 − 98 = 4,060)
+- ETA 14 mo == milestone Aug 2027 == Discover payoff month — internally consistent ✓
+- Tests: suite green except 3 known pre-existing activeLoanInsurance failures; tsc clean.
 
-## Current state
-- Tests GREEN: `src/lib/__tests__/step3-display.test.ts` (new; unit + fixture test asserting
-  engine ccDisplayBalance == displayCCBalance − Σ per-card gated adj, was RED before engine fix,
-  includes non-vacuous guard) AND `forecast-engine.goldenTierA.test.ts` (milestone May 2027).
-- Backups taken: `backups/2026-07-07_120558/` (Forecast.tsx, forecast-engine.ts,
-  forecast-export.ts, CreditCardEngine.tsx, DebtPayoff.tsx).
-- Scratch diagnostic deleted (scratch-pass3-diff.*). Full test suite NOT yet run.
-- This commit contains: handoff, backups, step3-display.ts, step3-display.test.ts,
-  forecast-engine.ts change.
+Known accepted gap (this IS Phase 2): popup PAYMENT lines still diverge from accordion
+payment+surplus in months where the engine cash walk clamps/exceeds the hook plan
+(live Sep 2026: popup Prime payment $1,260 vs accordion 860+98=$958).
 
-## Next steps (in order)
-1. **Forecast.tsx ~1084-1116** (popup per-card lines): replace the inline `rem3 =
-   row.revolving3Extra` cascade with the helper: for each simCard, revBal>0 →
-   `adjustedDisplayBalance(monthlyBalances.get(id)[absoluteI], cum.get(id)[absoluteI])`,
-   else keep cyclingBal = data[absoluteI][card.name]. Compute `cum` once via
-   `cumulativeSurplusesByCard(cardProjectionData?.perCardPaymentsScaled)` (useMemo).
-   Leave popup PAYMENT lines as-is (engine-scaled) — out of scope, noted for user.
-2. **src/lib/forecast-export.ts:149-161** `getCreditCardBalances`: same formula (it currently
-   mirrors the popup WITHOUT any adj — make it use the helper identically).
-3. **CreditCardEngine.tsx**: accordion (~1638-1698) displayed Start/End: for revolving months
-   (monthlyRevolvingBalances.get(id)[idx] > 0) show End = max(0, row.endBalance − cum[idx]),
-   Start = max(0, row.startBalance − cum[idx−1]); surplus line at 1642/1683 already shows the
-   matching payment → rows reconcile (this is the fix the reverted overlay lacked — see
-   DebtPayoff.tsx:35-40). Chart `debtChartData` (~916-941): subtract the same way. Do NOT
-   change projectCardVariable inputs (raw sim stays the model; payoff detection must not move).
-   Keep ETA label on simRevolvingPayoffMonth.
-4. Update the DebtPayoff.tsx:35-40 revert-history comment to describe the new adjusted-display-
-   with-matching-payment approach.
-5. `npm run` full vitest suite + `npx tsc --noEmit` (or build). Note: 3 pre-existing
-   activeLoanInsurance test failures are known backlog — don't chase.
-6. `python -m graphify update .` (CLAUDE.md), commit locally (no push).
-7. Live-verify (dev server localhost:8080, Chrome MCP — re-fetch tabs_context, old tabId stale):
-   /forecast → 2026 → Sep 2026 popup per-card CC balances == /debt accordion Sep 2026 end
-   balances (Prime + Discover), accordion rows reconcile, ETA still 13 mo / Jul 2027-ish
-   (manual-min Prime $0 flag is live — see previous session), Ending Cash unchanged vs before.
-8. Write session notes to `C:\Users\tvonh\Desktop\claudecontext\sessions\2026-07-07_forecast-cc-display-unification.md`.
+## Next: Phase 2 — Option C convergence rework (USER-CONFIRMED: "we want no gaps")
+Dedicated session; plan before touching code. Scope: feed the forecast's ACTUAL monthly debt
+cash (engine walk) back into the card sim so sim balances/payments/extras reflect real routing —
+converge the two walks into one.
+- READ memory `project_cycling_debt_engine` first — this was attempted before and REVERTED
+  repo-wide; understand why it failed before designing.
+- Constraints: simulateVariablePayoff params are positional (new ones at END); golden Tier-A
+  fixture re-pin only with live-data justification; TDD against
+  src/lib/__tests__/fixtures/forecast-inputs.real.json (gitignored, tests self-skip without it);
+  iterate engine→sim→engine to a fixed point with bounded iteration count.
+- Definition of done: popup payments == accordion payments+surplus AND balances == every month,
+  no ETA/milestone regression, Ending Cash consistent with displayed debt.
+- Root-cause context (session 2, confirmed): hook replica pass-3 walk
+  (useCardProjection.ts ~1353-1404 → pass3RevTotals → extraPerCardByMonth/surpluses) vs engine
+  step-3 walk are structurally divergent in BOTH directions (fixture: Jul/Aug 2026 floor-clamp,
+  Mar 2027 +$702 engine-only surplus).
 
-## Gotchas / do NOT
-- Do NOT feed adjusted balances into projectCardVariable or change sim/payoff detection —
-  that's the previously-reverted failure mode.
-- Do NOT touch engine step-3 routing (cumulativeStep3Extra lines ~1156-1176) — display only.
-- Expect popup payment lines vs accordion payment+surplus to still differ in months where the
-  engine's cash walk clamps/exceeds the hook plan (Aug 2026, Mar 2027 on fixture) — accepted,
-  balances are the deliverable; flag to Tre in the final summary.
-- Fixture is gitignored real data; tests self-skip without it. Supabase queries: always filter
-  user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'. Never push. Browser `find` MCP tool burns
-  rate limit — prefer screenshots+coordinates.
-
-## Phase 2 — Option C convergence rework (USER-CONFIRMED 2026-07-07: "we want no gaps")
-After steps 1-8 above ship and live-verify, do NOT stop at the display unification — Tre wants
-the residual gaps closed too. Those gaps are exactly the walk divergence documented above:
-- Popup payment lines (engine-scaled to row.debtPayment) vs accordion payment+surplus lines
-  still differ in months where the engine's cash walk clamps below or routes above the hook's
-  plan (fixture: Jul/Aug 2026 clamp, Mar 2027 +$702 surplus).
-- Displayed balances subtract the hook's PLANNED extras, which the engine's cash sometimes
-  never actually pays (Aug 2026 $347) — optimistic vs Ending Cash.
-Scope: feed the forecast's ACTUAL monthly debt cash (engine walk) back into the card sim so
-sim balances/payments/extras reflect real routing — i.e. converge the two walks into one.
-Plan as its own dedicated session (this was attempted before and REVERTED repo-wide — read
-memory `project_cycling_debt_engine` "cycling-gate convergence fix attempted+reverted" first;
-understand why it failed before designing). Constraints: simulateVariablePayoff params are
-positional (new ones at END); golden Tier-A fixture will need re-pinning if numbers move —
-justify every anchor change against live data; TDD against the real fixture; iterate
-engine→sim→engine to a fixed point with a bounded iteration count. Definition of done:
-popup payments == accordion payments+surplus AND balances == on every month, no ETA/milestone
-regression, Ending Cash consistent with displayed debt.
+## Gotchas (carry forward)
+- Do NOT feed adjusted display balances into projectCardVariable / payoff detection.
+- Supabase: always filter user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'. Never push.
+- Browser `find` MCP tool burns rate limit — prefer screenshots+coordinates.
+- 3 activeLoanInsurance test failures are pre-existing backlog — don't chase.
 
 ## Backlog (unchanged)
 Milestone eyeball on Forecast tab; Transactions.tsx plan-progress purchase-date anchoring;
