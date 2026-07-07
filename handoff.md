@@ -1,4 +1,57 @@
-# Handoff — 2026-07-07 (session 4, plan finalized, awaiting approval) — branch debt-model-fixes-p0
+# Handoff — 2026-07-07 (session 5, PLAN APPROVED, steps 1-2 SHIPPED, step 3 designed) — branch debt-model-fixes-p0
+
+## Session-5 state: USER APPROVED the full plan below. Steps 1-2 implemented TDD-first and committed.
+- Commit 8d81a9d6: engine emits ForecastRow.revolvingDebtCash (= max(0, monthDebtPayment −
+  cyclingPayment), post-step-3, emitted at data.push in forecast-engine.ts; type at ForecastRow
+  end near :70) AND simulateVariablePayoff param #20 debtCashTargetByMonth (override placed right
+  AFTER the mDebtCap block ~:1135 in credit-card-engine.ts: availableCash = max(target, totalMins)
+  when finite; NaN/undefined entries skip the override — that's deliberate, see month-0 note).
+- Tests: credit-card-engine.debtCashTarget.test.ts (7) + forecast-engine.revolvingDebtCash.test.ts
+  (1, fixture self-skip) — all green. Full suite: only the 3 known pre-existing
+  activeLoanInsurance failures. Golden Tier-A green. Backups: backups/2026-07-07_165741/.
+
+## Step 3 design (SETTLED this session, not yet coded) — resimulateWithDebtCash in useCardProjection.ts
+- Expose on CardProjectionResult: `resimulateWithDebtCash(target: number[]): CardProjectionResult`
+  — a closure defined INSIDE the useMemo (captures all pipeline locals). CardProjectionResult
+  interface is at useCardProjection.ts:52-112 (read it — lists every field to override).
+- The closure: re-run simulateVariablePayoff mirroring ACTIVE sim's exact args (refined-loop call
+  at :994-1014 uses m0Expenses + planCashExpensesEarly[0] and lookAhead.maxDebtPaymentByMonth;
+  the capped-retry sim2 at :1282-1302 uses bare m0Expenses and cappedMaxDebt with
+  cappedMaxDebt[0]=m0TotalBudget — capture which variant activeSim used and replay it) + target
+  as param #20. NO pass-3, NO scaling, NO extra-distribution in the resim result: payments ARE
+  the plan.
+- Fields to override in the returned result (spread base result, replace these):
+  data rows (rebuild via projectCardVariable from simT, same as :1018-1073 incl. displayCCBalance),
+  debtPaymentTotals + allPaymentTotals (from simT/projsT, same derivation :1080-1103, then apply
+  the save-up discretionary cap block :1407-1423 with computeCyclingPaymentByMonth(simT)),
+  perCardPayments (round simT.monthlyPayments), perCardPaymentsScaled (payments = round simT
+  monthlyPayments DIRECTLY for revolving cards but KEEP the cycling save-up branch :1517-1538;
+  surpluses = all zeros), all the sim maps (monthlyRevolvingBalances/Balances/Interest/
+  CyclingOwed/CyclingInterest/CyclingBacklog/MandatoryCyclingPayment/perCardMinPayments from simT),
+  forecastAdjustedRevolvingBalances = simT.monthlyRevolvingBalances verbatim (surpluses are 0),
+  simRevolvingPayoffMonth + forecastRevolvingPayoffMonth = first month simT total revolving hits 0.
+  KEEP from base: month0 (live-anchored machinery, untouched), saveUpMonths/strict/reason,
+  maxDebtPaymentByMonth, m0Income/m0Expenses/m0SafeFloor, cards/simCards.
+- MONTH-0 RULE: the provider must pass target[0] = NaN (isFinite check skips it) — month 0 is
+  live-anchored (m0AllSettled would send target 0 and force min-only payments, wrong). The
+  Sep-2026 gap Phase 2 closes lives in months 1+.
+- resimulateWithDebtCash must NOT be in useMemo dep arrays downstream (it's a new function each
+  compute — provider consumes it inside its own useMemo keyed on cardProjection object identity).
+
+## Steps 4-6 (unchanged from approved plan, not started)
+4. Extract useForecastEngineInputs.ts from useForecastProjections.ts (verbatim, parameterized on
+   cardProjectionData). 5. Provider convergence loop (≤3 passes, $1/month tolerance on monthly
+   debtPayment arrays; fallback = base projection → Option A machinery = zero-regression).
+   6. Slim useForecastProjections to context reader, same return shape.
+
+## Next steps (in order)
+1. TDD: test for resimulateWithDebtCash (fixture-based or synthetic through the hook is hard —
+   consider testing via a pure extracted builder, or integration-test at provider level in step 5).
+2. Implement step 3 per design above. Full suite + golden Tier-A must stay green.
+3. Steps 4-6, then live-verify (popup vs accordion Sep 2026; Prime $4,060/Discover $6,377 anchors;
+   popup Prime payment $1,260 vs accordion $860+$98 is the gap that must close).
+
+## ── Original session-3/4 handoff below (audit anchors + approved plan text still valid) ──
 
 ## RESOLVED (session 4): where the convergence loop lives → (c)+(a) hybrid, loop in CardProjectionProvider
 Verified session 4: useForecastProjections is called ONLY by Forecast.tsx:158 (its docstring
