@@ -214,11 +214,6 @@ to undo a change.
 
 ## Agent cost discipline (token efficiency)
 
-- The `lean-fix` workflow applies AUTOMATICALLY to any fix/debug request —
-  no manual `/lean-fix` needed. A UserPromptSubmit hook
-  (`.claude/hooks/lean-fix-router.mjs`) flags fix-shaped prompts; treat its
-  reminder as mandatory routing, and apply the same workflow even without
-  the reminder when the task is clearly a code fix.
 - For bug fixes and scoped changes, use the `lean-fix` skill: triage size
   first (small fixes stay inline — agents cost more than they save);
   otherwise Explore agent for search, strongest model for diagnosis+plan,
