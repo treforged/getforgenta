@@ -19,6 +19,7 @@ import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-pr
 import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
+import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
 import type { AccountRow, RuleRow, DebtRow, TransactionRow } from '@/hooks/useSupabaseData';
 import type { CardProjectionResult } from '@/hooks/useCardProjection';
@@ -1042,6 +1043,13 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // month-end, same point effectiveDP/the lump-sum purchase deduction already fires).
     let cumulativeCarReserveHeld = 0;
 
+    // Per-card cumulative PASS-3 surpluses from the card-projection hook — the SAME derivation the
+    // Forecast popup's per-card lines, the Debt Payoff accordion/chart, and the CSV export subtract
+    // (see step3-display.ts). The Total CC display line below must use it too, so the popup's
+    // per-card lines always sum to the total shown next to them. Display-only: the engine's own
+    // cumulativeStep3Extra still drives the step-3 cash routing above.
+    const hookCumSurplusByCard = cumulativeSurplusesByCard(cardProjectionData?.perCardPaymentsScaled);
+
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const b = baseData[i];
       let monthDebtPayment = debtPayments[i];
@@ -1175,13 +1183,20 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // payments tracked against real interest and new purchases) reaches zero.
       p3RevBal = ccDebtFreeFired ? 0 : Math.max(0, virtualRevBal);
 
-      // Adjust the displayed CC liability to reflect step-3 extras already routed to revolving debt.
-      // The SIM's displayCCBalance treats the revolving balance as if no step-3 payments occurred.
-      // revolvingAdj = min(cumulativeStep3Extra, ccEngRevBalEnd): capped at the SIM's remaining
-      // revolving balance so we never over-subtract into the cycling cards' share.
-      // After the milestone fires, cumulativeStep3Extra is frozen and ccEngRevBalEnd continues
-      // declining per the SIM, so revolvingAdj = ccEngRevBalEnd → adjCCLiab = cycling balance only.
-      const revolvingAdj = Math.min(cumulativeStep3Extra, ccEngRevBalEnd);
+      // Adjust the displayed CC liability to reflect PASS-3 extras already routed to revolving
+      // debt. The SIM's displayCCBalance treats the revolving balance as if no extra payments
+      // occurred. Uses the hook's per-card cumulative surpluses (hookCumSurplusByCard) — the same
+      // adjustment the popup applies per card — gated to cards still carrying revolving debt and
+      // capped at each card's own balance, so the Total CC line always equals the sum of the
+      // per-card lines and we never over-subtract into the cycling cards' share. Once a card's
+      // revolving balance clears, its surplus history stops being subtracted (the card's line
+      // shows its cycling statement untouched), so post-payoff months show cycling balances only.
+      const revolvingAdj = (cardProjectionData?.simCards ?? []).reduce((s, c) => {
+        const revBal = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0;
+        if (revBal <= 0) return s;
+        const trueBal = cardProjectionData?.monthlyBalances?.get(c.id)?.[i] ?? 0;
+        return s + (trueBal - adjustedDisplayBalance(trueBal, hookCumSurplusByCard.get(c.id)?.[i] ?? 0));
+      }, 0);
       const adjCCLiab = Math.max(0, ccLiabilityBalThisMonth - revolvingAdj);
       totalLiabilityBal = adjCCLiab + b.otherDebtBalance + carLoanBalanceByMonth[i];
 
