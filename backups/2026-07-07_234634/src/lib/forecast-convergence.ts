@@ -29,9 +29,7 @@ export function runDebtCashConvergence(
   engineInputs: ForecastInputs,
   opts: DebtCashConvergenceOptions = {},
 ): DebtCashConvergenceResult {
-  // Default pass budget of 8: on live data the damped (0.5) loop needs ~6 passes to collapse
-  // the payment↔cash-floor two-cycle (gap 1423 → 159 → 91 → 133 → 29 → 1, verified 2026-07-07).
-  const { maxPasses = 8, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
+  const { maxPasses = 3, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
 
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;
@@ -51,10 +49,14 @@ export function runDebtCashConvergence(
     const resim = base.resimulateWithDebtCash(target);
     const resimProj = engine({ ...engineInputs, cardProjectionData: resim });
 
+    let maxGapMonth = 0;
     const maxGap = resimProj.data.reduce((max, row, m) => {
       const gap = Math.abs(row.debtPayment - currentProj.data[m].debtPayment);
-      return gap > max ? gap : max;
+      if (gap > max) { maxGapMonth = m; return gap; }
+      return max;
     }, 0);
+    // TEMP live-verify instrumentation — remove before commit
+    console.debug(`[convergence-pass] pass=${pass} maxGap=${maxGap.toFixed(2)} @month=${maxGapMonth} prev=${currentProj.data[maxGapMonth].debtPayment.toFixed(2)} new=${resimProj.data[maxGapMonth].debtPayment.toFixed(2)}`);
 
     if (maxGap <= toleranceDollars) {
       return { cardProjection: resim, projections: resimProj, converged: true, passes: pass };

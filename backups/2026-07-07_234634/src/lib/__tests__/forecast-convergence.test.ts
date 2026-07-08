@@ -10,7 +10,7 @@ import type { ForecastInputs, ForecastResult } from '../forecast-engine';
 // Contract:
 //   engine(base) → target = rows.revolvingDebtCash (target[0] = NaN, month 0 is live-anchored)
 //   → base.resimulateWithDebtCash(target) → engine again → compare successive monthly
-//   debtPayment arrays; ≤8 passes, $1/month tolerance. Converged ⇒ publish the resimmed
+//   debtPayment arrays; ≤3 passes, $1/month tolerance. Converged ⇒ publish the resimmed
 //   projection + its engine run; NOT converged ⇒ publish the base pair (Option A display
 //   machinery stays as the zero-regression fallback).
 
@@ -123,24 +123,6 @@ describe('runDebtCashConvergence', () => {
     expect(outUndamped.cardProjection).toBe(undamped.base);
   });
 
-  it('uses the default pass budget of 8: a run that stabilizes on call 5 still converges', () => {
-    const { base, resims } = makeBase();
-    // Live-data damping trajectory shape: gaps stay >$1 through pass 4, stable from call 5 on.
-    const engine = fakeEngine([
-      { debtPayment: [500, 400, 300, 200], revolvingDebtCash: [450, 380, 280, 180] },
-      { debtPayment: [500, 300, 300, 200], revolvingDebtCash: [450, 280, 280, 180] },
-      { debtPayment: [500, 350, 300, 200], revolvingDebtCash: [450, 330, 280, 180] },
-      { debtPayment: [500, 320, 300, 200], revolvingDebtCash: [450, 300, 280, 180] },
-      { debtPayment: [500, 335, 300, 200], revolvingDebtCash: [450, 315, 280, 180] },
-      { debtPayment: [500, 335, 300, 200], revolvingDebtCash: [450, 315, 280, 180] },
-    ]);
-    const out = runDebtCashConvergence(base, inputs, { engine });
-
-    expect(out.converged).toBe(true);
-    expect(out.passes).toBe(5);
-    expect(out.cardProjection).toBe(resims[4]);
-  });
-
   it('falls back to the base pair (zero-regression) when the pass budget is exhausted', () => {
     const { base } = makeBase();
     // Oscillates forever: successive runs always differ by $100 in month 1.
@@ -150,7 +132,7 @@ describe('runDebtCashConvergence', () => {
       { debtPayment: [500, 400, 300, 200], revolvingDebtCash: [450, 380, 280, 180] },
       { debtPayment: [500, 300, 300, 200], revolvingDebtCash: [450, 280, 280, 180] },
     ]);
-    const out = runDebtCashConvergence(base, inputs, { engine, maxPasses: 3 });
+    const out = runDebtCashConvergence(base, inputs, { engine });
 
     expect(out.converged).toBe(false);
     expect(out.passes).toBe(3);
