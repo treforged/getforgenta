@@ -588,6 +588,45 @@ export interface SimResult {
   warningMessages: { month: number; message: string }[];
 }
 
+export interface PaymentLedgerCardEntry {
+  id: string;
+  payment: number;
+}
+
+/** Authoritative per-month payment split, derived directly from a SimResult's own outputs —
+ * .claude/plan/unify-cycling-model.md Stage 2. `revolving` sums payments for cards that started
+ * the month with a nonzero revolving balance (mirrors useCardProjection's debtPaymentTotals
+ * classification); `cycling` is the remainder (mandatory statements + backlog paydown). No
+ * consumer reads this yet — Stage 3 makes forecast-engine.ts delegate its own split to it. */
+export interface PaymentLedgerEntry {
+  total: number;
+  revolving: number;
+  cycling: number;
+  perCard: PaymentLedgerCardEntry[];
+}
+
+export function buildPaymentLedger(
+  sim: SimResult,
+  cards: CardData[],
+  months = PROJECTION_MONTHS,
+): PaymentLedgerEntry[] {
+  return Array.from({ length: months }, (_, i) => {
+    let total = 0;
+    let revolving = 0;
+    const perCard: PaymentLedgerCardEntry[] = [];
+    for (const card of cards) {
+      const payment = sim.monthlyPayments.get(card.id)?.[i] ?? 0;
+      total += payment;
+      const startRevBal = i === 0
+        ? (sim.monthlyRevolvingBalances.get(card.id)?.[0] ?? 0)
+        : (sim.monthlyRevolvingBalances.get(card.id)?.[i - 1] ?? 0);
+      if (startRevBal > 0) revolving += payment;
+      perCard.push({ id: card.id, payment });
+    }
+    return { total, revolving, cycling: total - revolving, perCard };
+  });
+}
+
 export function simulateVariablePayoff(
   cards: CardData[],
   liquidCash: number,

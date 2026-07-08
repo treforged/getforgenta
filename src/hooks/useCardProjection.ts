@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { formatCurrency } from '@/lib/calculations';
 import { attachSimDebug } from '@/lib/simDebug';
 import {
-  buildCardData, simulateVariablePayoff, projectCardVariable,
+  buildCardData, simulateVariablePayoff, projectCardVariable, buildPaymentLedger,
   CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue,
 } from '@/lib/credit-card-engine';
 import { buildResimOverrides } from './cardProjectionResim';
@@ -1672,6 +1672,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         monthlyInterest: activeSim.monthlyInterest,
         monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
         monthlyMandatoryCyclingPayment: activeSim.monthlyMandatoryCyclingPayment,
+        paymentLedger: buildPaymentLedger(activeSim, cards),
         maxDebtPaymentByMonth,
         m0Income,
         m0Expenses,

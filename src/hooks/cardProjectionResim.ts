@@ -1,5 +1,5 @@
 import {
-  projectCardVariable, simulateVariablePayoff, CardData, PROJECTION_MONTHS,
+  projectCardVariable, simulateVariablePayoff, buildPaymentLedger, CardData, PROJECTION_MONTHS,
 } from '@/lib/credit-card-engine';
 import type { SimResult } from '@/lib/credit-card-engine';
 import type { ProjectionDataRow, CardProjectionResult } from './useCardProjection';
@@ -33,7 +33,7 @@ export type ResimOverrides = Pick<CardProjectionResult,
   | 'data' | 'debtPaymentTotals' | 'allPaymentTotals' | 'perCardPayments'
   | 'perCardPaymentsScaled' | 'monthlyRevolvingBalances' | 'monthlyBalances'
   | 'perCardMinPayments' | 'monthlyCyclingOwed' | 'monthlyCyclingInterest' | 'monthlyInterest'
-  | 'monthlyCyclingBacklog' | 'monthlyMandatoryCyclingPayment'
+  | 'monthlyCyclingBacklog' | 'monthlyMandatoryCyclingPayment' | 'paymentLedger'
   | 'forecastAdjustedRevolvingBalances' | 'simRevolvingPayoffMonth' | 'forecastRevolvingPayoffMonth'
 >;
 
@@ -201,6 +201,7 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
     monthlyInterest: simT.monthlyInterest,
     monthlyCyclingBacklog: simT.monthlyCyclingBacklog,
     monthlyMandatoryCyclingPayment: simT.monthlyMandatoryCyclingPayment,
+    paymentLedger: buildPaymentLedger(simT, cards),
     forecastAdjustedRevolvingBalances: simT.monthlyRevolvingBalances,
     simRevolvingPayoffMonth: payoffMonth,
     forecastRevolvingPayoffMonth: payoffMonth,
