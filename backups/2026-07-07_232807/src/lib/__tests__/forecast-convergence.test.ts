@@ -79,48 +79,8 @@ describe('runDebtCashConvergence', () => {
     expect(out.converged).toBe(true);
     expect(out.passes).toBe(2);
     expect(out.cardProjection).toBe(resims[1]);
-    // Pass 2's target is damped: the midpoint of pass 1's target and pass 1's engine run
-    // (default damping 0.5), so a two-cycle oscillation collapses instead of repeating.
-    expect(targets[1].slice(1)).toEqual([355, 280, 180]);
-  });
-
-  it('damping breaks a two-cycle oscillation that never converges undamped', () => {
-    // Engine responds to the resim's target: payment[1] = 900 − target[1] (base run: 500).
-    // Undamped that's a permanent two-cycle 500 ↔ 400; damped 0.5 it lands on the 450 fixed
-    // point: pass 1 target 500 → 400; pass 2 target (500+400)/2 = 450 → 450 (gap 50); pass 3
-    // target stays 450 → 450 (gap 0) ⇒ converged.
-    function makeTargetSensitive() {
-      const base = {
-        resimulateWithDebtCash: (target: number[]) =>
-          ({ target } as unknown as CardProjectionResult),
-      } as unknown as CardProjectionResult;
-      const engine = ((i: ForecastInputs): ForecastResult => {
-        const t = (i.cardProjectionData as unknown as { target?: number[] } | null)?.target;
-        const m1 = t ? 900 - t[1] : 500;
-        return {
-          data: Array.from({ length: MONTHS }, (_, m) => ({
-            debtPayment: m === 1 ? m1 : 100,
-            revolvingDebtCash: m === 1 ? m1 : 100,
-          })) as unknown as ForecastResult['data'],
-          milestones: [],
-        };
-      }) as unknown as ConvergenceEngine;
-      return { base, engine };
-    }
-
-    const damped = makeTargetSensitive();
-    const out = runDebtCashConvergence(damped.base, inputs, { engine: damped.engine });
-    expect(out.converged).toBe(true);
-    expect(out.passes).toBe(3);
-    expect((out.projections.data[1] as { debtPayment: number }).debtPayment).toBe(450);
-
-    // damping: 1 disables the damper — the same engine oscillates forever and falls back.
-    const undamped = makeTargetSensitive();
-    const outUndamped = runDebtCashConvergence(undamped.base, inputs, {
-      engine: undamped.engine, damping: 1,
-    });
-    expect(outUndamped.converged).toBe(false);
-    expect(outUndamped.cardProjection).toBe(undamped.base);
+    // Pass 2's target came from pass 1's engine run.
+    expect(targets[1].slice(1)).toEqual([330, 280, 180]);
   });
 
   it('falls back to the base pair (zero-regression) when the pass budget is exhausted', () => {

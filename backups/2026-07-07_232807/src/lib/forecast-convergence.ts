@@ -13,8 +13,6 @@ export interface DebtCashConvergenceOptions {
   maxPasses?: number;
   toleranceDollars?: number;
   engine?: ConvergenceEngine;
-  /** Weight of the newest engine run in each re-target, (0, 1]. 1 = undamped. */
-  damping?: number;
 }
 
 export interface DebtCashConvergenceResult {
@@ -29,23 +27,15 @@ export function runDebtCashConvergence(
   engineInputs: ForecastInputs,
   opts: DebtCashConvergenceOptions = {},
 ): DebtCashConvergenceResult {
-  const { maxPasses = 3, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
+  const { maxPasses = 3, toleranceDollars = 1, engine = calculateForecast } = opts;
 
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;
-  let prevTarget: number[] | null = null;
 
   for (let pass = 1; pass <= maxPasses; pass++) {
     // Re-target from the CURRENT engine run, but always resim from base — the closure is
     // stateless, and month 0 stays live-anchored (NaN ⇒ keep the sim's own month-0 cash).
-    // After pass 1 the target is damped toward the previous one, so a payment↔cash-floor
-    // two-cycle collapses onto its fixed point instead of oscillating past the pass budget.
-    const raw = currentProj.data.map((row, m) => (m === 0 ? NaN : row.revolvingDebtCash));
-    const prev = prevTarget;
-    const target: number[] = prev
-      ? raw.map((v, m) => (m === 0 ? NaN : damping * v + (1 - damping) * prev[m]))
-      : raw;
-    prevTarget = target;
+    const target = currentProj.data.map((row, m) => (m === 0 ? NaN : row.revolvingDebtCash));
     const resim = base.resimulateWithDebtCash(target);
     const resimProj = engine({ ...engineInputs, cardProjectionData: resim });
 
