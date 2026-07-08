@@ -67,11 +67,11 @@ export interface ForecastMonthRow {
   assetBreakdown: { bucket: 'retirement' | 'investment' | 'savings'; id: string; name: string; balance: number }[];
   nonCCLiabBreakdown: { id: string; name: string; account_type: string; balance: number }[];
   carLoanBreakdown: { name: string; balance: number }[];
-  /** This month's revolving-debt-cash TARGET for the next convergence pass: the sim's own
-   * revolving share of debtPayment (from the payment ledger, unify-cycling-model Stage 3) plus
-   * any cash surplus above the floor not yet routed. Fed back by runDebtCashConvergence via
-   * resimulateWithDebtCash → debtCashTargetByMonth; the sim absorbs it into its own state on the
-   * next pass rather than the engine tracking a parallel cumulative register. */
+  revolving3Extra: number;
+  /** Actual cash routed to REVOLVING CC debt this month (step-2 revolving share of debtPayment
+   * plus this month's step-3 surplus; excludes cycling/statement payments). The authoritative
+   * per-month debt cash the Phase-2 convergence loop feeds back to the card sim as
+   * debtCashTargetByMonth. */
   revolvingDebtCash: number;
 }
 
@@ -946,7 +946,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       Math.max(0, (cardProjectionData?.allPaymentTotals?.[i] ?? 0) - (cardProjectionData?.debtPaymentTotals?.[i] ?? 0)),
     );
     const ccSourceIds = new Set<string>(ccCards.flatMap((a) => [a.id as string, `account:${a.id}`]));
-    const { maxDebtPaymentByMonth, strictSaveUpMonths } = computeFloorProtection({
+    const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths } = computeFloorProtection({
       incomeByMonth: baseData.map(b => b.netIncome),
       expenseByMonth: baseData.map((b, i) =>
         b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
@@ -1001,22 +1001,37 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     const data: ForecastMonthRow[] = [];
     const milestones: { month: string; event: string }[] = [];
 
-    // liveRevolvingBal seeds prevRevBalEnd below so the CC-Debt-Free transition check doesn't
-    // fire falsely at month 0 when debt is already at $0 before the projection starts.
+    // p3RevBal tracks the actual revolving CC balance forward through PASS 3.
+    // The CC sim's b.ccDebtBalance projects balances using only target/min payments,
+    // running far too long (e.g. Discover at $97/mo takes 45 months). PASS 3 sends
+    // large surpluses to CC debt each month, zeroing it in ~2-4 months. Using the CC
+    // sim's projection as the gate would pin ending cash to the floor long after all
+    // debt is actually paid. p3RevBal uses live account balances as the starting point
+    // and deducts the actual revolving payments + surplus each month.
     const liveRevolvingBal = (cardProjectionData?.simCards ?? []).reduce((s, c) => {
       const revBal0 = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[0] ?? 1;
       if (revBal0 === 0) return s; // cycling card — paid in full each month, not revolving
       const acct = active.find((a) => a.id === c.id);
       return s + (acct ? Number(acct.balance || 0) : 0);
     }, 0);
-    // ccEngRevBalEnd (computed per month below) is now the SIM's own authoritative post-payment
-    // revolving balance — the sim already absorbs any step-3 surplus via the debtCashTargetByMonth
-    // feedback loop (runDebtCashConvergence), so PASS 3 no longer tracks a parallel
-    // virtualRevBal/cumulativeStep3Extra register that could drift from the sim's own state.
-    let prevRevBalEnd = liveRevolvingBal;
-    // ccDebtFreeFired: true from the month ccEngRevBalEnd (the SIM's own post-payment revolving
-    // balance, already inclusive of any converged step-3 surplus) first reaches $0. Used only as
-    // the CC-Debt-Free milestone's fallback trigger below when simRevolvingPayoffMonth is unavailable.
+    let p3RevBal = liveRevolvingBal;
+    // virtualRevBal tracks what Discover's balance would be if step-3 payments were real:
+    // starts at the live balance, decreases each month by the simulation's net change
+    // (which already includes interest) and by any step-3 surplus routed that month.
+    // This replaces the old cumulativeSurplus cap, which hit 0 prematurely whenever
+    // the simulation's own large avalanche payments dropped ccEngRevBalEnd faster than
+    // cumulativeSurplus accumulated — causing surplus cash to pile up instead of routing
+    // to Discover.
+    let virtualRevBal = liveRevolvingBal;
+    let prevCcEngRevBalEnd = liveRevolvingBal;
+    // Tracks cumulative extra step-3 surplus payments sent to revolving debt beyond the SIM's plan.
+    // Used to compute "adjusted remaining balance" = ccEngRevBalEnd - cumulativeStep3Extra,
+    // which is the forecast's authoritative view of what's still owed after all extra routing.
+    let cumulativeStep3Extra = 0;
+    let prevAdjustedRevBal = liveRevolvingBal;
+    // ccDebtFreeFired gates the step-3 surplus routing + display adjustment below: it flips the
+    // month the forecast's combined payments COVER the revolving balance (~1 mo before the real
+    // balance reaches $0). Keep it there — it controls money movement, not the milestone.
     let ccDebtFreeFired = false;
     // ccMilestoneFired is separate: the user-facing "CC Debt Free" milestone must land on the month
     // the real revolving balance actually reaches $0 (Discover, the last interest-bearing card),
@@ -1036,8 +1051,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // Per-card cumulative PASS-3 surpluses from the card-projection hook — the SAME derivation the
     // Forecast popup's per-card lines, the Debt Payoff accordion/chart, and the CSV export subtract
     // (see step3-display.ts). The Total CC display line below must use it too, so the popup's
-    // per-card lines always sum to the total shown next to them. Display-only: independent of the
-    // sim's own payment ledger that drives the step-3 cash routing above.
+    // per-card lines always sum to the total shown next to them. Display-only: the engine's own
+    // cumulativeStep3Extra still drives the step-3 cash routing above.
     const hookCumSurplusByCard = cumulativeSurplusesByCard(cardProjectionData?.perCardPaymentsScaled);
 
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
@@ -1076,39 +1091,102 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const lumpTransferThisMonth = lumpTransferByMonth[i].total;
       const cashPreDebt = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - mortgageMonthlyPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet;
 
-      // Step 2: the sim is the single writer of debt-payment truth (unify-cycling-model Stage 3).
-      // Its payment ledger already reflects a floor-aware, save-up-aware plan for whatever cash
-      // target was fed in via debtCashTargetByMonth (see resimulateWithDebtCash /
-      // runDebtCashConvergence, and credit-card-engine's maxDebtPaymentByMonth save-up cap, which
-      // now also caps the cycling pool once revolving debt is clear). PASS 3 trusts it directly
-      // instead of re-deriving its own cycling/revolving split.
-      // Single-clamp rule: the sim clamps, the engine trusts — no second clamp here.
-      // Month-0 exception: when all month-0 CC payments already settled before syncCutoffDate
-      // (safeToPayTotal === 0), the sim's own month-0 plan would double-count payments already
-      // reflected in the live Plaid balance — the sim has no syncCutoffDate concept, so PASS 3
-      // must still zero this month out itself.
+      // Step 2: cycling payments are non-negotiable (like rent).
+      // Exception: in save-up months where revolving debt is already cleared, cap total CC
+      // payments to PASS 2's reduced amount (monthDebtPayment = debtPayments[i]) so that
+      // statement/full-balance card payments (e.g. Amex Gold) are reduced and cash accumulates
+      // for the upcoming large expense (car down payment, one-time item). Without this cap,
+      // cycling payments bypass PASS 2's look-ahead reductions and the floor is never met.
+      // Revolving payments and minimums only apply while p3RevBal shows remaining debt.
+      const simAllPayments = cardProjectionData?.allPaymentTotals?.[i] ?? monthDebtPayment;
+      const simRevolvingPayment = cardProjectionData?.debtPaymentTotals?.[i] ?? monthDebtPayment;
+      const effectiveTotalPayments = (saveUpMonths.has(i) && p3RevBal <= 0 && cardProjectionData)
+        ? Math.min(simAllPayments, Math.max(0, monthDebtPayment))
+        : simAllPayments;
+      const cyclingPayment = Math.max(0, effectiveTotalPayments - simRevolvingPayment);
+      // Gate minimum and revolving payment on p3RevBal — once debt is zeroed, skip both.
+      const ccMinForMonth = p3RevBal > 0 ? Math.min(ccMinTotal, simRevolvingPayment) : 0;
+      const availableForRevolving = p3RevBal > 0
+        ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - cyclingPayment - b.monthMinSafe))
+        : 0;
+      // Save-up months: cap revolving at minimum-ish so cash accumulates for the upcoming large
+      // expense instead of being drained to the floor. saveUpMonths is sourced directly from
+      // useCardProjection above, so this is already the engine's own determination.
+      const revolvingCap = saveUpMonths.has(i)
+        ? Math.max(ccMinForMonth, debtPayments[i] - cyclingPayment)
+        : availableForRevolving;
+      const revolvingPayment = p3RevBal > 0 ? Math.min(simRevolvingPayment, Math.min(revolvingCap, availableForRevolving)) : 0;
+      // Prefer the Debt Payoff tab's own displayed total (perCardPaymentsScaled, which already
+      // reflects its per-card avalanche/snowball priority, minimum-payment protection, and
+      // surplus redirect) over Forecast's independently re-derived revolvingPayment above,
+      // whenever it's within Forecast's own safety ceiling (cyclingPayment + revolvingPayment) —
+      // this is what actually keeps the two pages' displayed numbers in sync in the common case,
+      // since otherwise each page computes its own revolving split from a slightly different
+      // running-cash model and the two only roughly agree. Still clamped to Forecast's own
+      // ceiling so a rare disagreement between the two models can never let this page pay out
+      // more than its own independent floor check considers safe.
+      // When all month-0 CC payments have already settled before syncCutoffDate (safeToPayTotal === 0),
+      // perCardPaymentsScaled still carries the engine's pass-3 revolving amounts — routing those via
+      // hookScaledTotal would double-count payments already captured in the live Plaid balance. Use 0
+      // so the math matches what the engine actually recommends for this settled month.
       const m0AllSettled = i === 0 && (cardProjectionData?.month0?.safeToPayTotal ?? 1) === 0;
-      const ledgerEntry = cardProjectionData?.paymentLedger?.[i];
-      monthDebtPayment = m0AllSettled ? 0 : (ledgerEntry ? ledgerEntry.total : monthDebtPayment);
+      const hookScaledTotal = m0AllSettled
+        ? 0
+        : (cardProjectionData?.perCardPaymentsScaled?.reduce((s, p) => s + (p.payments[i] ?? 0), 0) ?? null);
+      const safetyCeiling = cyclingPayment + revolvingPayment;
+      // Prefer the hook's total when it's within Forecast's own floor-safety ceiling — that
+      // keeps per-card popup amounts in sync with the Debt Payoff tab. Clamp to safetyCeiling
+      // when the hook's total exceeds it (rare disagreement between the two cash models) so
+      // this page never pays out more than its own independent floor check considers safe.
+      // Exception: when activeSim (sim2) diverges from the original sim on a catch-up payment
+      // (e.g., a cycling card that temporarily built revolving balance), hookScaledTotal can
+      // legitimately exceed the original-sim-derived ceiling. Allow it when paying the full
+      // hookScaledTotal still leaves cash safely above floor — the floor check is the real gate.
+      const effectiveCeiling = (
+        hookScaledTotal !== null &&
+        hookScaledTotal > safetyCeiling &&
+        cashPreDebt - hookScaledTotal >= b.monthMinSafe
+      ) ? hookScaledTotal : safetyCeiling;
+      monthDebtPayment = hookScaledTotal !== null ? Math.min(hookScaledTotal, effectiveCeiling) : effectiveCeiling;
       finalLiquid = cashPreDebt - monthDebtPayment;
 
-      // Step 3: this month's revolving-debt-cash TARGET for the next convergence pass (fed back
-      // via runDebtCashConvergence → resimulateWithDebtCash → debtCashTargetByMonth). Cash above
-      // the floor that isn't already spoken for gets added on top of the sim's own revolving share
-      // (ledgerEntry.revolving) so the next pass's resim routes it — the sim absorbs it into its
-      // own state (interest, backlog, per-card cascade) instead of PASS 3 tracking a parallel
-      // register. This pass's actual monthDebtPayment/finalLiquid above are NOT touched here; they
-      // already equal what the sim decided given the CURRENT target (single-clamp rule).
+      // Step 3: redirect surplus above floor to debt. Cap uses CC engine's post-payment revolving
+      // balance (interest-inclusive) minus cumulative surpluses already sent — fixes prior drift
+      // where p3RevBal fell below the true balance because monthly interest wasn't added back.
+      // The engine's monthlyRevolvingBalances[i] already has the planned revolving payment deducted,
+      // so revolvingPayment is not subtracted again here.
+      // Skip surplus routing in month 0 when all payments are settled — future-dated income should
+      // remain visible as projected ending cash, not be silently pre-routed to CC debt.
       const ccEngRevBalEnd = (cardProjectionData?.simCards ?? []).reduce((s, c) => {
         const revBal0 = cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[0] ?? 1;
         if (revBal0 === 0) return s;
         return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
       }, 0);
-      let revolvingDebtCashTarget = m0AllSettled ? 0 : (ledgerEntry?.revolving ?? 0);
-      if (!m0AllSettled && !strictSaveUpMonths.has(i) && ccEngRevBalEnd > 0 && finalLiquid > b.monthMinSafe) {
-        const surplus = Math.min(finalLiquid - b.monthMinSafe, ccEngRevBalEnd);
-        if (surplus > 0) revolvingDebtCashTarget += surplus;
+      // virtualRevBal tracks the SIM's revolving payment plan (revolvingPayment + interest/new-purchases).
+      // cumulativeStep3Extra tracks additional forecast surplus sent to revolving debt beyond the SIM's plan.
+      // "adjusted remaining" = ccEngRevBalEnd - cumulativeStep3Extra is the authoritative remaining balance
+      // that accounts for both the SIM's planned payments AND forecast step-3 pre-payments.
+      if (!ccDebtFreeFired) {
+        const interestAndNewPurchases = Math.max(0, ccEngRevBalEnd - prevCcEngRevBalEnd + simRevolvingPayment);
+        virtualRevBal = Math.max(0, virtualRevBal - revolvingPayment + interestAndNewPurchases);
+        prevCcEngRevBalEnd = ccEngRevBalEnd;
+        // adjustedRevBal = what's still truly owed after all forecast payments (SIM plan + step-3 extras).
+        // When virtualRevBal = 0 but the SIM still has remaining balance, adjustedRevBal continues routing
+        // surplus until the combined payments cover the full balance.
+        const adjustedRevBal = Math.max(0, ccEngRevBalEnd - cumulativeStep3Extra);
+        if (!m0AllSettled && !strictSaveUpMonths.has(i) && adjustedRevBal > 0 && finalLiquid > b.monthMinSafe) {
+          const surplus = Math.min(finalLiquid - b.monthMinSafe, adjustedRevBal);
+          if (surplus > 0) {
+            monthDebtPayment += surplus;
+            finalLiquid -= surplus;
+            cumulativeStep3Extra += surplus;
+            virtualRevBal = Math.max(0, virtualRevBal - surplus);
+          }
+        }
       }
+      // p3RevBal = virtualRevBal: CC Debt Free fires when the virtual balance (step-2 + step-3
+      // payments tracked against real interest and new purchases) reaches zero.
+      p3RevBal = ccDebtFreeFired ? 0 : Math.max(0, virtualRevBal);
 
       // Adjust the displayed CC liability to reflect PASS-3 extras already routed to revolving
       // debt. The SIM's displayCCBalance treats the revolving balance as if no extra payments
@@ -1229,13 +1307,15 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal;
       const netWorth = totalAssets - totalLiabilityBal;
 
-      // ccDebtFreeFired flips the month the SIM's own revolving balance (already inclusive of any
-      // converged step-3 surplus) reaches $0. Do NOT emit the milestone here — see ccMilestoneFired
-      // below, which prefers the SIM's true payoff signal and only falls back to this flag.
-      if (!ccDebtFreeFired && ccEngRevBalEnd <= 0 && prevRevBalEnd > 0) {
+      // ccDebtFreeFired flips the month the forecast's combined payments (SIM plan + step-3 extras)
+      // COVER the full revolving balance: adjustedRevBal = ccEngRevBalEnd - cumulativeStep3Extra <= 0.
+      // This gates the surplus routing + display adjustment above (do NOT emit the milestone here —
+      // that fires ~1 month before the real balance reaches $0).
+      const adjustedRevBalFinal = Math.max(0, ccEngRevBalEnd - cumulativeStep3Extra);
+      if (!ccDebtFreeFired && adjustedRevBalFinal <= 0 && prevAdjustedRevBal > 0) {
         ccDebtFreeFired = true;
       }
-      prevRevBalEnd = ccEngRevBalEnd;
+      prevAdjustedRevBal = adjustedRevBalFinal;
 
       // CC Debt Free milestone: fire on the real revolving-$0 month (ccDebtFreePayoffIdx, from the
       // SIM's true payoff signal). When no signal is available, fall back to the surplus-covers flag
@@ -1345,9 +1425,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         carLoanBreakdown: carLoanPerFund
           .map(cf => ({ name: cf.name, balance: cf.balances[i] ?? 0 }))
           .filter(cf => cf.balance > 0),
-        // See Step 3 above: the sim's own revolving share (ledgerEntry.revolving) plus any
-        // not-yet-routed surplus — the target fed to the next convergence pass.
-        revolvingDebtCash: Math.max(0, Math.round(revolvingDebtCashTarget)),
+        revolving3Extra: cumulativeStep3Extra,
+        // monthDebtPayment here is post-step-3 (surplus included, and surplus is revolving cash
+        // by definition); cyclingPayment is the step-2 mandatory cycling share. Clamped at 0 for
+        // months where the paid total lands below the cycling share (e.g. m0AllSettled, or a
+        // hookScaledTotal that is all-cycling after revolving payoff).
+        revolvingDebtCash: Math.max(0, Math.round(monthDebtPayment - cyclingPayment)),
       });
     }
 

@@ -6,12 +6,13 @@ import { reviveForecastCapture } from './fixtures/forecast-fixture-io';
 
 // Phase 2 Option C convergence — per-month revolving debt cash emission.
 //
-// unify-cycling-model Stage 3: row.revolvingDebtCash is no longer "cash already routed this
-// pass" (post-step-3, synchronous with monthDebtPayment) — it is the TARGET for the NEXT
-// convergence pass (runDebtCashConvergence → resimulateWithDebtCash → debtCashTargetByMonth):
-// the sim's own revolving share (ledgerEntry.revolving) plus any cash surplus above the floor
-// not yet routed. Because it is forward-looking, it can legitimately exceed this pass's
-// debtPayment — the whole point is to tell the NEXT resim pass to pay more.
+// The engine's month loop already knows exactly how much REAL cash it routed to revolving CC
+// debt each month (step-2 revolving share of monthDebtPayment + that month's step-3 surplus),
+// but until now it only exposed the CUMULATIVE step-3 surplus (revolving3Extra). The convergence
+// loop in CardProjectionProvider needs the per-month actual so it can hand the card sim an
+// authoritative debtCashTargetByMonth. New additive row field:
+//
+//   revolvingDebtCash = max(0, monthDebtPayment - cyclingPayment)   [captured AFTER step 3]
 //
 // Same self-skip pattern as the Tier-A golden test: the real fixture is gitignored.
 
@@ -22,20 +23,26 @@ const maybeIt = hasFixture ? it : it.skip;
 describe('forecast-engine — revolvingDebtCash row field (real data)', () => {
   afterEach(() => vi.useRealTimers());
 
-  maybeIt('emits a per-month revolving debt cash target that is non-negative and drives real payoff', () => {
+  maybeIt('emits a per-month revolving debt cash figure consistent with debtPayment and step-3 surplus', () => {
     const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
     vi.useFakeTimers();
     vi.setSystemTime(new Date(capturedAt));
 
     const { data } = calculateForecast(inputs);
 
+    let prevCumStep3 = 0;
     for (const [i, row] of data.entries()) {
-      // Field exists and is a rounded non-negative number. It is a forward-looking TARGET for
-      // the next convergence pass, so — unlike the pre-Stage-3 model — it is NOT bounded above
-      // by this pass's own debtPayment (a real cash surplus this month can legitimately push
-      // next month's target above what was actually paid this pass).
+      // Field exists, is a rounded non-negative number, and never exceeds the month's total
+      // debt payment (revolving share + cycling share = total; cycling share >= 0).
       expect(typeof row.revolvingDebtCash, `month ${i} field`).toBe('number');
       expect(row.revolvingDebtCash, `month ${i} >= 0`).toBeGreaterThanOrEqual(0);
+      expect(row.revolvingDebtCash, `month ${i} <= debtPayment`).toBeLessThanOrEqual(row.debtPayment + 1);
+
+      // The month's step-3 surplus (delta of the cumulative revolving3Extra) is revolving cash
+      // by definition, so it must be contained in revolvingDebtCash (±$2 rounding slack).
+      const step3ThisMonth = (row.revolving3Extra ?? 0) - prevCumStep3;
+      prevCumStep3 = row.revolving3Extra ?? 0;
+      expect(row.revolvingDebtCash, `month ${i} contains step-3 surplus`).toBeGreaterThanOrEqual(step3ThisMonth - 2);
     }
 
     // The projection horizon pays off all revolving debt (Tier-A anchor), so real revolving

@@ -677,12 +677,7 @@ export function simulateVariablePayoff(
    */
   month0SafeFloor?: number,
   /**
-   * Optional per-month cap on the total debt payment allocation. Always caps the revolving/
-   * backlog cascade (Step 5). Once every card that started with debt has reached $0 (no
-   * revolving or backlog balance remains), it ALSO caps the cycling/paid-off pool (Step 2) —
-   * otherwise a full-balance/statement card would keep draining all available cash into its
-   * statement during a save-up month even after the "real" debt is gone. Floored at the
-   * relevant minimums in both places so a cap can never force a minimum-payment violation.
+   * Optional per-month cap on the total debt payment allocation (revolving cards only).
    * Set to ccMinTotal for "save-up" months identified by the look-ahead pre-pass in callers.
    * Mirrors Forecast PASS 2 behavior so future-month debt projections are consistent.
    */
@@ -922,17 +917,6 @@ export function simulateVariablePayoff(
       backlogInterestMap.set(card.id, interest);
     }
 
-    // Hoisted here (used by both the cycling-pool cap below and the revolving cascade cap in
-    // Step 5) so a single per-month value drives both.
-    const mDebtCap = maxDebtPaymentByMonth?.[m];
-    // True once every card that started this simulation carrying debt (revolving OR cycling
-    // backlog) has reached $0 — i.e. no genuinely-revolving or backlog debt remains this month.
-    const allRevolvingClear = cards.every(c => {
-      if ((cardStartMonths.get(c.id) ?? 0) > m) return true; // not active yet — doesn't count
-      if (!paidOffCards.has(c.id)) return false; // still genuinely revolving
-      return (cyclingBacklog.get(c.id) ?? 0) <= 0.005; // cycling with no backlog debt
-    });
-
     // ── Step 2 — Handle paid-off cards: pay purchases, capped by cash above floor ──
     // These cards stay at $0 permanently. Purchase cost is a cash outflow
     // but does NOT create a balance that accrues interest (grace period model).
@@ -986,22 +970,6 @@ export function simulateVariablePayoff(
       owedByCard.set(card.id, Math.round((paidOffDeferredPurchases.get(card.id) ?? 0) * 100) / 100);
     }
     const paidSoFar = new Map<string, number>(paidOffCardsThisMonth.map(c => [c.id, 0]));
-
-    // Once all revolving/backlog debt is clear, a save-up month's cap (maxDebtPaymentByMonth,
-    // mirrors Forecast PASS 2's reduced target — see its JSDoc) also applies to the cycling pool —
-    // otherwise a full-balance/statement card keeps draining all available cash into its statement
-    // even while the caller is trying to preserve cash for an upcoming large expense. Floored at
-    // the cycling cards' own contract minimums so this can never violate a minimum payment,
-    // mirroring the max(mDebtCap, totalMins) guarantee the Step 5 cascade cap uses below.
-    if (allRevolvingClear && mDebtCap !== undefined && isFinite(mDebtCap)) {
-      const cyclingMinTotal = paidOffCardsThisMonth.reduce((s, c) => {
-        const owed = owedByCard.get(c.id) ?? 0;
-        if (owed <= 0) return s;
-        const minRequired = Math.min(Math.max(25, Math.round(owed * 0.02 * 100) / 100), owed);
-        return s + minRequired;
-      }, 0);
-      paidOffPool = Math.min(paidOffPool, Math.max(mDebtCap, cyclingMinTotal));
-    }
 
     // Split `pool` across `cards` proportional to each card's need (per `needFn`), capping each
     // at its own need and redistributing any leftover (from cards whose need was smaller than
@@ -1221,7 +1189,7 @@ export function simulateVariablePayoff(
     // cascade is about to enforce, forcing the min-enforcement guard to override it and silently
     // over-draining cash beyond what the look-ahead reserved. Still bounded above by the real
     // availableCash, so this never invents cash the month doesn't have.
-    // (mDebtCap hoisted above, before Step 2 — also drives the cycling-pool cap there.)
+    const mDebtCap = maxDebtPaymentByMonth?.[m];
     if (mDebtCap !== undefined && isFinite(mDebtCap)) {
       availableCash = Math.min(availableCash, Math.max(mDebtCap, totalMins));
     }
