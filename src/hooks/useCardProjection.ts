@@ -536,12 +536,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return vehicleForecastByMonth.reduce((s, v) => {
-          // Month 0: skip items whose due date is already past syncCutoffDate — Plaid balance
-          // already reflects them; counting them again understates available cash.
+          // Month 0: skip items whose due date is strictly before syncCutoffDate — Plaid balance
+          // already reflects them; counting them again understates available cash. Dues ON the
+          // cutoff day count as not-yet-captured (strict <), so a charge landing the same day
+          // Plaid last synced still shows in month 0.
           const insuranceSynced = m === 0 && v.insuranceDueDay !== null
-            && `${mk}-${String(v.insuranceDueDay).padStart(2, '0')}` <= m0SyncCutoff;
+            && `${mk}-${String(v.insuranceDueDay).padStart(2, '0')}` < m0SyncCutoff;
           const paymentSynced = m === 0 && v.paymentDueDay !== null
-            && `${mk}-${String(v.paymentDueDay).padStart(2, '0')}` <= m0SyncCutoff;
+            && `${mk}-${String(v.paymentDueDay).padStart(2, '0')}` < m0SyncCutoff;
           // Insurance follows insuranceStartMonthIdx — defaults to purchaseMonthIdx unless the
           // user set a separate insurance_start_date (e.g. coverage starts a month later).
           const insurance = m >= v.insuranceStartMonthIdx && !insuranceSynced ? v.insurance : 0;
@@ -586,12 +588,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             return monthsBetween(insuranceAnchor, dStr) >= 0;
           })
           .filter(cf => {
-            // Month 0: skip if insurance due day already past syncCutoffDate (Plaid captured it).
+            // Month 0: skip if insurance due day is strictly before syncCutoffDate (Plaid captured
+            // it). Dues ON the cutoff day stay in month 0 — same strict-< rule as
+            // getVehicleExtrasForMonth's insuranceSynced/paymentSynced gates above.
             if (i !== 0) return true;
             const dueDayBasis = cf.insurance_start_date ?? cf.payment_start_date ?? cf.loan_start_date;
             if (!dueDayBasis) return true;
             const insurDay = new Date(dueDayBasis + 'T00:00:00').getDate();
-            return `${mk}-${String(insurDay).padStart(2, '0')}` > m0SyncCutoff;
+            return `${mk}-${String(insurDay).padStart(2, '0')}` >= m0SyncCutoff;
           })
           .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
       });
