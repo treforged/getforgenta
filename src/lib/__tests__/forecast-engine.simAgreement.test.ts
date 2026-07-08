@@ -1,12 +1,11 @@
-// Stage 0 characterization test for the cycling-model unification (.claude/plan/unify-cycling-model.md).
+// Sim-agreement test for the cycling-model unification (.claude/plan/unify-cycling-model.md).
 //
-// Model A (forecast-engine PASS 3) re-derives its own debtPayment split instead of consuming
-// Model B (the sim, useCardProjection/credit-card-engine) directly. This test records the
-// PRE-UNIFICATION per-month gap between the engine's row.debtPayment and the sim's actual total
-// payment (cardProjectionData.allPaymentTotals) on the real-data golden fixture. It intentionally
-// asserts nothing about the gap size yet — only that both quantities exist and the run completes —
-// so later stages (Stage 3) can flip this into a hard `gap <= 1` assertion once the engine
-// delegates to the sim's ledger instead of re-deriving.
+// Stage 0 recorded the PRE-UNIFICATION per-month gap between the engine's row.debtPayment and
+// the sim's actual total payment (cardProjectionData.allPaymentTotals) on the real-data golden
+// fixture, without asserting a bound. Stage 3 made PASS 3 delegate directly to the sim's payment
+// ledger (monthDebtPayment = paymentLedger[i].total, m0AllSettled aside) instead of re-deriving
+// its own cycling/revolving split, so the two quantities now agree by construction — this test
+// flips Stage 0's baseline into the hard `gap <= 1` assertion the plan calls for.
 //
 // Self-skips when the gitignored fixture is absent (same pattern as forecast-engine.goldenTierA.test.ts).
 
@@ -20,10 +19,10 @@ const FIXTURE = join(__dirname, 'fixtures', 'forecast-inputs.real.json');
 const hasFixture = existsSync(FIXTURE);
 const maybeIt = hasFixture ? it : it.skip;
 
-describe('forecast-engine — sim agreement (Stage 0 characterization, pre-unification)', () => {
+describe('forecast-engine — sim agreement (post-unification, Stage 3)', () => {
   afterEach(() => vi.useRealTimers());
 
-  maybeIt('records the current per-month gap between row.debtPayment and sim allPaymentTotals', () => {
+  maybeIt('keeps row.debtPayment within a dollar of sim allPaymentTotals every month', () => {
     const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
 
     vi.useFakeTimers();
@@ -35,17 +34,20 @@ describe('forecast-engine — sim agreement (Stage 0 characterization, pre-unifi
     expect(result.data.length).toBeGreaterThan(0);
     expect(simTotals.length).toBeGreaterThan(0);
 
+    // row.debtPayment is whole-dollar rounded (Math.round in the engine's data.push); simTotals
+    // is raw cents. Round both the same way before diffing so double-rounding at a .5 boundary
+    // can't produce a spurious >$1 gap between two values that agree to the cent.
     const gapVector = result.data.map((row, i) => {
-      const sim = simTotals[i] ?? 0;
-      return Math.round((row.debtPayment - sim) * 100) / 100;
+      const sim = Math.round(simTotals[i] ?? 0);
+      return row.debtPayment - sim;
     });
 
-    // Baseline artifact: document, don't assert. Stage 3 flips this to a hard `<= 1` assertion
-    // once PASS 3 delegates to the sim's payment ledger instead of re-deriving the split.
-    // eslint-disable-next-line no-console
-    console.log('[Stage 0 baseline] debtPayment - simAllPayments gap by month:', gapVector);
-
-    // Structural sanity only: both series must be the same length so the gap vector is meaningful.
-    expect(gapVector.length).toBe(result.data.length);
+    // Month 0 is exempt: it's live-anchored to Plaid state the sim itself has no concept of
+    // (syncCutoffDate — see forecast-engine's m0AllSettled zeroing), a Stage 3 risk the plan
+    // explicitly calls out as untouched. Months 1+ must agree with the sim by construction.
+    for (const [i, gap] of gapVector.entries()) {
+      if (i === 0) continue;
+      expect(Math.abs(gap), `month ${i} gap`).toBeLessThanOrEqual(1);
+    }
   });
 });
