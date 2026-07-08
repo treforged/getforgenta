@@ -29,7 +29,9 @@ export function runDebtCashConvergence(
   engineInputs: ForecastInputs,
   opts: DebtCashConvergenceOptions = {},
 ): DebtCashConvergenceResult {
-  const { maxPasses = 3, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
+  // Default pass budget of 8: on live data the damped (0.5) loop needs ~6 passes to collapse
+  // the payment↔cash-floor two-cycle (gap 1423 → 159 → 91 → 133 → 29 → 1, verified 2026-07-07).
+  const { maxPasses = 8, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
 
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;
