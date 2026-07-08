@@ -7,8 +7,11 @@ import {
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useCardProjection, type CardProjectionResult } from '@/hooks/useCardProjection';
+import { useForecastEngineInputs, type ForecastEngineInputsBundle } from '@/hooks/useForecastEngineInputs';
 import { buildPayConfig, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
+import { calculateForecast, type ForecastInputs, type ForecastResult } from '@/lib/forecast-engine';
+import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import type { FilingStatus } from '@/lib/tax-estimator';
 
 const DEFAULT_ASSUMPTIONS = {
@@ -31,7 +34,13 @@ type DebtPayoffOptions = {
 };
 
 interface CardProjectionContextValue {
+  /** Debt-cash-CONVERGED projection when the loop settles; the raw sim otherwise. */
   cardProjection: CardProjectionResult | null;
+  /** Engine run matching `cardProjection` — the single authoritative forecast. */
+  projections: ForecastResult;
+  engineInputs: ForecastInputs;
+  forecastInputsBundle: ForecastEngineInputsBundle;
+  debtCashConverged: boolean;
   assumptions: AssumptionsType;
   setAssumptions: (val: AssumptionsType | ((prev: AssumptionsType) => AssumptionsType)) => void;
   pauseSavings: boolean;
@@ -169,8 +178,45 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     paymentPlans: paymentPlans ?? [],
   });
 
+  const forecastInputsBundle = useForecastEngineInputs({
+    cardProjectionData: cardProjection,
+    assumptions,
+    pauseSavings,
+    payConfig,
+    cashFloor,
+    forecastFundingAccountId,
+    syncCutoffDate,
+    scheduledEvents,
+    debtPayoffOptions,
+  });
+
+  // Phase 2 Option C: converge the sim's debt cash with the engine's monthly debtPayment so
+  // popup payments == accordion payments+surplus. Not converged within the pass budget (or no
+  // sim yet) ⇒ publish the raw pair — Option A display machinery is the zero-regression fallback.
+  const convergence = useMemo(() => {
+    if (!cardProjection) {
+      return {
+        cardProjection: null,
+        projections: calculateForecast(forecastInputsBundle.engineInputs),
+        converged: false,
+        passes: 0,
+      };
+    }
+    return runDebtCashConvergence(cardProjection, forecastInputsBundle.engineInputs);
+  }, [cardProjection, forecastInputsBundle.engineInputs]);
+
+  const engineInputs = useMemo<ForecastInputs>(() => (
+    convergence.cardProjection === forecastInputsBundle.engineInputs.cardProjectionData
+      ? forecastInputsBundle.engineInputs
+      : { ...forecastInputsBundle.engineInputs, cardProjectionData: convergence.cardProjection }
+  ), [convergence.cardProjection, forecastInputsBundle.engineInputs]);
+
   const value = useMemo<CardProjectionContextValue>(() => ({
-    cardProjection,
+    cardProjection: convergence.cardProjection,
+    projections: convergence.projections,
+    engineInputs,
+    forecastInputsBundle,
+    debtCashConverged: convergence.converged,
     assumptions,
     setAssumptions,
     pauseSavings,
@@ -183,9 +229,9 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     scheduledEvents,
     debtPayoffOptions,
   }), [
-    cardProjection, assumptions, setAssumptions, pauseSavings, setPauseSavings,
-    debtStrategy, payConfig, cashFloor, forecastFundingAccountId, syncCutoffDate,
-    scheduledEvents, debtPayoffOptions,
+    convergence, engineInputs, forecastInputsBundle, assumptions, setAssumptions,
+    pauseSavings, setPauseSavings, debtStrategy, payConfig, cashFloor,
+    forecastFundingAccountId, syncCutoffDate, scheduledEvents, debtPayoffOptions,
   ]);
 
   return (
