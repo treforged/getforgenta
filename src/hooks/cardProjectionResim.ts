@@ -1,6 +1,7 @@
 import {
   projectCardVariable, simulateVariablePayoff, CardData, PROJECTION_MONTHS,
 } from '@/lib/credit-card-engine';
+import type { SimResult } from '@/lib/credit-card-engine';
 import type { ProjectionDataRow, CardProjectionResult } from './useCardProjection';
 
 /**
@@ -16,8 +17,6 @@ import type { ProjectionDataRow, CardProjectionResult } from './useCardProjectio
  * Extracted from useCardProjection's useMemo so it can be unit-tested without rendering the
  * hook; the hook's closure supplies the pipeline locals via ResimContext.
  */
-
-type SimResult = ReturnType<typeof simulateVariablePayoff>;
 
 export interface ResimContext {
   cards: CardData[];
