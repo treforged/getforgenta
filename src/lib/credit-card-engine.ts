@@ -544,6 +544,50 @@ export type SimulationFlag = {
  * Backward-compatible: existing callers pass 7 positional args (scalars).
  * Event-based callers (TASK 2) additionally pass monthEvents[] and fundingAccountId.
  */
+/** Return type of {@link simulateVariablePayoff} — the sim's authoritative per-month/per-card
+ * payment, balance, and cycling ledger. Named so downstream modules (forecast-engine,
+ * useCardProjection, cardProjectionResim) can reference it directly instead of deriving it via
+ * `ReturnType<typeof simulateVariablePayoff>`. */
+export interface SimResult {
+  monthlyPayments: Map<string, number[]>;
+  monthlyBalances: Map<string, number[]>;
+  monthlyRevolvingBalances: Map<string, number[]>;
+  /** Per-card per-month minimum payment based on projected balance — shrinks as debt is paid. */
+  perCardMinPayments: Map<string, number[]>;
+  /** Per-card per-month TRUE amount owed at the start of the cycling billing cycle — this
+   * cycle's mandatory statement PLUS any accumulated backlog (post-interest, pre-payment),
+   * combined for display continuity so a cycling card's "Start balance" never appears to
+   * silently drop debt. Used by projectCardVariable so a partial payment is visible in the row
+   * where it happens instead of silently disappearing. */
+  monthlyCyclingOwed: Map<string, number[]>;
+  /** Per-card per-month interest charged on a cycling card's accumulated backlog — always 0
+   * unless the card currently carries backlog (i.e. a prior cycle's statement wasn't paid in
+   * full). */
+  monthlyCyclingInterest: Map<string, number[]>;
+  /** Per-card per-month interest actually charged on a REVOLVING (non-cycling) card's starting
+   * balance this cycle (Step 3's real calc — 0 during a statement-preference grace period).
+   * Ground truth for projectCardVariable's revolving branch so its displayed interest reflects
+   * what the engine actually charged, independent of whatever payment ends up displayed (which
+   * may be a cash-floor-scaled amount that differs from the payment used to produce this figure). */
+  monthlyInterest: Map<string, number[]>;
+  /** Per-card per-month MANDATORY (current-cycle-only) cycling payment, excluding any
+   * backlog-cascade payment folded into the same month's monthlyPayments entry. Callers building
+   * a cash-flow look-ahead should treat this (not monthlyPayments) as the non-reducible bill for
+   * a cycling card — monthlyPayments may also include discretionary backlog paydown. */
+  monthlyMandatoryCyclingPayment: Map<string, number[]>;
+  /** Per-card per-month accumulated cycling backlog, end-of-month post-payment. The unambiguous
+   * "does this card need avalanche priority / a reserved floor minimum" signal — deliberately
+   * separate from monthlyRevolvingBalances, which must stay a one-way 0-once-cycling signal for
+   * projectCardVariable's display-branch routing (see where this is pushed, Step 6). */
+  monthlyCyclingBacklog: Map<string, number[]>;
+  projectedPayoffMonths: number;
+  cashFloorBreaches: { month: number; endingCash: number }[];
+  flags: SimulationFlag[];
+  projectedCashByMonth: number[];
+  debtPaymentTransactions: SimulatedDebtPayment[];
+  warningMessages: { month: number; message: string }[];
+}
+
 export function simulateVariablePayoff(
   cards: CardData[],
   liquidCash: number,
@@ -644,45 +688,7 @@ export function simulateVariablePayoff(
    * installment payments are unaffected. Omitted ⇒ byte-identical legacy behavior.
    */
   debtCashTargetByMonth?: number[],
-): {
-  monthlyPayments: Map<string, number[]>;
-  monthlyBalances: Map<string, number[]>;
-  monthlyRevolvingBalances: Map<string, number[]>;
-  /** Per-card per-month minimum payment based on projected balance — shrinks as debt is paid. */
-  perCardMinPayments: Map<string, number[]>;
-  /** Per-card per-month TRUE amount owed at the start of the cycling billing cycle — this
-   * cycle's mandatory statement PLUS any accumulated backlog (post-interest, pre-payment),
-   * combined for display continuity so a cycling card's "Start balance" never appears to
-   * silently drop debt. Used by projectCardVariable so a partial payment is visible in the row
-   * where it happens instead of silently disappearing. */
-  monthlyCyclingOwed: Map<string, number[]>;
-  /** Per-card per-month interest charged on a cycling card's accumulated backlog — always 0
-   * unless the card currently carries backlog (i.e. a prior cycle's statement wasn't paid in
-   * full). */
-  monthlyCyclingInterest: Map<string, number[]>;
-  /** Per-card per-month interest actually charged on a REVOLVING (non-cycling) card's starting
-   * balance this cycle (Step 3's real calc — 0 during a statement-preference grace period).
-   * Ground truth for projectCardVariable's revolving branch so its displayed interest reflects
-   * what the engine actually charged, independent of whatever payment ends up displayed (which
-   * may be a cash-floor-scaled amount that differs from the payment used to produce this figure). */
-  monthlyInterest: Map<string, number[]>;
-  /** Per-card per-month MANDATORY (current-cycle-only) cycling payment, excluding any
-   * backlog-cascade payment folded into the same month's monthlyPayments entry. Callers building
-   * a cash-flow look-ahead should treat this (not monthlyPayments) as the non-reducible bill for
-   * a cycling card — monthlyPayments may also include discretionary backlog paydown. */
-  monthlyMandatoryCyclingPayment: Map<string, number[]>;
-  /** Per-card per-month accumulated cycling backlog, end-of-month post-payment. The unambiguous
-   * "does this card need avalanche priority / a reserved floor minimum" signal — deliberately
-   * separate from monthlyRevolvingBalances, which must stay a one-way 0-once-cycling signal for
-   * projectCardVariable's display-branch routing (see where this is pushed, Step 6). */
-  monthlyCyclingBacklog: Map<string, number[]>;
-  projectedPayoffMonths: number;
-  cashFloorBreaches: { month: number; endingCash: number }[];
-  flags: SimulationFlag[];
-  projectedCashByMonth: number[];
-  debtPaymentTransactions: SimulatedDebtPayment[];
-  warningMessages: { month: number; message: string }[];
-} {
+): SimResult {
   if (cards.length === 0) {
     return {
       monthlyPayments: new Map(),
