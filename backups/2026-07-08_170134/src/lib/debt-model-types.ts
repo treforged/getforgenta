@@ -108,13 +108,7 @@ export interface CardProjectionResult {
    * Month 0 is live-anchored: callers MUST pass target[0] = NaN (the sim's isFinite check skips
    * it) — month0/saveUp/look-ahead outputs are kept from this base result. A fresh closure every
    * compute: do NOT put it in downstream useMemo dep arrays; consumers key on the
-   * CardProjectionResult object identity instead.
-   *
-   * `forecastMaxDebtPaymentByMonth` (optional): Forecast PASS 2's own per-month save-up cap
-   * (ForecastResult.maxDebtPaymentByMonth). When provided, it REPLACES the sim's own
-   * (narrower) look-ahead cap for Step 2's cycling/paid-off pool cap, so cycling-only save-up
-   * months agree with Forecast instead of the sim recomputing an independent, possibly
-   * disagreeing determination. Omitted ⇒ the sim keeps using its own cap (legacy behavior). */
-  resimulateWithDebtCash: (target: number[], forecastMaxDebtPaymentByMonth?: number[]) => CardProjectionResult;
+   * CardProjectionResult object identity instead. */
+  resimulateWithDebtCash: (target: number[]) => CardProjectionResult;
   month0: Month0Result;
 }

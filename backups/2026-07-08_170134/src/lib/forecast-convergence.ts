@@ -48,10 +48,7 @@ export function runDebtCashConvergence(
       ? raw.map((v, m) => (m === 0 ? NaN : damping * v + (1 - damping) * prev[m]))
       : raw;
     prevTarget = target;
-    // Thread Forecast's own PASS-2 cap (currentProj.maxDebtPaymentByMonth) through so Step 2's
-    // cycling-pool cap agrees with Step 5's revolving cascade — both driven by the same
-    // Forecast-authoritative number instead of the sim recomputing its own independent cap.
-    const resim = base.resimulateWithDebtCash(target, currentProj.maxDebtPaymentByMonth);
+    const resim = base.resimulateWithDebtCash(target);
     const resimProj = engine({ ...engineInputs, cardProjectionData: resim });
 
     const maxGap = resimProj.data.reduce((max, row, m) => {

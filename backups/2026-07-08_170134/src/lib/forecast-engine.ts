@@ -116,11 +116,6 @@ export interface ForecastInputs {
 export interface ForecastResult {
   data: ForecastMonthRow[];
   milestones: { month: string; event: string }[];
-  /** PASS 2's per-month save-up cap (see computeFloorProtection call below) — the authoritative
-   * source-of-truth cap. Threaded back into the sim's Step 2 cycling-pool cap via
-   * runDebtCashConvergence → resimulateWithDebtCash so cycling-only save-up months agree with
-   * Forecast instead of the sim recomputing its own, narrower version. */
-  maxDebtPaymentByMonth: number[];
 }
 
 export function calculateForecast(inputs: ForecastInputs): ForecastResult {
@@ -1356,5 +1351,5 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       });
     }
 
-    return { data, milestones, maxDebtPaymentByMonth };
+    return { data, milestones };
 }
