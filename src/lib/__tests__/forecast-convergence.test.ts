@@ -28,6 +28,7 @@ function fakeEngine(plans: { debtPayment: number[]; revolvingDebtCash: number[] 
         revolvingDebtCash: plan.revolvingDebtCash[m],
       })) as unknown as ForecastResult['data'],
       milestones: [],
+      maxDebtPaymentByMonth: [],
     };
   }) as unknown as ConvergenceEngine;
 }
@@ -103,6 +104,7 @@ describe('runDebtCashConvergence', () => {
             revolvingDebtCash: m === 1 ? m1 : 100,
           })) as unknown as ForecastResult['data'],
           milestones: [],
+          maxDebtPaymentByMonth: [],
         };
       }) as unknown as ConvergenceEngine;
       return { base, engine };

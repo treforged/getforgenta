@@ -1627,7 +1627,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // revolving debt cash as param #20, rebuild sim-derived fields via the pure builder, keep
       // the live-anchored month-0 machinery and look-ahead outputs from this base result. See
       // the CardProjectionResult.resimulateWithDebtCash JSDoc for the month-0 NaN contract.
-      const resimulateWithDebtCash = (target: number[]): CardProjectionResult => {
+      const resimulateWithDebtCash = (target: number[], forecastMaxDebtPaymentByMonth?: number[]): CardProjectionResult => {
         const simT = simulateVariablePayoff(
           cards,
           debtFundingBalance,
@@ -1643,7 +1643,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           activeSimM0Expenses,
           oneTimeArrWithDP,
           m0SafeFloor,
-          activeSimMaxDebt,
+          // Forecast's own PASS-2 cap, when supplied, is authoritative for Step 2's cycling-pool
+          // cap during convergence — the same number Step 5's revolving cascade already follows
+          // via `target` below. Without this, cycling-only save-up months (no revolving debt left)
+          // kept following the sim's own, independently-computed look-ahead instead of Forecast's.
+          forecastMaxDebtPaymentByMonth ?? activeSimMaxDebt,
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
           installmentChargeByMonth,
