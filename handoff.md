@@ -1,101 +1,186 @@
-# Handoff — 2026-07-08 ~00:00 — branch debt-model-fixes-p0 — maxPasses fix SHIPPED; popup gap = design issue; activeLoanInsurance fix DIAGNOSED, not started
+# Handoff — 2026-07-08 ~06:35 — branch debt-model-fixes-p0 — Stages 0+1 of unify-cycling-model SHIPPED; Discover-transition-purchase fix DIAGNOSED+SCOPED, not yet coded
 
 ## Goals
-1. Phase 2 Option C convergence: popup payments == accordion payments, every month. (Partially
-   resolved this session — see Current State.)
-2. NEW user request this session: "fix the preexisting active loan issues" = the 3 failing tests
-   in `src/hooks/__tests__/useCardProjection.activeLoanInsurance.test.ts`.
+1. Execute `.claude/plan/unify-cycling-model.md` (6 stages, one-per-session per the plan's own
+   risk mitigation). Invoked via `/remote-control execute .claude/plan/unify-cycling-model.md`.
+2. Mid-session, user reported a live bug via dev-server screenshot (NOT part of the plan, but
+   same subsystem): credit cards should defer new purchases to next month's statement when
+   transitioning to debt-free, instead of sweeping purchases into the final payoff month.
+3. User also flagged, explicitly "for later" (not this session): cash-floor look-ahead — when
+   next month would drop below the cash floor, this month's debt payment should shrink a little
+   to protect it. NOT STARTED, NOT SCOPED. Just log it (roadmap/memory) — do not implement yet.
+4. Dev server requested — started, running (see below).
 
 ## Current State
-- **Convergence maxPasses fix SHIPPED + LIVE-VERIFIED** (commit after 640dfc13, message
-  "[convergence]: default pass budget 3 -> 8 ..."): damping 0.5 + maxPasses 8 → live app logs
-  `converged=true passes=6` on both /debt and /forecast (verified in browser, signed-in session).
-  Gap trajectory: 1423 → 159 → 91 → 133 → 29 → 1. Damping 0.6 tested live: WORSE (gap 6 at pass
-  8, drifting at month 12) — keep 0.5. 7/7 convergence tests green, tsc clean.
-  Backup: backups/2026-07-07_234634. All temp console.debug instrumentation REMOVED.
-- **Popup ≠ accordion REMAINS even at converged=true — this is a DESIGN issue, not a knob.**
-  Live numbers Sep 2026: accordion (sim) Prime $906 / Discover $1,133 (sum $2,039); popup Prime
-  $676 / Discover $846 (sum $1,522 = engine row.debtPayment). Cause: Forecast.tsx ~line 962-980
-  scales sim per-card payments so they sum to engine row.debtPayment. Engine debtPayment =
-  revolvingDebtCash + engine's OWN cycling model; sim payments = revolving target + ACTUAL
-  purchase paybacks ($148 Prime + $831 Discover incl one-time). The two cycling models differ
-  (~$517 in Sep) so no pass count closes it. `debtCashConverged` is published by
-  CardProjectionContext (line ~222) but consumed by NOTHING. Options need Tre's decision (see
-  Next Steps 3). Popup cash math is internally consistent (Starting+income−lines=Ending ✓).
-- **activeLoanInsurance failures DIAGNOSED, fix NOT started.** 3 of 4 tests fail:
-  `month0.vehicleInsurance` = 0, expected ≥150. Root cause confirmed in
-  `src/hooks/useCardProjection.ts` lines ~588-595 (carLoanInsuranceByMonth month-0 gate) and the
-  analogous gate at lines ~541-547 (getVehicleExtrasForMonth / insuranceSynced): month-0 skips
-  insurance when its due date `<=` m0SyncCutoff. Tests set syncCutoffDate = 1st of current month
-  AND anchor insurance dates to the 1st → `"YYYY-MM-01" > "YYYY-MM-01"` is false → zeroed.
-  This is the known "due-day-1 zeroing" backlog item (see memory project_forecast_engine_refactor).
-  Real-app semantics: syncCutoffDate (CardProjectionContext.tsx lines 123-132) = Plaid
-  last_synced_at date, or today if no Plaid. So cutoff = date THROUGH which transactions are
-  settled; a due-day-1 item with cutoff on the 1st IS arguably already captured — the open
-  question is whether product behavior (`<=`, drop it) or the tests (expect it present) are
-  right. NOT resolved; decide at the design layer, not by patching tests blindly.
-- Working tree at handoff commit: only handoff.md changed; all other work committed.
+- **Stage 0 SHIPPED** (commit 7cd9055e): new
+  `src/lib/__tests__/forecast-engine.simAgreement.test.ts` — characterization test recording
+  (not yet asserting) the per-month gap between `row.debtPayment` (Model A) and
+  `cardProjectionData.allPaymentTotals` (Model B/sim). Baseline gap on the real fixture: months
+  0-1 and 7-8 large (-851, -502, -291, +701), settling to ~$0.01 residue from month 9 on.
+  152/152 tests green, tsc clean.
+- **Stage 1 SHIPPED** (commit 93dc9715): type-seam extraction, zero behavior change.
+  - `credit-card-engine.ts`: named `export interface SimResult` (was an anonymous return-type
+    object literal on `simulateVariablePayoff`).
+  - `cardProjectionResim.ts`: consumes the new `SimResult` instead of its local
+    `ReturnType<typeof simulateVariablePayoff>` alias.
+  - New `src/lib/debt-model-types.ts`: `Month0Result`, `ProjectionDataRow`,
+    `CardProjectionResult` moved here from `useCardProjection.ts` (which re-exports them
+    unchanged — zero import churn for the 8+ consumers).
+  - 152/152 tests green, tsc clean, diff confined to exactly the 4 planned files.
+- **Stage 2 NOT STARTED.** Plan: add `paymentLedger: { total, revolving, cycling, perCard }[]`
+  to `CardProjectionResult`, built from the sim's own outputs; rebuild it in
+  `resimulateWithDebtCash`/`buildResimOverrides`; new unit test asserting ledger identities on
+  synthetic data. See the plan file for full detail (Stage 2 section).
+- **Discover-transition-purchase bug: ROOT CAUSE FOUND, FIX SCOPED WITH USER, NOT YET CODED.**
+  See "Next Steps" #1 below for the exact edit — do this FIRST in the next session (small,
+  independent of the cycling-model plan stages, but touches the same file/function Stage 3
+  will also touch, so land it before Stage 2/3 resume).
+- Working tree: only `handoff.md` uncommitted right now (everything else committed). Verify
+  with `git status` before doing anything.
+- Dev server IS RUNNING in background (bash task id `birp8zn6l`, started this session,
+  `npm run dev`, localhost:8080). If it's no longer running when you resume, restart it
+  (`npm run dev`, `run_in_background: true`) — the user asked for it to be up.
 
 ## Active Files
-- `src/hooks/useCardProjection.ts` — lines ~541-547 (insuranceSynced/paymentSynced gates in
-  getVehicleExtrasForMonth) and ~578-597 (carLoanInsuranceByMonth month-0 gate). The fix for the
-  activeLoanInsurance failures goes here (or in the tests, pending the semantics decision).
-- `src/hooks/__tests__/useCardProjection.activeLoanInsurance.test.ts` — the 3 failing tests;
-  they build "today" as the 1st of the current month and pass syncCutoffDate = 1st.
-- `src/lib/forecast-convergence.ts` — damped loop, default maxPasses now 8, damping 0.5.
-- `src/lib/__tests__/forecast-convergence.test.ts` — 7 tests; new default-budget test @pass 5;
-  fallback test pins maxPasses: 3 explicitly.
-- `src/contexts/CardProjectionContext.tsx` — convergence useMemo (~line 196); publishes
-  debtCashConverged (unconsumed); syncCutoffDate memo (lines 123-132).
-- `src/pages/Forecast.tsx` — lines ~948-981: popup per-card scaling to row.debtPayment + the
-  "Adjusted to keep cash safely above your floor" note. This is where a converged-mode display
-  change would land IF Tre chooses that option.
+- `.claude/plan/unify-cycling-model.md` — the 6-stage plan being executed; Stage 2 is next
+  cycling-model work (after the Discover fix below).
+- `src/lib/credit-card-engine.ts` — **the Discover fix goes here**, function `cascadeTarget`
+  inside `simulateVariablePayoff`, currently at approximately line 1108-1124 (line numbers may
+  have drifted ±5 from edits already made this session — search for `const cascadeTarget = `).
+- `src/lib/__tests__/forecast-engine.simAgreement.test.ts` — Stage 0 characterization test.
+- `src/lib/debt-model-types.ts` — Stage 1 shared types module.
+- `src/hooks/useCardProjection.ts`, `src/hooks/cardProjectionResim.ts` — Stage 1 touch points;
+  Stage 2 will add `paymentLedger` here.
 
-## Changes Made
-- Commit "[convergence]: default pass budget 3 -> 8 — damped loop verified converging on live
-  data at pass 6" (HEAD before this handoff commit): forecast-convergence.ts default maxPasses
-  3→8 with comment; test file: header ≤3→≤8, new 'default pass budget of 8' test (converges
-  pass 5), fallback test now passes maxPasses: 3 explicitly. Backup backups/2026-07-07_234634.
-- Temp instrumentation (console.debug in CardProjectionContext + per-pass log in
-  forecast-convergence.ts) added for live-verify and fully removed before commit.
+## Changes Made (this session, all committed except handoff.md)
+- Commit 7cd9055e — Stage 0 characterization test (see above).
+- Commit 93dc9715 — Stage 1 type-seam extraction (see above).
+- `npm run dev` started in background per user request (task id `birp8zn6l`); confirmed serving
+  (benign ResponsiveContainer console warnings only, no errors).
 
 ## Failed Attempts
-- damping 0.6 (live, temp override): does NOT converge in 8 passes — gap stuck ~$6-15 drifting
-  to month 12. Do not retry. 0.4 untested (0.5 already converges; no need).
-- Raising passes does NOT close the popup-vs-accordion gap — it's structural (cycling model
-  mismatch), verified live at converged=true.
-- Browser console read_console_messages with clear=true returns the OLD buffer then clears —
-  reload the page AFTER clearing, or filter by timestamp, to avoid stale reads.
+- None this session. (Prior-session failed attempts — damping 0.6, raising convergence passes —
+  are documented in the git log message for d25d9b23 / 640dfc13; not re-litigated here.)
 
-## Next Steps
-1. **activeLoanInsurance fix** (user-requested): decide the due-day-1 boundary semantics.
-   Recommendation: treat the cutoff as exclusive for same-day dues is ambiguous — but note the
-   REAL bug pattern: with no Plaid, syncCutoff = today, so ANY insurance due earlier this month
-   is dropped from month 0 (probably correct: it was paid). The tests construct a fund whose
-   loan STARTS today (the 1st) with cutoff also the 1st — arguably the payment hasn't happened.
-   Options: (a) change gates to strict `<` only when the due date equals loan_start_date /
-   insurance_start_date month-start (first-ever charge can't have been synced before it exists);
-   (b) simpler: change both gates from `<=` to `<` (dues ON the cutoff day count as NOT yet
-   captured); (c) fix tests to set syncCutoffDate one day earlier. Per CLAUDE.md ambiguity rule,
-   ask Tre which semantics he wants — (b) is the minimal-diff candidate but shifts real-app
-   behavior for anything due exactly on the Plaid sync date. Then TDD: adjust/add tests, fix
-   both gates (lines ~541-547 AND ~588-595 must stay consistent), backup first, commit.
-2. Full-suite regression check after the fix (baseline: only these 3 failures pre-existing).
-3. **Popup-vs-accordion design decision** (ask Tre): at converged=true, should the popup show
-   the sim's actual per-card payments (Prime $906/Discover $1,133, matching the accordion) with
-   the cash lines rebalanced (bills/one-time lines would need the card-routed purchase amounts
-   removed to keep Starting→Ending arithmetic true), or keep engine-cash-consistent scaled lines
-   (current behavior, internally consistent but ≠ accordion)? This decides whether Phase 2
-   Option C's original acceptance criterion (popup == accordion ≤ $1) is achievable via display
-   wiring (consume debtCashConverged in Forecast.tsx) or needs engine cycling-model alignment.
-4. Update memory (project_cycling_debt_engine) + roadmap once 1-3 land; session summary file per
-   global CLAUDE.md when wrapping up.
+## Next Steps — DO THESE IN ORDER
 
-## Key anchors (unchanged from prior handoff)
-- Dev server localhost:8080, signed in; route /debt (accordion = expand card → Monthly
-  Projection table), /forecast (popup = tap Monthly Breakdown row).
-- Never push. Backups before edits. Supabase user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'.
-- Golden Tier-A untouched (pure engine on fixture — provider-path changes don't feed it).
+### 1. Discover-transition-purchase fix (do this FIRST, before resuming Stage 2)
+**Diagnosis** (verified against code, not yet coded): in `simulateVariablePayoff`
+(`credit-card-engine.ts`), the `cascadeTarget` function decides how much "extra" cash beyond the
+minimum a card can absorb in Step 5b's avalanche/snowball cascade. Today:
+```ts
+const cascadeTarget = (card: CardData): number => {
+  if (balBeforePayment.has(card.id)) {
+    const instBal = installmentBals.get(card.id) ?? 0;
+    if (card.paymentPreference === 'statement') {
+      const startBal = balances.get(card.id) ?? 0;
+      const interest = interestMap.get(card.id) ?? 0;
+      return Math.max(0, startBal - instBal + interest);       // excludes this month's purchases
+    }
+    const bnplPay = installmentChargeByMonth?.[m]?.[card.id] ?? 0;
+    return Math.max(0, balBeforePayment.get(card.id)! - instBal - bnplPay); // INCLUDES purchases
+  }
+  return cyclingBacklog.get(card.id) ?? 0;
+};
+```
+Only `paymentPreference === 'statement'` cards get the "exclude this month's purchases" carve-out.
+Discover has `paymentPreference === 'full'`, so its target includes purchases — in the live
+Jul 2027 row this produced a target of $1,386.23 (balance $1,246 + interest $20.23 + purchases
+$120) against only $1,350 cash, leaving a stray $36.23 revolving remainder instead of cleanly
+clearing the $1,266.23 statement balance and deferring the $120 purchase (which is what Aug 2027
+does correctly, by coincidence of cash timing).
+
+**User's decision** (via AskUserQuestion): apply the purchase-exclusion **only at the debt-free
+transition month**, not universally to every month for every card. My analysis (present this
+reasoning again to the user or just proceed — it was reasoned through, not re-confirmed after
+the context-gate fired): capping the cascade target at `startBal - instBal + interest` (excluding
+purchases) for ALL debtCards, not just `'statement'` ones, is **structurally a no-op except
+exactly at the transition month** — because the cap only binds when available cash exceeds the
+card's remaining balance+interest, which by definition only happens once the card is about to
+clear. In every earlier month (still deep in debt), `remaining` cash in Step 5b is smaller than
+`target` regardless of whether purchases are included, so the cap never binds and behavior is
+unchanged. When the cap DOES bind (transition), any freed-up cash (that would have prepaid
+purchases) naturally cascades to the NEXT priority card in the same Step 5b loop (`remaining`
+carries forward) instead of being "wasted" prepaying a not-yet-due purchase — which is the
+correct avalanche/snowball behavior. So the **planned edit** is:
+
+```ts
+const cascadeTarget = (card: CardData): number => {
+  if (balBeforePayment.has(card.id)) {
+    // Cascade targets only the prior cycle's statement balance (starting balance + this
+    // cycle's interest) — never this month's new purchases. Real credit card statements only
+    // bill charges through the prior closing date; this cycle's purchases aren't due until
+    // next cycle. Because this cap only binds once available cash exceeds the remaining
+    // balance+interest (i.e. exactly at the debt-free transition), this is a no-op for every
+    // earlier month still deep in debt — any freed cash at the transition naturally cascades
+    // to the next-priority card in this same loop instead of prepaying a not-yet-due purchase.
+    const instBal = installmentBals.get(card.id) ?? 0;
+    const startBal = balances.get(card.id) ?? 0;
+    const interest = interestMap.get(card.id) ?? 0;
+    return Math.max(0, startBal - instBal + interest);
+  }
+  return cyclingBacklog.get(card.id) ?? 0;
+};
+```
+This removes the `paymentPreference === 'statement'` branch entirely (both branches converge to
+the same formula) and drops the now-unused `bnplPay` local in this function (BNPL is still
+handled correctly elsewhere as a mandatory Step 2.5 deduction — unaffected).
+
+**Before coding**: re-verify the `owedForCard`/comment above `cascadeTarget` (~line 1099-1107)
+still makes sense once the `statement`-only branch is gone — update that comment too (it
+currently says "genuinely-revolving statement-preference cards cap at..."; should become
+generic). Also check for any other reference to `paymentPreference === 'statement'` nearby that
+assumed cascadeTarget was preference-gated (grep the file) — e.g. line ~1207-1213's comment
+about "Cards with a paymentPreference still have a revolving balance here" may need a reread but
+likely doesn't need a code change, just verify.
+
+**After coding**: run full suite + tsc. Watch specifically for:
+- `credit-card-engine` tests (payoff timing, cascade allocation).
+- `useCardProjection` tests (anything asserting exact payment amounts for 'full'/no-preference
+  cards near payoff).
+- Golden Tier-A (`forecast-engine.goldenTierA.test.ts`) — the milestone month is pinned to
+  `simRevolvingPayoffMonth`; if this fix makes Discover clear one cycle earlier on the real
+  fixture, the golden's pinned "May 2027" / month index could shift. Per CLAUDE.md, do NOT
+  silently re-pin — diff old vs new and present to Tre before updating.
+Then live-verify on localhost:8080 (/debt accordion, Discover card, Jul/Aug 2027 rows) that the
+transition row now shows the full statement paid off with purchases cleanly deferred (no stray
+$36-style remainder). Backup first per CLAUDE.md backup policy (multi-file risk — this touches
+core payoff math). Commit with a clear message citing the root cause and the reasoning above.
+
+### 2. Resume `.claude/plan/unify-cycling-model.md` Stage 2
+Sim publishes an authoritative per-month payment ledger. See plan file Stage 2 section for full
+detail: add `paymentLedger: { total, revolving, cycling, perCard }[]` to `CardProjectionResult`
+(now in `debt-model-types.ts`), built from the sim's own outputs (`monthlyPayments`,
+`monthlyRevolvingBalances`, `monthlyCyclingOwed`, `monthlyMandatoryCyclingPayment`); rebuild it in
+`resimulateWithDebtCash`/`buildResimOverrides` on every resim pass; new unit test asserting
+ledger totals match existing `allPaymentTotals`/`debtPaymentTotals` identities on synthetic data;
+no consumer change yet. Commit. Then Stages 3-5 per the plan, one per session.
+
+### 3. Cash-floor look-ahead protection (explicitly "for later" — not scoped, not started)
+User's request, verbatim: "seeing a drop below cash floor next month, when we should cut back a
+little of the debt payment this month to protect it." This is a NEW feature idea, not yet
+investigated against the existing `computeFloorProtection` / `maxDebtPaymentByMonth` look-ahead
+machinery already in `useCardProjection.ts`/`floor-protection.ts` (there is SOME look-ahead
+already — e.g. `saveUpMonths`, `strictSaveUpMonths` — so this may be a refinement of existing
+logic rather than net-new). Do not start until asked; when picked up, first audit the existing
+floor-protection look-ahead to see how close it already gets, per CLAUDE.md root-cause rules.
+
+### 4. Memory/roadmap
+Once 1-2 land, update `project_cycling_debt_engine` memory + roadmap. Add the Stage-2+ backlog
+item (#3 above) to the roadmap memory too so it isn't lost.
+
+## Key anchors (unchanged from prior handoffs)
+- Dev server localhost:8080 (background task `birp8zn6l` this session), signed in; route /debt
+  (accordion = expand card → Monthly Projection table), /forecast (popup = tap Monthly
+  Breakdown row).
+- Never push. Backups before high-risk edits. Supabase user_id
+  `a72f416e-433a-4055-9ab0-9feae4e60edf`.
+- Golden Tier-A untouched by Stage 0/1 (pure engine on fixture — provider-path changes don't
+  feed it) — but the Discover fix (Next Steps #1) and Stage 3+ of the plan MAY shift it; handle
+  per the plan's explicit "present delta before re-pinning" rule.
+- Popup ≠ accordion display gap (from the PRIOR handoff, 2026-07-08 ~00:00) is a separate,
+  already-diagnosed design issue — the unify-cycling-model plan is the fix path (Stage 3+ closes
+  it structurally instead of needing display-layer scaling).
 
 ## Backlog (unchanged)
 Milestone eyeball on Forecast tab; Transactions.tsx plan-progress purchase-date anchoring.
