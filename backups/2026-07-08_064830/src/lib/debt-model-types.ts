@@ -5,7 +5,7 @@
 // useCardProjection.ts re-exports these under the same names, so existing consumers are
 // unaffected — this is a type-only relocation, not an API change.
 
-import type { CardData, PaymentLedgerEntry } from './credit-card-engine';
+import type { CardData } from './credit-card-engine';
 
 export interface Month0Result {
   safeToPayTotal: number;
@@ -71,9 +71,6 @@ export interface CardProjectionResult {
   /** Per-month cap on Step-5 debt payments from the look-ahead floor-protection pass.
    * Infinity = uncapped; finite = save-up month. Exposed for debugging interest-accrual causes. */
   maxDebtPaymentByMonth: number[];
-  /** Authoritative per-month payment ledger built from the active sim's own outputs —
-   * .claude/plan/unify-cycling-model.md Stage 2. Not yet consumed by forecast-engine.ts. */
-  paymentLedger: PaymentLedgerEntry[];
   m0Income: number;
   m0Expenses: number;
   m0SafeFloor: number;
