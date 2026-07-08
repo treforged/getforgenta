@@ -1,56 +1,57 @@
-# Handoff — 2026-07-07 (session 7) — branch debt-model-fixes-p0 — ALL 6 STEPS SHIPPED, live-verify pending
+# Handoff — 2026-07-07 (session 7) — branch debt-model-fixes-p0 — damping SHIPPED (640dfc13), live-verify INTERRUPTED by logout
 
-## Goal (unchanged, plan approved session 5)
+## Goal (unchanged)
 Phase 2 Option C convergence: popup payments == accordion payments+surplus AND balances, every
-month. All 6 plan steps are now implemented and committed. Only live verification remains.
+month. All 6 plan steps + damping fix are implemented and committed. Only the FINAL live
+verification (post-damping) remains.
 
-## Session-7 state — code COMPLETE
-- **Step 5 lib SHIPPED (54223143)**: `src/lib/forecast-convergence.ts` —
-  `runDebtCashConvergence(base, engineInputs, { maxPasses=3, toleranceDollars=1, engine=calculateForecast })`
-  → `{ cardProjection, projections, converged, passes }`. Month-0 NaN live-anchor rule; always
-  resims from base (closure is stateless); exhausted budget ⇒ base pair (zero-regression
-  fallback). Its 5 tests (`src/lib/__tests__/forecast-convergence.test.ts`) green.
-- **Steps 4+6 wiring SHIPPED (b899c575)**:
-  - CardProjectionContext.tsx: calls `useForecastEngineInputs` (step-4 hook, committed earlier in
-    1e6707fb) + convergence useMemo keyed on [cardProjection, engineInputs]. Context value now
-    publishes: CONVERGED `cardProjection` (base sim only on fallback/null), matching
-    `projections`, `engineInputs` (cardProjectionData swapped to converged sim),
-    `forecastInputsBundle` (all intermediates), `debtCashConverged`. Null sim ⇒ single base
-    engine run, converged=false.
-  - useForecastProjections.ts: slimmed 345 → 41 lines; thin context reader preserving EXACT
-    return shape. Forecast.tsx:158 (only caller) untouched. DebtPayoff/Dashboard pick up
-    convergence via context with zero changes.
-- **Gates**: tsc clean; full suite green except the 3 known pre-existing activeLoanInsurance
-  failures; golden Tier-A green (fixture present). Graphify updated.
+## Session-7 results
+- **Step 5 lib (54223143)** + **steps 4-6 wiring (b899c575)**: shipped, gates green (see git log).
+- **Live verify round 1 (pre-damping) — loop did NOT converge on real data**:
+  `converged=false passes=3` every run. Instrumented per-pass:
+  pass 1 maxGap $1,423 @month 10 (2486→1063); pass 2 $196 @month 9 (2915→2719);
+  pass 3 $201 @month 9 (2719→2920) — stable two-cycle, fallback engaged, so UI showed
+  pre-change numbers: Sep 2026 popup Prime $702 / Discover $820 vs accordion $814 / $950.
+  Balances: accordion Prime Sep 2026 END $4,060 (anchor holds exactly); Discover END $6,516 vs
+  $6,377 anchor — data drift (Sep has $831 Discover purchases incl. one-time), NOT a regression
+  (fallback = raw sim = pre-change by construction).
+- **Damping fix SHIPPED (640dfc13)**: forecast-convergence.ts — after pass 1, target =
+  0.5*new + 0.5*prev (option `damping`, default 0.5; damping:1 = old undamped behavior).
+  TDD: updated pass-2 target expectation ([355,280,180], midpoint), new 900−t oscillator test
+  (converges damped @pass 3, falls back undamped). 6/6 green, tsc clean, full suite at known
+  baseline (3 pre-existing activeLoanInsurance failures). Backup backups/2026-07-07_232807.
 
-## Next steps
-1. **Live-verify (only remaining item)**: run the app; on Debt Payoff / Forecast check
-   - popup payments == accordion payments+surplus, month by month (esp. Sep 2026);
-   - Prime $4,060 / Discover $6,377 Sep 2026 balance anchors hold;
-   - popup Prime payment $1,260 vs accordion $860+$98 gap CLOSES;
-   - if numbers look wrong, `debtCashConverged` on the context tells you whether the loop
-     converged or fell back to the base pair (fallback = pre-change behavior, zero regression).
-2. Perf risk accepted (≈3 sims + 3 engine runs per data change); gate lazily later if it
-   complains.
-3. Never push (standing rule). Branch has NOT been pushed.
+## Next steps (in order)
+1. **Live-verify round 2 (post-damping)** — BLOCKED this session: dev server (8080) full-page
+   reload dropped the Supabase session; app sits at /auth sign-in and I can't enter credentials.
+   Tre must sign in first. Then on /debt + /forecast check Sep 2026:
+   - popup per-card payments == accordion payments (Prime + Discover), gap ≤ ~$1;
+   - accordion balances shift is EXPECTED if convergence now succeeds (payments change ⇒
+     balances change); sanity-check Prime near $4,060;
+   - to confirm convergence status, temporarily add
+     `console.debug('[convergence]', result.converged, result.passes)` in the convergence
+     useMemo of CardProjectionContext.tsx (I did this and REMOVED it — repeat if needed) or
+     read `debtCashConverged` from context.
+   - If STILL not converged: try damping 0.4/0.6 or maxPasses 4-5 (cheap knobs, already
+     parameterized). Oscillation was at months 9-10 (Apr/May 2027).
+2. If verified: update memory project-cycling-debt-engine + roadmap; consider whether golden
+   Tier-A needs re-pin ONLY if provider-path numbers feed it (it runs the pure engine on a
+   fixture — should be untouched).
+3. Session summary file per global CLAUDE.md if wrapping up.
 
 ## Key anchors
-- CardProjectionContext.tsx: convergence memo + engineInputs memo directly after the
-  useCardProjection call; context interface gained 4 fields (projections, engineInputs,
-  forecastInputsBundle, debtCashConverged).
-- src/hooks/useForecastEngineInputs.ts: derivation extraction, parameterized on
-  cardProjectionData; data hooks stay inside (react-query cached).
-- resimulateWithDebtCash must NOT enter downstream useMemo dep arrays (fresh closure each
-  compute) — consumers key on cardProjection object identity. Converged cardProjection is a
-  stable object per convergence-memo compute, so identity keying still works.
-- ForecastResult rows carry debtPayment and revolvingDebtCash (forecast-engine.ts :75, :1433).
+- forecast-convergence.ts: damped loop; prevTarget tracks last pass's target; month-0 always NaN.
+- CardProjectionContext.tsx: convergence useMemo right after useCardProjection; publishes
+  converged cardProjection/projections/engineInputs/forecastInputsBundle/debtCashConverged.
+- useForecastProjections.ts: thin context reader (41 lines), exact old return shape.
+- Debt Payoff accordion = per-card MONTHLY PROJECTION table on /debt (expand card section);
+  popup = tap month row on /forecast MONTHLY BREAKDOWN.
+- Dev server localhost:8080 (route is /debt NOT /debt-payoff).
 
 ## Constraints (unchanged)
-Never push. Backups before edits (backups/2026-07-07_174315 covers both wired files, committed
-in 1e6707fb). Golden re-pin only with live-data justification. Don't touch
-cycling-classification live-balance gate. Supabase queries filter
-user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'. 3 activeLoanInsurance failures are
-pre-existing — don't chase.
+Never push. Backups before edits. Golden re-pin only with live-data justification. Don't touch
+cycling-classification live-balance gate. Supabase user_id='a72f416e-433a-4055-9ab0-9feae4e60edf'.
+3 activeLoanInsurance failures pre-existing — don't chase.
 
 ## Backlog (unchanged)
 Milestone eyeball on Forecast tab; Transactions.tsx plan-progress purchase-date anchoring;
