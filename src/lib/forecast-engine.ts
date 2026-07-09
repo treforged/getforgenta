@@ -1113,6 +1113,21 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       if (!m0AllSettled && !strictSaveUpMonths.has(i) && ccEngRevBalEnd > 0 && finalLiquid > b.monthMinSafe) {
         const surplus = Math.min(finalLiquid - b.monthMinSafe, ccEngRevBalEnd);
         if (surplus > 0) revolvingDebtCashTarget += surplus;
+      } else if (!m0AllSettled && !strictSaveUpMonths.has(i) && finalLiquid < cashFloor) {
+        // Symmetric deficit-reduction: this month's sim payment (monthDebtPayment) drove cash
+        // below the HARD floor (cashFloor — the same threshold the milestone below checks, NOT
+        // the augmented monthMinSafe used by the surplus branch), so feed back a LOWER revolving
+        // target for the next pass. The surplus branch spends cash DOWN to monthMinSafe; this
+        // branch only intervenes once cash has fallen past the hard floor, leaving the buffer
+        // zone (cashFloor..monthMinSafe) untouched so the two branches don't fight in every
+        // month (they otherwise would — on this fixture cash sits below monthMinSafe every month,
+        // so a monthMinSafe-keyed deficit branch fires everywhere and slashes all payments,
+        // breaking convergence). The sim clamps the target up to each card's contract minimum
+        // (resimulateWithDebtCash → simulateVariablePayoff Step 5: min(max(target, minimums),
+        // owed)), so this can never force a min-payment violation; when even paying only minimums
+        // breaches the floor the deficit is structural and the milestone stands.
+        const deficit = cashFloor - finalLiquid;
+        revolvingDebtCashTarget = Math.max(0, revolvingDebtCashTarget - deficit);
       }
 
       // Adjust the displayed CC liability to reflect PASS-3 extras already routed to revolving
