@@ -700,78 +700,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return total;
       });
 
-      // ── Month-0 non-debt outflows beyond m0Expenses ───────────────────────────
-      // forecast-engine's PASS-3 month-0 cash step (cashPreDebt) subtracts savings contributions,
-      // transfers, car loan/vehicle costs, mortgage, and goal lump-sum transfers on top of
-      // baseExpenses — but the sim's month 0 is fed via the month0RemainingExpenses override
-      // (m0Expenses + plan cash), and simulationMonthEvents deliberately short-circuits idx 0,
-      // so none of those components ever reached the sim's month-0 cash model. Month 0 is also
-      // live-anchored in the convergence loop (target[0] = NaN), so the engine's target feedback
-      // can never correct the drift: the sim's floor-safe month-0 payment landed the engine's
-      // month-0 cash below its floor by exactly these dollars ("Cash below safe minimum" at m0).
-      // Each component mirrors the engine's own month-0 treatment, including its syncCutoffDate
-      // scoping where the engine scopes (transfers) and its full-amount treatment where it
-      // doesn't (savings, car loan, mortgage, lump transfers).
-      const m0MonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const m0MonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      const m0SyncDay = parseInt(m0SyncCutoff.split('-')[2], 10);
-      // Transfers: only occurrences strictly after the sync cutoff day — earlier ones are already
-      // in the live balance. Non-cash-source transfers move money between non-cash accounts and
-      // never touch checking (both rules mirror forecast-engine's month-0 monthTransfers loop).
-      const nonCashSrcTypes = new Set(['savings', 'high_yield_savings', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa']);
-      const m0ActiveTransferDests = new Set<string>();
-      let m0Transfers = 0;
-      for (const tr of simTransferRules) {
-        if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > m0MonthEnd) continue;
-        if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < m0MonthStart) continue;
-        if (tr.deposit_account) m0ActiveTransferDests.add(tr.deposit_account);
-        const amt = Number(tr.amount);
-        let monthAmt = amt;
-        if (tr.frequency === 'weekly') {
-          let weekCount = 0;
-          const firstD = new Date(m0MonthStart);
-          const dow = tr.due_day ?? 5;
-          while (firstD.getDay() !== dow) firstD.setDate(firstD.getDate() + 1);
-          while (firstD <= m0MonthEnd) {
-            if (firstD.getDate() > m0SyncDay) weekCount++;
-            firstD.setDate(firstD.getDate() + 7);
-          }
-          monthAmt = amt * weekCount;
-        } else if (tr.frequency === 'monthly') {
-          const dueDay = Math.min(tr.due_day || 1, m0MonthEnd.getDate());
-          monthAmt = dueDay > m0SyncDay ? amt : 0;
-        } else if (tr.frequency === 'yearly') {
-          monthAmt = amt / 12;
-        }
-        // biweekly: leave monthAmt = amt (conservative; at most once per month — engine parity)
-        const srcAcct = tr.payment_source ? accounts.find(a => a.id === tr.payment_source) : null;
-        if (srcAcct && nonCashSrcTypes.has(srcAcct.account_type as string)) continue;
-        m0Transfers += monthAmt;
-      }
-      const m0Savings = pauseSavings ? 0 : (goals ?? []).reduce((s, g) => {
-        if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > m0MonthStart) return s;
-        if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
-        if (g.linked_account && m0ActiveTransferDests.has(g.linked_account)) return s;
-        return s + Number(g.monthly_contribution);
-      }, 0);
-      const m0CarSaving = pauseSavings ? 0 : (carFunds ?? []).reduce((s, c) => {
-        if (c.phase !== 'saving') return s;
-        if (c.linked_account) return s;
-        const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
-        if (rem <= 0) return s;
-        let purchaseMonthIdx = 12;
-        if (c.planned_purchase_date) {
-          const parts = (c.planned_purchase_date as string).split('-').map(Number);
-          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-          purchaseMonthIdx = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
-        }
-        return s + Math.min(rem / purchaseMonthIdx, rem);
-      }, 0);
-      const m0ExtraOutflow = m0Transfers + m0Savings + m0CarSaving
-        + getTotalCarLoanMonthly(carFunds ?? [], m0MonthStart)
-        + getVehicleExtrasForMonth(0) + carLoanInsuranceByMonth[0] + carLoanLumpByMonth[0]
-        + monthlyMortgagePayment + lumpTransferByMonth[0];
-
       // ── Combined look-ahead: one-time DB expenses + cycling excess ────────────
       // Comprehensive per-month expense figure for the look-ahead — mirrors Forecast.tsx's own
       // totalOut, minus the REVOLVING debt payment itself (tracked separately by
@@ -935,7 +863,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         undefined,
         cardPurchasesPerMonth,
         m0Income,
-        m0Expenses + m0ExtraOutflow + (planCashExpensesEarly[0] ?? 0),
+        m0Expenses + (planCashExpensesEarly[0] ?? 0),
         oneTimeArrWithDP,
         m0SafeFloor,
         undefined,
@@ -993,7 +921,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           undefined,
           cardPurchasesPerMonth,
           m0Income,
-          m0Expenses + m0ExtraOutflow + (planCashExpensesEarly[0] ?? 0),
+          m0Expenses + (planCashExpensesEarly[0] ?? 0),
           oneTimeArrWithDP,
           m0SafeFloor,
           lookAhead.maxDebtPaymentByMonth,
@@ -1269,7 +1197,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Which simulateVariablePayoff arg variant produced activeSim — replayed verbatim by
       // resimulateWithDebtCash below. The refined-loop sim and the capped-retry sim2 differ
       // only in the month-0 expense figure and the max-debt cap array.
-      let activeSimM0Expenses = m0Expenses + m0ExtraOutflow + (planCashExpensesEarly[0] ?? 0);
+      let activeSimM0Expenses = m0Expenses + (planCashExpensesEarly[0] ?? 0);
       let activeSimMaxDebt: number[] | undefined = maxDebtPaymentByMonth;
       if (m0TotalBudget < allPaymentTotals[0] - 1) {
         const cappedMaxDebt = [...maxDebtPaymentByMonth];
@@ -1286,7 +1214,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           undefined,
           cardPurchasesPerMonth,
           m0Income,
-          m0Expenses + m0ExtraOutflow,
+          m0Expenses,
           oneTimeArrWithDP,
           m0SafeFloor,
           cappedMaxDebt,
@@ -1302,7 +1230,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ),
         }));
         activeSim = sim2;
-        activeSimM0Expenses = m0Expenses + m0ExtraOutflow;
+        activeSimM0Expenses = m0Expenses;
         activeSimMaxDebt = cappedMaxDebt;
 
         // Update data[i].totalCCBalance from sim2 so Forecast PASS 2 recomputeSimCash pins
