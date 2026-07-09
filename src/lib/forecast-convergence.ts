@@ -36,6 +36,7 @@ export function runDebtCashConvergence(
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;
   let prevTarget: number[] | null = null;
+  let prevCap: number[] | null = null;
 
   for (let pass = 1; pass <= maxPasses; pass++) {
     // Re-target from the CURRENT engine run, but always resim from base — the closure is
@@ -51,7 +52,21 @@ export function runDebtCashConvergence(
     // Thread Forecast's own PASS-2 cap (currentProj.maxDebtPaymentByMonth) through so Step 2's
     // cycling-pool cap agrees with Step 5's revolving cascade — both driven by the same
     // Forecast-authoritative number instead of the sim recomputing its own independent cap.
-    const resim = base.resimulateWithDebtCash(target, currentProj.maxDebtPaymentByMonth);
+    //
+    // The cap is damped exactly like the target above, and for the same reason: on save-up
+    // months where every card is cycling, the sim's mandatory pool binds to the cap 1:1 while
+    // the engine's next cap moves opposite to the sim's payment (higher payment ⇒ more cycling
+    // expense ⇒ lower cap) — a slope ≈ −1 map that self-damps only ~7%/pass and exhausts the
+    // pass budget (the residual m30 two-cycle, 2026-07-09). Months where either side is
+    // non-finite (uncapped) take the newest raw value: averaging a finite cap with Infinity
+    // would pin the month uncapped forever.
+    const rawCap = currentProj.maxDebtPaymentByMonth;
+    const pc = prevCap;
+    const cap: number[] = pc
+      ? rawCap.map((v, m) => (isFinite(v) && isFinite(pc[m]) ? damping * v + (1 - damping) * pc[m] : v))
+      : rawCap;
+    prevCap = cap;
+    const resim = base.resimulateWithDebtCash(target, cap);
     const resimProj = engine({ ...engineInputs, cardProjectionData: resim });
 
     const maxGap = resimProj.data.reduce((max, row, m) => {
