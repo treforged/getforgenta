@@ -1,120 +1,123 @@
-# Handoff — 2026-07-09 (session 3) — branch debt-model-fixes-p0 — Feb 2027 breach ROOT-CAUSED (not yet fixed)
+# Handoff — 2026-07-09 (session 4) — branch debt-model-fixes-p0 — Feb 2027 breach FULLY ROOT-CAUSED + verdict + approved plan
 
 ## TL;DR
-Item A from the last handoff (Feb 2027 floor breach) is now **fully root-caused**. It is NOT
-the revolving target and NOT structural. Root cause: **the sim's own internal cash walk
-(`projectedCashByMonth`) diverges massively from the engine's authoritative cash walk** — at Feb
-2027 the sim thinks it has **$4868** while the engine's cash is **$2839**. The sim sizes its
-mandatory **cycling pool** (Amex-Gold-style full-statement payments) against its own inflated
-cash, so it pays ~$1204 of mandatory cycling that the engine can't afford, and the engine's cash
-walk breaches the $2800 floor (lands at 2320). The revolving-target feedback (the deficit branch
-from session 2) CANNOT fix this because the breach is driven by the **cycling pool, which ignores
-`debtCashTargetByMonth`** entirely (target only controls the Step-5 revolving cascade).
+The Feb 2027 floor breach is now **definitively root-caused with ground-truth validation** (not a
+hypothesis). The sim's internal cash walk over-accretes income vs the engine's authoritative walk.
+**The engine is physically CORRECT every month; the sim is WRONG. The breach is REAL** (the user
+genuinely owes ~$2410 in taxes in Feb 2027 that the sim ignores).
 
-No code fix landed this session — diagnosis only. Working tree is CLEAN (back at commit 6da00e62).
+**No source code changed this session** — investigation only. Working tree has ONLY an uncommitted
+`backups/2026-07-09_171100/` folder (pre-change backups of the 4 files below). Instrumentation was
+added then fully reverted (`git checkout`). Tree is otherwise clean at 439b10b7.
 
-## THE EVIDENCE (from the deleted diagnostic — see "re-instrument" below)
-Final converged run (11 passes, maxPasses bumped to 20 in the diag), per month
-`engStart / engEnd / simCash(sim's own projectedCashByMonth) | fLedger total/rev/cyc | simMandatoryCycling`:
+## THE VERDICT (ground-truth validated — this is settled, do not re-investigate)
+Fixture is **weekly** pay, Fridays (`paycheckDay:5`), net **$848.89/payday**, weeklyGross 1093,
+taxRate 0. Real Friday counts Jul26..Jun27: **5,4,4,5,4,4,5,4,4,5,4,4**. m0=Jul 2026, m7=Feb 2027.
+
+Engine income breakdown (from `data[m].{paycheckIncome,otherIncome,bonusIncome,taxReturnIncome}`):
 ```
-m5 Dec 2026 engStart 2894 engEnd 2801 simCash 3650 | fTot 1389 rev 872  cyc 517  mand 0
-m6 Jan 2027 engStart 2801 engEnd 2839 simCash 3688 | fTot 2381 rev 1460 cyc 921  mand 404
-m7 Feb 2027 engStart 2839 engEnd 2320 simCash 4868 | fTot 1662 rev 107  cyc 1555 mand 1204   <-- BREACH
-m8 Mar 2027 engStart 2320 engEnd 3203 simCash 6081 | fTot 2867 rev 1812 cyc 1055 mand 704
+       take  pay  other bonus  tax   (m)
+Feb27  4168  4408   0   +2170  -2410  (m7)  <-- tax is NEGATIVE = taxes OWED (estimator, override=0)
 ```
-- Payments MATCH between sim and engine every month (engine trusts `ledger.total`); e.g. Feb both = 1662.
-- Feb non-debt outflow (engine) = 2839 + 4168(takeHome) − 2320 − 1662 = **3025** =
-  base 2254 + carLoanPay 423 + vehIns 173 + transfers 75 + savings 100. Mortgage = 0 (no mortgage
-  in this fixture — the session-2 mortgage hypothesis was WRONG).
-- **The gap is in the sim's cash walk, not the payment.** Sim cash walk (credit-card-engine.ts:1516):
-  `currentCash += monthIncome − monthExpenses − totalDebtPayments`, where for m>0
-  `monthIncome/monthExpenses = simulationMonthEvents[m].income/.expenses` (engine-lines 841-846).
-  Implied sim (income − expenses) for Feb = simCash[7] − simCash[6] + payment[7]
-  = 4868 − 3688 + 1662 = **2842**. Engine's (takeHome − nonDebtOut) = 4168 − 3025 = **1143**.
-  **Sim over-accrues ~$1699 at Feb** (and the sim's cash climbs unbounded: 3650→3688→4868→6081…
-  while the engine's hugs the floor). So EITHER the sim's `simulationMonthEvents[m].income`
-  overstates net take-home, OR `simulationMonthEvents[m].expenses` understates outflows, vs the
-  engine — by a large, growing amount.
+- **Engine matches real Fridays EXACTLY every month** (getMonthNetIncome → getPaychecksInMonth,
+  weekly path counts real paydays). Engine correctly nets the +$2170 recurring Feb bonus against a
+  **−$2410 Feb tax bill** → Feb net $4168. Engine cash walk is authoritative + correct.
+- **Sim is wrong in 3+ ways** (useCardProjection.ts simulationMonthEvents, ~:523-597):
+  1. **Payday miscount ±1**: sim prefers scheduled-events income `e.income` (:585) which placed
+     5 Fridays in Aug (real 4) and 4 in Apr (real 5). Engine uses getMonthNetIncome (correct).
+  2. **Omits the tax-return ESTIMATOR entirely** (:552-554 only honors `taxReturnAmountOverride`,
+     which is 0 → sim adds $0; never runs the estimator). Misses the −$2410 Feb tax bill. **This is
+     ~the entire $1699 Feb gap.**
+  3. Bonus computed as % of annual NET (sim) vs % of annual GROSS (engine); sim scales nonPaycheck
+     income by simIncMult, engine does not. (Minor, pre-existing.)
+- Mechanism of the breach: sim thinks Feb cash = $4868 (engine: $2839), sizes its **mandatory
+  cycling pool** (credit-card-engine Step 2) against phantom cash → pays $1204 cycling the engine
+  can't afford → engine's authoritative walk lands at 2320, breaching the $2800 floor.
 
-## NEXT STEP (the one diagnostic that pins income-vs-expense, then the fix)
-1. Re-instrument (below) and dump, per month m, all four numbers side by side:
-   `simulationMonthEvents[m].income` vs engine row `takeHome`, and
-   `simulationMonthEvents[m].expenses` vs engine `nonDebtOut` (= startingCash+takeHome−endingCash−debtPayment).
-   This tells you whether the ~$1699/mo divergence is on the INCOME side (sim income too high —
-   suspect `rawIncome`/`simIncMult`/gross-vs-net in simulationMonthEvents, useCardProjection.ts
-   ~:585-588) or the EXPENSE side (sim expenses too low — simulationMonthEvents.expenses omits an
-   engine outflow, useCardProjection.ts:593-595).
-2. **Likely fix (confirm first):** reconcile the sim's cash walk with the engine's, same spirit as
-   session-2's FIX 1 (`m0ExtraOutflow`) but for the WHOLE walk. The sim's floor decision for the
-   mandatory cycling pool (credit-card-engine.ts Step 2, `tentativeAvailAboveFloor`, ~:954) must be
-   computed against cash that matches the engine's, or the cycling pool will keep overspending in
-   tight 2-paycheck months. If it's an income overstatement, fix the `simulationMonthEvents` income
-   formula; if an expense omission, add the missing category to `simulationMonthEvents[m].expenses`.
-   Whichever it is, the engine (`cashPreDebt`, forecast-engine.ts:1082) is the source of truth —
-   match it.
-3. After the fix: the deficit branch (session 2) + damping should let the loop converge with ZERO
-   breaches. Re-measure passes (see item B) and bump `maxPasses` default only if still needed.
+## USER DECISIONS THIS SESSION (both approved — implement both)
+1. **Contained fix = YES, implement**: bind the sim's mandatory cycling pool to the engine's
+   authoritative cash ceiling even pre-payoff (today the `mDebtCap` cap only binds when
+   `allRevolvingClear`, credit-card-engine.ts:1008 — Feb is pre-payoff Jun 2027 so it escapes).
+2. **Sim income bugs = FIX THIS SESSION TOO** (payday miscount + tax estimator).
 
-### Alternative fix if (2) proves too invasive
-Cap the mandatory cycling pool by the engine's authoritative floor instead of the sim's own
-cash. The convergence loop already threads Forecast's `maxDebtPaymentByMonth` cap into the sim
-(param, resim). But that cap only binds the cycling pool when `allRevolvingClear`
-(credit-card-engine.ts:1008) — and Feb is pre-payoff (Jun 2027), so it doesn't bind. Making the
-cycling-pool floor-reservation robust to the sim/engine cash divergence is the true fix; the
-income/expense reconciliation in (2) is the clean root-cause version.
+## ⚠️ SCOPE COMPLICATION discovered (surface to user before the big refactor)
+Making the sim's income EXACTLY match the engine is **not two patches — it's a shared-function
+extraction**. The two income models diverge in 4+ ways (paycheck source, nonPaycheck-multiplier,
+bonus gross-vs-net, tax estimator) AND **the sim's `assumptions` type (useCardProjection.ts:46-60)
+lacks the tax-estimator inputs** (`taxReturnFilingStatus/State/Dependents/FederalWithheld`) — they'd
+have to be threaded through `UseCardProjectionParams` + all callers (Forecast.tsx,
+CardProjectionContext.tsx). The DRY/root-cause-correct fix: extract the engine's per-month income
+block (forecast-engine.ts :606-694: promotion snap, raise, adjustedConfig, fallbackTakeHome=
+getMonthNetIncome, bonus, tax estimate) into a pure exported helper both call → then re-baseline the
+golden Tier-A test (engine output WILL change → expected). Engine-touching, higher risk.
 
-## RE-INSTRUMENT (console.log is SWALLOWED by this vitest config — must writeFileSync)
-The diagnostic test + its source hook edit were DELETED/REVERTED this session. To rebuild:
-- Temp test `src/lib/__tests__/febdiag.tmp.test.ts`: copy the renderHook block from
-  `forecast-convergence.realData.test.ts` verbatim, then
-  `const out = runDebtCashConvergence(base, inputs, { engine, maxPasses: 20 })`, and
-  `writeFileSync(join(__dirname,'febdiag.out.json'), JSON.stringify(rows))` dumping per month:
-  row.startingCash/endingCash/monthMinSafe/takeHome/baseExpenses/debtPayment/revolvingDebtCash/
-  mortgagePayment/carLoanPayment/vehicleInsurance/transfersTotal/savingsContrib, plus
-  `out.cardProjection.paymentLedger[i]` (total/revolving/cycling — this is the FINAL sim, NOT
-  `base.paymentLedger` which is the stale pre-convergence render).
-- To expose the sim's own cash walk: in `src/hooks/cardProjectionResim.ts` `buildResimOverrides`
-  return, temporarily append (cast to object to dodge the `ResimOverrides` Pick type):
-  `...( { _simProjectedCash: simT.projectedCashByMonth, _simMandatory: Array.from({length:PROJECTION_MONTHS},(_,i)=>cards.reduce((s,c)=>s+(simT.monthlyMandatoryCyclingPayment.get(c.id)?.[i]??0),0)) } as object )`
-  then read `(out.cardProjection as any)._simProjectedCash` / `._simMandatory`. **REVERT this after.**
-  To also see the sim's income/expenses (the NEXT-STEP diagnostic), append
-  `simulationMonthEvents` (the closure array in useCardProjection.ts) the same way OR add it to the
-  resim overrides — it lives in the hook closure, so easiest is to attach it in
-  `resimulateWithDebtCash` (useCardProjection.ts:1702) onto the returned object.
+## RECOMMENDED IMPLEMENTATION ORDER (next agent)
+Note the interaction: **the cap fix alone closes the P0 breach** and is self-contained; the income
+fixes are correctness improvements (also fix the CC-projection popup display). Suggested order:
 
-## Still open (unchanged from session 2)
-### B. Pass budget: default `maxPasses = 8` (forecast-convergence.ts:34) is too small.
-With the deficit correction the loop needs ~11 passes on this fixture. Once A is fixed the
-transient may shrink — re-measure, then bump the default (probably to 12) if still needed. The
-realData test calls `runDebtCashConvergence` with DEFAULT opts, so it must either get the fixed
-default or pass `maxPasses` explicitly.
+1. **Sim bug #1 (payday count)** — CLEAN, low-risk, no new plumbing. useCardProjection.ts:585:
+   change `const rawIncome = e.income > e.nonPaycheckIncome ? e.income : actualMonthPaycheck + e.nonPaycheckIncome;`
+   to always `actualMonthPaycheck + e.nonPaycheckIncome` (matches engine's fallbackTakeHome+otherIncome).
+   Verify no golden Tier-A regression; re-baseline if the sim's income shifts change the ledger.
+2. **Contained cap fix** — credit-card-engine.ts ~:1002-1016. Make `paidOffPool` bind to the
+   engine floor-safe budget EVEN when revolving debt remains (drop/relax the `allRevolvingClear`
+   gate at :1008). Cap cycling at `max(cyclingMinTotal, mDebtCap − effectiveReservedForRevolving)`
+   so cycling+revolvingMins ≤ mDebtCap (the engine's floor-safe total). `mDebtCap` = damped
+   `maxDebtPaymentByMonth[m]` (forecast-convergence.ts:63-68). **VERIFY Feb's mDebtCap is actually
+   floor-safe (~1182) before trusting it** — I was mid-check on how the engine computes
+   maxDebtPaymentByMonth (forecast-engine.ts:954 `computeFloorProtection`, used at :972) when the
+   context gate hit. If mDebtCap isn't tight enough in breach months, the deficit branch
+   (forecast-engine.ts:1116, session-2) governs revolving but NOT cycling — the cap must.
+3. **Sim bug #2 (tax estimator)** — the shared-function refactor above. **Re-confirm scope with the
+   user first** (it's a refactor + golden re-baseline, bigger than they likely pictured). After
+   #1+#2 the sim cash walk should match the engine and the cap fix becomes a robustness net.
+4. **Verify + unpin**: realData test must converge, payoff **Jun 2027**, **zero floor breaches**.
+   Then fix `maxPasses` default (item B below), remove `.fails`, rewrite the stale TODO (:29-40 —
+   it still describes the m0 breach which session-2 already fixed).
+
+## Verification harness (reusable — the diagnostic pattern that pinned all this)
+Temp test `src/lib/__tests__/febdiag.tmp.test.ts` (DELETED — rebuild from the realData test's
+renderHook block). console.log is SWALLOWED by this vitest config → `writeFileSync` a JSON.
+- Engine breakdown needs NO source edits: `out.projections.data[m]` already exposes
+  `paycheckIncome/otherIncome/bonusIncome/taxReturnIncome/startingCash/endingCash/debtPayment/monthMinSafe/isRaiseMonth/promotionNewSalary`.
+- Sim internal walk needs a temp edit in useCardProjection.ts `resimulateWithDebtCash` return
+  (:1729-1732): append (cast to object) `_simProjectedCash: simT.projectedCashByMonth`,
+  `_simMandatory` (sum simT.monthlyMandatoryCyclingPayment per month), `_simEvents`
+  (simulationMonthEvents income/expenses). **REVERT after** (I did).
+- Run: `npx vitest run src/lib/__tests__/febdiag.tmp.test.ts` then read the JSON. Real fixture,
+  gitignored, NEVER commit: `src/lib/__tests__/fixtures/forecast-inputs.real.json`. capturedAt
+  2026-07-03; pin Date via fake timers (realData test shows the exact setup).
+
+## Active files (line anchors)
+- `src/hooks/useCardProjection.ts` — sim income :523-597 (payday :585, tax :552-554, bonus :544-550,
+  income return :588); assumptions type :46-60; `resimulateWithDebtCash` :1702-1733.
+- `src/lib/credit-card-engine.ts` — cycling pool Step 2 :948-1016; `tentativeAvailAboveFloor` :954;
+  `allRevolvingClear` gate :1008; `mDebtCap` :939; monthIncome/monthExpenses :841-846; sim cash
+  walk :1516.
+- `src/lib/forecast-engine.ts` — income block :606-694 (promotion :616-622, raise :624-632,
+  adjustedConfig :634, fallbackTakeHome :638, bonus :640-649, tax estimator :669-693); netIncome
+  m>0 :663-667; `cashPreDebt` (engine truth) :1082; deficit branch :1116; maxDebtPaymentByMonth
+  :954/:972; row income fields exposed :1342-1345.
+- `src/lib/forecast-convergence.ts` — loop; maxPasses default :34; cap damping :63-68.
+- `src/lib/pay-schedule.ts` — getPaychecksInMonth :75 (weekly path :103-112), getMonthNetIncome :139.
+
+## Still open (unchanged from session 3)
+### B. Pass budget: default `maxPasses = 8` (forecast-convergence.ts:34) too small.
+This fixture needs ~11 passes (diag ran with maxPasses:20). After the fix, re-measure; bump default
+(~12) if still needed. realData test calls with DEFAULT opts → must get the fixed default.
 
 ### The realData test is STILL `.fails` and red.
-`src/lib/__tests__/forecast-convergence.realData.test.ts` — `.fails` pin, default maxPasses=8.
-Its TODO comment (lines 29-40) is now STALE: it describes the m0 breach as the remaining failure,
-but session 2 FIXED m0. The real remaining failure is the Feb 2027 breach (item A) + pass budget.
-Once A+B done: fix maxPasses, confirm converged + payoff Jun 2027 + zero breaches, then remove
-`.fails` and rewrite/remove the TODO block.
+`src/lib/__tests__/forecast-convergence.realData.test.ts` — `.fails` pin, default maxPasses. TODO
+(:29-40) is STALE (describes the already-fixed m0 breach). Target: converged, payoff Jun 2027, zero
+breaches; then remove `.fails` + rewrite TODO.
 
 ## Current State / anchors
-- Branch `debt-model-fixes-p0`. Working tree CLEAN at 6da00e62 (session-2 fixes: m0ExtraOutflow in
-  useCardProjection.ts + symmetric deficit branch in forecast-engine.ts, both committed there).
-- Fixture (gitignored, REAL USER DATA, NEVER commit): `src/lib/__tests__/fixtures/forecast-inputs.real.json`.
-  Target end state: converged, **payoff Jun 2027, zero floor breaches**. Milestone floor check uses
-  `cashFloor` ($2800), not `monthMinSafe` (forecast-engine.ts ~:1269).
+- Branch `debt-model-fixes-p0`. Tree clean at 439b10b7 except uncommitted `backups/2026-07-09_171100/`.
+- Milestone floor check uses `cashFloor` ($2800), NOT `monthMinSafe` (forecast-engine.ts ~:1244/1284).
 - Never push. Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf.
 
-## Active files
-- `src/lib/credit-card-engine.ts` — sim cash walk `:1516`; monthIncome/monthExpenses `:841-846`;
-  Step 2 cycling pool / `tentativeAvailAboveFloor` `:954`, `allRevolvingClear` gate `:1008`;
-  Step 5 target override `availableCash = max(mDebtTarget, totalMins)` `:1248`.
-- `src/hooks/useCardProjection.ts` — `simulationMonthEvents` build `:523-597` (income `:585-588`,
-  expenses `:593-595`); `resimulateWithDebtCash` `:1702`; m0ExtraOutflow (session 2) `:770`.
-- `src/lib/forecast-engine.ts` — `cashPreDebt` (engine truth walk) `:1082`; deficit branch `:1116`.
-- `src/lib/forecast-convergence.ts` — loop; `maxPasses` default `:34`; damping 0.5.
-- `src/hooks/cardProjectionResim.ts` — `buildResimOverrides` (where to attach diag fields).
-
-## Failed hypotheses this session
-- Mortgage-omission (session-2 guess): WRONG — mortgage is 0 in this fixture.
-- Revolving target not reaching the cascade: WRONG — Feb revTarget=0 IS honored (rev share dropped
-  to 107); the breach is the cycling pool, which the target does not govern.
+## Failed hypotheses (do not revisit)
+- Session-2 mortgage-omission: WRONG (no mortgage in fixture).
+- Session-3 "expense-side or income-side unknown": RESOLVED — income-side, expenseGap≈0 every month.
+- "Paycheck-timing redistribution nets to zero": WRONG — sim over-accrues ~$2910/yr net; the Feb
+  spike is the OMITTED TAX BILL (−$2410), not paycheck timing (Feb paycheck counts actually agree).
