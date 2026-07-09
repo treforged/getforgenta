@@ -1,97 +1,84 @@
-# Handoff — 2026-07-09 — branch debt-model-fixes-p0 — LIVE REGRESSION under diagnosis, NOT fixed
+# Handoff — 2026-07-09 — branch debt-model-fixes-p0 — ROOT CAUSE FIXED, residual + live verify remain
 
-## THE PROBLEM (user-reported, confirmed live)
-User reports cash floor broken several months in a row and debt payoff date pushed much
-farther out. Confirmed on live app (localhost:8080/forecast, user is logged in):
-- Milestones: "Jul 2026: Cash below safe minimum", "Feb 2027: Cash below safe minimum",
-  "CC Debt Free: **Jun 2029**".
-- Expected anchor (per memory/prior sessions): CC Debt Free ≈ **Feb 2027**. So payoff slipped
-  ~2.3 years and there are consecutive floor-breach months. This is a real, severe regression.
+## WHAT HAPPENED THIS SESSION (big progress)
+The live regression (payoff Jun 2029, repeated floor breaches) was diagnosed and its PRIMARY
+root cause fixed OFFLINE, committed as `290e1b66`. No browser was needed.
 
-## KEY FINDING THIS SESSION — the obvious suspect is NOT (solely) the cause
-Suspected cause was yesterday's commit `89d7b89f` (thread Forecast PASS-2
-`maxDebtPaymentByMonth` into `resimulateWithDebtCash` → sim Step 2 cycling-pool cap).
-**Tested live: removing that one line (`forecast-convergence.ts` — call
-`base.resimulateWithDebtCash(target)` without the second arg) did NOT change the milestones
-at all.** Same Jul 2026/Feb 2027 breaches, same Jun 2029 payoff.
+### Root cause (proven, not hypothesized)
+`buildPaymentLedger` (credit-card-engine.ts, Stage 2) classified `revolving` by
+start-of-month `monthlyRevolvingBalances > 0`. But a backlog-carrying cycling card keeps that
+field at 0 BY DESIGN (one-way display signal), so its Step-5 backlog-cascade payment — funded
+by the debt-cash pool that `debtCashTargetByMonth` REPLACES — was reported as `cycling`.
+Forecast PASS 3 (Stage 3) feeds `ledgerEntry.revolving` back as the next-pass target, so the
+target lost the backlog payment EVERY pass: payments ratcheted down ~$530/pass (observed),
+the loop never converged, the provider published the base-pair fallback, and on live data the
+system collapsed toward minimums-forever (Jun 2029 payoff + floor breaches).
 
-⚠️ Caveat: the disable was verified via Vite HMR + fresh navigate + 5s wait; screenshot showed
-identical milestones but the chart area hadn't finished rendering. Next session should re-run
-this experiment once with a hard reload (Ctrl+Shift+R) to be 100% sure before trusting it.
+Neither of the old handoff's two hypotheses was the primary cause:
+- Step-2 cycling-pool cap (hypothesis 1): disabling it changed NOTHING (tested offline).
+- `89d7b89f` cap threading: already exonerated live last session, reconfirmed irrelevant.
 
-If the experiment holds, the regression most likely comes from **Stage 3 itself, commit
-`0aa04b85`** (engine PASS 3 delegates split to sim's paymentLedger + the Step 2
-`allRevolvingClear`/`mDebtCap` cycling-pool cap wired to the HOOK's own look-ahead), possibly
-compounded by `89d7b89f`. **Neither commit was ever verified live** — both sessions were
-tests-only (156/156 green because the convergence loop's tests use fake engines and the golden
-Tier-A test exercises `calculateForecast` alone, NOT the full convergence loop on real data —
-that's the coverage hole that let this ship).
+### The fix (committed `290e1b66`)
+- `SimResult.monthlyDebtCashPayment` (new map): per-card per-month Step-5 pool spend, recorded
+  at payment-application time — `pay` for debtCards (excludes mandatory installment/BNPL
+  share), `backlogPay` for cycling cards (excludes Step-2 mandatory statements). Push sites
+  mirror `monthlyPayments` exactly (not-started branch, Step 6, Step 6c).
+- `buildPaymentLedger.revolving` now sums that map instead of inferring by balance.
+- 156/156 pre-existing tests green, tsc clean.
 
-## Diagnosis so far (mechanism hypotheses, in likelihood order)
-1. **Step 2 cycling-pool cap shorts mandatory statements** (`credit-card-engine.ts:996-1004`,
-   added in Stage 3): `computeFloorProtection`'s `maxDebtPaymentByMonth` is a cap on the
-   REVOLVING-only payment — the caller models the mandatory cycling statement as an EXPENSE
-   (`cyclingPaymentByMonth` folded into `expenseByMonth` in both callers). Applying that same
-   number as a cap on the Step 2 cycling/statement pool caps the very statement the look-ahead
-   already assumed was paid in full — semantic double-count. Shorted statement → cyclingBacklog
-   + interest → backlog debt reappears → `allRevolvingClear` false later → payoff pushed out →
-   ballooning minimums → floor breaches. Floored only at ~2% minimums (line 1000), so a large
-   statement (e.g. Venture X $2,261) can be cut to ~$45.
-2. **PASS 3 ledger delegation feedback loop** (Stage 3): engine `monthDebtPayment` =
-   `paymentLedger[i].total` from the sim; if the sim underpays (per #1), the engine's
-   `revolvingDebtCash` target drops, next convergence pass feeds the lower target back —
-   a mutually-consistent LOW-payment fixed point can "converge" (gap ≤ $1) and get published.
-   Minimums-forever is a very stable fixed point.
-3. `89d7b89f` may worsen #1 by swapping the hook's cap for Forecast's (different data model,
-   finite caps in more months), but per the live experiment it is not the primary cause.
+### Bisect evidence (offline harness, real fixture, clock pinned to capturedAt)
+- pre-Stage-3 `a7653967`: converged 6 passes, payoff Jun 2027, NO breaches
+- Stage 3 `0aa04b85` / old HEAD `4a49115d`: never converges, breach Jul 2026 (base-pair fallback)
+- after fix `290e1b66`: death spiral GONE (early months stable) but still unconverged — see below.
 
-## How to correct (next session, IN ORDER)
-1. Re-verify the one-line-disable experiment with a hard reload (see caveat above).
-2. Bisect live: `git stash`-free tree; temporarily check out `cb3ecf25` (pre-Stage-3 handoff
-   commit — Stage 2 shipped, zero behavior change) vs `0aa04b85` (Stage 3) and compare the
-   live milestones at each. Dev server picks up checkouts via HMR; hard-reload between.
-   This pins the regression to Stage 3 vs. earlier definitively.
-3. If Stage 3 is confirmed: decide with the user between
-   (a) revert both `0aa04b85` + `89d7b89f` (restore known-good, redo Stage 3 with a live-data
-   convergence test first), or
-   (b) targeted fix: Step 2's cap must NOT bind below the month's mandatory statement
-   (`owedByCard` totals) — i.e. floor the cap at full statement owed, not the 2% minimum —
-   since both look-ahead models already treat the statement as a non-negotiable expense.
-   Option (b) preserves Stage 3's architecture; the 2%-minimum floor choice is the likely
-   root defect. But verify against the plan's original intent (the old engine-side PASS 3
-   cap it replaced — check what IT floored at) before choosing.
-4. Whatever the fix: add a real-data convergence test (fixture `forecast-inputs.real.json`
-   through `runDebtCashConvergence` with the real `calculateForecast`, asserting payoff month
-   and no post-convergence floor breaches). This exact coverage hole is what let the
-   regression ship twice.
-5. User keep-alive: they asked to interact with the browser page every ~2 minutes to stay
-   logged in while verifying live.
+## THE NEW OFFLINE HARNESS (this is the big new capability)
+`src/lib/__tests__/forecast-convergence.realData.test.ts` — renders the REAL `useCardProjection`
+hook from the gitignored fixture's raw Supabase rows (jsdom + renderHook,
+`vi.useFakeTimers({toFake:['Date']})` pinned to capturedAt), then runs the REAL
+`calculateForecast` through `runDebtCashConvergence` — the exact provider call. Includes a
+commented-out-style diag block printing per-pass maxGap/argMonth. The fixture
+(`src/lib/__tests__/fixtures/forecast-inputs.real.json`, gitignored, captured 2026-07-03) was
+backfilled this session with `inputs.paymentPlans` (4 active plans pulled from the DB — REAL
+USER DATA, must never be committed; repo is public).
+
+## REMAINING WORK (in order)
+1. **Residual two-cycle**: after the fix the loop still exhausts 8 passes — a weakly-damped
+   ±$60 payment two-cycle at ~m30 (`prevPay/curPay` flip 502↔567 while the month's TARGET is
+   constant 50, so the target damping cannot collapse it; decay ~7%/pass). Because it doesn't
+   converge, the provider still publishes the base pair (breach Jul 2026 milestone on fixture
+   data). Diagnose where the sim's mandatory-cycling share at late months alternates between
+   passes (suspect: a statement/backlog boundary toggling with tiny early-month target
+   diffs). Fix options to evaluate: collapse the payment-side cycle in the sim; or discuss
+   tolerance/pass-budget semantics WITH THE USER (don't silently loosen the $1 tolerance).
+   The test is marked `it.fails` — it flips red (passes) when this is fixed; remove `.fails`
+   and its TODO comment then.
+2. **Live verification** (browser): dev server localhost:8080/forecast — confirm milestones
+   recover (expect ≈Feb–Jun 2027 payoff on TODAY's data, no repeated breach milestones) once
+   convergence is fully restored. User asked for ~2-min interactions to stay logged in.
+3. Consider whether `useCardProjection`'s own `debtPaymentTotals` (same startRevBal
+   classification) needs the same treatment for PASS-2 `cyclingPaymentByMonth` (currently
+   treats backlog paydown as expense in floor model — pre-existing, NOT touched).
+4. Stages 4-5 of `.claude/plan/unify-cycling-model.md` stay ON HOLD until 1-2 are done.
 
 ## Current State
-- Working tree CLEAN at `eb33cb6f` (handoff commit) + this handoff update. Commits in
-  question: `0aa04b85` (Stage 3), `89d7b89f` (cap threading). Nothing reverted yet.
-- Dev server running on localhost:8080; Chrome MCP tab 1527577757 is on /forecast, logged in.
-- Backups: `backups/2026-07-08_170134/` holds pre-`89d7b89f` versions of the 5 files.
-- lean-fix routing applies (fix-shaped task): strongest model owns diagnosis; this is a
-  multi-file, high-risk area — plan before coding, per CLAUDE.md.
+- Branch `debt-model-fixes-p0` at `290e1b66`; tree clean. Suite: 156 passed + 1 expected-fail.
+- Backups: `backups/2026-07-09_003531/` (pre-fix credit-card-engine.ts, payment-ledger.test.ts).
+- `payment-ledger.test.ts` still passes UNCHANGED (its synthetic data has no backlog months, so
+  both classifications agree there — could add a backlog-month case later).
+- graphify update NOT run this session (context gate); run `python -m graphify update .` next.
 
 ## Active Files
-- `src/lib/credit-card-engine.ts:996-1004` — Step 2 cycling-pool cap (prime suspect), and
-  `:1225-1238` (mDebtCap vs mDebtTarget interplay: target overrides cap in Step 5 except month 0).
-- `src/lib/forecast-convergence.ts:51-54` — cap threading (the tested-not-guilty line).
-- `src/hooks/useCardProjection.ts:742` (runLookAhead), `:885-933` (refinement loop),
-  `:1630` (resimulateWithDebtCash).
-- `src/lib/forecast-engine.ts:949` (PASS 2), `:116-124` (ForecastResult.maxDebtPaymentByMonth).
-- `src/lib/floor-protection.ts` — read in full this session; cap semantics = revolving-only,
-  cycling-as-expense (see hypothesis #1).
-- `.claude/plan/unify-cycling-model.md` — Stages 4-5 ON HOLD until this regression is fixed.
+- `src/lib/credit-card-engine.ts` — SimResult.monthlyDebtCashPayment (~:577), pushes at ~:880,
+  ~:1350 (`pay`), ~:1470 (`backlogPay`); buildPaymentLedger (~:608).
+- `src/lib/__tests__/forecast-convergence.realData.test.ts` — harness + diag block + `.fails`.
+- `src/lib/forecast-engine.ts:1076-1115` — PASS 3 ledger consumption (unchanged this session).
+- `src/lib/forecast-convergence.ts` — loop + damping (unchanged).
 
 ## Failed Attempts
-- Disabling `89d7b89f`'s cap-threading alone (live, via HMR) — no change in milestones.
-  (Restored; tree matches committed state.)
+- Disabling the Step-2 cycling-pool cap (`if (false && allRevolvingClear ...)`) — no effect on
+  convergence or milestones; reverted.
 
 ## Key anchors
 - Never push. Supabase user_id `a72f416e-433a-4055-9ab0-9feae4e60edf`.
-- 156/156 tests + tsc clean at `89d7b89f` — green tests do NOT clear this regression (coverage
-  hole above).
-- Expected-good reference: CC Debt Free ≈ Feb 2027, no consecutive floor-breach milestones.
+- Fixture payoff anchor is Jun 2027 (pre-Stage-3 behavior on 2026-07-03 data), NOT Feb 2027 —
+  the memory anchor predates the auto loan + payment plans.
