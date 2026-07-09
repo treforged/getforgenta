@@ -575,6 +575,14 @@ export interface SimResult {
    * a cash-flow look-ahead should treat this (not monthlyPayments) as the non-reducible bill for
    * a cycling card — monthlyPayments may also include discretionary backlog paydown. */
   monthlyMandatoryCyclingPayment: Map<string, number[]>;
+  /** Per-card per-month payment funded by the Step-5 debt-cash pool (the revolving/backlog
+   * cascade) — the exact spend of the pool that debtCashTargetByMonth REPLACES. Excludes Step-2
+   * mandatory cycling statements and mandatory installment/BNPL payments, which are paid outside
+   * that pool. buildPaymentLedger's `revolving` sums this, so the convergence loop's next-pass
+   * target echoes precisely what the pool spent — classifying by start-of-month revolving
+   * balance instead leaked backlog-cascade spend into `cycling` and ratcheted the target down
+   * every pass (the 2026-07-09 non-convergence regression). */
+  monthlyDebtCashPayment: Map<string, number[]>;
   /** Per-card per-month accumulated cycling backlog, end-of-month post-payment. The unambiguous
    * "does this card need avalanche priority / a reserved floor minimum" signal — deliberately
    * separate from monthlyRevolvingBalances, which must stay a one-way 0-once-cycling signal for
@@ -594,10 +602,13 @@ export interface PaymentLedgerCardEntry {
 }
 
 /** Authoritative per-month payment split, derived directly from a SimResult's own outputs —
- * .claude/plan/unify-cycling-model.md Stage 2. `revolving` sums payments for cards that started
- * the month with a nonzero revolving balance (mirrors useCardProjection's debtPaymentTotals
- * classification); `cycling` is the remainder (mandatory statements + backlog paydown). No
- * consumer reads this yet — Stage 3 makes forecast-engine.ts delegate its own split to it. */
+ * .claude/plan/unify-cycling-model.md Stage 2. `revolving` is the sim's own record of what the
+ * Step-5 debt-cash pool spent (monthlyDebtCashPayment) — exactly the pool that
+ * debtCashTargetByMonth replaces, so the convergence loop's next-pass target echoes the sim's
+ * actual spend. (It previously classified by start-of-month revolving balance, which leaked
+ * backlog-cascade spend into `cycling` and installment shares into `revolving`, ratcheting the
+ * convergence target down every pass — the 2026-07-09 regression.) `cycling` is the remainder:
+ * mandatory statements plus mandatory installment/BNPL shares. */
 export interface PaymentLedgerEntry {
   total: number;
   revolving: number;
@@ -617,10 +628,7 @@ export function buildPaymentLedger(
     for (const card of cards) {
       const payment = sim.monthlyPayments.get(card.id)?.[i] ?? 0;
       total += payment;
-      const startRevBal = i === 0
-        ? (sim.monthlyRevolvingBalances.get(card.id)?.[0] ?? 0)
-        : (sim.monthlyRevolvingBalances.get(card.id)?.[i - 1] ?? 0);
-      if (startRevBal > 0) revolving += payment;
+      revolving += sim.monthlyDebtCashPayment.get(card.id)?.[i] ?? 0;
       perCard.push({ id: card.id, payment });
     }
     return { total, revolving, cycling: total - revolving, perCard };
@@ -743,6 +751,7 @@ export function simulateVariablePayoff(
       monthlyCyclingInterest: new Map(),
       monthlyInterest: new Map(),
       monthlyMandatoryCyclingPayment: new Map(),
+      monthlyDebtCashPayment: new Map(),
       monthlyCyclingBacklog: new Map(),
       projectedPayoffMonths: 0,
       cashFloorBreaches: [],
@@ -770,6 +779,8 @@ export function simulateVariablePayoff(
   // discretionary backlog paydown for a fixed expense (see useCardProjection.ts's
   // computeCyclingPaymentByMonth).
   const monthlyMandatoryCyclingPayment = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  // Step-5 debt-cash-pool spend per card per month — see the SimResult field's JSDoc.
+  const monthlyDebtCashPayment = new Map<string, number[]>(cards.map(c => [c.id, []]));
   // A cycling card's accumulated backlog, end-of-month, post-payment — the unambiguous signal
   // for "does this card need avalanche priority / a reserved minimum in the floor," kept separate
   // from monthlyRevolvingBalances (which must stay a one-way 0-once-cycling signal — see the
@@ -877,6 +888,7 @@ export function simulateVariablePayoff(
         monthlyCyclingInterest.get(card.id)!.push(0);
         monthlyInterest.get(card.id)!.push(0);
         monthlyMandatoryCyclingPayment.get(card.id)!.push(0);
+        monthlyDebtCashPayment.get(card.id)!.push(0);
         monthlyCyclingBacklog.get(card.id)!.push(0);
       } else if (paidOffCards.has(card.id)) {
         // A backlog card still needs its minimum reserved in the floor (see
@@ -1341,6 +1353,9 @@ export function simulateVariablePayoff(
       const instPayThisMonth = installmentPayByCard.get(card.id) ?? 0;
       const totalPay = Math.round((pay + instPayThisMonth) * 100) / 100;
       monthlyPayments.get(card.id)!.push(totalPay);
+      // `pay` is exactly the Step-5 pool spend (payments map, post-guard); the installment share
+      // is mandatory cash paid outside the pool.
+      monthlyDebtCashPayment.get(card.id)!.push(pay);
       monthlyInterest.get(card.id)!.push(interest);
       totalDebtPayments += totalPay;
 
@@ -1456,6 +1471,9 @@ export function simulateVariablePayoff(
       const backlogPay = backlogPayByCard.get(card.id) ?? 0;
       monthlyPayments.get(card.id)!.push(Math.round((mandatoryPay + backlogPay) * 100) / 100);
       monthlyMandatoryCyclingPayment.get(card.id)!.push(mandatoryPay);
+      // Only the backlog-cascade share came out of the Step-5 debt-cash pool; the mandatory
+      // statement was funded by the Step-2 cycling pool.
+      monthlyDebtCashPayment.get(card.id)!.push(backlogPay);
     }
     // debtCards never overlap with paidOffCardsThisMonth, so they need their own (mandatory-only,
     // i.e. zero) entry to keep this array aligned with monthlyPayments for every card/month.
@@ -1513,6 +1531,7 @@ export function simulateVariablePayoff(
     monthlyCyclingInterest,
     monthlyInterest,
     monthlyMandatoryCyclingPayment,
+    monthlyDebtCashPayment,
     monthlyCyclingBacklog,
     projectedPayoffMonths,
     cashFloorBreaches,
