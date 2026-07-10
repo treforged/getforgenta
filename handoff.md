@@ -1,47 +1,61 @@
-# Handoff — 2026-07-09 (session 5) — branch debt-model-fixes-p0 — Feb 2027 breach RESOLVED
+# Handoff — 2026-07-09 (session 5) — branch debt-model-fixes-p0 — Feb breach FIXED + income model unified
 
-## TL;DR
-The Feb 2027 floor breach is **FIXED and committed** (`4ae12fc0`). The single root-cause fix (the
-sim's payday-count income bug, handoff session-4 "bug #1") closed the P0 on its own — the cap fix
-and tax-estimator refactor turned out to be **unnecessary** for the breach. Verified on the real
-fixture: converges in 11 passes, payoff **Jun 2027**, **zero floor breaches**.
+## TL;DR — work is essentially COMPLETE, just needs a fresh-context sanity pass
+Two things shipped and committed this session (never pushed):
+1. **`4ae12fc0`** — Feb 2027 floor breach FIXED (sim payday-count aligned with engine). This alone
+   closed the P0: converges 11 passes, payoff **Jun 2027**, **zero breaches**.
+2. **`4d45c27c`** — sim+engine income model UNIFIED (step 3, user-requested). Shared pure module
+   `src/lib/income-model.ts` (`computeBonusAndTax`, `computeAnnualFederalWithheld`) called by BOTH
+   the engine and the sim, so the CC-projection popup income now matches the engine (tax estimator
+   + gross-basis bonus + no nonPaycheck over-scaling). Engine output byte-identical (golden Tier-A
+   green). Full suite: **157 tests pass, tsc clean**.
 
-## What shipped this session (commit 4ae12fc0)
-1. `src/hooks/useCardProjection.ts` (~:585): sim income now mirrors the engine exactly —
-   `rawIncome = actualMonthPaycheck + e.nonPaycheckIncome` (was: prefer `e.income` when larger,
-   which miscounted paydays ±1). This aligns the sim cash walk with the engine's authoritative one,
-   so the mandatory cycling pool is sized against real cash and Feb 2027 lands at $2800 (the floor)
-   instead of breaching at ~$2320.
-2. `src/lib/forecast-convergence.ts` (:34): default `maxPasses` 8 → 12 (fixture needs 11).
-3. `src/lib/__tests__/forecast-convergence.realData.test.ts`: removed `.fails` pin (now genuinely
-   passes), rewrote the stale m0-breach TODO.
+Also `7b69ec83` is the interim handoff commit. HEAD = `4d45c27c`.
 
-Full suite green: 157 tests / 42 files pass. `tsc --noEmit` clean. Backup at
-`backups/2026-07-09_232129/`.
+## What changed (files)
+- NEW `src/lib/income-model.ts` — shared income helpers (pure).
+- `src/lib/forecast-engine.ts` — bonus/tax now via `computeBonusAndTax`; dropped direct
+  tax-estimator imports. Byte-identical output.
+- `src/hooks/useCardProjection.ts` — sim income mirrors engine i>0 exactly (adjustedConfig paycheck
+  + shared bonus/tax); assumptions type gained optional tax-identity fields; computes
+  `simAnnualFederalWithheld` from profile.
+- `src/hooks/useForecastEngineInputs.ts` — annualFederalWithheldFromBudget via shared helper.
+- `src/contexts/CardProjectionContext.tsx` — threads the 4 tax-identity fields into the sim.
+- `src/lib/forecast-convergence.ts` — default `maxPasses` 8 → 12 (fixture needs 11).
+- `src/lib/__tests__/forecast-convergence.realData.test.ts` — unpinned (`.fails` removed), TODO
+  rewritten, tax fields added to its projectionAssumptions.
+- Backups: `backups/2026-07-09_232129/` (P0 fix) + `backups/2026-07-09_step3/` (step 3).
 
-## Diagnostic proof (per-month, post-fix, maxPasses:20 → converged in 11)
-Feb 2027 = m7: engine income pay 4408 + bonus 2170 + tax −2410 = net 4168; start 3459, debtPay 1802,
-**end 2800 = floor, no breach**. Every month m0..m59 `breach:false`. (Diag test was temp, deleted.)
+## Verification done
+- `npx tsc --noEmit` → clean.
+- `npx vitest run` → 42 files / 157 tests pass (golden Tier-A byte-identical; realData converges,
+  Jun 2027, zero floor breaches).
 
-## OPEN DECISIONS for the user (both now OPTIONAL — P0 is already fixed)
-The session-4 handoff had approved two more changes; the payday fix made them non-load-bearing:
-- **Step 2 — contained cap fix** (credit-card-engine.ts :1008, bind `paidOffPool` to `mDebtCap`
-  even pre-payoff): now a **robustness net only**. NOTE: the diag showed Feb's `mDebtCap` is `inf`
-  (uncapped) in breach-shaped months — the engine only emits a finite cap on save-up months. So the
-  original cap-fix premise ("bind to Feb's floor-safe mDebtCap ~1182") does **not** hold; mDebtCap
-  is not floor-safe in Feb. A real robustness net would need a different cash ceiling, not mDebtCap.
-  Defer unless a future fixture reintroduces a breach.
-- **Step 3 — sim tax estimator** (shared-function extraction so the sim runs the engine's tax
-  estimator): purely a **CC-projection popup display** correctness improvement now, not needed for
-  the floor. Bigger refactor + golden Tier-A re-baseline. Only do if the user wants the popup's
-  income to match the engine exactly.
+## Suggested fresh-context sanity pass (optional, low priority)
+The refactor is test-green, but a next agent with fresh budget could:
+1. Rebuild the temp diagnostic (pattern below) and eyeball that the SIM's per-month income now
+   equals the ENGINE's (esp. Feb m7: pay 4408 + bonus 2170 + tax −2410). Parity is guaranteed by
+   construction, so this is just belt-and-suspenders.
+2. Confirm nothing regressed in the live app popup (manual, if desired).
 
-## Current State
-- Branch `debt-model-fixes-p0`, HEAD `4ae12fc0`. Never push. Supabase user_id
-  a72f416e-433a-4055-9ab0-9feae4e60edf. Milestone floor check uses `cashFloor` ($2800).
-- Real fixture is gitignored, NEVER commit: `src/lib/__tests__/fixtures/forecast-inputs.real.json`.
+### Diagnostic harness (reusable)
+Copy the realData test's renderHook block into `src/lib/__tests__/febdiag.tmp.test.ts`, run
+`runDebtCashConvergence(base!, inputs, { maxPasses: 20 })`, and `writeFileSync` a JSON of
+`out.projections.data[m]` fields (paycheckIncome/otherIncome/bonusIncome/taxReturnIncome/
+startingCash/endingCash/debtPayment/monthMinSafe) + `maxDebtPaymentByMonth[m]` to scratchpad
+(console.log is swallowed by this vitest config). DELETE the temp test after. Real fixture is
+gitignored, NEVER commit: `src/lib/__tests__/fixtures/forecast-inputs.real.json` (capturedAt
+2026-07-03; pin Date via fake timers — realData test shows the setup).
+
+## Remaining optional item (was step 2 — recommend SKIP)
+The cap fix (bind sim cycling pool to mDebtCap pre-payoff) is unnecessary now and its premise was
+disproven: the diag showed Feb's `mDebtCap` is `inf` (uncapped), not floor-safe. Only revisit if a
+future fixture reintroduces a breach — and it would need a different cash ceiling, not mDebtCap.
+
+## Anchors
+- Branch `debt-model-fixes-p0`, HEAD `4d45c27c`. Never push. Milestone floor check uses `cashFloor`
+  ($2800). Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf.
 
 ## Failed hypotheses (do not revisit)
-- The cap fix (step 2) as the P0 fix: unnecessary AND its mDebtCap premise was wrong (Feb mDebtCap
-  is inf, not floor-safe).
-- m0 breach (old realData TODO): stale, was already fixed in session 2.
+- Cap fix as the P0 fix: unnecessary + mDebtCap-floor-safe premise was wrong (Feb mDebtCap = inf).
+- m0 breach (old realData TODO): stale, fixed in session 2.
