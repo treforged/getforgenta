@@ -16,7 +16,7 @@ import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
-import { computeBonusAndTax } from '@/lib/income-model';
+import { estimateTaxReturn, estimateFederalWithheld, STATE_TAX_RATES, type FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
@@ -637,20 +637,19 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const scheduledIncome = forecastMonthEvents[i]?.income || scheduled?.income || 0;
       const fallbackTakeHome = getMonthNetIncome(adjustedConfig, d.getFullYear(), d.getMonth());
 
-      // Bonus (flat or % of annual GROSS) and tax-return injection — the shared income model
-      // (computeBonusAndTax) is the single source of truth so the credit-card sim
-      // (useCardProjection.ts) computes byte-identical values. `taxReturnIncome` is a signed
-      // annual injection: positive = refund income, negative = amount owed.
+      // Bonus calculation — flat dollar amount or % of projected annual gross
       const annualGrossHere = payConfig.weeklyGross * 52 * incomeMultiplier;
-      const { bonusIncome, taxReturnIncome } = computeBonusAndTax({
-        annualGrossHere,
-        monthDate: d,
-        assumptions,
-        isFirstBonusOccurrence: i === nextBonusMonthIndex,
-        annualFederalWithheldFromBudget,
-      });
+      const grossBonusAmt = assumptions.bonusMode === 'pct'
+        ? annualGrossHere * (assumptions.bonusAmount / 100)
+        : assumptions.bonusAmount;
+      const isBonusMonth =
+        assumptions.bonusEnabled &&
+        assumptions.bonusAmount > 0 &&
+        d.getMonth() + 1 === assumptions.bonusMonth &&
+        (assumptions.bonusRecurring ? true : i === nextBonusMonthIndex);
 
       const isRaiseMonth = assumptions.incomeGrowthEnabled && assumptions.incomeGrowth > 0 && i > 0 && d.getMonth() + 1 === assumptions.raiseMonth;
+      const bonusIncome = isBonusMonth ? grossBonusAmt : 0;
       let paycheckIncome: number;
       let otherIncome: number;
       let netIncome: number;
@@ -660,11 +659,38 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const nonPayRemaining = forecastMonthEvents[0]?.nonPaycheckIncome ?? 0;
         paycheckIncome = Math.max(0, scheduledIncome - nonPayRemaining);
         otherIncome = nonPayRemaining;
-        netIncome = scheduledIncome + bonusIncome + taxReturnIncome;
+        netIncome = scheduledIncome + bonusIncome;
       } else {
         paycheckIncome = fallbackTakeHome;
         otherIncome = forecastMonthEvents[i]?.nonPaycheckIncome ?? 0;
-        netIncome = fallbackTakeHome + otherIncome + bonusIncome + taxReturnIncome;
+        netIncome = fallbackTakeHome + otherIncome + bonusIncome;
+      }
+
+      // Tax return injection — estimate or override, applied annually in the configured month
+      let taxReturnIncome = 0;
+      if (assumptions.taxReturnEnabled && d.getMonth() + 1 === assumptions.taxReturnMonth) {
+        try {
+          const refundAmt = assumptions.taxReturnAmountOverride > 0
+            ? assumptions.taxReturnAmountOverride
+            : (() => {
+                if (!annualGrossHere || annualGrossHere <= 0) return 0;
+                const federalWithheld = assumptions.taxReturnFederalWithheld
+                  || annualFederalWithheldFromBudget
+                  || estimateFederalWithheld(annualGrossHere, assumptions.taxReturnFilingStatus, assumptions.taxReturnDependents);
+                const stateRate = STATE_TAX_RATES[assumptions.taxReturnState] ?? 0;
+                const stateWithheld = Math.round(annualGrossHere * stateRate);
+                return estimateTaxReturn({
+                  annualGrossIncome: annualGrossHere,
+                  federalWithheld,
+                  filingStatus: assumptions.taxReturnFilingStatus,
+                  dependentsUnder17: assumptions.taxReturnDependents,
+                  stateCode: assumptions.taxReturnState,
+                  stateWithheld,
+                }).totalRefund;
+              })();
+          netIncome += refundAmt; // positive = refund income; negative = amount owed outflow
+          taxReturnIncome = refundAmt;
+        } catch { /* skip refund if estimator throws */ }
       }
 
       // Expenses — use CC-filtered forecastMonthEvents (scheduled events from today onward).

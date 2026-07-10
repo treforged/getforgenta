@@ -12,8 +12,6 @@ import {
   getNormalizedMonthNetIncome, getMonthNetIncome,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
-import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-model';
-import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import type { Tables } from '@/integrations/supabase/types';
@@ -58,13 +56,6 @@ export interface UseCardProjectionParams {
     taxReturnEnabled: boolean;
     taxReturnAmountOverride?: number;
     taxReturnMonth: number;
-    // Tax-estimator identity inputs — mirror the engine so the sim runs the same estimator
-    // (omitting these made the sim skip the tax-return injection entirely). Optional: default to
-    // DEFAULT_ASSUMPTIONS values inside computeBonusAndTax when a caller doesn't supply them.
-    taxReturnFilingStatus?: FilingStatus;
-    taxReturnDependents?: number;
-    taxReturnState?: string;
-    taxReturnFederalWithheld?: number;
     promotions?: { id: string; effectiveDate: string; newAnnualSalary: number }[];
   };
 }
@@ -517,12 +508,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       );
       const simTransferRules = rules.filter(r => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
       let simIncMult = 1;
-      // Same annualized Federal Withholding the engine feeds the tax estimator (from Budget
-      // Control's paycheck deductions) so the sim's tax-return injection matches the engine's.
-      const simAnnualFederalWithheld = computeAnnualFederalWithheld(
-        payConfig,
-        profile?.paycheck_deductions as { value: number; mode: string; label?: string }[] | null,
-      );
       const simSortedPromotions = [...(assumptions.promotions ?? [])].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
       let simNextPromotionIdx = 0;
       const simFirstBonusIdx = (!assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0)
@@ -556,18 +541,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             simIncMult *= (1 + assumptions.incomeGrowth / 100);
           }
         }
-        // Bonus + tax-return injection via the shared income model — identical to the engine
-        // (forecast-engine.ts), which computes the bonus off annual GROSS and runs the full tax
-        // estimator. Previously the sim used annual NET for the bonus and honored ONLY a manual
-        // tax override (skipping the estimator), so its cash walk diverged from the engine's.
-        const simAnnualGrossHere = payConfig.weeklyGross * 52 * simIncMult;
-        const { bonusIncome: simBonusInc, taxReturnIncome: simTaxInc } = computeBonusAndTax({
-          annualGrossHere: simAnnualGrossHere,
-          monthDate: d,
-          assumptions,
-          isFirstBonusOccurrence: idx === simFirstBonusIdx,
-          annualFederalWithheldFromBudget: simAnnualFederalWithheld,
-        });
+        let bonusTaxInc = 0;
+        if (assumptions.bonusEnabled && assumptions.bonusAmount > 0 && d.getMonth() + 1 === assumptions.bonusMonth) {
+          if (assumptions.bonusRecurring || idx === simFirstBonusIdx) {
+            bonusTaxInc += assumptions.bonusMode === 'pct'
+              ? monthlyTakeHome * 12 * simIncMult * (assumptions.bonusAmount / 100)
+              : assumptions.bonusAmount;
+          }
+        }
+        if (assumptions.taxReturnEnabled && (assumptions.taxReturnAmountOverride ?? 0) > 0 && d.getMonth() + 1 === assumptions.taxReturnMonth) {
+          bonusTaxInc += assumptions.taxReturnAmountOverride ?? 0;
+        }
         const simActiveTransferDests = new Set<string>();
         let monthTransfers = 0;
         for (const tr of simTransferRules) {
@@ -597,17 +581,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           }
           return s + Math.min(rem / purchaseMonthIdx, rem);
         }, 0);
-        // Mirror the engine's i>0 income model exactly (forecast-engine.ts:664-666): bake the
-        // income multiplier into gross THEN net it (adjustedConfig), and do NOT scale the
-        // nonPaycheck component by the multiplier. Previously this preferred scheduled-events
-        // `e.income` (miscounting paydays by ±1) and multiplied the whole raw income by
-        // simIncMult (over-scaling nonPaycheck) — both inflated the sim's cash walk vs the
-        // engine's authoritative one.
-        const simAdjustedConfig = { ...payConfig, weeklyGross: payConfig.weeklyGross * simIncMult };
-        const actualMonthPaycheck = getMonthNetIncome(simAdjustedConfig, d.getFullYear(), d.getMonth());
+        const actualMonthPaycheck = getMonthNetIncome(payConfig, d.getFullYear(), d.getMonth());
+        // Mirror the engine's i>0 income model exactly (forecast-engine.ts:664-666):
+        // netIncome = fallbackTakeHome (getMonthNetIncome) + otherIncome (nonPaycheckIncome).
+        // Previously this preferred scheduled-events `e.income` when it was larger, which
+        // miscounts paydays by ±1 in months where the real Friday count differs from the
+        // event stream — inflating the sim's cash walk vs the engine's authoritative one.
+        const rawIncome = actualMonthPaycheck + e.nonPaycheckIncome;
         return {
           ...e,
-          income: actualMonthPaycheck + e.nonPaycheckIncome + simBonusInc + simTaxInc,
+          income: rawIncome * simIncMult + bonusTaxInc,
           // getVehicleExtrasForMonth/carLoanInsuranceByMonth/carLoanLumpByMonth fold the
           // saving-phase projected payment+insurance and loan-phase insurance/lump sums directly
           // into the real simulation here — see the comment above vehicleForecastByMonth for why

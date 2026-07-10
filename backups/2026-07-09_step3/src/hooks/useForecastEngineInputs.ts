@@ -10,7 +10,6 @@ import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-trans
 import { getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, type EnrichedTransaction, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import type { ForecastInputs } from '@/lib/forecast-engine';
-import { computeAnnualFederalWithheld } from '@/lib/income-model';
 
 /**
  * Assembles the full ForecastInputs for the pure calculateForecast engine. Extracted VERBATIM
@@ -61,12 +60,18 @@ export function useForecastEngineInputs({
   const { data: paymentPlans } = usePaymentPlans();
 
   // Annualize the "Federal Withholding" deduction from Budget Control, if the user has set one.
-  // Shared with the credit-card sim (useCardProjection) via computeAnnualFederalWithheld so both
-  // feed the tax estimator the same withholding figure.
   const annualFederalWithheldFromBudget = useMemo(() => {
-    if (!profile) return 0;
+    if (!payConfig || !profile) return 0;
     const jsonDeds = profile?.paycheck_deductions as { value: number; mode: string; label?: string }[] | null;
-    return computeAnnualFederalWithheld(payConfig, jsonDeds);
+    if (!jsonDeds || jsonDeds.length === 0) return 0;
+    const fedDed = jsonDeds.find(d => d.label != null && /federal.*withholding|^withholding$/i.test(d.label));
+    if (!fedDed || !fedDed.value) return 0;
+    const paycheckGross = payConfig.frequency === 'biweekly' ? payConfig.weeklyGross * 2
+      : payConfig.frequency === 'monthly' ? payConfig.weeklyGross * 52 / 12
+      : payConfig.weeklyGross;
+    const perPaycheck = fedDed.mode === 'pct' ? paycheckGross * (fedDed.value / 100) : fedDed.value;
+    const paychecksPerYear = payConfig.frequency === 'biweekly' ? 26 : payConfig.frequency === 'monthly' ? 12 : 52;
+    return Math.round(perPaycheck * paychecksPerYear);
   }, [payConfig, profile]);
 
   const prePaycheckBillsInfo = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId), [rules, payConfig, forecastFundingAccountId]);

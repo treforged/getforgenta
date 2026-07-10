@@ -156,12 +156,6 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     taxReturnEnabled: assumptions.taxReturnEnabled,
     taxReturnAmountOverride: assumptions.taxReturnAmountOverride ?? 0,
     taxReturnMonth: assumptions.taxReturnMonth,
-    // Tax-estimator identity inputs — thread through so the sim runs the same estimator as the
-    // engine (parity for the CC-projection popup's displayed income).
-    taxReturnFilingStatus: assumptions.taxReturnFilingStatus,
-    taxReturnDependents: assumptions.taxReturnDependents,
-    taxReturnState: assumptions.taxReturnState,
-    taxReturnFederalWithheld: assumptions.taxReturnFederalWithheld,
   }), [assumptions]);
 
   const cardProjection = useCardProjection({
