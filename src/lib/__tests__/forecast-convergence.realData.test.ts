@@ -60,6 +60,10 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
       taxReturnEnabled: Boolean(a?.taxReturnEnabled),
       taxReturnAmountOverride: Number(a?.taxReturnAmountOverride ?? 0),
       taxReturnMonth: Number(a?.taxReturnMonth ?? 2),
+      taxReturnFilingStatus: (a?.taxReturnFilingStatus as 'single' | 'mfj' | 'mfs' | 'hoh') ?? 'single',
+      taxReturnDependents: Number(a?.taxReturnDependents ?? 0),
+      taxReturnState: (a?.taxReturnState as string) ?? 'FL',
+      taxReturnFederalWithheld: Number(a?.taxReturnFederalWithheld ?? 0),
       promotions: (a?.promotions as { id: string; effectiveDate: string; newAnnualSalary: number }[]) ?? [],
     };
 
