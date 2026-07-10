@@ -29,9 +29,11 @@ export function runDebtCashConvergence(
   engineInputs: ForecastInputs,
   opts: DebtCashConvergenceOptions = {},
 ): DebtCashConvergenceResult {
-  // Default pass budget of 8: on live data the damped (0.5) loop needs ~6 passes to collapse
-  // the payment↔cash-floor two-cycle (gap 1423 → 159 → 91 → 133 → 29 → 1, verified 2026-07-07).
-  const { maxPasses = 8, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
+  // Default pass budget of 12: on the real-data fixture the damped (0.5) loop needs 11 passes to
+  // collapse the payment↔cash-floor two-cycle to tolerance (verified 2026-07-09 after the sim
+  // payday-count fix aligned the sim income with the engine). Earlier (2026-07-07) a 6-pass run
+  // was observed on a different fixture snapshot; 12 covers both with a one-pass margin.
+  const { maxPasses = 12, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
 
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;

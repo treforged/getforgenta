@@ -582,7 +582,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           return s + Math.min(rem / purchaseMonthIdx, rem);
         }, 0);
         const actualMonthPaycheck = getMonthNetIncome(payConfig, d.getFullYear(), d.getMonth());
-        const rawIncome = e.income > e.nonPaycheckIncome ? e.income : actualMonthPaycheck + e.nonPaycheckIncome;
+        // Mirror the engine's i>0 income model exactly (forecast-engine.ts:664-666):
+        // netIncome = fallbackTakeHome (getMonthNetIncome) + otherIncome (nonPaycheckIncome).
+        // Previously this preferred scheduled-events `e.income` when it was larger, which
+        // miscounts paydays by ±1 in months where the real Friday count differs from the
+        // event stream — inflating the sim's cash walk vs the engine's authoritative one.
+        const rawIncome = actualMonthPaycheck + e.nonPaycheckIncome;
         return {
           ...e,
           income: rawIncome * simIncMult + bonusTaxInc,
