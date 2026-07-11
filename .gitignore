@@ -12,6 +12,14 @@ scripts/reddit-scout.log
 # Forgenta Backup Sync — local state and logs
 backups/.drive-sync-state.json
 scripts/backup-drive-sync.log
+
+# Dependency manifests inside backups trip Dependabot security alerts on
+# stale pinned versions even though they are never installed. Source-file
+# backups stay tracked; only these manifests are ignored.
+backups/**/package-lock.json
+backups/**/package.json
+backups/**/yarn.lock
+backups/**/pnpm-lock.yaml
 .env.local
 .env.*.local
 .env.development
