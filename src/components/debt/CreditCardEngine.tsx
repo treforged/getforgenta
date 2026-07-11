@@ -13,8 +13,9 @@ import {
 } from '@/lib/pay-schedule';
 import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
+import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { type Month0Result } from '@/hooks/useCardProjection';
-import { type PaymentPlan, getPaymentDates } from '@/lib/payment-plan-generator';
+import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -89,11 +90,6 @@ type Props = {
    * balance hits $0. Aligns PAYOFF ETA with when "full" pref cards (e.g. Discover) are truly
    * at $0, matching the Forecast's CC Debt Free milestone condition (ccEngRevBalEnd <= 0). */
   simRevolvingPayoffMonth?: number | null;
-  /** Forecast-adjusted per-card revolving balances from useCardProjection — step-3 surplus applied
-   * cumulatively per card in avalanche order. When provided, replaces both revBals and trueBalances
-   * in projectCardVariable so the chart and per-card payoff labels match the Forecast's CC Debt
-   * Free milestone timing instead of the SIM-only trajectory. */
-  forecastAdjustedRevolvingBalances?: Map<string, number[]> | null;
   /** From CardProjectionContext via the parent page — passed as a prop (not read via its own
    * usePersistedState here) so toggling the switch on DebtPayoff.tsx updates this component's own
    * calculations immediately, instead of only after the Cards tab unmounts/remounts. */
@@ -110,7 +106,7 @@ const PAYMENT_MODE_TIPS = {
   consistent: 'Uses your chosen target payment amount each month for predictable budgeting.',
 };
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, forecastAdjustedRevolvingBalances, pauseSavings }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
@@ -230,7 +226,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return paycheckIncome + nonPaycheckIncome;
   }, [payConfig, rules]);
 
-  const cards: CardData[] = useMemo(() => buildCardData(accounts, transactions, rules, debts), [accounts, transactions, rules, debts]);
+  // Same plan-derived installment carve-out useCardProjection applies (shared
+  // deriveUpfrontPlanFields) — without it this component's internal fallback sim treated a
+  // card's full balance as APR-accruing revolving debt even when most of it is an interest-free
+  // upfront plan, which both mis-prioritized the avalanche and charged phantom interest.
+  const { installmentByCard: upfrontInstByCard, upfrontPayByMonth } = useMemo(() => {
+    const rawCards = buildCardData(accounts, transactions, rules, debts);
+    return deriveUpfrontPlanFields(rawCards, paymentPlans ?? [], PROJECTION_MONTHS, new Date(), syncCutoffDate);
+  }, [accounts, transactions, rules, debts, paymentPlans, syncCutoffDate]);
+  const cards: CardData[] = useMemo(() => buildCardData(accounts, transactions, rules, debts).map(card => {
+    const derived = upfrontInstByCard.get(card.id);
+    if (!derived) return card;
+    return { ...card, installmentBalance: derived.balance, installmentMonthlyPayment: derived.monthlyPayment };
+  }), [accounts, transactions, rules, debts, upfrontInstByCard]);
 
   // When any revolving card is due on a day that already passed this month, the next
   // payment falls in next month. Generate those transactions so income/expense helpers
@@ -504,6 +512,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       );
       for (const plan of paymentPlans) {
         if (!plan.active || !plan.payment_source) continue;
+        // Only monthly_charge (BNPL) plans hit the card as NEW purchases each month. An
+        // 'upfront' plan's full amount is already in the live balance from day 1 — injecting
+        // its installments as purchases here double-counted the whole plan on top of the
+        // balance (matching useCardProjection's own cardPurchasesPerMonth filter).
+        if (plan.plan_type !== 'monthly_charge') continue;
         const cardId = sourceToCardId.get(plan.payment_source);
         if (!cardId) continue;
         const planDates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
@@ -713,11 +726,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       Math.max(cashFloor, prePaycheckBills.total), // month0SafeFloor — match recommendations
       maxDebtPaymentByMonth,
       cashFloorByMonth,
+      undefined,
+      undefined,
+      upfrontPayByMonth,
     );
     // Return augmentedCCPurchases alongside the sim so projections can use it
     // to pass per-month purchase amounts to projectCardVariable.
     return { ...sim, augmentedCCPurchases };
-  }, [cards, fundingBalance, cashFloor, strategy, monthlyTakeHome,
+  }, [cards, upfrontPayByMonth, fundingBalance, cashFloor, strategy, monthlyTakeHome,
       monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
@@ -853,31 +869,40 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [month0, cards, strategy, syncCutoffDate]);
 
   const projections: CardProjection[] = useMemo(() => {
-    // Month 0: use pass-3 constrained amount (matches "Recommended This Month" panel).
-    // Months 1-35: use unscaled sim amounts so the payoff trajectory reflects what the
-    // simulation actually pays — avoids the chart showing cards stuck near-zero when
-    // pass-3 scaling reduces Discover's payments due to cycling-card cost reallocation.
+    // Display the sim's OWN payments alongside the sim's OWN balances/interest — one consistent
+    // model — so every projection row reconciles: End = Start + interest + purchases − payment.
+    // (Earlier code mixed pass-3-scaled/forecast-adjusted balances with the raw sim payment, which
+    // broke reconciliation: balances dropped faster than the shown payment, paid-off cards kept
+    // "paying" $0-balance months, and a phantom tail resurfaced.)
     const baseProjs = cards.map(c => {
       const cardOverrides = overrides[c.id] || {};
+      const hasOverrides = Object.keys(cardOverrides).length > 0;
       const cardPurchases = variableSim.augmentedCCPurchases.map(
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
-        const forecastPays = (perCardPaymentsScaled ?? perCardPayments)?.find(p => p.id === c.id)?.payments;
+        // Raw sim payments (perCardPayments) — the exact amounts that produced the sim balances
+        // below. NOT perCardPaymentsScaled or the month-0 pass-3 amount, which differ from the
+        // sim's own numbers and would reintroduce the reconciliation gap.
+        const rawPays = perCardPayments?.find(p => p.id === c.id)?.payments;
         const localPays = variableSim.monthlyPayments.get(c.id) ?? [];
-        const basePays = forecastPays ?? localPays;
-        const m0Pay = month0?.perCardAdjusted?.find(x => x.id === c.id)?.payment ?? basePays[0] ?? 0;
-        const payments = basePays.map((p, i) => {
-          if (cardOverrides[i] !== undefined) return cardOverrides[i];
-          return i === 0 ? m0Pay : p;
-        });
-        const adjRevBals = forecastAdjustedRevolvingBalances?.get(c.id);
-        const revBals = adjRevBals ?? (monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(c.id) ?? [];
+        const basePays = rawPays ?? localPays;
+        const payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
+        const revBals = (monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(c.id) ?? [];
         const cyclingOwed = (monthlyCyclingOwed ?? variableSim.monthlyCyclingOwed)?.get(c.id) ?? [];
         const cyclingInterest = (monthlyCyclingInterest ?? variableSim.monthlyCyclingInterest)?.get(c.id) ?? [];
-        const trueBalances = adjRevBals ?? (monthlyBalances ?? variableSim.monthlyBalances)?.get(c.id) ?? [];
-        const trueInterest = adjRevBals ? undefined : (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
-        return projectCardVariable(c, payments, PROJECTION_MONTHS, true, cardPurchases, revBals, cyclingOwed, cyclingInterest, trueBalances, trueInterest);
+        const trueBalances = (monthlyBalances ?? variableSim.monthlyBalances)?.get(c.id) ?? [];
+        const trueInterest = (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
+        // With user overrides the displayed payments intentionally diverge from the sim, so the
+        // sim's ground-truth end balances/interest no longer correspond — pass them as undefined so
+        // projectCardVariable does its own balance walk from the override payments (which then
+        // reconciles against that walk instead of the sim).
+        return projectCardVariable(
+          c, payments, PROJECTION_MONTHS, true, cardPurchases,
+          revBals, cyclingOwed, cyclingInterest,
+          hasOverrides ? undefined : trueBalances,
+          hasOverrides ? undefined : trueInterest,
+        );
       }
       if (Object.keys(cardOverrides).length > 0) {
         const payments = Array.from({ length: PROJECTION_MONTHS }, (_, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : c.targetPayment);
@@ -888,6 +913,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
     return baseProjs;
   }, [cards, paymentMode, variableSim, overrides, perCardPayments, perCardPaymentsScaled, month0, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
+
+  // Cumulative PASS-3 surplus routed to each card — the shared step3-display adjustment, so
+  // accordion/chart balances match the Forecast month popup and CSV export. Display-only:
+  // raw sim balances (projections) stay the model; payoff detection and ETA are untouched.
+  const step3CumSurplus = useMemo(
+    () => cumulativeSurplusesByCard((perCardPaymentsScaled ?? []).map(c => ({ id: c.id, surpluses: c.surpluses ?? [] }))),
+    [perCardPaymentsScaled],
+  );
 
   const debtChartData = useMemo(() => {
     if (projections.length === 0) return [];
@@ -905,7 +938,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         }
         const m = p.months[i];
         if (m) {
-          row[p.card.name] = Math.round(m.endBalance);
+          const revBal = (monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(p.card.id)?.[i] ?? 0;
+          const cum = step3CumSurplus.get(p.card.id)?.[i] ?? 0;
+          row[p.card.name] = Math.round(revBal > 0 ? adjustedDisplayBalance(m.endBalance, cum) : m.endBalance);
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
           row[p.card.name] = p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement'
             ? Math.round(p.card.monthlyNewPurchases)
@@ -914,7 +949,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }
       return row;
     });
-  }, [projections]);
+  }, [projections, monthlyRevolvingBalances, variableSim, step3CumSurplus]);
 
   const utilizationMilestones = useMemo(() => {
     const limit = cards.reduce((s, c) => s + (c.creditLimit ?? 0), 0);
@@ -1105,17 +1140,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
               {(() => {
                 const simEta = Math.max(0, ...projections.map(p => p.payoffMonth ?? 0));
-                // When forecast-adjusted balances are provided, the per-card projections already
-                // encode the correct Forecast-aligned payoff timing, so simEta IS the answer.
-                // Fall back to forecastRevolvingPayoffMonth (PASS 3) or simRevolvingPayoffMonth
-                // only when no forecast-adjusted data is available.
-                const eta = forecastAdjustedRevolvingBalances != null
-                  ? simEta
-                  : (forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0
+                // Payoff ETA = the month the interest-bearing revolving debt truly reaches $0
+                // (simRevolvingPayoffMonth), which is exactly the condition the Forecast page's CC
+                // Debt Free milestone gates on — so the two surfaces agree. Fall back to
+                // forecastRevolvingPayoffMonth (PASS 3), then the per-card sim payoff.
+                const eta = (simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0)
+                  ? simRevolvingPayoffMonth
+                  : (forecastRevolvingPayoffMonth != null && forecastRevolvingPayoffMonth > 0)
                     ? forecastRevolvingPayoffMonth
-                    : (simRevolvingPayoffMonth != null && simRevolvingPayoffMonth > 0
-                      ? simRevolvingPayoffMonth
-                      : simEta));
+                    : simEta;
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
                 return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>{eta > 0 ? `${eta} mo` : 'Paid'}</p>;
               })()}
@@ -1618,6 +1651,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         const isOverridden = cardOverrides[idx] !== undefined;
                         const isEditingThis = editingMonth?.cardId === proj.card.id && editingMonth?.month === idx;
                         const surplusAmt = perCardPaymentsScaled?.find(p => p.id === proj.card.id)?.surpluses?.[idx] ?? 0;
+                        // Displayed Start/End use the shared step3-display adjustment for revolving
+                        // months so they match the Forecast popup/export; with the surplus-redirect
+                        // line above, rows still reconcile (End = Start + purchases + interest −
+                        // payment − surplus). Raw sim balances stay the model underneath.
+                        const isRevolvingMonth = ((monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(proj.card.id)?.[idx] ?? 0) > 0;
+                        const cumAtIdx = step3CumSurplus.get(proj.card.id)?.[idx] ?? 0;
+                        const cumBeforeIdx = idx > 0 ? (step3CumSurplus.get(proj.card.id)?.[idx - 1] ?? 0) : 0;
+                        const displayEnd = isRevolvingMonth ? adjustedDisplayBalance(row.endBalance, cumAtIdx) : Math.max(0, row.endBalance);
+                        const displayStart = isRevolvingMonth ? adjustedDisplayBalance(row.startBalance, cumBeforeIdx) : row.startBalance;
                         return (
                           <div key={row.month} className={`border-b border-border/30 hover:bg-muted/10 ${isOverridden ? 'bg-primary/5' : ''}`}>
                             {/* Main row: Month | Payment | End Balance */}
@@ -1649,13 +1691,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                 )}
                               </div>
                               <div className="px-2 text-right font-semibold text-[10px] sm:text-[11px]">
-                                {formatCurrency(Math.max(0, row.endBalance), false)}
+                                {formatCurrency(displayEnd, false)}
                               </div>
                             </div>
                             {/* Detail row: constrained to first column so it never bleeds into Payment/End Bal */}
                             <div className="grid grid-cols-3 gap-x-3 pb-1.5">
                               <div className="px-2 flex flex-col gap-0.5 text-[10px] sm:text-[11px] text-muted-foreground">
-                                <span>Start: {formatCurrency(row.startBalance, false)}</span>
+                                <span>Start: {formatCurrency(displayStart, false)}</span>
                                 {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
                                 {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
                                 {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt, false)} surplus redirect</span>}
@@ -1688,13 +1730,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                               ]}
                             >
                               <div>
-                                {gatedMonths.map(row => (
+                                {gatedMonths.map((row, gLocalIdx) => {
+                                  const gIdx = yearStart + freeCount + gLocalIdx;
+                                  const gRevolving = ((monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(proj.card.id)?.[gIdx] ?? 0) > 0;
+                                  const gCum = step3CumSurplus.get(proj.card.id)?.[gIdx] ?? 0;
+                                  const gEnd = gRevolving ? adjustedDisplayBalance(row.endBalance, gCum) : Math.max(0, row.endBalance);
+                                  return (
                                   <div key={row.month} className="grid grid-cols-3 gap-x-3 py-1.5 border-b border-border/30">
                                     <div className="px-2 text-[10px] font-medium">{row.label}</div>
                                     <div className="px-2 text-right text-[10px] font-semibold text-primary">{row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}</div>
-                                    <div className="px-2 text-right text-[10px] font-semibold">{formatCurrency(Math.max(0, row.endBalance), false)}</div>
+                                    <div className="px-2 text-right text-[10px] font-semibold">{formatCurrency(gEnd, false)}</div>
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </PremiumGate>
                           )}

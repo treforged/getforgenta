@@ -41,6 +41,34 @@ If confidence is below threshold:
 - first run a focused audit to gather missing information
 - ask follow-up questions only if the missing detail cannot be resolved from the codebase
 
+## AMBIGUITY RULE
+
+If an ambiguity is hit at any point — unclear requirements, conflicting
+instructions, multiple valid interpretations, or a decision that changes
+scope or behavior — STOP and ask the user for clarification before
+proceeding. Do not guess, do not pick the "most likely" interpretation
+silently, and do not implement multiple variants. State the ambiguity,
+list the options, and wait for an answer.
+
+## CONTEXT GATE (handoff loop)
+
+After every completed step (TDD gate, plan item, commit), check context
+usage. A PostToolUse hook (`.claude/hooks/context-gate.mjs`) injects a
+`CONTEXT GATE` reminder when context reaches 150k tokens — treat that
+reminder as mandatory, not advisory.
+
+When context is between 150k and 200k tokens:
+1. Stop starting new work, even mid-phase. Finish only the atomic action
+   in flight.
+2. Run the `context-handoff` skill: write/refresh `handoff.md` at the
+   repo root with goals, current state, active files, changes made,
+   failed attempts, and next steps. Commit it locally.
+3. Tell the user to run `/clear`; the next agent resumes from
+   `handoff.md` (a SessionStart hook surfaces it automatically).
+
+When resuming a session where `handoff.md` exists, read it in full
+before doing anything else.
+
 ---
 
 ## Orchestration layer
@@ -186,6 +214,18 @@ to undo a change.
 
 ## Agent cost discipline (token efficiency)
 
+- The `lean-fix` workflow applies AUTOMATICALLY to any fix/debug request —
+  no manual `/lean-fix` needed. A UserPromptSubmit hook
+  (`.claude/hooks/lean-fix-router.mjs`) flags fix-shaped prompts; treat its
+  reminder as mandatory routing, and apply the same workflow even without
+  the reminder when the task is clearly a code fix.
+- For bug fixes and scoped changes, use the `lean-fix` skill: triage size
+  first (small fixes stay inline — agents cost more than they save);
+  otherwise Explore agent for search, strongest model for diagnosis+plan,
+  Sonnet agent for implementation, cheap reviewer for the diff. The strong
+  model always owns root-cause diagnosis — never a cheaper one.
+- Keep searches and file dumps out of the main thread: multi-file hunts go
+  to an Explore subagent whose tool output never lands in main context.
 - Use `/multi-plan` before spawning agents — decomposing upfront saves
   redundant agent calls downstream.
 - Independent subtasks → parallel agents via `/multi-execute`.

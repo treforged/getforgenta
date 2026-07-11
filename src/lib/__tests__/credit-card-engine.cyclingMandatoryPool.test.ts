@@ -60,11 +60,15 @@ describe('simulateVariablePayoff — ccMinAlreadyInFloorByMonth (double-reservat
     const liquidCash = 1000;
 
     const old = simulateVariablePayoff([revolving, cycling], liquidCash, 1000, 'avalanche', 0, 0, 2, monthEvents);
-    // With dynamic minimums, reservedForRevolving uses the formula min (~$80) instead of the
-    // static $150, freeing enough pool for 'cyc' to get its full $400 even without the
-    // ccMinAlreadyInFloor fix. The "old vs fixed" contrast still demonstrates the double-
-    // reservation mechanism, but now both scenarios produce 400 for this pool size.
-    expect(old.monthlyPayments.get('cyc')![1]).toBeCloseTo(400, 2);
+    // reservedForRevolving now reserves the revolving card's CONTRACT minimum ($150 via
+    // revolvingMinDue), matching what the Step 5 cascade actually enforces — not the lower ~2%
+    // formula (~$80). In this bare-floor call (no ccMinAlreadyInFloor), that full $150 reservation
+    // is the ONLY thing protecting rev's minimum, so it legitimately shrinks the cycling pool and
+    // 'cyc' lands at 325 rather than its full $400. This is the correct floor-respecting outcome:
+    // giving 'cyc' the full $400 here would leave availableCash short of rev's $150 min and breach
+    // the floor. The 'fixed' scenario below (ccMinAlreadyInFloor = $150) shows the pool restored to
+    // the full $400 once the floor already covers that reservation — a real, non-identity contrast.
+    expect(old.monthlyPayments.get('cyc')![1]).toBeCloseTo(325, 0);
 
     const fixed = simulateVariablePayoff([revolving, cycling], liquidCash, 1000, 'avalanche', 0, 0, 2, monthEvents,
       ...SKIP8, [0, 150]);

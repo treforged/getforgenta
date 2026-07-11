@@ -21,6 +21,10 @@ export type CardData = {
   apr: number;
   creditLimit: number;
   minPayment: number;
+  /** True when the user marked min_payment as manually set (accounts.min_payment_is_manual):
+   * minPayment is then honored EXACTLY — including $0 (e.g. a card whose whole balance sits on
+   * 0% payment plans with nothing due) — with no 2%-formula or $25-floor fallback anywhere. */
+  minPaymentIsManual?: boolean;
   targetPayment: number;
   monthlyNewPurchases: number;
   monthlyRepayments: number;
@@ -119,6 +123,35 @@ export function calcMinPayment(balance: number, apr: number): number {
   return Math.max(25, Math.round(balance * (1 + apr / 1200) * 0.02 * 100) / 100);
 }
 
+/**
+ * The minimum that must actually be paid toward a card's REVOLVING balance this month.
+ *
+ * A card's real contract minimum (accounts.min_payment, Plaid-synced or user-entered — surfaced as
+ * card.minPayment) is frequently HIGHER than the 2%-of-balance formula once the balance has been
+ * paid down (e.g. Discover: $229 contract min vs ~$46 formula at a $2,300 balance). The simulation
+ * must honor whichever is greater so a card is never throttled below what the lender actually
+ * requires, dragging its real payoff out by months. Bounded above by revOwed so the last payment
+ * never overshoots the balance.
+ *
+ * card.minPayment is the card's TOTAL stated minimum; when the card carries a 0%-installment plan
+ * that plan's monthly payment is handled separately (installmentPayByCard / installmentCashCost),
+ * so subtract it here to get the revolving-only portion of the contract minimum and avoid
+ * double-counting the installment against the revolving cascade.
+ *
+ * This is the payment/reservation layer only — the pre-paycheck cash floor deliberately stays on
+ * the plain calcMinPayment formula (see getAugmentedMinSafeCash / perCardMinPayments): reserving
+ * the higher contract min in the floor would inflate min-safe-cash dollar-for-dollar and starve the
+ * surplus that pays debt down, which is exactly what we're trying to avoid.
+ */
+export function revolvingMinDue(card: CardData, revOwed: number): number {
+  if (revOwed <= 0) return 0;
+  const contractRevMin = Math.max(0, (card.minPayment ?? 0) - (card.installmentMonthlyPayment ?? 0));
+  // Manual minimums are exact by definition — the user (or a $0 Plaid liability they confirmed)
+  // says this IS what's due, so the formula must never re-inflate it (manual $0 stays $0).
+  if (card.minPaymentIsManual) return Math.min(contractRevMin, revOwed);
+  return Math.min(Math.max(contractRevMin, calcMinPayment(revOwed, card.apr)), revOwed);
+}
+
 export function getDefaultCardForExpense(category: string, accounts: AccountRow[]): string | null {
   if (!CC_DEFAULT_CATEGORIES.has(category)) return null;
   const activeCards = accounts
@@ -136,29 +169,32 @@ export function buildCardData(
   return ccAccounts.map((acct, i) => {
     const acctKey = `account:${acct.id}`;
     const now = new Date();
-    // Only count CC transactions in the CURRENT month from TODAY forward.
-    // Past purchases are already in the card's live balance.
-    // Future-month one-time purchases must NOT be summed here — they are
-    // attributed per-month via cardPurchasesPerMonth in the simulation.
     const todayStr = now.toISOString().split('T')[0];
-    const currentMonthStr = todayStr.slice(0, 7); // 'YYYY-MM'
-    const monthPurchases = transactions
-      .filter(t =>
-        t.type === 'expense' &&
-        (t.payment_source === acctKey || t.payment_source === acct.id) &&
-        t.date >= todayStr &&
-        t.date.startsWith(currentMonthStr),
-      )
-      .reduce((s, t) => s + Number(t.amount), 0);
 
-    // Use next month (full month, no today-cutoff) so monthlyNewPurchases represents a
-    // complete billing cycle. The current month is partial — most recurring bills already
-    // fired and are baked into the live balance, so using it understates future monthly
-    // spending and causes the projection to flatline at whatever charges remain this month.
+    // monthlyNewPurchases is the card's RECURRING monthly spend estimate — it is re-applied to
+    // every projected month by the simulation (cardPurchasesThisMonth falls back to it for m >= 1).
+    // It must therefore be derived from recurring rules ONLY. One-time transactions (e.g. a single
+    // "Car registration" charge) are already attributed to their own month via cardPurchasesPerMonth
+    // / ccOneTimeByMonth; summing them here would re-charge that one-time amount every month and
+    // balloon the card's projected balance (a 'full'/'statement' card that never reaches $0 even
+    // with no recurring spend). See docs/debt-model-fixes-plan.md.
+    // Use next month (full month, no today-cutoff) so the estimate represents a complete billing
+    // cycle — the current month is partial (most recurring bills already fired and are baked into
+    // the live balance), so using it would understate future monthly spending.
     const projRef = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
+    // Exclude yearly rules from this flat monthly estimate. A yearly charge is a once-a-year
+    // spike, not ongoing monthly spend — amortizing it (countRuleOccurrencesInMonth returns 1/12
+    // for yearly) makes a card look like it carries that fraction every month (e.g. Prime Visa
+    // showing ~$419/mo that includes /12 slices of Pet Insurance, Costco, Amazon Prime, etc.).
+    // Yearly items are already attributed to their actual due month via the scheduled-purchase
+    // path (cardPurchasesPerMonth / ccScheduledByMonth), so they spike there and must not also be
+    // spread here. If the user wanted a charge spread evenly they'd have set it to monthly.
+    const isRecurringMonthlySpend = (r: RuleRow) =>
+      r.active && r.rule_type === 'expense' && r.frequency !== 'yearly';
+
     const recurringExplicit = rules
-      .filter(r => r.active && r.rule_type === 'expense' && (r.payment_source === acctKey || r.payment_source === acct.id))
+      .filter(r => isRecurringMonthlySpend(r) && (r.payment_source === acctKey || r.payment_source === acct.id))
       .reduce((s, r) =>
         s + Number(r.amount) * countRuleOccurrencesInMonth(r, projRef.getFullYear(), projRef.getMonth()),
       0);
@@ -167,12 +203,12 @@ export function buildCardData(
     const isDefaultCard = highestAprCard?.id === acct.id;
 
     const recurringDefault = isDefaultCard ? rules
-      .filter(r => r.active && r.rule_type === 'expense' && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
+      .filter(r => isRecurringMonthlySpend(r) && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
       .reduce((s, r) =>
         s + Number(r.amount) * countRuleOccurrencesInMonth(r, projRef.getFullYear(), projRef.getMonth()),
       0) : 0;
 
-    const monthlyNewPurchases = Math.max(monthPurchases, recurringExplicit + recurringDefault);
+    const monthlyNewPurchases = recurringExplicit + recurringDefault;
 
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const monthRepayments = transactions
@@ -190,7 +226,10 @@ export function buildCardData(
     // only when the Accounts page genuinely has nothing stored. Never recalculate from balance —
     // the stored static value is what's actually due.
     const acctMin = acct.min_payment != null ? Number(acct.min_payment) : null;
-    const minPay = (acctMin != null && acctMin > 0) ? acctMin : 25;
+    // Manual flag (accounts.min_payment_is_manual): the stored value is exact — including 0 —
+    // so skip both the >0 guard and the $25 fallback. A manual card with nothing stored is $0.
+    const minPaymentIsManual = Boolean(acct.min_payment_is_manual);
+    const minPay = minPaymentIsManual ? (acctMin ?? 0) : ((acctMin != null && acctMin > 0) ? acctMin : 25);
     const targetPay = matchDebt ? Number(matchDebt.target_payment) : minPay;
 
     const pref = acct.payment_preference;
@@ -203,7 +242,7 @@ export function buildCardData(
 
     return {
       id: acct.id, name: acct.name, balance: simBalance, apr, creditLimit,
-      minPayment: minPay,
+      minPayment: minPay, minPaymentIsManual,
       targetPayment: Math.max(targetPay, minPay),
       monthlyNewPurchases, monthlyRepayments: monthRepayments,
       color: getCardColor(colorStartIndex + i),
@@ -405,7 +444,10 @@ export function projectCardVariable(
       const trueInterest = trueInterestByMonth?.[m - 1];
       interest = trueInterest !== undefined
         ? Math.round(trueInterest * 100) / 100
-        : Math.round((trueEndBal - startBal - newPurchases + payment) * 100) / 100;
+        // Safety clamp: the back-solve assumes `payment` exactly produced trueEndBal, which is false
+        // when the displayed payment is scaled/zeroed — it could otherwise yield a large NEGATIVE
+        // "interest" (the -$4,581 phantom). Interest can never be negative.
+        : Math.max(0, Math.round((trueEndBal - startBal - newPurchases + payment) * 100) / 100);
       bal = Math.round(trueEndBal * 100) / 100;
     } else {
       const fallbackInterest = (card.paymentPreference === 'statement' && inGrace)
@@ -426,6 +468,21 @@ export function projectCardVariable(
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
+    // Reconciliation guard (dev only): when we display the engine's ground-truth end balance, the
+    // row must satisfy End = Start + purchases + interest − payment. If it doesn't, the displayed
+    // payment came from a different model than the balance (the class of bug that produced balances
+    // dropping without matching payments). Surface it loudly instead of letting it pass silently.
+    if (import.meta.env?.DEV && trueEndBal !== undefined && m <= months) {
+      const residual = Math.round((bal - (startBal + newPurchases + interest - payment)) * 100) / 100;
+      // Tolerate sub-dollar noise from displaying whole-dollar-rounded payments; only flag a real
+      // model mismatch (e.g. an installment/plan payment that moves the balance but isn't shown in
+      // the payment column). $1 comfortably clears rounding while catching the hundreds-of-dollars
+      // divergences that motivated this guard.
+      if (Math.abs(residual) > 1) {
+        // eslint-disable-next-line no-console
+        console.warn(`[projectCardVariable] ${card.name} ${label} does not reconcile: End ${bal} ≠ Start ${startBal} + purch ${newPurchases} + int ${interest} − pay ${Math.round(payment * 100) / 100} (residual ${residual})`);
+      }
+    }
     if (payoffMonth === null && startBal > 0) {
       if (card.paymentPreference === 'statement') {
         // inGrace = payment covered opening balance + interest this cycle,
@@ -487,6 +544,97 @@ export type SimulationFlag = {
  * Backward-compatible: existing callers pass 7 positional args (scalars).
  * Event-based callers (TASK 2) additionally pass monthEvents[] and fundingAccountId.
  */
+/** Return type of {@link simulateVariablePayoff} — the sim's authoritative per-month/per-card
+ * payment, balance, and cycling ledger. Named so downstream modules (forecast-engine,
+ * useCardProjection, cardProjectionResim) can reference it directly instead of deriving it via
+ * `ReturnType<typeof simulateVariablePayoff>`. */
+export interface SimResult {
+  monthlyPayments: Map<string, number[]>;
+  monthlyBalances: Map<string, number[]>;
+  monthlyRevolvingBalances: Map<string, number[]>;
+  /** Per-card per-month minimum payment based on projected balance — shrinks as debt is paid. */
+  perCardMinPayments: Map<string, number[]>;
+  /** Per-card per-month TRUE amount owed at the start of the cycling billing cycle — this
+   * cycle's mandatory statement PLUS any accumulated backlog (post-interest, pre-payment),
+   * combined for display continuity so a cycling card's "Start balance" never appears to
+   * silently drop debt. Used by projectCardVariable so a partial payment is visible in the row
+   * where it happens instead of silently disappearing. */
+  monthlyCyclingOwed: Map<string, number[]>;
+  /** Per-card per-month interest charged on a cycling card's accumulated backlog — always 0
+   * unless the card currently carries backlog (i.e. a prior cycle's statement wasn't paid in
+   * full). */
+  monthlyCyclingInterest: Map<string, number[]>;
+  /** Per-card per-month interest actually charged on a REVOLVING (non-cycling) card's starting
+   * balance this cycle (Step 3's real calc — 0 during a statement-preference grace period).
+   * Ground truth for projectCardVariable's revolving branch so its displayed interest reflects
+   * what the engine actually charged, independent of whatever payment ends up displayed (which
+   * may be a cash-floor-scaled amount that differs from the payment used to produce this figure). */
+  monthlyInterest: Map<string, number[]>;
+  /** Per-card per-month MANDATORY (current-cycle-only) cycling payment, excluding any
+   * backlog-cascade payment folded into the same month's monthlyPayments entry. Callers building
+   * a cash-flow look-ahead should treat this (not monthlyPayments) as the non-reducible bill for
+   * a cycling card — monthlyPayments may also include discretionary backlog paydown. */
+  monthlyMandatoryCyclingPayment: Map<string, number[]>;
+  /** Per-card per-month payment funded by the Step-5 debt-cash pool (the revolving/backlog
+   * cascade) — the exact spend of the pool that debtCashTargetByMonth REPLACES. Excludes Step-2
+   * mandatory cycling statements and mandatory installment/BNPL payments, which are paid outside
+   * that pool. buildPaymentLedger's `revolving` sums this, so the convergence loop's next-pass
+   * target echoes precisely what the pool spent — classifying by start-of-month revolving
+   * balance instead leaked backlog-cascade spend into `cycling` and ratcheted the target down
+   * every pass (the 2026-07-09 non-convergence regression). */
+  monthlyDebtCashPayment: Map<string, number[]>;
+  /** Per-card per-month accumulated cycling backlog, end-of-month post-payment. The unambiguous
+   * "does this card need avalanche priority / a reserved floor minimum" signal — deliberately
+   * separate from monthlyRevolvingBalances, which must stay a one-way 0-once-cycling signal for
+   * projectCardVariable's display-branch routing (see where this is pushed, Step 6). */
+  monthlyCyclingBacklog: Map<string, number[]>;
+  projectedPayoffMonths: number;
+  cashFloorBreaches: { month: number; endingCash: number }[];
+  flags: SimulationFlag[];
+  projectedCashByMonth: number[];
+  debtPaymentTransactions: SimulatedDebtPayment[];
+  warningMessages: { month: number; message: string }[];
+}
+
+export interface PaymentLedgerCardEntry {
+  id: string;
+  payment: number;
+}
+
+/** Authoritative per-month payment split, derived directly from a SimResult's own outputs —
+ * .claude/plan/unify-cycling-model.md Stage 2. `revolving` is the sim's own record of what the
+ * Step-5 debt-cash pool spent (monthlyDebtCashPayment) — exactly the pool that
+ * debtCashTargetByMonth replaces, so the convergence loop's next-pass target echoes the sim's
+ * actual spend. (It previously classified by start-of-month revolving balance, which leaked
+ * backlog-cascade spend into `cycling` and installment shares into `revolving`, ratcheting the
+ * convergence target down every pass — the 2026-07-09 regression.) `cycling` is the remainder:
+ * mandatory statements plus mandatory installment/BNPL shares. */
+export interface PaymentLedgerEntry {
+  total: number;
+  revolving: number;
+  cycling: number;
+  perCard: PaymentLedgerCardEntry[];
+}
+
+export function buildPaymentLedger(
+  sim: SimResult,
+  cards: CardData[],
+  months = PROJECTION_MONTHS,
+): PaymentLedgerEntry[] {
+  return Array.from({ length: months }, (_, i) => {
+    let total = 0;
+    let revolving = 0;
+    const perCard: PaymentLedgerCardEntry[] = [];
+    for (const card of cards) {
+      const payment = sim.monthlyPayments.get(card.id)?.[i] ?? 0;
+      total += payment;
+      revolving += sim.monthlyDebtCashPayment.get(card.id)?.[i] ?? 0;
+      perCard.push({ id: card.id, payment });
+    }
+    return { total, revolving, cycling: total - revolving, perCard };
+  });
+}
+
 export function simulateVariablePayoff(
   cards: CardData[],
   liquidCash: number,
@@ -537,7 +685,12 @@ export function simulateVariablePayoff(
    */
   month0SafeFloor?: number,
   /**
-   * Optional per-month cap on the total debt payment allocation (revolving cards only).
+   * Optional per-month cap on the total debt payment allocation. Always caps the revolving/
+   * backlog cascade (Step 5). Once every card that started with debt has reached $0 (no
+   * revolving or backlog balance remains), it ALSO caps the cycling/paid-off pool (Step 2) —
+   * otherwise a full-balance/statement card would keep draining all available cash into its
+   * statement during a save-up month even after the "real" debt is gone. Floored at the
+   * relevant minimums in both places so a cap can never force a minimum-payment violation.
    * Set to ccMinTotal for "save-up" months identified by the look-ahead pre-pass in callers.
    * Mirrors Forecast PASS 2 behavior so future-month debt projections are consistent.
    */
@@ -566,45 +719,28 @@ export function simulateVariablePayoff(
    * installmentChargeByMonth[m][cardId] = total BNPL charge for that card in month m.
    */
   installmentChargeByMonth?: { [cardId: string]: number }[],
-): {
-  monthlyPayments: Map<string, number[]>;
-  monthlyBalances: Map<string, number[]>;
-  monthlyRevolvingBalances: Map<string, number[]>;
-  /** Per-card per-month minimum payment based on projected balance — shrinks as debt is paid. */
-  perCardMinPayments: Map<string, number[]>;
-  /** Per-card per-month TRUE amount owed at the start of the cycling billing cycle — this
-   * cycle's mandatory statement PLUS any accumulated backlog (post-interest, pre-payment),
-   * combined for display continuity so a cycling card's "Start balance" never appears to
-   * silently drop debt. Used by projectCardVariable so a partial payment is visible in the row
-   * where it happens instead of silently disappearing. */
-  monthlyCyclingOwed: Map<string, number[]>;
-  /** Per-card per-month interest charged on a cycling card's accumulated backlog — always 0
-   * unless the card currently carries backlog (i.e. a prior cycle's statement wasn't paid in
-   * full). */
-  monthlyCyclingInterest: Map<string, number[]>;
-  /** Per-card per-month interest actually charged on a REVOLVING (non-cycling) card's starting
-   * balance this cycle (Step 3's real calc — 0 during a statement-preference grace period).
-   * Ground truth for projectCardVariable's revolving branch so its displayed interest reflects
-   * what the engine actually charged, independent of whatever payment ends up displayed (which
-   * may be a cash-floor-scaled amount that differs from the payment used to produce this figure). */
-  monthlyInterest: Map<string, number[]>;
-  /** Per-card per-month MANDATORY (current-cycle-only) cycling payment, excluding any
-   * backlog-cascade payment folded into the same month's monthlyPayments entry. Callers building
-   * a cash-flow look-ahead should treat this (not monthlyPayments) as the non-reducible bill for
-   * a cycling card — monthlyPayments may also include discretionary backlog paydown. */
-  monthlyMandatoryCyclingPayment: Map<string, number[]>;
-  /** Per-card per-month accumulated cycling backlog, end-of-month post-payment. The unambiguous
-   * "does this card need avalanche priority / a reserved floor minimum" signal — deliberately
-   * separate from monthlyRevolvingBalances, which must stay a one-way 0-once-cycling signal for
-   * projectCardVariable's display-branch routing (see where this is pushed, Step 6). */
-  monthlyCyclingBacklog: Map<string, number[]>;
-  projectedPayoffMonths: number;
-  cashFloorBreaches: { month: number; endingCash: number }[];
-  flags: SimulationFlag[];
-  projectedCashByMonth: number[];
-  debtPaymentTransactions: SimulatedDebtPayment[];
-  warningMessages: { month: number; message: string }[];
-} {
+  /**
+   * Optional per-month per-card UPFRONT-plan installment payment schedule (due-date-anchored —
+   * see deriveUpfrontPlanFields in payment-plan-generator.ts). When provided, a card's mandatory
+   * upfront installment for month m is upfrontPayByMonth[m][cardId] (possibly $0 before the
+   * plan's first real due date) instead of a flat card.installmentMonthlyPayment starting at
+   * month 0. When omitted, the flat legacy behavior is preserved exactly — callers without plan
+   * data (tests, standalone projections) are unaffected.
+   */
+  upfrontPayByMonth?: { [cardId: string]: number }[],
+  /**
+   * Phase 2 Option C convergence — the forecast engine's authoritative per-month REVOLVING debt
+   * cash (its step-2 revolving share + that month's step-3 surplus; see ForecastRow.
+   * revolvingDebtCash). When provided for month m it REPLACES the sim's own revolving-cascade
+   * cash pool (Step 5's availableCash): the cascade allocates exactly
+   * min(max(target, contract minimums), owed) — covering both clamp months AND surplus months
+   * (maxDebtPaymentByMonth alone can't force paying MORE, it's only a cap). Per-card minimums
+   * always win over a lower target, so a floor-forced engine month can never produce
+   * min-payment violations (2026-06-19 lesson). The cycling mandatory pool (Step 2) and
+   * installment payments are unaffected. Omitted ⇒ byte-identical legacy behavior.
+   */
+  debtCashTargetByMonth?: number[],
+): SimResult {
   if (cards.length === 0) {
     return {
       monthlyPayments: new Map(),
@@ -615,6 +751,7 @@ export function simulateVariablePayoff(
       monthlyCyclingInterest: new Map(),
       monthlyInterest: new Map(),
       monthlyMandatoryCyclingPayment: new Map(),
+      monthlyDebtCashPayment: new Map(),
       monthlyCyclingBacklog: new Map(),
       projectedPayoffMonths: 0,
       cashFloorBreaches: [],
@@ -642,6 +779,8 @@ export function simulateVariablePayoff(
   // discretionary backlog paydown for a fixed expense (see useCardProjection.ts's
   // computeCyclingPaymentByMonth).
   const monthlyMandatoryCyclingPayment = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  // Step-5 debt-cash-pool spend per card per month — see the SimResult field's JSDoc.
+  const monthlyDebtCashPayment = new Map<string, number[]>(cards.map(c => [c.id, []]));
   // A cycling card's accumulated backlog, end-of-month, post-payment — the unambiguous signal
   // for "does this card need avalanche priority / a reserved minimum in the floor," kept separate
   // from monthlyRevolvingBalances (which must stay a one-way 0-once-cycling signal — see the
@@ -725,6 +864,18 @@ export function simulateVariablePayoff(
     const oneTimeNet = m === 0 ? 0
       : (oneTimeByMonth?.[m]?.income ?? 0) - (oneTimeByMonth?.[m]?.expenses ?? 0);
 
+    // This month's mandatory upfront-plan installment for a card. Schedule-aware when the
+    // caller supplied upfrontPayByMonth (due-date-anchored — $0 before the plan's first real
+    // due date), flat card.installmentMonthlyPayment otherwise (legacy behavior). Used by
+    // perCardMinPayments, reservedForRevolving, and Step 2.5 so all three layers agree on
+    // what installment cash actually leaves this month.
+    const upfrontDueFor = (card: CardData, instBal: number): number => {
+      if (instBal <= 0) return 0;
+      if (upfrontPayByMonth) return Math.min(upfrontPayByMonth[m]?.[card.id] ?? 0, instBal);
+      return (card.installmentMonthlyPayment ?? 0) > 0
+        ? Math.min(card.installmentMonthlyPayment!, instBal) : 0;
+    };
+
     // Push 0 for cards that haven't reached their start month — keeps arrays aligned.
     // Also collect balance-sensitive minimum for each card this month (Option A).
     for (const card of cards) {
@@ -737,19 +888,27 @@ export function simulateVariablePayoff(
         monthlyCyclingInterest.get(card.id)!.push(0);
         monthlyInterest.get(card.id)!.push(0);
         monthlyMandatoryCyclingPayment.get(card.id)!.push(0);
+        monthlyDebtCashPayment.get(card.id)!.push(0);
         monthlyCyclingBacklog.get(card.id)!.push(0);
       } else if (paidOffCards.has(card.id)) {
         // A backlog card still needs its minimum reserved in the floor (see
         // reservedForRevolving/getAugmentedMinSafeCash) — a bare 0 here would make it look like
         // it needs no protection even though monthlyCyclingBacklog (see Step 6) reports otherwise.
         const backlog = cyclingBacklog.get(card.id) ?? 0;
-        perCardMinPayments.get(card.id)!.push(backlog > 0 ? calcMinPayment(backlog, card.apr) : 0);
+        perCardMinPayments.get(card.id)!.push(
+          backlog > 0
+            ? (card.minPaymentIsManual ? revolvingMinDue(card, backlog) : calcMinPayment(backlog, card.apr))
+            : 0,
+        );
       } else {
         const bal = balances.get(card.id) ?? 0;
         const instBal = installmentBals.get(card.id) ?? 0;
         const revBal = Math.max(0, bal - instBal);
-        const instMinPay = instBal > 0 ? Math.min(card.installmentMonthlyPayment ?? 0, instBal) : 0;
-        perCardMinPayments.get(card.id)!.push(bal > 0 ? (calcMinPayment(revBal, card.apr) + instMinPay) : 0);
+        const instMinPay = upfrontDueFor(card, instBal);
+        // Manual cards reserve their exact contract revolving min (possibly $0) instead of the
+        // formula, so the floor never protects a minimum the lender isn't actually charging.
+        const revMinPay = card.minPaymentIsManual ? revolvingMinDue(card, revBal) : calcMinPayment(revBal, card.apr);
+        perCardMinPayments.get(card.id)!.push(bal > 0 ? (revMinPay + instMinPay) : 0);
       }
     }
 
@@ -775,6 +934,17 @@ export function simulateVariablePayoff(
       backlogInterestMap.set(card.id, interest);
     }
 
+    // Hoisted here (used by both the cycling-pool cap below and the revolving cascade cap in
+    // Step 5) so a single per-month value drives both.
+    const mDebtCap = maxDebtPaymentByMonth?.[m];
+    // True once every card that started this simulation carrying debt (revolving OR cycling
+    // backlog) has reached $0 — i.e. no genuinely-revolving or backlog debt remains this month.
+    const allRevolvingClear = cards.every(c => {
+      if ((cardStartMonths.get(c.id) ?? 0) > m) return true; // not active yet — doesn't count
+      if (!paidOffCards.has(c.id)) return false; // still genuinely revolving
+      return (cyclingBacklog.get(c.id) ?? 0) <= 0.005; // cycling with no backlog debt
+    });
+
     // ── Step 2 — Handle paid-off cards: pay purchases, capped by cash above floor ──
     // These cards stay at $0 permanently. Purchase cost is a cash outflow
     // but does NOT create a balance that accrues interest (grace period model).
@@ -795,12 +965,20 @@ export function simulateVariablePayoff(
         (paidOffCards.has(c.id) && (cyclingBacklog.get(c.id) ?? 0) > 0)
       ))
       .reduce((s, c) => {
-        if (paidOffCards.has(c.id)) return s + calcMinPayment(cyclingBacklog.get(c.id) ?? 0, c.apr);
+        // Reserve the SAME contract minimum the Step 5 cascade will actually enforce
+        // (revolvingMinDue), not the plain 2% formula. If this reservation is smaller than what the
+        // cascade pays, the extra the cascade pulls toward the revolving card comes out of general
+        // cash the mandatory cycling pool was counting on — draining it downstream and shorting
+        // cycling cards a cycle or two later (the useCardProjection.cyclingFloor regression). The
+        // double-reservation guard below (ccMinAlreadyInFloor) still nets the floor's formula-sized
+        // share back out, so the floor reserves `formula` and this layer reserves the rest
+        // (`contract − formula`) — together exactly the contract min, and no more.
+        if (paidOffCards.has(c.id)) return s + revolvingMinDue(c, cyclingBacklog.get(c.id) ?? 0);
         const bal = balances.get(c.id) ?? 0;
         const instBal = installmentBals.get(c.id) ?? 0;
         const revBal = Math.max(0, bal - instBal);
-        const instMinPay = instBal > 0 ? Math.min(c.installmentMonthlyPayment ?? 0, instBal) : 0;
-        return s + calcMinPayment(revBal, c.apr) + instMinPay;
+        const instMinPay = upfrontDueFor(c, instBal);
+        return s + revolvingMinDue(c, revBal) + instMinPay;
       }, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
     // outer-refinement passes in useCardProjection.ts), don't reserve it a second time here — only
@@ -820,6 +998,22 @@ export function simulateVariablePayoff(
       owedByCard.set(card.id, Math.round((paidOffDeferredPurchases.get(card.id) ?? 0) * 100) / 100);
     }
     const paidSoFar = new Map<string, number>(paidOffCardsThisMonth.map(c => [c.id, 0]));
+
+    // Once all revolving/backlog debt is clear, a save-up month's cap (maxDebtPaymentByMonth,
+    // mirrors Forecast PASS 2's reduced target — see its JSDoc) also applies to the cycling pool —
+    // otherwise a full-balance/statement card keeps draining all available cash into its statement
+    // even while the caller is trying to preserve cash for an upcoming large expense. Floored at
+    // the cycling cards' own contract minimums so this can never violate a minimum payment,
+    // mirroring the max(mDebtCap, totalMins) guarantee the Step 5 cascade cap uses below.
+    if (allRevolvingClear && mDebtCap !== undefined && isFinite(mDebtCap)) {
+      const cyclingMinTotal = paidOffCardsThisMonth.reduce((s, c) => {
+        const owed = owedByCard.get(c.id) ?? 0;
+        if (owed <= 0) return s;
+        const minRequired = Math.min(Math.max(25, Math.round(owed * 0.02 * 100) / 100), owed);
+        return s + minRequired;
+      }, 0);
+      paidOffPool = Math.min(paidOffPool, Math.max(mDebtCap, cyclingMinTotal));
+    }
 
     // Split `pool` across `cards` proportional to each card's need (per `needFn`), capping each
     // at its own need and redistributing any leftover (from cards whose need was smaller than
@@ -944,11 +1138,11 @@ export function simulateVariablePayoff(
     for (const card of debtCards) {
       // Upfront installment plan (e.g. Chase Plan It): fixed monthly payment on existing balance
       const instBal = installmentBals.get(card.id) ?? 0;
-      if (instBal > 0 && (card.installmentMonthlyPayment ?? 0) > 0) {
-        const instPay = Math.round(Math.min(card.installmentMonthlyPayment!, instBal) * 100) / 100;
-        installmentPayByCard.set(card.id, instPay);
-        upfrontInstPayByCard.set(card.id, instPay);
-        installmentCashCost += instPay;
+      const upfrontDue = Math.round(upfrontDueFor(card, instBal) * 100) / 100;
+      if (upfrontDue > 0) {
+        installmentPayByCard.set(card.id, upfrontDue);
+        upfrontInstPayByCard.set(card.id, upfrontDue);
+        installmentCashCost += upfrontDue;
       }
       // BNPL monthly charge (e.g. Amazon BNPL): charge hits card as new purchase, payment
       // covers it in full — cascade should not also try to pay this portion.
@@ -1019,7 +1213,7 @@ export function simulateVariablePayoff(
       const owed = owedForCard(c.id);
       const instBal = installmentBals.get(c.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);
-      return s + Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
+      return s + revolvingMinDue(c, revOwed);
     }, 0);
 
     // availableCash = what's left above the floor after income, expenses, paid-off costs,
@@ -1032,10 +1226,27 @@ export function simulateVariablePayoff(
       availableCash = 0;
     }
 
-    // Cap debt allocation in save-up months (look-ahead pre-pass set these to ccMinTotal)
-    const mDebtCap = maxDebtPaymentByMonth?.[m];
-    if (mDebtCap !== undefined && isFinite(mDebtCap) && availableCash > mDebtCap) {
-      availableCash = mDebtCap;
+    // Cap debt allocation in save-up months (look-ahead pre-pass set these to ccMinTotal).
+    // B2: the cap can never force the deployable cash below this month's true minimums (totalMins,
+    // now the contract-min sum via revolvingMinDue). Without the max(mDebtCap, totalMins) floor a
+    // save-up cap sized on the 2% formula could drop availableCash below the contract minimums the
+    // cascade is about to enforce, forcing the min-enforcement guard to override it and silently
+    // over-draining cash beyond what the look-ahead reserved. Still bounded above by the real
+    // availableCash, so this never invents cash the month doesn't have.
+    // (mDebtCap hoisted above, before Step 2 — also drives the cycling-pool cap there.)
+    if (mDebtCap !== undefined && isFinite(mDebtCap)) {
+      availableCash = Math.min(availableCash, Math.max(mDebtCap, totalMins));
+    }
+
+    // Convergence target (Phase 2 Option C): the forecast engine's authoritative revolving debt
+    // cash for this month REPLACES the sim's own pool — the engine's cash walk is the source of
+    // truth, so this may push availableCash above what the sim's approximate walk thinks exists
+    // (surplus months) or below it (clamp months). Floored at totalMins so contract minimums are
+    // never violated by a lower target; the cascade below still caps every card at what it owes,
+    // so excess target cash is never spent. Wins over mDebtCap when both are provided.
+    const mDebtTarget = debtCashTargetByMonth?.[m];
+    if (mDebtTarget !== undefined && isFinite(mDebtTarget)) {
+      availableCash = Math.max(mDebtTarget, totalMins);
     }
 
     const payments = new Map<string, number>(cards.map(c => [c.id, 0]));
@@ -1058,7 +1269,7 @@ export function simulateVariablePayoff(
         const owed = owedForCard(card.id);
         const instBal = installmentBals.get(card.id) ?? 0;
         const revOwed = Math.max(0, owed - instBal);
-        const min = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
+        const min = revolvingMinDue(card, revOwed);
         if (remainingForMins >= min) {
           payments.set(card.id, min);
           remainingForMins -= min;
@@ -1093,7 +1304,7 @@ export function simulateVariablePayoff(
         const owedStep5 = owedForCard(card.id);
         const instBal = installmentBals.get(card.id) ?? 0;
         const revOwed = Math.max(0, owedStep5 - instBal);
-        const min = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed, remaining);
+        const min = Math.min(revolvingMinDue(card, revOwed), remaining);
         payments.set(card.id, min);
         remaining -= min;
       }
@@ -1125,7 +1336,7 @@ export function simulateVariablePayoff(
       const instBal = installmentBals.get(card.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);
       const currentPay = payments.get(card.id) ?? 0;
-      const minRequired = Math.min(Math.max(25, Math.round(revOwed * 0.02 * 100) / 100), revOwed);
+      const minRequired = revolvingMinDue(card, revOwed);
       if (currentPay < minRequired && revOwed > 0) {
         payments.set(card.id, minRequired);
       }
@@ -1142,6 +1353,9 @@ export function simulateVariablePayoff(
       const instPayThisMonth = installmentPayByCard.get(card.id) ?? 0;
       const totalPay = Math.round((pay + instPayThisMonth) * 100) / 100;
       monthlyPayments.get(card.id)!.push(totalPay);
+      // `pay` is exactly the Step-5 pool spend (payments map, post-guard); the installment share
+      // is mandatory cash paid outside the pool.
+      monthlyDebtCashPayment.get(card.id)!.push(pay);
       monthlyInterest.get(card.id)!.push(interest);
       totalDebtPayments += totalPay;
 
@@ -1172,12 +1386,20 @@ export function simulateVariablePayoff(
       // change the revolving carry-over calculation.
       const upfrontInstPay = upfrontInstPayByCard.get(card.id) ?? 0;
       const revolvingFinalBal = finalBal - startInstBal + upfrontInstPay; // revolving remaining
+      // Remaining 0%-installment balance AFTER this month's plan payment. A statement card whose
+      // revolving portion is gone may still be carrying a 0% installment (e.g. Prime Visa's Amazon
+      // plan) — retiring it here would set balances to 0 and drop it from debtCards, silently
+      // deleting the installment remainder and halting its fixed monthly payment. Keep it an active
+      // debt card (revolving = 0, so no interest and no surplus target) until the plan amortizes to
+      // $0; only then does it truly reach a zero balance and transition.
+      const remainingInstAfterPay = Math.max(0, Math.round((startInstBal - upfrontInstPay) * 100) / 100);
       if (
         card.paymentPreference === 'statement' &&
         !paidOffCards.has(card.id) &&
         finalBal > 0 &&
         revolvingFinalBal >= 0 &&
-        revolvingFinalBal <= cardPurchasesThisMonth(card) + 0.01
+        revolvingFinalBal <= cardPurchasesThisMonth(card) + 0.01 &&
+        remainingInstAfterPay <= 0.01
       ) {
         paidOffCards.add(card.id);
         paidOffDeferredPurchases.set(card.id,
@@ -1249,6 +1471,9 @@ export function simulateVariablePayoff(
       const backlogPay = backlogPayByCard.get(card.id) ?? 0;
       monthlyPayments.get(card.id)!.push(Math.round((mandatoryPay + backlogPay) * 100) / 100);
       monthlyMandatoryCyclingPayment.get(card.id)!.push(mandatoryPay);
+      // Only the backlog-cascade share came out of the Step-5 debt-cash pool; the mandatory
+      // statement was funded by the Step-2 cycling pool.
+      monthlyDebtCashPayment.get(card.id)!.push(backlogPay);
     }
     // debtCards never overlap with paidOffCardsThisMonth, so they need their own (mandatory-only,
     // i.e. zero) entry to keep this array aligned with monthlyPayments for every card/month.
@@ -1306,6 +1531,7 @@ export function simulateVariablePayoff(
     monthlyCyclingInterest,
     monthlyInterest,
     monthlyMandatoryCyclingPayment,
+    monthlyDebtCashPayment,
     monthlyCyclingBacklog,
     projectedPayoffMonths,
     cashFloorBreaches,
@@ -1338,6 +1564,11 @@ export function generateRecommendations(
   primaryDueDay?: number,
   monthlySavingsAndCar?: number,
   syncCutoffDate?: string,
+  // Remaining-this-month cash outflow from payment plans sourced from the funding/checking account
+  // (not credit-card-sourced plans, which hit card balances). These are real upcoming outflows that
+  // reduce the cash available to deploy toward debt, but they don't appear in the transaction stream,
+  // so subtract them from availableAboveFloor below. Already cutoff-scoped by the caller.
+  month0PlanOutflow = 0,
 ): RecommendationSummary {
   // Preference cards = zero-balance cycling cards only (balance <= 0 encoded in autopayFullBalance).
   // Positive-balance full/statement cards compete under normal strategy in revolvingCards —
@@ -1362,6 +1593,10 @@ export function generateRecommendations(
 
   let remainingTransactionIncome = 0;
   let remainingTransactionExpenses = 0;
+  // Whether we fell back to the monthlyExpenses scalar (which already has plan cash outflow folded
+  // in by the caller). In that degenerate no-transactions/no-rules case, don't subtract
+  // month0PlanOutflow again below — it would double-count.
+  let usedScalarExpenses = false;
 
   if (transactions && transactions.length > 0) {
     const fundingSources = fundingAccountId
@@ -1378,6 +1613,7 @@ export function generateRecommendations(
   } else {
     remainingTransactionIncome = monthlyTakeHome;
     remainingTransactionExpenses = monthlyExpenses;
+    usedScalarExpenses = true;
   }
 
   const remainingPaycheckIncome = remainingTransactionIncome;
@@ -1391,8 +1627,11 @@ export function generateRecommendations(
 
   // Preference cards (statement/full) are allocated first, capped by cash above floor.
   // Subtract outflows (bank bills through due date) so upcoming expenses aren't ignored.
+  // Payment-plan cash outflows (checking-sourced) don't appear in the transaction stream, so
+  // subtract them here too — otherwise they never reduce the cash available to deploy toward debt.
+  const planOutflow = usedScalarExpenses ? 0 : month0PlanOutflow;
   const availableAboveFloor = Math.max(0,
-    effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum
+    effectiveFundingBalance + totalRemainingIncome - totalRemainingOutflows - recommendedSafeMinimum - planOutflow
   );
   let preferencePool = availableAboveFloor;
   let autopayTotal = 0;
@@ -1623,7 +1862,7 @@ function buildCurrentMonthRecommendationSummary(
     cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses + extraMonthlyExpenses,
     'variable', pc, rules, fundingAccountId, safeMinimumOverride ?? ppBills, fundBal,
     undefined, undefined, transactions, primaryDueDay, monthlySavingsAndCar,
-    syncCutoffDate,
+    syncCutoffDate, extraMonthlyExpenses,
   );
 }
 
