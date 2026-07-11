@@ -1,61 +1,79 @@
-# Handoff — 2026-07-09 (session 5) — branch debt-model-fixes-p0 — Feb breach FIXED + income model unified
+# Handoff — 2026-07-11 — branch main — Discover payoff "2yr+ out" regression under diagnosis
 
-## TL;DR — work is essentially COMPLETE, just needs a fresh-context sanity pass
-Two things shipped and committed this session (never pushed):
-1. **`4ae12fc0`** — Feb 2027 floor breach FIXED (sim payday-count aligned with engine). This alone
-   closed the P0: converges 11 passes, payoff **Jun 2027**, **zero breaches**.
-2. **`4d45c27c`** — sim+engine income model UNIFIED (step 3, user-requested). Shared pure module
-   `src/lib/income-model.ts` (`computeBonusAndTax`, `computeAnnualFederalWithheld`) called by BOTH
-   the engine and the sim, so the CC-projection popup income now matches the engine (tax estimator
-   + gross-basis bonus + no nonPaycheck over-scaling). Engine output byte-identical (golden Tier-A
-   green). Full suite: **157 tests pass, tsc clean**.
+## Active task (UNFINISHED — resume here)
+User reports: **Discover credit card is paying off ~2yr+ out** on BOTH the Debt Payoff page ETA
+AND the Forecast chart, on the **deployed live site**, "when there is definitely extra cash on
+hand next year." The word "again" implies a regression from previously-correct behavior.
 
-Also `7b69ec83` is the interim handoff commit. HEAD = `4d45c27c`.
+### What is verified so far
+1. **Deployment is current.** Production (Vercel prj_rzrXx0dwi717dwKUpOgNJRKod2Ef, team
+   team_FKbAQyy6nIKrEuu8DdUV5Y9w) serves commit **cc6d7cbc** (state READY, target production).
+   So the user is seeing the LATEST code, which includes all feature work + all 6 Discover fixes.
+2. **The merge is NOT the cause.** `git merge-base --is-ancestor ad16ff6b d116e466` = YES: the
+   last-good main (ad16ff6b, containing all 6 Discover surplus-routing fixes 88644867..ad16ff6b)
+   is an ANCESTOR of the feature branch. So debt-model-fixes-p0 is a proper SUPERSET of old main;
+   the `--no-ff` merge dropped nothing (HEAD's 4 overlapping files are byte-identical to the
+   feature version, which is correct). Earlier "merge clobbered it" hypothesis was DISPROVEN (my
+   `git diff 051da612~6 051da612` used the wrong commit range and misled me).
+3. **Stale fixture shows GOOD behavior — does NOT reproduce.** Ran a temp per-card diagnostic
+   (pattern below) against the gitignored fixture `src/lib/__tests__/fixtures/forecast-inputs.real.json`
+   (capturedAt **2026-07-03**). Result: Discover clears ~month 9 (**Apr 2027**), Prime ~month 11
+   (**Jun 2027**), CC Debt Free Jun 2027, converged 5 passes. Cash only piles up AFTER payoff
+   (m10 endingCash 5906 → m39 42436). So on 8-day-old data, Discover is NOT far out.
 
-## What changed (files)
-- NEW `src/lib/income-model.ts` — shared income helpers (pure).
-- `src/lib/forecast-engine.ts` — bonus/tax now via `computeBonusAndTax`; dropped direct
-  tax-estimator imports. Byte-identical output.
-- `src/hooks/useCardProjection.ts` — sim income mirrors engine i>0 exactly (adjustedConfig paycheck
-  + shared bonus/tax); assumptions type gained optional tax-identity fields; computes
-  `simAnnualFederalWithheld` from profile.
-- `src/hooks/useForecastEngineInputs.ts` — annualFederalWithheldFromBudget via shared helper.
-- `src/contexts/CardProjectionContext.tsx` — threads the 4 tax-identity fields into the sim.
-- `src/lib/forecast-convergence.ts` — default `maxPasses` 8 → 12 (fixture needs 11).
-- `src/lib/__tests__/forecast-convergence.realData.test.ts` — unpinned (`.fails` removed), TODO
-  rewritten, tax fields added to its projectionAssumptions.
-- Backups: `backups/2026-07-09_232129/` (P0 fix) + `backups/2026-07-09_step3/` (step 3).
+### Root-cause hypothesis (next agent: START HERE)
+The trigger is in the user's **CURRENT data** (newer than 2026-07-03), interacting with the
+feature-branch engine changes that went LIVE FOR THE FIRST TIME TODAY (income unification
+`4d45c27c`, forecast-engine + cycling-model refactor). The 2026-07-03 fixture predates whatever
+data condition (new expense / car fund / balance / income change) now pushes Discover out.
+**You cannot reproduce without fresh data.**
 
-## Verification done
-- `npx tsc --noEmit` → clean.
-- `npx vitest run` → 42 files / 157 tests pass (golden Tier-A byte-identical; realData converges,
-  Jun 2027, zero floor breaches).
+### NEXT STEP — reproduce with CURRENT data
+1. Refresh the gitignored fixture with the user's current state. Options:
+   - (a) Browser-console capture on the live Forecast page. No ready snippet exists; capture uses
+     `serializeForecastCapture(inputs)` from `src/lib/__tests__/fixtures/forecast-fixture-io.ts`
+     (Map/Set-safe). Would need to expose the ForecastInputs (from useForecastEngineInputs /
+     CardProjectionContext) on `window` temporarily, or use claude-in-chrome on the user's logged-in
+     tab.
+   - (b) Pull current rows from Supabase (project **mdtosrbfkextcaezuclh**, user_id
+     **a72f416e-433a-4055-9ab0-9feae4e60edf**) and rebuild the fixture. Heavier.
+   - NEVER commit the fixture (gitignored). Pin Date via fake timers to capturedAt.
+2. Re-run the per-card diagnostic (below) on fresh data. If Discover now clears far out (e.g.
+   month 20+) while endingCash sits high with revolving balance still > 0, that confirms the
+   engine is hoarding cash instead of routing surplus to Discover — the real bug. Then trace
+   surplus routing: `perCardPaymentsScaled[].surpluses`, the step-3 extra routing
+   (`cumulativeStep3Extra` now in `src/lib/step3-display.ts` + `forecast-engine.ts`), and the
+   avalanche cascade in `src/lib/credit-card-engine.ts` (Step 5).
 
-## Suggested fresh-context sanity pass (optional, low priority)
-The refactor is test-green, but a next agent with fresh budget could:
-1. Rebuild the temp diagnostic (pattern below) and eyeball that the SIM's per-month income now
-   equals the ENGINE's (esp. Feb m7: pay 4408 + bonus 2170 + tax −2410). Parity is guaranteed by
-   construction, so this is just belt-and-suspenders.
-2. Confirm nothing regressed in the live app popup (manual, if desired).
+### Diagnostic harness (reusable — mirrors realData test)
+Copy the renderHook block from `src/lib/__tests__/forecast-convergence.realData.test.ts` into a
+temp `src/lib/__tests__/discdiag.tmp.test.ts` (@vitest-environment jsdom, fake Date pinned to
+capturedAt). Run `runDebtCashConvergence(base!, inputs, { engine, maxPasses: 20 })`. Dump per-card:
+`base.perCardPaymentsScaled` (name/payments/surpluses) + `base.monthlyRevolvingBalances.get(id)`
+(→ clearsAt = first index ≤ 0.5) and per-month `out.projections.data[m]`
+(debtPayment/endingCash/monthMinSafe). writeFileSync JSON to scratchpad (console.log is swallowed).
+DELETE the temp test after (it lives in src/, must not persist or ship).
 
-### Diagnostic harness (reusable)
-Copy the realData test's renderHook block into `src/lib/__tests__/febdiag.tmp.test.ts`, run
-`runDebtCashConvergence(base!, inputs, { maxPasses: 20 })`, and `writeFileSync` a JSON of
-`out.projections.data[m]` fields (paycheckIncome/otherIncome/bonusIncome/taxReturnIncome/
-startingCash/endingCash/debtPayment/monthMinSafe) + `maxDebtPaymentByMonth[m]` to scratchpad
-(console.log is swallowed by this vitest config). DELETE the temp test after. Real fixture is
-gitignored, NEVER commit: `src/lib/__tests__/fixtures/forecast-inputs.real.json` (capturedAt
-2026-07-03; pin Date via fake timers — realData test shows the setup).
-
-## Remaining optional item (was step 2 — recommend SKIP)
-The cap fix (bind sim cycling pool to mDebtCap pre-payoff) is unnecessary now and its premise was
-disproven: the diag showed Feb's `mDebtCap` is `inf` (uncapped), not floor-safe. Only revisit if a
-future fixture reintroduces a breach — and it would need a different cash ceiling, not mDebtCap.
+## Completed & shipped THIS session (all committed + pushed to main/live)
+- **Sanity pass** on the Feb-breach + income-unification work: tsc clean, full suite green.
+  Confirmed Feb m7 income anchor (pay 4408 + bonus 2170 + tax −2410); zero floor breaches.
+- **Guard test** `src/lib/__tests__/income-model.test.ts` (6 tests) pinning `computeBonusAndTax`
+  invariants (gross-basis bonus, negative/owed tax pass-through, off-month zeroing, non-recurring
+  first-occurrence). Commit 5c5556ef.
+- **Merged** debt-model-fixes-p0 → main (22caf1f1) and pushed live. Branch also pushed to origin.
+- **Dependabot:** untracked backup dependency manifests + gitignored them (commit cc6d7cbc),
+  dismissed alert #54 (js-yaml in backups/ — false positive; live root tree already on 4.2.0).
+  0 open alerts. Note: dependabot.yml `directory:"/"` only scopes update PRs, not security alerts.
+- **Cap fix question answered:** the "incorrect cap fix" was NEVER in the code — only a proposed
+  step that was correctly skipped. Live code has only the correct discretionary-only cap
+  (`credit-card-engine.ts:1008`, gated by allRevolvingClear). No change needed.
 
 ## Anchors
-- Branch `debt-model-fixes-p0`, HEAD `4d45c27c`. Never push. Milestone floor check uses `cashFloor`
-  ($2800). Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf.
+- HEAD = cc6d7cbc on main (= live). Full suite: 43 files / 163 tests green, tsc clean.
+- Debt result type fields: `src/lib/debt-model-types.ts` (perCardPaymentsScaled L47,
+  monthlyRevolvingBalances L48, forecastRevolvingPayoffMonth L91).
+- Never push without explicit ask (user asked this session). Milestone floor uses cashFloor $2800.
 
 ## Failed hypotheses (do not revisit)
-- Cap fix as the P0 fix: unnecessary + mDebtCap-floor-safe premise was wrong (Feb mDebtCap = inf).
-- m0 breach (old realData TODO): stale, fixed in session 2.
+- "Merge clobbered the 6 Discover fixes" — DISPROVEN (ad16ff6b is an ancestor of the feature branch).
+- Reproducing on the 2026-07-03 fixture — shows GOOD behavior; wrong (stale) data, will mislead.
