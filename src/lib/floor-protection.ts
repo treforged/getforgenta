@@ -195,5 +195,26 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     }
   }
 
+  // TEMP DEBUG INSTRUMENTATION (dev-only) — 2026-07-11 Discover 2yr-payoff diagnosis.
+  // Dumps the real per-month arrays so we can see whether reserveNeeded genuinely over-accumulates
+  // (algorithm bug) or is driven by bad inputs (floor/expense construction bug). REMOVE after.
+  try {
+    const g = globalThis as unknown as { __floorDumps?: unknown[]; __DEV__?: boolean };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isDev = (import.meta as any)?.env?.DEV ?? true;
+    if (isDev) {
+      (g.__floorDumps ??= []).push({
+        capturedAt: new Date().toISOString(),
+        startingBalance, ccMinTotal,
+        incomeByMonth, expenseByMonth, oneTimeNetByMonth, carDownPaymentByMonth,
+        floorByMonth, netAtMin,
+        reserveNeeded: reserveNeeded.slice(0, PROJECTION_MONTHS),
+        maxDebtPaymentByMonth,
+        saveUpMonths: Array.from(saveUpMonths).sort((a, b) => a - b),
+        strictSaveUpMonths: Array.from(strictSaveUpMonths).sort((a, b) => a - b),
+      });
+    }
+  } catch { /* noop */ }
+
   return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason };
 }
