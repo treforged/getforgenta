@@ -32,9 +32,15 @@ export default function DebtPayoff() {
     pauseSavings,
     setPauseSavings,
   } = useCardProjectionContext();
-  // Use hook's pre-computed per-card revolving balances with step-3 surplus applied in avalanche
-  // order — always available from the hook, no Forecast tab navigation required.
-  const forecastAdjustedRevolvingBalances = cardProjection?.forecastAdjustedRevolvingBalances ?? null;
+  // The Debt Payoff accordion + trajectory display per-card balances via the shared step3-display
+  // adjustment (sim balance minus cumulative PASS-3 surplus routed to the card) so they match the
+  // Forecast month popup and CSV export. Unlike the earlier reverted
+  // "forecastAdjustedRevolvingBalances" overlay — which subtracted the surplus WITHOUT a matching
+  // payment line, so balances dropped faster than the shown payment — the accordion now also shows
+  // the surplus-redirect line each month, so rows reconcile:
+  // End = Start + purchases + interest − payment − surplus. Raw sim balances remain the model
+  // (projectCardVariable inputs and payoff detection untouched); ETA tracks the sim's real
+  // revolving-$0 month (see CreditCardEngine).
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -374,7 +380,6 @@ export default function DebtPayoff() {
           paymentPlans={paymentPlans ?? []}
           forecastRevolvingPayoffMonth={cardProjection?.forecastRevolvingPayoffMonth ?? null}
           simRevolvingPayoffMonth={cardProjection?.simRevolvingPayoffMonth ?? null}
-          forecastAdjustedRevolvingBalances={forecastAdjustedRevolvingBalances}
           pauseSavings={pauseSavings}
         />
       )}

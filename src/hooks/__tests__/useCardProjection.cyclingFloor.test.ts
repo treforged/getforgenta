@@ -104,18 +104,30 @@ describe('useCardProjection floor-breach protection (cycling-card baseline payme
     for (let m = 1; m <= 3; m++) {
       expect(seriesA.payments[m]).toBeLessThanOrEqual(cardA.minPayment + 1);
     }
-    // Card B (cycling) must get its full $600 statement every active month, including the
-    // annual-bill month itself — locking in a separate, previously-unnoticed bug this exact
-    // fixture also had: the simulation's revolving-minimum reservation double-counted dollars the
-    // augmented floor had already set aside for Card A, squeezing Card B's pool and shorting it to
-    // $0 in the annual-bill month (with an $800 catch-up the month after). Once Card B is no
-    // longer shorted, the look-ahead correctly sees a bigger true expense in that month and
-    // reserves for it starting from month 0 — so Card A's month-0 payment is now also capped to
-    // the minimum. That's the more accurate outcome, not a regression: the old "month 0 gets
-    // extra" behavior relied on Card B's true obligation being under-counted.
-    for (let m = 1; m <= 5; m++) {
+    // Card B (cycling) must get its full $600 statement every active month — guarding against the
+    // double-reservation bug this fixture originally exposed, where the simulation's revolving-min
+    // reservation double-counted dollars the augmented floor had already set aside for Card A,
+    // squeezing Card B's pool and shorting it to $0 in the annual-bill month (with an $800 catch-up
+    // the month after). All pre-bill months and the recovery month must be fully funded.
+    const billMonth = 4; // annual bill lands at now.getMonth() + 4 (see annualTarget above)
+    for (const m of [1, 2, 3]) {
       expect(seriesB.payments[m]).toBeCloseTo(600, 0);
     }
+    // The annual-bill month itself is the single tightest month. Card A now pays its full $200
+    // CONTRACT minimum every month (revolvingMinDue) instead of the ~$122 2%-formula figure the old
+    // engine under-paid — the correct, lender-required behavior. That extra ~$78/mo is no longer
+    // available to bank toward the bill, and this fixture's cash flow is calibrated right at its
+    // feasibility edge, so paying Card B its full $600 in the bill month would dip checking ~$36
+    // below the $2,000 floor. The engine correctly protects the floor instead, so Card B takes a
+    // small, bounded dip that cycling's water-filling fully recovers the very next month. A dip of
+    // this size is nowhere near the ~$120 (to $480) / $0 shortfalls the double-reservation bug
+    // produced, so this still fails loudly if that regresses.
+    expect(seriesB.payments[billMonth]).toBeGreaterThanOrEqual(560);
+    expect(seriesB.payments[billMonth]).toBeLessThanOrEqual(601);
+    expect(seriesB.payments[billMonth + 1]).toBeGreaterThanOrEqual(600); // fully recovers next month
+    // Card A is capped to its minimum in the pre-bill save-up months (months 0-3), and that minimum
+    // is now its true $200 contract min. The look-ahead reserves for the bill from month 0, so even
+    // month 0's payment sits at the minimum rather than getting cascade surplus.
     for (let m = 0; m <= 3; m++) {
       expect(seriesA.payments[m]).toBeLessThanOrEqual(cardA.minPayment + 1);
     }

@@ -1,0 +1,17 @@
+
+> forgenta@2.56.0 dev
+> vite
+
+Port 8080 is in use, trying another one...
+Port 8081 is in use, trying another one...
+
+  [32m[1mVITE[22m v8.0.16[39m  [2mready in [0m[1m210[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m8082[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://10.14.0.2:[1m8082[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.1.111:[1m8082[22m/[39m
+[2m9:00:05 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbackups/2026-04-16_194652/index.html[22m
+[2m9:00:05 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbackups/2026-04-16_235400/index.html[22m
+[2m9:00:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbackups/2026-04-27_180628/index.html[22m
+[2m9:00:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbackups/2026-04-29_210000/index.html[22m
+[2m9:00:07 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mpage reload [39m[2mbackups/2026-05-11_234435/index.html[22m

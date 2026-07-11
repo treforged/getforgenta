@@ -13,6 +13,40 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/tvonh/Desktop/getforgenta/.claude/hooks/context-gate.mjs\"",
+            "timeout": 15,
+            "statusMessage": "context-gate: checking context usage"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"C:/Users/tvonh/Desktop/getforgenta/.claude/hooks/lean-fix-router.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"const fs=require('fs');if(fs.existsSync('handoff.md')){console.log(JSON.stringify({hookSpecificOutput:{hookEventName:'SessionStart',additionalContext:'handoff.md exists at the repo root. Read it in full before starting any work - it may contain an in-progress handoff from a previous session (goals, current state, active files, changes made, failed attempts, next steps).'}}))}\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",

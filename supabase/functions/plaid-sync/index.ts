@@ -319,8 +319,19 @@ Deno.serve(async (req) => {
             console.warn(`Liabilities non-OK for item ${item.plaid_item_id}:`, JSON.stringify(errBody));
           }
 
+          // Cards whose min_payment the user marked as manually set are NEVER overwritten by
+          // sync — neither by the Plaid liability value nor by the formula fallback below.
+          const { data: manualRows } = await supabase
+            .from("accounts")
+            .select("plaid_account_id")
+            .eq("user_id", userId)
+            .in("plaid_account_id", itemCreditCardIds)
+            .eq("min_payment_is_manual", true);
+          const manualMinIds = new Set((manualRows ?? []).map((r: any) => r.plaid_account_id as string));
+
           for (const plaidAccountId of itemCreditCardIds) {
             const liab = creditDataMap.get(plaidAccountId);
+            const minIsManual = manualMinIds.has(plaidAccountId);
             const updateFields: Record<string, unknown> = { liability_synced_at: now };
 
             if (liab) {
@@ -330,11 +341,11 @@ Deno.serve(async (req) => {
               const liabLimit = liab.credit_limit != null ? Number(liab.credit_limit) : null;
               if (liabApr   !== null) { updateFields.apr = liabApr; updateFields.apr_plaid_synced = true; }
               if (liabLimit !== null) updateFields.credit_limit = liabLimit;
-              if (liabMin   !== null) { updateFields.min_payment = liabMin; updateFields.min_payment_plaid_synced = true; }
+              if (liabMin !== null && !minIsManual) { updateFields.min_payment = liabMin; updateFields.min_payment_plaid_synced = true; }
             }
 
             // Fallback: estimate min_payment from APR + balance when Plaid omits it
-            if (updateFields.min_payment === undefined) {
+            if (updateFields.min_payment === undefined && !minIsManual) {
               const { data: snap } = await supabase
                 .from("accounts")
                 .select("balance, apr")

@@ -2,15 +2,18 @@ import { useMemo } from 'react';
 import { formatCurrency } from '@/lib/calculations';
 import { attachSimDebug } from '@/lib/simDebug';
 import {
-  buildCardData, simulateVariablePayoff, projectCardVariable,
-  CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS,
+  buildCardData, simulateVariablePayoff, projectCardVariable, buildPaymentLedger,
+  CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue,
 } from '@/lib/credit-card-engine';
-import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, getPlanProgress } from '@/lib/payment-plan-generator';
+import { buildResimOverrides } from './cardProjectionResim';
+import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getMinSafeCash, getAugmentedMinSafeCash,
   getNormalizedMonthNetIncome, getMonthNetIncome,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
+import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-model';
+import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import type { Tables } from '@/integrations/supabase/types';
@@ -18,102 +21,11 @@ import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
 import type { ScheduledEvent } from '@/lib/scheduling';
 import type { CarFund } from '@/lib/types';
-
-export interface Month0Result {
-  safeToPayTotal: number;
-  maxCapacity: number;
-  holdback: number;
-  holdbackEvent: { eventName: string; monthLabel: string } | null;
-  cyclingPayment: number;
-  revolvingPayment: number;
-  perCardAdjusted: { id: string; name: string; payment: number; maxPayment: number }[];
-  m0SafeFloor: number;
-  /** Cash being set aside this month toward a saving-phase vehicle's down payment. Still the
-   * user's own cash (hasn't left any account) — excluded from debt-payment capacity above, but
-   * should be shown as cash on hand with this note, not subtracted as if it were a real expense. */
-  carReserve: number;
-  carReserveEvent: { vehicleName: string } | null;
-  /** Subtracted from cashPreDebt above — surface these so any UI deriving "available to deploy"
-   * from visible line items (Dashboard) can show them, instead of having them only affect the
-   * total invisibly. */
-  vehicleInsurance: number;
-  mortgagePayment: number;
-}
-
-export interface ProjectionDataRow {
-  month: string;
-  totalCCBalance: number;
-  displayCCBalance: number;
-  totalInterest: number;
-  utilization: number;
-  [cardName: string]: string | number;
-}
-
-export interface CardProjectionResult {
-  data: ProjectionDataRow[];
-  cards: { name: string; color: string }[];
-  simCards: CardData[];
-  debtPaymentTotals: number[];
-  allPaymentTotals: number[];
-  perCardPayments: { name: string; id: string; payments: number[] }[];
-  perCardPaymentsScaled: { name: string; id: string; payments: number[]; surpluses: number[] }[];
-  monthlyRevolvingBalances: Map<string, number[]>;
-  monthlyBalances: Map<string, number[]>;
-  perCardMinPayments: Map<string, number[]>;
-  /** True amount owed at the start of each cycling billing cycle (principal + any carried
-   * interest), before that month's payment. Lets other consumers of this hook's sim (e.g.
-   * CreditCardEngine.tsx's accordion) show the same Start/End figures as the Forecast popup,
-   * instead of falling back to a separate, independently-converging local simulation. */
-  monthlyCyclingOwed: Map<string, number[]>;
-  /** Interest charged on a cycling card's carried-forward unpaid balance, per month. */
-  monthlyCyclingInterest: Map<string, number[]>;
-  /** Interest actually charged on a REVOLVING (non-cycling) card's starting balance each month
-   * (Step 3's real calc). Ground truth so projectCardVariable's revolving branch can show the
-   * engine's real interest instead of back-solving it from whatever payment ends up displayed —
-   * which may be a cash-floor-scaled amount different from the payment that produced the balance. */
-  monthlyInterest: Map<string, number[]>;
-  /** A cycling card's accumulated backlog (unpaid statement debt), end-of-month post-payment.
-   * Lets callers (e.g. Dashboard.tsx/Forecast.tsx's own getAugmentedMinSafeCash calls) keep their
-   * displayed "Cash Floor" in lockstep with simulateVariablePayoff's own double-reservation guard
-   * for backlog cards — see pay-schedule.ts's getAugmentedMinSafeCash. */
-  monthlyCyclingBacklog: Map<string, number[]>;
-  /** Mandatory statement payment made to each cycling card per month (before backlog cascade).
-   * Exposed so simDebug and other consumers can distinguish mandatory vs discretionary payments. */
-  monthlyMandatoryCyclingPayment: Map<string, number[]>;
-  /** Per-month cap on Step-5 debt payments from the look-ahead floor-protection pass.
-   * Infinity = uncapped; finite = save-up month. Exposed for debugging interest-accrual causes. */
-  maxDebtPaymentByMonth: number[];
-  m0Income: number;
-  m0Expenses: number;
-  m0SafeFloor: number;
-  saveUpMonths: Set<number>;
-  /** Strictly-before-the-breach months only (never the event's own month) — see the
-   * strictSaveUpMonths comment near its definition. Forecast.tsx uses this (not saveUpMonths)
-   * to gate its own surplus-redirect step, since the event's own month should still be eligible
-   * for redirecting any genuine surplus left over once its own protection is already in place. */
-  strictSaveUpMonths: Set<number>;
-  saveUpReason: Map<number, { eventName: string; monthLabel: string }>;
-  /** 1-indexed month count (matches payoffMonth convention) when the virtual revolving balance
-   * first reaches zero in the pass-3 simulation — mirrors Forecast.tsx's CC Debt Free milestone
-   * so the Debt Payoff tab's PAYOFF ETA shows the same projected payoff date. Null if revolving
-   * debt is not cleared within PROJECTION_MONTHS. */
-  forecastRevolvingPayoffMonth: number | null;
-  /** 1-indexed month when the simulation's total revolving balance (across all revolving cards)
-   * first hits $0 — based on activeSim.monthlyRevolvingBalances, which reflects the actual
-   * per-card payoff schedule including "full" preference cards like Discover. Used by the
-   * Debt Payoff tab's PAYOFF ETA so it aligns with when the SIM truly clears all revolving debt. */
-  simRevolvingPayoffMonth: number | null;
-  /** Per-card revolving balance trajectory with step-3 surplus applied cumulatively in avalanche
-   * order — mirrors Forecast.tsx's adjustedRevBal = max(0, simBal - cumulativeStep3Extra) per card.
-   * Use as both revBals and trueBalances in projectCardVariable so the Debt Payoff chart and
-   * per-card payoff label match the Forecast's CC Debt Free milestone timing. */
-  forecastAdjustedRevolvingBalances: Map<string, number[]>;
-  /** Cumulative total step-3 surplus routed to revolving debt up to and including month m.
-   * Mirrors Forecast.tsx's cumulativeStep3Extra so DebtPayoff can distribute it per-card without
-   * depending on Forecast.tsx being rendered. Indexed 0..PROJECTION_MONTHS-1. */
-  forecastStep3ExtraByMonth: number[];
-  month0: Month0Result;
-}
+// Moved to a shared lib module (Stage 1, .claude/plan/unify-cycling-model.md) so pure lib code
+// can reference these shapes without importing from a hook. Re-exported here unchanged so
+// existing `from '@/hooks/useCardProjection'` imports keep working.
+import type { Month0Result, ProjectionDataRow, CardProjectionResult } from '@/lib/debt-model-types';
+export type { Month0Result, ProjectionDataRow, CardProjectionResult };
 
 export interface UseCardProjectionParams {
   accounts: AccountRow[];
@@ -146,6 +58,13 @@ export interface UseCardProjectionParams {
     taxReturnEnabled: boolean;
     taxReturnAmountOverride?: number;
     taxReturnMonth: number;
+    // Tax-estimator identity inputs — mirror the engine so the sim runs the same estimator
+    // (omitting these made the sim skip the tax-return injection entirely). Optional: default to
+    // DEFAULT_ASSUMPTIONS values inside computeBonusAndTax when a caller doesn't supply them.
+    taxReturnFilingStatus?: FilingStatus;
+    taxReturnDependents?: number;
+    taxReturnState?: string;
+    taxReturnFederalWithheld?: number;
     promotions?: { id: string; effectiveDate: string; newAnnualSalary: number }[];
   };
 }
@@ -167,34 +86,29 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const todayStr = now.toISOString().split('T')[0];
 
       // ── Plan-derived installment fields (upfront plans override manual Accounts tab fields) ──
-      // Active upfront plans (Chase Plan It style) have their remaining balance and monthly
-      // payment aggregated per card. Multiple plans on the same card are summed.
-      const cardIdsSet = new Set(rawCards.map(c => c.id));
-      // payment_source values in payment_plans are stored as 'account:UUID' (from paymentSourceOptions).
-      // This map normalizes both 'UUID' and 'account:UUID' to the bare card ID so all plan lookups
-      // below resolve correctly regardless of which format is stored.
+      // Shared derivation (deriveUpfrontPlanFields) — the SAME function CreditCardEngine.tsx's
+      // internal sim uses, so both tabs model card-charged upfront plans identically. Installment
+      // due dates are anchored to the card's due date one full statement cycle after the purchase
+      // (purchased Jun 23, due day 7 → first installment Aug 7), NOT the purchase date — anchoring
+      // at start_date counted installments as paid before they were ever due, which understated
+      // the 0% carve-out and leaked plan principal into the revolving balance at the card's full
+      // APR (the avalanche then flooded that phantom high-APR debt with surplus while real
+      // interest-accruing cards sat at their minimums).
+      // payment_source values in payment_plans are stored as 'account:UUID' (from
+      // paymentSourceOptions); deriveUpfrontPlanFields normalizes both forms internally.
       const sourceToCardId = new Map<string, string>(
         rawCards.flatMap(c => [[c.id, c.id], [`account:${c.id}`, c.id]]),
       );
+      const { installmentByCard, upfrontPayByMonth } = deriveUpfrontPlanFields(
+        rawCards, paymentPlans ?? [], PROJECTION_MONTHS, now, syncCutoffDate,
+      );
       const cards = rawCards.map(card => {
-        const cardUpfrontPlans = (paymentPlans ?? []).filter(p =>
-          p.active && p.plan_type === 'upfront' && sourceToCardId.get(p.payment_source ?? '') === card.id,
-        );
-        if (cardUpfrontPlans.length === 0) return card;
-        let totalInstBal = 0;
-        let totalInstMonthly = 0;
-        for (const plan of cardUpfrontPlans) {
-          const { remaining } = getPlanProgress(plan);
-          totalInstBal += Math.max(0, remaining * plan.payment_amount);
-          totalInstMonthly += plan.payment_amount;
-        }
-        // Cap installment balance at the card's live balance — the payment plan's total may
-        // exceed what Plaid reports if the user entered an amount larger than the charge.
-        const cappedInstBal = Math.min(Math.round(totalInstBal * 100) / 100, card.balance);
+        const derived = installmentByCard.get(card.id);
+        if (!derived) return card;
         return {
           ...card,
-          installmentBalance: cappedInstBal,
-          installmentMonthlyPayment: Math.round(totalInstMonthly * 100) / 100,
+          installmentBalance: derived.balance,
+          installmentMonthlyPayment: derived.monthlyPayment,
         };
       });
 
@@ -533,12 +447,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return vehicleForecastByMonth.reduce((s, v) => {
-          // Month 0: skip items whose due date is already past syncCutoffDate — Plaid balance
-          // already reflects them; counting them again understates available cash.
+          // Month 0: skip items whose due date is strictly before syncCutoffDate — Plaid balance
+          // already reflects them; counting them again understates available cash. Dues ON the
+          // cutoff day count as not-yet-captured (strict <), so a charge landing the same day
+          // Plaid last synced still shows in month 0.
           const insuranceSynced = m === 0 && v.insuranceDueDay !== null
-            && `${mk}-${String(v.insuranceDueDay).padStart(2, '0')}` <= m0SyncCutoff;
+            && `${mk}-${String(v.insuranceDueDay).padStart(2, '0')}` < m0SyncCutoff;
           const paymentSynced = m === 0 && v.paymentDueDay !== null
-            && `${mk}-${String(v.paymentDueDay).padStart(2, '0')}` <= m0SyncCutoff;
+            && `${mk}-${String(v.paymentDueDay).padStart(2, '0')}` < m0SyncCutoff;
           // Insurance follows insuranceStartMonthIdx — defaults to purchaseMonthIdx unless the
           // user set a separate insurance_start_date (e.g. coverage starts a month later).
           const insurance = m >= v.insuranceStartMonthIdx && !insuranceSynced ? v.insurance : 0;
@@ -583,12 +499,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             return monthsBetween(insuranceAnchor, dStr) >= 0;
           })
           .filter(cf => {
-            // Month 0: skip if insurance due day already past syncCutoffDate (Plaid captured it).
+            // Month 0: skip if insurance due day is strictly before syncCutoffDate (Plaid captured
+            // it). Dues ON the cutoff day stay in month 0 — same strict-< rule as
+            // getVehicleExtrasForMonth's insuranceSynced/paymentSynced gates above.
             if (i !== 0) return true;
             const dueDayBasis = cf.insurance_start_date ?? cf.payment_start_date ?? cf.loan_start_date;
             if (!dueDayBasis) return true;
             const insurDay = new Date(dueDayBasis + 'T00:00:00').getDate();
-            return `${mk}-${String(insurDay).padStart(2, '0')}` > m0SyncCutoff;
+            return `${mk}-${String(insurDay).padStart(2, '0')}` >= m0SyncCutoff;
           })
           .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
       });
@@ -599,6 +517,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       );
       const simTransferRules = rules.filter(r => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
       let simIncMult = 1;
+      // Same annualized Federal Withholding the engine feeds the tax estimator (from Budget
+      // Control's paycheck deductions) so the sim's tax-return injection matches the engine's.
+      const simAnnualFederalWithheld = computeAnnualFederalWithheld(
+        payConfig,
+        profile?.paycheck_deductions as { value: number; mode: string; label?: string }[] | null,
+      );
       const simSortedPromotions = [...(assumptions.promotions ?? [])].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
       let simNextPromotionIdx = 0;
       const simFirstBonusIdx = (!assumptions.bonusRecurring && assumptions.bonusEnabled && assumptions.bonusAmount > 0)
@@ -632,17 +556,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             simIncMult *= (1 + assumptions.incomeGrowth / 100);
           }
         }
-        let bonusTaxInc = 0;
-        if (assumptions.bonusEnabled && assumptions.bonusAmount > 0 && d.getMonth() + 1 === assumptions.bonusMonth) {
-          if (assumptions.bonusRecurring || idx === simFirstBonusIdx) {
-            bonusTaxInc += assumptions.bonusMode === 'pct'
-              ? monthlyTakeHome * 12 * simIncMult * (assumptions.bonusAmount / 100)
-              : assumptions.bonusAmount;
-          }
-        }
-        if (assumptions.taxReturnEnabled && (assumptions.taxReturnAmountOverride ?? 0) > 0 && d.getMonth() + 1 === assumptions.taxReturnMonth) {
-          bonusTaxInc += assumptions.taxReturnAmountOverride ?? 0;
-        }
+        // Bonus + tax-return injection via the shared income model — identical to the engine
+        // (forecast-engine.ts), which computes the bonus off annual GROSS and runs the full tax
+        // estimator. Previously the sim used annual NET for the bonus and honored ONLY a manual
+        // tax override (skipping the estimator), so its cash walk diverged from the engine's.
+        const simAnnualGrossHere = payConfig.weeklyGross * 52 * simIncMult;
+        const { bonusIncome: simBonusInc, taxReturnIncome: simTaxInc } = computeBonusAndTax({
+          annualGrossHere: simAnnualGrossHere,
+          monthDate: d,
+          assumptions,
+          isFirstBonusOccurrence: idx === simFirstBonusIdx,
+          annualFederalWithheldFromBudget: simAnnualFederalWithheld,
+        });
         const simActiveTransferDests = new Set<string>();
         let monthTransfers = 0;
         for (const tr of simTransferRules) {
@@ -672,11 +597,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           }
           return s + Math.min(rem / purchaseMonthIdx, rem);
         }, 0);
-        const actualMonthPaycheck = getMonthNetIncome(payConfig, d.getFullYear(), d.getMonth());
-        const rawIncome = e.income > e.nonPaycheckIncome ? e.income : actualMonthPaycheck + e.nonPaycheckIncome;
+        // Mirror the engine's i>0 income model exactly (forecast-engine.ts:664-666): bake the
+        // income multiplier into gross THEN net it (adjustedConfig), and do NOT scale the
+        // nonPaycheck component by the multiplier. Previously this preferred scheduled-events
+        // `e.income` (miscounting paydays by ±1) and multiplied the whole raw income by
+        // simIncMult (over-scaling nonPaycheck) — both inflated the sim's cash walk vs the
+        // engine's authoritative one.
+        const simAdjustedConfig = { ...payConfig, weeklyGross: payConfig.weeklyGross * simIncMult };
+        const actualMonthPaycheck = getMonthNetIncome(simAdjustedConfig, d.getFullYear(), d.getMonth());
         return {
           ...e,
-          income: rawIncome * simIncMult + bonusTaxInc,
+          income: actualMonthPaycheck + e.nonPaycheckIncome + simBonusInc + simTaxInc,
           // getVehicleExtrasForMonth/carLoanInsuranceByMonth/carLoanLumpByMonth fold the
           // saving-phase projected payment+insurance and loan-phase insurance/lump sums directly
           // into the real simulation here — see the comment above vehicleForecastByMonth for why
@@ -697,14 +628,21 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // than as part of ccMin — otherwise save-up caps include the installment amount and the
       // engine pays it twice (once as cascade, once as installmentCashCost), draining $300+
       // per save-up month more than the look-ahead predicted, causing floor breaches.
+      // Plan-covered cards use the due-date-anchored schedule (upfrontPayByMonth — $0 before a
+      // plan's first real due date); only cards with MANUAL Accounts-tab installment fields fall
+      // back to the flat month-0-anchored decrement. Keeping this consistent with the engine's
+      // own Step 2.5 (which receives the same upfrontPayByMonth) is what stops the look-ahead
+      // reserving for installment cash a month or two before it actually leaves.
       const installmentCostByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
         cards.reduce((s, c) => {
+          if (installmentByCard.has(c.id)) return s; // schedule-based, added below
           const instBal = c.installmentBalance ?? 0;
           const instPmt = c.installmentMonthlyPayment ?? 0;
           if (instBal <= 0 || instPmt <= 0) return s;
           const remaining = Math.max(0, instBal - m * instPmt);
           return s + (remaining > 0 ? Math.min(instPmt, remaining) : 0);
         }, 0)
+        + Object.values(upfrontPayByMonth[m] ?? {}).reduce((a, b) => a + b, 0)
       );
 
       // ── Car down-payment amounts per month (for combined look-ahead) ──────────
@@ -783,6 +721,78 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
         return total;
       });
+
+      // ── Month-0 non-debt outflows beyond m0Expenses ───────────────────────────
+      // forecast-engine's PASS-3 month-0 cash step (cashPreDebt) subtracts savings contributions,
+      // transfers, car loan/vehicle costs, mortgage, and goal lump-sum transfers on top of
+      // baseExpenses — but the sim's month 0 is fed via the month0RemainingExpenses override
+      // (m0Expenses + plan cash), and simulationMonthEvents deliberately short-circuits idx 0,
+      // so none of those components ever reached the sim's month-0 cash model. Month 0 is also
+      // live-anchored in the convergence loop (target[0] = NaN), so the engine's target feedback
+      // can never correct the drift: the sim's floor-safe month-0 payment landed the engine's
+      // month-0 cash below its floor by exactly these dollars ("Cash below safe minimum" at m0).
+      // Each component mirrors the engine's own month-0 treatment, including its syncCutoffDate
+      // scoping where the engine scopes (transfers) and its full-amount treatment where it
+      // doesn't (savings, car loan, mortgage, lump transfers).
+      const m0MonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const m0MonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const m0SyncDay = parseInt(m0SyncCutoff.split('-')[2], 10);
+      // Transfers: only occurrences strictly after the sync cutoff day — earlier ones are already
+      // in the live balance. Non-cash-source transfers move money between non-cash accounts and
+      // never touch checking (both rules mirror forecast-engine's month-0 monthTransfers loop).
+      const nonCashSrcTypes = new Set(['savings', 'high_yield_savings', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa']);
+      const m0ActiveTransferDests = new Set<string>();
+      let m0Transfers = 0;
+      for (const tr of simTransferRules) {
+        if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > m0MonthEnd) continue;
+        if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < m0MonthStart) continue;
+        if (tr.deposit_account) m0ActiveTransferDests.add(tr.deposit_account);
+        const amt = Number(tr.amount);
+        let monthAmt = amt;
+        if (tr.frequency === 'weekly') {
+          let weekCount = 0;
+          const firstD = new Date(m0MonthStart);
+          const dow = tr.due_day ?? 5;
+          while (firstD.getDay() !== dow) firstD.setDate(firstD.getDate() + 1);
+          while (firstD <= m0MonthEnd) {
+            if (firstD.getDate() > m0SyncDay) weekCount++;
+            firstD.setDate(firstD.getDate() + 7);
+          }
+          monthAmt = amt * weekCount;
+        } else if (tr.frequency === 'monthly') {
+          const dueDay = Math.min(tr.due_day || 1, m0MonthEnd.getDate());
+          monthAmt = dueDay > m0SyncDay ? amt : 0;
+        } else if (tr.frequency === 'yearly') {
+          monthAmt = amt / 12;
+        }
+        // biweekly: leave monthAmt = amt (conservative; at most once per month — engine parity)
+        const srcAcct = tr.payment_source ? accounts.find(a => a.id === tr.payment_source) : null;
+        if (srcAcct && nonCashSrcTypes.has(srcAcct.account_type as string)) continue;
+        m0Transfers += monthAmt;
+      }
+      const m0Savings = pauseSavings ? 0 : (goals ?? []).reduce((s, g) => {
+        if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > m0MonthStart) return s;
+        if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
+        if (g.linked_account && m0ActiveTransferDests.has(g.linked_account)) return s;
+        return s + Number(g.monthly_contribution);
+      }, 0);
+      const m0CarSaving = pauseSavings ? 0 : (carFunds ?? []).reduce((s, c) => {
+        if (c.phase !== 'saving') return s;
+        if (c.linked_account) return s;
+        const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.current_saved) - Number(c.gift_contribution || 0));
+        if (rem <= 0) return s;
+        let purchaseMonthIdx = 12;
+        if (c.planned_purchase_date) {
+          const parts = (c.planned_purchase_date as string).split('-').map(Number);
+          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+          purchaseMonthIdx = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+        }
+        return s + Math.min(rem / purchaseMonthIdx, rem);
+      }, 0);
+      const m0ExtraOutflow = m0Transfers + m0Savings + m0CarSaving
+        + getTotalCarLoanMonthly(carFunds ?? [], m0MonthStart)
+        + getVehicleExtrasForMonth(0) + carLoanInsuranceByMonth[0] + carLoanLumpByMonth[0]
+        + monthlyMortgagePayment + lumpTransferByMonth[0];
 
       // ── Combined look-ahead: one-time DB expenses + cycling excess ────────────
       // Comprehensive per-month expense figure for the look-ahead — mirrors Forecast.tsx's own
@@ -947,13 +957,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         undefined,
         cardPurchasesPerMonth,
         m0Income,
-        m0Expenses + (planCashExpensesEarly[0] ?? 0),
+        m0Expenses + m0ExtraOutflow + (planCashExpensesEarly[0] ?? 0),
         oneTimeArrWithDP,
         m0SafeFloor,
         undefined,
         cashFloorByMonth,
         undefined,
         installmentChargeByMonth,
+        upfrontPayByMonth,
       );
 
       // Outer refinement: each pass computes the augmented floor (the same getAugmentedMinSafeCash
@@ -971,8 +982,25 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         augmentedCashFloorByMonth = augmented.floor;
         ccMinInFloorByMonth = augmented.ccMinInFloor;
         const cyclingPaymentByMonth = computeCyclingPaymentByMonth(sim);
+        // The save-up look-ahead's model of this month's UNAVOIDABLE debt outflow must reflect the
+        // real contract minimum (revolvingMinDue), not the plain 2% formula that perCardMinPayments
+        // carries. computeFloorProtection banks reserveNeeded on the assumption that only ccMin(m)
+        // leaves for debt each month (netAtMin); if ccMin is under-stated the backward pass thinks
+        // it preserves more cash than the cascade actually will, under-saves, and breaches the floor
+        // in the shortfall month — shorting cycling cards (the cyclingFloor regression). Sourced
+        // here rather than by inflating perCardMinPayments precisely because ccMinByMonth is a
+        // SEPARATE parameter from floorByMonth: it can carry the contract min without inflating the
+        // pre-paycheck floor (getAugmentedMinSafeCash stays on the formula, keeping payoff fast).
+        // installmentCostByMonth is added back so runLookAhead's ccMinRevOnly strip (which subtracts
+        // it) nets to the revolving-only contract min, mirroring perCardMinPayments' own instMinPay term.
         const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
-          cards.reduce((s, c) => s + (sim.perCardMinPayments.get(c.id)?.[m] ?? 0), 0),
+          cards.reduce((s, c) => {
+            const revBal = sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
+            if (revBal > 0) return s + revolvingMinDue(c, revBal);
+            const backlog = sim.monthlyCyclingBacklog.get(c.id)?.[m] ?? 0;
+            if (backlog > 0) return s + revolvingMinDue(c, backlog);
+            return s;
+          }, 0) + installmentCostByMonth[m],
         );
         lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth, ccMinByMonth);
         sim = simulateVariablePayoff(
@@ -987,13 +1015,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           undefined,
           cardPurchasesPerMonth,
           m0Income,
-          m0Expenses + (planCashExpensesEarly[0] ?? 0),
+          m0Expenses + m0ExtraOutflow + (planCashExpensesEarly[0] ?? 0),
           oneTimeArrWithDP,
           m0SafeFloor,
           lookAhead.maxDebtPaymentByMonth,
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
           installmentChargeByMonth,
+          upfrontPayByMonth,
         );
       }
       const { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason } = lookAhead;
@@ -1041,7 +1070,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         for (const card of cards) {
           const simBal = sim.monthlyBalances.get(card.id)?.[i] ?? 0;
           if (simBal > 0) displayBal += simBal;
-          else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += card.monthlyNewPurchases;
+          // Paid-off statement/full card: its ongoing liability is THIS month's actual purchases
+          // (recurring monthly/biweekly + scheduled yearly spikes in their due month + one-time),
+          // read from cardPurchasesPerMonth exactly like the per-card row above (~line 1027) and the
+          // "CC Purchases" popup. The flat card.monthlyNewPurchases estimate is wrong here: it
+          // amortizes yearly items across every month instead of spiking them in their due month,
+          // and it omits cards whose purchases only begin later (e.g. Venture X in an out-year).
+          else if (card.paymentPreference === 'full' || card.paymentPreference === 'statement') displayBal += cardPurchasesPerMonth[i]?.[card.id] ?? card.monthlyNewPurchases;
         }
         row.displayCCBalance = Math.round(Math.max(0, displayBal));
         row.totalInterest = Math.round(row.totalInterest);
@@ -1253,6 +1288,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const simCycTotal0 = Math.max(0, allPaymentTotals[0] - debtPaymentTotals[0]);
       const m0TotalBudget = pass3RevTotals[0] + simCycTotal0;
       let activeSim = sim;
+      // Which simulateVariablePayoff arg variant produced activeSim — replayed verbatim by
+      // resimulateWithDebtCash below. The refined-loop sim and the capped-retry sim2 differ
+      // only in the month-0 expense figure and the max-debt cap array.
+      let activeSimM0Expenses = m0Expenses + m0ExtraOutflow + (planCashExpensesEarly[0] ?? 0);
+      let activeSimMaxDebt: number[] | undefined = maxDebtPaymentByMonth;
       if (m0TotalBudget < allPaymentTotals[0] - 1) {
         const cappedMaxDebt = [...maxDebtPaymentByMonth];
         cappedMaxDebt[0] = m0TotalBudget;
@@ -1268,13 +1308,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           undefined,
           cardPurchasesPerMonth,
           m0Income,
-          m0Expenses,
+          m0Expenses + m0ExtraOutflow,
           oneTimeArrWithDP,
           m0SafeFloor,
           cappedMaxDebt,
           augmentedCashFloorByMonth,
           ccMinInFloorByMonth,
           installmentChargeByMonth,
+          upfrontPayByMonth,
         );
         perCardPayments = cards.map(c => ({
           name: c.name, id: c.id,
@@ -1283,6 +1324,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ),
         }));
         activeSim = sim2;
+        activeSimM0Expenses = m0Expenses + m0ExtraOutflow;
+        activeSimMaxDebt = cappedMaxDebt;
 
         // Update data[i].totalCCBalance from sim2 so Forecast PASS 2 recomputeSimCash pins
         // cash to floor in the correct months. PASS 2 uses b.ccDebtBalance > 0 to decide
@@ -1331,9 +1374,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const mOneTimeNet2 = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
           // m===0 still needs getVehicleExtrasForMonth(0) added explicitly (see the identical note
           // on mExp above) — m>0 already has it via simulationMonthEvents[m].expenses.
-          const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0]
+          const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0)
             : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
-            + monthlyMortgagePayment + lumpTransferByMonth[m] + mOneTimeNet2;
+            + monthlyMortgagePayment + mOneTimeNet2;
           const mFloor2 = getAugmentedMinSafeCash(
             rules, payConfig, debtPayoffOptions.cashFloor, resolvedDebtFundingId,
             new Date(now.getFullYear(), now.getMonth() + m, 1),
@@ -1438,18 +1481,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           extraPerCardByMonth.get(c.id)![m] = alloc;
           extra -= alloc;
         }
-      }
-
-      // Build cumulative step-3 total per month (sum across all cards) — mirrors
-      // cumulativeStep3Extra in Forecast.tsx. Exposed so DebtPayoff can distribute it
-      // per-card in avalanche order without depending on Forecast.tsx being rendered.
-      let _forecastCumExtra = 0;
-      const forecastStep3ExtraByMonth: number[] = Array(PROJECTION_MONTHS).fill(0);
-      for (let m = 0; m < PROJECTION_MONTHS; m++) {
-        for (const c of cards) {
-          _forecastCumExtra += extraPerCardByMonth.get(c.id)?.[m] ?? 0;
-        }
-        forecastStep3ExtraByMonth[m] = _forecastCumExtra;
       }
 
       // Build per-card forecast-adjusted revolving balances by accumulating each card's slice of
@@ -1654,6 +1685,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const card = cards.find(c => c.id === pca.id);
         if (!card || !card.dueDay) return pca;
         if ((activeSim.monthlyRevolvingBalances.get(card.id)?.[0] ?? 1) === 0) return pca;
+        // Only treat a passed due date as "already paid" for autopay-full cards, whose statement
+        // genuinely clears automatically and is already reflected in the live Plaid balance. A
+        // non-autopay card (e.g. Discover, Prime Visa) that still carries a revolving balance is NOT
+        // auto-settled — recommending $0 there hid real debt the user still owes and made the
+        // recommendation diverge from the sim, which kept applying the (floor-bounded) paydown.
+        if (!card.autopayFullBalance) return pca;
         const dueDateStr = `${m0MonthStr}-${String(card.dueDay).padStart(2, '0')}`;
         return dueDateStr <= syncCutoffDate ? { ...pca, payment: 0 } : pca;
       }) : perCardAdjusted;
@@ -1680,7 +1717,44 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
-      const hookResult = {
+      // Phase 2 Option C step 3: replay the ACTIVE sim's exact args with the engine's per-month
+      // revolving debt cash as param #20, rebuild sim-derived fields via the pure builder, keep
+      // the live-anchored month-0 machinery and look-ahead outputs from this base result. See
+      // the CardProjectionResult.resimulateWithDebtCash JSDoc for the month-0 NaN contract.
+      const resimulateWithDebtCash = (target: number[], forecastMaxDebtPaymentByMonth?: number[]): CardProjectionResult => {
+        const simT = simulateVariablePayoff(
+          cards,
+          debtFundingBalance,
+          debtPayoffOptions.cashFloor,
+          debtStrategy,
+          monthlyTakeHome,
+          monthlyExpenses,
+          PROJECTION_MONTHS,
+          simulationMonthEvents,
+          undefined,
+          cardPurchasesPerMonth,
+          m0Income,
+          activeSimM0Expenses,
+          oneTimeArrWithDP,
+          m0SafeFloor,
+          // Forecast's own PASS-2 cap, when supplied, is authoritative for Step 2's cycling-pool
+          // cap during convergence — the same number Step 5's revolving cascade already follows
+          // via `target` below. Without this, cycling-only save-up months (no revolving debt left)
+          // kept following the sim's own, independently-computed look-ahead instead of Forecast's.
+          forecastMaxDebtPaymentByMonth ?? activeSimMaxDebt,
+          augmentedCashFloorByMonth,
+          ccMinInFloorByMonth,
+          installmentChargeByMonth,
+          upfrontPayByMonth,
+          target,
+        );
+        const overrides = buildResimOverrides(simT, {
+          cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth,
+        });
+        return { ...hookResult, ...overrides, resimulateWithDebtCash };
+      };
+
+      const hookResult: CardProjectionResult = {
         data,
         cards: projs.map(p => ({ name: p.card.name, color: p.card.color })),
         simCards: cards,
@@ -1696,6 +1770,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         monthlyInterest: activeSim.monthlyInterest,
         monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
         monthlyMandatoryCyclingPayment: activeSim.monthlyMandatoryCyclingPayment,
+        paymentLedger: buildPaymentLedger(activeSim, cards),
         maxDebtPaymentByMonth,
         m0Income,
         m0Expenses,
@@ -1706,7 +1781,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         forecastRevolvingPayoffMonth,
         simRevolvingPayoffMonth,
         forecastAdjustedRevolvingBalances,
-        forecastStep3ExtraByMonth,
+        resimulateWithDebtCash,
         month0: {
           safeToPayTotal: safeToPayTotalFinal,
           maxCapacity: Math.round(maxCapacity),
