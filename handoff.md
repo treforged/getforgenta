@@ -1,79 +1,98 @@
-# Handoff — 2026-07-11 — branch main — Discover payoff "2yr+ out" regression under diagnosis
+# Handoff — 2026-07-11 (session 2) — branch main — Discover "2yr+ payoff" REPRODUCED, root cause narrowed to save-up look-ahead
 
-## Active task (UNFINISHED — resume here)
-User reports: **Discover credit card is paying off ~2yr+ out** on BOTH the Debt Payoff page ETA
-AND the Forecast chart, on the **deployed live site**, "when there is definitely extra cash on
-hand next year." The word "again" implies a regression from previously-correct behavior.
+## STATUS: symptom reproduced with LIVE data, root cause narrowed. NO code changed yet. NO backup needed yet.
 
-### What is verified so far
-1. **Deployment is current.** Production (Vercel prj_rzrXx0dwi717dwKUpOgNJRKod2Ef, team
-   team_FKbAQyy6nIKrEuu8DdUV5Y9w) serves commit **cc6d7cbc** (state READY, target production).
-   So the user is seeing the LATEST code, which includes all feature work + all 6 Discover fixes.
-2. **The merge is NOT the cause.** `git merge-base --is-ancestor ad16ff6b d116e466` = YES: the
-   last-good main (ad16ff6b, containing all 6 Discover surplus-routing fixes 88644867..ad16ff6b)
-   is an ANCESTOR of the feature branch. So debt-model-fixes-p0 is a proper SUPERSET of old main;
-   the `--no-ff` merge dropped nothing (HEAD's 4 overlapping files are byte-identical to the
-   feature version, which is correct). Earlier "merge clobbered it" hypothesis was DISPROVEN (my
-   `git diff 051da612~6 051da612` used the wrong commit range and misled me).
-3. **Stale fixture shows GOOD behavior — does NOT reproduce.** Ran a temp per-card diagnostic
-   (pattern below) against the gitignored fixture `src/lib/__tests__/fixtures/forecast-inputs.real.json`
-   (capturedAt **2026-07-03**). Result: Discover clears ~month 9 (**Apr 2027**), Prime ~month 11
-   (**Jun 2027**), CC Debt Free Jun 2027, converged 5 passes. Cash only piles up AFTER payoff
-   (m10 endingCash 5906 → m39 42436). So on 8-day-old data, Discover is NOT far out.
+## The task
+User reports Discover CC pays off ~2yr+ out (Jun 2029) on Debt Payoff ETA + Forecast, "when there
+is definitely extra cash on hand next year." Regression. Prior session (session 1) verified deploy
+is current (cc6d7cbc live), merge is NOT the cause, and the STALE 2026-07-03 fixture shows GOOD
+behavior. Session 1 was blocked on "cannot reproduce without fresh data."
 
-### Root-cause hypothesis (next agent: START HERE)
-The trigger is in the user's **CURRENT data** (newer than 2026-07-03), interacting with the
-feature-branch engine changes that went LIVE FOR THE FIRST TIME TODAY (income unification
-`4d45c27c`, forecast-engine + cycling-model refactor). The 2026-07-03 fixture predates whatever
-data condition (new expense / car fund / balance / income change) now pushes Discover out.
-**You cannot reproduce without fresh data.**
+## SESSION 2 BREAKTHROUGH — reproduced via live screenshots + pulled the real data
 
-### NEXT STEP — reproduce with CURRENT data
-1. Refresh the gitignored fixture with the user's current state. Options:
-   - (a) Browser-console capture on the live Forecast page. No ready snippet exists; capture uses
-     `serializeForecastCapture(inputs)` from `src/lib/__tests__/fixtures/forecast-fixture-io.ts`
-     (Map/Set-safe). Would need to expose the ForecastInputs (from useForecastEngineInputs /
-     CardProjectionContext) on `window` temporarily, or use claude-in-chrome on the user's logged-in
-     tab.
-   - (b) Pull current rows from Supabase (project **mdtosrbfkextcaezuclh**, user_id
-     **a72f416e-433a-4055-9ab0-9feae4e60edf**) and rebuild the fixture. Heavier.
-   - NEVER commit the fixture (gitignored). Pin Date via fake timers to capturedAt.
-2. Re-run the per-card diagnostic (below) on fresh data. If Discover now clears far out (e.g.
-   month 20+) while endingCash sits high with revolving balance still > 0, that confirms the
-   engine is hoarding cash instead of routing surplus to Discover — the real bug. Then trace
-   surplus routing: `perCardPaymentsScaled[].surpluses`, the step-3 extra routing
-   (`cumulativeStep3Extra` now in `src/lib/step3-display.ts` + `forecast-engine.ts`), and the
-   avalanche cascade in `src/lib/credit-card-engine.ts` (Step 5).
+### 1. Symptom CONFIRMED (5 live screenshots this session)
+Forecast monthly breakdown: ending cash BALLOONS while debt persists —
+Jul 2026 $2,800 → Oct 2027 $13,445 → Dec 2027 $15,995 → Mar 2028 $18,087. Meanwhile CC balance
+still $13,951, PAYOFF ETA 36 mo, "CC Debt Free" not until Jun 2029. Cash floor is only $2,800.
+CC "-OUT" per month sits at ~$568–$706 (≈ minimums) across 2027–2028 — payments are NOT scaling
+up to consume the surplus. This is the "hoard cash instead of pay Discover" bug.
+NOTE: the "+pmt $150" tag on Forecast rows is a CAR-LOAN extra payment (see car_funds
+lump_sum_payments Oct 2027–Sep 2029), NOT a CC payment. Red herring — ignore it for the CC bug.
 
-### Diagnostic harness (reusable — mirrors realData test)
-Copy the renderHook block from `src/lib/__tests__/forecast-convergence.realData.test.ts` into a
-temp `src/lib/__tests__/discdiag.tmp.test.ts` (@vitest-environment jsdom, fake Date pinned to
-capturedAt). Run `runDebtCashConvergence(base!, inputs, { engine, maxPasses: 20 })`. Dump per-card:
-`base.perCardPaymentsScaled` (name/payments/surpluses) + `base.monthlyRevolvingBalances.get(id)`
-(→ clearsAt = first index ≤ 0.5) and per-month `out.projections.data[m]`
-(debtPayment/endingCash/monthMinSafe). writeFileSync JSON to scratchpad (console.log is swallowed).
-DELETE the temp test after (it lives in src/, must not persist or ship).
+### 2. Live data pulled from Supabase (project mdtosrbfkextcaezuclh, user a72f416e-433a-4055-9ab0-9feae4e60edf)
+Engine source of truth is the `accounts` table (NOT `debts`, which is legacy for mortgage/auto).
+Credit cards (accounts, account_type='credit_card'), total = $13,951.24 (matches screenshot):
+- Prime Visa:  bal $5,701.91, APR 27.49, pref 'full', min $0 (manual), due 7, statement_balance NULL
+- Discover it: bal $8,249.33, APR 19.49, pref 'full', min $217, due 1, statement_balance NULL
+- Apple Card:  bal $0, APR 22.99, pref 'statement', card_start_date 2028-02-28 (future card)
+- Venture X:   bal $0, APR 22.99, pref 'statement', card_start_date 2026-12-20 (future card)
+car_funds: ONE fund "2004 Chevrolet C5", phase='loan' ALREADY (planned_purchase_date 2026-06-21,
+BEFORE projection start Jul 2026 → NO future car purchase to save up for). loan_amount $16,530,
+actual_monthly_payment $422.89, monthly_insurance $173.23, plus 24× $150 monthly lump_sum_payments
+Oct 2027→Sep 2029. savings_goals: all small monthly contribs, NO target_date → not a save-up trigger.
 
-## Completed & shipped THIS session (all committed + pushed to main/live)
-- **Sanity pass** on the Feb-breach + income-unification work: tsc clean, full suite green.
-  Confirmed Feb m7 income anchor (pay 4408 + bonus 2170 + tax −2410); zero floor breaches.
-- **Guard test** `src/lib/__tests__/income-model.test.ts` (6 tests) pinning `computeBonusAndTax`
-  invariants (gross-basis bonus, negative/owed tax pass-through, off-month zeroing, non-recurring
-  first-occurrence). Commit 5c5556ef.
-- **Merged** debt-model-fixes-p0 → main (22caf1f1) and pushed live. Branch also pushed to origin.
-- **Dependabot:** untracked backup dependency manifests + gitignored them (commit cc6d7cbc),
-  dismissed alert #54 (js-yaml in backups/ — false positive; live root tree already on 4.2.0).
-  0 open alerts. Note: dependabot.yml `directory:"/"` only scopes update PRs, not security alerts.
-- **Cap fix question answered:** the "incorrect cap fix" was NEVER in the code — only a proposed
-  step that was correctly skipped. Live code has only the correct discretionary-only cap
-  (`credit-card-engine.ts:1008`, gated by allRevolvingClear). No change needed.
+### 3. Hypotheses DISPROVEN this session (do not revisit)
+- "Discover excluded from surplus router via the `revBal0===0` gate (forecast-engine.ts:1083)":
+  DISPROVEN. autopayFullBalance = simBalance<=0 (credit-card-engine.ts:240-241), simBalance =
+  statement_balance ?? balance. Discover statement_balance is NULL, balance $8,249>0 →
+  autopayFullBalance=FALSE → REVOLVING → revBal0≈8249 (nonzero) → INCLUDED in ccEngRevBalEnd.
+  So the surplus gate is NOT the problem.
 
-## Anchors
-- HEAD = cc6d7cbc on main (= live). Full suite: 43 files / 163 tests green, tsc clean.
-- Debt result type fields: `src/lib/debt-model-types.ts` (perCardPaymentsScaled L47,
+## ROOT CAUSE (high-confidence, NOT yet proven by running the engine) — START HERE
+The debt payment is capped near minimums (~$570/mo) across 2027–2028 by the SAVE-UP look-ahead
+(`maxDebtPaymentByMonth`). The Forecast tooltip (Forecast.tsx:386) describes exactly this behavior:
+save-up months pay only minimums and let cash accumulate above floor.
+
+Mechanism: `computeFloorProtection` (src/lib/floor-protection.ts):
+- Backward pass L100-104: `reserveNeeded[m] = max(0, nextFloor + reserveNeeded[m+1] - endBalAtMin)`
+  — this ACCUMULATES backward. A run of consecutive future months that each fall short (even paying
+  only minimums) compounds reserveNeeded into a large phantom reserve.
+- L177-186: whenever `reserveNeeded[m+1] > 0` and the month's end-bal-at-min < requiredEndBal, month
+  m is added to saveUpMonths AND strictSaveUpMonths, capping its debt payment (maxDebtPaymentByMonth).
+Suspected trigger: a genuine floor breach exists (Feb 2027 milestone "cash below safe minimum" is
+shown), and/or later structural tightness (car loan $422.89 + insurance $173.23 + $150 lumps +
+CC mins). reserveNeeded back-propagates from those months across the whole 2027–2028 span, marking a
+long contiguous strict-save-up block → payments stuck at minimums → cash balloons to $18k → Discover
+drags to Jun 2029. The reserve is wildly over-estimated (real cash is $18k), which is the bug's tell.
+
+## NEXT STEP — PROVE IT (decisive, do this first)
+Run the engine on the REAL data and dump, per month: `saveUpMonths`, `strictSaveUpMonths`,
+`maxDebtPaymentByMonth`, `reserveNeeded`, per-card `monthlyRevolvingBalances`, per-month debtPayment
++ endingCash. Confirm: are 2027–2028 months in strictSaveUpMonths with maxDebtPaymentByMonth ≈ ccMin?
+Options:
+- (a) Build a fixture from the Supabase rows above + run the realData harness (see session-1 notes
+  below). Heaviest but self-contained.
+- (b) Add a temp unit test that calls `computeFloorProtection` directly (exported from
+  floor-protection.ts) with a hand-built floorByMonth/endBalAtMin series approximating this data, to
+  see reserveNeeded back-propagation. Lighter, targets the suspected function directly.
+- (c) claude-in-chrome on the user's live logged-in Forecast tab to capture ForecastInputs
+  (serializeForecastCapture in src/lib/__tests__/fixtures/forecast-fixture-io.ts).
+Once proven, the fix is almost certainly in floor-protection.ts (reserveNeeded accumulation and/or
+the strictSaveUp gate over-firing when cash is actually abundant). Do NOT patch the display — fix the
+reserve math. Preserve the legitimate save-up-before-a-real-breach behavior (e.g. the genuine Feb
+2027 breach).
+
+## Key file/line anchors
+- src/lib/forecast-engine.ts:1081-1105 — PASS-3 surplus router (sets revolvingDebtCashTarget; gate at
+  1087 `ccEngRevBalEnd>0 && finalLiquid>monthMinSafe`; deficit branch 1090-1104). Confirmed NOT the bug.
+- src/lib/credit-card-engine.ts:240-241 — autopayFullBalance = simBalance<=0 (revolving vs cycling).
+- src/lib/credit-card-engine.ts:688-697 — maxDebtPaymentByMonth cap semantics (the save-up cap).
+- src/hooks/useCardProjection.ts:836-1028 — runLookAhead + 3-pass outer refinement builds
+  maxDebtPaymentByMonth/saveUpMonths/strictSaveUpMonths; destructured at 1028.
+- src/lib/floor-protection.ts:76-198 — computeFloorProtection (reserveNeeded backward pass +
+  save-up marking). PRIME SUSPECT.
+- src/hooks/cardProjectionResim.ts:126-150 — applies saveUpMonths cap in resim.
+
+## Session-1 diagnostic harness (still valid)
+Copy renderHook block from src/lib/__tests__/forecast-convergence.realData.test.ts into a temp
+src/lib/__tests__/discdiag.tmp.test.ts (@vitest-environment jsdom, fake Date pinned to capturedAt).
+Run runDebtCashConvergence(base!, inputs, { engine, maxPasses: 20 }). writeFileSync JSON to scratchpad
+(console.log is swallowed). DELETE the temp test after (must not ship — lives in src/).
+Fixture src/lib/__tests__/fixtures/forecast-inputs.real.json is gitignored and STALE (2026-07-03,
+shows GOOD behavior). Must rebuild from the live data above to reproduce.
+
+## Anchors / rules
+- HEAD = cc6d7cbc on main = live. Full suite 43 files/163 tests green, tsc clean (as of session 1).
+- Never push without explicit ask. Cash floor $2,800. Back up any file before editing to ./backups/.
+- Debt result type fields: src/lib/debt-model-types.ts (perCardPaymentsScaled L47,
   monthlyRevolvingBalances L48, forecastRevolvingPayoffMonth L91).
-- Never push without explicit ask (user asked this session). Milestone floor uses cashFloor $2800.
-
-## Failed hypotheses (do not revisit)
-- "Merge clobbered the 6 Discover fixes" — DISPROVEN (ad16ff6b is an ancestor of the feature branch).
-- Reproducing on the 2026-07-03 fixture — shows GOOD behavior; wrong (stale) data, will mislead.
