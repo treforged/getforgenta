@@ -1,97 +1,52 @@
-# Handoff — 2026-07-11 (session 4) — branch main — Discover 2yr-payoff: REPRODUCED HEADLESS, floor-protection hypothesis DISPROVEN
+# Handoff — 2026-07-12 — Discover 2yr-payoff: ROOT-CAUSED & FIXED
 
-## STATUS — major pivot
-Built the headless harness. **Bug reproduced with live data**: CC Debt Free **Feb 2029 (~m31)**, cash
-balloons to **$38k** by m39. The prior sessions' whole premise — that `computeFloorProtection`
-back-propagates a giant phantom `reserveNeeded` that caps Discover payments — is **DISPROVEN by the
-dump**. The real throttle is the **`revolvingDebtCash` target collapsing to ~$218/mo (near CC
-minimums)** while surplus cash piles up unbounded. Root cause is NOT in floor-protection. NO fix applied.
+## STATUS — RESOLVED
+The Discover "pays off ~2.5yr out (Feb 2029) while cash balloons to ~$38k" bug is fixed.
+Root cause found, one-line fix applied, full suite green (43 files / 163 tests), tsc clean.
+NOT pushed (per policy).
 
-## THE TASK (unchanged)
-Discover CC pays off ~2.5yr out on Debt Payoff + Forecast while cash balloons; payments stuck near CC
-minimums across 2027–2028 instead of scaling up to kill Discover. Cash floor $2,800. HEAD live = cc6d7cbc.
+## ROOT CAUSE (proven headless, not hypothesised)
+The debt-cash convergence loop (`runDebtCashConvergence`, forecast-convergence.ts) was
+**one pass short of its budget** on current live data.
 
-## WHAT I BUILT THIS SESSION
-1. **Headless harness (TEMP — DELETE before shipping, never commit to src/):**
-   `src/lib/__tests__/discdiag.tmp.test.ts` (@vitest-environment jsdom). It:
-   - `vi.mock('@/hooks/useSupabaseData')` returning the live rows from scratchpad/livedata.json.
-   - Pins Date to 2026-07-11, builds config exactly like CardProjectionContext (buildPayConfig,
-     cashFloor 2800, funding acct 933cbc10…, assumptions = DEFAULT ∪ profile.forecast_assumptions,
-     avalanche, syncCutoff 2026-07-11), renders `useCardProjection` → base, renders
-     `useForecastEngineInputs` → engineInputs, clears `globalThis.__floorDumps`, runs
-     `runDebtCashConvergence(base, engineInputs, {engine: calculateForecast})`, writes everything
-     (dumps + milestones + per-month engineRows) to scratchpad/floordump.json.
-   - Run it: `npx vitest run src/lib/__tests__/discdiag.tmp.test.ts` (passes in ~1.3s).
-   - It is UNTRACKED (not committed). floordump.json has an emoji → read with
-     `PYTHONIOENCODING=ascii:backslashreplace python -c "...io.open(...,encoding='utf-8')..."`.
-2. **Consolidated live data** (fresh re-pull via Supabase MCP, today's balances 2026-07-11 13:00):
-   `<MY-SCRATCHPAD>/livedata.json` = {accounts(12), transactions(20), debts(2), savings_goals(4),
-   car_funds(1 w/24 lumps), budget_items(1), payment_plans(4), recurring_rules(30), profile}.
-   MY-SCRATCHPAD = `C:\Users\tvonh\AppData\Local\Temp\claude\C--Users-tvonh-Desktop-getforgenta\0ef571e5-5c67-40d2-8bb5-4d1f2c64ba94\scratchpad`
-   (the harness hardcodes this absolute path — update DATA/OUT consts if scratchpad changes).
-   NOTE: prior session's txns-rules.json had truncated txn IDs + a placeholder for recurring_rules;
-   I re-pulled everything fresh, so livedata.json is authoritative. Repo is PUBLIC — never commit scratchpad.
-3. floor-protection.ts still has the TEMP dump instrumentation (L198-217, before the return). It is
-   currently COMMITTED (in cc6d7cbc/c7ecd7fc working tree). **Revert it before shipping any fix.**
-   Clean backup: backups/2026-07-11_090803/src/lib/floor-protection.ts.
+Pass-by-pass trace on the 2026-07-11 live rows (damping 0.5): the loop converges
+**monotonically** and every single pass already yields the correct payoff (Discover **Jul 2027**,
+~m12). The residual `maxGap` decays ~40%/pass:
+`2307 → 916 → 262 → 164 → 98 → 57 → 33 → 18 → 11 → 5 → 4 → 2(@pass12) → 1(@pass13) → 0(@pass15)`.
+The old `maxPasses = 12` cut it off at gap **$2**, one pass before it crossed the $1 tolerance.
+On exhaustion the loop **falls back to the un-accelerated `base` projection** — which is the
+pathological Feb 2029 / $38k-cash-hoard result. So a run that had already found the right answer
+was thrown away for the wrong one.
 
-## THE DUMP — hard evidence (last convergence pass, 13 dumps total)
-floor-protection arrays are HEALTHY, NOT the cause:
-- `reserveNeeded` ≈ 0 for almost every month (only small blips: 136@m19, 1778@m21, 441@m31). NOT $15k.
-- `maxDebtPaymentByMonth` = None (UNCAPPED) for ~57 of 60 months. Cap fires only at m18/m20/m30
-  (strictSaveUpMonths = [18,20,30,42,54]) with values 606/390/552 — trivial, not a 20-month throttle.
-- `netAtMin` positive $700–$3000/mo nearly everywhere → big surplus exists at minimum payments.
+Prior sessions' floor-protection / `reserveNeeded` / `revolvingDebtCash`-collapse theories were
+all **wrong**: floor-protection arrays are healthy, and `revolvingDebtCash` "collapsing to
+minimums" was just the published *base* pair (which correctly pays minimums because its own cash
+walk underestimates surplus) — never the resim. The resim was fine; it was just never published.
 
-The REAL smoking gun is the engine's per-month output (engineRows in floordump.json):
-```
-m   debtPayment  revolvingDebtCash  endingCash
-0     1490        1490        2800
-9     2387        2874        4864
-11    1646        4511        6842   <- target peaks then collapses
-13     731        2708       10855
-18     731         218       16621   <- target ~= minimums, cash ballooning
-20    1349         218       18065
-30     924         411       26441
-39     568           0       38502   <- $38k cash, paying ~minimums
-```
-`revolvingDebtCash` (the per-month debt-cash TARGET the convergence feeds the engine) DECAYS from
-~4500 (m11) to ~218 (m18+) even as endingCash climbs 2800→38500. The engine hoards cash instead of
-routing the netAtMin surplus into Discover. That collapsing target — not any cap — is why payoff is
-Feb 2029. Convergence also does NOT settle (converged:false, passes:12 = the cap), and a spurious
-'Feb 2027 cash below safe minimum' milestone appears (a non-convergence artifact).
+## THE FIX
+`src/lib/forecast-convergence.ts`: default `maxPasses` **12 → 18** (5-pass margin over the observed
+13-pass convergence; still covers earlier fixtures that needed 6 and 11). Rationale comment updated
+with the live-data evidence. The fallback-to-base guard is unchanged — it remains the correct
+zero-regression behavior for *genuine* (non-decaying) oscillation, which no budget can fix.
 
-## NEXT STEP — find why revolvingDebtCash collapses
-The target is produced by the sim, consumed by the loop:
-- forecast-convergence.ts:48 `raw = currentProj.data.map((row,m) => m===0?NaN:row.revolvingDebtCash)`
-  then damped vs prevTarget (damping) → `base.resimulateWithDebtCash(target)` → engine again.
-- So trace `revolvingDebtCash` as an ENGINE OUTPUT field in src/lib/forecast-engine.ts (grep hits
-  there + credit-card-engine.ts + debt-model-types.ts). Figure out what the engine sets
-  revolvingDebtCash to each month and why it shrinks toward minimums while cash grows. Prime suspects:
-  (a) engine caps the routable debt cash by something OTHER than floor (e.g. only routes a fraction of
-  surplus, or ties routing to a stale/earlier target), or (b) resimulateWithDebtCash in
-  useCardProjection under-computes the safe-to-pay revolving cash when a big cash buffer already
-  exists (i.e. it stops "trying" once cash is comfortably above floor). Existing test
-  src/lib/__tests__/forecast-engine.revolvingDebtCash.test.ts documents the intended semantics — read it first.
-- Also worth checking: does non-convergence (oscillation) itself pin the published run to a low-payment
-  pass? Inspect the 13 dumps' maxDebtPaymentByMonth/reserveNeeded across passes (they're all in
-  floordump.json floorDumps[]) to see if the target is oscillating vs monotonically collapsing.
-- Compare against the GOOD fixture behavior (payoff Jun 2027) in
-  src/lib/__tests__/forecast-convergence.realData.test.ts — that fixture is stale/gitignored but its
-  expected anchors show what "correct" looks like.
+Verified via the headless harness: `runDebtCashConvergence` now returns
+`converged:true, passes:13`, published payoff **Jul 2027**. (The ~$38k cash at m39 is now correct
+and benign — it accumulates only AFTER both cards are paid off mid-2027; there is no revolving debt
+left to route it to.)
 
-## FIX DISCIPLINE (when root cause proven)
-- Back up any edited file to ./backups/YYYY-MM-DD_HHMMSS/ first. Revert the floor-protection.ts TEMP
-  dump (L198-217). DELETE src/lib/__tests__/discdiag.tmp.test.ts. Keep full suite green (43 files/163
-  tests) + tsc clean. Preserve legit save-up-before-real-breach behavior. Do NOT push.
+## CLEANUP DONE
+- Reverted TEMP dump instrumentation in `src/lib/floor-protection.ts` (now byte-identical to the
+  clean backup `backups/2026-07-11_090803/src/lib/floor-protection.ts`).
+- Deleted the TEMP headless harness `src/lib/__tests__/discdiag.tmp.test.ts` (was untracked).
+- Backup of the edited file: `backups/2026-07-12_003425/src/lib/forecast-convergence.ts`.
 
-## Key anchors
-- src/lib/forecast-convergence.ts:44-55 damped target loop (revolvingDebtCash → resimulateWithDebtCash).
-- src/lib/forecast-engine.ts — where revolvingDebtCash is WRITTEN (the throttle lives here or in the sim).
-- src/hooks/useCardProjection.ts resimulateWithDebtCash closure — the sim's debt-cash computation.
-- src/lib/__tests__/forecast-engine.revolvingDebtCash.test.ts — intended semantics.
-- src/lib/floor-protection.ts:76-219 computeFloorProtection (+ TEMP dump L198-217) — RULED OUT as cause.
-- Harness: src/lib/__tests__/discdiag.tmp.test.ts (TEMP). Data: MY-SCRATCHPAD/livedata.json.
+## FOLLOW-UP (optional, NOT done — needs your call)
+The exhaustion fallback-to-`base` is catastrophic when `base` is far from the (converging) fixed
+point, as here. A budget bump fixes today's data but a future dataset needing 19+ passes would hit
+the same cliff. A more robust design would publish the last resim on exhaustion *when the gap
+sequence is decaying* (converging-but-slow) and only fall back to base on true oscillation. That
+changes the documented contract + the `$1.5-gap → base` unit test, so I left it as a deliberate
+decision for you rather than silently altering tested behavior.
 
 ## Rules
-- Never push without explicit ask. Repo is PUBLIC — scratchpad has real financial data, never commit it.
-- discdiag.tmp.test.ts must be deleted before finishing. No dev server running this session.
+- Not pushed. Repo is PUBLIC — scratchpad holds real financial data, never commit it.

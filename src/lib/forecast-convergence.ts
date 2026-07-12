@@ -29,11 +29,16 @@ export function runDebtCashConvergence(
   engineInputs: ForecastInputs,
   opts: DebtCashConvergenceOptions = {},
 ): DebtCashConvergenceResult {
-  // Default pass budget of 12: on the real-data fixture the damped (0.5) loop needs 11 passes to
-  // collapse the payment↔cash-floor two-cycle to tolerance (verified 2026-07-09 after the sim
-  // payday-count fix aligned the sim income with the engine). Earlier (2026-07-07) a 6-pass run
-  // was observed on a different fixture snapshot; 12 covers both with a one-pass margin.
-  const { maxPasses = 12, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
+  // Default pass budget of 18: the damped (0.5) loop's residual gap decays ~40%/pass near the
+  // fixed point, so the exact pass count to cross $1 tolerance scales with the initial gap and is
+  // data-sensitive. On 2026-07-11 live data the loop converged monotonically (gaps 2307 → 916 →
+  // 262 → … → 1 at pass 13, 0 by pass 15) yet the old 12-pass budget cut it off one pass short at
+  // gap $2 — and the exhaustion path publishes the UNACCELERATED base pair, so a run that had
+  // already found the correct payoff (Discover: Jul 2027) was discarded for the pathological base
+  // (Feb 2029, cash ballooning to ~$38k). 18 clears that trajectory with a 5-pass margin and still
+  // covers the earlier fixtures (2026-07-09 needed 11, 2026-07-07 needed 6). The fallback to base
+  // remains the zero-regression guard for genuine (non-decaying) oscillation, which no budget fixes.
+  const { maxPasses = 18, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
 
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;
