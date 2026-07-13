@@ -15,6 +15,13 @@ export interface DebtCashConvergenceOptions {
   engine?: ConvergenceEngine;
   /** Weight of the newest engine run in each re-target, (0, 1]. 1 = undamped. */
   damping?: number;
+  /**
+   * On budget exhaustion, the last resim is published instead of base only when the loop was
+   * converging AND its final gap landed at or below this absolute $/month bound (net progress is
+   * also required — see runDebtCashConvergence). Guards against publishing a still-large,
+   * mid-transient resim. Defaults to max(toleranceDollars * 25, 25).
+   */
+  exhaustionPublishBound?: number;
 }
 
 export interface DebtCashConvergenceResult {
@@ -49,7 +56,7 @@ export function runDebtCashConvergence(
   // no net progress, so it still falls back to base — the zero-regression guard. The absolute
   // bound guards the other pathological case: a huge gap decaying so slowly that the last resim is
   // still a mid-transient, unconverged run less trustworthy than base's self-consistent pair.
-  const exhaustionPublishBound = Math.max(toleranceDollars * 25, 25);
+  const exhaustionPublishBound = opts.exhaustionPublishBound ?? Math.max(toleranceDollars * 25, 25);
 
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;

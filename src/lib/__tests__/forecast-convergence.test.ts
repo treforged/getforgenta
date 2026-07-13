@@ -167,6 +167,24 @@ describe('runDebtCashConvergence', () => {
     expect((out.projections.data[1] as { debtPayment: number }).debtPayment).toBe(242);
   });
 
+  it('a custom exhaustionPublishBound forces base fallback when the final gap exceeds it', () => {
+    // Same converging trajectory as above (final gap 2), but a caller-supplied $1 bound is below
+    // that gap, so the last resim is rejected and base is published instead.
+    const { base } = makeBase();
+    const engine = fakeEngine([
+      { debtPayment: [500, 400, 300, 200], revolvingDebtCash: [450, 400, 280, 180] },
+      { debtPayment: [500, 200, 300, 200], revolvingDebtCash: [450, 200, 280, 180] },
+      { debtPayment: [500, 250, 300, 200], revolvingDebtCash: [450, 250, 280, 180] },
+      { debtPayment: [500, 240, 300, 200], revolvingDebtCash: [450, 240, 280, 180] },
+      { debtPayment: [500, 242, 300, 200], revolvingDebtCash: [450, 242, 280, 180] },
+    ]);
+    const out = runDebtCashConvergence(base, inputs, { engine, maxPasses: 4, exhaustionPublishBound: 1 });
+
+    expect(out.converged).toBe(false);
+    expect(out.cardProjection).toBe(base);
+    expect((out.projections.data[1] as { debtPayment: number }).debtPayment).toBe(400);
+  });
+
   it('falls back to the base pair (zero-regression) when the pass budget is exhausted', () => {
     const { base } = makeBase();
     // Oscillates forever: successive runs always differ by $100 in month 1.
