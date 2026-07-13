@@ -40,10 +40,25 @@ export function runDebtCashConvergence(
   // remains the zero-regression guard for genuine (non-decaying) oscillation, which no budget fixes.
   const { maxPasses = 18, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
 
+  // On exhaustion, publish the last resim (not base) only when the loop was genuinely CONVERGING
+  // toward its fixed point but ran out of budget — i.e. the gap made net progress (lastGap <
+  // firstGap) AND landed small in absolute terms (lastGap ≤ this bound). This rescues the
+  // "one pass short" cliff (2026-07-11 live data: monotonic decay 2307 → … → gap $2 at the cap;
+  // the last resim already had the correct Jul 2027 payoff while base was the pathological Feb
+  // 2029 / $38k-hoard run). A genuine non-decaying oscillation has firstGap == lastGap (flat) or
+  // no net progress, so it still falls back to base — the zero-regression guard. The absolute
+  // bound guards the other pathological case: a huge gap decaying so slowly that the last resim is
+  // still a mid-transient, unconverged run less trustworthy than base's self-consistent pair.
+  const exhaustionPublishBound = Math.max(toleranceDollars * 25, 25);
+
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;
   let prevTarget: number[] | null = null;
   let prevCap: number[] | null = null;
+  let firstGap = Infinity;
+  let lastGap = Infinity;
+  let lastResim: CardProjectionResult | null = null;
+  let lastResimProj: ForecastResult | null = null;
 
   for (let pass = 1; pass <= maxPasses; pass++) {
     // Re-target from the CURRENT engine run, but always resim from base — the closure is
@@ -84,8 +99,21 @@ export function runDebtCashConvergence(
     if (maxGap <= toleranceDollars) {
       return { cardProjection: resim, projections: resimProj, converged: true, passes: pass };
     }
+    if (pass === 1) firstGap = maxGap;
+    lastGap = maxGap;
+    lastResim = resim;
+    lastResimProj = resimProj;
     currentProj = resimProj;
   }
 
+  // Exhausted. If the loop was converging (net progress + landed small), publish the last resim —
+  // it is strictly closer to the fixed point than base. Otherwise fall back to base (oscillation /
+  // no meaningful progress), preserving the zero-regression guarantee. `converged` stays false in
+  // both cases: the loop never crossed the $1 tolerance.
+  const wasConverging = lastResim !== null && lastResimProj !== null
+    && lastGap < firstGap && lastGap <= exhaustionPublishBound;
+  if (wasConverging) {
+    return { cardProjection: lastResim!, projections: lastResimProj!, converged: false, passes: maxPasses };
+  }
   return { cardProjection: base, projections: baseProj, converged: false, passes: maxPasses };
 }

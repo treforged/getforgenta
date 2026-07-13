@@ -10,9 +10,11 @@ import type { ForecastInputs, ForecastResult } from '../forecast-engine';
 // Contract:
 //   engine(base) → target = rows.revolvingDebtCash (target[0] = NaN, month 0 is live-anchored)
 //   → base.resimulateWithDebtCash(target) → engine again → compare successive monthly
-//   debtPayment arrays; ≤8 passes, $1/month tolerance. Converged ⇒ publish the resimmed
-//   projection + its engine run; NOT converged ⇒ publish the base pair (Option A display
-//   machinery stays as the zero-regression fallback).
+//   debtPayment arrays; $1/month tolerance. Converged ⇒ publish the resimmed projection + its
+//   engine run. Exhausted while CONVERGING (gap made net progress and landed small) ⇒ publish the
+//   last resim (closer to the fixed point than base) with converged=false. Exhausted while
+//   OSCILLATING (no net progress) ⇒ publish the base pair (Option A display machinery stays as the
+//   zero-regression fallback).
 
 const MONTHS = 4;
 
@@ -141,6 +143,28 @@ describe('runDebtCashConvergence', () => {
     expect(out.converged).toBe(true);
     expect(out.passes).toBe(5);
     expect(out.cardProjection).toBe(resims[4]);
+  });
+
+  it('on exhaustion publishes the last resim when the loop was converging but ran out of budget', () => {
+    // Monotonically decaying gap that never crosses $1 within the tiny budget: month-1 payment
+    // 400 → 200 → 250 → 240 → 242 (gaps 200, 50, 10, 2). firstGap 200 ≫ lastGap 2 (< the $25
+    // exhaustion bound), so the last resim — strictly closer to the fixed point than base — is
+    // published even though `converged` stays false. Mirrors the 2026-07-11 "one pass short" cliff.
+    const { base, resims } = makeBase();
+    const engine = fakeEngine([
+      { debtPayment: [500, 400, 300, 200], revolvingDebtCash: [450, 400, 280, 180] }, // base run
+      { debtPayment: [500, 200, 300, 200], revolvingDebtCash: [450, 200, 280, 180] }, // pass1: gap 200
+      { debtPayment: [500, 250, 300, 200], revolvingDebtCash: [450, 250, 280, 180] }, // pass2: gap 50
+      { debtPayment: [500, 240, 300, 200], revolvingDebtCash: [450, 240, 280, 180] }, // pass3: gap 10
+      { debtPayment: [500, 242, 300, 200], revolvingDebtCash: [450, 242, 280, 180] }, // pass4: gap 2
+    ]);
+    const out = runDebtCashConvergence(base, inputs, { engine, maxPasses: 4 });
+
+    expect(out.converged).toBe(false);
+    expect(out.passes).toBe(4);
+    // The pass-4 resim (last one), NOT base, is published.
+    expect(out.cardProjection).toBe(resims[3]);
+    expect((out.projections.data[1] as { debtPayment: number }).debtPayment).toBe(242);
   });
 
   it('falls back to the base pair (zero-regression) when the pass budget is exhausted', () => {
