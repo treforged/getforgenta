@@ -113,7 +113,36 @@ Baseline (no overrides), Discover 2026 UI rows EXACTLY match `window.__simDebug.
 - `find` browser tool + javascript_tool — 429 rate-limited after ~02:45; don't retry until
   ~3:30am ET. get_page_text / computer(screenshot/click) kept working (no model gating).
 
-## Next Steps
+## NEW TOP PRIORITY — Q5: interest-saving balance semantics are WRONG (Tre ruled, 2026-07-14)
+
+Tre's authoritative semantics (his words, end of this session):
+- Prime Visa TOTAL balance = **$6,004** (the app had this right before the ISB entry).
+- **$1,164.79 = interest-saving balance = the amount due at the NEXT due date only**
+  (the statement). It is NOT the card's balance.
+- Expected sim behavior: **July 2026 payment = $0** (PV due day is the 7th, already past
+  on Jul 14); **Aug 2026 pays exactly $1,164.79**; the cash floor must hold, so
+  **Discover's Aug 1 payment pulls back** by whatever is needed to fund it.
+
+What the app actually did when 1164.79 was entered in the ISB control (Q3 feature,
+commit 4e5be68e): it started treating $1,165 as Prime's ENTIRE balance — card header
+shows $1,165, total CC balance dropped $14,453 → $9,614, utilization 8.1%. WRONG.
+The manual ISB is being consumed as the carried/statement-split balance that REPLACES
+the balance in the sim, instead of only setting the next-due-date payment amount on top
+of the real $6,004 balance walk.
+
+Fix scope for next session:
+1. Find where manual `interest_saving_balance` (statement_balance? check the column
+   updateAccount writes — CreditCardEngine.tsx:1044 `statement_balance: parsed`) feeds
+   the engine/card mapping, and change semantics: balance stays 6004; ISB only sets the
+   next-statement payment obligation (and the grace/interest split).
+2. Acceptance test against Tre's numbers above (Jul $0, Aug 1164.79, Discover Aug reduced,
+   floor never breached).
+3. The DB now holds statement_balance=1164.79 for Prime Visa — the VALUE is correct
+   per Tre; do not revert the data, fix the interpretation.
+4. This likely also reframes Anomaly A's "139" (the sim's statement-split math) and
+   feeds Q4 (later-year statement underfunding) — same statement-vs-balance machinery.
+
+## Next Steps (after Q5)
 1. Resolve Anomaly A with the decisive test above (browser once limits reset, or the
    scratch vitest locally right now). If the cycling clamp cap is really < natural
    statement payment, fix credit-card-engine.ts:963-994 (cycling branch owedCycle/backlog
