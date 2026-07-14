@@ -1,88 +1,76 @@
-# Handoff — 2026-07-14 ~10:35 — main
+# Handoff — 2026-07-14 ~afternoon — main
 
-## Goals
-1. ~~Q5: fix manual interest-saving-balance semantics~~ — **CODE DONE + tests green this
-   session (182/182 vitest, tsc clean). NOT yet verified live in the browser.**
-2. Live-verify Q5 against Tre's acceptance numbers (below), then resume the previous
-   queue: Anomaly A decisive test, revert leftover Oct pin, Anomaly B options to Tre,
-   `python -m graphify update .`, Q4 investigation. (See "Next Steps".)
+## Status
+Q5 (manual interest-saving-balance semantics) is **live-verified** in the browser against
+Tre's real data. Anomaly A decisive test **done** — it's a floor clamp, characterized below.
+Graphify updated (no diff). Two NEW findings on the Forecast page need Tre's ruling before
+any further engine work.
 
-## What Q5 was (Tre's authoritative ruling)
-- Prime Visa TOTAL balance = $6,004; `statement_balance` 1164.79 = amount due at the NEXT
-  due date only (PV due day 7). NOT the card's balance.
-- Expected: Jul 2026 payment $0 (due day passed), Aug pays exactly 1164.79, Discover's Aug
-  payment pulls back to fund it, floor holds. DB value 1164.79 is correct — interpretation
-  was fixed, data untouched.
+## Q5 live verification — PASSED (Debt tab, all acceptance items)
+- PV header balance $6,004; TOTAL CC BALANCE $14,453; utilization 31.8%. ✓
+- "$1,165 manual" ISB badge intact. ✓
+- PV monthly projection: Jul 2026 payment "—" ($0), Aug −$1,165 (exact ISB), no interest
+  lines in Jul/Aug (grace held); Sep shows +$11.24 interest (grace ends after ISB month —
+  by design, old full-statement rule resumes). ✓
+- Discover Aug payment pulled back to its $222 contract min (was funding PV's ISB). ✓
+- Month-0 rec for PV = $0 on both the Debt-page strip and Dashboard. ✓ (amount right;
+  label shows "Saving for Aug 7th" / "Minimum payment" instead of "Statement paid this
+  cycle" — the reason string isn't threaded to those components; cosmetic.)
+- Leftover Oct pin from the 07-13 session: already gone on arrival (no Revert All shown).
 
-## What was changed this session (all committed)
-Plan: `.claude/plan/interest-saving-balance-semantics.md` (full design + rationale).
-Backup: `backups/2026-07-14_102854/src/lib/credit-card-engine.ts`.
+## NEW FINDINGS — Forecast page regressions vs pre-Q5 (A/B tested, decisive)
+Method: temporarily copied backups/2026-07-14_102854 engine over src, hard-reloaded
+(vite needed a `touch` + ctrl-shift-R to pick it up), compared, then `git checkout --`
+restored Q5. Both states confirmed live via TOTAL CC BALANCE (9,614 pre / 14,453 post).
 
-`src/lib/credit-card-engine.ts` (only source file changed):
-1. `buildCardData` (~:238): removed `simBalance` substitution — `balance` stays the real
-   balance; `autopayFullBalance = balance <= 0`; `statementBalance` passed through.
-2. Grace inits (projectCard ~:272, projectCardVariable ~:394, sim graceMap ~:834): also in
-   grace when `statementBalance != null`.
-3. New `manualStatementByCard` map in `simulateVariablePayoff` (after graceMap init):
-   `dueMonth = dueDay >= today ? 0 : 1`; synthetic pin 0 before dueMonth, = ISB at dueMonth.
-4. Pin-resolution block (~:975): merged synthetic pins with user overrides (user wins);
-   loop now runs when either exists.
-5. Step-6 grace update (~:1550): m<dueMonth → grace persists; m==dueMonth → grace iff
-   pay ≥ ISB; else old full-statement rule.
-6. `generateRecommendations`: `manualStmtDueNow` helper — month-0 rec = $0 if due passed
-   ("Statement paid this cycle") else exactly ISB ("Pay interest-saving balance"); no
-   extra-cascade cash; totalMinDue uses min(minPayment, obligation).
+1. **Aug 2026 floor breach $339** (was the predicted "≤$25 dip"): Forecast shows Aug end
+   cash $2,461 vs $2,800 floor, milestone "⚠️ Cash below safe minimum". Pre-Q5: $3,115,
+   no warning. Forecast's Aug "CC $406" ≠ debt-tab Aug payments ($1,165+$222=$1,387) —
+   the forecast-adjusted CC pipeline disagrees with the debt sim about Aug.
+2. **"CC Debt Free" milestone gone**: pre-Q5 forecast said May 2027 debt free;
+   post-Q5 `__simDebug.raw.forecastRevolvingPayoffMonth = 36` (~Jul 2029) while the debt
+   tab still says PAYOFF ETA 12 mo. The two pipelines diverge hard post-Q5. Also a new
+   "May 2027 ⚠️ cash below safe minimum" (end cash $2,799 — $1, Q2-class noise).
+   Q4-adjacent (same statement-vs-balance code in the forecast-side resim).
+Direction is partly legitimate (real $6,004 vs the old phantom $1,165 = $4.8k more debt →
+later payoff, tighter cash), but the floor is supposed to be enforced and the 36-vs-12
+divergence is not explainable by that alone. **Needs Tre's call / dedicated investigation
+(fold into Q4).**
 
-New tests: `src/lib/__tests__/credit-card-engine.manualStatementBalance.test.ts` (8 tests,
-frozen clock 2026-07-14). Covers: Jul $0 / Aug exact ISB, cycling-card pullback, grace
-held (no interest m0-m2), real-balance walk, dueDay-not-passed → month-0 payment,
-user-override-wins, buildCardData mapping.
+## Anomaly A — RESOLVED to a characterization (Tre's design call pending)
+Decisive test done with form_input (atomic set, no appended-digit artifact):
+- Pin PV Oct = 100 → row renders **−$511 "edited"** (clamped UP to $510.50 = the month's
+  mandatory cycling obligation; same constant as `paymentLedger[].cycling`).
+- Pin PV Oct = 1032 (natural value) → honored exactly, −$1,032. ✓
+So: **floor clamp at the mandatory cycling payment, not a cap**. Pre-Q5 "139" was the same
+clamp with the old statement-split math. Plausibly by design (pin can't go below the
+contractual statement obligation), but the UI showing "edited $511" after typing 100 is
+confusing at minimum. Options for Tre: (a) accept + show a "raised to obligation" hint,
+(b) let pins go below obligation (breaks grace/contract modeling), (c) clamp silently but
+toast the adjustment. Pins fully reverted after the test (Revert All clicked, verified).
 
-## Key discovery (documented in the pullback test)
-When the competing cycling card's statement is pulled back, the shortfall becomes backlog
-the SAME month and the minimum-enforcement guard pays its $25 contract min even with the
-pool exhausted → cash can dip up to that min below floor. Pre-existing engine behavior
-(same class as Q2's "single small dip", previously ruled working-as-designed). Not
-introduced by Q5; mention to Tre if the live floor shows a tiny dip in Aug.
+## Anomaly B — unchanged, still needs Tre's ruling
+ANY pin flips ALL rows (even pre-pin months) to the local overrideSim basis — observed
+again during the test (Sep changed from −$511 to −$1,012 the moment Oct was pinned).
+Options: (a) accept + UI note, (b) always local sim on Debt tab, (c) thread overrides
+through convergence (previously rejected as risky).
 
-## Live verification of Q5 (NEXT STEP — not started)
-On http://localhost:8080/debt with Tre's real data, expect:
-- PV header balance back to $6,004; total CC balance back to ~$14,453; utilization off 8.1%.
-- "$1,165 manual" ISB badge still shown (UI unchanged).
-- PV monthly projection: Jul $0, Aug $1,164.79, no interest while grace holds.
-- Discover Aug payment lower than its no-ISB value; floor intact (± the $25 note above).
-- Dashboard current-month rec for PV: $0 "Statement paid this cycle".
-- FIRST: revert the leftover PV Oct pin from the previous session ("Revert All" in the PV
-  monthly-projection header) — it's still active and will distort rows (Anomaly B basis
-  switch: ANY pin flips all rows to overrideSim). NOTE: browser tools were 429-rate-limited
-  until ~3:30am ET on 07-14; should be reset by now.
-- `window.__simDebug.raw` reflects the SHARED pipeline only — use UI rows (get_page_text).
-- Note: if PV has an active installment plan (installment_balance > 0), Jul shows the
-  installment payment instead of $0 — installments are contractual, paid outside the pin.
+## Remaining queue
+1. Forecast findings 1+2 above — fold into Q4 investigation (cycling card not paying full
+   statement in later years; screenshot Feb–Jun 2028; suspects: Step-2 pool
+   double-reserve, maxDebtPaymentByMonth save-up cap with allRevolvingClear; reproduce
+   WITHOUT overrides; lean-fix flow). Note `maxDebtPaymentByMonth` is null for m0–m12 in
+   __simDebug — that itself may be a clue.
+2. Anomaly A + B design decisions — waiting on Tre.
+3. Cosmetic backlog: rec reason string not threaded ("Statement paid this cycle" never
+   shown); PV "TOTAL INTEREST $132,134" (runaway min-payment stat with $0 min payment —
+   pre-existing?); Dashboard "Due 1th" typo.
 
-## Then resume previous queue (from the 02:50 handoff, preserved in git history ddd08cde/62fadc68)
-1. Anomaly A decisive test: pin PV Oct to exactly 100 via form_input (atomic set — ctrl+a
-   typing APPENDED digits last time) → row must show −$100; then pin exactly the natural
-   payment → must show that value. If the cycling clamp cap (< natural statement payment)
-   is real, fix credit-card-engine.ts pin-resolution cycling branch (owedCycle/backlog cap).
-   NOTE: Q5's fix may reframe the "139" (statement-split math changed).
-2. Anomaly B (display basis switches to overrideSim when ANY pin exists; even pre-pin
-   months change) — present options to Tre: (a) accept + UI note, (b) always local sim on
-   Debt tab, (c) thread overrides through convergence (plan rejected as risky). His call.
-3. `python -m graphify update .` — never run for Q1 override-rebalance NOR this Q5 change;
-   commit if graphify-out/ changes.
-4. Q4: cycling card not paying full statement in later years despite cash (screenshot
-   Feb–Jun 2028; suspects: Step-2 pool double-reserve, maxDebtPaymentByMonth save-up cap
-   with allRevolvingClear; reproduce WITHOUT overrides; lean-fix flow). Q5's machinery is
-   adjacent (same statement-vs-balance code) — re-check symptoms after Q5 verify.
-
-## Failed Attempts (carry-overs worth keeping)
-- ctrl+a + type into month-payment inputs appends instead of replacing — use form_input.
+## Carry-over guardrails / gotchas
+- ctrl+a+type into month-payment inputs APPENDS — use form_input (confirmed good today).
 - `window.__simDebug.raw` ignores overrides — UI rows are ground truth under pins.
-- (This session: first pullback-test expectation assumed no backlog-min guard — the guard
-  fires same-month; test now asserts 1135.21 statement + 25 backlog min = 1160.21.)
-
-## Guardrails
-- Repo PUBLIC — never commit real financial data (sim dumps, fixtures).
+- vite on :8080 didn't hot-pick a `cp` overwrite of credit-card-engine.ts — needed
+  `touch` + hard reload; verify which engine is live via TOTAL CC BALANCE.
+- Repo PUBLIC — never commit real financial data.
 - Supabase: always filter user_id a72f416e-433a-4055-9ab0-9feae4e60edf.
 - Never push. No amend/rebase. Backups before source edits per CLAUDE.md.
