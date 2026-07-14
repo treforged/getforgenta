@@ -236,12 +236,15 @@ export function buildCardData(
     const paymentPreference: 'statement' | 'full' | null =
       pref === 'statement' ? 'statement' : pref === 'full' ? 'full' : null;
     const statementBalancePhase = Boolean(acct.statement_balance_phase);
+    // Manual interest-saving balance: the amount due at the card's NEXT due date only (the
+    // current statement) — NOT a replacement for the card's balance. The full balance keeps
+    // walking through every projection; statementBalance only pins the next statement's
+    // payment and implies the card is in grace (paying it keeps the card interest-free).
     const statementBalance = acct.statement_balance != null ? Number(acct.statement_balance) : null;
-    const simBalance = statementBalance !== null ? statementBalance : balance;
-    const autopayFullBalance = simBalance <= 0;
+    const autopayFullBalance = balance <= 0;
 
     return {
-      id: acct.id, name: acct.name, balance: simBalance, apr, creditLimit,
+      id: acct.id, name: acct.name, balance, apr, creditLimit,
       minPayment: minPay, minPaymentIsManual,
       targetPayment: Math.max(targetPay, minPay),
       monthlyNewPurchases, monthlyRepayments: monthRepayments,
@@ -266,7 +269,7 @@ export function projectCard(card: CardData, months = PROJECTION_MONTHS): CardPro
   const monthlyRate = card.apr / 100 / 12;
   const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
   // Grace period: true when last payment covered full statement balance, so new purchases don't accrue interest
-  let inGrace = card.paymentPreference === 'statement' && (card.statementBalancePhase || card.balance <= card.monthlyNewPurchases + 0.01);
+  let inGrace = card.paymentPreference === 'statement' && (card.statementBalancePhase || card.statementBalance != null || card.balance <= card.monthlyNewPurchases + 0.01);
   // Billing cycle deferred payment: autopay card charges in month m are paid in month m+1.
   let prevMonthPurchases = 0;
 
@@ -388,7 +391,7 @@ export function projectCardVariable(
   let payoffMonth: number | null = null;
   const monthlyRate = card.apr / 100 / 12;
   const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
-  let inGrace = card.paymentPreference === 'statement' && (card.statementBalancePhase || card.balance <= card.monthlyNewPurchases + 0.01);
+  let inGrace = card.paymentPreference === 'statement' && (card.statementBalancePhase || card.statementBalance != null || card.balance <= card.monthlyNewPurchases + 0.01);
 
   for (let m = 1; m <= simMonths; m++) {
     const hasPref = card.autopayFullBalance || card.paymentPreference !== null;
@@ -828,8 +831,23 @@ export function simulateVariablePayoff(
   // When a card pays its full statement balance (startBal + interest), the new purchases
   // added that cycle are in grace period — no interest charged next billing cycle.
   const graceMap = new Map<string, boolean>(
-    cards.map(c => [c.id, c.paymentPreference === 'statement' && (c.statementBalancePhase || c.balance <= c.monthlyNewPurchases + 0.01)]),
+    cards.map(c => [c.id, c.paymentPreference === 'statement' && (c.statementBalancePhase || c.statementBalance != null || c.balance <= c.monthlyNewPurchases + 0.01)]),
   );
+
+  // Manual interest-saving balance (CardData.statementBalance): the user-entered amount due
+  // at the card's next due date. Modeled as a synthetic payment pin on top of the real
+  // balance walk: months before the due month pay $0 (that cycle's statement was already
+  // paid before today), the due month pays exactly the entered amount, and every later month
+  // reverts to normal statement-preference behavior (the unbilled remainder becomes the next
+  // statement). The due month is month 0 when the card's due day hasn't passed yet this
+  // month, else month 1. A user override on the same card/month wins over the synthetic pin.
+  const manualStatementByCard = new Map<string, { dueMonth: number; amount: number }>();
+  for (const c of cards) {
+    if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) continue;
+    if ((cardStartMonths.get(c.id) ?? 0) > 0) continue;
+    const dueMonth = c.dueDay != null && c.dueDay >= now.getDate() ? 0 : 1;
+    manualStatementByCard.set(c.id, { dueMonth, amount: Math.max(0, c.statementBalance) });
+  }
 
   // Billing cycle deferred purchases: a paid-off card's charges in month m are paid
   // in month m+1 (statement closes at month-end, payment due ~25 days into next month).
@@ -961,9 +979,15 @@ export function simulateVariablePayoff(
     //   mandatoryShare — cash the pin consumes from the Step-2 cycling mandatory pool
     //                    (always 0 for a revolving card).
     const pinnedThisMonth = new Map<string, { step5Share: number; mandatoryShare: number }>();
-    if (paymentOverridesByMonth) {
+    if (paymentOverridesByMonth || manualStatementByCard.size > 0) {
       for (const card of cards) {
-        const raw = paymentOverridesByMonth[card.id]?.[m];
+        const userRaw = paymentOverridesByMonth?.[card.id]?.[m];
+        // Synthetic manual-statement pin: 0 before the due month, the ISB amount at it.
+        const ms = manualStatementByCard.get(card.id);
+        const syntheticRaw = ms !== undefined && m <= ms.dueMonth
+          ? (m === ms.dueMonth ? ms.amount : 0)
+          : undefined;
+        const raw = userRaw !== undefined ? userRaw : syntheticRaw;
         if (raw === undefined || (cardStartMonths.get(card.id) ?? 0) > m) continue;
         const pinFloor = Math.max(0, raw);
         if (paidOffCards.has(card.id)) {
@@ -1525,7 +1549,17 @@ export function simulateVariablePayoff(
       // (startBal minus installment portion, plus interest) was fully covered by the
       // revolving cascade payment. installmentBals still holds the start-of-month value.
       if (card.paymentPreference === 'statement') {
-        graceMap.set(card.id, pay >= startBal - startInstBal + interest - 0.01);
+        const ms = manualStatementByCard.get(card.id);
+        if (ms && m < ms.dueMonth) {
+          // Statement already paid this cycle (due day passed before today) — grace persists.
+          graceMap.set(card.id, true);
+        } else if (ms && m === ms.dueMonth) {
+          // Paying the user-entered interest-saving amount is by definition what keeps the
+          // card interest-free — the unbilled remainder is not yet due and can't break grace.
+          graceMap.set(card.id, pay >= ms.amount - 0.01);
+        } else {
+          graceMap.set(card.id, pay >= startBal - startInstBal + interest - 0.01);
+        }
       }
 
       // Reduce installment balance by the UPFRONT plan payment only.
@@ -1681,7 +1715,18 @@ export function generateRecommendations(
   const preferenceCards = cards.filter(c => c.autopayFullBalance);
   const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
 
-  const totalMinDue = revolvingCards.reduce((s, c) => s + c.minPayment, 0);
+  // Manual interest-saving balance: this month's obligation is $0 when the card's due day
+  // has already passed (that statement was paid before today), else exactly the entered
+  // amount. Mirrors the synthetic pin in simulateVariablePayoff.
+  const manualStmtDueNow = (card: CardData): number | null => {
+    if (card.paymentPreference !== 'statement' || card.statementBalance == null || card.balance <= 0) return null;
+    return card.dueDay != null && card.dueDay >= new Date().getDate() ? Math.max(0, card.statementBalance) : 0;
+  };
+
+  const totalMinDue = revolvingCards.reduce((s, c) => {
+    const ms = manualStmtDueNow(c);
+    return s + (ms !== null ? Math.min(c.minPayment, ms) : c.minPayment);
+  }, 0);
 
   const userCashFloor = cashFloor;
   const ppBills = prePaycheckBillsTotal ?? 0;
@@ -1790,11 +1835,16 @@ export function generateRecommendations(
   );
 
   for (const card of sorted) {
-    const basePayment = Math.max(0, Math.min(card.minPayment, remaining, card.balance));
+    const ms = manualStmtDueNow(card);
+    const basePayment = ms !== null
+      ? Math.max(0, Math.min(ms, remaining))
+      : Math.max(0, Math.min(card.minPayment, remaining, card.balance));
     recs.push({
       cardId: card.id, cardName: card.name, color: card.color, payment: basePayment,
-      isMinimumOnly: true,
-      reason: 'Minimum due',
+      isMinimumOnly: ms === null,
+      reason: ms === null ? 'Minimum due'
+        : ms === 0 ? 'Statement paid this cycle'
+        : 'Pay interest-saving balance',
       estimatedLiquidCash: cardEstimatedCash.get(card.id),
       dueDay: card.dueDay,
     });
@@ -1807,7 +1857,10 @@ export function generateRecommendations(
       const rec = recs.find(r => r.cardId === card.id)!;
       // statement preference: cap extra at current balance (don't pre-pay new purchases)
       // full or null: pay balance + anticipated new purchases (clear the card fully)
-      const maxExtra = card.paymentPreference === 'statement'
+      // manual interest-saving balance: this month's obligation is fixed — never add extra
+      // (the unbilled remainder isn't due yet, and a paid statement needs nothing more).
+      const maxExtra = manualStmtDueNow(card) !== null ? 0
+        : card.paymentPreference === 'statement'
         ? Math.max(0, card.balance - rec.payment)
         : Math.max(0, card.balance + card.monthlyNewPurchases - rec.payment);
       const extra = Math.min(remaining, maxExtra);
