@@ -740,6 +740,22 @@ export function simulateVariablePayoff(
    * installment payments are unaffected. Omitted ⇒ byte-identical legacy behavior.
    */
   debtCashTargetByMonth?: number[],
+  /**
+   * Q1 override-rebalance — user-pinned per-card per-month payments:
+   * paymentOverridesByMonth[cardId][monthIdx] = the card's exact TOTAL payment that month.
+   * A pinned card's payment is exactly the override, clamped only at ≥0 and at what the card
+   * actually owes (balance + interest + purchases for a revolving card; current-cycle statement
+   * + backlog for a cycling card) so a nonexistent balance is never overpaid. The pinned amount
+   * is deducted from the month's cash BEFORE Step 2 (cycling mandatory pool) and Step 5
+   * (revolving cascade) size their pools, and the card is excluded from normal allocation in
+   * both steps — so the OTHER cards rebalance around the pin under the normal strategy/minimum/
+   * floor rules. Pinning below the contract minimum is allowed (explicit user command; the
+   * minimum-enforcement guard skips pinned cards). One exception to "total": a mandatory
+   * installment share (upfront plan + BNPL, Step 2.5) can't be pinned away — the pin's cascade
+   * share is max(0, pin − installment due), so a pin below the installment due still pays the
+   * installment in full. Omitted ⇒ byte-identical legacy behavior.
+   */
+  paymentOverridesByMonth?: { [cardId: string]: Record<number, number> },
 ): SimResult {
   if (cards.length === 0) {
     return {
@@ -934,6 +950,56 @@ export function simulateVariablePayoff(
       backlogInterestMap.set(card.id, interest);
     }
 
+    // ── Pinned payment overrides (paymentOverridesByMonth) ─────────────────────────
+    // Resolve each of this month's overrides into concrete cash shares up front so both
+    // allocation pools can deduct the pinned spend before sizing (see the param JSDoc).
+    // The revolving-interest mirror below matches Step 3's formula exactly — balances, graceMap,
+    // and installmentBals are not mutated between here and Step 3 — and owedCycle matches
+    // Step 2's owedByCard (paidOffDeferredPurchases isn't mutated until Step 2's payment loop).
+    //   step5Share     — cash the pin consumes from the Step-5 pool (revolving cascade for a
+    //                    debt card; backlog cascade for a cycling card).
+    //   mandatoryShare — cash the pin consumes from the Step-2 cycling mandatory pool
+    //                    (always 0 for a revolving card).
+    const pinnedThisMonth = new Map<string, { step5Share: number; mandatoryShare: number }>();
+    if (paymentOverridesByMonth) {
+      for (const card of cards) {
+        const raw = paymentOverridesByMonth[card.id]?.[m];
+        if (raw === undefined || (cardStartMonths.get(card.id) ?? 0) > m) continue;
+        const pinFloor = Math.max(0, raw);
+        if (paidOffCards.has(card.id)) {
+          const owedCycle = Math.round((paidOffDeferredPurchases.get(card.id) ?? 0) * 100) / 100;
+          const backlog = cyclingBacklog.get(card.id) ?? 0; // already post-Step-1b interest
+          const pin = Math.round(Math.min(pinFloor, owedCycle + backlog) * 100) / 100;
+          const mandatoryShare = Math.round(Math.min(pin, owedCycle) * 100) / 100;
+          pinnedThisMonth.set(card.id, {
+            mandatoryShare,
+            step5Share: Math.round((pin - mandatoryShare) * 100) / 100,
+          });
+        } else {
+          const bal = balances.get(card.id) ?? 0;
+          const instBal = installmentBals.get(card.id) ?? 0;
+          const inGrace = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
+          const interest = inGrace ? 0 : Math.round(Math.max(0, bal - instBal) * (card.apr / 100 / 12) * 100) / 100;
+          const owed = bal + interest + cardPurchasesThisMonth(card);
+          const pin = Math.round(Math.min(pinFloor, owed) * 100) / 100;
+          // The pin is the card's TOTAL payment; the mandatory installment share (paid via
+          // installmentCashCost, Step 2.5) comes out first and can't be pinned away.
+          const instDue = Math.round(upfrontDueFor(card, instBal) * 100) / 100
+            + Math.round((installmentChargeByMonth?.[m]?.[card.id] ?? 0) * 100) / 100;
+          pinnedThisMonth.set(card.id, {
+            mandatoryShare: 0,
+            step5Share: Math.max(0, Math.round((pin - instDue) * 100) / 100),
+          });
+        }
+      }
+    }
+    let pinnedStep5Total = 0;
+    let pinnedMandatoryTotal = 0;
+    for (const pin of pinnedThisMonth.values()) {
+      pinnedStep5Total += pin.step5Share;
+      pinnedMandatoryTotal += pin.mandatoryShare;
+    }
+
     // Hoisted here (used by both the cycling-pool cap below and the revolving cascade cap in
     // Step 5) so a single per-month value drives both.
     const mDebtCap = maxDebtPaymentByMonth?.[m];
@@ -973,11 +1039,18 @@ export function simulateVariablePayoff(
         // double-reservation guard below (ccMinAlreadyInFloor) still nets the floor's formula-sized
         // share back out, so the floor reserves `formula` and this layer reserves the rest
         // (`contract − formula`) — together exactly the contract min, and no more.
-        if (paidOffCards.has(c.id)) return s + revolvingMinDue(c, cyclingBacklog.get(c.id) ?? 0);
+        // A pinned card reserves its exact pinned Step-5 spend instead of its contract minimum —
+        // larger pins shrink the mandatory cycling pool accordingly; smaller pins free cash to it.
+        const pin = pinnedThisMonth.get(c.id);
+        if (paidOffCards.has(c.id)) {
+          if (pin) return s + pin.step5Share;
+          return s + revolvingMinDue(c, cyclingBacklog.get(c.id) ?? 0);
+        }
         const bal = balances.get(c.id) ?? 0;
         const instBal = installmentBals.get(c.id) ?? 0;
         const revBal = Math.max(0, bal - instBal);
         const instMinPay = upfrontDueFor(c, instBal);
+        if (pin) return s + pin.step5Share + instMinPay;
         return s + revolvingMinDue(c, revBal) + instMinPay;
       }, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
@@ -987,7 +1060,9 @@ export function simulateVariablePayoff(
     // subtract), so this is an exact no-op there.
     const ccMinAlreadyInFloor = ccMinAlreadyInFloorByMonth?.[m] ?? 0;
     const effectiveReservedForRevolving = Math.max(0, reservedForRevolving - ccMinAlreadyInFloor);
-    let paidOffPool = Math.max(0, tentativeAvailAboveFloor - effectiveReservedForRevolving);
+    // Pinned cycling cards' mandatory shares are paid outside the pool (fixed, below) — deduct
+    // them here so the pool only funds the unpinned cards' distribution.
+    let paidOffPool = Math.max(0, tentativeAvailAboveFloor - effectiveReservedForRevolving - pinnedMandatoryTotal);
     let paidOffCashCost = 0;
     const paidOffCardsThisMonth = [...cards].filter(c => paidOffCards.has(c.id));
 
@@ -1007,12 +1082,14 @@ export function simulateVariablePayoff(
     // mirroring the max(mDebtCap, totalMins) guarantee the Step 5 cascade cap uses below.
     if (allRevolvingClear && mDebtCap !== undefined && isFinite(mDebtCap)) {
       const cyclingMinTotal = paidOffCardsThisMonth.reduce((s, c) => {
+        if (pinnedThisMonth.has(c.id)) return s; // pinned spend is fixed and already off-pool
         const owed = owedByCard.get(c.id) ?? 0;
         if (owed <= 0) return s;
         const minRequired = Math.min(Math.max(25, Math.round(owed * 0.02 * 100) / 100), owed);
         return s + minRequired;
       }, 0);
-      paidOffPool = Math.min(paidOffPool, Math.max(mDebtCap, cyclingMinTotal));
+      // Pinned mandatory spend consumes the cap first (it was already deducted from the pool).
+      paidOffPool = Math.min(paidOffPool, Math.max(mDebtCap - pinnedMandatoryTotal, cyclingMinTotal));
     }
 
     // Split `pool` across `cards` proportional to each card's need (per `needFn`), capping each
@@ -1059,8 +1136,11 @@ export function simulateVariablePayoff(
     // intended guarantee before the guard cutoff stops it, starving competing cycling cards of
     // Phase B's leftover entirely (confirmed live: a $669 pool intended to split ~$479/$190
     // between two cycling cards instead landed $604/$65).
+    // Pinned cards are excluded from both phases (their payment is fixed, spend already deducted
+    // from the pool) — the needFn→0 exclusion pattern, applied via the eligible list.
+    const unpinnedPaidOffCards = paidOffCardsThisMonth.filter(c => !pinnedThisMonth.has(c.id));
     paidOffPool = distributeProportionally(
-      paidOffPool, paidOffCardsThisMonth,
+      paidOffPool, unpinnedPaidOffCards,
       id => Math.max(0, Math.min(cards.find(c => c.id === id)!.minPayment, owedByCard.get(id) ?? 0) - (paidSoFar.get(id) ?? 0)),
     );
 
@@ -1068,7 +1148,7 @@ export function simulateVariablePayoff(
     // owed (so a card with a bigger carried-forward shortfall gets more of the pool, without ever
     // zeroing out a competing card outright).
     paidOffPool = distributeProportionally(
-      paidOffPool, paidOffCardsThisMonth,
+      paidOffPool, unpinnedPaidOffCards,
       id => Math.max(0, (owedByCard.get(id) ?? 0) - (paidSoFar.get(id) ?? 0)),
     );
 
@@ -1082,8 +1162,13 @@ export function simulateVariablePayoff(
       const owedThisCycle = owedByCard.get(card.id) ?? 0;
       // Absolute backstop: minimums should always be met when there's anything owed, even in the
       // rare case the pool above couldn't cover it (mirrors the revolving-card guard below).
+      // A pinned card pays exactly its pinned mandatory share — no pool draw, no minimum backstop
+      // (pinning below the minimum is an explicit user command); any unpaid statement remainder
+      // rolls into interest-bearing backlog below, same as an underfunded pool month.
       const minRequired = Math.min(Math.max(25, Math.round(owedThisCycle * 0.02 * 100) / 100), owedThisCycle);
-      const pay = Math.max(paidSoFar.get(card.id) ?? 0, owedThisCycle > 0 ? minRequired : 0);
+      const pin = pinnedThisMonth.get(card.id);
+      const pay = pin ? pin.mandatoryShare
+        : Math.max(paidSoFar.get(card.id) ?? 0, owedThisCycle > 0 ? minRequired : 0);
       mandatoryPayByCard.set(card.id, pay);
       paidOffCashCost += pay;
       // Display combines this cycle's mandatory statement with the (already post-interest, see
@@ -1210,6 +1295,7 @@ export function simulateVariablePayoff(
     // Minimum for revolving cards excludes the installment portion (handled separately as
     // installmentCashCost, already deducted from availableCash). Minimum for backlog cards is unchanged.
     const totalMins = [...debtCards, ...backlogCards].reduce((s, c) => {
+      if (pinnedThisMonth.has(c.id)) return s; // pinned spend is fixed — deducted from the pool below
       const owed = owedForCard(c.id);
       const instBal = installmentBals.get(c.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);
@@ -1220,7 +1306,9 @@ export function simulateVariablePayoff(
     // mandatory installment payments, and one-time items for this month.
     // Month 0 uses month0SafeFloor (= max(cashFloor, ppBills)) so the projection matches recommendations.
     // effectiveFloor and oneTimeNet are computed at top of this iteration (before Step 2).
-    let availableCash = currentCash + monthIncome - monthExpenses - effectiveFloor - paidOffCashCost + oneTimeNet - installmentCashCost;
+    // pinnedStep5Total: pinned cards' fixed Step-5 spend comes off the top — the cascade below
+    // only allocates the remainder across unpinned cards.
+    let availableCash = currentCash + monthIncome - monthExpenses - effectiveFloor - paidOffCashCost + oneTimeNet - installmentCashCost - pinnedStep5Total;
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });
       availableCash = 0;
@@ -1235,7 +1323,9 @@ export function simulateVariablePayoff(
     // availableCash, so this never invents cash the month doesn't have.
     // (mDebtCap hoisted above, before Step 2 — also drives the cycling-pool cap there.)
     if (mDebtCap !== undefined && isFinite(mDebtCap)) {
-      availableCash = Math.min(availableCash, Math.max(mDebtCap, totalMins));
+      // Pinned Step-5 spend consumes the cap first (mirrors the Step-2 cap's pinnedMandatoryTotal
+      // deduction) — availableCash above already excludes it, so the cap must too.
+      availableCash = Math.min(availableCash, Math.max(mDebtCap - pinnedStep5Total, totalMins));
     }
 
     // Convergence target (Phase 2 Option C): the forecast engine's authoritative revolving debt
@@ -1246,7 +1336,9 @@ export function simulateVariablePayoff(
     // so excess target cash is never spent. Wins over mDebtCap when both are provided.
     const mDebtTarget = debtCashTargetByMonth?.[m];
     if (mDebtTarget !== undefined && isFinite(mDebtTarget)) {
-      availableCash = Math.max(mDebtTarget, totalMins);
+      // The target is the TOTAL revolving debt cash for the month; pinned Step-5 spend comes out
+      // of it first, leaving the remainder for the unpinned cascade.
+      availableCash = Math.max(mDebtTarget - pinnedStep5Total, totalMins);
     }
 
     const payments = new Map<string, number>(cards.map(c => [c.id, 0]));
@@ -1259,11 +1351,12 @@ export function simulateVariablePayoff(
       // Snowball protection: pay smallest balances first when cash is tight. Backlog cards are
       // folded in via owedForCard — sorting by bare `balances` (always 0 for a backlog card)
       // would incorrectly put every backlog card first regardless of how much it actually owes.
-      const sortedForBreached = [...debtCards, ...backlogCards].sort(
-        (a, b) => owedForCard(a.id) - owedForCard(b.id),
-      );
-      // Deduct mandatory installment payments first — they are as non-negotiable as revolving mins.
-      let remainingForMins = Math.max(0, currentCash - installmentCashCost);
+      const sortedForBreached = [...debtCards, ...backlogCards]
+        .filter(c => !pinnedThisMonth.has(c.id)) // pinned cards pay their fixed pin regardless
+        .sort((a, b) => owedForCard(a.id) - owedForCard(b.id));
+      // Deduct mandatory installment payments first — they are as non-negotiable as revolving
+      // mins. Pinned Step-5 spend is equally fixed (explicit user command), so it comes out too.
+      let remainingForMins = Math.max(0, currentCash - installmentCashCost - pinnedStep5Total);
       let atRiskWarningEmitted = false;
       for (const card of sortedForBreached) {
         const owed = owedForCard(card.id);
@@ -1292,11 +1385,13 @@ export function simulateVariablePayoff(
       // which point they transition to paidOffCards (cycling mode). No priority boost. Backlog
       // cards (cycling cards carrying unpaid debt) compete in this SAME combined priority list —
       // this is the literal "next card in line gets the extra cash" cascade.
-      const strategyOrder = [...debtCards, ...backlogCards].sort((a, b) =>
-        strategy === 'avalanche'
-          ? b.apr - a.apr
-          : owedForCard(a.id) - owedForCard(b.id)
-      );
+      const strategyOrder = [...debtCards, ...backlogCards]
+        .filter(c => !pinnedThisMonth.has(c.id)) // pinned cards sit outside the cascade entirely
+        .sort((a, b) =>
+          strategy === 'avalanche'
+            ? b.apr - a.apr
+            : owedForCard(a.id) - owedForCard(b.id)
+        );
 
       // ── Step 5a — Pay minimums ─────────────────────────────
       let remaining = availableCash;
@@ -1328,10 +1423,20 @@ export function simulateVariablePayoff(
       }
     }
 
+    // Pinned cards receive exactly their pinned Step-5 share, set outside both allocation
+    // branches above (their cash was already deducted from availableCash / remainingForMins).
+    // For a revolving card this is the cascade share (pin − installment due); for a cycling card
+    // it's the backlog-paydown share, applied in Step 6b.
+    for (const [id, pin] of pinnedThisMonth) {
+      payments.set(id, pin.step5Share);
+    }
+
     // ── Minimum enforcement guard ──────────────────────────────────────
     // After all allocation, ensure every active debt card (and backlog card) receives at least
     // the revolving-portion minimum. Installment payment is already tracked in installmentPayByCard.
+    // Pinned cards are exempt — a below-minimum pin is an explicit user command (see param JSDoc).
     for (const card of [...debtCards, ...backlogCards]) {
+      if (pinnedThisMonth.has(card.id)) continue;
       const owed = owedForCard(card.id);
       const instBal = installmentBals.get(card.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);

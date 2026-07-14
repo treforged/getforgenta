@@ -717,7 +717,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }
     }
 
-    const sim = simulateVariablePayoff(
+    // runSim closes over every argument so overrideSim below can re-run the IDENTICAL
+    // simulation with the user's payment pins applied — one allocation model for both.
+    const runSim = (paymentOverridesByMonth?: Record<string, Record<number, number>>) => simulateVariablePayoff(
       cards, fundingBalance, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, PROJECTION_MONTHS,
       carAdjustedMonthEvents, undefined, augmentedCCPurchases,
@@ -729,10 +731,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       undefined,
       undefined,
       upfrontPayByMonth,
+      undefined,
+      paymentOverridesByMonth,
     );
+    const sim = runSim();
     // Return augmentedCCPurchases alongside the sim so projections can use it
     // to pass per-month purchase amounts to projectCardVariable.
-    return { ...sim, augmentedCCPurchases };
+    return { ...sim, augmentedCCPurchases, runSim };
   }, [cards, upfrontPayByMonth, fundingBalance, cashFloor, strategy, monthlyTakeHome,
       monthlyRecurringExpenses, allTransactions, accounts, ccPurchasesPerMonth, monthEvents,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode,
@@ -740,6 +745,17 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
       rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate,
       paymentPlans, prePaycheckBills.total]);
+
+  // Override-rebalance: when the user pins any month's payment, re-run the exact same
+  // simulation with the pins applied (simulateVariablePayoff's paymentOverridesByMonth param).
+  // The engine deducts each pinned payment from that month's pools and re-allocates the rest
+  // across the other cards under the normal strategy/minimum/floor rules — one model, so every
+  // projection row reconciles. variableSim itself stays override-free: it feeds
+  // recommendedSafeMinimum and other non-override surfaces.
+  const overrideSim = useMemo(
+    () => Object.keys(overrides).length > 0 ? variableSim.runSim(overrides) : null,
+    [variableSim, overrides],
+  );
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
@@ -876,32 +892,40 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // "paying" $0-balance months, and a phantom tail resurfaced.)
     const baseProjs = cards.map(c => {
       const cardOverrides = overrides[c.id] || {};
-      const hasOverrides = Object.keys(cardOverrides).length > 0;
       const cardPurchases = variableSim.augmentedCCPurchases.map(
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
+        // Override-rebalance: when ANY override exists, the override sim re-ran the full
+        // allocation with every pin applied, so it is the ground truth for ALL cards —
+        // pinned months show exactly the (clamped) pin, other cards' payments show their
+        // rebalanced amounts, and every row reconciles against the sim's own balances/interest.
+        if (overrideSim) {
+          return projectCardVariable(
+            c, overrideSim.monthlyPayments.get(c.id) ?? [], PROJECTION_MONTHS, true, cardPurchases,
+            overrideSim.monthlyRevolvingBalances.get(c.id) ?? [],
+            overrideSim.monthlyCyclingOwed.get(c.id) ?? [],
+            overrideSim.monthlyCyclingInterest.get(c.id) ?? [],
+            overrideSim.monthlyBalances.get(c.id) ?? [],
+            overrideSim.monthlyInterest.get(c.id) ?? [],
+          );
+        }
         // Raw sim payments (perCardPayments) — the exact amounts that produced the sim balances
         // below. NOT perCardPaymentsScaled or the month-0 pass-3 amount, which differ from the
         // sim's own numbers and would reintroduce the reconciliation gap.
         const rawPays = perCardPayments?.find(p => p.id === c.id)?.payments;
         const localPays = variableSim.monthlyPayments.get(c.id) ?? [];
-        const basePays = rawPays ?? localPays;
-        const payments = basePays.map((p, i) => cardOverrides[i] !== undefined ? cardOverrides[i] : p);
+        const payments = rawPays ?? localPays;
         const revBals = (monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(c.id) ?? [];
         const cyclingOwed = (monthlyCyclingOwed ?? variableSim.monthlyCyclingOwed)?.get(c.id) ?? [];
         const cyclingInterest = (monthlyCyclingInterest ?? variableSim.monthlyCyclingInterest)?.get(c.id) ?? [];
         const trueBalances = (monthlyBalances ?? variableSim.monthlyBalances)?.get(c.id) ?? [];
         const trueInterest = (monthlyInterest ?? variableSim.monthlyInterest)?.get(c.id) ?? [];
-        // With user overrides the displayed payments intentionally diverge from the sim, so the
-        // sim's ground-truth end balances/interest no longer correspond — pass them as undefined so
-        // projectCardVariable does its own balance walk from the override payments (which then
-        // reconciles against that walk instead of the sim).
         return projectCardVariable(
           c, payments, PROJECTION_MONTHS, true, cardPurchases,
           revBals, cyclingOwed, cyclingInterest,
-          hasOverrides ? undefined : trueBalances,
-          hasOverrides ? undefined : trueInterest,
+          trueBalances,
+          trueInterest,
         );
       }
       if (Object.keys(cardOverrides).length > 0) {
@@ -912,7 +936,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrides, perCardPayments, perCardPaymentsScaled, month0, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
+  }, [cards, paymentMode, variableSim, overrideSim, overrides, perCardPayments, perCardPaymentsScaled, month0, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
 
   // Cumulative PASS-3 surplus routed to each card — the shared step3-display adjustment, so
   // accordion/chart balances match the Forecast month popup and CSV export. Display-only:
@@ -938,8 +962,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         }
         const m = p.months[i];
         if (m) {
-          const revBal = (monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(p.card.id)?.[i] ?? 0;
-          const cum = step3CumSurplus.get(p.card.id)?.[i] ?? 0;
+          // With overrides active, the override sim is the ground truth (matches projections),
+          // and the shared step-3 surplus adjustment no longer corresponds — skip it.
+          const revBal = (overrideSim?.monthlyRevolvingBalances ?? monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(p.card.id)?.[i] ?? 0;
+          const cum = overrideSim ? 0 : (step3CumSurplus.get(p.card.id)?.[i] ?? 0);
           row[p.card.name] = Math.round(revBal > 0 ? adjustedDisplayBalance(m.endBalance, cum) : m.endBalance);
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
           row[p.card.name] = p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement'
@@ -949,7 +975,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }
       return row;
     });
-  }, [projections, monthlyRevolvingBalances, variableSim, step3CumSurplus]);
+  }, [projections, monthlyRevolvingBalances, variableSim, overrideSim, step3CumSurplus]);
 
   const utilizationMilestones = useMemo(() => {
     const limit = cards.reduce((s, c) => s + (c.creditLimit ?? 0), 0);
@@ -1031,7 +1057,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       [cardId]: { ...prev[cardId], [monthIdx]: val },
     }));
     setEditingMonth(null);
-    toast.success('Payment override applied — future months recalculated');
+    toast.success('Payment override applied — other cards rebalanced');
   };
 
   const revertMonth = (cardId: string, monthIdx: number) => {
