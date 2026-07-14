@@ -79,13 +79,30 @@ projection changed — re-verify breaches under the CORRECTED settings before co
 - Stale fixture at src/lib/__tests__/fixtures/forecast-inputs.real.json is from 2026-07-03 (gitignored)
   — predates recent purchases AND the statement switch; do not trust it for current breaches.
 
+## Q3 — NEW REQUEST (2026-07-13, NOT STARTED): manual interest-saving (statement) balance for current month
+User: "add something so users can set a manual interest saving balance for the current month."
+IMPORTANT — a manual statement-balance setter ALREADY EXISTS; build on it, do NOT duplicate:
+- State: `editingStatementBal`, `statementBalInput` (CreditCardEngine.tsx:129-130).
+- Handler: `handleSaveStatementBal` (:1005) → `updateAccount.mutate({id, statement_balance})`;
+  clearing it sends `statement_balance: null`. DB column `accounts.statement_balance` (numeric) exists.
+- "Interest-saving balance" = the statement balance a statement-pref card pays to avoid interest.
+SCOPE QUESTION to resolve with user first (ambiguity): is the existing `statement_balance` edit
+(a) not surfaced in the UI at all, (b) surfaced only for some cards / hard to find, or (c) present but
+needs relabeling as "interest-saving balance (this month)"? Grep the JSX for where `editingStatementBal`
+/ `handleSaveStatementBal` are wired to a control (search CreditCardEngine.tsx render section, ~:1480-1600)
+to see what's already exposed BEFORE building. Likely deliverable: an inline editable field on the card
+row (esp. statement-pref cards) labeled "Interest-saving balance" that writes `statement_balance`, with a
+revert-to-auto affordance. Note statement_balance is a single current value (effectively current month),
+not per-future-month. Plan → backup → implement → test → review.
+
 ## NEXT STEPS (in order)
-1. Re-pull `__simDebug` under corrected Prime Visa=statement; read Forecast page "below safe minimum"
+1. Q3: build the manual interest-saving-balance control (see Q3 above) — resolve the scope question first.
+2. Re-pull `__simDebug` under corrected Prime Visa=statement; read Forecast page "below safe minimum"
    months to confirm whether any breach remains and classify (b) unavoidable vs uncapped-statement.
-2. Report Q2 conclusion to user (likely: working-as-designed, bounded by minimums; the uncapped
+3. Report Q2 conclusion to user (likely: working-as-designed, bounded by minimums; the uncapped
    statement payment is the residual lever — possible product decision to also throttle statement
    cards, which user previously flagged as a bigger-scope option they did NOT pick).
-3. Build the Q1 override-rebalance feature (approved). Plan → backup → implement → test → review.
+4. Build the Q1 override-rebalance feature (approved). Plan → backup → implement → test → review.
 
 ## GUARDRAILS
 - Repo is PUBLIC. Scratchpad + any captured `__simDebug`/fixture data hold real financial data — never commit.
