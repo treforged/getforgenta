@@ -86,14 +86,14 @@ IMPORTANT — a manual statement-balance setter ALREADY EXISTS; build on it, do 
 - Handler: `handleSaveStatementBal` (:1005) → `updateAccount.mutate({id, statement_balance})`;
   clearing it sends `statement_balance: null`. DB column `accounts.statement_balance` (numeric) exists.
 - "Interest-saving balance" = the statement balance a statement-pref card pays to avoid interest.
-SCOPE QUESTION to resolve with user first (ambiguity): is the existing `statement_balance` edit
-(a) not surfaced in the UI at all, (b) surfaced only for some cards / hard to find, or (c) present but
-needs relabeling as "interest-saving balance (this month)"? Grep the JSX for where `editingStatementBal`
-/ `handleSaveStatementBal` are wired to a control (search CreditCardEngine.tsx render section, ~:1480-1600)
-to see what's already exposed BEFORE building. Likely deliverable: an inline editable field on the card
-row (esp. statement-pref cards) labeled "Interest-saving balance" that writes `statement_balance`, with a
-revert-to-auto affordance. Note statement_balance is a single current value (effectively current month),
-not per-future-month. Plan → backup → implement → test → review.
+SCOPE — RESOLVED with user 2026-07-13: **"It's not exposed at all"** — there is no visible control.
+So `handleSaveStatementBal`/`editingStatementBal` exist in code but are NOT wired to any usable UI
+affordance (verify by grepping the render section, ~:1480-1600, to confirm and avoid duplicating the
+handler). DELIVERABLE: add a visible inline editable field on the card row (prioritize statement-pref
+cards like Prime Visa) labeled "Interest-saving balance", writing `accounts.statement_balance` via the
+EXISTING `handleSaveStatementBal` handler, with a revert-to-auto (send null) affordance. statement_balance
+is a single current value (effectively current month), not per-future-month. Reuse the existing handler +
+state; only the JSX/trigger is missing. Plan → backup → implement → test → review.
 
 ## NEXT STEPS (in order)
 1. Q3: build the manual interest-saving-balance control (see Q3 above) — resolve the scope question first.
