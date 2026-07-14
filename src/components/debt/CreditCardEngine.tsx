@@ -16,7 +16,7 @@ import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { type Month0Result } from '@/hooks/useCardProjection';
 import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
-import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays } from 'lucide-react';
+import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDebts, useAccounts, useProfile, useRecurringRules, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
@@ -1002,11 +1002,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     toast.success(`Target payment for ${card.name} updated to ${formatCurrency(newTarget, false)}`);
   };
 
-  const handleSaveStatementBal = (card: CardData) => {
-    const val = statementBalInput.trim();
+  const handleSaveStatementBal = (card: CardData, rawValue?: string) => {
+    const val = (rawValue ?? statementBalInput).trim();
     if (val === '') {
       updateAccount.mutate({ id: card.id, statement_balance: null });
       setEditingStatementBal(null);
+      toast.success(`${card.name} interest-saving balance reverted to auto (current balance)`);
       return;
     }
     const parsed = parseFloat(val);
@@ -1578,6 +1579,45 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {proj.card.paymentPreference === 'statement' && 'Pay carried balance + interest — new purchases carry to next cycle'}
                     {proj.card.paymentPreference === 'full' && 'Pay entire balance + new purchases — as cash allows above floor'}
                   </p>
+                  {proj.card.paymentPreference === 'statement' && (
+                    <div className="flex items-center justify-between gap-2 mt-2 px-2 py-1.5 bg-muted/20 border border-border flex-wrap" style={{ borderRadius: 'var(--radius)' }}>
+                      <span className="text-[9px] text-muted-foreground uppercase tracking-wider" title="The statement balance this card pays to stay interest-free. Auto uses your current balance; set it manually if your latest statement differs.">
+                        Interest-saving balance
+                      </span>
+                      {editingStatementBal === proj.card.id ? (
+                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                          <input type="number" value={statementBalInput} onChange={e => setStatementBalInput(e.target.value)}
+                            className="w-20 bg-secondary border border-primary px-1 py-0.5 text-xs text-foreground font-semibold text-center"
+                            style={{ borderRadius: 'var(--radius)' }} autoFocus min={0} step="10" placeholder="Auto"
+                            onKeyDown={e => { if (e.key === 'Enter') handleSaveStatementBal(proj.card); if (e.key === 'Escape') setEditingStatementBal(null); }} />
+                          <button onClick={() => handleSaveStatementBal(proj.card)} className="text-primary" aria-label="Save interest-saving balance"><Check size={12} /></button>
+                          <button onClick={() => setEditingStatementBal(null)} className="text-muted-foreground hover:text-foreground" aria-label="Cancel"><X size={12} /></button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          {proj.card.statementBalance !== null ? (
+                            <>
+                              <span className="text-xs font-semibold">{formatCurrency(proj.card.statementBalance, false)}</span>
+                              <span className="text-[8px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>manual</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Auto ({formatCurrency(Math.max(0, proj.card.balance), false)})</span>
+                          )}
+                          <button
+                            onClick={() => { setEditingStatementBal(proj.card.id); setStatementBalInput(proj.card.statementBalance !== null ? String(proj.card.statementBalance) : ''); }}
+                            className="text-muted-foreground hover:text-primary" aria-label="Edit interest-saving balance">
+                            <Edit2 size={10} />
+                          </button>
+                          {proj.card.statementBalance !== null && (
+                            <button onClick={() => handleSaveStatementBal(proj.card, '')}
+                              className="text-muted-foreground hover:text-primary" aria-label="Revert to auto" title="Revert to auto (use current balance)">
+                              <RotateCcw size={10} />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="px-3 sm:px-4 pb-3">
