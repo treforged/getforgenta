@@ -19,8 +19,11 @@
 //
 // This test derives the expected milestone month FROM the fixture's own frozen
 // simRevolvingPayoffMonth (so it survives fixture refreshes) AND pins the human-readable calendar
-// month as a secondary anchor. On the current (post-balloon-fix) fixture captured 2026-07-03,
-// simRevolvingPayoffMonth = 11 → data index 10 → May 2027 (month 0 = Jul 2026).
+// month as a secondary anchor. On the current (post-Q5) fixture captured 2026-07-15, Prime Visa
+// carries a manual statement_balance pin, so the RAW single-pass sim (no convergence loop) pays
+// off late: simRevolvingPayoffMonth is unset, forecastRevolvingPayoffMonth = 36 → data index 35 →
+// Jun 2029 (month 0 = Jul 2026). The user-facing CONVERGED payoff (Jun 2027) is guarded by
+// forecast-convergence.realData.test.ts — this test only pins raw-engine/sim self-consistency.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
@@ -64,7 +67,7 @@ describe('forecast-engine — Tier A golden (real data)', () => {
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
     expect(ccFree!.month).toBe(result.data[expectedIdx].month);
     // Secondary human-readable anchor for the current fixture (re-pin if the fixture is refreshed).
-    expect(ccFree!.month).toBe('May 2027');
+    expect(ccFree!.month).toBe('Jun 2029');
 
     // Mechanism sanity: the displayed CC liability falls materially from month 0 to the payoff month.
     const idx = result.data.findIndex((r) => r.month === ccFree!.month);

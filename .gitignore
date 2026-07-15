@@ -68,4 +68,4 @@ __pycache__/
 # Forecast golden-test fixture — a snapshot of REAL personal financial data (balances, income,
 # accounts) captured from the running app. This repo is PUBLIC, so the fixture is kept LOCAL
 # ONLY; the Tier-A test self-skips when it is absent (see forecast-engine.goldenTierA.test.ts).
-src/lib/__tests__/fixtures/forecast-inputs.real.json
+src/lib/__tests__/fixtures/forecast-inputs.real*.json
