@@ -1758,7 +1758,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // (synthetic ISB pin): a statement-preference card with a manual statement balance and a
       // live balance, active from month 0, pays exactly the pinned amount at its due month.
       // Only months > 0 matter here — month 0 is already excluded from convergence feedback.
-      const manualIsbPinMonths = cards
+      const manualIsbPins = cards
         .filter(c => {
           if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) return false;
           if (c.startDate) {
@@ -1768,8 +1768,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           }
           return true;
         })
-        .map(c => (c.dueDay != null && c.dueDay >= now.getDate() ? 0 : 1))
-        .filter(m => m > 0);
+        .map(c => ({
+          month: c.dueDay != null && c.dueDay >= now.getDate() ? 0 : 1,
+          amount: Math.max(0, c.statementBalance!),
+          minPayment: Number(c.minPayment || 0),
+        }))
+        .filter(p => p.month > 0);
 
       const hookResult: CardProjectionResult = {
         data,
@@ -1797,7 +1801,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         saveUpReason,
         forecastRevolvingPayoffMonth,
         simRevolvingPayoffMonth,
-        manualIsbPinMonths,
+        manualIsbPins,
         forecastAdjustedRevolvingBalances,
         resimulateWithDebtCash,
         month0: {

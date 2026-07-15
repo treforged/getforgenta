@@ -63,11 +63,12 @@ export function runDebtCashConvergence(
   // floor-clipped value back as a target creates a payment↔clip two-cycle the damping only
   // decays slowly (2026-07-14: live data needed 15 of 18 passes; small data shifts pushed past
   // the budget into the base-pair fallback and the 36-vs-12 payoff divergence).
-  const pinnedMonths = new Set(base.manualIsbPinMonths ?? []);
+  const pinnedMonths = new Set((base.manualIsbPins ?? []).map(p => p.month));
 
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;
   let prevTarget: number[] | null = null;
+  let prevRaw: number[] | null = null;
   let prevCap: number[] | null = null;
   let firstGap = Infinity;
   let lastGap = Infinity;
@@ -82,10 +83,23 @@ export function runDebtCashConvergence(
     const raw = currentProj.data.map((row, m) =>
       (m === 0 || pinnedMonths.has(m) ? NaN : row.revolvingDebtCash));
     const prev = prevTarget;
+    const pr = prevRaw;
+    // Damping exists to break payment↔clip two-cycles, which show up as the RAW feedback
+    // oscillating pass-to-pass. Once a month's raw target has stabilized (moved ≤ tolerance
+    // since the previous pass), blending it toward the stale previous target only delays
+    // convergence — the residual decays by exactly ×(1−damping) per pass, a pure geometric
+    // tail that burned 8 of 13 passes on the 2026-07-15 ISB-pin fixture (m6 raw stable at
+    // ~$1,171 from pass 6, gap 123→58→27→…→1). A stable raw is already self-consistent, so
+    // take it directly; a genuine two-cycle keeps |raw − prevRaw| large and stays damped.
     const target: number[] = prev
-      ? raw.map((v, m) => (m === 0 || pinnedMonths.has(m) ? NaN : damping * v + (1 - damping) * prev[m]))
+      ? raw.map((v, m) => {
+          if (m === 0 || pinnedMonths.has(m)) return NaN;
+          if (pr && Math.abs(v - pr[m]) <= toleranceDollars) return v;
+          return damping * v + (1 - damping) * prev[m];
+        })
       : raw;
     prevTarget = target;
+    prevRaw = raw;
     // Thread Forecast's own PASS-2 cap (currentProj.maxDebtPaymentByMonth) through so Step 2's
     // cycling-pool cap agrees with Step 5's revolving cascade — both driven by the same
     // Forecast-authoritative number instead of the sim recomputing its own independent cap.

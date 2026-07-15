@@ -925,6 +925,18 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       Math.max(0, (cardProjectionData?.allPaymentTotals?.[i] ?? 0) - (cardProjectionData?.debtPaymentTotals?.[i] ?? 0)),
     );
     const ccSourceIds = new Set<string>(ccCards.flatMap((a) => [a.id as string, `account:${a.id}`]));
+    // A manual interest-saving-balance pin makes its month's CC outflow mandatory at the pinned
+    // amount (the sim pays it unconditionally — credit-card-engine's manualStatementByCard),
+    // superseding that card's contract minimum. Without this, the look-ahead's netAtMin models
+    // only ccMinTotal leaving the pinned month, overstates preservable cash, and the resulting
+    // caps disagree with the sim's actual spend — the convergence loop then chases that error
+    // through later months (the m6–m9 target oscillation, Q4).
+    const ccMinByMonth = (cardProjectionData?.manualIsbPins ?? []).length > 0
+      ? Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
+          ccMinTotal + (cardProjectionData!.manualIsbPins!
+            .filter(p => p.month === m)
+            .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0)))
+      : undefined;
     const { maxDebtPaymentByMonth, strictSaveUpMonths } = computeFloorProtection({
       incomeByMonth: baseData.map(b => b.netIncome),
       expenseByMonth: baseData.map((b, i) =>
@@ -936,6 +948,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       floorByMonth: baseData.map(b => b.monthMinSafe),
       startingBalance: liquidBal,
       ccMinTotal,
+      ccMinByMonth,
       cyclingExcessByMonth: cyclingByMonth,
       carFunds, transactions, ccSourceIds, now: nowDate, formatCurrency,
     });

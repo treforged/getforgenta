@@ -99,8 +99,11 @@ export interface CardProjectionResult {
    * pinned amount in these months regardless of any debt-cash target, so the convergence loop
    * excludes them from target feedback the same way month 0 is live-anchored — feeding back
    * the engine's floor-clipped value for a month whose payment is fixed injects a persistent
-   * target-vs-actual error that oscillates the loop. Optional for fixture compatibility. */
-  manualIsbPinMonths?: number[];
+   * target-vs-actual error that oscillates the loop. `amount` is the pinned payment and
+   * `minPayment` the card's contract minimum, so Forecast's PASS-2 floor-protection walk can
+   * model the pinned month's true mandatory CC outflow (ccMinTotal + amount − minPayment)
+   * instead of assuming only minimums leave that month. Optional for fixture compatibility. */
+  manualIsbPins?: { month: number; amount: number; minPayment: number }[];
   /** Per-card revolving balance trajectory with step-3 surplus applied cumulatively in avalanche
    * order — mirrors Forecast.tsx's adjustedRevBal = max(0, simBal - cumulativeStep3Extra) per card.
    * Use as both revBals and trueBalances in projectCardVariable so the Debt Payoff chart and

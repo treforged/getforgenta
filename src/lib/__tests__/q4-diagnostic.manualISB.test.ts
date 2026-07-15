@@ -78,6 +78,9 @@ function runScenario(label: string, mutateClockDays: number) {
 
   const base = result.current;
   expect(base).not.toBeNull();
+  console.log(`[q4 ${label}] manualIsbPins:`, JSON.stringify(base!.manualIsbPins),
+    '| simCards:', base!.simCards.map(c =>
+      `${c.name} pref=${c.paymentPreference} isb=${c.statementBalance} bal=${c.balance} due=${c.dueDay}`).join(' | '));
 
   return { base: base!, inputs: { ...inputs, accounts } as unknown as ForecastInputs };
 }
