@@ -211,6 +211,16 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     return runDebtCashConvergence(cardProjection, forecastInputsBundle.engineInputs);
   }, [cardProjection, forecastInputsBundle.engineInputs]);
 
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      (window as unknown as Record<string, unknown>).__convergenceDebug = {
+        converged: convergence.converged,
+        passes: convergence.passes,
+        usedFallback: convergence.cardProjection === cardProjection && !convergence.converged,
+      };
+    }
+  }, [convergence, cardProjection]);
+
   const engineInputs = useMemo<ForecastInputs>(() => (
     convergence.cardProjection === forecastInputsBundle.engineInputs.cardProjectionData
       ? forecastInputsBundle.engineInputs

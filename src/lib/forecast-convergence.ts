@@ -58,6 +58,13 @@ export function runDebtCashConvergence(
   // still a mid-transient, unconverged run less trustworthy than base's self-consistent pair.
   const exhaustionPublishBound = opts.exhaustionPublishBound ?? Math.max(toleranceDollars * 25, 25);
 
+  // Months whose payment is fixed by a manual ISB pin get no target feedback (NaN, like month
+  // 0's live anchor): the sim pays the pinned amount unconditionally, so echoing the engine's
+  // floor-clipped value back as a target creates a payment↔clip two-cycle the damping only
+  // decays slowly (2026-07-14: live data needed 15 of 18 passes; small data shifts pushed past
+  // the budget into the base-pair fallback and the 36-vs-12 payoff divergence).
+  const pinnedMonths = new Set(base.manualIsbPinMonths ?? []);
+
   const baseProj = engine({ ...engineInputs, cardProjectionData: base });
   let currentProj = baseProj;
   let prevTarget: number[] | null = null;
@@ -72,10 +79,11 @@ export function runDebtCashConvergence(
     // stateless, and month 0 stays live-anchored (NaN ⇒ keep the sim's own month-0 cash).
     // After pass 1 the target is damped toward the previous one, so a payment↔cash-floor
     // two-cycle collapses onto its fixed point instead of oscillating past the pass budget.
-    const raw = currentProj.data.map((row, m) => (m === 0 ? NaN : row.revolvingDebtCash));
+    const raw = currentProj.data.map((row, m) =>
+      (m === 0 || pinnedMonths.has(m) ? NaN : row.revolvingDebtCash));
     const prev = prevTarget;
     const target: number[] = prev
-      ? raw.map((v, m) => (m === 0 ? NaN : damping * v + (1 - damping) * prev[m]))
+      ? raw.map((v, m) => (m === 0 || pinnedMonths.has(m) ? NaN : damping * v + (1 - damping) * prev[m]))
       : raw;
     prevTarget = target;
     // Thread Forecast's own PASS-2 cap (currentProj.maxDebtPaymentByMonth) through so Step 2's

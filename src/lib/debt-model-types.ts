@@ -94,6 +94,13 @@ export interface CardProjectionResult {
    * per-card payoff schedule including "full" preference cards like Discover. Used by the
    * Debt Payoff tab's PAYOFF ETA so it aligns with when the SIM truly clears all revolving debt. */
   simRevolvingPayoffMonth: number | null;
+  /** Months (>0) where a card carries a manual interest-saving-balance pin (the synthetic
+   * statement pin in credit-card-engine's manualStatementByCard). The sim pays exactly the
+   * pinned amount in these months regardless of any debt-cash target, so the convergence loop
+   * excludes them from target feedback the same way month 0 is live-anchored — feeding back
+   * the engine's floor-clipped value for a month whose payment is fixed injects a persistent
+   * target-vs-actual error that oscillates the loop. Optional for fixture compatibility. */
+  manualIsbPinMonths?: number[];
   /** Per-card revolving balance trajectory with step-3 surplus applied cumulatively in avalanche
    * order — mirrors Forecast.tsx's adjustedRevBal = max(0, simBal - cumulativeStep3Extra) per card.
    * Use as both revBals and trueBalances in projectCardVariable so the Debt Payoff chart and

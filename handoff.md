@@ -1,132 +1,90 @@
-# Handoff — 2026-07-14 ~16:45 — main
+# Handoff — 2026-07-14 ~21:30 — main
 
-## ACTIVE TASK: Q4 investigation (Tre: "fold it into Q4 and start that investigation")
-Q4 = forecast-side divergence: live post-Q5 forecast shows payoff month 36 vs debt-tab 12,
-Aug 2026 floor breach $339, "CC Debt Free" milestone gone. Plus the original Q4 symptom
-(cycling card not paying full statement Feb–Jun 2028 despite cash).
+## ACTIVE TASK: Q4 investigation (continued from 16:45 handoff)
 
-### Working hypothesis (strong, not yet confirmed live)
-`runDebtCashConvergence` fails to converge on live data post-Q5 → provider
-(`CardProjectionContext.tsx:199-212`) silently publishes the raw base pair ("Option A
-zero-regression fallback", `debtCashConverged: false`) → payments collapse toward
-minimums → payoff 36 + floor breach. Same signature as the 290e1b66 regression.
+## MAJOR FINDINGS THIS SESSION (live, 2026-07-14 evening data)
 
-### Evidence so far
-1. Offline harness (`forecast-convergence.realData.test.ts`) PASSES: 5 passes, Jun 2027,
-   no breaches. BUT the golden fixture (captured 2026-07-03) has PV `statement_balance:
-   null` — Q5's synthetic-pin path is NEVER exercised offline. Coverage hole.
-2. New diagnostic `src/lib/__tests__/q4-diagnostic.manualISB.test.ts` (committed this
-   session) clones the harness and injects PV `statement_balance = 1164.79`:
-   - clock=capturedAt (07-03, dueMonth=0): IDENTICAL to baseline — 5 passes, Jun 2027,
-     no breaches. (Verify the injection actually bites in this branch — identical output
-     is suspicious; maybe dueMonth=0 pin ≈ natural payment here.)
-   - clock=+11d (07-14, dueMonth=1, mirrors live): converges but needs **13 passes**
-     (vs 5) with big early oscillation (maxGap 2320→1746→1084→794→347...). The synthetic
-     ISB pin clearly destabilizes the loop. Payoff still Jun 2027, no breaches.
-3. Fixture vs live differences that could push 13 passes past the budget live:
-   PV balance 4575.94 vs 6004; Discover 8803 vs 8449; PV min 151 in fixture vs **$0 live**
-   (Debt tab shows MIN PAYMENT $0); rules/purchases/paymentPlans drifted since 07-03.
-4. `window.__simDebug` does NOT expose `debtCashConverged` (topKeys: rows/table/csv/raw)
-   — cannot confirm the fallback live without adding a debug hook.
+1. **Fallback hypothesis DISPROVEN for today's data — but confirmed as the intermittent
+   mechanism.** Added dev-only `window.__convergenceDebug` (CardProjectionContext.tsx, after
+   the convergence memo): live shows `converged: true, passes: 15, usedFallback: false`.
+   `maxPasses` default is **18** (forecast-convergence.ts:48 — the handoff's "12" was stale).
+   So today the loop converges at 15/18 and Debt tab shows **PAYOFF ETA 32 mo** (not 12!),
+   vs forecast payoff 38 — the "36 vs 12" split is gone today. Yesterday's data evidently
+   pushed the ISB-pin oscillation past 18 passes → silent base-pair fallback → 12-vs-36.
+   The loop running at 15/18 means small data shifts flip the UI between two regimes.
+   **Robustness, not correctness, is the fix target.**
 
-### Next steps (in order)
-1. Expose `convergence.converged`/`passes` into `__simDebug` (or temporary console.log in
-   `CardProjectionContext.tsx` ~:211) → reload localhost:8080/debt → confirm live
-   converged=false. Dev server IS running on :8080; browser tab open (tabId may be stale
-   — re-run tabs_context_mcp).
-2. If confirmed: check `runDebtCashConvergence`'s maxPasses (bumped 8→12 on 07-09; my
-   dueMonth=1 offline run reported "passes: 13" and converged, so check how passes counts
-   vs the budget). Root-cause WHY the ISB pin oscillates the loop: suspect the ledger/
-   target feedback sees PV's pinned m1 payment classified differently pass-to-pass
-   (`manualStatementByCard` synthetic pins + `buildPaymentLedger` revolving/cycling split
-   + `monthlyDebtCashPayment`), or the pin fights PASS-2/PASS-3 cap damping (4620ea4f).
-   Fix likely = damping-aware handling or excluding pinned months from target feedback
-   (m0 is already live-anchored target[0]=NaN — the ISB dueMonth may need the same).
-3. Consider recapturing the fixture from live (post-Q5 data incl. statement_balance +
-   PV min $0) — that would make the offline harness reproduce faithfully. Recapture flow
-   exists (fixture-io helper); repo PUBLIC, fixture stays gitignored.
-4. Then the original Q4 symptom (Feb–Jun 2028 cycling underpayment) on top of a
-   converged loop.
+2. **The long payoff (38 mo) is the save-up cap machinery, mostly legitimate.**
+   `saveUpMonths` = {13,15-21,23-24,26-27,29,33} with `maxDebtPaymentByMonth` ≈ $222
+   (Discover min). Reasons (`saveUpReason`): reserving for Venture X mandatory statements —
+   $300/mo recurring + **$2,738 April 2028** (m21). Total revolving drops to $1,870 by m13
+   then rebounds/stalls at $2-3k until m37. This IS the original Q4 "Feb–Jun 2028
+   underpayment" window. Checked the classic double-count: CC-sourced rules ARE excluded
+   from cash expenses (useCardProjection.ts:165), so no naive double-count found. Post-Q5
+   the extra ~$4.8k real PV debt makes the reserve directionally legitimate; whether the
+   look-ahead over-reserves (netAtMin too pessimistic) is still OPEN.
 
-### Q4 aside
-Diagnostic file has console.logs (mirrors the existing harness pattern) — fine for a
-diagnostic, clean up or promote to a real regression test when Q4 closes.
+3. **Aug 2026 floor breach ($2,461 vs $2,800) persists.** Forecast Aug: income 4,496,
+   out 4,835 (incl. CC $471), so it pays only $471 CC vs the sim's mandatory 1,165 (ISB pin)
+   + 222 (Discover min) = 1,387 — engine floor-clips a payment the sim treats as mandatory,
+   AND still ends below floor. July ends exactly at floor ($2,800) so no room to pre-save.
+   Partly real post-Q5 tightness; the engine/sim disagreement about Aug's mandatory outflow
+   is the Q4-adjacent bug (engine's cash walk models $471 out; reality per sim is $1,387).
 
----
+4. **Root cause of the pin oscillation (mechanism confirmed in code):**
+   credit-card-engine.ts:1365 `availableCash = max(mDebtTarget - pinnedStep5Total, totalMins)`
+   — engine's floor-clipped Aug value comes back as target, pin pays 1,165 regardless →
+   payment↔clip two-cycle, damped 0.5 → slow decay (gaps 2320→1732→1069→875→505…).
 
-# Previous handoff content (Q5 verification, still-relevant findings)
+## CHANGE MADE THIS SESSION (committed, UNPROVEN as a pass-count fix)
+Implemented the 16:45 handoff's proposed fix — exclude manual-ISB pinned months from
+convergence target feedback (like m0's NaN anchor):
+- `debt-model-types.ts`: new optional `manualIsbPinMonths?: number[]` on CardProjectionResult.
+- `useCardProjection.ts` (before hookResult): computes it mirroring the engine's
+  manualStatementByCard eligibility (statement pref + statementBalance != null + balance > 0
+  + not future-start; dueMonth = dueDay >= today ? 0 : 1; keeps only >0).
+- `forecast-convergence.ts`: `pinnedMonths` set → target[m] = NaN for pinned months (both
+  raw and damped branches).
+- `CardProjectionContext.tsx`: dev-only `__convergenceDebug` useEffect (keep — cheap).
 
-## Status
-Q5 (manual interest-saving-balance semantics) is **live-verified** in the browser against
-Tre's real data. Anomaly A decisive test **done** — it's a floor clamp, characterized below.
-Graphify updated (no diff). Two NEW findings on the Forecast page need Tre's ruling before
-any further engine work.
+**RESULT: did NOT reduce passes.** q4-diagnostic dueMonth=1 still 13 passes (converged,
+Jun 2027, breach Mar 2027 — identical to before the fix). Gap trace shows oscillation is at
+m6–m9 and m20 (targets swinging 4009→765→2151→3099), NOT at the pinned m1: the pin's cash
+error propagates into later months' engine cash walk, and THOSE months' feedback oscillates.
+All 3 tests pass (m0 scenario: 5 passes; realData baseline: unchanged) — change is additive
+and harmless, kept as semantically-correct groundwork, but the real lever is elsewhere.
+⚠️ Not yet verified that `manualIsbPinMonths` actually populates in the diagnostic run
+(fixture card must map account `statement_balance` → CardData.statementBalance with
+paymentPreference==='statement'); verify with a console.log before trusting the negative.
 
-## Q5 live verification — PASSED (Debt tab, all acceptance items)
-- PV header balance $6,004; TOTAL CC BALANCE $14,453; utilization 31.8%. ✓
-- "$1,165 manual" ISB badge intact. ✓
-- PV monthly projection: Jul 2026 payment "—" ($0), Aug −$1,165 (exact ISB), no interest
-  lines in Jul/Aug (grace held); Sep shows +$11.24 interest (grace ends after ISB month —
-  by design, old full-statement rule resumes). ✓
-- Discover Aug payment pulled back to its $222 contract min (was funding PV's ISB). ✓
-- Month-0 rec for PV = $0 on both the Debt-page strip and Dashboard. ✓ (amount right;
-  label shows "Saving for Aug 7th" / "Minimum payment" instead of "Statement paid this
-  cycle" — the reason string isn't threaded to those components; cosmetic.)
-- Leftover Oct pin from the 07-13 session: already gone on arrival (no Revert All shown).
-
-## NEW FINDINGS — Forecast page regressions vs pre-Q5 (A/B tested, decisive)
-Method: temporarily copied backups/2026-07-14_102854 engine over src, hard-reloaded
-(vite needed a `touch` + ctrl-shift-R to pick it up), compared, then `git checkout --`
-restored Q5. Both states confirmed live via TOTAL CC BALANCE (9,614 pre / 14,453 post).
-
-1. **Aug 2026 floor breach $339** (was the predicted "≤$25 dip"): Forecast shows Aug end
-   cash $2,461 vs $2,800 floor, milestone "⚠️ Cash below safe minimum". Pre-Q5: $3,115,
-   no warning. Forecast's Aug "CC $406" ≠ debt-tab Aug payments ($1,165+$222=$1,387) —
-   the forecast-adjusted CC pipeline disagrees with the debt sim about Aug.
-2. **"CC Debt Free" milestone gone**: pre-Q5 forecast said May 2027 debt free;
-   post-Q5 `__simDebug.raw.forecastRevolvingPayoffMonth = 36` (~Jul 2029) while the debt
-   tab still says PAYOFF ETA 12 mo. The two pipelines diverge hard post-Q5. Also a new
-   "May 2027 ⚠️ cash below safe minimum" (end cash $2,799 — $1, Q2-class noise).
-   Q4-adjacent (same statement-vs-balance code in the forecast-side resim).
-Direction is partly legitimate (real $6,004 vs the old phantom $1,165 = $4.8k more debt →
-later payoff, tighter cash), but the floor is supposed to be enforced and the 36-vs-12
-divergence is not explainable by that alone. **Needs Tre's call / dedicated investigation
-(fold into Q4).**
-
-## Anomaly A — RESOLVED to a characterization (Tre's design call pending)
-Decisive test done with form_input (atomic set, no appended-digit artifact):
-- Pin PV Oct = 100 → row renders **−$511 "edited"** (clamped UP to $510.50 = the month's
-  mandatory cycling obligation; same constant as `paymentLedger[].cycling`).
-- Pin PV Oct = 1032 (natural value) → honored exactly, −$1,032. ✓
-So: **floor clamp at the mandatory cycling payment, not a cap**. Pre-Q5 "139" was the same
-clamp with the old statement-split math. Plausibly by design (pin can't go below the
-contractual statement obligation), but the UI showing "edited $511" after typing 100 is
-confusing at minimum. Options for Tre: (a) accept + show a "raised to obligation" hint,
-(b) let pins go below obligation (breaks grace/contract modeling), (c) clamp silently but
-toast the adjustment. Pins fully reverted after the test (Revert All clicked, verified).
-
-## Anomaly B — unchanged, still needs Tre's ruling
-ANY pin flips ALL rows (even pre-pin months) to the local overrideSim basis — observed
-again during the test (Sep changed from −$511 to −$1,012 the moment Oct was pinned).
-Options: (a) accept + UI note, (b) always local sim on Debt tab, (c) thread overrides
-through convergence (previously rejected as risky).
-
-## Remaining queue
-1. Forecast findings 1+2 above — fold into Q4 investigation (cycling card not paying full
-   statement in later years; screenshot Feb–Jun 2028; suspects: Step-2 pool
-   double-reserve, maxDebtPaymentByMonth save-up cap with allRevolvingClear; reproduce
-   WITHOUT overrides; lean-fix flow). Note `maxDebtPaymentByMonth` is null for m0–m12 in
-   __simDebug — that itself may be a clue.
-2. Anomaly A + B design decisions — waiting on Tre.
-3. Cosmetic backlog: rec reason string not threaded ("Statement paid this cycle" never
-   shown); PV "TOTAL INTEREST $132,134" (runaway min-payment stat with $0 min payment —
-   pre-existing?); Dashboard "Due 1th" typo.
+## NEXT STEPS (in order)
+1. Verify the exclusion actually bit: log `base.manualIsbPinMonths` in the diagnostic. If
+   empty → fix the population (check how the hook builds CardData.paymentPreference /
+   statementBalance from the fixture account), re-measure.
+2. If it bit and passes stay 13: the oscillation driver is the ENGINE side — its Aug cash
+   walk models $471 CC out while the sim spends $1,387 (finding 3). Fix candidate: engine
+   must treat pinned ISB amounts as mandatory (like cycling statements / minimums) in its
+   cash walk instead of floor-clipping them — that removes the inconsistency feeding
+   m6–m9's oscillation AND makes the Aug floor row honest (breach may grow — it's real).
+   Files: forecast-engine.ts (where revolvingDebtCash/floor clip happens, ~PASS 2/3);
+   needs `manualIsbPinMonths`+amounts threaded in (extend the new field to carry amount).
+3. Then re-examine the save-up over-reserve question (finding 2) — is netAtMin in
+   floor-protection.ts too pessimistic post-Q5 (payoff 38 vs debt-tab 32 residual gap)?
+4. Recapture fixture from live post-Q5 data (statement_balance + PV min $0) so offline
+   matches live exactly — fixture-io helper exists; fixture stays gitignored; repo PUBLIC.
+5. Original Q4 Feb–Jun 2028 symptom: reassess after 2-3; likely the same save-up caps.
 
 ## Carry-over guardrails / gotchas
-- ctrl+a+type into month-payment inputs APPENDS — use form_input (confirmed good today).
-- `window.__simDebug.raw` ignores overrides — UI rows are ground truth under pins.
-- vite on :8080 didn't hot-pick a `cp` overwrite of credit-card-engine.ts — needed
-  `touch` + hard reload; verify which engine is live via TOTAL CC BALANCE.
-- Repo PUBLIC — never commit real financial data.
-- Supabase: always filter user_id a72f416e-433a-4055-9ab0-9feae4e60edf.
-- Never push. No amend/rebase. Backups before source edits per CLAUDE.md.
+- Dev server: `npm run dev` on :8080. Browser tab was tabId 1527577946 (re-run
+  tabs_context_mcp after /clear — IDs go stale).
+- `__convergenceDebug` (converged/passes/usedFallback) now exists on the Debt page, DEV only.
+- vitest hides console.logs by default — use `--disable-console-intercept` to see the
+  diagnostic traces.
+- Q5 acceptance re-verified today: PV Jul "—", Aug −$1,165, all intact.
+- ctrl+a+type into month-payment inputs APPENDS — use form_input.
+- Repo PUBLIC — never commit real financial data. Supabase: always filter
+  user_id a72f416e-433a-4055-9ab0-9feae4e60edf. Never push. Backups per CLAUDE.md
+  (this session's: backups/2026-07-14_212415/).
+- Anomaly A (floor clamp at mandatory obligation) + Anomaly B (pin flips all rows to local
+  sim) still await Tre's design ruling — see 16:45 handoff content in git history
+  (f4f90234) for full detail.
