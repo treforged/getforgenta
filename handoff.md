@@ -1,6 +1,15 @@
-# Handoff — 2026-07-15 ~00:50 — main
+# Handoff — 2026-07-15 ~01:00 — main
 
-## ACTIVE TASK: Q4 — offline fixes landed, LIVE VERIFICATION PENDING
+## ACTIVE TASK: Q4 — RESOLVED & LIVE-VERIFIED (both 07-14 regressions cleared)
+
+## LIVE VERIFICATION (2026-07-15 ~00:55, localhost:8080)
+- `__convergenceDebug`: converged:true, **passes 12/18** (was 15/18), usedFallback:false.
+- **Payoff divergence GONE**: Debt tab PAYOFF ETA 12 mo AND Forecast end-cash jumps at
+  Jul 2027 (debt clear ~Jun/Jul 2027) — both pages agree (~12 mo; was 32 vs 38).
+- **Aug 2026 floor breach GONE**: end cash $3,486 (was $2,461 vs $2,800), and the Aug
+  breakdown now models the mandatory outflow honestly: Prime Visa $1,165 + Discover $222.
+- **No month below $2,800 anywhere** in the monthly table.
+- Q5 acceptance intact: PV Jul "—", Aug −$1,165, ISB $1,165 manual, start $6,004.
 
 ## WHAT LANDED THIS SESSION (all tests 184/184 pass, tsc/eslint clean)
 
@@ -30,18 +39,18 @@
 - dueMonth=0: unchanged (5 passes, Jun 2027, no breach).
 - realData baseline + all other suites: unchanged/pass.
 
-## NEXT STEPS
-1. **LIVE VERIFY** (npm run dev :8080, Debt tab, `window.__convergenceDebug`):
-   expect passes < 15 (was 15/18), usedFallback:false, payoff ETA vs forecast payoff gap
-   narrowed (was 32 vs 38), and check the Aug 2026 floor row (was $2,461 vs $2,800 —
-   breach may legitimately persist or grow; honesty, not cosmetics, was the goal).
-2. Re-examine save-up over-reserve (07-14 finding 2): is netAtMin too pessimistic
-   post-Q5 (payoff 38 vs debt-tab 32 residual gap)? May have moved after this fix.
-3. Recapture fixture from live post-Q5 data (statement_balance + PV min $0) so offline
+## NEXT STEPS (all optional hardening — Q4 itself is closed)
+1. Recapture fixture from live post-Q5 data (statement_balance + PV min $0) so offline
    matches live exactly — fixture-io helper exists; fixture stays gitignored; repo PUBLIC.
-4. Original Q4 Feb–Jun 2028 symptom: reassess after 1-2; likely the save-up caps.
-5. If live passes still flirt with 18: consider applying the same raw-stability rule to
-   the CAP damping (line ~115, the m30 residual two-cycle) — deliberately NOT done yet.
+   Then consider promoting q4-diagnostic into a real regression test (assert passes ≤ N,
+   no floor-breach milestones).
+2. If future data pushes passes back toward 18: apply the same raw-stability rule to the
+   CAP damping (forecast-convergence.ts ~line 115, the m30 residual two-cycle) —
+   deliberately NOT done yet (measure first).
+3. Save-up over-reserve question (07-14 finding 2) — likely mooted: live now pays off in
+   12 mo with no breach, so netAtMin pessimism is no longer observable. Re-open only if
+   a Feb–Jun 2028-style underpayment window reappears.
+4. Remove the dev-only `__convergenceDebug` useEffect eventually (or keep — cheap).
 
 ## Carry-over guardrails / gotchas
 - `__convergenceDebug` (converged/passes/usedFallback) on Debt page, DEV only.
