@@ -1,55 +1,53 @@
-# Handoff — 2026-07-15 ~08:25 — main
+# Handoff — 2026-07-16 ~00:00 — main
 
-## ACTIVE TASK: Q4 closed; optional-hardening item 1 (fixture recapture + regression promotion) DONE
+## ACTIVE TASK: Q6 (2028 Prime Visa full-statement underpayment) — FIXED OFFLINE, LIVE VERIFY PENDING
 
-## WHAT LANDED THIS SESSION (184/184 pass, tsc + eslint clean)
+Tre reported: on his live account, Prime Visa misses a full statement-balance payment in 2028.
+This is the 07-14 "finding 2 / save-up over-reserve" item reappearing (Feb–Jun 2028-style).
 
-1. **Golden fixture recaptured from live post-Q5 data** (capturedAt 2026-07-15T12:15:21Z) via a
-   TEMP dev-only `window.__captureForecastFixture` hook in CardProjectionContext (added, used,
-   reverted — no diff remains). Fixture now natively carries Prime Visa statement_balance 1164.79
-   / balance 6004.12. Old fixture kept locally as
-   `fixtures/forecast-inputs.real.bak-2026-07-03.json`; .gitignore widened to
-   `forecast-inputs.real*.json` (both verified ignored — repo PUBLIC, never commit them).
+## ROOT CAUSE (diagnosed + reproduced offline on the 2026-07-15 golden fixture)
+`computeFloorProtection` (src/lib/floor-protection.ts) cash walks assumed ALL surplus above the
+floor flows to revolving debt FOREVER — modeled balance rides the floor for all 84 months. Real
+converged cash is $15.7k–$27k after payoff (Jun 2027). From that phantom floor-riding balance,
+Apr 2028's $2,738 cycling statement looked like a floor breach → save-up caps ($597/$25/$25) on
+Jan–Mar 2028 → credit-card-engine's `allRevolvingClear` branch (line ~1107) applied the cap to
+the cycling pool → PV paid $194 of an $831 Mar 2028 statement ($637 backlog, $14.58 interest).
+Also m30 (Jan 2029): cap 720 for a $300 "breach" left a PERMANENT ~$35 backlog accruing interest
+to end of horizon.
 
-2. **q4-diagnostic promoted to a real regression test** →
-   `src/lib/__tests__/forecast-convergence.manualISB.test.ts` (git mv). Injection removed (fixture
-   has the ISB natively); asserts per clock anchor: converged, passes ≤ 16 (offset 0) / ≤ 12
-   (+11d), CC Debt Free 'Jun 2027', zero floor breaches, and the Q5-path precondition
-   (manualIsbPins derived from the fixture's PV statement_balance).
+## FIX (committed this session)
+New optional `reducibleDebtCapByMonth` param on computeFloorProtection: per-month upper bound =
+revolving + cycling-backlog outstanding entering month m (engine can never pay more than owed).
+- floor-protection.ts: `natural` (both walks) = min(debtCap(m), old value); `ccMin(m)` also
+  min'd with debtCap (post-payoff real minimum is $0).
+- forecast-engine.ts PASS-2: builds cap from cardProjectionData.monthlyRevolvingBalances +
+  monthlyCyclingBacklog, shifted m−1; m0 = Infinity (live-anchored).
+- useCardProjection.ts runLookAhead: same array from the previous outer-pass sim (same
+  fixed-point sourcing as ccMinByMonth). Initial pre-loop lookAhead left capless (overwritten).
 
-3. **simAgreement re-scoped to the CONVERGED pair** (forecast-engine.simAgreement.test.ts): the
-   Q4 engine change deliberately lets PASS-2 floor caps break raw single-pass parity when an ISB
-   pin exists (gap $25 @m24 on the new fixture); the user-facing invariant (popup == accordion)
-   holds at the convergence fixed point, so the test now renders the hook, runs
-   runDebtCashConvergence, and asserts gap ≤ $1 for months 1+ on the converged pair.
+## VERIFIED OFFLINE
+- Diagnostic (deleted q6-diagnostic.test.ts): 2028+2029 statements now ALL paid in full, zero
+  backlog, zero cycling interest, no saveUp months post-payoff; caps become non-binding
+  ($13.9k/$25.3k). Pre-payoff months byte-identical (Aug 2026 1165, payoff Jun 2027).
+- converged=true passes=16 (unchanged). 185/185 tests pass, tsc clean, eslint clean.
+- New regression test: forecast-convergence.manualISB.test.ts third case — post-payoff months
+  must have cycling backlog ≤ $0.01 and cycling interest ≤ $0.01 on the converged run.
 
-4. **goldenTierA re-pinned** per its own refresh instructions: raw single-pass milestone on the
-   post-Q5 fixture = 'Jun 2029' (forecastRevolvingPayoffMonth 36; simRevolvingPayoffMonth unset
-   with the pin). Converged Jun 2027 stays guarded by forecast-convergence.realData.test.ts.
-
-5. **Shared harness extracted** → `fixtures/projection-harness.ts`
-   (renderProjectionFromFixture + buildProjectionAssumptions), used by manualISB + simAgreement.
-   realData test left untouched (still has its inline copy — optional cleanup).
-
-## KNOWN FIDELITY GAP (documented in projection-harness.ts)
-Fixture does not capture debtPayoffOptions, so offline runs use overrides:{} — offline shows
-16 passes at the capture clock while live __convergenceDebug shows 12 (verified live this
-session: converged:true, passes:12, usedFallback:false). Invariants (Jun 2027, no breaches)
-match live in both scenarios. If exactness ever matters, extend the capture to include
-debtPayoffOptions/overrides.
-
-## REMAINING OPTIONAL ITEMS (from 07-15 ~01:00 handoff)
-- Raw-stability rule for the CAP damping (forecast-convergence.ts ~line 115) — only if passes
-  creep toward 18 again; measure first.
-- Save-up over-reserve question — mooted unless a Feb–Jun 2028-style underpayment reappears.
-- Remove dev-only `__convergenceDebug` useEffect eventually (or keep — cheap).
-- Fold realData test onto the shared projection-harness helper (pure dedup).
-- Anomaly A (floor clamp at mandatory obligation) + Anomaly B (pin flips rows to local sim)
-  still await Tre's design ruling — full detail in f4f90234.
+## NEXT STEPS (fresh session)
+1. **LIVE VERIFY on http://localhost:8080** — Tre says his logged-in session is on the DEV
+   SERVER :8080, NOT production getforgenta.com (prod tab in this session's MCP group had no
+   session). Check: PV card projection rows Feb–Jun 2028 pay full statements (no "misses full
+   statement balance" row), no new floor breaches, Q5 acceptance intact (PV Jul "—", Aug
+   −$1,165), `__convergenceDebug` converged:true no fallback. Dev server may need starting
+   (`npm run dev` — vite, port 8080).
+2. If live shows a residual miss: live has debtPayoffOptions/overrides the fixture lacks
+   (fidelity gap, see projection-harness.ts) — capture `__simDebug`/`__convergenceDebug`.
+3. Optional carry-overs from 07-15 handoff still open: CAP-damping raw-stability rule (only if
+   passes creep to 18), fold realData test onto projection-harness, remove __convergenceDebug
+   eventually, Anomaly A/B design rulings (detail in f4f90234).
 
 ## Carry-over guardrails / gotchas
 - vitest hides console.logs — use `--disable-console-intercept`.
-- Q5 acceptance (PV Jul "—", Aug −$1,165) must stay intact when live-verifying.
 - ctrl+a+type into month-payment inputs APPENDS — use form_input.
-- Repo PUBLIC — never commit real financial data. Supabase user_id
-  a72f416e-433a-4055-9ab0-9feae4e60edf. Never push. Backups: backups/2026-07-15_081327/.
+- Repo PUBLIC — never commit real financial data; fixture is gitignored. Supabase user_id
+  a72f416e-433a-4055-9ab0-9feae4e60edf. Never push. Backups: backups/2026-07-15_235553/.

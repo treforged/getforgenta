@@ -29,6 +29,17 @@ export interface FloorProtectionParams {
   /** Per-month CC minimum from simulation — when provided, overrides ccMinTotal per month so
    * post-payoff months use 0 instead of today's static live minimums. Falls back to ccMinTotal. */
   ccMinByMonth?: number[];
+  /** Per-month upper bound on the reducible (revolving + cycling-backlog) debt payment — the
+   * debt actually outstanding entering month m, from the caller's simulation. Without it the
+   * cash walks below assume every dollar above the floor goes to debt FOREVER, so the modeled
+   * balance rides the floor even years after all revolving debt has cleared — and a large
+   * cycling statement in a post-payoff month then looks like a floor breach from a balance the
+   * user doesn't actually have, capping the preceding months' payments and forcing the cycling
+   * card to underpay a statement it could easily afford (the Feb–Jun 2028 underpayment).
+   * The engine can never pay more than what's owed, so capping `natural` (and the assumed
+   * minimum) by this bound makes the walk accumulate cash exactly where reality does.
+   * Omitted ⇒ Infinity everywhere (legacy floor-riding behavior). */
+  reducibleDebtCapByMonth?: number[];
   /** Per-month cycling-card statement EXCESS over baseline — used only for "what caused this"
    * save-up reason labeling (the historical "$X CC purchase statement payment" label), not for
    * the cash-flow math itself (that's already folded into expenseByMonth by the caller). */
@@ -77,10 +88,13 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   const {
     incomeByMonth, expenseByMonth, oneTimeNetByMonth, carDownPaymentByMonth, floorByMonth,
     startingBalance, ccMinTotal, ccMinByMonth, cyclingExcessByMonth, carFunds, transactions,
-    ccSourceIds, now, formatCurrency,
+    ccSourceIds, now, formatCurrency, reducibleDebtCapByMonth,
   } = params;
 
-  const ccMin = (m: number) => ccMinByMonth?.[m] ?? ccMinTotal;
+  const debtCap = (m: number) => reducibleDebtCapByMonth?.[m] ?? Infinity;
+  // The mandatory minimum can't exceed the debt outstanding either — once revolving debt is
+  // clear the real minimum is $0, whatever today's static live minimums say.
+  const ccMin = (m: number) => Math.min(ccMinByMonth?.[m] ?? ccMinTotal, debtCap(m));
 
   const maxDebtPaymentByMonth: number[] = Array(PROJECTION_MONTHS).fill(Infinity);
   const saveUpMonths = new Set<number>();
@@ -112,7 +126,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     let rawBal = startingBalance;
     for (let m = 0; m < PROJECTION_MONTHS; m++) {
       const mFloor = floorByMonth[m];
-      const natural = Math.max(ccMin(m), Math.max(0, rawBal + incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - mFloor));
+      const natural = Math.min(debtCap(m), Math.max(ccMin(m), Math.max(0, rawBal + incomeByMonth[m] - expenseByMonth[m] + oneTimeNetByMonth[m] - carDownPaymentByMonth[m] - mFloor)));
       rawBal += incomeByMonth[m] - expenseByMonth[m] - natural + oneTimeNetByMonth[m] - carDownPaymentByMonth[m];
       if (rawBal < mFloor - 0.01) rawBreachMonths.push(m);
     }
@@ -172,7 +186,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     const carDP = carDownPaymentByMonth[m];
     const mFloor = floorByMonth[m];
     const mCcMin = ccMin(m);
-    const natural = Math.max(mCcMin, Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - mFloor));
+    const natural = Math.min(debtCap(m), Math.max(mCcMin, Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - mFloor)));
 
     if (reserveNeeded[m + 1] > 0) {
       const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];

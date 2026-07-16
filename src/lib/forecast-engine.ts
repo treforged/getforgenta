@@ -937,6 +937,24 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
             .filter(p => p.month === m)
             .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0)))
       : undefined;
+    // Upper bound on the reducible (revolving + backlog) debt payment per month: the debt
+    // outstanding entering month m, from the sim's own trajectory. Keeps the look-ahead's cash
+    // walk from assuming surplus keeps flowing to debt after all revolving debt has cleared —
+    // which pinned its modeled balance to the floor for the whole horizon and made a later
+    // cycling statement (e.g. the Apr 2028 $2.7k) look like a breach the user's actual five-digit
+    // cash pile would never feel, capping (and underpaying) the preceding months' statements.
+    // Month 0 stays uncapped: it is live-anchored elsewhere and its payment is already bounded
+    // by the live balances. Slight overestimate is safe (falls back toward legacy behavior);
+    // the sim can never pay more than what's owed, so this bound is exact where it matters.
+    const reducibleDebtCapByMonth = cardProjectionData
+      ? Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
+          if (m === 0) return Infinity;
+          let owed = 0;
+          for (const arr of cardProjectionData.monthlyRevolvingBalances.values()) owed += Math.max(0, arr[m - 1] ?? 0);
+          for (const arr of cardProjectionData.monthlyCyclingBacklog.values()) owed += Math.max(0, arr[m - 1] ?? 0);
+          return owed;
+        })
+      : undefined;
     const { maxDebtPaymentByMonth, strictSaveUpMonths } = computeFloorProtection({
       incomeByMonth: baseData.map(b => b.netIncome),
       expenseByMonth: baseData.map((b, i) =>
@@ -950,6 +968,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       ccMinTotal,
       ccMinByMonth,
       cyclingExcessByMonth: cyclingByMonth,
+      reducibleDebtCapByMonth,
       carFunds, transactions, ccSourceIds, now: nowDate, formatCurrency,
     });
 

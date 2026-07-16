@@ -833,7 +833,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // cycling payment needs monthlyPayments) — see the iterative refinement below this
       // function for why it has to be callable more than once, each time against a fresher
       // simulation.
-      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[], ccMinByMonth?: number[]) => {
+      const runLookAhead = (floorByMonth: number[], cyclingPaymentByMonth: number[], ccMinByMonth?: number[], reducibleDebtCapByMonth?: number[]) => {
         // Strip installment from ccMinByMonth so the save-up cap reflects only the revolving
         // minimum. Installment is modeled as an expense below — the engine pays it separately
         // via installmentCashCost, so the look-ahead must not also include it in the cascade cap.
@@ -856,6 +856,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           ccMinTotal,
           ccMinByMonth: ccMinRevOnly,
           cyclingExcessByMonth,
+          reducibleDebtCapByMonth,
           carFunds, transactions, ccSourceIds, now, formatCurrency,
         });
       };
@@ -1002,7 +1003,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             return s;
           }, 0) + installmentCostByMonth[m],
         );
-        lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth, ccMinByMonth);
+        // Upper bound on the reducible debt payment: revolving + backlog outstanding entering
+        // month m, from the previous pass's sim (same fixed-point sourcing as ccMinByMonth
+        // above). Keeps computeFloorProtection's cash walk from assuming surplus flows to debt
+        // after payoff — see reducibleDebtCapByMonth's JSDoc in floor-protection.ts. Month 0
+        // stays uncapped (live-anchored; its payment is already bounded by live balances).
+        const reducibleDebtCapByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
+          if (m === 0) return Infinity;
+          return cards.reduce((s, c) =>
+            s + Math.max(0, sim.monthlyRevolvingBalances.get(c.id)?.[m - 1] ?? 0)
+              + Math.max(0, sim.monthlyCyclingBacklog.get(c.id)?.[m - 1] ?? 0), 0);
+        });
+        lookAhead = runLookAhead(augmentedCashFloorByMonth, cyclingPaymentByMonth, ccMinByMonth, reducibleDebtCapByMonth);
         sim = simulateVariablePayoff(
           cards,
           debtFundingBalance,

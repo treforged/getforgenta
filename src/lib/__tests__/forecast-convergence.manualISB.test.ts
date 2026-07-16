@@ -62,6 +62,27 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
     expect(floorBreaches.map(m => m.month), 'cash-floor breaches after convergence').toEqual([]);
   });
 
+  maybeIt('post-payoff months never underpay a cycling statement (Q6 — Feb–Jun 2028 regression)', () => {
+    // Before the reducibleDebtCapByMonth fix (floor-protection.ts), the look-ahead's cash walk
+    // assumed all surplus flowed to debt forever, rode its modeled balance along the floor for
+    // the whole horizon, and flagged Apr 2028's $2.7k cycling statement as a breach the user's
+    // actual ~$16k cash would never feel — capping Jan–Mar 2028 payments so Prime Visa paid
+    // $194 of an $831 statement (backlog + interest), plus a permanent never-cleared backlog
+    // from Jan 2029 onward. Post-payoff, a converged run must pay every statement in full.
+    const { out } = runScenario(0);
+    expect(out.converged).toBe(true);
+    const cp = out.cardProjection;
+    const payoffM = cp.forecastRevolvingPayoffMonth;
+    expect(payoffM, 'fixture must pay off within the horizon').not.toBeNull();
+    for (const [cardId, backlog] of cp.monthlyCyclingBacklog.entries()) {
+      const interest = cp.monthlyCyclingInterest.get(cardId) ?? [];
+      for (let m = payoffM!; m < backlog.length; m++) {
+        expect(backlog[m], `card ${cardId} carries cycling backlog at m${m}`).toBeLessThanOrEqual(0.01);
+        expect(interest[m] ?? 0, `card ${cardId} accrues cycling interest at m${m}`).toBeLessThanOrEqual(0.01);
+      }
+    }
+  });
+
   maybeIt('clock=+11d (2026-07-26, all July due days passed): converges with no floor breach', () => {
     const { out, ccFree, floorBreaches } = runScenario(11);
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
