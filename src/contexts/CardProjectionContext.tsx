@@ -217,9 +217,14 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
         converged: convergence.converged,
         passes: convergence.passes,
         usedFallback: convergence.cardProjection === cardProjection && !convergence.converged,
+        // Converged projection + capture inputs, exposed for live debugging and for recapturing
+        // the golden fixture WITH debtPayoffOptions (the projection-harness fidelity gap).
+        convergedProjection: convergence.cardProjection,
+        engineInputs: forecastInputsBundle.engineInputs,
+        debtPayoffOptions,
       };
     }
-  }, [convergence, cardProjection]);
+  }, [convergence, cardProjection, forecastInputsBundle.engineInputs, debtPayoffOptions]);
 
   const engineInputs = useMemo<ForecastInputs>(() => (
     convergence.cardProjection === forecastInputsBundle.engineInputs.cardProjectionData
