@@ -486,6 +486,16 @@ export function projectCardVariable(
         console.warn(`[projectCardVariable] ${card.name} ${label} does not reconcile: End ${bal} ≠ Start ${startBal} + purch ${newPurchases} + int ${interest} − pay ${Math.round(payment * 100) / 100} (residual ${residual})`);
       }
     }
+    // Sim ground truth: revolving debt cleared this month → interest-free from here, mirroring
+    // the cycling branch's payoffMonth assignment. Sub-dollar tolerance (same dust convention as
+    // the `bal < 1` clear below) because the sim can leave a few cents of rounding dust on the
+    // revolving series (e.g. a flat $0.04 forever) that defeats a strict === 0 check. Without
+    // this, a card held in this display branch (installment exception, or dust blocking the
+    // cycling branch) whose inGrace check also misses by cents keeps payoffMonth null, and the
+    // post-window fallback walk pays only card.minPayment (possibly $0) for the remaining ~300
+    // months of simMonths — compounding flat-APR interest into an absurd totalInterest
+    // (the $132k Prime Visa TOTAL INTEREST header).
+    if (payoffMonth === null && hasPref && simRevBal !== undefined && simRevBal < 1) payoffMonth = m;
     if (payoffMonth === null && startBal > 0) {
       if (card.paymentPreference === 'statement') {
         // inGrace = payment covered opening balance + interest this cycle,

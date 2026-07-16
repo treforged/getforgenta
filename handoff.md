@@ -1,44 +1,52 @@
 # Handoff — 2026-07-16 — main
 
-## Q7 RESOLVED (live-verified 2026-07-16)
+## Q8 RESOLVED (live-verified 2026-07-16)
 
-VX missed its full Jan 2029 statement (paid $50 of $300, $4.79 interest Feb).
+Prime Visa card header showed TOTAL INTEREST $132,107 and "Interest-free: N/A" while real
+in-window interest was $34.
 
-**Root cause:** `CardProjectionContext.projectionAssumptions` omitted `promotions`, so the SIM
-never saw the scheduled 2027-02-25 salary promotion ($70k) while the ENGINE did. From m7 the sim
-underestimated income, its floor look-ahead throttled debt payments into save-up mode (base
-payoff 13 → 36 months), and convergence settled on a degenerate fixed point where VX's mandatory
-cycling payment demoted to the $25 min m24–m30 and Step-5 shorted the Jan 2029 statement.
+**Root cause (two layers):**
+1. The sim leaves **$0.04 of rounding dust** on PV's revolving-balance series (never exactly 0),
+   so `projectCardVariable`'s strict `simRevBal === 0` cycling check never fires; PV's
+   installment balance (upfront payment plans, $5,145) also holds it in the revolving display
+   branch, and the local `inGrace` payoff check misses by cents of balance drift.
+2. With `payoffMonth` stuck null, the 360-month payoff-discovery walk continues past the
+   60-month sim window in the fallback branch paying only `card.minPayment` (**$0** — PV manual
+   min), compounding 27.49% APR on a ~$148 cycling balance for ~300 months → $132k phantom.
 
-**Fix:** one line — thread `promotions: assumptions.promotions` into projectionAssumptions
-(CardProjectionContext.tsx). Backup: backups/2026-07-16_003600/.
+**Fix (credit-card-engine.ts, projectCardVariable):** one added payoff detection — set
+`payoffMonth` from sim ground truth when `simRevBal < 1` (sub-dollar dust convention, same as
+the function's existing `bal < 1` clear), mirroring the cycling branch's assignment. `isCycling`
+untouched (minimal blast radius). Backup: backups/2026-07-16_093000/.
 
-**Offline repro required closing two more harness fidelity gaps** (now supported via
-`ProjectionHarnessOverrides` in fixtures/projection-harness.ts):
-- `paymentPlans` — live passes usePaymentPlans() rows; fixtures never captured them. Saved to
-  gitignored `fixtures/forecast-inputs.real.payment-plans-2026-07-16.json` (numeric amounts!).
-- `persistedDebtFundingId` — localStorage `tre:debt:fundingAccount` =
-  `933cbc10-bceb-4c20-8227-4a02e6db728a`.
-With those + promotions stripped from sim assumptions, harness base matched live base EXACTLY
-(saveUp, payoffM 36, mand arrays, debtPaymentTotals) and convergence reproduced the m30 $50
-payment bit-for-bit. (Live capture's maxDebt "0"s are JSON-serialized Infinity — not real zeros.)
+**Regression test:** credit-card-engine.revolvingDustPayoff.test.ts (synthetic, always runs —
+no gitignored fixture needed): PV-shaped card with dusty revolving series → payoffMonth set,
+totalInterest === in-window interest; plus a no-false-positive test (genuinely positive series
+→ no in-window payoff). Full lib suite green (34 files / 155 tests incl. the 2 new).
 
-**Regression test:** forecast-convergence.promoParity.test.ts — behavioral (VX never carries
-cycling backlog/interest in any month on the live 2026-07-16 fixture) + static tripwire (context
-source must thread promotions). Full lib suite green (34 files / 155 tests).
+**Live verification (localhost:8080/debt):** PV TOTAL INTEREST **$34**, "Interest-free: 13 mo
+(Jul 2027)", MIN PAYMENT $0 / INTEREST/MO $0.00 as expected, ISB $1,165 pin intact (Aug 2026
+-$1,165 row), VX/Apple debt-free, Discover $1,226 / payoff 12 mo unchanged.
 
-**Live verification (localhost:8080/debt):** converged 12 passes, VX pays $300 every month,
-zero backlog anywhere; UI Jan 2029 shows full -$300; Debt tab ETA 12 mo; Q6 acceptance (PV Mar
-2028 $831 statement paid in full, no 2028 backlog) and Q5 acceptance (PV Jul 2026 $0 / Aug 2026
-$1,165 ISB pin) both intact.
+**Known side effect (correction, not regression):** Debt-tab PAYOFF ETA now 13 mo (was 12).
+Both true signals (`simRevolvingPayoffMonth`, `forecastRevolvingPayoffMonth`) are **null on
+live data** (verified via harness) because the same $0.04 dust defeats their `<= 0` checks, so
+the ETA falls back to `simEta = max(per-card payoffMonth)`. Pre-fix that max silently excluded
+PV (null payoffMonth) → 12 (Discover). Now 13 = PV's true revolving-clear month, consistent
+with its own header label.
 
-## NEXT TASK: Prime Visa "TOTAL INTEREST $132,107" card header (Q8)
+## NEXT TASK CANDIDATE (Q9): revolving dust at the engine layer
 
-Still absurd post-Q7 (was $132,085). PV is ISB-pinned ($1,165 manual), header also shows
-MIN PAYMENT $0, INTEREST/MO $0.00, "Interest-free: N/A". Handoff hypothesis: display calc in
-CreditCardEngine projections vs sim — possibly projectCardVariable flat-APR walk on an
-ISB-pinned card whose displayed payment never amortizes the balance, so interest accrues for
-the whole horizon. Investigate at the display layer; the sim/engine numbers live are sane.
+The sim leaving $0.04 on a revolving series is the deeper root cause. It nulls BOTH payoff
+signals (simRevolvingPayoffMonth's `totalRevBal <= 0`, forecast walk's `p3RevBal <= 0` is
+separate but also came back null) and likely suppresses Forecast's **CC Debt Free milestone**
+on live data (forecast-engine.ts:1261 `ccEngRevBalEnd <= 0` — dust keeps it at 0.04; fallback
+signal ccDebtFreePayoffIdx is null). manualISB/goldenTierA tests pass because their fixtures
+predate the dust. Fix belongs in simulateVariablePayoff (clear sub-dollar revolving dust at
+month end) or as tolerance in the three `<= 0` consumers — engine fix is root-cause but touches
+convergence fixed points + golden fixtures, so give it a dedicated session with fixture
+recapture. Forecast page live (2026-07-16) otherwise sane: −OUT drops and END CASH jumps at
+Jul 2027 (payoff), no milestone chip seen in page text (verify visually).
 
 ## GOTCHAS (carry forward)
 
@@ -48,3 +56,5 @@ the whole horizon. Investigate at the display layer; the sim/engine numbers live
 - vitest: `--disable-console-intercept` to see console.logs.
 - Repo PUBLIC — real-data fixtures stay gitignored (`forecast-inputs.real*.json`). Never push.
 - Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf.
+- Live capture's maxDebt "0"s are JSON-serialized Infinity — not real zeros.
+- Harness needs paymentPlans + persistedDebtFundingId overrides to match live (see Q7).
