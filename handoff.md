@@ -1,77 +1,50 @@
-# Handoff — 2026-07-16 ~00:25 — main
+# Handoff — 2026-07-16 — main
 
-## ACTIVE TASK: Q7 — Venture X misses full Jan 2029 statement (LIVE-ONLY, root cause narrowed)
+## Q7 RESOLVED (live-verified 2026-07-16)
 
-Tre reported: "venture x misses a full statement balance in 2029."
-CONFIRMED LIVE on localhost:8080 /debt → Venture X → Monthly Projection → 2029:
-Jan 2029 pays **$50 of a $300 statement** (start 300, +300 purchases, end $555), $4.79 interest
-charged Feb 2029, caught up Feb (-$555). VX card header shows TOTAL INTEREST $5.
+VX missed its full Jan 2029 statement (paid $50 of $300, $4.79 interest Feb).
 
-Q6 (PV 2028) prerequisite check: live `__convergenceDebug` = converged:true, passes:12,
-usedFallback:false; Debt tab ETA 12 mo; ledger pays PV/Discover statements fine. Q6 itself looks
-OK live, but do a proper PV-2028-rows check next session (didn't finish it).
+**Root cause:** `CardProjectionContext.projectionAssumptions` omitted `promotions`, so the SIM
+never saw the scheduled 2027-02-25 salary promotion ($70k) while the ENGINE did. From m7 the sim
+underestimated income, its floor look-ahead throttled debt payments into save-up mode (base
+payoff 13 → 36 months), and convergence settled on a degenerate fixed point where VX's mandatory
+cycling payment demoted to the $25 min m24–m30 and Step-5 shorted the Jan 2029 statement.
 
-## WHAT WAS ESTABLISHED (all reproducible)
+**Fix:** one line — thread `promotions: assumptions.promotions` into projectionAssumptions
+(CardProjectionContext.tsx). Backup: backups/2026-07-16_003600/.
 
-1. **Old golden fixture (07-15) does NOT repro** — VX pays every statement in full thru 2030.
-2. **Captured a fresh live fixture WITH debtPayoffOptions**:
-   `src/lib/__tests__/fixtures/forecast-inputs.real.live-2026-07-16.json` (gitignored via the
-   `forecast-inputs.real*.json` pattern). Captured via new DEV dump (see change below) POSTed to
-   a temp local node receiver. debtPayoffOptions live = `{strategy:'avalanche',
-   paymentMode:'variable', cashFloor:2800, overrides:{}}` — overrides are EMPTY live, so the
-   07-15 "fidelity gap = overrides" theory is DEAD.
-3. **Offline run of the live capture is CLEAN** (harness rebuild → converge, 17 passes): VX
-   m30 pays 300, mand=300, no backlog. So live and offline converge to DIFFERENT fixed points.
-4. **The BASE projections differ** (live captured `inputs.cardProjectionData` vs harness
-   `renderProjectionFromFixture(inputs)` on identical data):
-   - live base: payoffM=36, saveUp={13,15,16,17,18,19,20,23,24,27}, maxDebt tiny/0 everywhere
-     (m10-12=0, m16-20=227, m27=1)
-   - offline base: payoffM=11, saveUp={}, maxDebt mostly inf
-5. **ROOT-CAUSE CANDIDATE (verify first next session):** the app passes
-   `persistedDebtFundingId` from localStorage `tre:debt:fundingAccount` =
-   `"933cbc10-bceb-4c20-8227-4a02e6db728a"` (JSON-quoted string), while projection-harness.ts
-   hardcodes `persistedDebtFundingId: null`. That's the only identified live-vs-harness input
-   delta (pauseSavings=false matches; strategy avalanche matches; scheduledEvents same
-   generator/args; overrides {}).
-6. Live converged state (from new `__convergenceDebug.convergedProjection`): VX
-   mand=25 (only min!) m24-m30 then mand=300 from m31; ledger m30 total=383
-   (PV 212.99 + Disc 120 + VX 50.01) while final maxDebtPaymentByMonth[30]=Infinity — i.e. the
-   converged ledger ECHOES a stale low target at m30 that the final look-ahead no longer
-   justifies (echo-ratchet fixed point). Jan (m30) is VX's annual-spike month in the chart.
+**Offline repro required closing two more harness fidelity gaps** (now supported via
+`ProjectionHarnessOverrides` in fixtures/projection-harness.ts):
+- `paymentPlans` — live passes usePaymentPlans() rows; fixtures never captured them. Saved to
+  gitignored `fixtures/forecast-inputs.real.payment-plans-2026-07-16.json` (numeric amounts!).
+- `persistedDebtFundingId` — localStorage `tre:debt:fundingAccount` =
+  `933cbc10-bceb-4c20-8227-4a02e6db728a`.
+With those + promotions stripped from sim assumptions, harness base matched live base EXACTLY
+(saveUp, payoffM 36, mand arrays, debtPaymentTotals) and convergence reproduced the m30 $50
+payment bit-for-bit. (Live capture's maxDebt "0"s are JSON-serialized Infinity — not real zeros.)
 
-## NEXT STEPS
-1. Extend `fixtures/projection-harness.ts` to accept `persistedDebtFundingId` (and ideally
-   capture it into future fixtures); rerun `vx-2029-diagnostic.test.ts` (untracked, repo root
-   src/lib/__tests__/) with `933cbc10-bceb-4c20-8227-4a02e6db728a` → expect live repro (base
-   payoffM=36, saveUps, then converged VX m30 pay=50).
-2. Root-cause with the repro: (a) why does pinning the funding account degrade the cash walk so
-   badly (payoff 11→36 in the BASE — this alone may be its own bug), and (b) why VX's mandatory
-   cycling statement demotes to min ($25) m24-30, letting the Step-5 pool shortchange it, and
-   (c) why the converged ledger keeps a 383 target at m30 when the final look-ahead cap is inf
-   (convergence accepts a fixed point the final pass's look-ahead would not produce).
-   Fix at the correct layer; add regression to forecast-convergence.manualISB.test.ts pattern
-   using the NEW live fixture + funding id.
-3. ALSO SPOTTED live: Prime Visa card header "TOTAL INTEREST **$132,085**" — absurd; investigate
-   (display calc in CreditCardEngine projections vs sim; may be projectCardVariable flat-APR walk
-   on ISB-pinned card).
-4. Q6 live-verify completion: open PV Monthly Projection 2028 (Feb–Jun) and confirm full
-   statement payments, and re-check Q5 acceptance (PV Jul "—", Aug −$1,165).
+**Regression test:** forecast-convergence.promoParity.test.ts — behavioral (VX never carries
+cycling backlog/interest in any month on the live 2026-07-16 fixture) + static tripwire (context
+source must thread promotions). Full lib suite green (34 files / 155 tests).
 
-## CHANGES MADE THIS SESSION (uncommitted until this handoff commit)
-- `src/contexts/CardProjectionContext.tsx` (backup: backups/2026-07-16_003000/): DEV-only
-  `__convergenceDebug` now also exposes `convergedProjection`, `engineInputs`,
-  `debtPayoffOptions` (for live debugging + fixture capture). Keep — it's `import.meta.env.DEV`
-  gated.
-- `src/lib/__tests__/vx-2029-diagnostic.test.ts` — TEMP diagnostic, left UNTRACKED on purpose
-  (header says delete before commit). Has two tests: converge live capture + dump VX m24-36;
-  diff live base vs harness base.
-- New gitignored fixture `forecast-inputs.real.live-2026-07-16.json` (real data — NEVER commit).
+**Live verification (localhost:8080/debt):** converged 12 passes, VX pays $300 every month,
+zero backlog anywhere; UI Jan 2029 shows full -$300; Debt tab ETA 12 mo; Q6 acceptance (PV Mar
+2028 $831 statement paid in full, no 2028 backlog) and Q5 acceptance (PV Jul 2026 $0 / Aug 2026
+$1,165 ISB pin) both intact.
 
-## FAILED ATTEMPTS / GOTCHAS
-- `window.__simDebug.raw` is the PASS-0 hook result, NOT converged — don't diagnose from it.
-- `cp.cards[].id` is empty string on the converged projection — look cards up via
-  `cp.perCardPayments.find(p => p.name === ...)` instead.
-- App routes: debt page is `/debt` (NOT /debt-payoff); dev server localhost:8080, Tre logged in.
-- vitest: use `--disable-console-intercept` to see console.logs.
-- Repo PUBLIC — real-data fixtures stay gitignored. Supabase user_id
-  a72f416e-433a-4055-9ab0-9feae4e60edf. Never push.
+## NEXT TASK: Prime Visa "TOTAL INTEREST $132,107" card header (Q8)
+
+Still absurd post-Q7 (was $132,085). PV is ISB-pinned ($1,165 manual), header also shows
+MIN PAYMENT $0, INTEREST/MO $0.00, "Interest-free: N/A". Handoff hypothesis: display calc in
+CreditCardEngine projections vs sim — possibly projectCardVariable flat-APR walk on an
+ISB-pinned card whose displayed payment never amortizes the balance, so interest accrues for
+the whole horizon. Investigate at the display layer; the sim/engine numbers live are sane.
+
+## GOTCHAS (carry forward)
+
+- `window.__simDebug.raw` is PASS-0, not converged; use `__convergenceDebug.convergedProjection`.
+- `cp.cards[].id` empty on converged projection — look up via perCardPayments by name.
+- Debt page is `/debt`; dev server localhost:8080 (DEV server, not prod).
+- vitest: `--disable-console-intercept` to see console.logs.
+- Repo PUBLIC — real-data fixtures stay gitignored (`forecast-inputs.real*.json`). Never push.
+- Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf.

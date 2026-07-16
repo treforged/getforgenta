@@ -3,9 +3,10 @@
 // fixture's raw Supabase rows — the same call shape CardProjectionContext.tsx uses. Callers must
 // pin the clock (vi.setSystemTime) BEFORE calling, since the sim reads new Date() internally.
 //
-// Known fidelity gap (2026-07-15): the fixture does not capture debtPayoffOptions, so overrides
-// run as {} here while live may carry manual month-payment overrides — pass counts can differ
-// from the live __convergenceDebug by a few passes even on the same clock.
+// Known fidelity gaps (2026-07-16): ForecastInputs fixtures do not capture debtPayoffOptions
+// (overrides run as {} here), paymentPlans (usePaymentPlans rows), or persistedDebtFundingId
+// (localStorage `tre:debt:fundingAccount`). The latter two can be supplied per-test via
+// ProjectionHarnessOverrides — both were required to reproduce the Q7 live fixed point.
 
 import { renderHook } from '@testing-library/react';
 import { useCardProjection, type UseCardProjectionParams, type CardProjectionResult } from '@/hooks/useCardProjection';
@@ -36,8 +37,18 @@ export function buildProjectionAssumptions(inputs: ForecastInputs) {
   };
 }
 
+export interface ProjectionHarnessOverrides {
+  /** Live app reads this from localStorage `tre:debt:fundingAccount`; fixtures don't capture it. */
+  persistedDebtFundingId?: string | null;
+  /** Live app passes usePaymentPlans() rows; ForecastInputs fixtures don't capture them. */
+  paymentPlans?: unknown[];
+}
+
 /** Render the real sim hook from the fixture's raw rows; returns the live CardProjectionResult. */
-export function renderProjectionFromFixture(inputs: ForecastInputs): CardProjectionResult {
+export function renderProjectionFromFixture(
+  inputs: ForecastInputs,
+  overrides: ProjectionHarnessOverrides = {},
+): CardProjectionResult {
   const fx = inputs as unknown as Record<string, unknown>;
   const { result } = renderHook(() => useCardProjection({
     accounts: fx.accounts,
@@ -53,10 +64,10 @@ export function renderProjectionFromFixture(inputs: ForecastInputs): CardProject
     pauseSavings: Boolean(fx.pauseSavings),
     forecastFundingAccountId: fx.forecastFundingAccountId ?? null,
     debtStrategy: 'avalanche',
-    persistedDebtFundingId: null,
+    persistedDebtFundingId: overrides.persistedDebtFundingId ?? null,
     assumptions: buildProjectionAssumptions(inputs),
     syncCutoffDate: fx.syncCutoffDate,
-    paymentPlans: (fx.paymentPlans as never) ?? [],
+    paymentPlans: (overrides.paymentPlans as never) ?? (fx.paymentPlans as never) ?? [],
   } as unknown as UseCardProjectionParams));
   if (!result.current) throw new Error('useCardProjection returned null on the golden fixture');
   return result.current;

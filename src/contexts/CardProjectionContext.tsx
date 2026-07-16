@@ -162,6 +162,10 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     taxReturnDependents: assumptions.taxReturnDependents,
     taxReturnState: assumptions.taxReturnState,
     taxReturnFederalWithheld: assumptions.taxReturnFederalWithheld,
+    // Sim/engine income parity: without this the sim never sees scheduled promotions while the
+    // engine does, and the convergence loop settles on a degenerate fixed point that can short
+    // a cycling card's statement (Q7: VX missed its full Jan 2029 statement).
+    promotions: assumptions.promotions,
   }), [assumptions]);
 
   const cardProjection = useCardProjection({
