@@ -35,7 +35,35 @@ the ETA falls back to `simEta = max(per-card payoffMonth)`. Pre-fix that max sil
 PV (null payoffMonth) → 12 (Discover). Now 13 = PV's true revolving-clear month, consistent
 with its own header label.
 
-## NEXT TASK CANDIDATE (Q9): revolving dust at the engine layer
+## NEXT TASK (Q9, user-reported 2026-07-16): Discover doesn't pull back enough for PV's ISB
+
+User: "discover doesnt pull payments back enough for prime visa to always pay its full
+interest saving balance and maintain cash floor in future months. primes interest saving
+balance is a non negotiable."
+
+Requirement: PV's manual ISB payment ($1,165 pinned, synthetic statement pin) is MANDATORY —
+in any month with an ISB pin, the sim must pay the full pinned amount AND hold the cash floor;
+Discover (revolving, "full balance" preference, avalanche priority by APR? PV 27.49 > Discover
+19.49 so PV is avalanche-first — but Discover's payment is what needs pulling back) must
+reduce its discretionary paydown to make room, including in FUTURE pin months (look-ahead).
+
+Where to look:
+- Q5 precedent: manualStatementBalance.test.ts "the ISB is funded first — the competing
+  CYCLING card pulls back its statement payment, floor holds" — that pullback exists for
+  cycling cards; Discover is a REVOLVING full-preference card, likely a different Step-5 path.
+- manualIsbPins (useCardProjection ~1773, debt-model-types.ts:106): exposed so PASS-2
+  floor-protection can model pin months' true mandatory CC outflow. Check whether the
+  look-ahead (runLookAhead / computeFloorProtection) and Step-5 allocation actually reserve
+  the pin amount BEFORE allocating discretionary revolving payments to Discover in the months
+  leading up to / including a pin month.
+- simulateVariablePayoff Step 5 cascade + maxDebtPaymentByMonth caps (Q6 capped by outstanding
+  debt); the pin is applied per-card, but earlier-month Discover payments may drain cash the
+  floor walk needed for the upcoming pin.
+- Acceptance: every ISB-pinned month pays exactly the pin in full (no shorting, no floor
+  breach); Discover absorbs the reduction; Q5-Q8 acceptance intact; verify on live fixture via
+  harness (paymentPlans + persistedDebtFundingId overrides) then live /debt page.
+
+## RELATED CANDIDATE (Q10, was Q9): revolving dust at the engine layer
 
 The sim leaving $0.04 on a revolving series is the deeper root cause. It nulls BOTH payoff
 signals (simRevolvingPayoffMonth's `totalRevBal <= 0`, forecast walk's `p3RevBal <= 0` is
