@@ -26,11 +26,12 @@ Investigation pointers:
   due-day-1 bills as next-month? verify).
 
 ## STATUS: Q9 fully resolved. Penny-level floor-miss report fixed and live-verified.
-Display-semantics question ANSWERED by Tre ("do what makes the most sense") — implemented:
-Forecast.tsx end-cash coloring now compares against the NEXT month's monthMinSafe (Q9
-convention), falling back to the row's own floor on the last visible row. NOT yet live-checked
-in the browser — eyeball /forecast once (Feb 2027 should no longer be red; Aug 2026 stays red,
-it's genuinely below its next floor).
+Display-semantics question SETTLED by Tre: next-month-floor coloring was tried (af9107a6) and
+REVERTED at Tre's direction ("the coloring is more accurate the other way") — the end-cash cell
+compares against the CURRENT month's monthMinSafe. This is Tre's explicit preference; do NOT
+re-propose keying it to the next month's floor. Consequence to keep in mind: ISB-pin months
+(e.g. Aug 2026) and months like Feb 2027 can show red while satisfying the engine's actual
+constraint (endCash[m] ≥ floor[m+1]) — that's accepted display behavior, not a bug report.
 
 ## What happened this session (commits a7aeb945, 58f24a56)
 

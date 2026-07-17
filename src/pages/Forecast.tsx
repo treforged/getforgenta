@@ -1116,10 +1116,6 @@ export default function Forecast() {
                   ],
                 });
               };
-              // End-of-month cash IS next month's pre-paycheck cash (Q9 convention), so the
-              // floor this cell is judged against is the NEXT month's monthMinSafe — comparing
-              // to the current month's floor falsely flagged ISB-pin and floor-step-down months.
-              const cashFloorForRow = displayData[i + 1]?.monthMinSafe ?? row.monthMinSafe;
               const hasCC = (row.totalCCPurchases ?? 0) > 0;
               const hasOneTime = (row.oneTimeNet ?? 0) !== 0;
               const hasCarLump = (row.carLoanExtraPayment ?? 0) > 0;
@@ -1129,7 +1125,7 @@ export default function Forecast() {
                     <div className="px-1 text-xs font-medium">{row.month}</div>
                     <div className="px-1 text-right text-success font-display font-bold text-xs">{formatCurrency(row.takeHome, false)}</div>
                     <div className="px-1 text-right text-destructive font-display font-bold text-xs">{formatCurrency(row.totalExpenses, false)}</div>
-                    <div className={`px-1 text-right font-display font-bold text-xs ${row.endingCash < cashFloorForRow ? 'text-destructive' : row.endingCash <= cashFloorForRow + 50 ? 'text-amber-400' : 'text-success'}`}>
+                    <div className={`px-1 text-right font-display font-bold text-xs ${row.endingCash < row.monthMinSafe ? 'text-destructive' : row.endingCash <= row.monthMinSafe + 50 ? 'text-amber-400' : 'text-success'}`}>
                       {formatCurrency(row.endingCash, false)}
                       {row.endingCash < 0 && <span className="ml-0.5 text-[8px]">⚠️</span>}
                       {row.floorBreachedByOneTime && <div className="text-[8px] text-amber-400 leading-tight font-normal">one-time</div>}
