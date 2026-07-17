@@ -323,6 +323,23 @@ export default function BuildShare() {
           })}
         </div>
 
+        {/* Conversion CTA */}
+        <div className="mt-8 rounded border p-5 sm:p-6 text-center print:hidden" style={{ borderColor: 'rgba(200, 168, 75, 0.4)', background: 'linear-gradient(180deg, rgba(200, 168, 75, 0.08), transparent)' }}>
+          <div className="text-xl sm:text-2xl font-display font-bold tracking-tight leading-tight">
+            Building something of your own?
+          </div>
+          <div className="text-[12px] font-mono text-muted-foreground mt-1.5 mb-4">
+            Track every mod, budget every phase, and get a share page like this — free.
+          </div>
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold uppercase tracking-wider px-6 py-2.5 rounded transition-all hover:opacity-90"
+            style={{ background: '#c8a84b', color: '#000' }}
+          >
+            Share Your Build →
+          </Link>
+        </div>
+
         {/* Community rules */}
         <div className="mt-8 pt-5 border-t border-border">
           <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.15em] mb-3">Community Rules</div>
