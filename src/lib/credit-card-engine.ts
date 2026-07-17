@@ -6,6 +6,7 @@ import {
   type EnrichedTransaction,
 } from './pay-schedule';
 import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
+import { FLOOR_CUSHION_DOLLARS } from './floor-protection';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
@@ -1347,7 +1348,10 @@ export function simulateVariablePayoff(
     // draining to only this month's floor makes every bill-timing step-up month start below its
     // own floor (Q9: Discover absorbed the difference as uncapped avalanche cash).
     const nextMonthFloor = m + 1 < months ? (cashFloorByMonth?.[m + 1] ?? cashFloor) : effectiveFloor;
-    const step5Floor = Math.max(effectiveFloor, nextMonthFloor);
+    // FLOOR_CUSHION_DOLLARS (months > 0 only): draining to EXACTLY the floor lets sub-tolerance
+    // convergence residue land cents below it (see floor-protection.ts). Month 0 stays uncushioned
+    // so the projection keeps matching the live safe-to-pay recommendation exactly.
+    const step5Floor = Math.max(effectiveFloor, nextMonthFloor) + (m > 0 ? FLOOR_CUSHION_DOLLARS : 0);
     let availableCash = currentCash + monthIncome - monthExpenses - step5Floor - paidOffCashCost + oneTimeNet - installmentCashCost - pinnedStep5Total;
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });

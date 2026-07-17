@@ -224,6 +224,9 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
         // Converged projection + capture inputs, exposed for live debugging and for recapturing
         // the golden fixture WITH debtPayoffOptions (the projection-harness fidelity gap).
         convergedProjection: convergence.cardProjection,
+        // The converged ForecastResult (engine rows incl. rawEndingCash/rawMonthMinSafe) —
+        // convergedProjection above is the SIM side only.
+        forecastResult: convergence.projections,
         engineInputs: forecastInputsBundle.engineInputs,
         debtPayoffOptions,
       };

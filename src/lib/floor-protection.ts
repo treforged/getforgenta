@@ -5,7 +5,9 @@
 // fixes both callers at once, while keeping each caller's own numbers as an independent check
 // against the other ever silently disagreeing.
 
-import { PROJECTION_MONTHS } from './credit-card-engine';
+// PROJECTION_MONTHS comes from './scheduling' directly (not re-exported via credit-card-engine)
+// so credit-card-engine can import FLOOR_CUSHION_DOLLARS from here without an import cycle.
+import { PROJECTION_MONTHS } from './scheduling';
 
 /** Cushion above the cash floor that every floor-pinning drain targets. The convergence loop
  * stops at a $1 debtPayment tolerance (forecast-convergence.ts), so a fixed point that pins end
