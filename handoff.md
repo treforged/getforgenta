@@ -1,121 +1,82 @@
-# Handoff — 2026-07-16 — main — Q9 offline-RESOLVED, live verification pending
+# Handoff — 2026-07-16 (evening) — main — Q9 CLOSED (live-verified) + penny-miss fix shipped
 
-## Q9 (user-reported): Discover doesn't pull back for PV's mandatory ISB pin / cash floor
+## STATUS: Q9 fully resolved. Penny-level floor-miss report fixed and live-verified.
 
-User: "discover doesnt pull payments back enough for prime visa to always pay its full
-interest saving balance and maintain cash floor in future months. primes interest saving
-balance is a non negotiable."
+## What happened this session (commits a7aeb945, 58f24a56)
 
-## STATUS: fixed offline, full suite GREEN (190/190). Remaining: live verify + cleanup.
+User report "a couple of months miss cash floor by pennies" — reproduced offline, root-caused,
+fixed, live-verified on localhost:8080 /forecast.
 
-## Root cause (two layers, both fixed)
+Root cause (matched the prior session's hypothesis): the convergence loop stops at a $1
+debtPayment tolerance, and every floor-pinning drain targeted EXACTLY the floor, so fixed
+points settled cents below it. Rounding in the Forecast table then showed months $1 under
+floor (red cell at Forecast.tsx:1128).
 
-Convention: end-of-month cash IS next month's pre-paycheck cash, so endCash[m] must be ≥
-monthMinSafe[m+1]. Three places drained cash to only the CURRENT month's floor, so every
-bill-timing floor step-up month started below its own floor, with Discover (avalanche
-discretionary recipient) absorbing the over-drain:
+Fix — `FLOOR_CUSHION_DOLLARS = 2` (defined in floor-protection.ts), applied at all three
+floor-pinning drains so end cash lands at floor+cushion with a dead zone [floor, floor+2]:
+1. forecast-engine.ts PASS-3 Step 3: surplus fires above floor+cushion (drains to it);
+   deficit fires below floor (pulls back to floor+cushion). Asymmetric — the dead zone is
+   the stable landing strip.
+2. floor-protection.ts forward pass: requiredEndBal += cushion.
+3. credit-card-engine.ts Step 5: step5Floor += cushion for m > 0 ONLY (month 0 stays
+   uncushioned so projection ≡ live safe-to-pay recommendation). This fixed the residual
+   −$0.39 (Sep 2026) found during live verify — SIM-pinned months bypass PASS-3/caps.
 
-1. `floor-protection.ts` forward pass — fixed LAST session (committed 4e465a2a): cap now also
-   fires when `nextFloor > mFloor`.
-2. `credit-card-engine.ts` Step 5 (~line 1345): availableCash now subtracts
-   `step5Floor = max(effectiveFloor[m], cashFloorByMonth[m+1] ?? cashFloor)` (fixed THIS session).
-3. `forecast-engine.ts` PASS-3 Step 3 (~line 1119): surplus branch drains only down to
-   `step3SpendFloor = max(monthMinSafe[i], monthMinSafe[i+1])`, and the deficit branch is now
-   keyed to the SAME step3SpendFloor (was hard cashFloor only) — this was the residual-breach
-   fixer: an overpaying month landing in the old buffer zone (cashFloor..monthMinSafe) was a
-   convergence fixed point with nothing pulling the target back. Both branches now push toward
-   one shared threshold; the old "monthMinSafe-keyed deficit breaks convergence" comment predates
-   adaptive damping + stable-raw shortcut and no longer holds (12/18 passes on live fixture).
+Supporting changes:
+- ForecastMonthRow gained `rawEndingCash` / `rawMonthMinSafe` (unrounded) — rounded
+  endingCash/monthMinSafe hide sub-dollar misses; diagnostics must use the raw fields.
+- CardProjectionContext dev debug: `window.__convergenceDebug.forecastResult` now exposes
+  the converged ForecastResult (engine rows). NOTE: `convergedProjection` is the SIM side
+  only — its rows do NOT have the engine fields.
+- floor-protection.ts imports PROJECTION_MONTHS from './scheduling' directly (was via
+  credit-card-engine) so credit-card-engine can import the cushion without an import cycle.
+- q9-diagnostic test (untracked) gained RAW penny-level + DISPLAY (rounded) miss summaries.
 
-## Result on live 07-16 fixture (q9 diagnostic)
+## Live verification results (localhost, 2026-07-16 evening, converged 3 passes)
 
-converged 12 passes; milestones []; endCash-below-NEXT-floor months: NONE (was m2..m11, up to
-−$777 pre-fix); PV pin $1,164.79 (Aug 2026) paid in full; Discover absorbed all pull-back;
-months pin endCash exactly to max(floor, nextFloor) (m5/m8 Δ0). Q5–Q8 acceptance intact:
-full lib+hooks suite 190/190 green (goldenTierA, manualISB, promoParity, revolvingDustPayoff
-all unchanged — no baseline re-pin needed).
+- Sub-dollar floor misses: ZERO (was m2 −$0.39 pre-Step-5-cushion; fixture had 5 up to −$0.37).
+- Q9 acceptance: PV ISB pin $1,164.79 (Aug 2026) paid in full; Discover pulled back to $227
+  min in tight months; no "Cash below safe minimum" milestone.
+- Remaining flagged months are NOT bugs:
+  - m0 Jul / m1 Aug: ~$300 below NEXT month's floor even at pure contract minimums +
+    mandatory PV pin — structural (July's remaining cash can't cover August's floor step-up;
+    nothing left to pull back). No milestone since cash stays above the $2,800 settings floor.
+  - m7 Feb 2027: +$4.13 above its NEXT floor (fine per the Q9 convention) but shows RED.
 
-## Regression fallout fixed (same session)
+## OPEN QUESTION FOR TRE (do not decide unilaterally — display semantics)
 
-`useCardProjection.carLoanActivationDiscontinuity` failed — CAUSED BY LAST SESSION'S committed
-floor-protection change (verified by stash), surfaced now: `getAugmentedMinSafeCash`
-(pay-schedule.ts ~781) included the car-loan payment in the floor ONLY for phase==='loan', so
-saving- vs loan-phase floors diverged and the next-floor-aware caps propagated that into
-different month-0 payments. Fix: saving-phase cars with payment_start_date synthesize the same
-frozen loan-phase record activation produces (loan_amount ← getLoanPrincipal, loan_start_date ←
-planned_purchase_date, interest_start_date ← payment_start_date, actual_monthly_payment 0) and
-run through getActiveCarLoanPayments — parity by construction. Probe confirmed saving ≡ loan
-allPaymentTotals at EVERY month now (0.00 diff). Test 2's exact-$493.60 gap assertion was an
-artifact of the old asymmetry — updated to a band (payment..payment+insurance) with comment.
-
-## Files changed (uncommitted at handoff-write time; committed with this handoff)
-
-- src/lib/credit-card-engine.ts — Step 5 step5Floor (backup backups/2026-07-16_202000/)
-- src/lib/forecast-engine.ts — PASS-3 surplus+deficit step3SpendFloor (backup same folder)
-- src/lib/pay-schedule.ts — getAugmentedMinSafeCash saving-phase projected loan (backup same folder)
-- src/hooks/__tests__/useCardProjection.carLoanActivationDiscontinuity.test.ts — band assertion
-- src/lib/__tests__/q9-diagnostic.isbPullback.test.ts — untracked diagnostic, added nextFloor Δ
-  + endCash-below-NEXT-floor summary line (keep until Q9 live-verified, then delete or promote)
-- src/pages/BuildShare.tsx — PRE-EXISTING user modification, NOT part of Q9, do not commit/revert
-
-## NEW USER REPORT (2026-07-16, post-fix, live): "a couple of months miss cash floor by pennies"
-
-User is logged into localhost and sees a couple of months missing the cash floor by pennies.
-NOT yet reproduced offline — investigate FIRST (fresh session), then fix.
-
-Working hypothesis (unverified): convergence toleranceDollars=1 (forecast-convergence.ts:48)
-stops the loop with sub-dollar residue, and BOTH PASS-3 branches now pin finalLiquid EXACTLY at
-step3SpendFloor (forecast-engine.ts ~1122) — so fixed points can land cents below the floor.
-Candidate fix (designed, NOT implemented): asymmetric cushion in PASS-3 —
-  surplus fires when finalLiquid > step3SpendFloor + CUSHION (drain to floor+CUSHION),
-  deficit fires when finalLiquid < step3SpendFloor (pull back to floor+CUSHION),
-  CUSHION ≈ $1–2 (≥ toleranceDollars) creating a dead zone [floor, floor+CUSHION] where neither
-  fires — stable, and residue can never land below floor. Pin months (NaN target) rely on
-  engine caps from the floor-protection walk — if the penny misses are in PIN months the walk
-  cap needs the cushion instead.
-
-Diagnosis notes gathered so far:
-- endingCash is Math.round(finalLiquid + cumulativeCarReserveHeld) (forecast-engine.ts ~1251)
-  and monthMinSafe is rounded too — the Forecast table shows whole dollars, so FIRST find out
-  exactly WHERE the user sees pennies (milestone text? Debt page? floor-item popup with cents?
-  ask user or check UI formatting) — the milestone check (~1295) compares ROUNDED endingCash to
-  cashFloor, so a true sub-dollar breach may round invisible or a $0.49 breach shows as equal.
-- The q9 diagnostic's breach summary uses rounded row.endingCash — pennies invisible there;
-  add unrounded finalLiquid capture (or lower the flag threshold and print raw liquidCash which
-  is Math.round'ed too — may need a new debug field or use __convergenceDebug live capture).
-- May need a FRESH live fixture capture — user's data may have changed since the 07-16 fixture.
+Forecast.tsx:1128 colors endingCash red when below the CURRENT month's monthMinSafe. The Q9
+engine convention is endCash[m] must be ≥ monthMinSafe[m+1] (end-of-month cash is next
+month's pre-paycheck cash). So months like Feb 2027 (and any ISB pin month) show red even
+when correct. Ask: should the red/amber coloring compare against the NEXT month's floor
+instead? One-line change if yes.
 
 ## NEXT STEPS
 
-1. Investigate + fix the penny-miss report above (user is already logged into localhost —
-   capture __convergenceDebug.convergedProjection and a fresh fixture if needed).
-2. Live-verify Q9 on localhost:8080 /debt + /forecast (dev server): no "Cash below safe minimum"
-   milestone, PV ISB pin month funded, Discover pulled back, endCash ≥ next month's floor in
-   Forecast table. Use `window.__convergenceDebug.convergedProjection` (NOT `__simDebug.raw`).
-2. After live confirm: delete q9-diagnostic test (fixture is gitignored) or keep as skip-if-no-
-   fixture regression; consider promoting a synthetic Q9 regression test (floor step-up month +
-   ISB pin → no next-floor breach).
-3. Q10 candidate still open (from Q8): engine-layer revolving dust nulls
-   simRevolvingPayoffMonth/forecastRevolvingPayoffMonth, likely suppresses CC Debt Free
-   milestone — dedicated session, fixture recapture.
-4. Minor parity gap noted in handoff Q9 map: useCardProjection.ts ~997 hook ccMinByMonth does
-   not include ISB pins (engine's does) — optional base-pass fidelity fix, not blocking.
+1. Ask Tre the display-semantics question above.
+2. Q10 candidate (from Q8): engine-layer revolving dust nulls simRevolvingPayoffMonth /
+   forecastRevolvingPayoffMonth, likely suppresses CC Debt Free milestone — dedicated
+   session, fixture recapture.
+3. Minor parity gap: useCardProjection.ts ~997 hook ccMinByMonth does not include ISB pins
+   (engine's does) — optional base-pass fidelity fix, not blocking.
+4. q9-diagnostic test kept untracked as skip-if-no-fixture; optionally promote a synthetic
+   Q9 regression (floor step-up + ISB pin → no next-floor breach, raw fields ≥ floor).
 
 ## Diagnostic harness
 
-`src/lib/__tests__/q9-diagnostic.isbPullback.test.ts` — run:
 `npx vitest run src/lib/__tests__/q9-diagnostic.isbPullback.test.ts --disable-console-intercept`
-Fixtures: forecast-inputs.real.live-2026-07-16.json + payment-plans fixture (gitignored),
-funding id 933cbc10-bceb-4c20-8227-4a02e6db728a. Fixture cards: PV $6,041 rev / Discover
-$8,015 rev.
+Fixtures gitignored: forecast-inputs.real.live-2026-07-16.json + payment-plans fixture;
+funding id 933cbc10-bceb-4c20-8227-4a02e6db728a.
 
 ## GOTCHAS (carry forward)
 
-- `window.__simDebug.raw` is PASS-0, not converged; use `__convergenceDebug.convergedProjection`.
+- `window.__simDebug.raw` is PASS-0; SIM side = `__convergenceDebug.convergedProjection`;
+  ENGINE rows (raw floor fields) = `__convergenceDebug.forecastResult`.
 - `cp.cards[].id` empty on converged projection — look up via perCardPayments by name.
-- Debt page is `/debt`; dev server localhost:8080 (DEV server, not prod).
+- Debt page is `/debt`; dev server localhost:8080 (DEV, not prod).
 - vitest: `--disable-console-intercept` to see console.logs.
-- Repo PUBLIC — real-data fixtures stay gitignored (`forecast-inputs.real*.json`). Never push.
+- Repo PUBLIC — real-data fixtures stay gitignored. Never push.
 - Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf.
 - Live capture's maxDebt "0"s are JSON-serialized Infinity — not real zeros.
 - Harness needs paymentPlans + persistedDebtFundingId overrides to match live (see Q7).
+- FLOOR_CUSHION_DOLLARS must stay ≥ convergence toleranceDollars (currently 2 ≥ 1).
