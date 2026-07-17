@@ -59,6 +59,22 @@ describe('Q9 diagnostic — ISB pin month funding on live fixture', () => {
       );
     }
     console.log('endCash-below-NEXT-floor months:', nextFloorShorts.length ? nextFloorShorts.join(' | ') : 'NONE');
+    // Penny-level check on UNROUNDED values (rounded endingCash hides sub-dollar misses).
+    const pennyShorts: string[] = [];
+    for (let m = 0; m < out.projections.data.length - 1; m++) {
+      const row = out.projections.data[m];
+      const rawFloor = Math.max(row.rawMonthMinSafe, out.projections.data[m + 1]?.rawMonthMinSafe ?? row.rawMonthMinSafe);
+      const rawDelta = row.rawEndingCash - rawFloor;
+      if (rawDelta < 0) pennyShorts.push(`m${m} ${row.month}: raw=$${row.rawEndingCash.toFixed(2)} floor=$${rawFloor.toFixed(2)} Δ${rawDelta.toFixed(2)}`);
+    }
+    console.log('RAW penny-level floor misses:', pennyShorts.length ? pennyShorts.join(' | ') : 'NONE');
+    // Rounded-display misses (what Forecast.tsx:1128 turns red): rounded endCash < rounded floor.
+    const displayShorts: string[] = [];
+    for (let m = 0; m < out.projections.data.length; m++) {
+      const row = out.projections.data[m];
+      if (row.endingCash < row.monthMinSafe) displayShorts.push(`m${m} ${row.month}: $${row.endingCash} < $${row.monthMinSafe} (raw=$${row.rawEndingCash.toFixed(2)})`);
+    }
+    console.log('DISPLAY (rounded) floor misses:', displayShorts.length ? displayShorts.join(' | ') : 'NONE');
     for (const p of cp.perCardPayments) {
       const rev = cp.monthlyRevolvingBalances.get(p.id) ?? [];
       console.log(`${p.name} revBal[0..6]:`, rev.slice(0, 7).map(v => v.toFixed(2)).join(', '));
