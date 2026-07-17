@@ -936,9 +936,17 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // only ccMinTotal leaving the pinned month, overstates preservable cash, and the resulting
     // caps disagree with the sim's actual spend — the convergence loop then chases that error
     // through later months (the m6–m9 target oscillation, Q4).
-    const ccMinByMonth = (cardProjectionData?.manualIsbPins ?? []).length > 0
+    // Q11: cards whose current-month due date already cleared through Plaid (m0MinSettled,
+    // stamped by useCardProjection) owe no minimum in month 0 — the next one lands in month 1.
+    // Without this the look-ahead models a month-0 outflow (e.g. Discover's $227) that already
+    // left the live balance, double-counting the cash.
+    const m0SettledCcMin = (cardProjectionData?.simCards ?? [])
+      .reduce((s, c) => s + (c.m0MinSettled ? Number(c.minPayment || 0) : 0), 0);
+    const ccMinByMonth = ((cardProjectionData?.manualIsbPins ?? []).length > 0 || m0SettledCcMin > 0)
       ? Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
-          ccMinTotal + (cardProjectionData!.manualIsbPins!
+          ccMinTotal
+          - (m === 0 ? m0SettledCcMin : 0)
+          + ((cardProjectionData?.manualIsbPins ?? [])
             .filter(p => p.month === m)
             .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0)))
       : undefined;

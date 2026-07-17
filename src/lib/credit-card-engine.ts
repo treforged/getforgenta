@@ -40,6 +40,13 @@ export type CardData = {
   installmentBalance?: number;
   /** Fixed monthly payment required by the installment plan (0 = none). */
   installmentMonthlyPayment?: number;
+  /**
+   * True when this card's current-month due date is on/before the Plaid sync cutoff — the cycle's
+   * minimum was already paid (the live balance reflects it), so month 0 must not force the
+   * revolving minimum again; the next obligation lands in month 1. Extra/optional paydown in
+   * month 0 is unaffected. See m0MinDueSettled.
+   */
+  m0MinSettled?: boolean;
 };
 
 export type CardMonthRow = {
@@ -151,6 +158,24 @@ export function revolvingMinDue(card: CardData, revOwed: number): number {
   // says this IS what's due, so the formula must never re-inflate it (manual $0 stays $0).
   if (card.minPaymentIsManual) return Math.min(contractRevMin, revOwed);
   return Math.min(Math.max(contractRevMin, calcMinPayment(revOwed, card.apr)), revOwed);
+}
+
+/**
+ * Q11: has this card's CURRENT-month due date already been captured by a Plaid sync?
+ * If the due date (this month, at dueDay) is on/before syncCutoffDate, the cycle's minimum was
+ * already paid and the live balance reflects it — forcing it again in month 0 double-counts cash
+ * (Discover due Jul 1 kept a $227 min in July's plan). Deliberately keyed on the sync cutoff, not
+ * `dueDay < today`: a payment made but not yet synced isn't reflected in the balance, so its min
+ * must still be reserved. No cutoff or no due day ⇒ never settled (conservative).
+ */
+export function m0MinDueSettled(
+  dueDay: number | null | undefined,
+  syncCutoffDate: string | null | undefined,
+  now: Date,
+): boolean {
+  if (dueDay == null || !syncCutoffDate) return false;
+  const dueDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
+  return dueDate <= syncCutoffDate;
 }
 
 export function getDefaultCardForExpense(category: string, accounts: AccountRow[]): string | null {
@@ -952,7 +977,9 @@ export function simulateVariablePayoff(
         const instMinPay = upfrontDueFor(card, instBal);
         // Manual cards reserve their exact contract revolving min (possibly $0) instead of the
         // formula, so the floor never protects a minimum the lender isn't actually charging.
-        const revMinPay = card.minPaymentIsManual ? revolvingMinDue(card, revBal) : calcMinPayment(revBal, card.apr);
+        const revMinPay = (m === 0 && card.m0MinSettled)
+          ? 0 // Q11: this cycle's revolving min was already paid pre-sim — see m0MinDueSettled
+          : (card.minPaymentIsManual ? revolvingMinDue(card, revBal) : calcMinPayment(revBal, card.apr));
         perCardMinPayments.get(card.id)!.push(bal > 0 ? (revMinPay + instMinPay) : 0);
       }
     }
@@ -1086,7 +1113,9 @@ export function simulateVariablePayoff(
         const revBal = Math.max(0, bal - instBal);
         const instMinPay = upfrontDueFor(c, instBal);
         if (pin) return s + pin.step5Share + instMinPay;
-        return s + revolvingMinDue(c, revBal) + instMinPay;
+        // Q11: settled cards have no month-0 revolving min to reserve (cycle already paid).
+        const revMin = (m === 0 && c.m0MinSettled) ? 0 : revolvingMinDue(c, revBal);
+        return s + revMin + instMinPay;
       }, 0);
     // When the active floor already reserved some/all of this (the augmented floor used by the
     // outer-refinement passes in useCardProjection.ts), don't reserve it a second time here — only
@@ -1331,6 +1360,7 @@ export function simulateVariablePayoff(
     // installmentCashCost, already deducted from availableCash). Minimum for backlog cards is unchanged.
     const totalMins = [...debtCards, ...backlogCards].reduce((s, c) => {
       if (pinnedThisMonth.has(c.id)) return s; // pinned spend is fixed — deducted from the pool below
+      if (m === 0 && c.m0MinSettled) return s; // Q11: month-0 min already paid this cycle
       const owed = owedForCard(c.id);
       const instBal = installmentBals.get(c.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);
@@ -1406,7 +1436,7 @@ export function simulateVariablePayoff(
         const owed = owedForCard(card.id);
         const instBal = installmentBals.get(card.id) ?? 0;
         const revOwed = Math.max(0, owed - instBal);
-        const min = revolvingMinDue(card, revOwed);
+        const min = (m === 0 && card.m0MinSettled) ? 0 : revolvingMinDue(card, revOwed);
         if (remainingForMins >= min) {
           payments.set(card.id, min);
           remainingForMins -= min;
@@ -1443,7 +1473,8 @@ export function simulateVariablePayoff(
         const owedStep5 = owedForCard(card.id);
         const instBal = installmentBals.get(card.id) ?? 0;
         const revOwed = Math.max(0, owedStep5 - instBal);
-        const min = Math.min(revolvingMinDue(card, revOwed), remaining);
+        const baseMin = (m === 0 && card.m0MinSettled) ? 0 : revolvingMinDue(card, revOwed);
+        const min = Math.min(baseMin, remaining);
         payments.set(card.id, min);
         remaining -= min;
       }
@@ -1481,6 +1512,7 @@ export function simulateVariablePayoff(
     // Pinned cards are exempt — a below-minimum pin is an explicit user command (see param JSDoc).
     for (const card of [...debtCards, ...backlogCards]) {
       if (pinnedThisMonth.has(card.id)) continue;
+      if (m === 0 && card.m0MinSettled) continue; // Q11: no forced month-0 min to enforce
       const owed = owedForCard(card.id);
       const instBal = installmentBals.get(card.id) ?? 0;
       const revOwed = Math.max(0, owed - instBal);
@@ -1745,7 +1777,9 @@ export function generateRecommendations(
 
   const totalMinDue = revolvingCards.reduce((s, c) => {
     const ms = manualStmtDueNow(c);
-    return s + (ms !== null ? Math.min(c.minPayment, ms) : c.minPayment);
+    if (ms !== null) return s + Math.min(c.minPayment, ms);
+    if (c.m0MinSettled) return s; // Q11: this cycle's min already paid — next one is due next month
+    return s + c.minPayment;
   }, 0);
 
   const userCashFloor = cashFloor;
@@ -1856,13 +1890,18 @@ export function generateRecommendations(
 
   for (const card of sorted) {
     const ms = manualStmtDueNow(card);
+    // Q11: settled (non-ISB) card has no forced minimum this month — base is $0; the extra
+    // allocation loop below can still direct optional paydown at it.
+    const settled = ms === null && !!card.m0MinSettled;
     const basePayment = ms !== null
       ? Math.max(0, Math.min(ms, remaining))
+      : settled ? 0
       : Math.max(0, Math.min(card.minPayment, remaining, card.balance));
     recs.push({
       cardId: card.id, cardName: card.name, color: card.color, payment: basePayment,
-      isMinimumOnly: ms === null,
-      reason: ms === null ? 'Minimum due'
+      isMinimumOnly: ms === null && !settled,
+      reason: settled ? 'Paid this cycle — minimum due next month'
+        : ms === null ? 'Minimum due'
         : ms === 0 ? 'Statement paid this cycle'
         : 'Pay interest-saving balance',
       estimatedLiquidCash: cardEstimatedCash.get(card.id),

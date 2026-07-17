@@ -3,7 +3,7 @@ import { formatCurrency } from '@/lib/calculations';
 import { attachSimDebug } from '@/lib/simDebug';
 import {
   buildCardData, simulateVariablePayoff, projectCardVariable, buildPaymentLedger,
-  CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue,
+  CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue, m0MinDueSettled,
 } from '@/lib/credit-card-engine';
 import { buildResimOverrides } from './cardProjectionResim';
 import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
@@ -104,11 +104,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       );
       const cards = rawCards.map(card => {
         const derived = installmentByCard.get(card.id);
-        if (!derived) return card;
         return {
           ...card,
-          installmentBalance: derived.balance,
-          installmentMonthlyPayment: derived.monthlyPayment,
+          // Q11: a card whose current-month due date is already inside the sync cutoff has paid
+          // this cycle's minimum (the live balance reflects it) — month 0 must not force it again.
+          m0MinSettled: m0MinDueSettled(card.dueDay, syncCutoffDate, now),
+          ...(derived ? {
+            installmentBalance: derived.balance,
+            installmentMonthlyPayment: derived.monthlyPayment,
+          } : {}),
         };
       });
 
@@ -997,7 +1001,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
           cards.reduce((s, c) => {
             const revBal = sim.monthlyRevolvingBalances.get(c.id)?.[m] ?? 0;
-            if (revBal > 0) return s + revolvingMinDue(c, revBal);
+            // Q11: settled card has no month-0 revolving min outflow (cycle already paid).
+            if (revBal > 0) return s + (m === 0 && c.m0MinSettled ? 0 : revolvingMinDue(c, revBal));
             const backlog = sim.monthlyCyclingBacklog.get(c.id)?.[m] ?? 0;
             if (backlog > 0) return s + revolvingMinDue(c, backlog);
             return s;
@@ -1606,7 +1611,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const ccMinTotalRevolving = cards
         .filter(c => {
           const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
-          return revBal0 > 0;
+          // Q11: settled cards owe no minimum this month — see m0MinDueSettled.
+          return revBal0 > 0 && !c.m0MinSettled;
         })
         .reduce((s, c) => s + c.minPayment, 0);
 
@@ -1656,16 +1662,19 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // close to its minimum, so any uniform scale-down sends it under. Protect each revolving
       // card's own minimum first, then distribute only the leftover ("discretionary") pool
       // proportionally across each card's natural payment above its own minimum.
+      // Q11: a settled card's minimum isn't owed this month, so nothing is "protected" for it —
+      // its whole natural payment is discretionary extra, not min + extra.
+      const protectedMin = (c: CardData): number => (c.m0MinSettled ? 0 : c.minPayment);
       const ccMinSumActive = cards.reduce((s, c) => {
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
-        return revBal0 > 0 ? s + c.minPayment : s;
+        return revBal0 > 0 ? s + protectedMin(c) : s;
       }, 0);
       const discretionaryPool = Math.max(0, revolvingPayment - ccMinSumActive);
       const naturalExtraTotal = cards.reduce((s, c) => {
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
         if (revBal0 === 0) return s;
         const activeSimPay = Math.round(activeSim.monthlyPayments.get(c.id)?.[0] ?? 0);
-        return s + Math.max(0, activeSimPay - c.minPayment);
+        return s + Math.max(0, activeSimPay - protectedMin(c));
       }, 0);
       const perCardAdjusted = cards.map(c => {
         const revBal0 = activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 1;
@@ -1677,9 +1686,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (isCycling) {
           payment = cyclingPay;
         } else {
-          const extra = Math.max(0, activeSimPay - c.minPayment);
+          const extra = Math.max(0, activeSimPay - protectedMin(c));
           const extraShare = naturalExtraTotal > 0 ? discretionaryPool * (extra / naturalExtraTotal) : 0;
-          payment = Math.round(Math.min(activeSimPay, c.minPayment + extraShare));
+          payment = Math.round(Math.min(activeSimPay, protectedMin(c) + extraShare));
         }
         return {
           id: c.id,

@@ -75,13 +75,16 @@ describe('simulateVariablePayoff — m0MinSettled moves the forced minimum to mo
   });
 
   it('two cards, tight month: only the unsettled card is funded in month 0', () => {
+    // Cash sits exactly at the floor — zero surplus, so no optional cascade extra can reach the
+    // settled card; the only cash that moves is the unsettled card's enforced minimum (computed
+    // on its post-interest balance, 3000 + one month of 20% APR interest = 3050).
     const settled = makeCard({ id: 'a', balance: 3000, apr: 25, m0MinSettled: true });
     const unsettled = makeCard({ id: 'b', balance: 3000, apr: 20, dueDay: 25 });
-    const sim = simulateVariablePayoff([settled, unsettled], 1200, 1000, 'avalanche', 0, 0, 2, [
+    const sim = simulateVariablePayoff([settled, unsettled], 1000, 1000, 'avalanche', 0, 0, 2, [
       { income: 1000, expenses: 1000 },
       { income: 1000, expenses: 1000 },
     ]);
     expect(sim.monthlyPayments.get('a')![0]).toBe(0);
-    expect(sim.monthlyPayments.get('b')![0]).toBe(calcMinPayment(3000, 20));
+    expect(sim.monthlyPayments.get('b')![0]).toBe(calcMinPayment(3050, 20));
   });
 });

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
-  buildCardData, projectCard, projectCardVariable,
+  buildCardData, projectCard, projectCardVariable, m0MinDueSettled,
   simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS,
 } from '@/lib/credit-card-engine';
 import {
@@ -236,9 +236,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [accounts, transactions, rules, debts, paymentPlans, syncCutoffDate]);
   const cards: CardData[] = useMemo(() => buildCardData(accounts, transactions, rules, debts).map(card => {
     const derived = upfrontInstByCard.get(card.id);
-    if (!derived) return card;
-    return { ...card, installmentBalance: derived.balance, installmentMonthlyPayment: derived.monthlyPayment };
-  }), [accounts, transactions, rules, debts, upfrontInstByCard]);
+    return {
+      ...card,
+      // Q11: same due-day-settled stamp useCardProjection applies — keeps this tab's internal
+      // sim and recommendations from re-forcing a minimum that already cleared this cycle.
+      m0MinSettled: m0MinDueSettled(card.dueDay, syncCutoffDate, new Date()),
+      ...(derived ? { installmentBalance: derived.balance, installmentMonthlyPayment: derived.monthlyPayment } : {}),
+    };
+  }), [accounts, transactions, rules, debts, upfrontInstByCard, syncCutoffDate]);
 
   // When any revolving card is due on a day that already passed this month, the next
   // payment falls in next month. Generate those transactions so income/expense helpers
