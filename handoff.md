@@ -1,113 +1,115 @@
-# Handoff — 2026-07-16 (evening) — main — Q9 CLOSED + penny-miss fix shipped; NEW Q11 queued
+# Handoff — 2026-07-17 09:35 — main — Q11 root-caused, fix fully designed, test at RED
 
-## NEW TOP PRIORITY — Q11 (user-reported 2026-07-16, verbatim):
+## Goals
 
-"i think discovers payments is counting for this month even though the payment was due on the
-first. the min needs to be paid next month on the first though."
+Q11 (Tre, verbatim): "i think discovers payments is counting for this month even though the
+payment was due on the first. the min needs to be paid next month on the first though."
 
-Interpretation (unverified): Discover's due day is the 1st; July's payment (due Jul 1) is
-already past/settled, yet the month-0 (July) plan still counts Discover's $227 min — it should
-instead land on Aug 1 (next month). Live convergence run tonight showed m0 debtPay = $227
-(Discover min only) and month0.safeToPayTotal = 227 — consistent with the report.
+Fix: a revolving card whose current-month due date is on/before syncCutoffDate already made
+this cycle's payment (live Plaid balance reflects it) — month 0 must NOT force its minimum
+(Discover's $227 in July); the minimum obligation lands in month 1 (Aug 1). Optional/extra
+paydown in month 0 stays allowed. Done = new test green, all existing tests green, live
+verify on localhost:8080 (Tre is logged in), local commit.
 
-Investigation pointers:
-- Known backlog item "due-day-1 zeroing" already exists (see memory
-  project_forecast_engine_refactor: items 1-3 = due-day-1 zeroing, CC min lock, Plaid Tue/Thu) —
-  this is likely that exact item now user-reported. Check how month-0 minimums are gated on
-  dueDay vs syncCutoffDate (m0AllSettled zeroes month 0 ONLY when safeToPayTotal === 0; a
-  due-day-1 card that already paid shouldn't contribute to safeToPayTotal at all).
-- Look at buildCurrentMonthRecommendationSummary / month0 safe-to-pay assembly in
-  credit-card-engine.ts + useCardProjection.ts, and whether a payment due on the 1st before
-  syncCutoffDate is treated as settled.
-- Verify against live: Discover's dueDay, last payment date, and whether the $227 shows in the
-  Debt tab month-0 strip. Fresh fixture capture may be needed.
-- ALSO check the floor side: if Discover's Jul min is wrongly counted, Aug 1's min must appear
-  in AUGUST's plan and August's pre-paycheck floor (getPrePaycheckNextMonthBills already handles
-  due-day-1 bills as next-month? verify).
+## Current State — DIAGNOSIS COMPLETE, TDD RED CONFIRMED, ZERO SOURCE EDITS YET
 
-## STATUS: Q9 fully resolved. Penny-level floor-miss report fixed and live-verified.
-Display-semantics question SETTLED by Tre: next-month-floor coloring was tried (af9107a6) and
-REVERTED at Tre's direction ("the coloring is more accurate the other way") — the end-cash cell
-compares against the CURRENT month's monthMinSafe. This is Tre's explicit preference; do NOT
-re-propose keying it to the next month's floor. Consequence to keep in mind: ISB-pin months
-(e.g. Aug 2026) and months like Feb 2027 can show red while satisfying the engine's actual
-constraint (endCash[m] ≥ floor[m+1]) — that's accepted display behavior, not a bug report.
+- Live DB verified (Supabase mdtosrbfkextcaezuclh): Discover it Card id
+  34c9574b-3557-4729-a812-f0b1b508b882, payment_due_day=1, min_payment=245 (not manual),
+  balance 9300.10, preference 'full', statement_balance null. Only card affected today
+  (Prime Visa due day 7 is an ISB-pin card, min manual $0; Apple/Venture X zero-balance).
+- ROOT CAUSE: the floor side already treats a past-due-date min as settled
+  (pay-schedule.ts getAugmentedMinSafeCash `dueSynced()` ~line 777 skips it from month-0
+  floor), but the PAYMENT side never got that convention — the sim, hook month-0 block,
+  recommendation summary, and forecast-engine all force the min in month 0.
+- New test file committed at RED: `src/lib/__tests__/credit-card-engine.m0MinSettled.test.ts`
+  — `npx vitest run src/lib/__tests__/credit-card-engine.m0MinSettled.test.ts`
+  → 5 failed / 2 passed (the 2 passing are the unchanged-behavior controls). Expected:
+  it imports `m0MinDueSettled` and uses `CardData.m0MinSettled`, neither exists yet.
+- Backups of the 3 files to modify already taken: `backups/2026-07-17_093047/`.
 
-## What happened this session (commits a7aeb945, 58f24a56)
+## Active Files
 
-User report "a couple of months miss cash floor by pennies" — reproduced offline, root-caused,
-fixed, live-verified on localhost:8080 /forecast.
+- `src/lib/credit-card-engine.ts` — main edits (see Next Steps).
+- `src/hooks/useCardProjection.ts` — stamp flag + month-0 min exclusions.
+- `src/lib/forecast-engine.ts` — ccMinByMonth month-0 adjustment.
+- `src/lib/__tests__/credit-card-engine.m0MinSettled.test.ts` — the RED test (committed).
+- `src/lib/pay-schedule.ts` — READ ONLY reference: dueSynced() ~777 is the convention to mirror.
 
-Root cause (matched the prior session's hypothesis): the convergence loop stops at a $1
-debtPayment tolerance, and every floor-pinning drain targeted EXACTLY the floor, so fixed
-points settled cents below it. Rounding in the Forecast table then showed months $1 under
-floor (red cell at Forecast.tsx:1128).
+## Changes Made
 
-Fix — `FLOOR_CUSHION_DOLLARS = 2` (defined in floor-protection.ts), applied at all three
-floor-pinning drains so end cash lands at floor+cushion with a dead zone [floor, floor+2]:
-1. forecast-engine.ts PASS-3 Step 3: surplus fires above floor+cushion (drains to it);
-   deficit fires below floor (pulls back to floor+cushion). Asymmetric — the dead zone is
-   the stable landing strip.
-2. floor-protection.ts forward pass: requiredEndBal += cushion.
-3. credit-card-engine.ts Step 5: step5Floor += cushion for m > 0 ONLY (month 0 stays
-   uncushioned so projection ≡ live safe-to-pay recommendation). This fixed the residual
-   −$0.39 (Sep 2026) found during live verify — SIM-pinned months bypass PASS-3/caps.
+- Committed this session: test file + backups + this handoff (see commit).
+- NO source files touched yet — implementation is entirely pending.
 
-Supporting changes:
-- ForecastMonthRow gained `rawEndingCash` / `rawMonthMinSafe` (unrounded) — rounded
-  endingCash/monthMinSafe hide sub-dollar misses; diagnostics must use the raw fields.
-- CardProjectionContext dev debug: `window.__convergenceDebug.forecastResult` now exposes
-  the converged ForecastResult (engine rows). NOTE: `convergedProjection` is the SIM side
-  only — its rows do NOT have the engine fields.
-- floor-protection.ts imports PROJECTION_MONTHS from './scheduling' directly (was via
-  credit-card-engine) so credit-card-engine can import the cushion without an import cycle.
-- q9-diagnostic test (untracked) gained RAW penny-level + DISPLAY (rounded) miss summaries.
+## Failed Attempts
 
-## Live verification results (localhost, 2026-07-16 evening, converged 3 passes)
+- None (no implementation attempted). Two IMPORTANT prior-art constraints:
+  1. useCardProjection.ts ~1692-1708 (perCardAdjustedFinal): zeroing non-autopay cards'
+     WHOLE month-0 payment was tried historically and reverted (comment in code explains:
+     hid real debt, diverged from sim). Q11 fix is different — zero only the FORCED MINIMUM,
+     at the ENGINE level, so sim and recommendation stay in agreement. Do not re-zero the
+     whole payment there.
+  2. Use the syncCutoffDate convention (due date string <= syncCutoffDate), NOT
+     `dueDay < now.getDate()` — payment made but not yet Plaid-synced must still count
+     (balance doesn't reflect it yet). No cutoff ⇒ never settled (conservative).
 
-- Sub-dollar floor misses: ZERO (was m2 −$0.39 pre-Step-5-cushion; fixture had 5 up to −$0.37).
-- Q9 acceptance: PV ISB pin $1,164.79 (Aug 2026) paid in full; Discover pulled back to $227
-  min in tight months; no "Cash below safe minimum" milestone.
-- Remaining flagged months are NOT bugs:
-  - m0 Jul / m1 Aug: ~$300 below NEXT month's floor even at pure contract minimums +
-    mandatory PV pin — structural (July's remaining cash can't cover August's floor step-up;
-    nothing left to pull back). No milestone since cash stays above the $2,800 settings floor.
-  - m7 Feb 2027: +$4.13 above its NEXT floor (fine per the Q9 convention) but shows RED.
+## Next Steps (exact implementation plan, all decided — just execute)
 
-## OPEN QUESTION FOR TRE (do not decide unilaterally — display semantics)
+1. `src/lib/credit-card-engine.ts`:
+   a. CardData: add optional field `m0MinSettled?: boolean` (~line 42, with JSDoc).
+   b. Export helper (near revolvingMinDue ~line 155):
+      `m0MinDueSettled(dueDay, syncCutoffDate, now)` → dueDay!=null && syncCutoffDate &&
+      `${now-YYYY-MM}-${dd(dueDay)}` <= syncCutoffDate.
+   c. simulateVariablePayoff — gate SIX month-0 min sites on `m === 0 && card.m0MinSettled`
+      (zero the revolving-min part only; keep instMinPay — installments are separately
+      cutoff-gated by deriveUpfrontPlanFields):
+      - ~956 perCardMinPayments push: `(settled ? 0 : revMinPay) + instMinPay`
+      - ~1089 reservedForRevolving revolving branch: `(settled ? 0 : revolvingMinDue(c, revBal)) + instMinPay`
+      - ~1337 totalMins: settled → contribute 0
+      - ~1409 FLOOR_BREACHED branch `min`: settled → 0
+      - ~1446 Step 5a `min`: settled → 0
+      - ~1488 minimum-enforcement guard `minRequired`: settled → 0 (skip)
+      (Backlog cards: month-0 backlog is always 0 — no changes needed there.)
+   d. buildCurrentMonthRecommendationSummary (~1731+, has syncCutoffDate param):
+      - totalMinDue ~1746: settled non-ISB card contributes 0.
+      - basePayment loop ~1857: settled non-ISB card → basePayment 0,
+        reason 'Paid this cycle — minimum due next month', isMinimumOnly false.
+        Leave the extra-allocation loop's maxExtra logic unchanged (extra still allowed).
+2. `src/hooks/useCardProjection.ts`:
+   a. Import m0MinDueSettled; at the `cards = rawCards.map(...)` block (~105-113) stamp
+      `m0MinSettled: m0MinDueSettled(card.dueDay, syncCutoffDate, now)` on every card
+      (restructure so the stamp applies with or without installment `derived`).
+   b. ccMinByMonth ~997-1004: revolving branch contributes 0 when `m === 0 && c.m0MinSettled`.
+   c. ccMinTotalRevolving ~1606-1611: exclude settled cards.
+   d. Distribution block ~1659-1690: use `protectedMin = c.m0MinSettled ? 0 : c.minPayment`
+      in ccMinSumActive, naturalExtraTotal, and perCardAdjusted's extra/payment math.
+   e. Do NOT touch perCardAdjustedFinal autopay zeroing (~1696-1708).
+3. `src/lib/forecast-engine.ts` ~911-944: compute
+   `m0SettledCcMin = simCards.reduce(+ (c.m0MinSettled ? minPayment : 0))`; build ccMinByMonth
+   when `manualIsbPins.length > 0 || m0SettledCcMin > 0`, with month-0 entry
+   `ccMinTotal - m0SettledCcMin` (+ existing pin adjustment term; pins are months>0 only).
+4. OPTIONAL consistency (check, decide then): CreditCardEngine.tsx ~234-237 builds its own
+   cards for the Debt tab's internal sim — stamp the flag there too if it has syncCutoffDate.
+5. Run: new test → green; then FULL `npx vitest run` (all engine tests must stay green);
+   then `npx tsc --noEmit` (or the build) for types.
+6. Live verify on localhost:8080 (Tre logged in): /forecast month-0 debt strip should drop
+   Discover's $227 from July; August plan must still include Discover's min; August
+   pre-paycheck floor must still reserve it (floor side already did). Check
+   `window.__convergenceDebug.forecastResult` month0.safeToPayTotal.
+7. Backup policy: backups already at backups/2026-07-17_093047/ — reuse it (same session's
+   files, unmodified since backup). Commit locally `[debt]: Q11 due-day-settled month-0 min ...`.
+   Never push.
+8. After Q11: update project_cycling_debt_engine memory; then Q10 candidate (revolving dust
+   nulls payoff months / suppresses CC Debt Free milestone) per previous handoff.
 
-Forecast.tsx:1128 colors endingCash red when below the CURRENT month's monthMinSafe. The Q9
-engine convention is endCash[m] must be ≥ monthMinSafe[m+1] (end-of-month cash is next
-month's pre-paycheck cash). So months like Feb 2027 (and any ISB pin month) show red even
-when correct. Ask: should the red/amber coloring compare against the NEXT month's floor
-instead? One-line change if yes.
+## Gotchas (carry forward)
 
-## NEXT STEPS
-
-1. Ask Tre the display-semantics question above.
-2. Q10 candidate (from Q8): engine-layer revolving dust nulls simRevolvingPayoffMonth /
-   forecastRevolvingPayoffMonth, likely suppresses CC Debt Free milestone — dedicated
-   session, fixture recapture.
-3. Minor parity gap: useCardProjection.ts ~997 hook ccMinByMonth does not include ISB pins
-   (engine's does) — optional base-pass fidelity fix, not blocking.
-4. q9-diagnostic test kept untracked as skip-if-no-fixture; optionally promote a synthetic
-   Q9 regression (floor step-up + ISB pin → no next-floor breach, raw fields ≥ floor).
-
-## Diagnostic harness
-
-`npx vitest run src/lib/__tests__/q9-diagnostic.isbPullback.test.ts --disable-console-intercept`
-Fixtures gitignored: forecast-inputs.real.live-2026-07-16.json + payment-plans fixture;
-funding id 933cbc10-bceb-4c20-8227-4a02e6db728a.
-
-## GOTCHAS (carry forward)
-
-- `window.__simDebug.raw` is PASS-0; SIM side = `__convergenceDebug.convergedProjection`;
-  ENGINE rows (raw floor fields) = `__convergenceDebug.forecastResult`.
-- `cp.cards[].id` empty on converged projection — look up via perCardPayments by name.
-- Debt page is `/debt`; dev server localhost:8080 (DEV, not prod).
-- vitest: `--disable-console-intercept` to see console.logs.
 - Repo PUBLIC — real-data fixtures stay gitignored. Never push.
-- Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf.
-- Live capture's maxDebt "0"s are JSON-serialized Infinity — not real zeros.
-- Harness needs paymentPlans + persistedDebtFundingId overrides to match live (see Q7).
+- Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf; always filter by it.
+- Q9 display coloring SETTLED by Tre (current-month floor) — do not re-propose next-month.
+- `window.__simDebug.raw` is PASS-0; SIM side = `__convergenceDebug.convergedProjection`;
+  ENGINE rows = `__convergenceDebug.forecastResult`.
+- Debt page is /debt; dev server localhost:8080; vitest needs --disable-console-intercept
+  to show console.logs.
 - FLOOR_CUSHION_DOLLARS must stay ≥ convergence toleranceDollars (currently 2 ≥ 1).
+- q9 diagnostic harness: `npx vitest run src/lib/__tests__/q9-diagnostic.isbPullback.test.ts`
+  (skip-if-no-fixture; fixtures gitignored; funding id 933cbc10-bceb-4c20-8227-4a02e6db728a).
