@@ -58,9 +58,38 @@ artifact of the old asymmetry — updated to a band (payment..payment+insurance)
   + endCash-below-NEXT-floor summary line (keep until Q9 live-verified, then delete or promote)
 - src/pages/BuildShare.tsx — PRE-EXISTING user modification, NOT part of Q9, do not commit/revert
 
+## NEW USER REPORT (2026-07-16, post-fix, live): "a couple of months miss cash floor by pennies"
+
+User is logged into localhost and sees a couple of months missing the cash floor by pennies.
+NOT yet reproduced offline — investigate FIRST (fresh session), then fix.
+
+Working hypothesis (unverified): convergence toleranceDollars=1 (forecast-convergence.ts:48)
+stops the loop with sub-dollar residue, and BOTH PASS-3 branches now pin finalLiquid EXACTLY at
+step3SpendFloor (forecast-engine.ts ~1122) — so fixed points can land cents below the floor.
+Candidate fix (designed, NOT implemented): asymmetric cushion in PASS-3 —
+  surplus fires when finalLiquid > step3SpendFloor + CUSHION (drain to floor+CUSHION),
+  deficit fires when finalLiquid < step3SpendFloor (pull back to floor+CUSHION),
+  CUSHION ≈ $1–2 (≥ toleranceDollars) creating a dead zone [floor, floor+CUSHION] where neither
+  fires — stable, and residue can never land below floor. Pin months (NaN target) rely on
+  engine caps from the floor-protection walk — if the penny misses are in PIN months the walk
+  cap needs the cushion instead.
+
+Diagnosis notes gathered so far:
+- endingCash is Math.round(finalLiquid + cumulativeCarReserveHeld) (forecast-engine.ts ~1251)
+  and monthMinSafe is rounded too — the Forecast table shows whole dollars, so FIRST find out
+  exactly WHERE the user sees pennies (milestone text? Debt page? floor-item popup with cents?
+  ask user or check UI formatting) — the milestone check (~1295) compares ROUNDED endingCash to
+  cashFloor, so a true sub-dollar breach may round invisible or a $0.49 breach shows as equal.
+- The q9 diagnostic's breach summary uses rounded row.endingCash — pennies invisible there;
+  add unrounded finalLiquid capture (or lower the flag threshold and print raw liquidCash which
+  is Math.round'ed too — may need a new debug field or use __convergenceDebug live capture).
+- May need a FRESH live fixture capture — user's data may have changed since the 07-16 fixture.
+
 ## NEXT STEPS
 
-1. Live-verify on localhost:8080 /debt + /forecast (dev server): no "Cash below safe minimum"
+1. Investigate + fix the penny-miss report above (user is already logged into localhost —
+   capture __convergenceDebug.convergedProjection and a fresh fixture if needed).
+2. Live-verify Q9 on localhost:8080 /debt + /forecast (dev server): no "Cash below safe minimum"
    milestone, PV ISB pin month funded, Discover pulled back, endCash ≥ next month's floor in
    Forecast table. Use `window.__convergenceDebug.convergedProjection` (NOT `__simDebug.raw`).
 2. After live confirm: delete q9-diagnostic test (fixture is gitignored) or keep as skip-if-no-
