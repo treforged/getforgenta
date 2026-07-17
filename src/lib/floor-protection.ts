@@ -188,8 +188,16 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     const mCcMin = ccMin(m);
     const natural = Math.min(debtCap(m), Math.max(mCcMin, Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - mFloor)));
 
-    if (reserveNeeded[m + 1] > 0) {
-      const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];
+    // The cap must bind not only when a future at-minimum breach needs a reserve
+    // (reserveNeeded > 0) but also whenever next month's floor is simply HIGHER than this
+    // month's: `natural` drains cash to this month's own floor (mirroring PASS 3 / the sim's
+    // Step 5, which pin end cash to the current month's effectiveFloor), so a floor step-up
+    // between months left the next month starting below its own pre-paycheck floor with no cap
+    // ever emitted — reserveNeeded stays 0 because the at-minimum walk starts each month AT its
+    // floor and never models the drain (Q9: Discover's discretionary paydown drained months
+    // where the ISB-pinned month and later step-ups needed the cash).
+    const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];
+    if (reserveNeeded[m + 1] > 0 || nextFloor > mFloor) {
       const requiredEndBal = nextFloor + reserveNeeded[m + 1];
       const availableForDebt = Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - requiredEndBal);
       const cap = Math.max(mCcMin, availableForDebt);
