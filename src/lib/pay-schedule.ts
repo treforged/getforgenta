@@ -1,7 +1,7 @@
 // ─── Unified Pay Schedule Engine ─────────────────────────
 // Single source of truth for income calculations across all tabs
 
-import { getActiveCarLoanPayments, monthsBetween } from './vehicle-loan-engine';
+import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './vehicle-loan-engine';
 import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 import type { CarFund } from './types';
@@ -779,10 +779,22 @@ export function getAugmentedMinSafeCash(
     `${m0MonthStr}-${String(dueDay).padStart(2, '0')}` <= syncCutoffDate;
 
   for (const cf of carFunds ?? []) {
-    if (cf.phase !== 'loan' || !cf.payment_start_date) continue;
+    if (!cf.payment_start_date) continue;
     const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
     if (dueSynced(loanDueDay)) continue;
-    const carPayments = getActiveCarLoanPayments([cf], now);
+    // A saving-phase car's PROJECTED loan participates in the floor exactly like the real loan
+    // it becomes at activation — synthesized with the same frozen-equal substitutions activation
+    // itself performs (loan_amount ← getLoanPrincipal estimate, loan_start_date ← planned
+    // purchase, interest from payment start, scheduled payment) so the floor is a no-op at phase
+    // flip. The expense side (useCardProjection's vehicleForecastByMonth) already models the
+    // projected payment this way; the floor omitting it made saving- and loan-phase floors
+    // diverge, which floor-aware payment caps then propagate into different month-0 payments.
+    const effective: CarFund = cf.phase === 'loan' ? cf : {
+      ...cf, phase: 'loan', loan_amount: getLoanPrincipal(cf),
+      loan_start_date: cf.planned_purchase_date ?? cf.payment_start_date,
+      interest_start_date: cf.payment_start_date, actual_monthly_payment: 0,
+    };
+    const carPayments = getActiveCarLoanPayments([effective], now);
     for (const cp of carPayments) {
       prePaycheckBillsTotal += cp.payment;
       floorItems.push({ name: cf.vehicle_name + ' loan', amount: cp.payment, dueDay: loanDueDay });

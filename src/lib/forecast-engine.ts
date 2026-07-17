@@ -1116,23 +1116,28 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         return s + Math.max(0, cardProjectionData?.monthlyRevolvingBalances?.get(c.id)?.[i] ?? 0);
       }, 0);
       let revolvingDebtCashTarget = m0AllSettled ? 0 : (ledgerEntry?.revolving ?? 0);
-      if (!m0AllSettled && !strictSaveUpMonths.has(i) && ccEngRevBalEnd > 0 && finalLiquid > b.monthMinSafe) {
-        const surplus = Math.min(finalLiquid - b.monthMinSafe, ccEngRevBalEnd);
+      // End-of-month cash IS next month's pre-paycheck cash, so the surplus branch must not
+      // spend down below NEXT month's monthMinSafe either — otherwise every bill-timing
+      // step-up month's target leaves the following month starting below its own floor (Q9).
+      const step3SpendFloor = Math.max(b.monthMinSafe, baseData[i + 1]?.monthMinSafe ?? b.monthMinSafe);
+      if (!m0AllSettled && !strictSaveUpMonths.has(i) && ccEngRevBalEnd > 0 && finalLiquid > step3SpendFloor) {
+        const surplus = Math.min(finalLiquid - step3SpendFloor, ccEngRevBalEnd);
         if (surplus > 0) revolvingDebtCashTarget += surplus;
-      } else if (!m0AllSettled && !strictSaveUpMonths.has(i) && finalLiquid < cashFloor) {
+      } else if (!m0AllSettled && !strictSaveUpMonths.has(i) && finalLiquid < step3SpendFloor) {
         // Symmetric deficit-reduction: this month's sim payment (monthDebtPayment) drove cash
-        // below the HARD floor (cashFloor — the same threshold the milestone below checks, NOT
-        // the augmented monthMinSafe used by the surplus branch), so feed back a LOWER revolving
-        // target for the next pass. The surplus branch spends cash DOWN to monthMinSafe; this
-        // branch only intervenes once cash has fallen past the hard floor, leaving the buffer
-        // zone (cashFloor..monthMinSafe) untouched so the two branches don't fight in every
-        // month (they otherwise would — on this fixture cash sits below monthMinSafe every month,
-        // so a monthMinSafe-keyed deficit branch fires everywhere and slashes all payments,
-        // breaking convergence). The sim clamps the target up to each card's contract minimum
-        // (resimulateWithDebtCash → simulateVariablePayoff Step 5: min(max(target, minimums),
-        // owed)), so this can never force a min-payment violation; when even paying only minimums
-        // breaches the floor the deficit is structural and the milestone stands.
-        const deficit = cashFloor - finalLiquid;
+        // below the same next-month-aware spend floor the surplus branch drains down to, so feed
+        // back a LOWER revolving target for the next pass. Keyed to step3SpendFloor (Q9) so both
+        // branches push toward the SAME threshold — an overpaying month that landed in the old
+        // buffer zone (cashFloor..monthMinSafe) used to be a fixed point (target echoed the
+        // sim's own revolving spend with nothing pulling it back), leaving residual months that
+        // start below their pre-paycheck floor. A shared threshold can't make the branches
+        // fight: surplus fires strictly above it, deficit strictly below, and the damped
+        // re-target (runDebtCashConvergence) collapses any payment↔clip two-cycle this creates.
+        // The sim clamps the target up to each card's contract minimum (resimulateWithDebtCash →
+        // simulateVariablePayoff Step 5: min(max(target, minimums), owed)), so this can never
+        // force a min-payment violation; when even paying only minimums breaches the floor the
+        // deficit is structural and the milestone stands.
+        const deficit = step3SpendFloor - finalLiquid;
         revolvingDebtCashTarget = Math.max(0, revolvingDebtCashTarget - deficit);
       }
 

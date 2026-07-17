@@ -1342,7 +1342,13 @@ export function simulateVariablePayoff(
     // effectiveFloor and oneTimeNet are computed at top of this iteration (before Step 2).
     // pinnedStep5Total: pinned cards' fixed Step-5 spend comes off the top — the cascade below
     // only allocates the remainder across unpinned cards.
-    let availableCash = currentCash + monthIncome - monthExpenses - effectiveFloor - paidOffCashCost + oneTimeNet - installmentCashCost - pinnedStep5Total;
+    // End-of-month cash IS next month's pre-paycheck cash (endCash[m] is judged against month
+    // m+1's floor), so the discretionary pool must not drain below NEXT month's floor either —
+    // draining to only this month's floor makes every bill-timing step-up month start below its
+    // own floor (Q9: Discover absorbed the difference as uncapped avalanche cash).
+    const nextMonthFloor = m + 1 < months ? (cashFloorByMonth?.[m + 1] ?? cashFloor) : effectiveFloor;
+    const step5Floor = Math.max(effectiveFloor, nextMonthFloor);
+    let availableCash = currentCash + monthIncome - monthExpenses - step5Floor - paidOffCashCost + oneTimeNet - installmentCashCost - pinnedStep5Total;
     if (availableCash < 0) {
       flags.push({ month: m + 1, flag: 'UNSTABLE' });
       availableCash = 0;

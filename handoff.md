@@ -1,4 +1,4 @@
-# Handoff — 2026-07-16 — main — Q9 IN PROGRESS (mid-fix, do not ship as-is)
+# Handoff — 2026-07-16 — main — Q9 offline-RESOLVED, live verification pending
 
 ## Q9 (user-reported): Discover doesn't pull back for PV's mandatory ISB pin / cash floor
 
@@ -6,92 +6,79 @@ User: "discover doesnt pull payments back enough for prime visa to always pay it
 interest saving balance and maintain cash floor in future months. primes interest saving
 balance is a non negotiable."
 
-## ROOT CAUSE — FOUND AND CONFIRMED
+## STATUS: fixed offline, full suite GREEN (190/190). Remaining: live verify + cleanup.
 
-`computeFloorProtection` (src/lib/floor-protection.ts) forward pass only enforced a required
-end-of-month balance when `reserveNeeded[m+1] > 0` (a future *at-minimum-payments* breach).
-When paying only minimums would be fine, the `else` branch let the month drain cash to **its
-own floor** — but PASS-3 and the sim's Step 5 pin end cash to the *current* month's
-effectiveFloor by design, so any month whose **next month's floor is higher** (pre-paycheck
-bill timing steps up) started below its floor with no cap ever emitted. Discover (avalanche
-discretionary recipient) was exactly the uncapped payment.
+## Root cause (two layers, both fixed)
 
-Confirmed on live fixture (forecast-inputs.real.live-2026-07-16.json + payment-plans fixture,
-funding id 933cbc10-bceb-4c20-8227-4a02e6db728a): pre-fix converged plan had
-maxDebtPaymentByMonth = Infinity everywhere except m0, endCash below next month's floor from
-m2 onward (m2 $3,440 vs Oct floor $3,829; m4 $2,990 vs Dec $3,448), Discover taking
-$740–$1,545/mo. Pin itself ($1,164.79, month 1) is always paid — the engine pays
-pinnedStep5Share unconditionally — the failure is the floor, not the pin amount.
+Convention: end-of-month cash IS next month's pre-paycheck cash, so endCash[m] must be ≥
+monthMinSafe[m+1]. Three places drained cash to only the CURRENT month's floor, so every
+bill-timing floor step-up month started below its own floor, with Discover (avalanche
+discretionary recipient) absorbing the over-drain:
 
-## CHANGE MADE (committed, IN PROGRESS)
+1. `floor-protection.ts` forward pass — fixed LAST session (committed 4e465a2a): cap now also
+   fires when `nextFloor > mFloor`.
+2. `credit-card-engine.ts` Step 5 (~line 1345): availableCash now subtracts
+   `step5Floor = max(effectiveFloor[m], cashFloorByMonth[m+1] ?? cashFloor)` (fixed THIS session).
+3. `forecast-engine.ts` PASS-3 Step 3 (~line 1119): surplus branch drains only down to
+   `step3SpendFloor = max(monthMinSafe[i], monthMinSafe[i+1])`, and the deficit branch is now
+   keyed to the SAME step3SpendFloor (was hard cashFloor only) — this was the residual-breach
+   fixer: an overpaying month landing in the old buffer zone (cashFloor..monthMinSafe) was a
+   convergence fixed point with nothing pulling the target back. Both branches now push toward
+   one shared threshold; the old "monthMinSafe-keyed deficit breaks convergence" comment predates
+   adaptive damping + stable-raw shortcut and no longer holds (12/18 passes on live fixture).
 
-`src/lib/floor-protection.ts` forward pass: hoisted `nextFloor` and changed the branch
-condition to `reserveNeeded[m + 1] > 0 || nextFloor > mFloor` (with explanatory comment).
-Backup: backups/2026-07-16_101500/src/lib/floor-protection.ts.
+## Result on live 07-16 fixture (q9 diagnostic)
 
-**Result on live fixture:** converges in 7 passes (was 12); caps fire (m0 740, m2 1074,
-m5 1281, m8 1944, m10 1870, m11 2246…); Discover pulled back in early months (m2 $227 was
-$467); early step-up months mostly hold.
+converged 12 passes; milestones []; endCash-below-NEXT-floor months: NONE (was m2..m11, up to
+−$777 pre-fix); PV pin $1,164.79 (Aug 2026) paid in full; Discover absorbed all pull-back;
+months pin endCash exactly to max(floor, nextFloor) (m5/m8 Δ0). Q5–Q8 acceptance intact:
+full lib+hooks suite 190/190 green (goldenTierA, manualISB, promoParity, revolvingDustPayoff
+all unchanged — no baseline re-pin needed).
 
-## OPEN PROBLEM — residual breaches (why this is NOT done)
+## Regression fallout fixed (same session)
 
-1. **NEW milestone regression: "⚠️ Cash below safe minimum" at Apr 2027 (m9)** — endCash
-   $2,799 < settings floor $2,800. Pre-fix milestones were []. m9 pays Discover $2,541 with
-   engine cap[9]=Inf (floor[10] $3,241 < floor[9] $3,314, so no step-up condition and rn=0).
-2. Residual shorts vs next-month floor remain: m2 ends $3,729 vs floor[3] $3,834 (−105),
-   m5 −135, m7 $2,921 vs floor[8] $3,246 (−325), m9/m10 several hundred short.
+`useCardProjection.carLoanActivationDiscontinuity` failed — CAUSED BY LAST SESSION'S committed
+floor-protection change (verified by stash), surfaced now: `getAugmentedMinSafeCash`
+(pay-schedule.ts ~781) included the car-loan payment in the floor ONLY for phase==='loan', so
+saving- vs loan-phase floors diverged and the next-floor-aware caps propagated that into
+different month-0 payments. Fix: saving-phase cars with payment_start_date synthesize the same
+frozen loan-phase record activation produces (loan_amount ← getLoanPrincipal, loan_start_date ←
+planned_purchase_date, interest_start_date ← payment_start_date, actual_monthly_payment 0) and
+run through getActiveCarLoanPayments — parity by construction. Probe confirmed saving ≡ loan
+allPaymentTotals at EVERY month now (0.00 diff). Test 2's exact-$493.60 gap assertion was an
+artifact of the old asymmetry — updated to a band (payment..payment+insurance) with comment.
 
-**Diagnosis of residual:** the walk's modeled `bal` drifts ABOVE the actual PASS-3 trajectory
-(each small actual shortfall compounds), so caps computed from walk-bal are systematically too
-generous, and months without a step-up/reserve get no cap at all while actual cash is already
-below the walk's assumption. The walk model ≠ engine actual (known, deliberate separation),
-but now that caps bind often, the drift surfaces.
+## Files changed (uncommitted at handoff-write time; committed with this handoff)
 
-**Candidate next step (root-cause layer):** make the sim/PASS-3 surplus computation itself not
-drain below the NEXT month's floor — e.g. Step 5's `availableCash` uses
-`max(effectiveFloor[m], effectiveFloor[m+1])` (and same for PASS-3's redirect target) — end-of-
-month cash IS next month's pre-paycheck cash, so draining to only this month's floor is the
-actual layering bug; the look-ahead caps then only need to handle multi-month reserves.
-Alternative: iterate caps against the ACTUAL converged trajectory instead of the walk's own
-modeled bal (convergence loop already re-runs the engine each pass — check whether
-Forecast PASS-2's expense/income arrays can be rebuilt from the previous pass's actual rows).
+- src/lib/credit-card-engine.ts — Step 5 step5Floor (backup backups/2026-07-16_202000/)
+- src/lib/forecast-engine.ts — PASS-3 surplus+deficit step3SpendFloor (backup same folder)
+- src/lib/pay-schedule.ts — getAugmentedMinSafeCash saving-phase projected loan (backup same folder)
+- src/hooks/__tests__/useCardProjection.carLoanActivationDiscontinuity.test.ts — band assertion
+- src/lib/__tests__/q9-diagnostic.isbPullback.test.ts — untracked diagnostic, added nextFloor Δ
+  + endCash-below-NEXT-floor summary line (keep until Q9 live-verified, then delete or promote)
+- src/pages/BuildShare.tsx — PRE-EXISTING user modification, NOT part of Q9, do not commit/revert
 
-## Acceptance (unchanged from original Q9 spec)
+## NEXT STEPS
 
-Every ISB-pinned month pays the pin in full (already true), NO floor breach milestones, no
-month ends below the next month's monthMinSafe, Discover absorbs the reduction, Q5–Q8
-acceptance intact (manualISB passes ≤16 / payoff Jun 2027 on the July-15 fixture; promoParity
-VX no backlog; revolvingDustPayoff; goldenTierA). **Full lib suite has NOT been run against
-this change yet** — goldenTierA/manualISB baselines may shift and need re-pinning or the fix
-needs the deeper layer above. Then live-verify on localhost:8080/debt + /forecast.
+1. Live-verify on localhost:8080 /debt + /forecast (dev server): no "Cash below safe minimum"
+   milestone, PV ISB pin month funded, Discover pulled back, endCash ≥ next month's floor in
+   Forecast table. Use `window.__convergenceDebug.convergedProjection` (NOT `__simDebug.raw`).
+2. After live confirm: delete q9-diagnostic test (fixture is gitignored) or keep as skip-if-no-
+   fixture regression; consider promoting a synthetic Q9 regression test (floor step-up month +
+   ISB pin → no next-floor breach).
+3. Q10 candidate still open (from Q8): engine-layer revolving dust nulls
+   simRevolvingPayoffMonth/forecastRevolvingPayoffMonth, likely suppresses CC Debt Free
+   milestone — dedicated session, fixture recapture.
+4. Minor parity gap noted in handoff Q9 map: useCardProjection.ts ~997 hook ccMinByMonth does
+   not include ISB pins (engine's does) — optional base-pass fidelity fix, not blocking.
 
-## Diagnostic harness (untracked test, keep until Q9 closes)
+## Diagnostic harness
 
-`src/lib/__tests__/q9-diagnostic.isbPullback.test.ts` — runs convergence on the live 07-16
-fixture with Q7 overrides, dumps m0–m14 per-card payments, endCash vs floor, engine caps,
-milestones. Run: `npx vitest run src/lib/__tests__/q9-diagnostic.isbPullback.test.ts
---disable-console-intercept`. Note: fixture cards are PV $6,041 rev / Discover $8,015 rev —
-much bigger than the 07-15 golden fixture; user's live data changed.
-
-## Key code map (saves re-derivation)
-
-- floor-protection.ts: shared walk; ccMin(m)=min(ccMinByMonth[m], debtCap(m)); early-returns
-  all-Infinity if ccMinTotal<=0 (not the issue here — ccMinTotal=$277).
-- forecast-engine.ts ~934: engine PASS-2 ccMinByMonth DOES include ISB pins (+amount−minPayment).
-- useCardProjection.ts ~997: hook's own ccMinByMonth does NOT include pins (parity gap, minor —
-  convergence threads engine caps/targets anyway; consider fixing for base-pass fidelity).
-- credit-card-engine.ts Step 5 ~1345-1376: availableCash − pinnedStep5Total; mDebtCap clamp
-  `min(avail, max(cap−pin, totalMins))`; mDebtTarget (convergence target) WINS over cap,
-  `max(target−pin, totalMins)`; pin months get NaN target (forecast-convergence.ts:66) so they
-  fall back to mDebtCap. Pins paid unconditionally at line ~1464.
-- Convention: end-of-month cash is compared to NEXT month's monthMinSafe (start-of-month
-  pre-paycheck floor), not the same month's.
-
-## Q8 (previous, RESOLVED — see git de6323f1/8242ae07 for detail)
-
-PV $132k phantom interest fixed via payoffMonth from simRevBal<1. Q10 candidate still open:
-engine-layer revolving dust ($0.04) nulls simRevolvingPayoffMonth/forecastRevolvingPayoffMonth
-and likely suppresses CC Debt Free milestone — dedicated session, fixture recapture.
+`src/lib/__tests__/q9-diagnostic.isbPullback.test.ts` — run:
+`npx vitest run src/lib/__tests__/q9-diagnostic.isbPullback.test.ts --disable-console-intercept`
+Fixtures: forecast-inputs.real.live-2026-07-16.json + payment-plans fixture (gitignored),
+funding id 933cbc10-bceb-4c20-8227-4a02e6db728a. Fixture cards: PV $6,041 rev / Discover
+$8,015 rev.
 
 ## GOTCHAS (carry forward)
 
