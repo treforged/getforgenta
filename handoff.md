@@ -1,6 +1,36 @@
-# Handoff — 2026-07-16 (evening) — main — Q9 CLOSED (live-verified) + penny-miss fix shipped
+# Handoff — 2026-07-16 (evening) — main — Q9 CLOSED + penny-miss fix shipped; NEW Q11 queued
+
+## NEW TOP PRIORITY — Q11 (user-reported 2026-07-16, verbatim):
+
+"i think discovers payments is counting for this month even though the payment was due on the
+first. the min needs to be paid next month on the first though."
+
+Interpretation (unverified): Discover's due day is the 1st; July's payment (due Jul 1) is
+already past/settled, yet the month-0 (July) plan still counts Discover's $227 min — it should
+instead land on Aug 1 (next month). Live convergence run tonight showed m0 debtPay = $227
+(Discover min only) and month0.safeToPayTotal = 227 — consistent with the report.
+
+Investigation pointers:
+- Known backlog item "due-day-1 zeroing" already exists (see memory
+  project_forecast_engine_refactor: items 1-3 = due-day-1 zeroing, CC min lock, Plaid Tue/Thu) —
+  this is likely that exact item now user-reported. Check how month-0 minimums are gated on
+  dueDay vs syncCutoffDate (m0AllSettled zeroes month 0 ONLY when safeToPayTotal === 0; a
+  due-day-1 card that already paid shouldn't contribute to safeToPayTotal at all).
+- Look at buildCurrentMonthRecommendationSummary / month0 safe-to-pay assembly in
+  credit-card-engine.ts + useCardProjection.ts, and whether a payment due on the 1st before
+  syncCutoffDate is treated as settled.
+- Verify against live: Discover's dueDay, last payment date, and whether the $227 shows in the
+  Debt tab month-0 strip. Fresh fixture capture may be needed.
+- ALSO check the floor side: if Discover's Jul min is wrongly counted, Aug 1's min must appear
+  in AUGUST's plan and August's pre-paycheck floor (getPrePaycheckNextMonthBills already handles
+  due-day-1 bills as next-month? verify).
 
 ## STATUS: Q9 fully resolved. Penny-level floor-miss report fixed and live-verified.
+Display-semantics question ANSWERED by Tre ("do what makes the most sense") — implemented:
+Forecast.tsx end-cash coloring now compares against the NEXT month's monthMinSafe (Q9
+convention), falling back to the row's own floor on the last visible row. NOT yet live-checked
+in the browser — eyeball /forecast once (Feb 2027 should no longer be red; Aug 2026 stays red,
+it's genuinely below its next floor).
 
 ## What happened this session (commits a7aeb945, 58f24a56)
 
