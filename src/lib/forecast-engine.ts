@@ -18,7 +18,7 @@ import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, ge
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
-import { computeFloorProtection } from '@/lib/floor-protection';
+import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
 import type { AccountRow, RuleRow, DebtRow, TransactionRow } from '@/hooks/useSupabaseData';
@@ -73,6 +73,11 @@ export interface ForecastMonthRow {
    * resimulateWithDebtCash → debtCashTargetByMonth; the sim absorbs it into its own state on the
    * next pass rather than the engine tracking a parallel cumulative register. */
   revolvingDebtCash: number;
+  /** Unrounded end-of-month cash (finalLiquid + carReserveHeld) and floor. The display fields
+   * (endingCash / monthMinSafe) are rounded to whole dollars, which hides sub-dollar floor
+   * misses — diagnostics and floor-breach checks that care about cents must use these. */
+  rawEndingCash: number;
+  rawMonthMinSafe: number;
 }
 
 // Inputs to the projection engine. At the Stage-2 extraction boundary these are exactly the
@@ -1120,8 +1125,17 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // spend down below NEXT month's monthMinSafe either — otherwise every bill-timing
       // step-up month's target leaves the following month starting below its own floor (Q9).
       const step3SpendFloor = Math.max(b.monthMinSafe, baseData[i + 1]?.monthMinSafe ?? b.monthMinSafe);
-      if (!m0AllSettled && !strictSaveUpMonths.has(i) && ccEngRevBalEnd > 0 && finalLiquid > step3SpendFloor) {
-        const surplus = Math.min(finalLiquid - step3SpendFloor, ccEngRevBalEnd);
+      // Asymmetric cushion (FLOOR_CUSHION_DOLLARS): both branches push toward
+      // floor + cushion, but the surplus branch only fires ABOVE floor + cushion and the
+      // deficit branch only BELOW the floor itself. The dead zone [floor, floor + cushion]
+      // where neither fires is the stable landing strip — the convergence loop's $1 tolerance
+      // lets fixed points settle within tolerance of the branch target, and a target pinned
+      // EXACTLY at the floor let that residue land cents below it (penny-level red months in
+      // the Forecast table, 2026-07-16 live report). With the target a cushion above the
+      // floor, sub-tolerance residue can never cross below the floor.
+      const step3DrainTo = step3SpendFloor + FLOOR_CUSHION_DOLLARS;
+      if (!m0AllSettled && !strictSaveUpMonths.has(i) && ccEngRevBalEnd > 0 && finalLiquid > step3DrainTo) {
+        const surplus = Math.min(finalLiquid - step3DrainTo, ccEngRevBalEnd);
         if (surplus > 0) revolvingDebtCashTarget += surplus;
       } else if (!m0AllSettled && !strictSaveUpMonths.has(i) && finalLiquid < step3SpendFloor) {
         // Symmetric deficit-reduction: this month's sim payment (monthDebtPayment) drove cash
@@ -1137,7 +1151,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // simulateVariablePayoff Step 5: min(max(target, minimums), owed)), so this can never
         // force a min-payment violation; when even paying only minimums breaches the floor the
         // deficit is structural and the milestone stands.
-        const deficit = step3SpendFloor - finalLiquid;
+        const deficit = step3DrainTo - finalLiquid;
         revolvingDebtCashTarget = Math.max(0, revolvingDebtCashTarget - deficit);
       }
 
@@ -1319,6 +1333,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         oneTimeNet: Math.round(b.oneTimeNet),
         ccOneTime: Math.round(ccOneTimeByMonth[b.monthKey] || 0),
         monthMinSafe: Math.round(b.monthMinSafe),
+        rawEndingCash: finalLiquid + cumulativeCarReserveHeld,
+        rawMonthMinSafe: b.monthMinSafe,
         floorBreachedByOneTime,
         debtWasReduced,
         // Popup breakdown fields

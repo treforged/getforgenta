@@ -6,6 +6,14 @@
 // against the other ever silently disagreeing.
 
 import { PROJECTION_MONTHS } from './credit-card-engine';
+
+/** Cushion above the cash floor that every floor-pinning drain targets. The convergence loop
+ * stops at a $1 debtPayment tolerance (forecast-convergence.ts), so a fixed point that pins end
+ * cash EXACTLY at the floor can settle cents below it — invisible in the rounded Forecast table
+ * until the rounding falls the wrong way and a month shows $1 under its floor (2026-07-16 live
+ * report). Draining to floor+cushion instead keeps sub-tolerance residue at or above the floor.
+ * Must stay ≥ the convergence toleranceDollars. */
+export const FLOOR_CUSHION_DOLLARS = 2;
 import type { EnrichedTransaction } from './pay-schedule';
 import type { CarFund } from './types';
 
@@ -198,7 +206,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     // where the ISB-pinned month and later step-ups needed the cash).
     const nextFloor = m + 1 < PROJECTION_MONTHS ? floorByMonth[m + 1] : floorByMonth[PROJECTION_MONTHS - 1];
     if (reserveNeeded[m + 1] > 0 || nextFloor > mFloor) {
-      const requiredEndBal = nextFloor + reserveNeeded[m + 1];
+      const requiredEndBal = nextFloor + reserveNeeded[m + 1] + FLOOR_CUSHION_DOLLARS;
       const availableForDebt = Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - requiredEndBal);
       const cap = Math.max(mCcMin, availableForDebt);
       maxDebtPaymentByMonth[m] = cap;
