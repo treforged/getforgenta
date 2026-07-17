@@ -45,14 +45,20 @@ describe('Q9 diagnostic — ISB pin month funding on live fixture', () => {
     console.log('cards:', names.join(', '));
 
     console.log('ENGINE caps[0..14]:', out.projections.maxDebtPaymentByMonth.slice(0, 15).map(v => isFinite(v) ? v.toFixed(0) : 'Inf').join(', '));
+    const nextFloorShorts: string[] = [];
     for (let m = 0; m <= 14; m++) {
       const row = out.projections.data[m];
+      const nextFloor = out.projections.data[m + 1]?.monthMinSafe ?? row.monthMinSafe;
+      const delta = row.endingCash - nextFloor;
+      if (delta < -0.5) nextFloorShorts.push(`m${m} ${row.month}: ${delta.toFixed(0)}`);
       const per = cp.perCardPayments.map(p => `${p.name}=$${(p.payments[m] ?? 0).toFixed(2)}`).join(' ');
       console.log(
         `m${m} ${row.month}: endCash=$${row.endingCash} floor=$${row.monthMinSafe}` +
+        ` nextFloor=$${nextFloor} (Δ${delta.toFixed(0)})` +
         ` debtPay=$${row.debtPayment} revDebtCash=$${row.revolvingDebtCash} | ${per}`,
       );
     }
+    console.log('endCash-below-NEXT-floor months:', nextFloorShorts.length ? nextFloorShorts.join(' | ') : 'NONE');
     for (const p of cp.perCardPayments) {
       const rev = cp.monthlyRevolvingBalances.get(p.id) ?? [];
       console.log(`${p.name} revBal[0..6]:`, rev.slice(0, 7).map(v => v.toFixed(2)).join(', '));
