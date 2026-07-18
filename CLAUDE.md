@@ -186,9 +186,17 @@ time. Follow these rules strictly:
   own timestamped folder.
 - **Scope backups to the change.** Only back up files that will actually
   be modified in this session — not the whole repo.
-- **Backups are committed** as part of the same local commit so the
-  backup and the change are always in sync in history.
-- `.gitignore` must NOT exclude `./backups/` — backups must be tracked.
+- **Backups are NEVER committed.** `./backups/` is gitignored and must
+  stay that way. Durability comes from the Google Drive sync
+  (`scripts/backup_drive_sync.py`), not from git.
+
+> **Why this rule reversed on 2026-07-18.** Backups used to be tracked and
+> committed. That put ~18 MB of archives in history and, more seriously,
+> carried `forecast-inputs.real.PRE-P0.json` — the real financial fixture
+> that is gitignored everywhere else — into this **public** repo, where it
+> sat from 2026-07-07. A backup of a gitignored file routed straight around
+> the ignore rule that was protecting it. Tracking backups is what made that
+> possible, so backups no longer go into git at all. Do not re-track them.
 
 ### Restoring a file
 
