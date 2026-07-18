@@ -16,6 +16,7 @@ import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-m
 import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
+import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import type { Tables } from '@/integrations/supabase/types';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
@@ -1289,7 +1290,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           p3RevBal = Math.max(0, p3RevBal - surplus);
         }
 
-        if (forecastRevolvingPayoffMonth === null && p3RevBal <= 0 && p3RevBal0 > 0) {
+        if (forecastRevolvingPayoffMonth === null && p3RevBal < REVOLVING_DUST_DOLLARS && p3RevBal0 > 0) {
           forecastRevolvingPayoffMonth = m + 1;
         }
 
@@ -1433,7 +1434,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             p3Cash2 -= surplus2;
             p3RevBal2 = Math.max(0, p3RevBal2 - surplus2);
           }
-          if (forecastRevolvingPayoffMonth === null && p3RevBal2 <= 0 && p3RevBal0_2 > 0) {
+          if (forecastRevolvingPayoffMonth === null && p3RevBal2 < REVOLVING_DUST_DOLLARS && p3RevBal0_2 > 0) {
             forecastRevolvingPayoffMonth = m + 1;
           }
           pass3RevTotals.push(Math.round(revPay2 + surplus2));
@@ -1720,23 +1721,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         .reduce((s, pca) => s + pca.payment, 0);
       const safeToPayTotalFinal = Math.round(cyclingPayment + revolvingPaymentFinal);
 
-      // First month where activeSim's total revolving balance reaches $0 (all revolving cards paid).
-      // Mirrors the ccEngRevBalEnd <= 0 check in Forecast.tsx's milestone condition.
-      let simRevolvingPayoffMonth: number | null = null;
-      const simRevolvingCardIds = cards
-        .filter(c => (activeSim.monthlyRevolvingBalances.get(c.id)?.[0] ?? 0) > 0)
-        .map(c => c.id);
-      if (simRevolvingCardIds.length > 0) {
-        for (let m = 0; m < PROJECTION_MONTHS; m++) {
-          const totalRevBal = simRevolvingCardIds.reduce(
-            (s, id) => s + Math.max(0, activeSim.monthlyRevolvingBalances.get(id)?.[m] ?? 0), 0
-          );
-          if (totalRevBal <= 0) {
-            simRevolvingPayoffMonth = m + 1;
-            break;
-          }
-        }
-      }
+      // First month where activeSim's total revolving balance is settled (all revolving cards
+      // paid, sub-dollar dust tolerated — Q10). Mirrors Forecast.tsx's milestone condition.
+      const simRevolvingPayoffMonth: number | null = firstRevolvingPayoffMonth(
+        activeSim.monthlyRevolvingBalances,
+        cards.map(c => c.id),
+        PROJECTION_MONTHS,
+      );
 
       // Phase 2 Option C step 3: replay the ACTIVE sim's exact args with the engine's per-month
       // revolving debt cash as param #20, rebuild sim-derived fields via the pure builder, keep

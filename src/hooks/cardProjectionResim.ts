@@ -2,6 +2,7 @@ import {
   projectCardVariable, simulateVariablePayoff, buildPaymentLedger, CardData, PROJECTION_MONTHS,
 } from '@/lib/credit-card-engine';
 import type { SimResult } from '@/lib/credit-card-engine';
+import { firstRevolvingPayoffMonth } from '@/lib/revolving-payoff';
 import type { ProjectionDataRow, CardProjectionResult } from './useCardProjection';
 
 /**
@@ -171,21 +172,11 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
   // First month simT's total revolving balance (across cards that start revolving) hits $0.
   // With zero surpluses the forecast-adjusted trajectory IS the sim trajectory, so both payoff
   // fields collapse to the same value.
-  let payoffMonth: number | null = null;
-  const revolvingCardIds = cards
-    .filter(c => (simT.monthlyRevolvingBalances.get(c.id)?.[0] ?? 0) > 0)
-    .map(c => c.id);
-  if (revolvingCardIds.length > 0) {
-    for (let m = 0; m < PROJECTION_MONTHS; m++) {
-      const totalRevBal = revolvingCardIds.reduce(
-        (s, id) => s + Math.max(0, simT.monthlyRevolvingBalances.get(id)?.[m] ?? 0), 0,
-      );
-      if (totalRevBal <= 0) {
-        payoffMonth = m + 1;
-        break;
-      }
-    }
-  }
+  const payoffMonth: number | null = firstRevolvingPayoffMonth(
+    simT.monthlyRevolvingBalances,
+    cards.map(c => c.id),
+    PROJECTION_MONTHS,
+  );
 
   return {
     data,
