@@ -1579,7 +1579,10 @@ export function simulateVariablePayoff(
         !paidOffCards.has(card.id) &&
         finalBal > 0 &&
         revolvingFinalBal >= 0 &&
-        revolvingFinalBal <= cardPurchasesThisMonth(card) + 0.01 &&
+        // Sub-dollar tolerance (same < $1 dust convention as the finalBal clear above): the
+        // convergence loop's whole-dollar debtCashTargetByMonth can leave the payoff payment
+        // cents short, and a +/-$0.01 tolerance kept that dust card in debtCards forever (Q10).
+        revolvingFinalBal < cardPurchasesThisMonth(card) + 1 &&
         remainingInstAfterPay <= 0.01
       ) {
         paidOffCards.add(card.id);
