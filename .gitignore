@@ -10,16 +10,13 @@ scripts/.scout-seen.json
 scripts/reddit-scout.log
 
 # Forgenta Backup Sync — local state and logs
-backups/.drive-sync-state.json
 scripts/backup-drive-sync.log
 
-# Dependency manifests inside backups trip Dependabot security alerts on
-# stale pinned versions even though they are never installed. Source-file
-# backups stay tracked; only these manifests are ignored.
-backups/**/package-lock.json
-backups/**/package.json
-backups/**/yarn.lock
-backups/**/pnpm-lock.yaml
+# Local pre-edit snapshots. Untracked from the repo 2026-07-18: the archives are
+# large (~18 MB of zips alone), regenerable, and one contained a copy of the real
+# financial fixture that is itself gitignored below. Backups stay on disk and
+# mirror to Drive via scripts/backup-drive-sync.ps1 — they never belong in git.
+backups/
 .env.local
 .env.*.local
 .env.development
