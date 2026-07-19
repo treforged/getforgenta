@@ -19,7 +19,11 @@ const profile: Partial<Tables<'profiles'>> = { weekly_gross_income: 0.01 };
 function makeCard(overrides: Partial<SimCard>): SimCard {
   return {
     id: 'vx', name: 'Venture X', balance: 0, minPayment: 25, paymentPreference: 'statement',
-    autopayFullBalance: true, dueDay: 7, startDate: undefined,
+    // dueDay 1 keeps every case below on the pre-paycheck side of the next-month cutoff, so these
+    // tests isolate card_start_date gating. (Was 7, which is post-paycheck in both June and August
+    // 2026 under the weekly Friday schedule — the cutoff itself is covered by
+    // pay-schedule.floorPrePaycheckCutoff.test.ts.)
+    autopayFullBalance: true, dueDay: 1, startDate: undefined,
     ...overrides,
   };
 }

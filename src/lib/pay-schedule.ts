@@ -641,12 +641,20 @@ export function getFirstPaycheckInMonth(config: PayScheduleConfig, year: number,
  * and the first paycheck of that next month.
  * These must be reserved from the current month's ending cash.
  */
-export function getPrePaycheckNextMonthBills(
-  rules: RuleRow[],
+/**
+ * The next-month window every floor calculation shares: only obligations falling in
+ * [nextMonthStart, effectiveCutoff) must be reserved from THIS month's ending cash — anything
+ * due on or after the cutoff is covered by next month's first paycheck.
+ *
+ * Extracted so getAugmentedMinSafeCash's car-loan / insurance / credit-card-minimum loops apply
+ * the same cutoff getPrePaycheckNextMonthBills applies to budget rules. They previously reserved
+ * by due day unconditionally, which over-reserved every post-paycheck obligation and inflated the
+ * floor for every month and every user.
+ */
+export function getNextMonthPrePaycheckCutoff(
   config: PayScheduleConfig,
-  fundingAccountId: string | null,
-  now = new Date(),
-): { total: number; items: { name: string; amount: number; dueDay: number }[] } {
+  now: Date,
+): { nextMonthStart: Date; nextMonthEnd: Date; effectiveCutoff: Date } {
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
   const nextMonthEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0);
   const fullMonthCutoff = new Date(nextMonthEnd.getTime() + 86400000);
@@ -658,6 +666,17 @@ export function getPrePaycheckNextMonthBills(
   const effectiveCutoff = firstPaycheck
     ? new Date(firstPaycheck.getFullYear(), firstPaycheck.getMonth(), firstPaycheck.getDate() + 1)
     : fullMonthCutoff;
+
+  return { nextMonthStart, nextMonthEnd, effectiveCutoff };
+}
+
+export function getPrePaycheckNextMonthBills(
+  rules: RuleRow[],
+  config: PayScheduleConfig,
+  fundingAccountId: string | null,
+  now = new Date(),
+): { total: number; items: { name: string; amount: number; dueDay: number }[] } {
+  const { nextMonthStart, nextMonthEnd, effectiveCutoff } = getNextMonthPrePaycheckCutoff(config, now);
 
   let total = 0;
   const items: { name: string; amount: number; dueDay: number }[] = [];
@@ -778,10 +797,27 @@ export function getAugmentedMinSafeCash(
     monthIdx === 0 && !!syncCutoffDate &&
     `${m0MonthStr}-${String(dueDay).padStart(2, '0')}` <= syncCutoffDate;
 
+  // Same next-month cutoff getPrePaycheckNextMonthBills applied to baseItems above. An obligation
+  // due on or after next month's first paycheck is funded by that paycheck, so reserving it from
+  // this month's ending cash over-states the floor. Compared as DATES rather than raw day numbers
+  // so a paycheck on the last day of the month, and the no-paycheck full-month fallback, both fall
+  // out correctly instead of needing special cases. dueDay is clamped to the length of next month
+  // so a day-31 obligation lands on the 30th in a 30-day month rather than rolling into the month
+  // after (which would read as post-cutoff and silently drop it).
+  const { nextMonthStart, nextMonthEnd, effectiveCutoff } = getNextMonthPrePaycheckCutoff(config, now);
+  const duePostPaycheck = (dueDay: number) => {
+    const d = new Date(
+      nextMonthStart.getFullYear(), nextMonthStart.getMonth(),
+      Math.min(dueDay, nextMonthEnd.getDate()),
+    );
+    return d >= effectiveCutoff;
+  };
+
   for (const cf of carFunds ?? []) {
     if (!cf.payment_start_date) continue;
     const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
     if (dueSynced(loanDueDay)) continue;
+    if (duePostPaycheck(loanDueDay)) continue;
     // A saving-phase car's PROJECTED loan participates in the floor exactly like the real loan
     // it becomes at activation — synthesized with the same frozen-equal substitutions activation
     // itself performs (loan_amount ← getLoanPrincipal estimate, loan_start_date ← planned
@@ -815,6 +851,7 @@ export function getAugmentedMinSafeCash(
     if (!dueDayBasis) continue;
     const insuranceDueDay = new Date(dueDayBasis + 'T00:00:00').getDate();
     if (dueSynced(insuranceDueDay)) continue;
+    if (duePostPaycheck(insuranceDueDay)) continue;
     prePaycheckBillsTotal += insurance;
     floorItems.push({ name: cf.vehicle_name + ' insurance', amount: insurance, dueDay: insuranceDueDay });
   }
@@ -833,6 +870,7 @@ export function getAugmentedMinSafeCash(
         const minPay = cc.perCardMinPayments?.get(card.id)?.[monthIdx] ?? 0;
         if (minPay > 0 && card.dueDay) {
           if (dueSynced(card.dueDay)) continue;
+          if (duePostPaycheck(card.dueDay)) continue;
           prePaycheckBillsTotal += minPay;
           ccRevolvingMinIncluded += minPay;
           floorItems.push({ name: card.name + ' min', amount: minPay, dueDay: card.dueDay });
@@ -851,6 +889,7 @@ export function getAugmentedMinSafeCash(
         // payment due until that start month.
         if (card.startDate && monthsBetween(card.startDate, now.toISOString().split('T')[0]) < 0) continue;
         if (dueSynced(card.dueDay)) continue;
+        if (duePostPaycheck(card.dueDay)) continue;
         prePaycheckBillsTotal += card.minPayment;
         floorItems.push({ name: card.name + ' min', amount: card.minPayment, dueDay: card.dueDay });
         // A backlog-carrying cycling card's minimum is ALSO reserved by simulateVariablePayoff's
