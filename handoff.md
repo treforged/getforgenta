@@ -1,66 +1,84 @@
-# Handoff — 2026-07-18 (session 4) — main — Q10 closed; Stages 4-5 verified; NEW floor finding (Q12)
+# Handoff — 2026-07-19 (session 5) — Q12 fixed on branch, BLOCKED on payment-cap undershoot
 
-## State: no work in flight, working tree clean
+## State: main clean at 55f24e06. Q12 work committed on branch `q12-floor-cutoff` (5998c911).
 
-Q10 RESOLVED & live-verified (`b309e151`). Metric-only fix: `src/lib/revolving-payoff.ts`
-(`firstRevolvingPayoffMonth`, `REVOLVING_DUST_DOLLARS = 1`) in both payoff reducers + the two
-PASS-3 scalar checks. Two engine-side attempts were tried and reverted — do NOT retry; see
-memory `project_cycling_debt_engine.md` (2026-07-18 entry).
+Main is untouched and green. Do NOT merge the branch yet — see the blocker below.
 
-## Stages 4-5 of unify-cycling-model: VERIFIED COMPLETE (no code changes needed)
+## Q12: RESOLVED (code + tests), NOT MERGEABLE
 
-- Stage 4: `forecast-convergence`, `goldenTierA`, `simAgreement`, `revolvingDebtCash`,
-  `step3-display` — 16/16 green. **No golden re-pins required.**
-- Stage 5 live verify: converged in 6 passes, `usedFallback: false`, max
-  |row.debtPayment − ledger.total| = **$0.50** (Sep 2026), zero months over $1 — Stage 3's
-  acceptance criterion holds on live data.
-- Stage 5 cleanup: nothing dead to delete. The one remaining `perCardPaymentsScaled` read in
-  `forecast-engine.ts:1065` is the documented display-only `cumulativeSurplusesByCard` consumer
-  (popup per-card lines must sum to the total), NOT the old preference-read. Leave it.
-- graphify updated. Plan `.claude/plan/unify-cycling-model.md` can be marked done.
+Branch `q12-floor-cutoff`, commit `5998c911`. The handoff-3 diagnosis was correct line-for-line.
 
-## Q12 (NEW, root-caused, NOT fixed) — augmented floor over-reserves post-paycheck obligations
+- Extracted `getNextMonthPrePaycheckCutoff(config, now)` → `{ nextMonthStart, nextMonthEnd,
+  effectiveCutoff }` in `src/lib/pay-schedule.ts`. `getPrePaycheckNextMonthBills` now calls it
+  (verified byte-neutral: full suite unchanged after the extraction alone).
+- `getAugmentedMinSafeCash` calls the same helper and applies `duePostPaycheck(dueDay)` to all
+  three loops (car loan, car insurance, both CC branches). Compares **Dates**, not raw day
+  numbers, so a last-day-of-month paycheck and the no-paycheck `fullMonthCutoff` fallback need no
+  special case; `dueDay` is clamped to next month's length so a day-31 obligation can't roll past
+  the cutoff and silently vanish.
+- New suite `src/lib/__tests__/pay-schedule.floorPrePaycheckCutoff.test.ts` (6 tests) covers each
+  loop excluded post-paycheck, all three included pre-paycheck, and the due-ON-paycheck-day edge.
+- Three existing suites were re-pinned by **moving fixture due days pre-paycheck**, NOT by
+  changing expected numbers — their intent (insurance anchoring, card_start_date gating, backlog
+  accounting) is preserved and the cutoff is tested in its own file. pay-schedule: 20/20 green.
 
-`getAugmentedMinSafeCash` (`src/lib/pay-schedule.ts:748+`) applies the "bills due before next
-month's first paycheck" cutoff **only to budget rules** (via `getPrePaycheckNextMonthBills`,
-:770). The three loops it adds afterward — car loan (:781), car insurance (:808), CC minimums
-(:829) — add by due day **unconditionally**, gated only by `dueSynced` (month-0 Plaid). They
-never check the first-paycheck cutoff.
+Live effect confirmed on the real fixture: Aug 2026 `floorItems` lose the day-7 car loan
+(422.89), car insurance (173.23) and PV min, floor 3807.59 → 2800 base.
 
-Live impact (Aug 2026, weekly pay ~$1,124 net, first Sep paycheck Fri Sep 4):
-- Floor as computed = **$3,807.59**; ending cash $3,603.08 → the "$205 miss".
-- Of that floor, **$1,106.62 is due Sep 7**, AFTER the Sep 4 paycheck: car loan 422.89 +
-  car insurance 173.23 + PV min 510.50.
-- Corrected pre-paycheck need = $2,700.97 → below the $2,800 base floor, so effective floor
-  would be $2,800 and August clears by ~$803.
-- Hand-walk of Sep 1-7 confirms: 3,603 − 2,347 (day 1) − 354 (day 3) + 1,124 (Sep 4 paycheck)
-  − 1,106.62 (day 7) = **~$919 low-water**. No real shortfall.
-- Empirical corroboration: only day-1/day-3 budget bills made the floor (cutoff working for
-  rules), while every day-7 entry came from the three unconditional loops.
+## BLOCKER: pre-existing payment-cap undershoot, exposed (not caused) by Q12
 
-**Consequence: the Discover-cut recommendation from session 3 is WITHDRAWN** — it was closing a
-gap that isn't real. Tre pays the full recommended $792 to Discover in July.
+Full suite with Q12 applied: **207/212**, 5 failures in 3 files (goldenTierA,
+forecast-convergence.realData, forecast-convergence.manualISB). Left deliberately un-re-pinned —
+re-pinning would encode a real floor breach as expected. Tre decided: **fix the cap first, then
+merge Q12 and re-pin once against correct behavior.**
 
-**Fix scope (dedicated session):** thread the same `effectiveCutoff` into the three loops.
-Touches the floor for every month/user → re-run goldenTierA, manualISB, realData, floor tests,
-and expect deliberate re-pins. Do NOT bolt onto other work.
+Measured on `forecast-inputs.real.json` (m0 = Jul 2026):
 
-## Anomaly A — pin below mandatory obligation is floor-clamped (DECIDED: accept + hint)
+| | Aug ending cash | augmented floor | base floor | breach milestone |
+|---|---|---|---|---|
+| pre-fix  | 2967 | 3269 | 2800 | none |
+| post-fix | 2574 | 2670 | 2800 | **Aug 2026** |
 
-Pinning PV Oct=100 rendered −$511 "edited" ($510.50 = that month's mandatory cycling
-obligation). It's a FLOOR clamp, not a cap. Keep the clamp — paying under a contractual minimum
-means late fees / penalty APR / grace loss that the engine does not model. Fix the UX only:
-when a pin is clamped, show the effective value with an inline note ("Minimum obligation this
-month is $510.50 — pin raised to match") instead of a negative delta. No engine change.
+- The engine lands **below the augmented floor in BOTH runs** ($302 under pre-fix, $96 under
+  post-fix). The undershoot is pre-existing; the inflated floor merely kept cash above the $2,800
+  base so it never tripped the milestone.
+- The breach milestone (`forecast-engine.ts:1317`) compares against `cashFloor` — the **base**
+  user setting (destructured :136, aliased `settingsCashFloor` :1386) — NOT `monthMinSafe`. It is
+  also **edge-triggered** (fires only if the previous month was ≥ floor), which is why pre-fix
+  Aug breached silently.
+- Convergence also slowed: realData 11 → 14 passes; manualISB 18 vs its `≤12` pin. Still
+  converges, payoff still Jun 2027 in both.
 
-## Anomaly B — any pin flips all rows to overrideSim basis (DECIDED: converge the override sim)
+### What is NOT the problem
+PASS-3's target feedback is sound. `step3DrainTo = max(b.monthMinSafe, baseData[i+1].monthMinSafe)
++ FLOOR_CUSHION_DOLLARS` (`forecast-engine.ts:1135-1144`) and post-fix months 2 and 3 land at
+**exactly 2802.00** — floor + cushion, working as designed. Only Aug is stuck low.
 
-`CreditCardEngine.tsx:760` builds `overrideSim`; :908-915 swap EVERY card's payments/balances/
-interest series to it, and :973 (`const cum = overrideSim ? 0 : step3CumSurplus…`) zeroes the
-step-3 surplus adjustment for all rows. So one pin changes every row, and `overrideSim` never
-goes through `runDebtCashConvergence` — a pinned projection is un-converged.
-**Recommendation:** route `overrideSim` through the same convergence loop the base projection
-uses (`resimulateWithDebtCash` is already the seam). Engine-layer, own session, needs goldens.
+### Leading hypothesis (UNVERIFIED — do not treat as fact)
+`forecast-engine.ts:1160` says that when the revolving target is already 0 and cash is still under
+the floor, the deficit is *structural* and the milestone correctly stands. So Aug's extra ~$393 of
+spend is likely **mandatory**, which PASS-3 cannot claw back by design. Suspected mechanism: the
+floor no longer covers the day-7 PV minimum → `ccRevolvingMinIncluded` drops → `simulateVariablePayoff`'s
+`reservedForRevolving` reserves it instead → mandatory pool grows. That is exactly the
+double-reservation seam `pay-schedule.ccRevolvingMinIncluded.test.ts` exists to guard.
+
+### Next diagnostic (start here)
+Instrument `simulateVariablePayoff` for m1 with and without the branch applied, and print:
+mandatory pool size, `reservedForRevolving`, `ccRevolvingMinIncluded`, and the per-card forced
+payments. Confirm whether Aug's revolving target actually reaches 0 (structural) or whether the
+deficit branch is being outrun by a growing mandatory pool. That single comparison decides between
+"floor and reservedForRevolving must net to the same dollars" (accounting fix) vs "the cap needs a
+hard clamp at monthMinSafe" (engine fix).
+
+Use `--silent=false --reporter=verbose` — vitest hides console.log on PASSING tests, which cost
+time this session.
+
+## Still queued (untouched)
+
+- **Anomaly A** — pin clamp UX: show effective value + inline note instead of a negative delta.
+  UI-only, no engine change, no goldens. Smallest item; good filler session.
+- **Anomaly B** — route `overrideSim` through `runDebtCashConvergence` (`CreditCardEngine.tsx:760`,
+  :908-915, :973). Engine-layer, needs goldens.
 
 ## Gotchas (carry forward)
 
@@ -73,5 +91,9 @@ uses (`resimulateWithDebtCash` is already the seam). Engine-layer, own session, 
   reconstruct by hand.
 - vitest failure details on STDERR — use Bash 2>&1, not PowerShell.
 - FLOOR_CUSHION_DOLLARS must stay ≥ convergence toleranceDollars (2 ≥ 1).
-- Manual-min cards can have $0 contract revolving min (PV) — that's why Q10's engine-side
-  fixes hit starvation branches.
+- Manual-min cards can have $0 contract revolving min (PV) — that's why Q10's engine-side fixes
+  hit starvation branches.
+- `getActiveCarLoanPayments` reads `expected_apr`, NOT `interest_rate` — a CarFund test fixture
+  missing it silently yields NaN payments.
+- Pre-existing and untouched: `dueSynced` builds its date from the CURRENT month (`m0MonthStr`)
+  while the floor's semantics are next-month obligations. Orthogonal to Q12, left alone.
