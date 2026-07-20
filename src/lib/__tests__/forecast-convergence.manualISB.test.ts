@@ -53,12 +53,14 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
   maybeIt('clock=capturedAt (2026-07-15): converges with no floor breach and the live payoff', () => {
     const { out, ccFree, floorBreaches } = runScenario(0);
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
-    // 16 passes on the 2026-07-15 fixture; bound guards regression back toward the 18-pass
-    // budget/fallback cliff. (Live shows 12 on the same clock — fidelity gap: the fixture does
-    // not capture debtPayoffOptions overrides; see fixtures/projection-harness.ts.)
-    expect(out.passes, 'pass count regressed toward the budget cliff').toBeLessThanOrEqual(16);
+    // Re-pinned 2026-07-20 (Q12 floor cutoff + real paymentPlans in the harness): 18 passes —
+    // AT the maxPasses=18 budget, converging on the final allowed pass. Zero regression margin
+    // left; the converged assertion above is the only remaining cliff guard. Was 16 pre-Q12
+    // (and 10 on main with plans), so Q12 measurably slows convergence on this fixture —
+    // flagged for a maxPasses/damping decision before merge.
+    expect(out.passes, 'pass count regressed past the budget cliff').toBeLessThanOrEqual(18);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
-    expect(ccFree!.month, 'payoff month regressed').toBe('Jun 2027');
+    expect(ccFree!.month, 'payoff month regressed').toBe('Jul 2027');
     expect(floorBreaches.map(m => m.month), 'cash-floor breaches after convergence').toEqual([]);
   });
 
@@ -88,7 +90,9 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
     expect(out.passes, 'pass count regressed toward the budget cliff').toBeLessThanOrEqual(12);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
-    expect(ccFree!.month, 'payoff month regressed').toBe('Jun 2027');
+    // Jul 2027 since the 2026-07-20 re-pin (real paymentPlans in the harness — the earlier
+    // Jun 2027 was measured with paymentPlans=[], a $228/mo-richer sim walk).
+    expect(ccFree!.month, 'payoff month regressed').toBe('Jul 2027');
     expect(floorBreaches.map(m => m.month), 'cash-floor breaches after convergence').toEqual([]);
   });
 });
