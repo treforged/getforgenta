@@ -42,10 +42,12 @@ export function runDebtCashConvergence(
   // 262 → … → 1 at pass 13, 0 by pass 15) yet the old 12-pass budget cut it off one pass short at
   // gap $2 — and the exhaustion path publishes the UNACCELERATED base pair, so a run that had
   // already found the correct payoff (Discover: Jul 2027) was discarded for the pathological base
-  // (Feb 2029, cash ballooning to ~$38k). 18 clears that trajectory with a 5-pass margin and still
-  // covers the earlier fixtures (2026-07-09 needed 11, 2026-07-07 needed 6). The fallback to base
-  // remains the zero-regression guard for genuine (non-decaying) oscillation, which no budget fixes.
-  const { maxPasses = 18, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
+  // (Feb 2029, cash ballooning to ~$38k). 18 cleared that trajectory with a 5-pass margin and still
+  // covers the earlier fixtures (2026-07-09 needed 11, 2026-07-07 needed 6). Q12's pre-paycheck
+  // floor cutoff slows convergence further — the 2026-07-16 fixture (with real paymentPlans) needs
+  // all 18, so 24 restores a comparable margin above the worst observed trajectory. The fallback to
+  // base remains the zero-regression guard for genuine (non-decaying) oscillation, which no budget fixes.
+  const { maxPasses = 24, toleranceDollars = 1, engine = calculateForecast, damping = 0.5 } = opts;
 
   // On exhaustion, publish the last resim (not base) only when the loop was genuinely CONVERGING
   // toward its fixed point but ran out of budget — i.e. the gap made net progress (lastGap <

@@ -332,7 +332,8 @@ export function useForecastEngineInputs({
     payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions,
     currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor,
     pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget,
-  }), [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget]);
+    paymentPlans: paymentPlans ?? [],
+  }), [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget, paymentPlans]);
 
   return {
     engineInputs,

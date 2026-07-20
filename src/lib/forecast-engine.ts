@@ -12,7 +12,7 @@
 import { formatCurrency } from '@/lib/calculations';
 import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
-import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
+import { getMonthlyPlanCashExpenses, type PaymentPlan } from '@/lib/payment-plan-generator';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
@@ -116,6 +116,11 @@ export interface ForecastInputs {
   syncCutoffDate: string;
   planExpensesByMonth: ReturnType<typeof getMonthlyPlanCashExpenses>[];
   annualFederalWithheldFromBudget: number;
+  /** Raw payment-plan rows. The engine never reads these (it consumes planExpensesByMonth);
+   * they ride along so fixture captures of these inputs carry the rows the SIM side
+   * (useCardProjection) needs — without them a replayed sim walks $X/month richer than the
+   * engine and ISB-pinned months can't correct the drift (the Q12 Aug-2026 phantom breach). */
+  paymentPlans?: PaymentPlan[];
 }
 
 export interface ForecastResult {

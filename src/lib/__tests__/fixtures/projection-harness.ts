@@ -8,11 +8,26 @@
 // (localStorage `tre:debt:fundingAccount`). The latter two can be supplied per-test via
 // ProjectionHarnessOverrides — both were required to reproduce the Q7 live fixed point.
 
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { renderHook } from '@testing-library/react';
 import { useCardProjection, type UseCardProjectionParams, type CardProjectionResult } from '@/hooks/useCardProjection';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { generateScheduledEvents } from '@/lib/scheduling';
 import type { ForecastInputs } from '@/lib/forecast-engine';
+
+const REAL_PLANS_FIXTURE = join(__dirname, 'forecast-inputs.real.payment-plans-2026-07-16.json');
+
+/** Real payment-plan rows captured 2026-07-16 (contemporaneous with the 07-15 golden fixture).
+ * Fallback for golden captures that predate ForecastInputs.paymentPlans: without the raw rows
+ * the sim's planCashExpensesEarly is all zeros, so its cash walk runs richer than the engine's
+ * and ISB-pinned months surface the drift as phantom floor breaches (Q12 Aug-2026). Gitignored
+ * real data — returns [] when absent, matching the pre-fallback behavior. */
+export function loadRealPaymentPlans(): unknown[] {
+  return existsSync(REAL_PLANS_FIXTURE)
+    ? JSON.parse(readFileSync(REAL_PLANS_FIXTURE, 'utf8')) as unknown[]
+    : [];
+}
 
 export function buildProjectionAssumptions(inputs: ForecastInputs) {
   const a = inputs.assumptions as Record<string, unknown>;
@@ -67,7 +82,7 @@ export function renderProjectionFromFixture(
     persistedDebtFundingId: overrides.persistedDebtFundingId ?? null,
     assumptions: buildProjectionAssumptions(inputs),
     syncCutoffDate: fx.syncCutoffDate,
-    paymentPlans: (overrides.paymentPlans as never) ?? (fx.paymentPlans as never) ?? [],
+    paymentPlans: (overrides.paymentPlans as never) ?? (fx.paymentPlans as never) ?? (loadRealPaymentPlans() as never),
   } as unknown as UseCardProjectionParams));
   if (!result.current) throw new Error('useCardProjection returned null on the golden fixture');
   return result.current;

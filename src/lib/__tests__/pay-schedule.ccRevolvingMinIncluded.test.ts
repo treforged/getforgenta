@@ -52,7 +52,10 @@ describe('getAugmentedMinSafeCash — ccRevolvingMinIncluded', () => {
 
   it('sums across multiple revolving cards', () => {
     const cardA = { id: 'card-a', name: 'Card A', dueDay: 1, paymentPreference: 'statement' as const, autopayFullBalance: false, minPayment: 150 };
-    const cardB = { id: 'card-d', name: 'Card D', dueDay: 11, paymentPreference: 'statement' as const, autopayFullBalance: false, minPayment: 99 };
+    // dueDay 2 (was 11): July 11 falls after the Jul 3 paycheck, so the next-month cutoff would
+    // exclude it and this test would silently stop summing two cards. Cutoff behavior is covered
+    // by pay-schedule.floorPrePaycheckCutoff.test.ts.
+    const cardB = { id: 'card-d', name: 'Card D', dueDay: 2, paymentPreference: 'statement' as const, autopayFullBalance: false, minPayment: 99 };
     const revBal = new Map([['card-a', [4000]], ['card-d', [2000]]]);
     const minPay = new Map([['card-a', [150]], ['card-d', [99]]]);
     const { ccRevolvingMinIncluded } = run([cardA, cardB], revBal, minPay);
@@ -60,7 +63,9 @@ describe('getAugmentedMinSafeCash — ccRevolvingMinIncluded', () => {
   });
 
   it('counts a cycling card toward ccRevolvingMinIncluded once it carries backlog', () => {
-    const card = { id: 'card-e', name: 'Card E', dueDay: 7, paymentPreference: 'statement' as const, autopayFullBalance: true, minPayment: 25 };
+    // dueDay 1 (was 7) so the minimum stays inside the next-month pre-paycheck window — this test
+    // is about backlog accounting, not the cutoff.
+    const card = { id: 'card-e', name: 'Card E', dueDay: 1, paymentPreference: 'statement' as const, autopayFullBalance: true, minPayment: 25 };
     const revBal = new Map([['card-e', [0]]]); // cycling — revBal <= 0
     const minPay = new Map([['card-e', [0]]]);
     const backlog = new Map([['card-e', [350]]]); // carries backlog this month

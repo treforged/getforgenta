@@ -72,7 +72,13 @@ describe('useCardProjection — expense rules paid from a different bank account
       due_day: 1, payment_source: CHECKING, deposit_account: null, active: true, category: 'Subscriptions',
     }]);
 
-    expect(fundedFromMainAccount.allPaymentTotals[2]).toBeLessThan(baseline.allPaymentTotals[2]);
+    // Compare CUMULATIVE payments through month 2, not month 2 alone: near payoff a single
+    // month's payment is balance-limited, so paying LESS in months 0-1 leaves more balance and
+    // can make month 2's payment larger even though total available cash went down. Which month
+    // is the payoff boundary drifts with the real clock (this suite doesn't pin it), so the
+    // single-month form flips between green and red depending on the day the suite runs.
+    const cum = (arr: number[]) => arr.slice(0, 3).reduce((a, b) => a + b, 0);
+    expect(cum(fundedFromMainAccount.allPaymentTotals)).toBeLessThan(cum(baseline.allPaymentTotals));
   });
 
   it('an unset payment_source (defaults to the funding account by convention) still reduces available cash', () => {
@@ -82,6 +88,8 @@ describe('useCardProjection — expense rules paid from a different bank account
       due_day: 1, payment_source: null, deposit_account: null, active: true, category: 'Bills',
     }]);
 
-    expect(unsetSource.allPaymentTotals[2]).toBeLessThan(baseline.allPaymentTotals[2]);
+    // Cumulative for the same reason as the funding-account case above.
+    const cum = (arr: number[]) => arr.slice(0, 3).reduce((a, b) => a + b, 0);
+    expect(cum(unsetSource.allPaymentTotals)).toBeLessThan(cum(baseline.allPaymentTotals));
   });
 });

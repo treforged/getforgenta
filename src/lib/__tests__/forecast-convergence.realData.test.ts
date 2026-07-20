@@ -23,6 +23,7 @@ import { generateScheduledEvents } from '@/lib/scheduling';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import type { ForecastInputs } from '@/lib/forecast-engine';
 import { reviveForecastCapture } from './fixtures/forecast-fixture-io';
+import { loadRealPaymentPlans } from './fixtures/projection-harness';
 
 const FIXTURE = join(__dirname, 'fixtures', 'forecast-inputs.real.json');
 const hasFixture = existsSync(FIXTURE);
@@ -85,7 +86,10 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
       persistedDebtFundingId: null,
       assumptions: projectionAssumptions,
       syncCutoffDate: fx.syncCutoffDate,
-      paymentPlans: (fx.paymentPlans as never) ?? [],
+      // Fixture captures predating ForecastInputs.paymentPlans lack the raw rows — fall back to
+      // the contemporaneous 07-16 plans capture so the sim's cash walk matches the engine's
+      // (Q12: without them the sim ran $228/mo richer and Aug 2026 showed a phantom breach).
+      paymentPlans: (fx.paymentPlans as never) ?? (loadRealPaymentPlans() as never),
     } as unknown as UseCardProjectionParams));
 
     const base = result.current;
@@ -121,12 +125,14 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     console.log('[repro] CC Debt Free:', ccFree?.month ?? '(never)',
       '| floor-breach months:', floorBreaches.map(m => m.month).join(', ') || '(none)');
 
-    // Expected-good anchors — what pre-Stage-3 code (a7653967) produces on THIS fixture
-    // (captured 2026-07-03; the payoff month is data-dependent, re-pin it if the fixture is
-    // ever recaptured): loop converges, payoff Jun 2027, zero floor-breach milestones.
+    // Expected-good anchors (re-pinned 2026-07-20 with real paymentPlans in the sim — the
+    // earlier Jun 2027 pin was measured with paymentPlans=[], which left the sim's cash walk
+    // $228/mo richer than the engine's; Jul 2027 verified identical on main and
+    // q12-floor-cutoff): loop converges, payoff Jul 2027, zero floor-breach milestones.
+    // The payoff month is data-dependent — re-pin it if the fixture is ever recaptured.
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
-    expect(ccFree!.month, 'payoff month regressed').toBe('Jun 2027');
+    expect(ccFree!.month, 'payoff month regressed').toBe('Jul 2027');
     expect(floorBreaches.map(m => m.month), 'cash-floor breaches after convergence').toEqual([]);
   });
 });
