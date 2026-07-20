@@ -1,77 +1,90 @@
-# Handoff — 2026-07-18 (session 4) — main — Q10 closed; Stages 4-5 verified; NEW floor finding (Q12)
+# Handoff — 2026-07-20 (session 6) — Undershoot ROOT-CAUSED: fixture is missing paymentPlans
 
-## State: no work in flight, working tree clean
+## State: on branch `q12-floor-cutoff` (5998c911) with UNCOMMITTED temp diagnostics
 
-Q10 RESOLVED & live-verified (`b309e151`). Metric-only fix: `src/lib/revolving-payoff.ts`
-(`firstRevolvingPayoffMonth`, `REVOLVING_DUST_DOLLARS = 1`) in both payoff reducers + the two
-PASS-3 scalar checks. Two engine-side attempts were tried and reverted — do NOT retry; see
-memory `project_cycling_debt_engine.md` (2026-07-18 entry).
+Main untouched. Q12 itself unchanged and still correct (see session-5 handoff, commit c897a231,
+for its details). Working tree has TEMP instrumentation (all marked
+`// TEMP Q12 DIAG — remove before merge`, gated on `(globalThis).__Q12_DIAG`, inert otherwise) in:
 
-## Stages 4-5 of unify-cycling-model: VERIFIED COMPLETE (no code changes needed)
+- `src/lib/credit-card-engine.ts` — 3 log points in simulateVariablePayoff (m===1): pool sizing
+  (A), mandatory payments (B), final Step-5 payments (C).
+- `src/lib/forecast-engine.ts` — m1 cashPreDebt component breakdown (after :1101).
+- `src/hooks/useCardProjection.ts` — m1 expense composition + per-event dump in its
+  forecastMonthEvents builder.
+- `src/lib/__tests__/q12diag.realData.test.ts` — UNTRACKED throwaway harness (clone of
+  forecast-convergence.realData.test.ts, no pinning assertions) that sets the flag and dumps
+  engine per-pass m1 rows. Run:
+  `npx vitest run src/lib/__tests__/q12diag.realData.test.ts --silent=false --reporter=verbose`
 
-- Stage 4: `forecast-convergence`, `goldenTierA`, `simAgreement`, `revolvingDebtCash`,
-  `step3-display` — 16/16 green. **No golden re-pins required.**
-- Stage 5 live verify: converged in 6 passes, `usedFallback: false`, max
-  |row.debtPayment − ledger.total| = **$0.50** (Sep 2026), zero months over $1 — Stage 3's
-  acceptance criterion holds on live data.
-- Stage 5 cleanup: nothing dead to delete. The one remaining `perCardPaymentsScaled` read in
-  `forecast-engine.ts:1065` is the documented display-only `cumulativeSurplusesByCard` consumer
-  (popup per-card lines must sum to the total), NOT the old preference-read. Leave it.
-- graphify updated. Plan `.claude/plan/unify-cycling-model.md` can be marked done.
+Revert instrumentation when done: `git checkout -- src/lib/credit-card-engine.ts
+src/lib/forecast-engine.ts src/hooks/useCardProjection.ts` + delete the q12diag test.
 
-## Q12 (NEW, root-caused, NOT fixed) — augmented floor over-reserves post-paycheck obligations
+## ROOT CAUSE of the Aug 2026 undershoot (the session-5 blocker)
 
-`getAugmentedMinSafeCash` (`src/lib/pay-schedule.ts:748+`) applies the "bills due before next
-month's first paycheck" cutoff **only to budget rules** (via `getPrePaycheckNextMonthBills`,
-:770). The three loops it adds afterward — car loan (:781), car insurance (:808), CC minimums
-(:829) — add by due day **unconditionally**, gated only by `dueSynced` (month-0 Plaid). They
-never check the first-paycheck cutoff.
+**The golden fixture `forecast-inputs.real.json` has `planExpensesByMonth = [0, 228, 228, …]`
+captured as an engine input, but does NOT carry the raw `paymentPlans` rows** (key absent).
+The realData harness passes `paymentPlans: fx.paymentPlans ?? []` → the sim's
+`planCashExpensesEarly` is all zeros → the sim's cash walk is exactly **$228/month richer**
+than the engine's authoritative walk.
 
-Live impact (Aug 2026, weekly pay ~$1,124 net, first Sep paycheck Fri Sep 4):
-- Floor as computed = **$3,807.59**; ending cash $3,603.08 → the "$205 miss".
-- Of that floor, **$1,106.62 is due Sep 7**, AFTER the Sep 4 paycheck: car loan 422.89 +
-  car insurance 173.23 + PV min 510.50.
-- Corrected pre-paycheck need = $2,700.97 → below the $2,800 base floor, so effective floor
-  would be $2,800 and August clears by ~$803.
-- Hand-walk of Sep 1-7 confirms: 3,603 − 2,347 (day 1) − 354 (day 3) + 1,124 (Sep 4 paycheck)
-  − 1,106.62 (day 7) = **~$919 low-water**. No real shortfall.
-- Empirical corroboration: only day-1/day-3 budget bills made the floor (cutoff working for
-  rules), while every day-7 entry came from the three unconditional loops.
+Verified numbers (post-Q12, m1 = Aug 2026):
+- Sim: currentCash 3191.35 + income 4495.56 − monthExpenses 3220.12 = 4466.79 pre-debt.
+- Engine: same start/income, outflows 2752 base (= events 2524 + **plan 228**) + 422.89 car loan
+  + 173.23 insurance + 100 transfers → cashPreDebt 4238.79. Gap = 228.00 exactly.
+- Both sides' scheduled-events m1 expenses are IDENTICAL (2524) — the sim-vs-engine event
+  builders are NOT the problem. The $228 enters only via `baseExpenses += planExpensesByMonth[i]`
+  (`forecast-engine.ts:689`); sim counterpart `planCashExpensesEarly[idx]` (useCardProjection
+  :140-146, added into month expenses :642) is 0 because paymentPlans = [].
 
-**Consequence: the Discover-cut recommendation from session 3 is WITHDRAWN** — it was closing a
-gap that isn't real. Tre pays the full recommended $792 to Discover in July.
+Why the engine can't correct it: **Aug is an ISB-pinned month.** `forecast-convergence.ts:61-66`
+excludes manualIsbPins months from target feedback (NaN), so `mDebtTarget` is null in the sim for
+m1 on every pass (confirmed in logs); the sim pays the 1164.79 pin + drains its own (inflated)
+surplus (500 to the second card = 1664.79 total), landing the sim at exactly its floor+cushion
+2802 while the engine lands at 2574 — below the 2800 base floor → breach milestone. PASS-3's
+deficit branch computes the right correction (target 1665→1437) but it is deliberately never
+delivered to a pinned month.
 
-**Fix scope (dedicated session):** thread the same `effectiveCutoff` into the three loops.
-Touches the floor for every month/user → re-run goldenTierA, manualISB, realData, floor tests,
-and expect deliberate re-pins. Do NOT bolt onto other work.
+Implications:
+1. **The undershoot is (at least in the harness) a fixture artifact, not an engine bug.** In the
+   live app useCardProjection receives real paymentPlans, so sim and engine should agree.
+   The session-5 pre-fix/post-fix breach table was measured in this same harness and carries the
+   same $228 skew — including the 5 failing suites blocking Q12's merge.
+2. The Q4-era design "pinned months get no feedback" makes the sim's internal walk the sole
+   authority for pinned months — any sim/engine expense drift surfaces as an uncorrectable floor
+   breach there first. Worth a guard, but fix the fixture before judging the engine.
 
-## Anomaly A — pin below mandatory obligation is floor-clamped (DECIDED: accept + hint)
+## Next steps (in order)
 
-Pinning PV Oct=100 rendered −$511 "edited" ($510.50 = that month's mandatory cycling
-obligation). It's a FLOOR clamp, not a cap. Keep the clamp — paying under a contractual minimum
-means late fees / penalty APR / grace loss that the engine does not model. Fix the UX only:
-when a pin is clamped, show the effective value with an inline note ("Minimum obligation this
-month is $510.50 — pin raised to match") instead of a negative delta. No engine change.
+1. **Confirm live parity**: check whether Tre's real account actually shows the Aug breach in the
+   app with Q12's branch (it should NOT, if paymentPlans flow live). Alternatively synthesize the
+   missing plan: inject a checking-sourced paymentPlan producing $228/mo into the harness
+   (`getMonthlyPlanCashExpenses` must return [0,228,228,…] matching the fixture array — month 0
+   is 0 because of the syncCutoffDate arg) and confirm the Aug breach disappears and floor
+   convergence is clean. If yes → blocker dissolves.
+2. **Fix the capture path**: add `paymentPlans` to the fixture serializer/revivers
+   (`src/lib/__tests__/fixtures/forecast-fixture-io.ts` + wherever the app captures the fixture)
+   so raw plan rows travel with the capture; then have Tre recapture the fixture live.
+   (Q7 already added the harness override parameter — only the fixture content is missing.)
+3. Re-run full suite on `q12-floor-cutoff` against the recaptured fixture; re-pin the 5 failing
+   suites (goldenTierA, realData, manualISB) against correct behavior; then merge Q12 per
+   session-5 plan.
+4. Optional hardening (discuss with Tre first): for ISB-pinned months, clamp the sim's Step-5
+   drain at the ENGINE's floor semantics or emit a warning when sim/engine walks diverge > $X —
+   prevents silent recurrence of this class.
 
-## Anomaly B — any pin flips all rows to overrideSim basis (DECIDED: converge the override sim)
-
-`CreditCardEngine.tsx:760` builds `overrideSim`; :908-915 swap EVERY card's payments/balances/
-interest series to it, and :973 (`const cum = overrideSim ? 0 : step3CumSurplus…`) zeroes the
-step-3 surplus adjustment for all rows. So one pin changes every row, and `overrideSim` never
-goes through `runDebtCashConvergence` — a pinned projection is un-converged.
-**Recommendation:** route `overrideSim` through the same convergence loop the base projection
-uses (`resimulateWithDebtCash` is already the seam). Engine-layer, own session, needs goldens.
+## Still queued (untouched)
+- Anomaly A (pin clamp UX, UI-only) and Anomaly B (route overrideSim through
+  runDebtCashConvergence) — see session-5 handoff (c897a231) for details.
 
 ## Gotchas (carry forward)
-
 - backups/ untracked — never git add. Repo PUBLIC — real fixtures gitignored. Never push.
 - Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf; always filter by it.
 - Q9 display coloring SETTLED (current-month floor) — don't re-propose next-month.
-- SIM = `__convergenceDebug.convergedProjection`; ENGINE rows = `.forecastResult.data[]`;
-  milestones live on `forecastResult`, not convergedProjection.
-- Floor composition is on each row as `floorItems` + `prePaycheckBillsTotal` — use it, don't
-  reconstruct by hand.
-- vitest failure details on STDERR — use Bash 2>&1, not PowerShell.
+- vitest hides console.log on passing tests — use `--silent=false --reporter=verbose`; failure
+  details on STDERR → Bash with 2>&1, not PowerShell.
 - FLOOR_CUSHION_DOLLARS must stay ≥ convergence toleranceDollars (2 ≥ 1).
-- Manual-min cards can have $0 contract revolving min (PV) — that's why Q10's engine-side
-  fixes hit starvation branches.
+- `pinnedMonths` (manualIsbPins) get NaN targets by DESIGN (payment↔clip two-cycle) — don't
+  "fix" by feeding them targets without understanding forecast-convergence.ts:61-66.
+- Sim monthExpenses already includes car loan/insurance/transfers/savings (useCardProjection
+  :640-642) — the ONLY missing piece was planCashExpensesEarly.
+- `dueSynced` current-month date semantics gotcha from session 5: orthogonal, still untouched.
