@@ -1720,6 +1720,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           {visibleMonths.map((row, localIdx) => {
                         const idx = yearStart + localIdx;
                         const isOverridden = cardOverrides[idx] !== undefined;
+                        // The engine clamps a pin to the month's mandatory obligation (floor) and
+                        // to available cash (ceiling), so the shown payment can differ from what
+                        // the user typed — surface that instead of a silently different number.
+                        const pinnedVal = cardOverrides[idx];
+                        const pinAdjusted = isOverridden && Math.abs(row.payment - (pinnedVal ?? 0)) > 0.5;
                         const isEditingThis = editingMonth?.cardId === proj.card.id && editingMonth?.month === idx;
                         const surplusAmt = perCardPaymentsScaled?.find(p => p.id === proj.card.id)?.surpluses?.[idx] ?? 0;
                         // Displayed Start/End use the shared step3-display adjustment for revolving
@@ -1769,6 +1774,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                             <div className="grid grid-cols-3 gap-x-3 pb-1.5">
                               <div className="px-2 flex flex-col gap-0.5 text-[10px] sm:text-[11px] text-muted-foreground">
                                 <span>Start: {formatCurrency(displayStart, false)}</span>
+                                {pinAdjusted && (
+                                  <span className="text-primary">
+                                    {row.payment > (pinnedVal ?? 0)
+                                      ? `Pinned ${formatCurrency(pinnedVal ?? 0, false)} raised to this month's required payment`
+                                      : `Pinned ${formatCurrency(pinnedVal ?? 0, false)} reduced to available cash`}
+                                  </span>
+                                )}
                                 {row.newPurchases > 0 && <span className="text-destructive">+{formatCurrency(row.newPurchases, false)} purchases</span>}
                                 {row.interest > 0 && <span className="text-destructive">+{formatCurrency(row.interest, true)} interest</span>}
                                 {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt, false)} surplus redirect</span>}
