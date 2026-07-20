@@ -1733,37 +1733,62 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // revolving debt cash as param #20, rebuild sim-derived fields via the pure builder, keep
       // the live-anchored month-0 machinery and look-ahead outputs from this base result. See
       // the CardProjectionResult.resimulateWithDebtCash JSDoc for the month-0 NaN contract.
-      const resimulateWithDebtCash = (target: number[], forecastMaxDebtPaymentByMonth?: number[]): CardProjectionResult => {
-        const simT = simulateVariablePayoff(
-          cards,
-          debtFundingBalance,
-          debtPayoffOptions.cashFloor,
-          debtStrategy,
-          monthlyTakeHome,
-          monthlyExpenses,
-          PROJECTION_MONTHS,
-          simulationMonthEvents,
-          undefined,
-          cardPurchasesPerMonth,
-          m0Income,
-          activeSimM0Expenses,
-          oneTimeArrWithDP,
-          m0SafeFloor,
-          // Forecast's own PASS-2 cap, when supplied, is authoritative for Step 2's cycling-pool
-          // cap during convergence — the same number Step 5's revolving cascade already follows
-          // via `target` below. Without this, cycling-only save-up months (no revolving debt left)
-          // kept following the sim's own, independently-computed look-ahead instead of Forecast's.
-          forecastMaxDebtPaymentByMonth ?? activeSimMaxDebt,
-          augmentedCashFloorByMonth,
-          ccMinInFloorByMonth,
-          installmentChargeByMonth,
-          upfrontPayByMonth,
-          target,
-        );
-        const overrides = buildResimOverrides(simT, {
+      const replayActiveSim = (
+        target?: number[],
+        forecastMaxDebtPaymentByMonth?: number[],
+        pinnedPayments?: { [cardId: string]: Record<number, number> },
+      ) => simulateVariablePayoff(
+        cards,
+        debtFundingBalance,
+        debtPayoffOptions.cashFloor,
+        debtStrategy,
+        monthlyTakeHome,
+        monthlyExpenses,
+        PROJECTION_MONTHS,
+        simulationMonthEvents,
+        undefined,
+        cardPurchasesPerMonth,
+        m0Income,
+        activeSimM0Expenses,
+        oneTimeArrWithDP,
+        m0SafeFloor,
+        // Forecast's own PASS-2 cap, when supplied, is authoritative for Step 2's cycling-pool
+        // cap during convergence — the same number Step 5's revolving cascade already follows
+        // via `target` below. Without this, cycling-only save-up months (no revolving debt left)
+        // kept following the sim's own, independently-computed look-ahead instead of Forecast's.
+        forecastMaxDebtPaymentByMonth ?? activeSimMaxDebt,
+        augmentedCashFloorByMonth,
+        ccMinInFloorByMonth,
+        installmentChargeByMonth,
+        upfrontPayByMonth,
+        target,
+        pinnedPayments,
+      );
+
+      // Pins are baked into the closure (not passed per call) because the convergence loop
+      // always resims FROM BASE — a per-call pin argument would be dropped on every pass
+      // after the first.
+      const makeResimulate = (pinnedPayments?: { [cardId: string]: Record<number, number> }) => {
+        const resim = (target: number[], forecastMaxDebtPaymentByMonth?: number[]): CardProjectionResult => {
+          const simT = replayActiveSim(target, forecastMaxDebtPaymentByMonth, pinnedPayments);
+          const resimFields = buildResimOverrides(simT, {
+            cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth,
+          });
+          return { ...hookResult, ...resimFields, resimulateWithDebtCash: resim };
+        };
+        return resim;
+      };
+      const resimulateWithDebtCash = makeResimulate();
+
+      // Anomaly B: same result rebuilt with user month-pins applied — base sim AND the
+      // resimulateWithDebtCash closure both carry the pins, so a convergence loop run on
+      // the variant keeps them on every pass.
+      const withPaymentOverrides = (pinnedPayments: { [cardId: string]: Record<number, number> }): CardProjectionResult => {
+        const simP = replayActiveSim(undefined, undefined, pinnedPayments);
+        const resimFields = buildResimOverrides(simP, {
           cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth,
         });
-        return { ...hookResult, ...overrides, resimulateWithDebtCash };
+        return { ...hookResult, ...resimFields, resimulateWithDebtCash: makeResimulate(pinnedPayments), withPaymentOverrides };
       };
 
       // Mirrors credit-card-engine's manualStatementByCard eligibility + due-month derivation
@@ -1816,6 +1841,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         manualIsbPins,
         forecastAdjustedRevolvingBalances,
         resimulateWithDebtCash,
+        withPaymentOverrides,
         month0: {
           safeToPayTotal: safeToPayTotalFinal,
           maxCapacity: Math.round(maxCapacity),

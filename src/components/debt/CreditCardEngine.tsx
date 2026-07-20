@@ -27,6 +27,8 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { toast } from 'sonner';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
+import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
+import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import PremiumGate from '@/components/shared/PremiumGate';
 
 import type { Tables } from '@/integrations/supabase/types';
@@ -108,6 +110,7 @@ const PAYMENT_MODE_TIPS = {
 
 export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
+  const { forecastInputsBundle } = useCardProjectionContext();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
   const { items: plaidItems } = usePlaidItems();
@@ -722,8 +725,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }
     }
 
-    // runSim closes over every argument so overrideSim below can re-run the IDENTICAL
-    // simulation with the user's payment pins applied — one allocation model for both.
+    // runSim closes over every argument so overrideData's fallback path below can re-run the
+    // IDENTICAL simulation with the user's payment pins applied — one allocation model for both.
     const runSim = (paymentOverridesByMonth?: Record<string, Record<number, number>>) => simulateVariablePayoff(
       cards, fundingBalance, cashFloor, strategy,
       monthlyTakeHome, monthlyRecurringExpenses, PROJECTION_MONTHS,
@@ -751,16 +754,41 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate,
       paymentPlans, prePaycheckBills.total]);
 
-  // Override-rebalance: when the user pins any month's payment, re-run the exact same
-  // simulation with the pins applied (simulateVariablePayoff's paymentOverridesByMonth param).
-  // The engine deducts each pinned payment from that month's pools and re-allocates the rest
-  // across the other cards under the normal strategy/minimum/floor rules — one model, so every
-  // projection row reconciles. variableSim itself stays override-free: it feeds
-  // recommendedSafeMinimum and other non-override surfaces.
-  const overrideSim = useMemo(
-    () => Object.keys(overrides).length > 0 ? variableSim.runSim(overrides) : null,
-    [variableSim, overrides],
-  );
+  // Override-rebalance (Anomaly B): when the user pins any month's payment, rebuild the
+  // CONTEXT's raw projection with the pins applied (withPaymentOverrides bakes them into both
+  // the base sim and its resimulateWithDebtCash closure) and run the same debt-cash
+  // convergence loop the unpinned view uses — so pinned and unpinned accordion rows share
+  // one converged basis and every row reconciles. runDebtCashConvergence's exhaustion path
+  // returns the pinned single-pass base, the zero-regression guard. variableSim itself stays
+  // override-free: it feeds recommendedSafeMinimum and other non-override surfaces.
+  const overrideData = useMemo(() => {
+    if (Object.keys(overrides).length === 0) return null;
+    const rawBase = forecastInputsBundle.engineInputs.cardProjectionData;
+    if (rawBase?.withPaymentOverrides) {
+      const converged = runDebtCashConvergence(
+        rawBase.withPaymentOverrides(overrides), forecastInputsBundle.engineInputs,
+      ).cardProjection;
+      return {
+        paymentsById: new Map<string, number[]>(converged.perCardPayments.map(p => [p.id, p.payments] as const)),
+        monthlyRevolvingBalances: converged.monthlyRevolvingBalances,
+        monthlyCyclingOwed: converged.monthlyCyclingOwed,
+        monthlyCyclingInterest: converged.monthlyCyclingInterest,
+        monthlyBalances: converged.monthlyBalances,
+        monthlyInterest: converged.monthlyInterest,
+      };
+    }
+    // Fallback (context has no projection — no cards / projection error): legacy single-pass
+    // local sim via runSim, which closes over the identical arguments.
+    const sim = variableSim.runSim(overrides);
+    return {
+      paymentsById: sim.monthlyPayments,
+      monthlyRevolvingBalances: sim.monthlyRevolvingBalances,
+      monthlyCyclingOwed: sim.monthlyCyclingOwed,
+      monthlyCyclingInterest: sim.monthlyCyclingInterest,
+      monthlyBalances: sim.monthlyBalances,
+      monthlyInterest: sim.monthlyInterest,
+    };
+  }, [overrides, forecastInputsBundle.engineInputs, variableSim]);
 
   const monthlySavingsAndCar = useMemo(() => {
     if (pauseSavings) return 0;
@@ -901,18 +929,19 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         (monthData: { [cardId: string]: number }) => monthData[c.id] ?? 0,
       );
       if (paymentMode === 'variable') {
-        // Override-rebalance: when ANY override exists, the override sim re-ran the full
-        // allocation with every pin applied, so it is the ground truth for ALL cards —
-        // pinned months show exactly the (clamped) pin, other cards' payments show their
-        // rebalanced amounts, and every row reconciles against the sim's own balances/interest.
-        if (overrideSim) {
+        // Override-rebalance: when ANY override exists, the converged override projection
+        // re-ran the full allocation with every pin applied, so it is the ground truth for
+        // ALL cards — pinned months show exactly the (clamped) pin, other cards' payments
+        // show their rebalanced amounts, and every row reconciles against the same
+        // converged balances/interest the unpinned view uses.
+        if (overrideData) {
           return projectCardVariable(
-            c, overrideSim.monthlyPayments.get(c.id) ?? [], PROJECTION_MONTHS, true, cardPurchases,
-            overrideSim.monthlyRevolvingBalances.get(c.id) ?? [],
-            overrideSim.monthlyCyclingOwed.get(c.id) ?? [],
-            overrideSim.monthlyCyclingInterest.get(c.id) ?? [],
-            overrideSim.monthlyBalances.get(c.id) ?? [],
-            overrideSim.monthlyInterest.get(c.id) ?? [],
+            c, overrideData.paymentsById.get(c.id) ?? [], PROJECTION_MONTHS, true, cardPurchases,
+            overrideData.monthlyRevolvingBalances.get(c.id) ?? [],
+            overrideData.monthlyCyclingOwed.get(c.id) ?? [],
+            overrideData.monthlyCyclingInterest.get(c.id) ?? [],
+            overrideData.monthlyBalances.get(c.id) ?? [],
+            overrideData.monthlyInterest.get(c.id) ?? [],
           );
         }
         // Raw sim payments (perCardPayments) — the exact amounts that produced the sim balances
@@ -941,7 +970,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrideSim, overrides, perCardPayments, perCardPaymentsScaled, month0, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
+  }, [cards, paymentMode, variableSim, overrideData, overrides, perCardPayments, perCardPaymentsScaled, month0, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
 
   // Cumulative PASS-3 surplus routed to each card — the shared step3-display adjustment, so
   // accordion/chart balances match the Forecast month popup and CSV export. Display-only:
@@ -967,10 +996,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         }
         const m = p.months[i];
         if (m) {
-          // With overrides active, the override sim is the ground truth (matches projections),
-          // and the shared step-3 surplus adjustment no longer corresponds — skip it.
-          const revBal = (overrideSim?.monthlyRevolvingBalances ?? monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(p.card.id)?.[i] ?? 0;
-          const cum = overrideSim ? 0 : (step3CumSurplus.get(p.card.id)?.[i] ?? 0);
+          // With overrides active, the converged override projection is the ground truth
+          // (matches projections), and the shared step-3 surplus adjustment no longer
+          // corresponds — skip it.
+          const revBal = (overrideData?.monthlyRevolvingBalances ?? monthlyRevolvingBalances ?? variableSim.monthlyRevolvingBalances)?.get(p.card.id)?.[i] ?? 0;
+          const cum = overrideData ? 0 : (step3CumSurplus.get(p.card.id)?.[i] ?? 0);
           row[p.card.name] = Math.round(revBal > 0 ? adjustedDisplayBalance(m.endBalance, cum) : m.endBalance);
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
           row[p.card.name] = p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement'
@@ -980,7 +1010,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       }
       return row;
     });
-  }, [projections, monthlyRevolvingBalances, variableSim, overrideSim, step3CumSurplus]);
+  }, [projections, monthlyRevolvingBalances, variableSim, overrideData, step3CumSurplus]);
 
   const utilizationMilestones = useMemo(() => {
     const limit = cards.reduce((s, c) => s + (c.creditLimit ?? 0), 0);

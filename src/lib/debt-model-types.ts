@@ -126,5 +126,10 @@ export interface CardProjectionResult {
    * months agree with Forecast instead of the sim recomputing an independent, possibly
    * disagreeing determination. Omitted ⇒ the sim keeps using its own cap (legacy behavior). */
   resimulateWithDebtCash: (target: number[], forecastMaxDebtPaymentByMonth?: number[]) => CardProjectionResult;
+  /** Anomaly B: this same result rebuilt with user month-pins (sim param #21,
+   * paymentOverridesByMonth) applied — both the base sim AND the returned
+   * resimulateWithDebtCash closure carry the pins, so a convergence loop run on the
+   * variant keeps them on every pass. Optional: fixture snapshots predate it. */
+  withPaymentOverrides?: (pinnedPayments: { [cardId: string]: Record<number, number> }) => CardProjectionResult;
   month0: Month0Result;
 }
