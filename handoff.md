@@ -1,144 +1,40 @@
-# Handoff — 2026-07-20 (session 9) — Anomaly B DESIGNED, not yet implemented
+# Handoff — 2026-07-20 (session 10) — Anomaly B SHIPPED; live verify pending
 
-## State: on `main`, clean except backups/ (untracked, never commit). Local commits `64a1182b` (Anomaly A) + handoff commits are NOT pushed — push only when Tre asks.
+## State: on `main`, clean except backups/ (untracked, never commit). Local commits NOT pushed
+(`64a1182b` Anomaly A, `6459f258` Anomaly B, plus handoff/docs commits) — push only when Tre asks.
 
-## Goal (approved by Tre — implement, don't re-ask)
-Anomaly B: route the pinned-override sim in CreditCardEngine through `runDebtCashConvergence`
-so pinned and unpinned accordion rows share the converged basis. Today
-`CreditCardEngine.tsx:760` builds `overrideSim = variableSim.runSim(overrides)` (single-pass,
-LOCAL sim) and lines 908-916 / 972-973 switch ALL rows to it when any pin exists — the Q4
-divergence class.
+## Done this session — Anomaly B, commit `6459f258` (implemented exactly as designed, no deviations)
+- `src/lib/debt-model-types.ts`: `CardProjectionResult.withPaymentOverrides?` (optional,
+  fixture-compat) — rebuilds the result with user month-pins baked into BOTH the base sim and
+  its `resimulateWithDebtCash` closure, so convergence's FROM-BASE resims keep pins every pass.
+- `src/hooks/useCardProjection.ts`: factored `replayActiveSim(target?, cap?, pins?)` +
+  `makeResimulate(pins?)`; pins thread as sim param #21 (`paymentOverridesByMonth`);
+  `withPaymentOverrides` added to hookResult.
+- `src/components/debt/CreditCardEngine.tsx`: `overrideSim` → `overrideData` memo — reads the
+  context's RAW `forecastInputsBundle.engineInputs.cardProjectionData`, runs
+  `runDebtCashConvergence(rawBase.withPaymentOverrides(overrides), engineInputs)`, exposes
+  `paymentsById` + the five monthly maps; legacy single-pass `variableSim.runSim(overrides)`
+  kept only as the no-context fallback. Consumers at projections/debtChartData updated
+  (dep arrays included); zero `overrideSim` references remain.
+- New test `src/lib/__tests__/forecast-convergence.pinnedOverride.test.ts` (harness cloned from
+  realData test, self-skips without fixture): picks pinnable card+month from the unpinned
+  converged run, pins payment−$25, asserts converged AND pin survives ±$1. Passed first try:
+  Prime Visa m1, pin $983, converged 18 passes.
+- Verify: `tsc` clean, 213/213 green (212 prior + new), goldens untouched. graphify updated.
+- Backups: `backups/2026-07-20_182906/` (taken last session, still valid for these files).
 
-## Design (fully derived this session — code read, plan settled, NO source edits made yet)
+## NEXT — live verify (only remaining Anomaly B step)
+On localhost:8080 /debt (Tre's dev-server session; prod has no session): pin a month (e.g. PV
+Aug 2026 → $100), confirm pinned AND unpinned rows shift to the converged basis and reconcile,
+Anomaly A clamp note ("Pinned $X raised to …") still renders, Revert All restores. Then mark
+Anomaly B live-verified in memory.
 
-Backups already taken: `backups/2026-07-20_182906/` has CreditCardEngine.tsx,
-useCardProjection.ts, debt-model-types.ts.
-
-### Key facts established by reading code
-- `simulateVariablePayoff` (credit-card-engine.ts:677): param #20 = `debtCashTargetByMonth`,
-  param #21 = `paymentOverridesByMonth` ({cardId: {monthIdx: totalPayment}}, clamped to
-  [required min, available cash]).
-- `useCardProjection.ts:1736` `resimulateWithDebtCash(target, cap)` replays the ACTIVE sim's
-  exact args (cards, debtFundingBalance, debtPayoffOptions.cashFloor, debtStrategy,
-  monthlyTakeHome, monthlyExpenses, PROJECTION_MONTHS, simulationMonthEvents, undefined,
-  cardPurchasesPerMonth, m0Income, activeSimM0Expenses, oneTimeArrWithDP, m0SafeFloor,
-  `cap ?? activeSimMaxDebt`, augmentedCashFloorByMonth, ccMinInFloorByMonth,
-  installmentChargeByMonth, upfrontPayByMonth, target) then
-  `{...hookResult, ...buildResimOverrides(simT, {cards, cardPurchasesPerMonth, now,
-  saveUpMonths, maxDebtPaymentByMonth}), resimulateWithDebtCash}`. It NEVER passes param #21 —
-  that's the hole. Convergence always resims FROM BASE, so pins must be baked into the
-  closure, not passed per call.
-- `runDebtCashConvergence(base, engineInputs)` replaces `engineInputs.cardProjectionData`
-  with `base` internally — passing the raw bundle engineInputs is fine.
-- CreditCardEngine is rendered ONLY by DebtPayoff.tsx (line 357), which is inside
-  CardProjectionProvider — so CreditCardEngine can call `useCardProjectionContext()` and read
-  `forecastInputsBundle.engineInputs` (whose `.cardProjectionData` is the RAW pre-convergence
-  hook result).
-- CardProjectionResult type lives in `src/lib/debt-model-types.ts`.
-- Anomaly A clamp note (CreditCardEngine.tsx:1720-1783) reads `row.payment` from
-  `projections` — keeps working as long as projections come from the converged override data.
-- Context's `debtPayoffOptions.overrides` is hardcoded `{}` (CardProjectionContext.tsx:143);
-  the hook never sees pins. Pins are LOCAL state in CreditCardEngine (`overrides`).
-
-### Step 1 — debt-model-types.ts: add to CardProjectionResult (optional, fixture compat):
-```ts
-/** Anomaly B: this same result rebuilt with user month-pins (sim param #21,
- * paymentOverridesByMonth) applied — both the base sim AND the returned
- * resimulateWithDebtCash closure carry the pins, so a convergence loop run on the
- * variant keeps them on every pass. Optional: fixture snapshots predate it. */
-withPaymentOverrides?: (pinnedPayments: { [cardId: string]: Record<number, number> }) => CardProjectionResult;
-```
-
-### Step 2 — useCardProjection.ts: replace lines 1736-1767 with
-```ts
-const replayActiveSim = (
-  target?: number[],
-  forecastMaxDebtPaymentByMonth?: number[],
-  pinnedPayments?: { [cardId: string]: Record<number, number> },
-) => simulateVariablePayoff(
-  /* same 19 args as today's resimulateWithDebtCash, keeping the existing
-     PASS-2-cap comment */, forecastMaxDebtPaymentByMonth ?? activeSimMaxDebt,
-  augmentedCashFloorByMonth, ccMinInFloorByMonth, installmentChargeByMonth,
-  upfrontPayByMonth, target, pinnedPayments,
-);
-
-const makeResimulate = (pinnedPayments?: { [cardId: string]: Record<number, number> }) => {
-  const resim = (target: number[], forecastMaxDebtPaymentByMonth?: number[]): CardProjectionResult => {
-    const simT = replayActiveSim(target, forecastMaxDebtPaymentByMonth, pinnedPayments);
-    const resimFields = buildResimOverrides(simT, { cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth });
-    return { ...hookResult, ...resimFields, resimulateWithDebtCash: resim };
-  };
-  return resim;
-};
-const resimulateWithDebtCash = makeResimulate();
-
-const withPaymentOverrides = (pinnedPayments: { [cardId: string]: Record<number, number> }): CardProjectionResult => {
-  const simP = replayActiveSim(undefined, undefined, pinnedPayments);
-  const resimFields = buildResimOverrides(simP, { cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth });
-  return { ...hookResult, ...resimFields, resimulateWithDebtCash: makeResimulate(pinnedPayments), withPaymentOverrides };
-};
-```
-(rename the current local `overrides` from buildResimOverrides to `resimFields` to avoid
-clashing) and add `withPaymentOverrides,` to `hookResult` (~line 1818).
-
-### Step 3 — CreditCardEngine.tsx
-- Imports: `useCardProjectionContext` from '@/contexts/CardProjectionContext',
-  `runDebtCashConvergence` from '@/lib/forecast-convergence'.
-- In component: `const { forecastInputsBundle } = useCardProjectionContext();`
-- Replace the `overrideSim` memo (754-763) with `overrideData`:
-```ts
-const overrideData = useMemo(() => {
-  if (Object.keys(overrides).length === 0) return null;
-  const rawBase = forecastInputsBundle.engineInputs.cardProjectionData;
-  if (rawBase?.withPaymentOverrides) {
-    const converged = runDebtCashConvergence(
-      rawBase.withPaymentOverrides(overrides), forecastInputsBundle.engineInputs,
-    ).cardProjection;
-    return {
-      paymentsById: new Map<string, number[]>(converged.perCardPayments.map(p => [p.id, p.payments] as const)),
-      monthlyRevolvingBalances: converged.monthlyRevolvingBalances,
-      monthlyCyclingOwed: converged.monthlyCyclingOwed,
-      monthlyCyclingInterest: converged.monthlyCyclingInterest,
-      monthlyBalances: converged.monthlyBalances,
-      monthlyInterest: converged.monthlyInterest,
-    };
-  }
-  // Fallback (context has no projection — no cards / projection error): legacy single-pass.
-  const sim = variableSim.runSim(overrides);
-  return { paymentsById: sim.monthlyPayments, monthlyRevolvingBalances: sim.monthlyRevolvingBalances,
-    monthlyCyclingOwed: sim.monthlyCyclingOwed, monthlyCyclingInterest: sim.monthlyCyclingInterest,
-    monthlyBalances: sim.monthlyBalances, monthlyInterest: sim.monthlyInterest };
-}, [overrides, forecastInputsBundle.engineInputs, variableSim]);
-```
-- Consumers: lines 908-916 use `overrideData.paymentsById.get(c.id) ?? []` + the maps;
-  line 972 `(overrideData?.monthlyRevolvingBalances ?? …)`; line 973
-  `overrideData ? 0 : …`; dep arrays at 944 and 983 swap overrideSim→overrideData.
-  Update comments at 725-726, 754-759, 904-907 (convergence-based now; runSim stays for the
-  fallback). runDebtCashConvergence's exhaustion fallback returns the pinned single-pass
-  base — zero-regression guard, no extra handling needed.
-- NOT extending convergence's `pinnedMonths` (manualIsbPins NaN-target exclusion) to
-  user-pinned months: a user pin fixes ONE card, others still need target feedback. If a
-  fully-pinned month ever oscillates, the base fallback covers it. Deliberate.
-
-### Step 4 — new test `src/lib/__tests__/forecast-convergence.pinnedOverride.test.ts`
-Clone the harness from forecast-convergence.realData.test.ts verbatim (fixture revive, fake
-Date, renderHook(useCardProjection), paymentPlans fallback). Then:
-1. `const unpinned = runDebtCashConvergence(base, inputs)`; from its `.cardProjection`, find
-   the first card+month m in 1..12 with start-of-month revolving balance > 500 (from
-   `monthlyRevolvingBalances[m-1]`) and `payments[m] >= (perCardMinPayments.get(id)[m] ?? 0) + 50`.
-2. `pin = payments[m] - 25`; `pinnedBase = base.withPaymentOverrides!({ [id]: { [m]: pin } })`.
-3. `out = runDebtCashConvergence(pinnedBase, inputs)`; assert `out.converged === true` and
-   converged pinned card's payment at m is within $1 of pin (pin sits strictly between min
-   and available cash, so no clamp) — this proves the pin survived every resim pass.
-Self-skip when fixture absent (same maybeIt pattern).
-
-### Step 5 — verify
-- Full suite via Bash (failures land on STDERR → `npx vitest run 2>&1`); expect 212+new green.
-  Goldens should be UNTOUCHED (no behavior change when no pins).
-- Live verify on localhost:8080 /debt (Tre's session, tab may be open): pin a month (e.g. PV
-  Aug 2026 → $100), confirm pinned AND unpinned rows shift to converged basis and reconcile,
-  clamp note still renders, Revert All restores.
-- Commit locally `[debt]: Anomaly B — converge pinned-override projections …`; no push.
+## Design notes that survive (don't re-derive)
+- Pins live in the closure, NOT a per-call arg — convergence always resims FROM BASE.
+- Deliberately NOT extending convergence's `pinnedMonths` NaN-exclusion to user pins: a user pin
+  fixes ONE card, others still need target feedback; exhaustion fallback (pinned single-pass
+  base) covers a fully-pinned oscillating month.
+- runDebtCashConvergence's exhaustion path returns the pinned base — zero-regression guard.
 
 ## Gotchas (carry forward)
 - backups/ untracked — never git add. Repo PUBLIC — real fixtures gitignored. Never push unless asked.
@@ -150,7 +46,7 @@ Self-skip when fixture absent (same maybeIt pattern).
 - Payoff pins are Jul 2027 everywhere (incl. goldenTierA). Fixture has native paymentPlans
   (recaptured 07-20); harness loadRealPaymentPlans() fallback is dormant.
 - manualISB test titles say "(2026-07-15)" — cosmetically stale, clock derives from capturedAt.
-- perCardPayments are ROUNDED ints; Anomaly A clamp-note threshold is 0.5 — fine with ±$1 test tolerance.
+- perCardPayments are ROUNDED ints; Anomaly A clamp-note threshold is 0.5 — fine with ±$1 tolerance.
 
 ## Also queued (unchanged)
 - Optional hardening (discuss first): sim/engine cash-walk divergence warning; Step-5 drain
