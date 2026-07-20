@@ -53,11 +53,10 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
   maybeIt('clock=capturedAt (2026-07-15): converges with no floor breach and the live payoff', () => {
     const { out, ccFree, floorBreaches } = runScenario(0);
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
-    // Re-pinned 2026-07-20 (Q12 floor cutoff + real paymentPlans in the harness): 18 passes —
-    // AT the maxPasses=18 budget, converging on the final allowed pass. Zero regression margin
-    // left; the converged assertion above is the only remaining cliff guard. Was 16 pre-Q12
-    // (and 10 on main with plans), so Q12 measurably slows convergence on this fixture —
-    // flagged for a maxPasses/damping decision before merge.
+    // Re-pinned 2026-07-20 (Q12 floor cutoff + real paymentPlans in the harness): 18 passes.
+    // Was 16 pre-Q12 (and 10 on main with plans) — Q12 measurably slows convergence on this
+    // fixture. Default maxPasses was bumped 18→24 the same day so the observed 18 sits below
+    // the budget with margin; this pin guards the observed count, not the budget.
     expect(out.passes, 'pass count regressed past the budget cliff').toBeLessThanOrEqual(18);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
     expect(ccFree!.month, 'payoff month regressed').toBe('Jul 2027');
