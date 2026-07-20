@@ -1,4 +1,27 @@
-# Handoff — 2026-07-20 (session 10) — Anomaly B SHIPPED; live verify pending
+# Handoff — 2026-07-20 (session 10) — Anomaly B SHIPPED; live verify MOSTLY DONE
+
+## LIVE VERIFY RESULT (this session, context-gated mid-verify)
+On localhost:8080 /debt (Tre logged into DEV server), pinned Prime Visa Aug 2026 → $100:
+- Anomaly A clamp note RENDERS: "Pinned $100 raised to this month's required payment";
+  payment shows -$511 with "edited" badge (matches the $510.50 mandatory-obligation clamp).
+- Rows rebalanced on the new basis with NO errors: Aug end $6,453 (was $5,956 pre-pin),
+  Sep -$1,215 end $5,428; TOTAL INTEREST $58→$103; toast "Payment override applied — other
+  cards rebalanced"; "overrides" badge + "Revert All" appeared.
+- REMAINING (quick): (1) scroll to an UNPINNED card (Discover) and confirm its rows also sit
+  on the converged basis (payments shift vs pre-pin, rows reconcile); (2) click Revert All and
+  confirm restore to the unpinned converged view (pre-pin PV: Aug -$1,008 end $5,956, Sep
+  -$1,215 end $4,919). Pin is ephemeral component state (useState) — a page reload also clears
+  it, so re-pin if needed. Then mark Anomaly B fully live-verified in
+  memory/project_cycling_debt_engine.md + MEMORY.md index line.
+
+## NEW BACKLOG from Tre (2026-07-20, not started — triage next session)
+- Supabase deprecation: GOTRUE_JWT_DEFAULT_GROUP_NAME not supported by GoTrue, removal soon —
+  find where it's set (Supabase project auth config/env) and remove/migrate.
+- Google Play (release 5.44) recommendations, Android 15 edge-to-edge: deprecated
+  Window.setStatusBarColor / setNavigationBarColor (from minified "n1.c.a" — likely a Capacitor
+  plugin, e.g. @capacitor/status-bar — check plugin versions before touching code); plus R8:
+  optimization off, 25% obfuscation/shrink rates, AGP upgrade to 9.0+ suggested. Advisory, not
+  blocking; builds are CI-owned (see reference_cicd.md).
 
 ## State: on `main`, clean except backups/ (untracked, never commit). Local commits NOT pushed
 (`64a1182b` Anomaly A, `6459f258` Anomaly B, plus handoff/docs commits) — push only when Tre asks.
