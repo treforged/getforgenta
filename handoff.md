@@ -1,6 +1,38 @@
-# Handoff — 2026-07-21 (session 15 → 16) — NEW confirmed bug + Tre-approved fix: month-0 debt cap under-counts outflows → Discover overpays, current month breaches floor. Savings framing CLOSED (WAI).
+# Handoff — 2026-07-21 (session 16 → 17) — month-0 debt-cap fix SHIPPED (commit 0e79c5c0, local only); ⚠️ still needs LIVE verification against Tre's July numbers (fix explains only ~$25 of the ~$179 gap by static analysis).
 
-## IN PROGRESS (session 15, diagnosed + Tre approved "full lean-fix", NOT yet edited) — Discover doesn't pull back to meet current-month floor
+## DONE this session (16) — commit `0e79c5c0` (local, NOT pushed) — month-0 debt cap now mirrors engine cashPreDebt
+Applied the Tre-approved fix from session 15's diagnosis (details preserved below under "IN PROGRESS (session 15)").
+- **Edit:** `src/hooks/useCardProjection.ts` — `cashPreDebt` (the `availableForRevolving` cap input, ~line 1638)
+  now subtracts `- m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet`, mirroring `forecast-engine.ts:1106`.
+  All three terms were already in scope. `m0OneTimeNet = oneTimeArr[0].income - oneTimeArr[0].expenses`;
+  `oneTimeArr[0]` is force-zeroed in this hook so the term is 0 today but kept for engine parity. Did NOT
+  reuse `m0ExtraOutflow` (would double-count savings/car/vehicle/mortgage already covered above).
+- **Test:** new `src/hooks/__tests__/useCardProjection.month0TransferFloor.test.ts` — runs the hook with and
+  without a post-cutoff month-0 investment rule (checking-sourced, due day 28) and asserts
+  `month0.safeToPayTotal` drops dollar-for-dollar (±$5) when the floor cap is binding. Passes.
+- **Verify:** full suite 216/216 green (215 prior + 1 new), tsc clean, NO golden re-pins (goldenTierA still
+  Jul 2027). graphify updated. Backup: `backups/2026-07-21_194610/src/hooks/useCardProjection.ts`.
+
+### ⚠️ NOT YET LIVE-VERIFIED — carry this into session 17
+Static analysis (session 15) only attributed **$25** (Tre's Roth IRA transfer rule) of the observed **~$179**
+current-month floor gap to this bug. The fix subtracts that $25 (and any lump/one-time) correctly, but the
+remaining **~$154 is still unexplained** and may be a SEPARATE issue:
+  (a) `m0Income` vs forecast `netIncome` drift (~$20, code comment `useCardProjection.ts:379-381`);
+  (b) the displayed breakdown itself doesn't sum (screenshot lines totalled $3,121 but Ending showed $2,966,
+      ~$155 hidden) — likely **cycling debt on Prime Visa** folded into `monthDebtPayment`
+      (`forecast-engine.ts:1121` ledgerEntry.total) but not shown as its own popup line (per-card scaling
+      `Forecast.tsx:973-978`).
+**Next step:** have Tre reload the live app and report the current-month Ending Cash vs the $3,145 augmented
+floor. If Ending rose only by ~$25 and is still ~$154 below, investigate (a)/(b) as a follow-up bug — do NOT
+assume this commit closed the whole gap. If Ending now meets the floor, close it.
+
+Supabase facts (session 15, still current): user_id `a72f416e-433a-4055-9ab0-9feae4e60edf`, project
+`mdtosrbfkextcaezuclh`, cash_floor $2,700 base / $3,145 augmented July. Discover bal $9,608.64 min $253 due 1;
+Prime Visa bal $6,677.62 min $0 due 7; Apple/VX $0. Roth IRA rule $25/mo due 28 start 2026-07-15.
+
+---
+
+## IN PROGRESS (session 15, diagnosed + Tre approved "full lean-fix") — [SHIPPED session 16, see above] Discover doesn't pull back to meet current-month floor
 **Symptom (Tre, live):** July 2026 (current month) Ending Cash $2,966 < augmented floor $3,145 (~$179 below).
 Tre: "shouldn't Discover payment this month just pull back to meet floor? why isn't it?"
 
