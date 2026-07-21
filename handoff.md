@@ -1,41 +1,98 @@
-# Handoff — 2026-07-21 (session 14 → 15) — paycheck-display FIXED + NEW in-progress: savings breaches current-month floor
+# Handoff — 2026-07-21 (session 15 → 16) — NEW confirmed bug + Tre-approved fix: month-0 debt cap under-counts outflows → Discover overpays, current month breaches floor. Savings framing CLOSED (WAI).
 
-## IN PROGRESS (session 14, NOT yet started implementing) — "current month drops below cash floor when it is saveable"
-Tre's new report (right after the paycheck fix): the CURRENT month's End Cash goes below the cash
-floor, and the culprit is discretionary **savings**. "when it is saveable" = the money pushing it
-below is savings (goals + car-fund saving-phase contributions), which is skippable — so it should
-NOT force a floor breach.
+## IN PROGRESS (session 15, diagnosed + Tre approved "full lean-fix", NOT yet edited) — Discover doesn't pull back to meet current-month floor
+**Symptom (Tre, live):** July 2026 (current month) Ending Cash $2,966 < augmented floor $3,145 (~$179 below).
+Tre: "shouldn't Discover payment this month just pull back to meet floor? why isn't it?"
 
-**Diagnosis so far (high confidence, code-confirmed, NOT yet verified against Tre's live numbers):**
-- `src/lib/forecast-engine.ts` Step 1 (line ~1102-1106): `savingsOut = monthlySavingsContrib +
-  carContribThisMonth` is subtracted as a plain outflow in `cashPreDebt` BEFORE the debt step.
-- Only DEBT payments are floor-aware (Step 2/3, lines ~1108-1169: the sim clamps debt down to stay
-  above `step3SpendFloor`). Savings has NO floor cap.
-- There IS a global `pauseSavings` boolean (forecast-engine line 115, 259, 349) that zeroes ALL
-  savings+car contributions, but it's an all-or-nothing user toggle, not a per-month floor guard.
-- So when savings is on and savings > headroom above floor, the current month shows a (arguably
-  false) floor breach. Tre wants savings to yield to the floor.
-- POSSIBLE INTERACTION w/ the paycheck fix (same session): month 0's `b.netIncome` is REMAINING
-  income (post-sync, partial) but `monthlySavingsContrib` is the FULL month amount (line 872, not
-  prorated). If part of the month elapsed, full savings is subtracted against partial income →
-  month 0 can dip below floor. Worth checking whether savings should be prorated/remaining for
-  month 0 the same way income is. (Our chip change was display-only; it did NOT change this math,
-  but it made the reduced current-month income visible, which may be why Tre noticed the breach now.)
+**Root cause (code-confirmed, live-data-confirmed):** Discover's real minimum is only **$253** (Prime Visa
+min $0), but it's paying **$1,479** — a discretionary avalanche paydown, NOT a forced minimum. The
+month-0 revolving-payment cap DOES clamp to the augmented floor
+(`src/hooks/useCardProjection.ts:1639-1642`: `availableForRevolving = Math.max(ccMinForMonth,
+max(0, cashPreDebt - m0FloorAugmented - cyclingPayment))`), but the **cash figure it caps against is
+too high**:
+- `useCardProjection.ts:1638`: `const cashPreDebt = debtFundingBalance + m0Income - m0Expenses
+  - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment;`
+- vs the real End-Cash math `src/lib/forecast-engine.ts:1106` which ALSO subtracts **`transfersOut`**
+  (= `b.monthTransfers`, incl. Tre's **$25 Roth IRA investment rule**), **`lumpTransferThisMonth`**
+  (goal lump-sum transfers), and applies **`+ b.oneTimeNet`**.
+- `monthlySavingsAndCar` (`useCardProjection.ts:1216` = goalContrib + carReserve + carLoanTotal) does
+  NOT include investment/transfer rules, so the $25 (+ lump + one-time) escape the cap. Cap thinks it
+  has ~$179 more spendable-above-floor than reality → authorizes ~$179 too much Discover paydown → the
+  Forecast row lands $179 below the displayed floor. (The floor itself matches: `m0FloorAugmented`
+  uses the same `getAugmentedMinSafeCash`, `useCardProjection.ts:1620-1629`.)
 
-**NEXT STEPS (do these in order):**
-1. Pull Tre's live data to CONFIRM savings is the cause & quantify (queries half-done this session):
-   `savings_goals` (contribution amounts, contribution_start_date, linked_account, active),
-   `car_funds` (phase='saving', monthly contribution fields), profile `cash_floor`, funding-account
-   balance. user_id `a72f416e-433a-4055-9ab0-9feae4e60edf`, project `mdtosrbfkextcaezuclh`. Tables
-   confirmed: `savings_goals`, `car_funds`. (recurring_rules/budget_items are the rule tables.)
-2. **STOP and ask Tre (AMBIGUITY RULE — this is a financial-engine behavior change w/ debt-engine
-   ripple):** desired behavior + scope. Key decisions: (a) cap savings to protect the floor
-   automatically vs keep manual `pauseSavings`? (b) current-month only, or all months? (c) reduce
-   goal savings, car-fund saving, or both, and in what priority vs debt? (d) is this really the
-   month-0 partial-income-vs-full-savings mismatch (→ prorate month-0 savings) OR a general
-   "savings must respect floor" rule? These are different fixes — do NOT guess.
-3. Only then implement (lean-fix: strong model owns root-cause; backup to ./backups/ first; keep
-   diff scoped; tsc + pay-schedule/forecast tests; `python -m graphify update .`; commit local only).
+**THE FIX (Tre approved "Yes — fix it (full lean-fix)"):** make `useCardProjection.ts:1638` mirror
+`forecast-engine.ts:1106` by subtracting the missing month-0 outflows. Both needed values are ALREADY
+in scope:
+- `m0Transfers` (`useCardProjection.ts:750-777`, remaining-after-cutoff transfer total; the $25).
+- `lumpTransferByMonth[0]` (`useCardProjection.ts:717`).
+- one-time net for month 0 (`oneTimeArr[0]` .income/.expenses; $0 for Tre's July, but add for parity —
+  forecast does `+ b.oneTimeNet`).
+So: `cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar
+- m0VehicleInsurance - m0MortgagePayment - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet`.
+**DO NOT add all of `m0ExtraOutflow` (line 797)** — it re-includes m0Savings/m0CarSaving/carLoan/
+vehicle/mortgage already covered by `monthlySavingsAndCar` + `m0VehicleInsurance` + `m0MortgagePayment`
+→ double-count. Only the 3 terms above are missing.
+
+**⚠️ UNRESOLVED — VERIFY BEFORE CLAIMING FIXED:** static analysis only accounts for $25 (transfers) of
+the observed ~$179 gap. The other ~$154 is NOT yet explained and may be a SEPARATE issue:
+(a) acknowledged `m0Income` vs forecast `netIncome` drift (~$20, code comment `useCardProjection.ts:379-381`);
+(b) the displayed breakdown itself doesn't sum — screenshot lines total $3,121 but Ending shows $2,966
+(~$155 hidden), likely **cycling debt on Prime Visa** folded into `monthDebtPayment`
+(`forecast-engine.ts:1121` ledgerEntry.total) but not shown as its own popup line (per-card scaling
+`Forecast.tsx:973-978`). Next agent MUST instrument/verify Tre's actual numbers (or a test) to confirm
+whether the transfers fix fully closes the floor gap or only partially — do NOT report "fixed" on the
+one-line change alone.
+
+**EXECUTION CHECKLIST (next session):**
+1. `git`/backup: copy `src/hooks/useCardProjection.ts` to `./backups/YYYY-MM-DD_HHMMSS/src/hooks/`.
+2. Edit line 1638 as above (add `- m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet`).
+3. Add a regression test mirroring existing floor tests (e.g. `pay-schedule.augmentedFloorInsurance`
+   or the `pinnedOverride`/`useCardProjection.carEarmark` patterns): a monthly transfer rule in month 0
+   must reduce `month0.safeToPayTotal` (or keep Ending ≥ floor). vitest: `--silent=false --reporter=verbose`.
+4. Run FULL suite (`npm test`) — watch goldenTierA payoff (currently pinned **Jul 2027**) for re-pins;
+   this cap change can shift tuned convergence. If a golden re-pins, confirm it's intended before repinning.
+5. `tsc` clean; `python -m graphify update .`; commit LOCAL only (never push). Backup path in summary.
+6. Verify against Tre's live July: Ending Cash should rise toward the $3,145 floor. If still below after
+   the transfers fix, investigate the ~$154 cycling/income residual (item ⚠️ above) as a follow-up.
+
+Supabase facts (confirmed session 15): user_id `a72f416e-433a-4055-9ab0-9feae4e60edf`, project
+`mdtosrbfkextcaezuclh`, cash_floor $2,700 (base) / $3,145 (augmented July). Discover bal $9,608.64
+min $253 apr 19.49 due_day 1; Prime Visa bal $6,677.62 min $0 due_day 7; Apple/Venture X $0. Liquid:
+TOTAL CHECKING $1,999.65, Checking $5, General Operations $57.24, Savings $106.17. Investment rules:
+"Roth IRA" $25/mo rule_type=investment due_day 28 start 2026-07-15 → Roth IRA acct; "Robinhood
+Contributions" $25 due_day 5 (settled pre-cutoff, excluded from remaining). Car fund in `loan` phase.
+
+## CLOSED this session (15) — "current month drops below cash floor because of savings" = WORKING AS INTENDED, no code change (savings framing only)
+Tre's report: July 2026 (current month) End Cash goes below the cash floor and he attributed it to
+discretionary **savings** ("when it is saveable"). Investigated end-to-end against live Supabase
+data (user_id `a72f416e-433a-4055-9ab0-9feae4e60edf`). Findings:
+
+- **Session 14's diagnosis was WRONG.** `monthlySavingsContrib` (savings goals) and car saving-phase
+  contribs are BOTH $0 in the current month:
+  - 401K Roth ($236.82) + Roth IRA ($0) → linked to retirement accounts (`401k`/`roth_ira`) →
+    excluded as paycheck deductions (`forecast-engine.ts:874`, retireTypes `['roth_ira','401k','ira','hsa']`).
+  - Brokerage ($25) + Emergency Fund ($100) → `contribution_start_date = 2027-01-28` → not active
+    until Jan 2027 (`forecast-engine.ts:873`).
+  - Car fund is in `loan` phase (purchased 2026-06-21) → no saving-phase contribution.
+  - So `savingsOut = 0` for July. The month-0 proration hypothesis was moot (nothing to prorate).
+- **The real "− Roth IRA $25" line** Tre saw is a **recurring rule** (NOT a savings goal): name
+  "Roth IRA", `rule_type='investment'`, $25/mo, due_day 28, start 2026-07-15, deposits into the
+  Roth IRA account. Engine folds `investment`+`transfer` rules into `transferRulesAll`
+  (`forecast-engine.ts:551`) → `monthTransfers` → `transfersOut` → subtracted in `cashPreDebt`
+  (line 1104/1106) with NO floor guard. A second $25 investment rule ("Robinhood Contributions",
+  due_day 5) is settled before syncCutoffDate 2026-07-20, so only the due-28 Roth IRA one shows in
+  the "remaining of month" breakdown. Display is internally consistent.
+- **The breach is mostly STRUCTURAL, not savings.** July: Current Cash ~$2,000, Ending ~$2,966 vs
+  augmented floor $3,145 (= base cash_floor $2,700 + ~$445 reserved upcoming bills). Even zeroing
+  the $25 leaves ~$2,991 < $3,145. Debt (Discover $1,479) is already floor-clamped to the BASE
+  floor; the augmented floor sits above remaining cash because current liquid is genuinely low.
+- **Tre's decision (AskUserQuestion, session 15): "Keep honest (leave as real outflows)" — NO engine
+  change.** The scheduled auto-contributions are real money movements; the forecast should show them
+  firing and the honest below-floor result, not optimistically assume he'll pause them. The global
+  `pauseSavings` toggle already models pausing if he wants it. **DO NOT re-open / do not add
+  per-month savings floor-suppression** unless Tre explicitly reverses this.
+- No files changed, no commit (other than this handoff), no backup this session.
 
 ## DONE this session (14) — commit `3d1832d5` (local, NOT pushed) — "missing paycheck this month" = NOT a bug, display-only UX fix
 Screen was the Forecast **current-month row**. Root cause: current-month `+Income` shows only
