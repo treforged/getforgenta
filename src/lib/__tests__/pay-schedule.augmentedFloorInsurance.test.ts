@@ -65,3 +65,38 @@ describe('getAugmentedMinSafeCash — car insurance', () => {
     expect(floorItems.find(i => i.name === 'No Insurance Car insurance')).toBeUndefined();
   });
 });
+
+// Regression (Tre, 2026-07-20): a loan whose first payment + insurance begin NEXT month, due
+// before next month's first paycheck, must be reserved in THIS month's floor. Two Q12 leftovers
+// dropped them: the car loop sourced its payment as-of `now` (loan not active yet → nothing), and
+// dueSynced tested a CURRENT-month date for what is really a next-month obligation, so any Plaid
+// sync past the due-day silently nuked the reservation. These loops only ever reserve next-month
+// obligations, which can never be already-synced.
+describe('getAugmentedMinSafeCash — obligations that begin next month', () => {
+  const julyNow = new Date(2026, 6, 20); // 2026-07-20; weekly Fri paychecks, Aug first = Aug 7
+  const weeklyFri = buildPayConfig({ weekly_gross_income: 1093, paycheck_frequency: 'weekly', paycheck_day: 5 });
+  const treCar: Partial<CarFund> = {
+    id: 'car1', vehicle_name: 'C5', phase: 'loan',
+    planned_purchase_date: '2026-06-21', loan_start_date: '2026-06-21',
+    payment_start_date: '2026-08-07', interest_start_date: '2026-08-07',
+    loan_amount: 16530, actual_monthly_payment: 422.89, monthly_insurance: 173.23,
+    expected_apr: 10.18, loan_term_months: 48,
+    target_price: 21070, down_payment_goal: 7700, current_saved: 1084.53,
+  };
+
+  const runJuly = (syncCutoffDate?: string) =>
+    getAugmentedMinSafeCash([], weeklyFri, 1000, null, julyNow, [treCar as CarFund], null, 0, syncCutoffDate);
+
+  it('reserves next-month car payment + insurance the month before they begin (no Plaid sync)', () => {
+    const { floorItems } = runJuly(undefined);
+    expect(floorItems.find(i => i.name === 'C5 loan')?.amount).toBeCloseTo(422.89, 2);
+    expect(floorItems.find(i => i.name === 'C5 insurance')?.amount).toBeCloseTo(173.23, 2);
+  });
+
+  it('still reserves them when Plaid has synced past their day-of-month (dueSynced must not fire on next-month bills)', () => {
+    const { floorItems, prePaycheckBillsTotal } = runJuly('2026-07-18');
+    expect(floorItems.find(i => i.name === 'C5 loan')?.amount).toBeCloseTo(422.89, 2);
+    expect(floorItems.find(i => i.name === 'C5 insurance')?.amount).toBeCloseTo(173.23, 2);
+    expect(prePaycheckBillsTotal).toBeCloseTo(422.89 + 173.23, 2);
+  });
+});

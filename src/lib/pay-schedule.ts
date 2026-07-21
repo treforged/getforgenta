@@ -816,7 +816,10 @@ export function getAugmentedMinSafeCash(
   for (const cf of carFunds ?? []) {
     if (!cf.payment_start_date) continue;
     const loanDueDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
-    if (dueSynced(loanDueDay)) continue;
+    // NOT gated by dueSynced: post-Q12 this loop only ever reserves a NEXT-month payment (see
+    // duePostPaycheck), which can never be a payment Plaid already captured this month. dueSynced
+    // builds a CURRENT-month date, so leaving it here dropped legitimate next-month reservations
+    // for any user whose Plaid sync ran past the loan's day-of-month.
     if (duePostPaycheck(loanDueDay)) continue;
     // A saving-phase car's PROJECTED loan participates in the floor exactly like the real loan
     // it becomes at activation — synthesized with the same frozen-equal substitutions activation
@@ -830,7 +833,11 @@ export function getAugmentedMinSafeCash(
       loan_start_date: cf.planned_purchase_date ?? cf.payment_start_date,
       interest_start_date: cf.payment_start_date, actual_monthly_payment: 0,
     };
-    const carPayments = getActiveCarLoanPayments([effective], now);
+    // Evaluate the payment as of NEXT month, not `now`: the floor reserves the payment that will
+    // fall due next month before its first paycheck, so a loan whose FIRST payment is next month
+    // must contribute here (as-of `now` it isn't active yet and returned nothing — the reason the
+    // car payment vanished from the floor the month before the loan began).
+    const carPayments = getActiveCarLoanPayments([effective], nextMonthStart);
     for (const cp of carPayments) {
       prePaycheckBillsTotal += cp.payment;
       floorItems.push({ name: cf.vehicle_name + ' loan', amount: cp.payment, dueDay: loanDueDay });
@@ -846,11 +853,15 @@ export function getAugmentedMinSafeCash(
     if (insurance <= 0) continue;
     const anchorDate = cf.phase === 'loan' ? cf.loan_start_date : (cf.loan_start_date ?? cf.planned_purchase_date);
     if (!anchorDate) continue;
-    if (monthsBetween(anchorDate, now.toISOString().split('T')[0]) < 0) continue; // not owned yet
+    // Ownership is tested as of NEXT month (not `now`) to match the car-loan loop: a car that
+    // becomes owned next month owes insurance in that month, so the month before must reserve it
+    // (when due before next month's first paycheck). A genuinely future car — owned two or more
+    // months out — is still excluded, since nextMonthStart is before it is owned.
+    if (monthsBetween(anchorDate, nextMonthStart.toISOString().split('T')[0]) < 0) continue; // not owned yet
     const dueDayBasis = cf.payment_start_date ?? cf.planned_purchase_date;
     if (!dueDayBasis) continue;
     const insuranceDueDay = new Date(dueDayBasis + 'T00:00:00').getDate();
-    if (dueSynced(insuranceDueDay)) continue;
+    // Not gated by dueSynced — same next-month reasoning as the car-loan loop above.
     if (duePostPaycheck(insuranceDueDay)) continue;
     prePaycheckBillsTotal += insurance;
     floorItems.push({ name: cf.vehicle_name + ' insurance', amount: insurance, dueDay: insuranceDueDay });
