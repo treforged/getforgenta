@@ -1635,7 +1635,20 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const m0MortgagePayment = monthlyMortgagePayment;
 
       const ccMinForMonth = liveRevolvingBal > 0 ? Math.min(ccMinTotalRevolving, simRevolvingTotal) : 0;
-      const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment;
+      // Mirror forecast-engine.ts's PASS-3 month-0 cashPreDebt (forecast-engine.ts:1106) exactly so
+      // the floor cap here holds against the same cash the Forecast row actually ends on. The prior
+      // form omitted three month-0 outflows the engine subtracts: transfer/investment rules
+      // (m0Transfers — e.g. Tre's $25/mo Roth IRA rule), goal lump-sum transfers
+      // (lumpTransferByMonth[0]), and net one-time DB txns (+ oneTimeNet, engine adds income minus
+      // expense). Missing them made cashPreDebt read higher than reality, so the cap authorized more
+      // Discover paydown than the floor allowed and the current-month row landed below the augmented
+      // floor. Do NOT add all of m0ExtraOutflow (line ~797): its savings/car/vehicle/mortgage terms
+      // are already covered by monthlySavingsAndCar + m0VehicleInsurance + m0MortgagePayment above.
+      // oneTimeArr[0] is force-zeroed in this hook (month-0 one-times are already in the live
+      // balance); the term is kept for byte-for-byte parity with the engine's + b.oneTimeNet.
+      const m0OneTimeNet = (oneTimeArr[0]?.income ?? 0) - (oneTimeArr[0]?.expenses ?? 0);
+      const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment
+        - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet;
       const availableForRevolving = liveRevolvingBal > 0
         ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - m0FloorAugmented - cyclingPayment))
         : 0;
