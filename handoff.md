@@ -41,11 +41,18 @@ vanish in every later month, and expected them persistent-until-payoff. Traced i
 Both new symptoms are on **BOTH web + native** (Tre confirmed) → live-code bugs, not just the
 stale native Capacitor bundle.
 
-1. **Missing paycheck this month.** Config = weekly, Friday (day 5); July 2026 has 5 Fridays
-   (3/10/17/24/31) → 5 paychecks. Current `getPaychecksInMonth` weekly path computes 5 correctly
-   (verified). NEED: which SCREEN shows 4 (Dashboard monthly income? Forecast month-0? Budget
-   Control?) — then trace that specific consumer. No service worker exists, so "older version" =
-   native bundle, but since it's ALSO on web there's a live path to find.
+1. **Missing paycheck this month — RESOLVED (session 14), display-only UX fix.** NOT a lost
+   paycheck. Screen = Forecast **current-month row**. Root cause: the current-month `+Income` shows
+   only paychecks REMAINING after the last Plaid sync (`syncCutoffDate`); paychecks already received
+   this month are folded into **Current Cash**, so the reduced income read like a missing check.
+   Verified against real data (Supabase): weekly/Fri, net $848.89/check ("Weekly Paycheck" rule,
+   due_day 5, active); July Fridays 3/10/17/24/31 = 5; all Plaid items synced 2026-07-20 →
+   `syncCutoffDate=2026-07-20` → Jul 24+31 shown in +Income, Jul 3/10/17 in Current Cash. Total 5,
+   nothing lost. The "4" was seen earlier in the month (1 banked, 4 remaining). Paychecks are NOT DB
+   rows (synthesized). Fix: `src/pages/Forecast.tsx` collapsed current-month row now shows a chip
+   "⏱ rest of month · N paycheck(s) received" when N>0 (received = paychecks with date ≤
+   syncCutoffDate). Display-only, no math/engine change; tsc clean; pay-schedule tests green.
+   Backup `backups/2026-07-21_090953/`.
 2. **App reloads to the beginning while editing items.** No repro yet. On native, usually a webview
    reload (auth token refresh / a `window.location` reset). NEED: which items/page, and does it
    happen on web too (Tre said both). Check AuthContext refresh + any full-reload calls.

@@ -1119,6 +1119,20 @@ export default function Forecast() {
               const hasCC = (row.totalCCPurchases ?? 0) > 0;
               const hasOneTime = (row.oneTimeNet ?? 0) !== 0;
               const hasCarLump = (row.carLoanExtraPayment ?? 0) > 0;
+              // Current-month +Income is the paychecks REMAINING after the last sync — paychecks
+              // already received this month are folded into Current Cash, not shown here. Without a
+              // hint the reduced income reads like a missing paycheck (Tre, 2026-07-21). Count the
+              // received ones (date on/before syncCutoffDate — the same cutoff the income filter uses)
+              // and label the row so the split is self-explanatory.
+              const absoluteRowI = filterYear === 'all' ? i : getCalendarYearMonthRange(parseInt(filterYear, 10))[0] + i;
+              const isCurrentMonthRow = absoluteRowI === 0;
+              const receivedThisMonth = isCurrentMonthRow && syncCutoffDate
+                ? getPaychecksInMonth(payConfig, new Date().getFullYear(), new Date().getMonth()).filter(p => {
+                    const ps = `${p.date.getFullYear()}-${String(p.date.getMonth() + 1).padStart(2, '0')}-${String(p.date.getDate()).padStart(2, '0')}`;
+                    return ps <= syncCutoffDate;
+                  }).length
+                : 0;
+              const showRemainingHint = isCurrentMonthRow && receivedThisMonth > 0;
               return (
                 <div key={i} className="border-b border-border/30 hover:bg-secondary/30 cursor-pointer" onClick={openDrawer}>
                   <div className="grid grid-cols-[5rem_1fr_1fr_1fr] py-2">
@@ -1131,8 +1145,13 @@ export default function Forecast() {
                       {row.floorBreachedByOneTime && <div className="text-[8px] text-amber-400 leading-tight font-normal">one-time</div>}
                     </div>
                   </div>
-                  {(hasCC || hasOneTime || hasCarLump) && (
+                  {(hasCC || hasOneTime || hasCarLump || showRemainingHint) && (
                     <div className="px-1 pb-1.5 flex flex-wrap gap-1">
+                      {showRemainingHint && (
+                        <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-secondary text-muted-foreground border border-border whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }} title="Paychecks already received this month are included in Current Cash, not in +Income. Tap the row for the full breakdown.">
+                          ⏱ rest of month · {receivedThisMonth} paycheck{receivedThisMonth > 1 ? 's' : ''} received
+                        </span>
+                      )}
                       {hasCC && (
                         <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }}>
                           CC {formatCurrency(row.totalCCPurchases, false)}
