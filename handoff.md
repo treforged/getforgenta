@@ -1,4 +1,23 @@
-# Handoff — 2026-07-20 (session 12 → 13) — cash-floor car/insurance FIXED; 4 items still queued
+# Handoff — 2026-07-20 (session 13 → 14) — cash-floor "missing after current month" CLOSED (no change, WAI); 4 items still queued
+
+## Session 13 decision — car/insurance "missing in floor after current month": WORKING AS INTENDED, no code change
+Tre asked why the C5 loan ($422.89) + insurance ($173.23) show in the CURRENT month's floor but
+vanish in every later month, and expected them persistent-until-payoff. Traced it:
+- The augmented floor only reserves an obligation due BEFORE next month's first paycheck
+  (`duePostPaycheck`, `src/lib/pay-schedule.ts:808`). C5 is due the **7th**.
+- July→Aug: Aug's first Friday paycheck is **Aug 7**, so the 7th is on/before it → reserved → shows.
+- Aug→Sep onward: the first Friday paycheck lands on the **2nd–6th** (before the 7th) → the paycheck
+  covers it → correctly dropped. Only month 0 happens to align.
+- Payoff auto-removal already works: loan sources from `getActiveCarLoanPayments` (returns nothing
+  past term); insurance intentionally persists after payoff (you still pay insurance).
+- **Tre chose "Leave as-is (it's correct)"** in a 3-way clarify (display-only persistent / reserve-
+  every-month / leave-as-is). The car payment is already modeled as a monthly EXPENSE
+  (`vehicleForecastByMonth`); the floor only holds the pre-paycheck TIMING gap, so force-reserving
+  it every month would double-count and could shift the tuned debt payoff. DO NOT re-open this.
+- No files changed, no commit, no backup this session.
+
+---
+# (prior) Handoff — 2026-07-20 (session 12 → 13) — cash-floor car/insurance FIXED; 4 items still queued
 
 ## DONE this session — commit `5194cf2b` (local only, NOT pushed)
 **Car payment + insurance now reserved in the cash floor the month before they begin.**
