@@ -1,4 +1,56 @@
-# Handoff — 2026-07-20 (session 13 → 14) — cash-floor "missing after current month" CLOSED (no change, WAI); 4 items still queued
+# Handoff — 2026-07-21 (session 14 → 15) — paycheck-display FIXED + NEW in-progress: savings breaches current-month floor
+
+## IN PROGRESS (session 14, NOT yet started implementing) — "current month drops below cash floor when it is saveable"
+Tre's new report (right after the paycheck fix): the CURRENT month's End Cash goes below the cash
+floor, and the culprit is discretionary **savings**. "when it is saveable" = the money pushing it
+below is savings (goals + car-fund saving-phase contributions), which is skippable — so it should
+NOT force a floor breach.
+
+**Diagnosis so far (high confidence, code-confirmed, NOT yet verified against Tre's live numbers):**
+- `src/lib/forecast-engine.ts` Step 1 (line ~1102-1106): `savingsOut = monthlySavingsContrib +
+  carContribThisMonth` is subtracted as a plain outflow in `cashPreDebt` BEFORE the debt step.
+- Only DEBT payments are floor-aware (Step 2/3, lines ~1108-1169: the sim clamps debt down to stay
+  above `step3SpendFloor`). Savings has NO floor cap.
+- There IS a global `pauseSavings` boolean (forecast-engine line 115, 259, 349) that zeroes ALL
+  savings+car contributions, but it's an all-or-nothing user toggle, not a per-month floor guard.
+- So when savings is on and savings > headroom above floor, the current month shows a (arguably
+  false) floor breach. Tre wants savings to yield to the floor.
+- POSSIBLE INTERACTION w/ the paycheck fix (same session): month 0's `b.netIncome` is REMAINING
+  income (post-sync, partial) but `monthlySavingsContrib` is the FULL month amount (line 872, not
+  prorated). If part of the month elapsed, full savings is subtracted against partial income →
+  month 0 can dip below floor. Worth checking whether savings should be prorated/remaining for
+  month 0 the same way income is. (Our chip change was display-only; it did NOT change this math,
+  but it made the reduced current-month income visible, which may be why Tre noticed the breach now.)
+
+**NEXT STEPS (do these in order):**
+1. Pull Tre's live data to CONFIRM savings is the cause & quantify (queries half-done this session):
+   `savings_goals` (contribution amounts, contribution_start_date, linked_account, active),
+   `car_funds` (phase='saving', monthly contribution fields), profile `cash_floor`, funding-account
+   balance. user_id `a72f416e-433a-4055-9ab0-9feae4e60edf`, project `mdtosrbfkextcaezuclh`. Tables
+   confirmed: `savings_goals`, `car_funds`. (recurring_rules/budget_items are the rule tables.)
+2. **STOP and ask Tre (AMBIGUITY RULE — this is a financial-engine behavior change w/ debt-engine
+   ripple):** desired behavior + scope. Key decisions: (a) cap savings to protect the floor
+   automatically vs keep manual `pauseSavings`? (b) current-month only, or all months? (c) reduce
+   goal savings, car-fund saving, or both, and in what priority vs debt? (d) is this really the
+   month-0 partial-income-vs-full-savings mismatch (→ prorate month-0 savings) OR a general
+   "savings must respect floor" rule? These are different fixes — do NOT guess.
+3. Only then implement (lean-fix: strong model owns root-cause; backup to ./backups/ first; keep
+   diff scoped; tsc + pay-schedule/forecast tests; `python -m graphify update .`; commit local only).
+
+## DONE this session (14) — commit `3d1832d5` (local, NOT pushed) — "missing paycheck this month" = NOT a bug, display-only UX fix
+Screen was the Forecast **current-month row**. Root cause: current-month `+Income` shows only
+paychecks REMAINING after last Plaid sync (`syncCutoffDate`); already-received ones are folded into
+Current Cash — the reduced income read like a missing paycheck. Verified vs Supabase: weekly/Fri,
+net $848.89/check ("Weekly Paycheck" rule due_day 5 active); July Fridays 3/10/17/24/31 = 5; all
+Plaid items synced 2026-07-20 → Jul 24+31 in +Income, Jul 3/10/17 in Current Cash. Total 5, nothing
+lost. The "4" was earlier in the month (1 banked, 4 remaining). Paychecks are NOT DB rows
+(synthesized). **Fix:** `src/pages/Forecast.tsx` collapsed current-month row now shows a chip
+"⏱ rest of month · N paycheck(s) received" when N>0 (received = paychecks dated ≤ syncCutoffDate).
+Display-only, no math/engine change. tsc clean; pay-schedule tests 12/12 green; graph updated.
+Backup `backups/2026-07-21_090953/`.
+
+---
+# (prior) Handoff — 2026-07-20 (session 13 → 14) — cash-floor "missing after current month" CLOSED (no change, WAI); 4 items still queued
 
 ## Session 13 decision — car/insurance "missing in floor after current month": WORKING AS INTENDED, no code change
 Tre asked why the C5 loan ($422.89) + insurance ($173.23) show in the CURRENT month's floor but
