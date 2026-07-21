@@ -1,74 +1,54 @@
-# Handoff — 2026-07-20 (session 11 → 12) — two fixes DIAGNOSED, not implemented; then backlog
+# Handoff — 2026-07-20 (session 12 → 13) — cash-floor car/insurance FIXED; 4 items still queued
 
-## Goal (Tre's request this session)
-1. Fix the accordion UI on /debt (Debt Payoff, Credit Card Payoff tab).
-2. Fix FB.9 "total credit limit" — REAL ROOT CAUSE ESTABLISHED (see below, NOT inactive cards).
-3. Then triage the queued backlog (GoTrue env deprecation, Play 5.44 advisories — bottom).
+## DONE this session — commit `5194cf2b` (local only, NOT pushed)
+**Car payment + insurance now reserved in the cash floor the month before they begin.**
+- Root cause (two Q12 `5998c911` leftovers in `getAugmentedMinSafeCash`, `src/lib/pay-schedule.ts`):
+  the car/insurance loops feed the NEXT-month pre-paycheck floor (via `duePostPaycheck`), but
+  (1) the car loop sourced its amount from `getActiveCarLoanPayments([effective], now)` evaluated
+  as-of the CURRENT month → a loan whose first payment is next month returned nothing; (2)
+  `dueSynced` builds a CURRENT-month date but these are next-month obligations (never Plaid-synced
+  yet) → any sync past the obligation's day-of-month nuked the reservation.
+- Fix: car loop now evaluates `getActiveCarLoanPayments([effective], nextMonthStart)`; `dueSynced`
+  removed from the car + insurance loops; insurance ownership check made next-month-aware.
+- Proven on Tre's real C5 loan (payment_start 2026-08-07, $422.89 + insurance $173.23, due on Aug's
+  first paycheck). 215/215 green (+2 regressions in `pay-schedule.augmentedFloorInsurance.test.ts`),
+  tsc clean, NO golden re-pins. Backup: `backups/2026-07-20_222123/`. Memory updated
+  (`project-cycling-debt-engine`, MEMORY.md unchanged — same index line covers it).
+- **Left untouched on purpose:** the CC-minimum loop still applies `dueSynced` (same latent
+  next-month bug, but feeds the sensitive month-0 debt convergence per Q8/Q11). Scoped follow-up
+  only if Tre asks.
 
-NO SOURCE EDITS made this session. Anomaly B was closed earlier this session (live-verified,
-memory + MEMORY.md already updated, handoff commit afd33160).
+## STILL QUEUED (Tre raised these this session; #2 above was chosen first)
+Both new symptoms are on **BOTH web + native** (Tre confirmed) → live-code bugs, not just the
+stale native Capacitor bundle.
 
-## Fix 1 — accordion: allow multiple cards expanded at once
-- `src/components/debt/CreditCardEngine.tsx:125-130`:
-  `expandedCard` (usePersistedState<string|null> 'tre:debt:expanded-card') = single-card
-  accordion — expanding one collapses the other. Tre wants independent expansion.
-- GOTCHA: `accordionYear` ('tre:debt:accordion-year', '1'|'2'..'5') is SHARED state,
-  deliberately (2026-06-21 session: "shared state since only one card is ever expanded at a
-  time"). Going multi-expand REQUIRES per-card year state (e.g. Record<cardId, year> or move
-  year state into the per-card render). Toggle site: line ~1546-1552 (`isExpanded =
-  expandedCard === proj.card.id`, button setExpandedCard(...)).
-- Suggested: expandedCards as Set<string> persisted (see Builds.tsx expandedPhaseIds pattern),
-  year as Record<string, '1'..'5'>. Keep persisted-state keys NEW (old key holds a string).
+1. **Missing paycheck this month.** Config = weekly, Friday (day 5); July 2026 has 5 Fridays
+   (3/10/17/24/31) → 5 paychecks. Current `getPaychecksInMonth` weekly path computes 5 correctly
+   (verified). NEED: which SCREEN shows 4 (Dashboard monthly income? Forecast month-0? Budget
+   Control?) — then trace that specific consumer. No service worker exists, so "older version" =
+   native bundle, but since it's ALSO on web there's a live path to find.
+2. **App reloads to the beginning while editing items.** No repro yet. On native, usually a webview
+   reload (auth token refresh / a `window.location` reset). NEED: which items/page, and does it
+   happen on web too (Tre said both). Check AuthContext refresh + any full-reload calls.
+3. **Accordion multi-expand on /debt** (from session-11 handoff, still not done):
+   `src/components/debt/CreditCardEngine.tsx:125-130` `expandedCard` (single) → make multi-expand
+   (Set<string>), and `accordionYear` shared → per-card `Record<cardId, year>`. Toggle site ~1546.
+4. **FB.9 future-start credit limit** (from session-11 handoff, still not done): exclude cards whose
+   `card_start_date` is in the future from TOTAL LIMIT / utilization until that month. VX 10,000
+   start 2026-12-20; Apple 10,000 start 2028-02-28; today's TOTAL should be $25,400 not $45,400.
+   Sites: `CreditCardEngine.tsx:1038-1039`, `Dashboard.tsx:491`, `AiAdvisor.tsx:652-660`, per-month
+   util rows `useCardProjection.ts:1067,1101` / `cardProjectionResim.ts:75,103` /
+   `credit-card-engine.ts:1959-1965`. Helper exists: `src/lib/card-start-date.ts`.
 
-## Fix 2 — FB.9 total credit limit: FUTURE-START cards, NOT inactive cards
-- Tre's clarification (2026-07-20, authoritative — FB.9's wording was wrong): "some cards have
-  a start date thats in the future. its limit should not be included until that time comes."
-- Verified in DB (accounts, Tre's user_id): Venture X credit_limit 10,000 card_start_date
-  2026-12-20; Apple Card 10,000 start 2028-02-28; PV 14,400 + Discover 11,000 start null.
-  All 4 active. So today's TOTAL LIMIT should be $25,400, not $45,400.
-- Existing helper: `src/lib/card-start-date.ts` (future-card detection; engine already excludes
-  future cards from purchases via CardData.startDate, credit-card-engine.ts:280).
-- Sites that sum credit limits (ALL currently include future cards):
-  - `src/components/debt/CreditCardEngine.tsx:1038-1039` header TOTAL LIMIT + overallUtil (/debt).
-  - `src/pages/Dashboard.tsx:491` ccLimit.
-  - `src/pages/AiAdvisor.tsx:652-660` per-card limit list.
-  - PER-MONTH utilization rows (should count a card's limit FROM its start month, per "until
-    that time comes"): `src/hooks/useCardProjection.ts:1067,1101`,
-    `src/hooks/cardProjectionResim.ts:75,103`, `src/lib/credit-card-engine.ts:1959-1965`.
-    CardData.startDate is available in those scopes (check month index vs start month).
-  - Accounts page per-card display (Accounts.tsx:772 etc.) is per-card info, leave alone.
-- Decide during implementation: month-0/header = exclude cards whose start month > current
-  month; monthly rows = include from the month containing card_start_date onward. Keep display
-  vs engine distinction: engine cash math does NOT use totalLimit (display/utilization only) —
-  verify no behavioral goldens shift (utilization is displayed in accordion rows + fixtures may
-  pin it: check goldens/tests mentioning utilization before changing the per-month functions).
-- FB.9 in memory/project_roadmap.md should be reworded to the future-start semantics when done.
+## THEN — older backlog (unchanged)
+- Supabase GoTrue `GOTRUE_JWT_DEFAULT_GROUP_NAME` deprecation (auth config/env).
+- Google Play 5.44 / Android 15 edge-to-edge advisories (CI-owned builds).
 
-## Verification after both fixes
-- tsc + full vitest (213 tests green baseline). Live check /debt: TOTAL LIMIT $25,400,
-  utilization recomputed (16,286/25,400 ≈ 64%), two cards expandable simultaneously with
-  independent year navigators. Backups to ./backups/YYYY-MM-DD_HHMMSS/ before edits; commit
-  locally, never push.
-
-## THEN — queued backlog from Tre (unchanged, not started)
-- Supabase deprecation: GOTRUE_JWT_DEFAULT_GROUP_NAME not supported by GoTrue, removal soon —
-  find where it's set (Supabase project auth config/env) and remove/migrate.
-- Google Play (release 5.44), Android 15 edge-to-edge: deprecated Window.setStatusBarColor /
-  setNavigationBarColor (minified "n1.c.a" — likely a Capacitor plugin, check versions first);
-  R8: optimization off, 25% obfuscation/shrink, AGP 9.0+ suggested. Advisory; builds CI-owned.
-
-## State
-- On `main`, clean except backups/ (untracked, never commit). Local commits NOT pushed
-  (64a1182b Anomaly A, 6459f258 Anomaly B, afd33160 + this handoff) — push only when Tre asks.
-- Anomaly B: CLOSED (live-verified session 11; memory updated). Stages 4-5 on hold.
-
-## Gotchas (carry forward)
-- backups/ untracked — never git add. Repo PUBLIC — real fixtures gitignored. Never push unless asked.
-- Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf; always filter by it.
-- Q9 display coloring SETTLED (current-month floor) — don't re-propose next-month.
-- vitest hides console.log on passing tests — `--silent=false --reporter=verbose`.
-- FLOOR_CUSHION_DOLLARS must stay ≥ convergence toleranceDollars (2 ≥ 1).
-- otherAccountExpense suite runs on the REAL clock — assertions must stay cumulative/clock-robust.
-- Payoff pins are Jul 2027 everywhere (incl. goldenTierA). Fixture has native paymentPlans.
-- perCardPayments are ROUNDED ints; Anomaly A clamp-note threshold is 0.5.
-- Card panels' override/pin state persists across collapse; pin is useState (reload clears).
+## State / gotchas
+- On `main`, clean except `backups/` (untracked, NEVER commit) and `graphify-out/` (gitignored).
+- Local commits NOT pushed: this session `5194cf2b`, plus prior `64a1182b`/`6459f258`/`afd33160`/
+  `2c491e87`. Push only when Tre asks.
+- Supabase user_id `a72f416e-433a-4055-9ab0-9feae4e60edf`; profiles PK `id` ≠ `user_id` (filter by
+  `user_id`). Paychecks are NOT DB rows — synthesized from `profiles` pay config via pay-schedule.
+- vitest hides console.log on passing tests: `--silent=false --reporter=verbose`.
+- After code edits run `python -m graphify update .` (AST-only, no API cost) — done this session.
