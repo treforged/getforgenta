@@ -1,6 +1,6 @@
 # Handoff — 2026-07-22 (session 20-floor → 21) — MONTH-0 FLOOR BREACH: ROOT CAUSE DEFINITIVE (live-instrumented), FIX IDENTIFIED + PARTIALLY APPLIED (INEFFECTIVE so far — wrong layer). Ending $2,969 still $176 under floor $3,145. Instrumentation STILL IN both files — MUST REMOVE before commit.
 
-> ⚠️ HANDOFF FILE STATE: this block is the MONTH-0 FLOOR task (the committed HEAD handoff / what Tre worked on live this session). BELOW this block is a separate, UNCOMMITTED "GA4 signup goal" task from a parallel session 20→21 — Tre is NOT currently pursuing it; left intact, do not lose it. Confirm with Tre which task is active before switching.
+> ⚠️ HANDOFF FILE STATE: TWO active tasks are interleaved here. (1) THIS top block = the MONTH-0 FLOOR task — live-instrumented, with UNCOMMITTED WIP in `src/hooks/useCardProjection.ts` + `src/lib/forecast-engine.ts` (and a pending `cardProjectionResim.ts` edit). (2) The **GA4 signup-goal** block below (now updated for **session 21**) — Tre asked to "resume the GA4 setup" this session; the **browser flow is DONE** (GA4 property CREATED, Measurement ID captured) and the code is planned + ready to execute (no code written yet). Both tasks are open. Confirm with Tre which to work first. ⚠️ A GA4 commit must stage ONLY the GA4 files — never the two floor-task source files above.
 
 ## DEFINITIVE ROOT CAUSE (live-instrumented on localhost, Tre's real data, 2026-07-22)
 Tre's complaint (sessions 15-19): July 2026 (month 0) Ending Cash $2,969 < augmented floor $3,145 (~$176 below); "why doesn't Discover pull back to hold the floor?" Tre this session: **"apply it and test. all numbers need to calculate accurately."**
@@ -37,33 +37,80 @@ Tre's complaint (sessions 15-19): July 2026 (month 0) Ending Cash $2,969 < augme
 
 ---
 
-# Handoff — 2026-07-22 (session 20 → 21) — NEW TASK STARTED: GA4 + signup conversion goal on getforgenta.com (this repo). Audit done, DECISIONS locked, NO code written yet, browser GA4 setup NOT started (stopped at context gate). Email backlog (nudges + newsletter digest) already SHIPPED+DEPLOYED this session (commit 8ad98370) and both templates inbox-verified via Tre's Gmail.
+# Handoff — 2026-07-22 (session 21 → 22) — GA4: browser flow **DONE** (property CREATED, Measurement ID = `G-1XD8TP0VFS`). Code NOT written yet (stopped at context gate right after backups). Plan fully specified below. + NEW follow-up task from Tre: Search Console failed page indexing (both domains).
 
-## ACTIVE TASK — Wire up GA4 + a `sign_up` conversion goal on the getforgenta.com WEB APP (this repo), so blog referrals (utm_source=blog, already shipped on treforged.com) can be attributed through to signups.
+## ✅ DONE THIS SESSION (browser, via claude-in-chrome on tre@treforged.com)
+Created the full GA4 setup on analytics.google.com. Confirmed live in UI:
+- **Account:** "TRE Forged" · **Property:** "Forgenta" · timezone **(GMT-04:00) New York / Eastern** · currency **USD**
+- Industry **Finance**, size **Small (1–10)**; Objectives **Generate leads** + **Understand web/app traffic**
+- Accepted **GA Terms of Service** + GDPR Data Processing Terms (Tre authorized in-session via AskUserQuestion)
+- **Web data stream** "Forgenta Web" → `https://getforgenta.com` · **Enhanced Measurement ON** (auto-tracks SPA page_views — no manual page_view needed) · **Stream ID** 15305368499
+- ### **MEASUREMENT ID (verified from page DOM): `G-1XD8TP0VFS`** ← that's a ZERO: `…TP0VFS`
 
-### DECISIONS LOCKED (Tre, session 20):
-- **Tre has NO GA4 property yet.** He asked me to CREATE it via Chrome browser automation (claude-in-chrome, his logged-in Google account) and grab the Measurement ID `G-XXXXXXXXXX`. (Browser flow was about to start when the context gate fired — chrome MCP tools already loaded.)
-- **Measurement ID via env var `VITE_GA_MEASUREMENT_ID`** — NEVER hardcode. Set in Vercel env + add to `.env.example`. Code no-ops until the var is set.
-- **Consent-gated (mandatory).** GA loads ONLY after analytics cookie consent. Existing system: `src/lib/cookie-consent.ts`, `src/hooks/useCookieConsent.ts`, `src/components/shared/CookieBanner.tsx`. ⚠️ The `analytics` consent flag is currently STORED but consumed by NOTHING — GA is its first real consumer. Vercel Speed Insights is only *listed* as an example, not actually loaded.
-- **Event scope = Email + OAuth** (Tre said "whichever you think is best" → chose full attribution). Fire GA4 recommended event `sign_up`:
-  - (a) email signup success at `src/pages/Auth.tsx:438` (`supabase.auth.signUp`) → `sign_up` method:'email'.
-  - (b) new-user OAuth (Google/Apple, `Auth.tsx:196/234/294`) → detect new user in `src/contexts/AuthContext.tsx` (~line 183 handles `type==='signup'`; also check `user.created_at` within ~60s of now to avoid firing on returning-user logins) → `sign_up` method:'oauth'.
+### GA-side follow-ups (LATER, not blockers):
+- Mark `sign_up` as a **Key event / conversion** in GA Admin — only appears AFTER the first `sign_up` event fires, so can't do it until code is live + a test signup fires.
+- **Tre** adds `VITE_GA_MEASUREMENT_ID=G-1XD8TP0VFS` to **Vercel Production env** + redeploys. Code no-ops until this is set.
 
-### CODE PLAN (not started):
-1. NEW `src/lib/analytics.ts`: dynamic gtag loader reading `import.meta.env.VITE_GA_MEASUREMENT_ID`; `initGA()` injects the gtag script + configures GA4 ONLY when analytics consent is true (call idempotent — guard against double-inject); export `trackSignUp(method: 'email'|'oauth')` that calls `gtag('event','sign_up',{method})` (no-op if GA not initialized).
-2. Consent-gated init: add an effect (in `src/App.tsx`, which already renders `<CookieBanner/>` at line 258, or a small `<Analytics/>` component) that calls `initGA()` when `useCookieConsent().consent?.analytics === true`, and re-runs when consent changes (CookieBanner `acceptAll`/`saveCustom`). Do NOT put a static gtag `<script>` in `index.html` — must stay consent-gated.
-3. Fire `trackSignUp('email')` after successful `supabase.auth.signUp` in `Auth.tsx:438`.
-4. Fire `trackSignUp('oauth')` for new users in `AuthContext.tsx`.
-5. `.env.example` += `VITE_GA_MEASUREMENT_ID=`; Tre adds the real ID to Vercel env.
-6. Backup before edits (CLAUDE.md), `tsc`, build, `python -m graphify update .`, LOCAL commit (never push).
+## 📦 Backups taken this session (pre-edit copies)
+`backups/2026-07-22_143717/` → `src/App.tsx`, `src/pages/Auth.tsx`, `src/contexts/AuthContext.tsx`, `src/lib/cookie-consent.ts`, `.env.example`. (No backup for the two NEW files.)
 
-### BROWSER STEPS (do FIRST next session — chrome MCP already the plan):
-- Requires Tre signed into the target Google account in Chrome; he handles any login/2FA.
-- analytics.google.com → create Account (e.g. "TRE Forged") → GA4 Property (e.g. "Forgenta") → Web data stream URL `https://getforgenta.com` → COPY Measurement ID `G-XXXXXXXXXX`.
-- In GA Admin, mark `sign_up` as a Key event / conversion (may only appear after first event fires — can be done later).
-- GA4 Enhanced Measurement auto-tracks SPA page_views (history changes) — verify; likely no manual page_view needed.
+## 🛠️ CODE PLAN — NOT STARTED. All injection points already read this session. Execute exactly:
 
-### GOTCHAS: never hardcode the ID; keep GA behind analytics consent; SPA route changes rely on GA4 enhanced measurement; OAuth new-vs-returning detection via created_at to avoid false conversions.
+**1. NEW `src/lib/analytics.ts`**
+- `declare global { interface Window { dataLayer?: unknown[]; gtag?: (...a: unknown[]) => void } }`
+- Read `import.meta.env.VITE_GA_MEASUREMENT_ID`.
+- `export function initGA(): void` — **idempotent** (module-level `let initialized=false`). Guard-return if `Capacitor.isNativePlatform()` (web-only), no id, or already initialized. Then inject `<script async src="https://www.googletagmanager.com/gtag/js?id=${id}">`, init `window.dataLayer`, define `window.gtag`, call `gtag('js', new Date())` + `gtag('config', id)`; set initialized=true.
+- `export function trackSignUp(method: 'email'|'oauth'): void` — no-op if `!window.gtag`; else `window.gtag('event','sign_up',{method})`.
+- `export function maybeTrackOAuthSignUp(user: { id:string; created_at?:string; app_metadata?:{provider?:string} }): void` — `const p=user.app_metadata?.provider; if(p!=='google'&&p!=='apple')return;` (email tracked at signUp → skip); `if(!user.created_at)return; if(Date.now()-new Date(user.created_at).getTime()>60_000)return;` (returning login → skip); dedup `const k='forgenta:signup_tracked_'+user.id; if(localStorage.getItem(k))return; localStorage.setItem(k,'1');`; `trackSignUp('oauth')`.
+
+**2. NEW `src/components/shared/Analytics.tsx`** (renders null). Consent is a plain hook w/ LOCAL useState — NOT shared context — so a separate `useCookieConsent()` won't see the banner's live Accept. Bridge via window event (edit #3):
+```tsx
+import { useEffect } from 'react';
+import { loadConsent, COOKIE_CONSENT_EVENT } from '@/lib/cookie-consent';
+import { initGA } from '@/lib/analytics';
+export default function Analytics() {
+  useEffect(() => {
+    if (loadConsent()?.analytics) initGA();                 // returning users (stored consent)
+    const onChange = (e: Event) => {
+      const d = (e as CustomEvent).detail as { analytics?: boolean } | undefined;
+      if (d?.analytics) initGA();                            // live accept this session
+    };
+    window.addEventListener(COOKIE_CONSENT_EVENT, onChange);
+    return () => window.removeEventListener(COOKIE_CONSENT_EVENT, onChange);
+  }, []);
+  return null;
+}
+```
+
+**3. `src/lib/cookie-consent.ts`** — broadcast from the single write path:
+- Add `export const COOKIE_CONSENT_EVENT = 'cookieconsentchange';`
+- In `saveConsent()`, just before `return state;`: `window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_EVENT, { detail: state }));`
+- (Optional) add `'Google Analytics'` to the `analytics` category `examples` array for transparency.
+
+**4. `src/App.tsx`** — `import Analytics from "@/components/shared/Analytics";` and render `<Analytics />` next to `<CookieBanner />` (currently ~line 258) in the **BrowserRouter (web) branch ONLY** — NOT the native MemoryRouter branch. No static gtag script in index.html.
+
+**5. `src/pages/Auth.tsx`** — import `trackSignUp`; after the successful `supabase.auth.signUp(...)` (no error) at ~line 446-447 (right after `toast.success('Account created! Check your email to confirm.')`) add `trackSignUp('email');`.
+
+**6. `src/contexts/AuthContext.tsx`** — import `maybeTrackOAuthSignUp`; inside the `SIGNED_IN` handler's `if (session?.user?.id) {…}` block (~line 202-205, beside `initRevenueCat`/`identifyMonitoringUser`) add `maybeTrackOAuthSignUp(session.user);`.
+
+**7. `.env.example`** — append (do NOT hardcode the ID in-repo):
+```
+# Google Analytics 4 — Measurement ID (Admin → Data streams → Forgenta Web). Real value in Vercel env. Web-only; no-ops on native / when unset.
+VITE_GA_MEASUREMENT_ID=
+```
+
+### ✅ VERIFY after edits
+`npx tsc --noEmit` clean → `npm run build` → `python -m graphify update .` → `git add` **ONLY the 7 GA files** (NOT the floor-task's useCardProjection.ts / forecast-engine.ts) → LOCAL commit (never push), msg e.g. `feat: consent-gated GA4 + sign_up conversion tracking (web)`. Optional smoke test: set VITE_GA_MEASUREMENT_ID in `.env.local`, dev, Accept-all cookies, confirm gtag script injects + a test email signup fires `sign_up` in GA DebugView. Then tell Tre to set the Vercel env var + redeploy, and mark `sign_up` a Key event once it lands.
+
+### GOTCHAS: never hardcode the ID (env only); GA stays behind analytics consent; SPA views rely on Enhanced Measurement (ON); OAuth new-vs-returning via created_at≤60s + provider check; email path tracked separately at signUp so maybeTrackOAuthSignUp skips provider==='email'. Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf, project mdtosrbfkextcaezuclh.
+
+---
+
+# NEW FOLLOW-UP TASK (Tre requested 2026-07-22, session 21) — Search Console: fix FAILED PAGE INDEXING on both domains
+Do AFTER the GA4 code lands (Tre: "after this is finished work on failed page indexing"). Needs claude-in-chrome (Tre logged into Search Console). Two entry points he gave:
+- **treforged.com** (validation view): https://search.google.com/search-console/index/validation?resource_id=sc-domain:treforged.com&item_key=CAMYCyAC&hl=en
+- **getforgenta.com** (index coverage): https://search.google.com/search-console/index?resource_id=sc-domain%3Agetforgenta.com&hl=en
+NOT YET INVESTIGATED. Next session: open both, read the specific "why pages aren't indexed" reasons (e.g. "Discovered – currently not indexed", "Crawled – not indexed", redirect/canonical/robots/noindex issues), diagnose root cause per domain, and fix at the correct layer (sitemap, robots.txt, canonical tags, noindex, internal linking, or request re-validation). treforged.com is GitHub Pages + Cloudflare (repo treforged/missjaimmiescloset is a DIFFERENT site — treforged.com blog repo is separate). getforgenta.com is this Vercel SPA (SPA routes may need prerender/sitemap for indexing). Confirm scope with Tre before making DNS/site changes.
 
 ---
 
