@@ -1,3 +1,60 @@
+# Handoff — 2026-07-22 (session 19 → 20) — TIMEZONE FIX VERIFIED LIVE (both checks now show). NEW in-progress issue: month-0 Discover payment does NOT pull back to hold the cash floor. Diagnosis started, exact live numbers captured. NO new code edited session 19.
+
+## SESSION 19 — timezone fix (653dd200) LIVE-VERIFIED on localhost web: July now shows BOTH paychecks (~$1,698). ✅
+Then Tre surfaced the NEXT problem (the session-15/16 residual, now isolated from the paycheck bug):
+**Month-0 Discover payment ($1,729) does NOT clamp down to keep Ending Cash ≥ floor.**
+
+### Exact live numbers (localhost web, current code + 653dd200):
+- Current Cash **$2,000**; +Paycheck **~$1,698** (2 checks ✓); +Other Income **$1,100**; −Bills **$0**;
+  −Discover it Card **$1,729**; −Vehicle Insurance **$173**; −Roth IRA **$25**; +One-Time **$0**.
+- **Ending Cash $2,969**; **Cash Floor $3,145** → **$176 BELOW floor.**
+- ⚠️ TWO unreconciled gaps to chase:
+  (1) Displayed lines sum to 2000+1698+1100−1729−173−25 = **$2,871**, but Ending shows **$2,969** → **~$98 unshown
+      POSITIVE** (an add-back or a line smaller than assumed — maybe Discover in the endingCash math ≠ the $1,729
+      shown, or a carReserveHeld-style add-back). RECONCILE THIS FIRST — it may explain part of the $176.
+  (2) Ending is $176 under floor while paying $1,729. If the cap were BINDING it would pay ~$1,553 and land exactly
+      on $3,145. So the cap is NOT binding → `availableForRevolving ≥ 1729` → `revolvingPayment = simRevolvingTotal`
+      (full simulated Discover). That means `cashPreDebt − m0FloorAugmented − cyclingPayment ≥ 1729`, i.e. the cap's
+      `cashPreDebt` OVERSTATES real spendable-above-floor cash by ≥ ~$176.
+
+### Cap logic (READ this session — src/hooks/useCardProjection.ts:1620-1656):
+```
+m0FloorAugmented = getAugmentedMinSafeCash(...).monthMinSafe            // 1623
+cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar
+            - m0VehicleInsurance - m0MortgagePayment - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet   // 1650
+availableForRevolving = max(ccMinForMonth, max(0, cashPreDebt - m0FloorAugmented - cyclingPayment))          // 1652
+revolvingPayment = min(simRevolvingTotal, availableForRevolving)                                             // 1655
+```
+0e79c5c0 already added the transfer/lump/oneTime terms (the $25 Roth). Remaining ~$176 is elsewhere.
+
+### PRIME SUSPECTS for the cap overstating cash (next session — INSTRUMENT, don't infer):
+- **`debtFundingBalance` (cap) vs engine `liquidBal` (starting cash / "Current Cash $2,000").** Cap likely uses ONLY
+  the funding account ($1,999.65); if the engine's endingCash starts from a different base, they diverge.
+- **`m0Income` (cap) vs engine `netIncome`.** Known ~$20 drift comment (useCardProjection.ts:379-381). With 2 checks
+  now correct, re-measure. Could the cap's m0Income be summing something the engine's paycheckIncome+otherIncome
+  path doesn't (or vice versa)?
+- **`m0FloorAugmented` vs the displayed `row.monthMinSafe` ($3,145).** Confirm the cap's floor == the displayed floor.
+  If the cap uses a LOWER floor internally, it authorizes too much.
+- **Prime Visa cycling (~$80) folded into `monthDebtPayment`/`cyclingPayment`** but the popup only itemizes Discover
+  (Forecast.tsx:954-957 month0.perCardAdjusted). May relate to the $98 display gap.
+
+### NEXT STEPS (do in order):
+1. Add temporary console.log in useCardProjection.ts right after line 1656 dumping: debtFundingBalance, m0Income,
+   m0Expenses, monthlySavingsAndCar, m0VehicleInsurance, m0MortgagePayment, m0Transfers, lumpTransferByMonth[0],
+   m0OneTimeNet, cashPreDebt, m0FloorAugmented, cyclingPayment, ccMinForMonth, availableForRevolving, simRevolvingTotal,
+   revolvingPayment. Have Tre reload localhost, read console (or use claude-in-chrome on localhost) to get REAL values.
+2. Separately dump the engine's month-0 endingCash + its cashPreDebt terms (forecast-engine.ts ~1106) for the SAME run.
+3. Diff the two cashPreDebt computations term-by-term → the ~$176 (and ~$98) will fall out of one specific term.
+4. Fix at the CAP layer (useCardProjection.ts) so cashPreDebt matches the engine's endingCash base. DO NOT touch the
+   tuned debt convergence. Then availableForRevolving binds and Discover pulls back to hold $3,145.
+5. Backup, add/extend a floor-cap regression test, full suite (watch goldenTierA Jul 2027), tsc, graphify, LOCAL commit.
+6. Live re-verify: Ending should clamp to exactly $3,145.
+
+### Session-19 commits (LOCAL, NOT pushed): 653dd200 (tz fix), fb9a6e24 (session-18 handoff). Push only if Tre asks.
+### Backup this session: backups/2026-07-22_004304/src/lib/scheduling.ts. Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf, project mdtosrbfkextcaezuclh.
+
+---
+
 # Handoff — 2026-07-22 (session 18 → 19) — ROOT CAUSE FOUND + FIXED (commit 653dd200, LOCAL, NOT pushed). The "dropped paycheck" is a TIMEZONE bug, not what session 17 hypothesized. HYS and Bug 3 were non-issues.
 
 ## SESSION 18 — SHIPPED `653dd200` (local): scheduled-event dates now formatted in LOCAL time, not UTC.
