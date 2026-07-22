@@ -1,3 +1,42 @@
+# Handoff — 2026-07-22 (session 20-floor → 21) — MONTH-0 FLOOR BREACH: ROOT CAUSE DEFINITIVE (live-instrumented), FIX IDENTIFIED + PARTIALLY APPLIED (INEFFECTIVE so far — wrong layer). Ending $2,969 still $176 under floor $3,145. Instrumentation STILL IN both files — MUST REMOVE before commit.
+
+> ⚠️ HANDOFF FILE STATE: this block is the MONTH-0 FLOOR task (the committed HEAD handoff / what Tre worked on live this session). BELOW this block is a separate, UNCOMMITTED "GA4 signup goal" task from a parallel session 20→21 — Tre is NOT currently pursuing it; left intact, do not lose it. Confirm with Tre which task is active before switching.
+
+## DEFINITIVE ROOT CAUSE (live-instrumented on localhost, Tre's real data, 2026-07-22)
+Tre's complaint (sessions 15-19): July 2026 (month 0) Ending Cash $2,969 < augmented floor $3,145 (~$176 below); "why doesn't Discover pull back to hold the floor?" Tre this session: **"apply it and test. all numbers need to calculate accurately."**
+
+**The handoff's prior hypothesis (cap overstates cashPreDebt) is WRONG.** Live DIAG proved cashPreDebt MATCHES exactly:
+- ENGINE (forecast-engine.ts:1106) month-0 cashPreDebt = **4499.20** (startingLiquid 1899.65 + netIncome 2797.78 − vehicleInsurance 173.23 − transfersOut 25).
+- CAP (useCardProjection.ts:1650) cashPreDebt = **4499.20** (identical). Session 15/16's `− m0Transfers` fix already aligned them. Starting-cash base also matches (both funding-acct $1,899.65).
+
+**The real gap = the month-0 DEBT PAYMENT the engine spends vs the floor-capped one the popup shows:**
+- CAP `month0.safeToPayTotal` = **1354.08** (floor-capped, per-card-adjusted via perCardAdjustedFinal/availableForRevolving). → endingCash would be 4499.20 − 1354.08 = **3145.12 = EXACTLY the floor.** ✓
+- SIM `paymentLedger[0].total` = **1530.69** (RAW sim `activeSim.monthlyPayments`, un-floor-capped). Engine uses THIS (forecast-engine.ts:1121 `monthDebtPayment = ledgerEntry.total`). → endingCash 4499.20 − 1530.69 = **2968.51** = displayed $2,969. ✗
+- Gap = 1530.69 − 1354.08 = **$176.61** (the exact breach).
+- WHY: the sim runs against the BARE floor (`m0SafeFloor` = getMinSafeCash, useCardProjection.ts:283), overshooting the AUGMENTED floor (getAugmentedMinSafeCash = 3145.12, incl. CC-min/car/insurance reserves). The post-sim `perCardAdjusted` layer (useCardProjection.ts:1702-1744) scales month-0 payments back to the augmented cap → `safeToPayTotalFinal` (1354, shown via `month0.safeToPayTotal`), but that scaled result NEVER reaches the paymentLedger the engine consumes. `buildPaymentLedger` (credit-card-engine.ts:658) reads raw `sim.monthlyPayments`.
+- Engine already shows the RIGHT number for DISPLAY (`displayDebtPayment` i===0 = month0.safeToPayTotal, forecast-engine.ts:1347) but spends the WRONG one for CASH. That split IS the bug (and the ~$98 popup-reconcile gap).
+
+## FIX CHOSEN: Option A (Tre picked "see both diffs" → then "apply it"). Route the floor-capped month-0 ledger into what the engine consumes.
+### ✅ Applied (working tree, uncommitted): useCardProjection.ts:1859 — base `paymentLedger` now `.map`s index 0 to the perCardAdjustedFinal floor-capped entry `{ total, revolving: revolvingPaymentFinal, cycling: total−revolving, perCard }`.
+### ❌ INEFFECTIVE — wrong layer. Live re-test: Ending STILL $2,969, milestone still Jul 2027 (no re-pin because change didn't flow).
+**Root of ineffectiveness (CONFIRMED):** the engine converges on the RESIM path, not the base hookResult. `buildResimOverrides` (src/hooks/cardProjectionResim.ts:**195**) rebuilds `paymentLedger: buildPaymentLedger(simT, cards)` RAW every convergence pass, overwriting my base override. The engine's final `cardProjectionData.paymentLedger` comes from there.
+
+## NEXT STEPS (do in order — the fix is 90% scoped):
+1. **Thread the month-0 override into buildResimOverrides.** `perCardAdjustedFinal`/`revolvingPaymentFinal` are NOT in scope in cardProjectionResim.ts (it only gets `simT` + ctx). So:
+   - Add optional field to `ResimContext` (cardProjectionResim.ts:22): `month0PaymentLedger?: PaymentLedgerEntry` (import the type).
+   - At cardProjectionResim.ts:195 apply it: `paymentLedger: buildPaymentLedger(simT, cards).map((e, i) => i === 0 && ctx.month0PaymentLedger ? ctx.month0PaymentLedger! : e)`.
+   - In useCardProjection.ts, hoist the month-0 override entry to a const (reuse the exact object built at :1859 — `{ total, revolving: revolvingPaymentFinal, cycling, perCard }` from perCardAdjustedFinal), use it BOTH at :1859 AND pass it in the TWO ctx objects handed to buildResimOverrides (makeResimulate ~:1796-1797 and withPaymentOverrides ~:1810-1811). perCardAdjustedFinal/revolvingPaymentFinal ARE in scope there (same useMemo).
+2. **Re-verify live** (localhost :8080 running; claude-in-chrome tab already logged in — reload /forecast, read `[DIAG-ENGINE m0]`/`[DIAG-CAP m0]` console via read_console_messages pattern `DIAG-ENGINE|DIAG-CAP`, or just read the Jul 2026 END CASH cell). Target: Ending = **$3,145** (on floor), popup lines reconcile.
+3. **⚠️ ACCURACY CAVEAT Tre explicitly demanded ("all numbers need to calculate accurately"):** even after step 1, the SIM's INTERNAL month-0 balances still reflect the RAW 1530.69 paid → projected month-0-end Discover balance ~$176 LOW (affects Dashboard total-debt / net worth / Debt Payoff). Ledger-only fix makes CASH+FLOOR+popup correct but leaves that liability drift. For FULL accuracy the sim itself must pay 1354 in month 0 — via the existing pin mechanism: `replayActiveSim(undefined, undefined, m0Pins)` where m0Pins = { [cardId]: {0: perCardAdjustedFinal payment} } (see `withPaymentOverrides`/`pinnedPayments`, useCardProjection.ts:1758,1808), then rebuild sim-derived fields from the pinned sim. DECIDE WITH TRE: (A) ledger-only (accept $176 liability drift, minimal risk) vs (B) pin-resim (fully consistent, but re-runs sim → will re-pin goldenTierA & risks tuned Q6-Q12 convergence). Tre's "all numbers accurate" leans B, but B is the risky path the handoffs warn against — confirm before doing B.
+4. **Remove instrumentation** (temp diagnostic console.logs): useCardProjection.ts `[DIAG-CAP m0]` block right after `safeToPayTotal` (~:1658), and forecast-engine.ts `[DIAG-ENGINE m0]` `if (i === 0)` block right after `finalLiquid = cashPreDebt − monthDebtPayment` (~:1124). Grep `TEMP-DIAG`.
+5. Backup already taken (pre-instrumentation originals): `backups/2026-07-22_134449/src/hooks/useCardProjection.ts` + `.../src/lib/forecast-engine.ts`. Take a fresh backup before the cardProjectionResim.ts edit.
+6. Full suite `npm test` (`--silent=false --reporter=verbose`) — WATCH goldenTierA (Jul 2027) for re-pins; option A alone should NOT re-pin (month-0 cash only, feedback target `ledgerEntry.revolving` for m0 changes 1530→1354 so it MIGHT). tsc clean; `python -m graphify update .`; **LOCAL commit only** (never push). New regression test: month-0 augmented-floor breach → Ending ≥ floor (extend useCardProjection.month0TransferFloor.test.ts or a forecast-engine test asserting ledger[0].total == month0.safeToPayTotal).
+
+### Live numbers (localhost, Tre's real data 2026-07-22): startingLiquid/funding 1899.65, netIncome 2797.78, baseExpenses 0 (final pass), savingsOut 0, vehicleInsurance 173.23, transfersOut 25 (Roth IRA rule), cashPreDebt 4499.20, augmented floor 3145.12, cap safeToPayTotal 1354(.08), sim ledger total 1530.69, simRevolvingTotal 1379. Supabase user_id a72f416e-433a-4055-9ab0-9feae4e60edf, project mdtosrbfkextcaezuclh.
+### Working-tree state: useCardProjection.ts (Option A + DIAG instrumentation) and forecast-engine.ts (DIAG instrumentation) MODIFIED, uncommitted. cardProjectionResim.ts NOT yet edited. handoff.md modified (this block). NOT pushed.
+
+---
+
 # Handoff — 2026-07-22 (session 20 → 21) — NEW TASK STARTED: GA4 + signup conversion goal on getforgenta.com (this repo). Audit done, DECISIONS locked, NO code written yet, browser GA4 setup NOT started (stopped at context gate). Email backlog (nudges + newsletter digest) already SHIPPED+DEPLOYED this session (commit 8ad98370) and both templates inbox-verified via Tre's Gmail.
 
 ## ACTIVE TASK — Wire up GA4 + a `sign_up` conversion goal on the getforgenta.com WEB APP (this repo), so blog referrals (utm_source=blog, already shipped on treforged.com) can be attributed through to signups.
