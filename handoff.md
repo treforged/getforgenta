@@ -1,6 +1,23 @@
-# Handoff — 2026-07-22 (session 20-floor → 21) — MONTH-0 FLOOR BREACH: ROOT CAUSE DEFINITIVE (live-instrumented), FIX IDENTIFIED + PARTIALLY APPLIED (INEFFECTIVE so far — wrong layer). Ending $2,969 still $176 under floor $3,145. Instrumentation STILL IN both files — MUST REMOVE before commit.
+# Handoff — 2026-07-22 (session 21) — ✅ MONTH-0 FLOOR BREACH: RESOLVED + LIVE-VERIFIED + LOCAL-COMMITTED (b56a1a7c, NOT pushed). Option A (ledger-only) shipped. Nothing outstanding on this task.
 
-> ⚠️ HANDOFF FILE STATE: TWO active tasks are interleaved here. (1) THIS top block = the MONTH-0 FLOOR task — live-instrumented, with UNCOMMITTED WIP in `src/hooks/useCardProjection.ts` + `src/lib/forecast-engine.ts` (and a pending `cardProjectionResim.ts` edit). (2) The **GA4 signup-goal** block below (now updated for **session 21**) — Tre asked to "resume the GA4 setup" this session; the **browser flow is DONE** (GA4 property CREATED, Measurement ID captured) and the code is planned + ready to execute (no code written yet). Both tasks are open. Confirm with Tre which to work first. ⚠️ A GA4 commit must stage ONLY the GA4 files — never the two floor-task source files above.
+> ⚠️ HANDOFF FILE STATE: (1) THIS top block = the MONTH-0 FLOOR task — now **DONE** (committed b56a1a7c, floor-task files only: `cardProjectionResim.ts` + `useCardProjection.ts` + new test; `forecast-engine.ts` reverted to HEAD). (2) The **GA4 signup-goal** block further below is a SEPARATE, still-OPEN task — browser flow reportedly done (property created, Measurement ID captured), no code written yet. Confirm with Tre before starting GA4. ⚠️ A GA4 commit must stage ONLY the GA4 files — never the floor-task files.
+
+## ✅ RESOLVED (session 21) — commit `b56a1a7c` (LOCAL, NOT pushed)
+**Fix (Option A — Tre chose "A now, B if needed"):** threaded the floor-capped month-0 payment ledger through the resim path, which the engine actually consumes.
+- `cardProjectionResim.ts`: added optional `month0PaymentLedger?: PaymentLedgerEntry` to `ResimContext`; `buildResimOverrides` swaps it into `paymentLedger` index 0, months 1+ stay raw-sim.
+- `useCardProjection.ts`: hoisted the perCardAdjustedFinal floor-capped entry to a `month0PaymentLedger` const; passed it into BOTH `buildResimOverrides` ctx objects (makeResimulate + withPaymentOverrides) AND the base hookResult ledger. Removed the ineffective inline base-only override + all DIAG instrumentation.
+- `forecast-engine.ts`: DIAG removed → now byte-identical to HEAD (no code committed there).
+- New test `src/hooks/__tests__/cardProjectionResim.month0Ledger.test.ts` (2) pins the override contract.
+
+**Live-verified (localhost, Tre's real data):** Jul 2026 Ending Cash now **$3,145 = exactly the floor** (was $2,969). Popup reconciles: Discover **$1,354** (floor-capped), lines sum to Ending. Dashboard safe-to-pay/recommended **$1,354**. Milestone **Jul 2027 unchanged** (no goldenTierA re-pin). Full suite **220 green**, tsc clean, graphify updated. Backup `backups/2026-07-22_143742/`.
+
+**Note:** live numbers had shifted since the prior handoff (data re-synced; the stale $4,499/$1,530/$3,145 captures no longer reproduce) but the fix is a data-independent plumbing fix, so this is immaterial.
+
+**⚠️ Accepted residue (Option B NOT done, per "A now, B if needed"):** sim's internal month-0 balances still reflect the raw ~$176-higher payment → projected Discover balance runs ~$176 low in the net-worth trajectory (invisible on-chart, debt looks slightly better). Evaluated: does NOT surface anywhere material. Option B (pin-resim) would re-run tuned Q6-Q12 convergence for an invisible delta — not warranted. Reopen only if Tre wants full internal consistency.
+
+---
+
+## (superseded — kept for trace) original in-progress notes for THIS task
 
 ## DEFINITIVE ROOT CAUSE (live-instrumented on localhost, Tre's real data, 2026-07-22)
 Tre's complaint (sessions 15-19): July 2026 (month 0) Ending Cash $2,969 < augmented floor $3,145 (~$176 below); "why doesn't Discover pull back to hold the floor?" Tre this session: **"apply it and test. all numbers need to calculate accurately."**
