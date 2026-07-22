@@ -1,4 +1,53 @@
-# Handoff — 2026-07-21 (session 16 → 17) — month-0 debt-cap fix SHIPPED (commit 0e79c5c0, local only); ⚠️ still needs LIVE verification against Tre's July numbers (fix explains only ~$25 of the ~$179 gap by static analysis).
+# Handoff — 2026-07-21 (session 17 → 18) — PLAN-FIRST diagnosis of Tre's new screenshots: month-0 has THREE defects. Root cause of "below floor" = a DROPPED PAYCHECK. No code edited session 17 (Tre said "plan first"); session-16 fix (0e79c5c0) is PUSHED + iOS build uploaded.
+
+## SESSION 17 — diagnosis complete, NO edits yet (Tre: "plan first"). Two live screenshots of Jul 2026 breakdown.
+Session-16 fix (0e79c5c0) + all local history were PUSHED to main this session (Tre asked, to get a TestFlight
+build). iOS "Build & Upload to App Store" run 29878740219 COMPLETED/success — build is in App Store Connect but
+Apple TestFlight processing + app-update may not have reached Tre's phone, so UNKNOWN whether his screenshots are
+pre- or post-0e79c5c0. GitHub flagged 1 high Dependabot alert (#55) — unrelated.
+
+### Live data confirmed (Supabase, user_id a72f416e-433a-4055-9ab0-9feae4e60edf):
+- Sync cutoff ≈ **2026-07-20** (Discover+Prime `liability_synced_at` = 2026-07-20 13:00 UTC; profiles/accounts have
+  no last_sync col; syncCutoffDate is computed in CardProjectionContext.tsx:123 + CreditCardEngine.tsx:188 — NOT
+  yet read this session, read it next).
+- Income rules (recurring_rules): **Weekly Paycheck** $848.89 weekly due_day 5 (Fri); **GF Half of Rent/Groceries**
+  $1,100 monthly due_day 28 (= the "Other Income $1,100" line). Investment: **Roth IRA** $25 due 28, **Robinhood**
+  $25 due 5 (pre-cutoff→excluded). Transfer: **HYS** $100 due 28 (from TOTAL CHECKING), **Owners Contribution** $50
+  due 17 (pre-cutoff→excluded). Funding acct = TOTAL CHECKING 933cbc10 bal $1,999.65. Cards: Discover 9608.64,
+  Prime 6677.62, others $0.
+
+### Screenshot facts — Jul 2026 popup: Current Cash $2,000, +Paycheck $849, +Other Income $1,100, −Bills $0,
+### −Discover $605, −Vehicle Insurance $173, −Roth IRA $25, +One-Time Net $0, = Ending $2,966, Cash Floor $3,145.
+### Collapsed row: +INCOME $1,949 / −OUT $983 / END $2,966; chips "⏱ rest of month · 3 paychecks received", "CC $140".
+
+### THREE DEFECTS (diagnosed):
+**Bug 1 — DROPPED PAYCHECK (root cause of the floor breach).** Cutoff Jul 20 → remaining Fridays Jul 24 + Jul 31 =
+**2 checks = $1,698**, but popup shows +Paycheck **$849 = 1 check**. Chip "3 received" (Jul 3/10/17) confirms 2 SHOULD
+remain. Engine month-0 income path: `forecast-engine.ts:667-673` (`paycheckIncome = scheduledIncome − nonPayRemaining`);
+`scheduledIncome` derives from `forecastMonthEvents[0].income` which sums scheduledEvents with `date > syncCutoffDate`
+(`useCardProjection.ts:344-355`, same filter mirrored in forecast-engine). Both hook and engine share the SAME
+`scheduledEvents`, so both drop the check → cap and engine agree on wrong income. **Restoring it: 2966 + 849 = $3,815 >
+$3,145 floor → breach disappears.** NEXT: trace `generateScheduledEvents` (src/lib/scheduling.ts) weekly generation
+for the current partial month — is it emitting only ONE Friday event after Jul 20, or is a month-0 window dropping one?
+Verify with a test: weekly paycheck, cutoff mid-month, must emit ALL remaining same-month occurrences.
+
+**Bug 2 — Popup doesn't reconcile (display-only).** Lines sum $3,146 but Ending $2,966 → **$180 unshown** = **HYS $100**
+(transfer, not itemized — `Forecast.tsx:1008` transferBreakdown shows Roth $25 but not HYS) + **Prime Visa cycling ~$80**
+(month-0 per-card display `Forecast.tsx:954-957` uses `month0.perCardAdjusted` = Discover only; engine subtracts full
+`monthDebtPayment` ledger incl. Prime cycling). 3146 − 100 − 80 = 2966 ✓. Fix in Forecast.tsx popup: itemize ALL
+month-0 transfer rules (incl. HYS) + the cycling CC payment so lines reconcile to Ending.
+
+**Bug 3 — "Ending below floor"** is the visible symptom of Bug 1; fixing Bug 1 resolves it. (If, after Bug 1, the cap
+re-authorizes more Discover, Ending clamps to floor $3,145 — still not below. Either way, no engine-convergence change
+should be needed. Do NOT touch tuned convergence unless Bug 1 fix proves insufficient on the post-fix build.)
+
+### PLAN (Tre to confirm before editing): 1) Fix Bug 1 (dropped paycheck) FIRST — root cause. 2) Fix Bug 2 (popup
+### itemization). 3) Full suite (watch goldenTierA Jul 2027) + tsc + graphify + LOCAL commit. 4) Live re-verify on the
+### NEW build. Backup before edits per CLAUDE.md. vitest: --silent=false --reporter=verbose.
+
+---
+
+# Handoff — 2026-07-21 (session 16 → 17) — month-0 debt-cap fix SHIPPED (commit 0e79c5c0, PUSHED); prior context below
 
 ## DONE this session (16) — commit `0e79c5c0` (local, NOT pushed) — month-0 debt cap now mirrors engine cashPreDebt
 Applied the Tre-approved fix from session 15's diagnosis (details preserved below under "IN PROGRESS (session 15)").
@@ -210,6 +259,15 @@ stale native Capacitor bundle.
 ## THEN — older backlog (unchanged)
 - Supabase GoTrue `GOTRUE_JWT_DEFAULT_GROUP_NAME` deprecation (auth config/env).
 - Google Play 5.44 / Android 15 edge-to-edge advisories (CI-owned builds).
+- **[from marketing session 2026-07-21] Unverified-account email nudges.** Highest-value email job.
+  Build a scheduled Supabase edge function (pg_cron, e.g. daily): find `auth.users` with
+  `email_confirmed_at IS NULL` created >24h and >72h ago, that haven't been nudged for that stage yet →
+  send a reminder via the **Resend API** (already the auth SMTP sender: `noreply@treforged.com`, project
+  `mdtosrbfkextcaezuclh`) → stop once verified. Track "nudged" state in a small table
+  (e.g. `email_nudges(user_id, stage, sent_at)`) so you never double-send. Two stages (24h gentle, 72h
+  final). Resend free tier: 3k/mo, 100/day — fine. Related: also add **GA4 + a signup goal on
+  getforgenta.com** to read the blog UTM attribution (utm_source=blog) shipped in the marketing session,
+  and later **feature/promo broadcasts** via Resend Broadcasts + a Supabase-sourced audience.
 
 ## State / gotchas
 - On `main`, clean except `backups/` (untracked, NEVER commit) and `graphify-out/` (gitignored).
