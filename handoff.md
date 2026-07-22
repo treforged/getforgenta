@@ -37,7 +37,20 @@ Tre's complaint (sessions 15-19): July 2026 (month 0) Ending Cash $2,969 < augme
 
 ---
 
-# Handoff — 2026-07-22 (session 21 → 22) — GA4: browser flow **DONE** (property CREATED, Measurement ID = `G-1XD8TP0VFS`). Code NOT written yet (stopped at context gate right after backups). Plan fully specified below. + NEW follow-up task from Tre: Search Console failed page indexing (both domains).
+# Handoff — 2026-07-22 (session 21 → 22) — GA4: ✅ **CODE SHIPPED (local commit `3c16a21c`, NOT pushed)**. Browser flow DONE (property CREATED, Measurement ID = `G-1XD8TP0VFS`). + NEW follow-up task from Tre: Search Console failed page indexing (both domains) — NOT started.
+
+## ✅✅ CODE SHIPPED session 22 — commit `3c16a21c` (LOCAL, not pushed) — all 7 GA files per the plan below
+- NEW `src/lib/analytics.ts` (initGA idempotent/web-only/env-gated; trackSignUp; maybeTrackOAuthSignUp w/ provider+created_at≤60s+localStorage dedup)
+- NEW `src/components/shared/Analytics.tsx` (consent-gated loader; bridges banner's live Accept via COOKIE_CONSENT_EVENT)
+- `src/lib/cookie-consent.ts` (COOKIE_CONSENT_EVENT const + dispatch in saveConsent + 'Google Analytics' example)
+- `src/App.tsx` (<Analytics /> in web BrowserRouter branch only, next to <CookieBanner />)
+- `src/pages/Auth.tsx` (trackSignUp('email') after successful signUp)
+- `src/contexts/AuthContext.tsx` (maybeTrackOAuthSignUp on SIGNED_IN)
+- `.env.example` (VITE_GA_MEASUREMENT_ID= documented)
+- VERIFY: `npx tsc --noEmit` clean ✓; `npm run build` green ✓; `graphify update` ✓. Backup `backups/2026-07-22_144237/`. Commit staged ONLY the 7 GA files — floor-task WIP (cardProjectionResim.ts, useCardProjection.ts + new cardProjectionResim.month0Ledger.test.ts) left untouched/uncommitted.
+- ⚠️ REMAINING (Tre / GA-side, LATER): (1) Tre sets `VITE_GA_MEASUREMENT_ID=G-1XD8TP0VFS` in **Vercel Production env** + redeploys (code no-ops until then). (2) Mark `sign_up` a **Key event/conversion** in GA Admin AFTER the first live sign_up fires. (3) Optional local smoke test in DebugView. (4) Push when Tre asks (needed to carry to prod).
+
+## (historical) browser-flow done + original plan below
 
 ## ✅ DONE THIS SESSION (browser, via claude-in-chrome on tre@treforged.com)
 Created the full GA4 setup on analytics.google.com. Confirmed live in UI:
