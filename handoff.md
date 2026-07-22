@@ -1,4 +1,35 @@
-# Handoff — 2026-07-21 (session 17 → 18) — PLAN-FIRST diagnosis of Tre's new screenshots: month-0 has THREE defects. Root cause of "below floor" = a DROPPED PAYCHECK. No code edited session 17 (Tre said "plan first"); session-16 fix (0e79c5c0) is PUSHED + iOS build uploaded.
+# Handoff — 2026-07-22 (session 18 → 19) — ROOT CAUSE FOUND + FIXED (commit 653dd200, LOCAL, NOT pushed). The "dropped paycheck" is a TIMEZONE bug, not what session 17 hypothesized. HYS and Bug 3 were non-issues.
+
+## SESSION 18 — SHIPPED `653dd200` (local): scheduled-event dates now formatted in LOCAL time, not UTC.
+**Root cause (confirmed by live repro on America/New_York):** `generateScheduledEvents` (src/lib/scheduling.ts)
+seeded each event with the current LOCAL wall-clock time, then formatted with `d.toISOString().split('T')[0]`
+(UTC). For EVENING loads in ET (UTC-4), every generated date shifted +1 calendar day: Jul 31 9pm ET → "2026-08-01"
+→ leaked into August → the current-month forecast filter (`e.date > syncCutoffDate` within monthKey) dropped it.
+Symptom: July showed 1 paycheck ($849) not 2 ($1,698) → Ending Cash below floor. Repro table: 9:10am/1:10pm ET
+→ [Jul24, Jul31] (2 ✓); 9:10pm/11:30pm ET → [Jul25] only (1 ✗). Tre's screenshot was timestamped 9:10 (PM).
+**Fix:** new `toLocalDateStr()` helper (local getters); all 4 gen branches (weekly/biweekly/monthly/yearly) +
+`getUpcomingEvents` window bounds use it. Aligns with every consumer (monthKey/syncCutoffDate already local).
+**Verify:** new src/lib/__tests__/scheduling.localDate.test.ts (2 tests, evening-load end-of-month payday stays in
+month). Full suite **218 green, NO golden re-pins** (goldenTierA still Jul 2027 — fixtures carry pre-generated event
+dates so golden path doesn't re-run generation). tsc clean. graphify updated. Backup:
+backups/2026-07-22_004304/src/lib/scheduling.ts.
+
+### The other two session-17 "defects" were WRONG (data-verified via Supabase):
+- **HYS $100 is NOT missing-in-error** — the HYS rule `start_date = 2027-06-20`, so it correctly does not appear in
+  a Jul 2026 breakdown. Not a bug.
+- **Bug 3 "below floor"** was just the visible symptom of the paycheck bug; resolves once dates are fixed.
+- Session-17 Bug 2 (popup non-reconcile) was computed off the STALE 1-paycheck screenshot; re-evaluate against live
+  numbers only if it still doesn't sum after this fix.
+
+### ⚠️ NEXT — LIVE VERIFY (do FIRST next session):
+Have Tre reload getforgenta.com (any time of day now) → July current-month +Paycheck should show **~$1,698 (2 checks)**
+and Ending should clear the $3,145 floor. If a MORNING load already showed 2 (it did in repro), the real test is an
+EVENING reload now showing 2 as well. Commit `653dd200` is LOCAL only — push only if Tre asks (needed for a native
+build to carry the fix to his phone).
+
+---
+
+# (superseded) Handoff — 2026-07-21 (session 17 → 18) — PLAN-FIRST diagnosis of Tre's new screenshots: month-0 has THREE defects. Root cause of "below floor" = a DROPPED PAYCHECK. No code edited session 17 (Tre said "plan first"); session-16 fix (0e79c5c0) is PUSHED + iOS build uploaded.
 
 ## SESSION 17 — diagnosis complete, NO edits yet (Tre: "plan first"). Two live screenshots of Jul 2026 breakdown.
 Session-16 fix (0e79c5c0) + all local history were PUSHED to main this session (Tre asked, to get a TestFlight
@@ -268,6 +299,16 @@ stale native Capacitor bundle.
   final). Resend free tier: 3k/mo, 100/day — fine. Related: also add **GA4 + a signup goal on
   getforgenta.com** to read the blog UTM attribution (utm_source=blog) shipped in the marketing session,
   and later **feature/promo broadcasts** via Resend Broadcasts + a Supabase-sourced audience.
+- **[from marketing session 2026-07-21] Weekly newsletter digest edge function.** The marketing site
+  (treforgedwebsite) created `public.newsletter_subscribers` in THIS project (`mdtosrbfkextcaezuclh`):
+  anon INSERT-only, RLS blocks reads, service role reads. Build a scheduled Supabase edge function (pg_cron,
+  weekly, e.g. Mon) that: fetches `https://treforged.com/feed.xml` (public RSS, the site publishes daily),
+  takes posts from the last 7 days, reads all `newsletter_subscribers`, and sends a branded digest via the
+  **same Resend API key** shared with the nudge fn (do NOT add a GitHub secret — a GH Action was intentionally
+  rejected because `treforged` is a personal account with no org secrets). Add UTM `utm_source=newsletter` to
+  links. mailto List-Unsubscribe for now; one-click unsubscribe endpoint is a later upgrade. Reference email
+  HTML + logic existed briefly at treforgedwebsite `scripts/send-digest.mjs` (since removed; check git history
+  commit before `9ef1ef3` if you want the template).
 
 ## State / gotchas
 - On `main`, clean except `backups/` (untracked, NEVER commit) and `graphify-out/` (gitignored).
