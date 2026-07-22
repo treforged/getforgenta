@@ -290,25 +290,26 @@ stale native Capacitor bundle.
 ## THEN — older backlog (unchanged)
 - Supabase GoTrue `GOTRUE_JWT_DEFAULT_GROUP_NAME` deprecation (auth config/env).
 - Google Play 5.44 / Android 15 edge-to-edge advisories (CI-owned builds).
-- **[from marketing session 2026-07-21] Unverified-account email nudges.** Highest-value email job.
-  Build a scheduled Supabase edge function (pg_cron, e.g. daily): find `auth.users` with
-  `email_confirmed_at IS NULL` created >24h and >72h ago, that haven't been nudged for that stage yet →
-  send a reminder via the **Resend API** (already the auth SMTP sender: `noreply@treforged.com`, project
-  `mdtosrbfkextcaezuclh`) → stop once verified. Track "nudged" state in a small table
-  (e.g. `email_nudges(user_id, stage, sent_at)`) so you never double-send. Two stages (24h gentle, 72h
-  final). Resend free tier: 3k/mo, 100/day — fine. Related: also add **GA4 + a signup goal on
-  getforgenta.com** to read the blog UTM attribution (utm_source=blog) shipped in the marketing session,
-  and later **feature/promo broadcasts** via Resend Broadcasts + a Supabase-sourced audience.
-- **[from marketing session 2026-07-21] Weekly newsletter digest edge function.** The marketing site
-  (treforgedwebsite) created `public.newsletter_subscribers` in THIS project (`mdtosrbfkextcaezuclh`):
-  anon INSERT-only, RLS blocks reads, service role reads. Build a scheduled Supabase edge function (pg_cron,
-  weekly, e.g. Mon) that: fetches `https://treforged.com/feed.xml` (public RSS, the site publishes daily),
-  takes posts from the last 7 days, reads all `newsletter_subscribers`, and sends a branded digest via the
-  **same Resend API key** shared with the nudge fn (do NOT add a GitHub secret — a GH Action was intentionally
-  rejected because `treforged` is a personal account with no org secrets). Add UTM `utm_source=newsletter` to
-  links. mailto List-Unsubscribe for now; one-click unsubscribe endpoint is a later upgrade. Reference email
-  HTML + logic existed briefly at treforgedwebsite `scripts/send-digest.mjs` (since removed; check git history
-  commit before `9ef1ef3` if you want the template).
+- **[SHIPPED 2026-07-22, commit `8ad98370`] Unverified-account email nudges.** Built + DEPLOYED to
+  Supabase (`mdtosrbfkextcaezuclh`). `supabase/functions/unverified-nudge/index.ts` + migration
+  `20260722_email_nudges.sql`: daily cron `unverified-nudge-daily` (`0 15 * * *`) calls
+  `public.get_users_to_nudge()` (SECURITY DEFINER, service-role only) → gentle_24h / final_72h stages,
+  embeds a real one-click magiclink verify link (GoTrue admin `generateLink`, redirectTo
+  getforgenta.com/dashboard), sends via Resend (`noreply@treforged.com`), records each send in new
+  `public.email_nudges` (PK user_id+stage, RLS on/no policies) so no stage double-sends. Verified:
+  cron active, selector returns the 3 existing unverified users (all >72h → final_72h), CRON_SECRET
+  resolves. **NOT yet fired** — first send is the next 15:00 UTC cron tick (or a manual invoke).
+  ⚠️ ONE untested external behavior: whether `generateLink type='magiclink'` returns an action_link
+  for these users — the fn records a `link_generation_failed` failure (no email) if not, so watch the
+  first run's response / Resend dashboard. Still TODO (separate): GA4 + signup goal on getforgenta.com;
+  later feature/promo broadcasts via Resend Broadcasts.
+- **[SHIPPED 2026-07-22, commit `8ad98370`] Weekly newsletter digest.** Built + DEPLOYED.
+  `supabase/functions/newsletter-digest/index.ts` + migration `20260722_newsletter_digest_cron.sql`:
+  weekly cron `newsletter-digest-weekly` (`0 15 * * 1`, Mondays) fetches `treforged.com/feed.xml`,
+  filters to last 7 days, reads `newsletter_subscribers` (service role bypasses INSERT-only RLS),
+  sends a branded digest via Resend batch with `utm_source=newsletter` + mailto List-Unsubscribe.
+  Skips cleanly if 0 posts or 0 subscribers. Uses the shared RESEND_API_KEY (no GH secret added).
+  **First send is next Monday's cron tick.** One-click unsubscribe endpoint remains a later upgrade.
 
 ## State / gotchas
 - On `main`, clean except `backups/` (untracked, NEVER commit) and `graphify-out/` (gitignored).
