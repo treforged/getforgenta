@@ -1,3 +1,33 @@
+# Handoff — 2026-07-22 (session 20 → 21) — NEW TASK STARTED: GA4 + signup conversion goal on getforgenta.com (this repo). Audit done, DECISIONS locked, NO code written yet, browser GA4 setup NOT started (stopped at context gate). Email backlog (nudges + newsletter digest) already SHIPPED+DEPLOYED this session (commit 8ad98370) and both templates inbox-verified via Tre's Gmail.
+
+## ACTIVE TASK — Wire up GA4 + a `sign_up` conversion goal on the getforgenta.com WEB APP (this repo), so blog referrals (utm_source=blog, already shipped on treforged.com) can be attributed through to signups.
+
+### DECISIONS LOCKED (Tre, session 20):
+- **Tre has NO GA4 property yet.** He asked me to CREATE it via Chrome browser automation (claude-in-chrome, his logged-in Google account) and grab the Measurement ID `G-XXXXXXXXXX`. (Browser flow was about to start when the context gate fired — chrome MCP tools already loaded.)
+- **Measurement ID via env var `VITE_GA_MEASUREMENT_ID`** — NEVER hardcode. Set in Vercel env + add to `.env.example`. Code no-ops until the var is set.
+- **Consent-gated (mandatory).** GA loads ONLY after analytics cookie consent. Existing system: `src/lib/cookie-consent.ts`, `src/hooks/useCookieConsent.ts`, `src/components/shared/CookieBanner.tsx`. ⚠️ The `analytics` consent flag is currently STORED but consumed by NOTHING — GA is its first real consumer. Vercel Speed Insights is only *listed* as an example, not actually loaded.
+- **Event scope = Email + OAuth** (Tre said "whichever you think is best" → chose full attribution). Fire GA4 recommended event `sign_up`:
+  - (a) email signup success at `src/pages/Auth.tsx:438` (`supabase.auth.signUp`) → `sign_up` method:'email'.
+  - (b) new-user OAuth (Google/Apple, `Auth.tsx:196/234/294`) → detect new user in `src/contexts/AuthContext.tsx` (~line 183 handles `type==='signup'`; also check `user.created_at` within ~60s of now to avoid firing on returning-user logins) → `sign_up` method:'oauth'.
+
+### CODE PLAN (not started):
+1. NEW `src/lib/analytics.ts`: dynamic gtag loader reading `import.meta.env.VITE_GA_MEASUREMENT_ID`; `initGA()` injects the gtag script + configures GA4 ONLY when analytics consent is true (call idempotent — guard against double-inject); export `trackSignUp(method: 'email'|'oauth')` that calls `gtag('event','sign_up',{method})` (no-op if GA not initialized).
+2. Consent-gated init: add an effect (in `src/App.tsx`, which already renders `<CookieBanner/>` at line 258, or a small `<Analytics/>` component) that calls `initGA()` when `useCookieConsent().consent?.analytics === true`, and re-runs when consent changes (CookieBanner `acceptAll`/`saveCustom`). Do NOT put a static gtag `<script>` in `index.html` — must stay consent-gated.
+3. Fire `trackSignUp('email')` after successful `supabase.auth.signUp` in `Auth.tsx:438`.
+4. Fire `trackSignUp('oauth')` for new users in `AuthContext.tsx`.
+5. `.env.example` += `VITE_GA_MEASUREMENT_ID=`; Tre adds the real ID to Vercel env.
+6. Backup before edits (CLAUDE.md), `tsc`, build, `python -m graphify update .`, LOCAL commit (never push).
+
+### BROWSER STEPS (do FIRST next session — chrome MCP already the plan):
+- Requires Tre signed into the target Google account in Chrome; he handles any login/2FA.
+- analytics.google.com → create Account (e.g. "TRE Forged") → GA4 Property (e.g. "Forgenta") → Web data stream URL `https://getforgenta.com` → COPY Measurement ID `G-XXXXXXXXXX`.
+- In GA Admin, mark `sign_up` as a Key event / conversion (may only appear after first event fires — can be done later).
+- GA4 Enhanced Measurement auto-tracks SPA page_views (history changes) — verify; likely no manual page_view needed.
+
+### GOTCHAS: never hardcode the ID; keep GA behind analytics consent; SPA route changes rely on GA4 enhanced measurement; OAuth new-vs-returning detection via created_at to avoid false conversions.
+
+---
+
 # Handoff — 2026-07-22 (session 19 → 20) — TIMEZONE FIX VERIFIED LIVE (both checks now show). NEW in-progress issue: month-0 Discover payment does NOT pull back to hold the cash floor. Diagnosis started, exact live numbers captured. NO new code edited session 19.
 
 ## SESSION 19 — timezone fix (653dd200) LIVE-VERIFIED on localhost web: July now shows BOTH paychecks (~$1,698). ✅
