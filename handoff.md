@@ -21,10 +21,16 @@
 - **Vercel env var SET (via claude-in-chrome, Tre logged in):** `VITE_GA_MEASUREMENT_ID = G-1XD8TP0VFS` on project `getforgenta` (prj_rzrXx0dwi717dwKUpOgNJRKod2Ef, team treforgeds-projects), **Production only** (Preview/Dev unchecked — deliberate, so preview/Dependabot deploys don't pollute GA), Sensitive OFF (public ID).
 - **Prod build triggered:** pushing main auto-started a Production deployment of commit `4a3f33b` (was "Building" at handoff time). Prior prod was `521b2f6`.
 
-### ⏭️ NEXT (GA follow-ups — small):
-1. **Verify deploy went Ready** (Vercel → Deployments, commit 4a3f33b should be Ready + Current/Production). Then on getforgenta.com, Accept analytics cookies → confirm gtag loads (Network: `googletagmanager.com/gtag/js?id=G-1XD8TP0VFS`) and GA Realtime shows the session.
-2. **Mark `sign_up` a Key event/conversion** in GA Admin — only possible AFTER the first live `sign_up` event fires (do a test email signup on the live site to trigger it, then flip it in GA Admin → Events).
-3. **Search Console failed-indexing task** (Tre queued it "after GA4") — still NOT started. See the dedicated block lower in this file (both domains, entry URLs there).
+### 🤝 AGREED WITH TRE (session 22): Tre does a test email signup on the live site; when he says "done," THE AGENT finishes GA — verify the `sign_up` event in GA Realtime/DebugView, then mark `sign_up` as a Key event in GA Admin (add by name immediately — no need to wait ~24h for it to appear in the Events list). Tre is logged into GA (analytics.google.com) via claude-in-chrome from session 21.
+
+### ✅ Deploy confirmed Ready (session 22): commit `4a3f33b` on `main` is Ready + the CURRENT Production deployment (was live ~14m after push). GA code is serving on getforgenta.com now.
+
+### ⚠️ TEST SIGNUP DONE by Tre (session 22) — `trefocused@icloud.com` — but **NO confirmation email received.** TWO things to check next session:
+1. **Did GA fire?** The `sign_up` GA event does NOT depend on email confirmation (Auth.tsx fires `trackSignUp('email')` right after `supabase.auth.signUp` succeeds), BUT it DOES depend on Tre having Accepted the analytics cookie banner on the live site (consent-gated). Check GA Realtime for a `sign_up` event / any session. If present → mark it a Key event (the agreed step) and GA is DONE. If absent → most likely cookies weren't accepted, OR the signup errored; re-test with analytics cookies accepted.
+2. **Missing confirmation email = possible SEPARATE production issue** (Supabase Auth email delivery / SMTP). Could be benign (iCloud Hide-My-Email delay, spam, or the address already existed so no new email). But if real, signups aren't getting confirmation emails → investigate Supabase Auth email settings/SMTP + logs (project mdtosrbfkextcaezuclh). NOTE: distinct from the shipped unverified-nudge cron (8ad98370), which nudges already-unverified users and would separately email this account at the next 15:00 UTC tick. Confirm scope with Tre before treating as a bug.
+
+### ⏭️ ALSO STILL NEXT:
+- **Search Console failed-indexing task** (Tre queued it "after GA4") — still NOT started. See the dedicated block lower in this file (both domains, entry URLs there).
 
 ### ⚠️ Working-tree note: uncommitted floor-task WIP remains (`src/hooks/cardProjectionResim.ts`, `src/hooks/useCardProjection.ts` + untracked `cardProjectionResim.month0Ledger.test.ts`). Per the block below the floor task was RESOLVED+committed as `b56a1a7c` (which IS pushed) — so this leftover WIP may be redundant/stale; diff it against b56a1a7c before acting. NOT mine (GA) to commit.
 
