@@ -19,6 +19,16 @@ export type ScheduledEvent = {
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+/** Format a Date as YYYY-MM-DD in LOCAL time. Using `toISOString()` here formats in UTC, which
+ * shifts the calendar day forward for evening loads in negative-offset timezones (e.g.
+ * America/New_York, UTC-4/-5): a Jul 31 9pm ET payday becomes "2026-08-01", leaking end-of-month
+ * events into the next month and dropping them from the current month's forecast. Every consumer
+ * of these date strings (monthKey, syncCutoffDate comparisons) already works in local time, so
+ * local formatting is the correct, consistent choice and matches the user's real pay calendar. */
+export function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /** Shared length of the debt-payoff/forecast simulation window, in months. The single source of
  * truth for "how far ahead do we project" — every array/loop bound representing this window
  * across the engine, the hook that drives it, and the Forecast/Debt-Payoff UI should import this
@@ -93,7 +103,7 @@ export function generateScheduledEvents(
       for (const d of dates) {
         if (d > effectiveEnd) break;
         events.push({
-          date: d.toISOString().split('T')[0],
+          date: toLocalDateStr(d),
           name: rule.name,
           amount: Number(rule.amount),
           type: rule.rule_type as ScheduledEvent['type'],
@@ -107,7 +117,7 @@ export function generateScheduledEvents(
       while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
       while (d <= effectiveEnd) {
         events.push({
-          date: d.toISOString().split('T')[0],
+          date: toLocalDateStr(d),
           name: rule.name,
           amount: Number(rule.amount),
           type: rule.rule_type as ScheduledEvent['type'],
@@ -122,7 +132,7 @@ export function generateScheduledEvents(
       if (d < from) d.setMonth(d.getMonth() + 1);
       while (d <= effectiveEnd) {
         events.push({
-          date: d.toISOString().split('T')[0],
+          date: toLocalDateStr(d),
           name: rule.name,
           amount: Number(rule.amount),
           type: rule.rule_type as ScheduledEvent['type'],
@@ -138,7 +148,7 @@ export function generateScheduledEvents(
       if (d < from) d.setFullYear(d.getFullYear() + 1);
       while (d <= effectiveEnd) {
         events.push({
-          date: d.toISOString().split('T')[0],
+          date: toLocalDateStr(d),
           name: rule.name,
           amount: Number(rule.amount),
           type: rule.rule_type as ScheduledEvent['type'],
@@ -207,8 +217,8 @@ export function getUpcomingEvents(events: ScheduledEvent[], days: number = 7): S
   const now = new Date();
   const cutoff = new Date(now);
   cutoff.setDate(cutoff.getDate() + days);
-  const nowStr = now.toISOString().split('T')[0];
-  const cutoffStr = cutoff.toISOString().split('T')[0];
+  const nowStr = toLocalDateStr(now);
+  const cutoffStr = toLocalDateStr(cutoff);
   return events.filter(e => e.date >= nowStr && e.date <= cutoffStr);
 }
 
