@@ -1,4 +1,21 @@
-# Handoff — 2026-07-22 (session 21) — ✅ MONTH-0 FLOOR BREACH: RESOLVED + LIVE-VERIFIED + LOCAL-COMMITTED (b56a1a7c, NOT pushed). Option A (ledger-only) shipped. Nothing outstanding on this task.
+# Handoff — 2026-07-22 (session 22) — ✅ GA4 SHIPPED + DEPLOYED TO PRODUCTION. Code pushed, Vercel env var set, prod build triggered. Two small follow-ups left (verify + mark key event). Search Console task still NOT started.
+
+## ✅ GA4 — LIVE PATH DONE THIS SESSION (session 22)
+- **Code:** commit `3c16a21c` (7 GA files) — see the session-22 GA block further below for the full file list + verify (tsc/build/graphify all green).
+- **PUSHED:** `git push origin main` succeeded — origin/main was 13 commits behind; local `main` (now `4a3f33b1`) pushed in full. That carried GA4 (`3c16a21c`) PLUS the month-0 floor fix (`b56a1a7c`), tz fix, email-nudge work, and handoffs. Tre explicitly authorized the push.
+- **Vercel env var SET (via claude-in-chrome, Tre logged in):** `VITE_GA_MEASUREMENT_ID = G-1XD8TP0VFS` on project `getforgenta` (prj_rzrXx0dwi717dwKUpOgNJRKod2Ef, team treforgeds-projects), **Production only** (Preview/Dev unchecked — deliberate, so preview/Dependabot deploys don't pollute GA), Sensitive OFF (public ID).
+- **Prod build triggered:** pushing main auto-started a Production deployment of commit `4a3f33b` (was "Building" at handoff time). Prior prod was `521b2f6`.
+
+### ⏭️ NEXT (GA follow-ups — small):
+1. **Verify deploy went Ready** (Vercel → Deployments, commit 4a3f33b should be Ready + Current/Production). Then on getforgenta.com, Accept analytics cookies → confirm gtag loads (Network: `googletagmanager.com/gtag/js?id=G-1XD8TP0VFS`) and GA Realtime shows the session.
+2. **Mark `sign_up` a Key event/conversion** in GA Admin — only possible AFTER the first live `sign_up` event fires (do a test email signup on the live site to trigger it, then flip it in GA Admin → Events).
+3. **Search Console failed-indexing task** (Tre queued it "after GA4") — still NOT started. See the dedicated block lower in this file (both domains, entry URLs there).
+
+### ⚠️ Working-tree note: uncommitted floor-task WIP remains (`src/hooks/cardProjectionResim.ts`, `src/hooks/useCardProjection.ts` + untracked `cardProjectionResim.month0Ledger.test.ts`). Per the block below the floor task was RESOLVED+committed as `b56a1a7c` (which IS pushed) — so this leftover WIP may be redundant/stale; diff it against b56a1a7c before acting. NOT mine (GA) to commit.
+
+---
+
+# Handoff — 2026-07-22 (session 21) — ✅ MONTH-0 FLOOR BREACH: RESOLVED + LIVE-VERIFIED + LOCAL-COMMITTED (b56a1a7c, NOW PUSHED). Option A (ledger-only) shipped. Nothing outstanding on this task.
 
 > ⚠️ HANDOFF FILE STATE: (1) THIS top block = the MONTH-0 FLOOR task — now **DONE** (committed b56a1a7c, floor-task files only: `cardProjectionResim.ts` + `useCardProjection.ts` + new test; `forecast-engine.ts` reverted to HEAD). (2) The **GA4 signup-goal** block further below is a SEPARATE, still-OPEN task — browser flow reportedly done (property created, Measurement ID captured), no code written yet. Confirm with Tre before starting GA4. ⚠️ A GA4 commit must stage ONLY the GA4 files — never the floor-task files.
 
