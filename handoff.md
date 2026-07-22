@@ -1,3 +1,18 @@
+# Handoff — 2026-07-22 (session 23) — ✅ MONTH-0 FLOOR **OPTION B (full internal consistency): RESOLVED + LIVE-VERIFIED + LOCAL-COMMITTED (NOT pushed).** Builds on Option A (b56a1a7c, now on origin). Nothing outstanding on this task.
+
+## ✅ RESOLVED session 23 — Option B (Tre: "continue with Option B. I want full internal consistency.")
+**What Option A left (the residue Option B closes):** Option A (b56a1a7c) only overrode the payment LEDGER the engine reads for CASH; the SIM still paid the raw ~$176-higher month-0 amount, so its month-0 sim balances ran low (Discover projected balance understated across net-worth / total-debt / Debt-Payoff). Option B pins the sim so it ACTUALLY pays the floor-capped plan → every sim-derived field is consistent.
+
+**Fix (`src/hooks/useCardProjection.ts` ONLY — cardProjectionResim.ts/forecast-engine.ts untouched):** after `month0PaymentLedger`, build `m0FloorPins = { [cardId]: { 0: perCardAdjustedFinal.payment } }` for every card + a `mergeM0FloorPins(pins?)` helper (m0 pins are the base; a user Anomaly-B pin for the same card/month wins). Threaded the merge into BOTH resim closures — `makeResimulate` → `replayActiveSim(target, fmax, mergeM0FloorPins(pinnedPayments))`, and `withPaymentOverrides` → `replayActiveSim(undefined,undefined, mergeM0FloorPins(pinnedPayments))` — so every FROM-BASE convergence pass keeps the pin. The RETURNED base result now overlays `buildResimOverrides(m0PinnedSim, …)` where `m0PinnedSim = replayActiveSim(undefined,undefined,mergeM0FloorPins())`, so fields Dashboard/Debt-Payoff read directly are also consistent; `month0`/income/save-up sets stay from hookResult. Integer pins == perCardAdjustedFinal, so `buildPaymentLedger(pinnedSim)[0]` equals `month0PaymentLedger` — the Option-A ledger override is now redundant-but-consistent (KEPT so the popup reconciles to the penny). Months 1+ stay free → tuned Q6-Q12 convergence untouched (only carries the ~$176 forward, then pays it down).
+
+**Verify — ALL GREEN:** full suite **221** (220 + 1 new). `realData` convergence: converged, **payoff Jul 2027 (NO re-pin)**, zero floor breaches, **passes: 1** (sim+engine now agree on month 0 from the start → trivial convergence). `pinnedOverride` (Anomaly B) still survives. New test `src/hooks/__tests__/useCardProjection.month0PinConsistency.test.ts` pins the Option-B invariant (Σ sim-derived month-0 per-card payments == floor-capped ledger total == month0.safeToPayTotal; self-skips w/o the gitignored fixture). `npx tsc --noEmit` clean. graphify updated. Backup `backups/2026-07-22_192242/src/hooks/useCardProjection.ts`.
+
+**Live-verified (localhost :8080, Tre's real data):** Jul 2026 END CASH **$3,145 = exactly the floor**; popup reconciles ($1,900 + $1,698 + $1,100 − Discover **$1,354** − Insurance $173 − Roth $25 = Ending $3,145 = Cash Floor $3,145); milestone **Jul 2027** unchanged. The ~$176 sim-balance drift is GONE (sim pays $1,354, not the raw amount — proven by the new invariant test).
+
+**Commit:** LOCAL only (never pushed). Staged ONLY `src/hooks/useCardProjection.ts` + new test + `handoff.md`. Push only when Tre asks (needed to carry to prod / native).
+
+---
+
 # Handoff — 2026-07-22 (session 22) — ✅ GA4 SHIPPED + DEPLOYED TO PRODUCTION. Code pushed, Vercel env var set, prod build triggered. Two small follow-ups left (verify + mark key event). Search Console task still NOT started.
 
 ## ✅ GA4 — LIVE PATH DONE THIS SESSION (session 22)

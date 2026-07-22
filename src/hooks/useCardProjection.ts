@@ -1750,6 +1750,32 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         return { total, revolving: revolvingPaymentFinal, cycling: total - revolvingPaymentFinal, perCard };
       })();
 
+      // Option B — full internal consistency. Option A (month0PaymentLedger above) only overrides
+      // the ledger the engine reads for CASH; the SIM itself still paid the raw, un-floor-capped
+      // month-0 amount, so its month-0-end balances ran ~$176 low (Discover projected balance under-
+      // stated across the net-worth / total-debt / Debt-Payoff trajectory). Pinning each card's
+      // month 0 to its perCardAdjustedFinal amount makes the sim ACTUALLY pay the augmented-floor-
+      // capped payment, so every sim-derived field — balances, interest, payoff month — is consistent
+      // with the recommendation and the popup. Months 1+ are left free, so the tuned Q6-Q12
+      // convergence keeps solving them; it merely carries the extra ~$176 forward on the pinned card,
+      // which the free months pay down. The pins are integers matching perCardAdjustedFinal exactly,
+      // so buildPaymentLedger(pinnedSim)[0] equals month0PaymentLedger and the ledger override is now
+      // redundant-but-consistent (kept so the popup still reconciles to the penny). Baked into BOTH
+      // resim closures below via mergeM0FloorPins so every FROM-BASE convergence pass keeps the pin;
+      // a user pin (Anomaly B withPaymentOverrides) for the same card/month wins over the floor pin.
+      const m0FloorPins: { [cardId: string]: Record<number, number> } = {};
+      for (const p of perCardAdjustedFinal) {
+        m0FloorPins[p.id] = { 0: p.payment };
+      }
+      const mergeM0FloorPins = (
+        pins?: { [cardId: string]: Record<number, number> },
+      ): { [cardId: string]: Record<number, number> } => {
+        const merged: { [cardId: string]: Record<number, number> } = {};
+        for (const [id, months] of Object.entries(m0FloorPins)) merged[id] = { ...months };
+        if (pins) for (const [id, months] of Object.entries(pins)) merged[id] = { ...(merged[id] ?? {}), ...months };
+        return merged;
+      };
+
       // First month where activeSim's total revolving balance is settled (all revolving cards
       // paid, sub-dollar dust tolerated — Q10). Mirrors Forecast.tsx's milestone condition.
       const simRevolvingPayoffMonth: number | null = firstRevolvingPayoffMonth(
@@ -1799,7 +1825,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // after the first.
       const makeResimulate = (pinnedPayments?: { [cardId: string]: Record<number, number> }) => {
         const resim = (target: number[], forecastMaxDebtPaymentByMonth?: number[]): CardProjectionResult => {
-          const simT = replayActiveSim(target, forecastMaxDebtPaymentByMonth, pinnedPayments);
+          const simT = replayActiveSim(target, forecastMaxDebtPaymentByMonth, mergeM0FloorPins(pinnedPayments));
           const resimFields = buildResimOverrides(simT, {
             cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth, month0PaymentLedger,
           });
@@ -1813,7 +1839,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // resimulateWithDebtCash closure both carry the pins, so a convergence loop run on
       // the variant keeps them on every pass.
       const withPaymentOverrides = (pinnedPayments: { [cardId: string]: Record<number, number> }): CardProjectionResult => {
-        const simP = replayActiveSim(undefined, undefined, pinnedPayments);
+        const simP = replayActiveSim(undefined, undefined, mergeM0FloorPins(pinnedPayments));
         const resimFields = buildResimOverrides(simP, {
           cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth, month0PaymentLedger,
         });
@@ -1890,8 +1916,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           mortgagePayment: Math.round(m0MortgagePayment),
         },
       };
-      if (import.meta.env.DEV) attachSimDebug(hookResult);
-      return hookResult;
+      // Option B: rebuild the RETURNED base result's sim-derived fields from a month-0-pinned sim so
+      // the fields Dashboard / Debt Payoff read DIRECTLY (not only through engine convergence) reflect
+      // the augmented-floor-capped month-0 payment. month0 (the recommendation), income and save-up
+      // sets stay from hookResult; the resimulateWithDebtCash / withPaymentOverrides closures already
+      // bake the same pins so every convergence pass stays consistent.
+      const m0PinnedSim = replayActiveSim(undefined, undefined, mergeM0FloorPins());
+      const m0PinnedFields = buildResimOverrides(m0PinnedSim, {
+        cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth, month0PaymentLedger,
+      });
+      const finalResult: CardProjectionResult = { ...hookResult, ...m0PinnedFields };
+      if (import.meta.env.DEV) attachSimDebug(finalResult);
+      return finalResult;
     } catch (e) {
       console.error('[useCardProjection] projection failed:', e);
       return null;
