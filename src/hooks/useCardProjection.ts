@@ -6,6 +6,7 @@ import {
   CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue, m0MinDueSettled,
 } from '@/lib/credit-card-engine';
 import { buildResimOverrides } from './cardProjectionResim';
+import type { PaymentLedgerEntry } from '@/lib/credit-card-engine';
 import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getMinSafeCash, getAugmentedMinSafeCash,
@@ -1734,6 +1735,21 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         .reduce((s, pca) => s + pca.payment, 0);
       const safeToPayTotalFinal = Math.round(cyclingPayment + revolvingPaymentFinal);
 
+      // Month-0 floor-capped ledger entry. The raw sim pays down to the BARE floor (m0SafeFloor),
+      // overshooting the AUGMENTED floor (CC-min/car/insurance buffers) by ~$176. perCardAdjustedFinal
+      // already scales month-0 payments back to availableForRevolving (the augmented-floor cap) — the
+      // value month0.safeToPayTotal displays. This entry carries that scaled split into the ledger the
+      // engine consumes so month-0 cash math (forecast-engine.ts:1121 ledgerEntry.total) lands on the
+      // augmented floor, not below it. Threaded into BOTH the base hookResult ledger AND the resim ctx
+      // (cardProjectionResim.ts rebuilds the ledger raw every convergence pass — the engine's final
+      // cardProjectionData comes from there, so the base override alone never reached it). Months 1+
+      // stay raw-sim, leaving the tuned Q6-Q12 convergence untouched.
+      const month0PaymentLedger: PaymentLedgerEntry = (() => {
+        const perCard = perCardAdjustedFinal.map(p => ({ id: p.id, payment: p.payment }));
+        const total = perCard.reduce((s, p) => s + p.payment, 0);
+        return { total, revolving: revolvingPaymentFinal, cycling: total - revolvingPaymentFinal, perCard };
+      })();
+
       // First month where activeSim's total revolving balance is settled (all revolving cards
       // paid, sub-dollar dust tolerated — Q10). Mirrors Forecast.tsx's milestone condition.
       const simRevolvingPayoffMonth: number | null = firstRevolvingPayoffMonth(
@@ -1785,7 +1801,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const resim = (target: number[], forecastMaxDebtPaymentByMonth?: number[]): CardProjectionResult => {
           const simT = replayActiveSim(target, forecastMaxDebtPaymentByMonth, pinnedPayments);
           const resimFields = buildResimOverrides(simT, {
-            cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth,
+            cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth, month0PaymentLedger,
           });
           return { ...hookResult, ...resimFields, resimulateWithDebtCash: resim };
         };
@@ -1799,7 +1815,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const withPaymentOverrides = (pinnedPayments: { [cardId: string]: Record<number, number> }): CardProjectionResult => {
         const simP = replayActiveSim(undefined, undefined, pinnedPayments);
         const resimFields = buildResimOverrides(simP, {
-          cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth,
+          cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth, month0PaymentLedger,
         });
         return { ...hookResult, ...resimFields, resimulateWithDebtCash: makeResimulate(pinnedPayments), withPaymentOverrides };
       };
@@ -1841,7 +1857,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         monthlyInterest: activeSim.monthlyInterest,
         monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
         monthlyMandatoryCyclingPayment: activeSim.monthlyMandatoryCyclingPayment,
-        paymentLedger: buildPaymentLedger(activeSim, cards),
+        // Month 0: overwrite ledger[0] with the augmented-floor-capped entry (see month0PaymentLedger
+        // above). The engine consumes the RESIM ledger, not this base one, so the same override is
+        // also threaded through the two buildResimOverrides ctx objects; this base override keeps the
+        // non-resim hookResult self-consistent. Months 1+ stay raw-sim (tuned convergence untouched).
+        paymentLedger: buildPaymentLedger(activeSim, cards).map((entry, i) => (i === 0 ? month0PaymentLedger : entry)),
         maxDebtPaymentByMonth,
         m0Income,
         m0Expenses,

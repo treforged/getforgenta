@@ -1,7 +1,7 @@
 import {
   projectCardVariable, simulateVariablePayoff, buildPaymentLedger, CardData, PROJECTION_MONTHS,
 } from '@/lib/credit-card-engine';
-import type { SimResult } from '@/lib/credit-card-engine';
+import type { SimResult, PaymentLedgerEntry } from '@/lib/credit-card-engine';
 import { firstRevolvingPayoffMonth } from '@/lib/revolving-payoff';
 import type { ProjectionDataRow, CardProjectionResult } from './useCardProjection';
 
@@ -26,6 +26,16 @@ export interface ResimContext {
   now: Date;
   saveUpMonths: Set<number>;
   maxDebtPaymentByMonth: number[];
+  /**
+   * Month-0 floor-capped payment ledger entry (perCardAdjustedFinal-derived). The raw sim pays
+   * down to the BARE floor, overshooting the AUGMENTED floor by the CC-min/car/insurance buffers;
+   * the base pipeline scales month-0 back to that augmented cap in `month0.safeToPayTotal` but that
+   * scaled result never reached the ledger the engine consumes. Every convergence pass rebuilds
+   * the ledger RAW from simT here, so without this override the engine keeps spending the
+   * un-floor-capped month-0 payment and the current-month row lands below the floor. When supplied,
+   * ledger index 0 is replaced with it; months 1+ stay raw-sim (tuned convergence untouched).
+   */
+  month0PaymentLedger?: PaymentLedgerEntry;
 }
 
 /** Sim-derived fields of CardProjectionResult that a re-targeted sim replaces. Everything not
@@ -58,7 +68,7 @@ function computeCyclingPaymentByMonth(
 }
 
 export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOverrides {
-  const { cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth } = ctx;
+  const { cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth, month0PaymentLedger } = ctx;
 
   const projs = cards.map(c => {
     const pays = simT.monthlyPayments.get(c.id) || [];
@@ -192,7 +202,7 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
     monthlyInterest: simT.monthlyInterest,
     monthlyCyclingBacklog: simT.monthlyCyclingBacklog,
     monthlyMandatoryCyclingPayment: simT.monthlyMandatoryCyclingPayment,
-    paymentLedger: buildPaymentLedger(simT, cards),
+    paymentLedger: buildPaymentLedger(simT, cards).map((e, i) => (i === 0 && month0PaymentLedger ? month0PaymentLedger : e)),
     forecastAdjustedRevolvingBalances: simT.monthlyRevolvingBalances,
     simRevolvingPayoffMonth: payoffMonth,
     forecastRevolvingPayoffMonth: payoffMonth,
