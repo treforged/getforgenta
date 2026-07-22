@@ -36,7 +36,7 @@ export const COOKIE_CATEGORIES: CookieCategoryDef[] = [
     description:
       'Help us understand how you use Budget OS so we can improve the experience. Data is aggregated and never sold.',
     required: false,
-    examples: ['Vercel Speed Insights', 'page load timing', 'feature usage'],
+    examples: ['Google Analytics', 'Vercel Speed Insights', 'page load timing', 'feature usage'],
   },
   {
     id: 'marketing',
@@ -50,6 +50,10 @@ export const COOKIE_CATEGORIES: CookieCategoryDef[] = [
 
 const STORAGE_KEY = 'tre_cookie_consent';
 const CURRENT_VERSION = '1.0';
+
+/** Dispatched on `window` whenever consent is saved, so listeners (e.g. the
+ * analytics loader) can react to a live decision without a shared context. */
+export const COOKIE_CONSENT_EVENT = 'cookieconsentchange';
 
 export function loadConsent(): CookieConsentState | null {
   try {
@@ -75,6 +79,7 @@ export function saveConsent(
     marketing: prefs.marketing,
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  window.dispatchEvent(new CustomEvent(COOKIE_CONSENT_EVENT, { detail: state }));
   return state;
 }
 

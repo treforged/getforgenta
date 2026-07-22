@@ -7,6 +7,7 @@ import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { initRevenueCat, logOutRevenueCat } from '@/lib/purchases';
 import { identifyMonitoringUser } from '@/lib/monitoring';
+import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { useDemo } from '@/contexts/DemoContext';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;    // 10 minutes
@@ -202,6 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (session?.user?.id) {
           initRevenueCat(session.user.id).catch(() => {/* native no-op on web */});
           identifyMonitoringUser(session.user.id, session.user.email);
+          maybeTrackOAuthSignUp(session.user);
         }
         // Await reviewer reset before navigating so Dashboard's profile SELECT
         // always reads the updated founder_note_seen / onboarding_completed values.

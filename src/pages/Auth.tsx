@@ -10,6 +10,7 @@ import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { AuthSession } from '@/lib/auth-session';
 import { useDemo } from '@/contexts/DemoContext';
+import { trackSignUp } from '@/lib/analytics';
 
 import ForgentaLogo from '@/components/shared/ForgentaLogo';
 
@@ -445,6 +446,7 @@ export default function Auth() {
         });
         if (error) throw error;
         toast.success('Account created! Check your email to confirm.');
+        trackSignUp('email');
       }
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Authentication failed');

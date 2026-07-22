@@ -1,0 +1,71 @@
+import { Capacitor } from '@capacitor/core';
+
+declare global {
+  interface Window {
+    dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
+  }
+}
+
+const MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
+
+let initialized = false;
+
+/**
+ * Load Google Analytics 4 (gtag.js) and start a session. Idempotent, web-only,
+ * and a no-op unless a Measurement ID is configured. Must only be called after
+ * the user has granted analytics cookie consent.
+ */
+export function initGA(): void {
+  if (initialized) return;
+  if (Capacitor.isNativePlatform()) return; // web-only
+  if (!MEASUREMENT_ID) return;
+
+  const script = document.createElement('script');
+  script.async = true;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`;
+  document.head.appendChild(script);
+
+  window.dataLayer = window.dataLayer || [];
+  window.gtag = function gtag(...args: unknown[]) {
+    window.dataLayer!.push(args);
+  };
+  window.gtag('js', new Date());
+  window.gtag('config', MEASUREMENT_ID);
+
+  initialized = true;
+}
+
+/**
+ * Fire the GA4 `sign_up` conversion event. No-op if GA has not been initialized
+ * (e.g. analytics consent not granted, native platform, or no Measurement ID).
+ */
+export function trackSignUp(method: 'email' | 'oauth'): void {
+  if (!window.gtag) return;
+  window.gtag('event', 'sign_up', { method });
+}
+
+interface OAuthUser {
+  id: string;
+  created_at?: string;
+  app_metadata?: { provider?: string };
+}
+
+/**
+ * Fire `sign_up` for OAuth (Google/Apple) users on their FIRST sign-in only.
+ * Email signups are tracked separately at the signUp call site, so this skips
+ * non-OAuth providers. Returning logins are skipped via a created_at freshness
+ * check, and a localStorage flag dedups across sessions.
+ */
+export function maybeTrackOAuthSignUp(user: OAuthUser): void {
+  const provider = user.app_metadata?.provider;
+  if (provider !== 'google' && provider !== 'apple') return; // email tracked at signUp
+  if (!user.created_at) return;
+  if (Date.now() - new Date(user.created_at).getTime() > 60_000) return; // returning login
+
+  const key = `forgenta:signup_tracked_${user.id}`;
+  if (localStorage.getItem(key)) return;
+  localStorage.setItem(key, '1');
+
+  trackSignUp('oauth');
+}

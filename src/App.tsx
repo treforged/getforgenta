@@ -13,6 +13,7 @@ import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import CookieBanner from "@/components/shared/CookieBanner";
+import Analytics from "@/components/shared/Analytics";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
@@ -256,6 +257,7 @@ const App = () => (
               <DeepLinkHandler />
               <AppRoutes />
               <CookieBanner />
+              <Analytics />
             </SubscriptionProvider>
           </AuthProvider>
           </DemoProvider>
