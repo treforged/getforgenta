@@ -1,3 +1,27 @@
+# Handoff — 2026-07-22 (session 24) — ✅ OPTION B **PUSHED + LIVE CROSS-CHECKED SITE-WIDE** · ✅ Dependabot #55 (brace-expansion CVE) **FIXED + PUSHED** · ⏭️ GA follow-ups + Search Console still open
+
+## ✅ Session 24 — Option B pushed to origin + verified consistent across every surface
+- **Pushed** `74dab19f` (Option B month-0 floor pin) to `origin/main` — Tre authorized. Also carried handoff-doc commits `61855bf3` + `fb4832ba`. `main` == `origin/main`. A Vercel Production deploy of the new `main` auto-triggers from the push → Option B now reaches prod/native source of truth.
+- **Live cross-check (localhost :8080, Tre's real data) — all three surfaces reconcile to the SAME month-0 numbers (Discover $1,354 everywhere), no Option-A drift left:**
+  - **Dashboard:** Available-to-deploy **$1,354**; Discover recommended $1,354 (others $0); floor $3,145; projected remaining $4,672. Snapshot reconciles: 1900 + 2798 − 25 = 4673 → − 3145 floor − 173 insurance = **$1,354**.
+  - **Debt Payoff (`/debt`):** Safe-to-Pay **$1,354**; per-card Discover $1,354 / Prime $0 / VX $0 / Apple $0; Total CC **$16,695** (= Prime $6,977 + Discover $9,718 — note: balances re-synced UP from the session-15 stale $9,608/$6,677); Est. liquid $4,672; both cards **payoff Jul 2027**.
+  - **Forecast (`/forecast`):** Jul 2026 **End Cash $3,145 = floor exactly**; popup itemizes to the penny (1900 + Paycheck **$1,698 [2 checks, tz fix holding]** + Other $1,100 − Discover $1,354 − Insurance $173 − Roth $25 + OneTime $0 = **$3,145 = Cash Floor**); milestone **Jul 2027 CC Debt Free** unchanged; net-worth chart smooth, no month-0 kink.
+  - Conclusion: the ~$176 Option-A sim-balance drift is **gone site-wide**, confirmed by eye on every page (not just the automated invariant test). **Option B is done-done, on origin, nothing outstanding.**
+
+## ✅ Session 24 — Dependabot alert #55 fixed (brace-expansion DoS, CVE-2026-13149 / GHSA-3jxr-9vmj-r5cp)
+- **What:** transitive `brace-expansion` DoS (O(2ⁿ) brace expansion). GHSA "high" but CVSS 3.1 = 5.3 (medium, availability-only). **Real exposure ≈ none** — all 3 copies are build/dev tooling (eslint via @typescript-eslint, glob), never in the shipped browser bundle; DoS needs attacker-controlled input to `expand()`/glob which never happens at build/lint time.
+- **Fix:** `npm audit fix` → bumped all 3 copies to patched **1.1.16 / 5.0.7 (×2)**. Lockfile-only, non-breaking (`effects: []`). `npm audit` = **0 vulnerabilities**; `npm run build` green. Backup `backups/2026-07-22_195828/package-lock.json`.
+- **Commit** `f4b8a0e6` (chore) — **PUSHED** to origin (`fb4832ba..f4b8a0e6`).
+- ⏳ **VERIFY NEXT:** confirm GitHub auto-closes alert #55 (Dependabot re-scans the pushed lockfile; lags a few min). Check: `gh api repos/treforged/getforgenta/dependabot/alerts/55 --jq '{state,fixed_at}'` → expect `state:"fixed"`. As of end of session 24 it was still `open` (re-scan pending) — not a problem, just not yet re-scanned.
+
+## ⏭️ STILL OPEN (unchanged from session 22 — GA + Search Console)
+**GA4 (code shipped `3c16a21c` + deployed to prod; Vercel env var `VITE_GA_MEASUREMENT_ID=G-1XD8TP0VFS` set, Production-only):**
+1. **Verify prod deploy Ready** (Vercel → Deployments; the push above triggered a fresh Production build of the new `main` — confirm it went Ready/Current). Then on getforgenta.com: Accept analytics cookies → confirm `googletagmanager.com/gtag/js?id=G-1XD8TP0VFS` loads (Network) + GA Realtime shows the session.
+2. **Mark `sign_up` a Key event/conversion** in GA Admin → Events — only possible AFTER the first live `sign_up` fires. Do a test email signup on the live site to trigger it, then flip it. ⚠️ Prior session note (commit `fb4832ba`): a test account `trefocused@icloud.com` reportedly got **no confirmation email** — while doing the test signup, ALSO verify GA `sign_up` fired AND check Supabase Auth email delivery (SMTP/confirm-email) isn't broken.
+3. **Search Console failed page indexing** (both domains) — NOT started. Entry URLs preserved in the session-21 block lower in this file. treforged.com = GitHub Pages + Cloudflare; getforgenta.com = this Vercel SPA (routes may need prerender/sitemap). Confirm scope with Tre before DNS/site changes.
+
+---
+
 # Handoff — 2026-07-22 (session 23) — ✅ MONTH-0 FLOOR **OPTION B (full internal consistency): RESOLVED + LIVE-VERIFIED + LOCAL-COMMITTED (NOT pushed).** Builds on Option A (b56a1a7c, now on origin). Nothing outstanding on this task.
 
 ## ✅ RESOLVED session 23 — Option B (Tre: "continue with Option B. I want full internal consistency.")
