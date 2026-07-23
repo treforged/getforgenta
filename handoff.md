@@ -1,3 +1,29 @@
+# Handoff — 2026-07-23 (session 25) — ✅ GA4 "NO DATA" ROOT-CAUSED + FIXED (CSP was blocking GA for ALL users) — commit `df061cf1` PUSHED + LIVE-VERIFIED. GA pipeline PROVEN working (manual hit showed in Realtime). ⏭️ Remaining: confirm real gtag hit w/ Surfshark paused + mark sign_up key event; Search Console still open.
+
+## ✅ Session 25 — GA4 root cause = our own CSP (NOT the client code, NOT a GA-config issue)
+- **Symptom (from session 24):** gtag verified firing on prod, but GA showed zero data / "no data received yet."
+- **Root cause (live-diagnosed on getforgenta.com via claude-in-chrome):** the `Content-Security-Policy` response header in `vercel.json` never allow-listed Google's domains. `script-src` omitted `googletagmanager.com` → the injected `gtag/js` script was **refused execution** (`window.gtag` stayed a bare stub `function(...e){window.dataLayer.push(e)}`, `window.google_tag_manager`/`google_tag_data` were `undefined`, `client_id` get-callback never fired). `connect-src` omitted `google-analytics.com` → the `/g/collect` beacon would be blocked too. This blocked GA for **every visitor**, not just blocker-users.
+- **Fix — `vercel.json` CSP, additive only (commit `df061cf1`, PUSHED to origin/main + auto-deployed to Vercel prod):**
+  - `script-src` += `https://*.googletagmanager.com`
+  - `connect-src` += `https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com`
+  - `img-src 'self' data: https:` already covered GA's fallback pixel — untouched. Backup `backups/2026-07-23_061529/vercel.json`.
+- **Verified live post-deploy:** new CSP header serving on getforgenta.com; `window.google_tag_manager` is now a live **object** (library executes); direct probes: `www.googletagmanager.com/gtag/js` = HTTP 200, `www.google-analytics.com/g/collect` = **HTTP 204** (GA accepts hits). **A manually-sent collect beacon appeared in GA Realtime** (property a402004786p546662177 "Forgenta": 1 active user, page title "Manual GA Verify", event page_view) → **GA pipeline works end-to-end.** (That synthetic "Manual GA Verify" hit is now in GA data — harmless on a new property, ignore it.)
+
+## ⚠️ Session 25 — Tre's OWN browser won't show GA data: **Surfshark VPN (CleanWeb) blocks it** — NOT a code bug
+- Even from the fixed Chrome tab, gtag loaded but emitted **no** beacon (Performance API + sendBeacon/fetch/XHR instrumentation = zero collect hits from gtag), and `region1.google-analytics.com` was **unreachable** ("Failed to fetch") while `www` worked. That regional-endpoint block + gtag stall is the signature of network/tracker blocking.
+- **Tre confirmed Surfshark VPN is running.** Surfshark's CleanWeb blocks GA endpoints + the VPN exit-region routing sends gtag to `region1.*` which CleanWeb drops. So Tre's own signups/page_views will NEVER appear in GA regardless of code. Real users without such blockers WILL track now that CSP is fixed.
+
+## ⏭️ NEXT (GA — small, needs Tre):
+1. **Confirm real gtag tracking:** have Tre **pause Surfshark (or CleanWeb)** and reload getforgenta.com → his gtag `page_view` should hit GA Realtime in seconds. (Alt: load on phone/cellular w/o VPN.) Re-check Realtime (property p546662177) via claude-in-chrome (Tre logged into analytics.google.com).
+2. **Mark `sign_up` a Key event** once a REAL `sign_up` lands (fresh-email signup w/ Surfshark paused). GA Admin → Events → toggle "Mark as key event" on `sign_up`, OR add by name. ⚠️ Settings change — CONFIRM w/ Tre right before toggling.
+3. **Email-delivery flag CLOSED** (session 24, not a bug — was a dup-account anti-enumeration case).
+
+## ⏭️ STILL OPEN: Search Console failed page indexing (both domains) — NOT started. Entry URLs in the session-21 block lower in this file. treforged.com = GitHub Pages + Cloudflare; getforgenta.com = this Vercel SPA. Confirm scope w/ Tre before DNS/site changes.
+
+### Session-25 git state: PUSHED to origin/main → `df061cf1` (CSP fix; also carried the two session-24 handoff-doc commits fe4bcd0f + d517b1d1). Dependabot alert #55 (brace-expansion) confirmed genuinely fixed in lockfile (resolved 1.1.16/5.0.7, `npm audit` = 0 vulns) but GitHub still shows it `open` — its `updated_at` predates the fix push, so it just hasn't re-scanned; will auto-close, or dismiss manually as fixed. MCP chrome tabs 1527579049 (GA) + 1527579113 (getforgenta) were open — do NOT reuse those tabIds in a new session.
+
+---
+
 # Handoff — 2026-07-22 (session 24) — ✅ OPTION B **PUSHED + LIVE CROSS-CHECKED SITE-WIDE** · ✅ Dependabot #55 (brace-expansion CVE) **FIXED + PUSHED** · ⏭️ GA follow-ups + Search Console still open
 
 ## ✅ Session 24 — Option B pushed to origin + verified consistent across every surface
