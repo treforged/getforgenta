@@ -1,3 +1,28 @@
+# Handoff — 2026-07-24 (session 29) — ✅✅✅ GA4 FIXED, SHIPPED, MERGED TO MAIN, DEPLOYED TO PROD, AND LIVE-VERIFIED. The broken gtag stub (session 28 root cause) is corrected in `src/lib/analytics.ts`, pushed to `main` (commit `1247644b`), auto-deployed to Vercel Production (dpl_2ASDMyk3xvSHSKrM1aoAvfGjUtEM READY), and confirmed working on getforgenta.com. The experiment branch is deleted (local + remote). GA4 tracking task is CLOSED.
+
+## ✅ THE FIX (applied + verified this session)
+`src/lib/analytics.ts` `initGA()`: replaced the rest-parameter stub `function gtag(...args){ dataLayer.push(args) }` (pushes a genuine Array → GTM silently ignores it) with the canonical `function(){ dataLayer.push(arguments) }` (pushes the real `arguments` object, which requires a classic function — not an arrow/rest). Verified in the prod build output (built with `VITE_GA_MEASUREMENT_ID=G-1XD8TP0VFS`): emitted stub is `window.gtag=function(){window.dataLayer.push(arguments)}`. tsc clean, eslint clean, graphify updated. Backup `backups/2026-07-24_003431/src/lib/analytics.ts`.
+
+## ✅ LIVE VERIFICATION on production getforgenta.com (claude-in-chrome, Tre's Chrome, tab 1527579149 — do NOT reuse)
+All the session-26-28 failure symptoms are RESOLVED:
+- gtag stub live = `function(){window.dataLayer.push(arguments)}` ✓
+- `google_tag_manager['G-1XD8TP0VFS']` = FULLY initialized container (keys tcf/pscdl/sequence/mb/grl/autoEventsSettings/SANDBOXED_JS_SEMAPHORE), NOT the stalled `[dataLayer,callback,bootstrap]` shell ✓
+- `gtag('get','G-1XD8TP0VFS','client_id',cb)` → **FIRED** `1994080153.1784868698` (was NEVER_FIRED for all users) ✓
+- `google_tag_data.ics.accessedAny` = **true** (consent now evaluated; was false) ✓
+- Real `/collect` beacons: **2× HTTP 204** to `www.google-analytics.com/g/collect?tid=G-1XD8TP0VFS` with real `cid`, full UACH (`uap=Windows`), event `en=ga_fix_verify2` ✓
+- ⇒ gtag dispatches on its own, GA accepts (204), even from Tre's own browser. GA4 tracks all real users now.
+- (Synthetic verify events `ga_fix_verify`/`ga_fix_verify2` are harmless test noise in GA, ignore.)
+
+## 🧹 CLEANUP DONE
+- `experiment/ga4-disable-session-replay` DELETED local + remote (`git push origin --delete`). Had 2 DO-NOT-MERGE commits — gone.
+- Merged local `fix/ga4-gtag-stub` branch deleted; work is on `main`.
+
+## ⏭️ REMAINING (small, unchanged)
+1. **Mark `sign_up` a Key event** — ⏳ BLOCKED ON GA DATA LAG, not done yet. Tre authorized it session 29. FINDING: this GA4 property's Admin → Data display → Events UI offers NO "New key event by name" button (only "Create event"/"Custom configurations" [Custom events/Modifications]). The banner states the ONLY way is: **select the star next to the event name** in the Events list. `sign_up` is NOT yet in the Key events OR Recent events (last-28-days) admin table — that aggregated table lags hours→24h, and since gtag was fully broken until this session's fix went live ~minutes ago, no `sign_up` has aged into it yet. Realtime DID confirm gtag now sends (saw page_view/scroll/first_visit/form_start/ga_fix_verify/ga_fix_verify2 across 9 event types). **RESUME (in a few hours / next day):** GA → Admin → Data display → Events → **Recent events** tab → find `sign_up` row → click its **star** to mark it a key event (property a402004786p546662177 "Forgenta", Tre logged into analytics.google.com via claude-in-chrome). If `sign_up` still absent after 24h, re-do a real email signup on getforgenta.com to generate one. Existing template key events: close_convert_lead, purchase, qualify_lead.
+2. **Search Console** failed page indexing (both domains) — NOT started. Entry URLs in the session-21 block lower in this file. treforged.com = GitHub Pages + Cloudflare; getforgenta.com = this Vercel SPA. Confirm scope w/ Tre before DNS/site changes.
+
+---
+
 # Handoff — 2026-07-24 (session 28) — ✅✅ GA4 TRUE ROOT CAUSE FOUND + PROVEN (NOT LaunchDarkly — that was a RED HERRING). The bug is a BROKEN gtag stub in `src/lib/analytics.ts` that pushes a rest-parameter ARRAY instead of the `arguments` object, so GTM silently ignores every config/event/get command → zero GA4 tracking for ALL users. ONE-LINE FIX identified, NOT yet applied. Two throwaway experiment commits on the branch must be reverted/deleted.
 
 ## 🎯 THE ROOT CAUSE (definitively proven this session via clean A/B on example.com)
