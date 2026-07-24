@@ -1,3 +1,39 @@
+# Handoff — 2026-07-24 (session 30) — ⏳ BLOG DATE-SKIP ROOT-CAUSED, FIX DESIGNED + APPROVED, NOT YET IMPLEMENTED. Plus: GA `sign_up` re-checked (still not markable), and 3 planning items recorded to memory.
+
+## 🎯 IN-PROGRESS TASK — treforged.com blog "skipped a date" (July 21) → HARDEN THE PIPELINE + BACKFILL
+**Separate repo:** `treforged/treforgedwebsite` (`C:\Users\tvonh\Desktop\treforgedwebsite`, GitHub Pages, deploys from `main` root). NOT the getforgenta repo. See [[project_treforged_blog]].
+
+### ✅ ROOT CAUSE (proven, not a cron miss)
+The July 21 scheduled run (`gh run` 29842389207) **succeeded** (green, 46s) yet produced NO article — that's why no alert fired. Two things coincided:
+1. `scripts/generate-article.mjs` generated `how-to-change-your-engine-air-filter` but it was **rejected: 782 words of prose (min `MIN_WORDS`=850)** → discarded, topic left unused ("will retry next run"). Log line confirmed via `gh run view 29842389207 --log`.
+2. The **queue was already at depth 0**, so `scripts/publish-next.mjs` hit `Article queue is empty — nothing to publish today` → the commit step saw no changes → `No changes to publish` → exit 0 (GREEN). Silent skip.
+Auto-publish commits exist for 07-19, 07-20, 07-22, 07-23 — **07-21 missing.** Self-healed 07-22. **⚠️ The queue is STILL depth 0 right now (verified), so the next single rejection skips again.** 47 unused topics remain (topics are NOT the problem; the ARTICLE buffer running at 0 is).
+
+### ✅ FIX DESIGN — Tre chose "Buffer + retry + loud fail" AND "Backfill July 21 too" (both approved via AskUserQuestion this session). NOT yet coded.
+**A. `scripts/generate-article.mjs` — add retry + buffer (keep it exit-0/soft; generation must never break the build):**
+- Replace the single-shot `main()` (currently: pick `unused[0]`, generate once, `softFail` on defect) with a LOOP that fills the queue to a target. Add consts: `TARGET_BUFFER = 5`, `MAX_FAILURES = 3`.
+- Loop `while (queue.length < TARGET_BUFFER && failures < MAX_FAILURES)`: recompute `unused` excluding a `triedThisRun` Set; pick next topic; generate; on API error OR `articleDefect` → `::warning::`, `failures++`, add slug to `triedThisRun`, `continue` (this IS the retry — moves to a different topic instead of skipping the day); on success push to queue + persist `queue.json` + mark slug used. Break if no unused topics left.
+- Keep existing: `MAX_BUFFER=10` early-skip, topic auto-refill (`REFILL_THRESHOLD=7`), `MIN_WORDS=850` (do NOT lower it — retrying is better than publishing thin content), the `invokedDirectly` guard, all exports.
+- Cost note: first run after this change generates ~5 articles (queue 0→5) = a few API cents; steady state = ~1/day. Fine.
+**B. `scripts/publish-next.mjs` — make an empty queue FAIL LOUDLY (the real skip-detector):**
+- Current `main()` order is the bug: `if (!queue.length) { notice; return; }` sits BEFORE the same-day guard, so an empty queue always exits 0. REORDER: compute `today` + `latest` FIRST; if `latest >= today` → notice + `return` (exit 0 — legit, already have today's post, e.g. after a backfill); ELSE if `!queue.length` → `::error::` + `process.exit(1)` (a day WOULD be skipped → workflow goes RED so Tre gets notified). Keep the normal publish path otherwise.
+**C. Backfill one article dated 2026-07-21:**
+- The rejected topic `how-to-change-your-engine-air-filter` is still unused (confirmed). Published dates around the gap: 07-20 `how-to-do-a-monthly-money-review`, then 07-22/07-23. Need to insert a 07-21 article chronologically (published.json is newest-first) and rebuild derived files.
+- **Use the existing helper scripts — do NOT use publish-next for this** (it unshifts as newest + dates today, wrong for a backdated insert). `scripts/backfill-articles.mjs` and `scripts/rebuild-derived.mjs` already exist — **READ backfill-articles.mjs FIRST**; it very likely already does date-positioned insertion + calls the render helpers. Generating the backfill article needs `ANTHROPIC_API_KEY` (a GH secret; locally Tre must supply it, or run generation via `workflow_dispatch`).
+
+### ⏭️ RESUME STEPS (next session)
+1. Read `scripts/backfill-articles.mjs` + `scripts/rebuild-derived.mjs` to confirm the backfill mechanism.
+2. Implement A + B (small, surgical). No backup dir needed in that repo — git is the safety net; commit locally.
+3. Do C (backfill 07-21).
+4. ⚠️ **PERMISSION:** per global rule "never push unless asked" — the fix only takes effect in Actions once PUSHED, and the backfill only appears once pushed. GET TRE'S EXPLICIT PUSH OK before pushing treforgedwebsite. Option: push the code fix, then trigger a manual `workflow_dispatch` to fill the buffer, then handle the backfill.
+
+## ✅ ALSO DONE THIS SESSION (session 30)
+- **handoff.md**: added the blog-skip side-item note + GA `sign_up` re-check (both committed: `61ee913a`, `e69e409d`).
+- **GA `sign_up` key event**: RE-CHECKED live — GA now receiving real data (Home: 8 events, 1 active user/30min → gtag fix confirmed working), BUT `sign_up` still NOT in Admin → Data display → Events → Recent events (only first_visit/ga_probe_manual/page_view/scroll/session_start). Still can't star it. Needs a real fresh-email signup or 24h+ organic. (Details in the session-29 REMAINING block below — unchanged.)
+- **Memory (`~/.claude/projects/.../memory/`)**: added roadmap items **FB.14** (email-verify deep-link to native app on phone), **FB.15** (Goals chart full forecast length + per-year toggle), **FB.16** (optional reminder emails via Resend), **FB.17** (build-page likes: 1/IP + like notification), **FB.18** (push notifications: permission + profile prefs + weekly/monthly check-ins + friend/leaderboard hooks into Phase 17). Added new memory **marketing_plan.md**: every app update → make a 1-2 slide social post (via the marketing generator).
+
+---
+
 # Handoff — 2026-07-24 (session 29) — ✅✅✅ GA4 FIXED, SHIPPED, MERGED TO MAIN, DEPLOYED TO PROD, AND LIVE-VERIFIED. The broken gtag stub (session 28 root cause) is corrected in `src/lib/analytics.ts`, pushed to `main` (commit `1247644b`), auto-deployed to Vercel Production (dpl_2ASDMyk3xvSHSKrM1aoAvfGjUtEM READY), and confirmed working on getforgenta.com. The experiment branch is deleted (local + remote). GA4 tracking task is CLOSED.
 
 ## ✅ THE FIX (applied + verified this session)
