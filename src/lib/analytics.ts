@@ -27,8 +27,14 @@ export function initGA(): void {
   document.head.appendChild(script);
 
   window.dataLayer = window.dataLayer || [];
-  window.gtag = function gtag(...args: unknown[]) {
-    window.dataLayer!.push(args);
+  // GTM's command processor only dispatches dataLayer entries that are the
+  // `arguments` object (array-LIKE, Array.isArray()===false). A rest-parameter
+  // array (`...args`) is a genuine Array and is silently ignored, so the
+  // `config`/`event`/`get` commands never take effect. This MUST push the real
+  // `arguments` object, which requires a classic function (not an arrow).
+  window.gtag = function gtag() {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer!.push(arguments);
   };
   window.gtag('js', new Date());
   window.gtag('config', MEASUREMENT_ID);
