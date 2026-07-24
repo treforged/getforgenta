@@ -1,6 +1,14 @@
-# Handoff — 2026-07-24 (session 30) — ⏳ BLOG DATE-SKIP ROOT-CAUSED, FIX DESIGNED + APPROVED, NOT YET IMPLEMENTED. Plus: GA `sign_up` re-checked (still not markable), and 3 planning items recorded to memory.
+# Handoff — 2026-07-24 (session 31) — ✅✅✅ BLOG DATE-SKIP FIX **IMPLEMENTED, PUSHED, LIVE + 07-21 BACKFILLED**. The hardening (A+B) is on `treforgedwebsite` origin/main; the 07-21 gap is filled. This task is CLOSED.
 
-## 🎯 IN-PROGRESS TASK — treforged.com blog "skipped a date" (July 21) → HARDEN THE PIPELINE + BACKFILL
+## ✅ DONE THIS SESSION (session 31) — blog pipeline hardened + gap backfilled (separate repo `treforged/treforgedwebsite`)
+- **Synced first:** local `treforgedwebsite` main was 2 commits behind origin (07-22 + 07-23 auto-publishes). Fast-forwarded. ⚠️ This revealed the handoff's planned backfill topic `how-to-change-your-engine-air-filter` had **already self-healed and published on 07-22** — so C used a different topic (see below).
+- **A — `scripts/generate-article.mjs` (buffer+retry):** replaced the single-shot generate with a loop filling the queue to `TARGET_BUFFER=5`, retrying on a DIFFERENT topic when one is rejected/fails (`MAX_FAILURES=3`), persisting `queue.json` after each success. Per-topic failures stay soft (`::warning::`, exit 0 — generation never breaks the build). Factored per-topic logic into `generateArticle()` helper. Kept MAX_BUFFER=10 early-skip, refill, MIN_WORDS=850, invokedDirectly guard, all exports.
+- **B — `scripts/publish-next.mjs` (fail loud):** reordered `main()` to compute today/latest FIRST. Empty queue is only "nothing to do" when today's post already exists (exit 0); if a publish is due and the queue is empty → `::error::` + `process.exit(1)` (workflow goes RED so Tre is notified). This is the guard that would have caught 07-21. Verified live: with the current empty queue + no 07-24 post yet, `node scripts/publish-next.mjs` exits 1 loudly ✓.
+- **Commit `262723f`** (both scripts) — **PUSHED to `treforgedwebsite` origin/main** (Tre authorized). Node syntax-checked; all exports that `backfill-articles.mjs` imports intact.
+- **C — 07-21 backfilled:** triggered the existing **`backfill-articles.yml`** workflow (`gh workflow run ... -f articles="understanding-credit-card-interest=2026-07-21"`) — the next natural unused topic (air-filter was gone). Run `30070148435` = **success**, bot committed+pushed. Verified after pull: published dates now **07-19 → 07-20 → 07-21 → 07-22 → 07-23 consecutive** (no gap), page `blog/understanding-credit-card-interest/index.html` exists (~20 KB, full length), total published 23.
+- ⚠️ **Queue is still depth 0** — intentional/fine. Today's 13:00 UTC (9 AM ET) daily cron will generate 5 (fill buffer) then publish the 07-24 post. If that generate step transient-fails, publish now fails LOUD (red) instead of silently skipping — the whole point of B. No manual pre-fill needed.
+
+## 🗂️ ORIGINAL TASK BRIEF (for reference — now COMPLETED above) — treforged.com blog "skipped a date" (July 21) → HARDEN THE PIPELINE + BACKFILL
 **Separate repo:** `treforged/treforgedwebsite` (`C:\Users\tvonh\Desktop\treforgedwebsite`, GitHub Pages, deploys from `main` root). NOT the getforgenta repo. See [[project_treforged_blog]].
 
 ### ✅ ROOT CAUSE (proven, not a cron miss)
