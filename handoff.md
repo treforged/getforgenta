@@ -1,7 +1,102 @@
+# Handoff — 2026-07-28 (session 37, PART B / auth emails) — Magic Link + Change Email SAVED & VERIFIED ✅
+
+> ⚠️ **Two session-37 agents ran in parallel.** This block is the **Part B (auth email)** agent. The
+> block immediately below it is the **Part A (marketing)** agent. Both are current; neither supersedes
+> the other. The Part A block's line "Part B is untouched by session 37" was true when written and is
+> now **out of date** — Part B moved, as recorded here. The session-36 Part B sections further down are
+> **superseded by this block** wherever they conflict.
+
+## ⚡ START HERE (session 38, Part B)
+1. **Both of session 36's open templates are now live and verified.** Magic Link and Change Email are
+   saved in the Supabase dashboard, persisted through a reload, with correct `token_hash` links.
+   **Do not redo them.** Ignore session 36's "Change Email save FAILED" section below — resolved.
+2. **One item left, small and self-contained:** re-save the **Confirm sign up** template to fix a
+   mangled 🔒 emoji that session 36 baked in. Everything needed is below except the dashboard slug.
+3. Nothing blocks Tre from testing signup on TestFlight. `origin/main` == `main`.
+
+## ✅ DONE (Part B, session 37)
+
+### 1. Change Email template — SAVED AND VERIFIED
+`…/auth/templates/change-email-address`. Verified live after a full reload:
+- Line 6: `<title>Confirm Your New Email — Forgenta</title>` (em dash correct)
+- Line 8: `@media (prefers-color-scheme: light)` — the new template, not the old `<body style=`
+- Line 66: `<a href="{{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=email_change"`
+- Line 77: same URL as the copy/paste fallback
+- Line 84: `🔒 Security Notice` renders correctly
+- Subject left as `Confirm Your New Email — Forged` (pre-existing; the HTML file holds body only)
+
+**This is the one live user-facing flow of the four** (`src/pages/Settings.tsx:257` →
+`updateUser({ email })`), so it was the one that actually mattered.
+
+### 2. Magic Link template — SAVED AND VERIFIED
+`…/auth/templates/magic-link-or-otp`. **The slug is `magic-link-or-otp`, NOT `magic-link`** — the
+latter 404s with "The template 'magic-link' doesn't seem to exist."
+Verified live after reload: 90 lines, line 8 is the new `@media` block, line 63 is
+`{{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=magiclink`, line 70 🔒 clean.
+Still not exercised by any code (nothing calls `signInWithOtp`) — converted so it is correct when it ships.
+
+### 3. Session 36's "flaky save" diagnosis was WRONG — no flakiness exists
+Session 36 concluded the Supabase editor save was genuinely unreliable after seeing the renderer detach.
+**That was a misread.** The save mechanism works; it worked **3/3 times** this session on the identical
+procedure. What actually varies is `Page.captureScreenshot` timing out (~30s) after heavy editor
+interaction. **Wait 6-10s and retry the screenshot — the tab is alive and the save already committed.**
+Never conclude a save failed because a screenshot failed. No Management API fallback is needed.
+
+## ⚠️ THE ONE OPEN PART-B ITEM — confirm-signup has a mangled 🔒
+
+### Root cause (this bit is the real lesson)
+Session 36 built the paste clipboard with bare `Get-Content`. **Windows PowerShell 5.1's `Get-Content`
+defaults to the ANSI codepage, not UTF-8**, so every non-ASCII character was read as mojibake and pasted
+that way. Evidence: session 36 recorded the confirm-signup clipboard at **7250 chars**; the same block
+read as UTF-8 is **7248** — a 2-char delta that is exactly the 🔒 expanding into mojibake.
+
+My own first Change Email attempt reproduced this exactly and went live rendering
+`<title>Confirm Your New Email â€" Forgenta</title>`. Re-pasted with `-Encoding UTF8`; now clean.
+
+### Impact
+confirm-signup is live with a broken 🔒 in its "Security Notice" heading. **Cosmetic and user-visible,
+but not functional** — the `token_hash` link is unaffected and signup works. Low urgency.
+
+### Exact fix (everything but the slug is ready)
+```powershell
+$lines = Get-Content -Path "C:\Users\tvonh\Desktop\getforgenta\supabase-email-templates.html" -Encoding UTF8
+$block = ($lines[8..121]) -join "`n"
+Set-Clipboard -Value $block
+```
+Expected clipboard fingerprint (verified this session): **7248 chars, 114 lines, 2× `{{ .SiteURL }}`,
+2× `{{ .TokenHash }}`, 2× `type=signup`, 0× `ConfirmationURL`, 1× 🔒, 0 mojibake**, starts
+`<!DOCTYPE html>`, ends `</html>`.
+
+**Slug unknown — `confirm-signup` 404s.** Get it the way Magic Link's was found: open
+`…/auth/templates`, wait for hydration, then `find` for "Confirm signup template link" and read the
+`href`. Guessing slugs costs ~90s per miss on this dashboard; `find` returns the real href.
+
+## 🔧 THE SAVE PROCEDURE THAT WORKS (3/3 this session — follow verbatim)
+1. **Build the clipboard with `-Encoding UTF8`.** Non-negotiable.
+2. Verify the clipboard before pasting: char count, line count, template-var counts, and
+   `mojibake=$([regex]::Matches($c,'Ã|â€').Count)` must be **0**.
+3. Navigate to the template URL. **Wait 30-50s.** The tab title going from `Supabase` →
+   `Emails | Authentication | FORGENTA | TRE Forged LLC | Supabase` is the reliable "hydrated" signal;
+   screenshot only after that.
+4. Click inside the editor → `ctrl+a` → `ctrl+v`. **Paste, never type** (Monaco auto-indent mangles HTML).
+5. Screenshot: confirm the exact expected line count and that it ends `</html>`.
+6. Click **Save changes**, then **do not navigate.** Wait ~18s.
+7. **Commit signal = Cancel disappears and Save changes returns to disabled.** There is no toast.
+8. Reload and verify. `zoom` on region `[545, 250, 1210, 480]` reads the editor text cleanly.
+9. To read past line ~20: click in the editor and press `PageDown` (mouse `scroll` does not work).
+
+## 🧭 STATE (Part B, session 37)
+- **No source-code changes.** Dashboard-side only, plus this handoff.
+- `supabase-email-templates.html` is **unchanged** — it was already correct at `359cf1c0`. The bug was
+  in how the clipboard was built, not in the file. No backup needed for that reason.
+- Template slugs learned: `change-email-address`, `magic-link-or-otp`. Still unknown: confirm signup.
+
+---
+
 # Handoff — 2026-07-28 (session 37 addendum, PART A / marketing)
 
-> Session 37 worked **Part A (marketing)** only. **Part B is untouched by session 37** — the session-36
-> handoff below is still fully accurate for it. Read past this block for Part B.
+> Session 37's marketing agent worked **Part A** only. (Its original note said Part B was untouched;
+> see the Part B block above, which ran in parallel and did move Part B.)
 
 ## ✅ Session 37 completed
 - **MB.2 brand SEO** — `treforgedwebsite` commit `6332812`, **local, NOT pushed**. Root `index.html` gained a
@@ -76,7 +171,7 @@ twice-daily cron) may be running redundantly — duplicate digests, doubled Gemi
 3. Do NOT convert Invite / Reset Password without the AuthCallback code change — reasons are documented
    inline in `supabase-email-templates.html` above each of those two sections, and summarized below.
 
-## ❌ Change Email save FAILED — and NOT for session 35's reason
+## ❌ Change Email save FAILED — **SUPERSEDED, see the Part B block at the top. Resolved; the "flaky save" conclusion below is wrong.**
 Session 35's theory was "navigated away too early." That was right for confirm-signup, but Change Email
 failed a different way:
 - Paste verified correct in the editor (104 lines ending `</html>` at line 104, matching the clipboard).
