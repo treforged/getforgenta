@@ -1,0 +1,15 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["JAGC2SWGG4.com.treforged.forged"],
+        "components": [
+          { "/": "/auth-callback", "comment": "Email confirmation lands here and verifies the token_hash" },
+          { "/": "/auth-callback/*" },
+          { "/": "/auth" },
+          { "/": "/auth/*" }
+        ]
+      }
+    ]
+  }
+}

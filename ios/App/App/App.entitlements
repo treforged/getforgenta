@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Associated Domains for Universal Links (email confirmation opening the native app).
+
+  NOT YET WIRED INTO THE BUILD. This file is inert until CODE_SIGN_ENTITLEMENTS =
+  App/App.entitlements is added to the Debug and Release XCBuildConfiguration blocks in
+  project.pbxproj. Do that ONLY AFTER:
+    1. Associated Domains is enabled on App ID com.treforged.forged in the Apple Developer portal
+    2. The "Forged App Store" provisioning profile is regenerated with that capability
+    3. The regenerated profile is updated in the GitHub Actions secrets used by ios-build.yml
+  Release signing is Manual against a pinned profile, so wiring this in first would fail CI signing.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:getforgenta.com</string>
+	</array>
+</dict>
+</plist>

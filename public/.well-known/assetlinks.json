@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.treforged.forged",
+      "sha256_cert_fingerprints": [
+        "91:82:33:1F:5D:C6:57:F2:CC:53:92:89:4B:6B:0D:14:44:62:94:FC:BA:3D:1F:17:92:C1:74:5B:0A:D5:DA:D8"
+      ]
+    }
+  }
+]
