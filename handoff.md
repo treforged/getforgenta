@@ -1,3 +1,68 @@
+# Handoff — 2026-07-28 (session 37 addendum, PART A / marketing)
+
+> Session 37 worked **Part A (marketing)** only. **Part B is untouched by session 37** — the session-36
+> handoff below is still fully accurate for it. Read past this block for Part B.
+
+## ✅ Session 37 completed
+- **MB.2 brand SEO** — `treforgedwebsite` commit `6332812`, **local, NOT pushed**. Root `index.html` gained a
+  4-node JSON-LD graph (Organization → `owns` → SoftwareApplication/Forgenta, + WebSite + WebPage), brand
+  names in title/meta description, and "built by TRE Forged" in the app-block prose.
+  - Omitted on purpose: `offers`/`aggregateRating` (pricing unknown — fabricating risks a Google manual
+    action; **ask Tre for real premium pricing then add `offers`**) and `SearchAction` (site has no search).
+  - Forgenta's App Store/Play/@getforgenta links belong on the **SoftwareApplication** node, NOT in
+    Organization `sameAs`. Do not merge them.
+- **`treforgedwebsite` backups/ secured** — commit added `backups/` to `.gitignore` and `git rm --cached`'d
+  3 previously-tracked backup files. That is a **public GitHub Pages repo**, so those were being served at
+  `treforged.com/backups/`. Scanned them for hardcoded secrets: **clean** (`apiKey` is a variable ref).
+- **Meta app fully configured.** `Forgenta Publisher`, **App ID `1521659006403853`**, contact
+  `contact@treforged.com`, Development/Unpublished, TRE Forged portfolio (unverified).
+  - **App Secret retrieved and written to `tre-forged-marketing/memory/meta_app.json`.** Verified ignored
+    via `.gitignore:35` (whole `tre-forged-marketing/` dir; 0 files tracked).
+  - ⚠️ **The secret was visible in a session-37 screenshot and is in that transcript.** Local only, never
+    pushed. If Tre wants belt-and-braces, **Reset** the secret on the Basic settings page and rewrite
+    `meta_app.json` — that button is right next to the field.
+- **Supabase `marketing-public` bucket CREATED** — applied via MCP `apply_migration` as
+  `create_marketing_public_bucket` on `mdtosrbfkextcaezuclh`. Public read for `anon`+`authenticated`,
+  10 MB cap, png/jpeg only, **no write policy** (uploads use the service role, so a leaked anon key still
+  cannot write). Idempotent — safe to re-run.
+- **`tre-forged-marketing/.env` created** with `SUPABASE_URL=https://mdtosrbfkextcaezuclh.supabase.co`.
+- **Tre confirmed `@getforgenta` is now a Business account.**
+- **MB.3 scope answered: "main page" = `Landing.tsx`** (public marketing page, acquisition-focused). NOT
+  the Dashboard. Nothing built yet.
+
+## 🔴 SESSION 37 LEFT EXACTLY ONE THING BLOCKED ON TRE
+**`SUPABASE_SERVICE_ROLE_KEY` in `tre-forged-marketing/.env` is still the literal placeholder
+`PASTE_SERVICE_ROLE_KEY_HERE`.** Get it from Dashboard → Project Settings → API → `service_role`. It is not
+retrievable through the MCP tools (they expose publishable/anon keys only).
+
+## ⏭️ NEXT (Part A), in order
+1. Paste the service role key into `.env`.
+2. **Confirm `@getforgenta` is linked to a Facebook Page** — still unverified. The Graph API posts *through*
+   the Page, not the IG account. If no Page exists, create one and link it.
+3. `python connect.py instagram`. **This is the only way to settle the two open risks:**
+   - Meta attached **"Facebook Login for Business"**, not classic Facebook Login (settings live at
+     `/business-login/settings/`). `src/publish/meta_auth.py` was written for classic login
+     (`scope=` → `/me/accounts`); business login often requires a **`config_id`** from a saved
+     Configuration instead. **This may require rewriting `meta_auth.py`.** Read the real error first.
+   - **Redirect URI contradiction, unresolved.** `http://localhost:8723/callback` will not persist in Valid
+     OAuth Redirect URIs, and the inline notice says localhost is auto-allowed in Development mode and need
+     not be added — but the Redirect URI Validator on the same page calls it invalid. Fallback if OAuth
+     fails: a hosted HTTPS callback on treforged.com (which TikTok needs anyway).
+4. Publish `posts/blog_carousel.json` (PI.1) for real.
+5. Push `treforgedwebsite` (`6332812` + the backups commit) when Tre says so, then verify with Google's
+   Rich Results Test.
+6. Then MB.3 (`Landing.tsx`), then MB.5 Reddit (**confirm paid-vs-organic first**), then MB.4, then MB.6
+   (route to `project_roadmap` — it's a product change).
+
+⚠️ **`tre-forged-marketing/` is entirely gitignored** (`.gitignore:35`). None of that code is in git; the
+only safety net is `backups/2026-07-27_210132/`. `git checkout` cannot recover it.
+
+Also still open: the **Reddit Scout double-schedule** (local Thursday-9PM Task Scheduler vs Supabase
+twice-daily cron) may be running redundantly — duplicate digests, doubled Gemini spend. See
+`marketing_reddit_scout` memory.
+
+---
+
 # Handoff — 2026-07-28 (session 36) — confirm-signup LIVE ✅; Magic Link + Change Email drafted & committed, NOT yet saved to dashboard ❌
 
 ## ⚡ START HERE (session 37)
