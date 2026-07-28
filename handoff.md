@@ -19,7 +19,11 @@
    the session-37 Part A agent; it hit its context gate at 168k, committed its state as `e709d239`, and was
    closed by Tre in session 38. **It has no unmerged work** — verified by reading its transcript tail.
    Do not go looking for it.
-5. 🔴 **Outstanding security action: rotate the Meta App Secret** (see the Part A block for why).
+5. ~~🔴 Outstanding security action: rotate the Meta App Secret.~~ ✅ **DONE session 38 — CLOSED.**
+   Tre reset it in the Meta dashboard and re-masked the field; the new value was installed from the
+   clipboard *inside* the script. Verified: new secret is 32-char hex, **differs from the old one**
+   (so the reset genuinely took), `app_id` preserved, file parses, gitignored, 0 files tracked, and the
+   new value appears in **no transcript anywhere** under `.claude\projects`. Nothing further to do.
 
 ## ✅ DONE (Part B, session 38) — confirm-signup 🔒 FIXED AND VERIFIED LIVE
 Re-pasted the confirm-signup body from `supabase-email-templates.html` using a **UTF-8** clipboard,
@@ -157,8 +161,14 @@ Expected clipboard fingerprint (verified this session): **7248 chars, 114 lines,
     "visible in a screenshot" claim was wrong. The real cause: the agent blind-copied via clipboard, then
     **interpolated the value into a Bash heredoc** writing `meta_app.json` — putting it straight into the
     transcript. Its own stated goal ("never enters my context or the transcript") was defeated one step later.
-  - **→ ROTATE THE APP SECRET.** Meta → App → Basic settings → **Reset** next to App Secret, then rewrite
-    `tre-forged-marketing/memory/meta_app.json`. Cheap: app is Development/Unpublished, no live traffic.
+  - ✅ **ROTATED session 38 — this risk is closed.** The old secret in `d136202c` line 504 is now dead.
+  - ⚠️ **Meta UI note (the handoff was wrong about this):** there is **no Reset button next to the App
+    secret field** on Basic settings — only **Show**. Reset appears only *after* revealing the secret,
+    and revealing requires re-entering the Facebook password. **An agent cannot do this step**; hand it
+    to Tre at that exact point. Show button sits at roughly `(1228, 94)` on a 1568-wide viewport.
+  - ⚠️ **Basic settings renders blank on first load** (~30s, empty accessibility tree). One re-navigate
+    fixed it; the ready signal is the tab title becoming `Forgenta Publisher - App settings - Meta for
+    Developers`. Don't conclude the page is broken.
   - 🔑 **Rule for any future secret:** never interpolate it into a command. Read it from the clipboard
     *inside* the script (`$k = (Get-Clipboard -Raw).Trim()`) so the value never appears in a tool call.
     That is how session 38 installed `SUPABASE_SERVICE_ROLE_KEY` — confirmed absent from its transcript.
@@ -187,8 +197,10 @@ authenticated GET (returns 400) instead. A naive public-URL re-read will lie to 
 
 ## ⏭️ NEXT (Part A), in order
 1. ~~Paste the service role key into `.env`.~~ ✅ DONE session 38.
-2. **Confirm `@getforgenta` is linked to a Facebook Page** — still unverified. The Graph API posts *through*
-   the Page, not the IG account. If no Page exists, create one and link it.
+2. **Confirm `@getforgenta` is linked to a Facebook Page** — still unverified, and this is now the very
+   next action. The Graph API posts *through* the Page, not the IG account. If no Page exists, create one
+   and link it. **Session 38 confirmed the app uses "Facebook Login for Business"** (visible in the app's
+   left nav as `Facebook Login for Bus…`), so the `config_id` risk below is real, not hypothetical.
 3. `python connect.py instagram`. **This is the only way to settle the two open risks:**
    - Meta attached **"Facebook Login for Business"**, not classic Facebook Login (settings live at
      `/business-login/settings/`). `src/publish/meta_auth.py` was written for classic login
