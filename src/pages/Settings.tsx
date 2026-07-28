@@ -806,6 +806,9 @@ export default function SettingsPage() {
                       ? 'You must cancel your active subscription before deleting your account.'
                       : 'Permanently deletes your account and all data. Active subscriptions are cancelled immediately. Billing records are retained per IRS requirements.'}
                   </p>
+                  <Link to="/delete-data" className="text-xs text-muted-foreground underline hover:text-foreground mt-1 inline-block">
+                    What gets deleted and what we keep
+                  </Link>
                   {hasMobileSub && (
                     <div className="mt-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-600" style={{ borderRadius: 'var(--radius)' }}>
                       <Crown size={13} className="mt-0.5 shrink-0 text-amber-500" />

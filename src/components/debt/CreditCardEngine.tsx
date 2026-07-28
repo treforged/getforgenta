@@ -128,6 +128,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Shared across cards (only one is ever expanded) — lets the user page through the full
   // 5-year projection one year at a time instead of everything rendering at once.
   const [accordionYear, setAccordionYear] = usePersistedState<'1' | '2' | '3' | '4' | '5'>('tre:debt:accordion-year', '1');
+  // Trajectory chart horizon, in years. Defaults to '5' so the chart looks exactly as it did
+  // before this filter existed; the other options just trim months off the tail.
+  const [chartYears, setChartYears] = usePersistedState<'1' | '2' | '3' | '5'>('tre:debt:chart-years', '5');
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
   const [editingStatementBal, setEditingStatementBal] = useState<string | null>(null);
   const [statementBalInput, setStatementBalInput] = useState('');
@@ -1012,6 +1015,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
   }, [projections, monthlyRevolvingBalances, variableSim, overrideData, step3CumSurplus]);
 
+  // Display-only horizon trim. The projection itself is always the full PROJECTION_MONTHS —
+  // this only shortens what the chart draws, so payoff detection and ETAs are unaffected.
+  const visibleChartData = useMemo(
+    () => debtChartData.slice(0, parseInt(chartYears, 10) * 12),
+    [debtChartData, chartYears],
+  );
+  // Keep roughly 10 x-axis ticks regardless of horizon: 5Y -> 5 (unchanged from before), 3Y -> 3, 2Y -> 2, 1Y -> 1.
+  const chartTickInterval = Math.max(0, Math.ceil((parseInt(chartYears, 10) * 12) / 10) - 1);
+
   const utilizationMilestones = useMemo(() => {
     const limit = cards.reduce((s, c) => s + (c.creditLimit ?? 0), 0);
     if (limit === 0) return [];
@@ -1150,13 +1162,28 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         {/* Debt Payoff Trajectory Chart */}
         {debtChartData.length > 0 && (
           <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-4 flex items-center gap-2">
-              <CreditCard size={12} /> Credit Card Debt Payoff Trajectory
-            </h3>
+            <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 min-w-0">
+                <CreditCard size={12} className="shrink-0" /> <span className="truncate">Credit Card Debt Payoff Trajectory</span>
+              </h3>
+              <div className="flex gap-1.5 shrink-0">
+                {(['1', '2', '3', '5'] as const).map(y => (
+                  <button
+                    key={y}
+                    onClick={() => setChartYears(y)}
+                    aria-pressed={chartYears === y}
+                    className={`px-2.5 py-1 text-[10px] font-medium border btn-press whitespace-nowrap ${chartYears === y ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                    style={{ borderRadius: 'var(--radius)' }}
+                  >
+                    {y}Y
+                  </button>
+                ))}
+              </div>
+            </div>
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={debtChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <LineChart data={visibleChartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <CartesianGrid stroke="hsl(0, 0%, 18%)" strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)', textAnchor: 'end' }} angle={-45} height={50} interval={5} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)', textAnchor: 'end' }} angle={-45} height={50} interval={chartTickInterval} />
                 <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={formatYAxisTick} />
                 <RechartsTooltip formatter={(v: number, name: string) => [`$${Number(v).toLocaleString()}`, name]} labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} itemStyle={{ fontSize: 13 }} contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
