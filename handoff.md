@@ -155,13 +155,22 @@ Expected clipboard fingerprint (verified this session): **7248 chars, 114 lines,
 - **MB.3 scope answered: "main page" = `Landing.tsx`** (public marketing page, acquisition-focused). NOT
   the Dashboard. Nothing built yet.
 
-## 🔴 SESSION 37 LEFT EXACTLY ONE THING BLOCKED ON TRE
-**`SUPABASE_SERVICE_ROLE_KEY` in `tre-forged-marketing/.env` is still the literal placeholder
-`PASTE_SERVICE_ROLE_KEY_HERE`.** Get it from Dashboard → Project Settings → API → `service_role`. It is not
-retrievable through the MCP tools (they expose publishable/anon keys only).
+## ~~🔴 SESSION 37 LEFT EXACTLY ONE THING BLOCKED ON TRE~~ — ✅ UNBLOCKED session 38
+**`SUPABASE_SERVICE_ROLE_KEY` is now set in `tre-forged-marketing/.env`.** Tre supplied it via clipboard.
+Validated before writing: `role=service_role`, `ref=mdtosrbfkextcaezuclh`, no whitespace, expires 2036-03-21.
+File confirmed gitignored (`git check-ignore` YES, `git ls-files tre-forged-marketing` = 0).
+
+### ✅ Storage path verified end to end (session 38)
+Smoke test against `marketing-public`: uploaded a 1×1 PNG → fetched the public URL **anonymously with no
+auth header** (HTTP 200, byte-identical) → deleted → confirmed gone. Bucket now lists 0 objects.
+**The service role key, the bucket, the public read policy and cleanup all work.** Do not re-verify.
+
+⚠️ **Supabase public storage URLs are CDN-cached.** A deleted object keeps serving HTTP 200 from the
+public URL for a while. That is not a failed delete — check `POST {api_base}/object/list/{bucket}` or an
+authenticated GET (returns 400) instead. A naive public-URL re-read will lie to you.
 
 ## ⏭️ NEXT (Part A), in order
-1. Paste the service role key into `.env`.
+1. ~~Paste the service role key into `.env`.~~ ✅ DONE session 38.
 2. **Confirm `@getforgenta` is linked to a Facebook Page** — still unverified. The Graph API posts *through*
    the Page, not the IG account. If no Page exists, create one and link it.
 3. `python connect.py instagram`. **This is the only way to settle the two open risks:**
