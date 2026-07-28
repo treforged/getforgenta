@@ -1,4 +1,42 @@
-# Handoff — 2026-07-28 (session 36) — Part B auth chain COMPLETE ✅ (edge fn + Site URL + confirm-signup template all live)
+# Handoff — 2026-07-28 (session 36) — confirm-signup LIVE ✅; Magic Link + Change Email drafted & committed, NOT yet saved to dashboard ❌
+
+## ⚡ START HERE (session 37)
+1. **Nothing blocks Tre from testing signup on TestFlight right now.** Confirm-signup is live, Site URL is
+   right, and iOS build `515fe48a` (2026-07-28 01:02Z, "enable Associated Domains entitlement for
+   Universal Links") already contains the auth-callback + Universal Links work. Everything is pushed
+   (`origin/main` == `main` at `359cf1c0`).
+2. **Unfinished:** paste + save the **Magic Link** and **Change Email** templates into the dashboard.
+   Both are already written and committed in `supabase-email-templates.html`; only the dashboard save is
+   left. Blocks: see "Change Email save failed" below.
+3. Do NOT convert Invite / Reset Password without the AuthCallback code change — reasons are documented
+   inline in `supabase-email-templates.html` above each of those two sections, and summarized below.
+
+## ❌ Change Email save FAILED — and NOT for session 35's reason
+Session 35's theory was "navigated away too early." That was right for confirm-signup, but Change Email
+failed a different way:
+- Paste verified correct in the editor (104 lines ending `</html>` at line 104, matching the clipboard).
+- Clicked **Save changes**, then **waited 10s and did not navigate.**
+- Screenshot returned `Error capturing screenshot: Detached while handling command.` — **the renderer
+  detached / the tab reloaded during the save.**
+- After reload, line 8 is `<body style=` → still the OLD template. Nothing persisted.
+
+**So the Supabase template editor save is genuinely flaky, not just a timing mistake.** Confirm-signup
+succeeded on the identical procedure earlier in the same session. Next session: retry, and if it detaches
+again consider doing these two via the Management API instead of the dashboard UI.
+
+### Exact repro steps for the remaining two
+Block boundaries in `supabase-email-templates.html` (line numbers current as of `359cf1c0`):
+- **Magic Link** = lines 226–315 → PowerShell slice `$lines[225..314]` (90 lines)
+- **Change Email** = lines 323–426 → PowerShell slice `$lines[322..425]` (104 lines, 8148 chars,
+  2× `type=email_change`, 2× `{{ .TokenHash }}`, 0× `ConfirmationURL`)
+
+Dashboard URLs:
+- `…/auth/templates/change-email-address`
+- Magic Link: open `…/auth/templates` and click "Magic link or OTP" (slug not confirmed)
+
+---
+
+# (previous header) Part B auth chain — edge fn + Site URL + confirm-signup all live
 
 > Session 35 picked **Part B** (app/Supabase) from session 34's two-track handoff.
 > Session 36 closed the one item session 35 could not land.
@@ -76,10 +114,25 @@ Authentication → Emails → Templates → Confirm sign up. **Live and persiste
 ---
 
 ## ⏭️ STILL OPEN (Part B)
-- Magic Link / Reset Password / Change Email / Invite templates share the same latent `token_hash` flaw;
-  only Confirm Signup was ever rewritten. **They are not drafted yet** — verified session 36: the other 8
-  sections of `supabase-email-templates.html` still contain 8× `ConfirmationURL` and 0× `TokenHash`, so
-  this is authoring work, not just a paste. Follow-ups, not blockers.
+- **Magic Link + Change Email**: written and committed (`359cf1c0`), dashboard save still pending. See
+  "Change Email save FAILED" at the top.
+- **Invite + Reset Password: deliberately NOT converted.** Do not "fix" these — session 36 traced the
+  root cause and it is not a template problem:
+  - Recovery mode is entered **only via the URL hash**. `src/pages/Auth.tsx:110` checks
+    `hash.includes('type=recovery')` to switch to the set-password form and to set the
+    `forgenta:recovery_pending` flag that suppresses `AuthContext`'s SIGNED_IN auto-navigate.
+  - A `token_hash` link produces no hash, and `src/pages/AuthCallback.tsx:57` unconditionally
+    `navigate('/dashboard')` after a successful `verifyOtp`.
+  - Converting Reset Password would therefore **silently sign the user in and skip the set-password
+    screen** — they could never reset their password. Invite has the same problem (invited user lands in
+    the app with no way to set a password).
+  - **Fix if we want them converted:** make `AuthCallback` route by `otpType` (recovery/invite → `/auth`
+    in set-password mode, setting `forgenta:recovery_pending` first) instead of always `/dashboard`.
+    That is an app code change + a new build, not a template edit. **Tre's call.**
+- Usage reality check (session 36, grep over `src/`): **nothing calls `signInWithOtp`** (so Magic Link is
+  never sent today) and **nothing calls `admin.inviteUserByEmail`** (Invite is unused). The only live flow
+  of the four is **Change Email**, via `src/pages/Settings.tsx:257` `updateUser({ email })`. Prioritize
+  accordingly — Change Email is the one that actually matters.
 - Dependabot: 1 moderate vuln on main (`security/dependabot/56`).
 - GA `sign_up` key event still unmarked; Search Console indexing never started.
 
@@ -102,9 +155,16 @@ Still requires a human / device — **this is the real remaining work on Part B*
    `build-photos` objects. One test account covers items 5, 6 and 7.
 
 ## 🧭 STATE
-- Branch `main`. Session 35's handoff commit is `bfd9ce94`.
-- Working tree was clean at session 36 start. **No source files have been modified in sessions 35 or 36** —
-  the only repo change is this `handoff.md`. All Part B work was dashboard/MCP-side.
+- Branch `main`, **pushed — `origin/main` == `main` at `359cf1c0`** (Tre asked for the push so he could
+  test on TestFlight).
+- Session 36 commits: `c7e308c6` (handoff), `359cf1c0` (Magic Link + Change Email templates + the
+  Invite/Reset rationale comments).
+- **No app source files have been modified in sessions 35 or 36.** Changes are `handoff.md` and
+  `supabase-email-templates.html` only; everything else was dashboard/MCP-side.
+- A docs-only push triggers **no** CI build — `android-build.yml` and `ios-build.yml` both have
+  `paths:` filters on `src/**`, `android/**`/`ios/**`, `capacitor.config.ts`, `package.json`.
+  `supabase-email-templates.html` is outside all of them, so template commits never rebuild the app.
+- Backup of the pre-edit template: `backups/2026-07-28_114237/supabase-email-templates.html`.
 - Supabase project `mdtosrbfkextcaezuclh`.
 - iOS signing risk is CLOSED. No need to re-verify.
 - Chrome MCP tab IDs do NOT survive `/clear` — call `tabs_context_mcp` fresh.
