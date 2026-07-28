@@ -1,4 +1,4 @@
-# Handoff — 2026-07-28 (session 35) — MB.2 brand SEO SHIPPED; Meta app CREATED but OAuth not yet proven. Session 33's Supabase steps STILL OPEN.
+# Handoff — 2026-07-27 (session 35) — MB.2 brand SEO SHIPPED; Meta app CREATED but OAuth not yet proven. Session 33's Supabase steps STILL OPEN.
 
 > ⚠️ Two independent workstreams. **Part A (marketing) is this session's work. Part B is session 33's unfinished production work and is higher stakes** — do Part B first if Tre asks about the app rather than marketing.
 
