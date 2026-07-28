@@ -123,6 +123,11 @@
 <!-- CONFIRM SIGNUP END -->
 
 
+<!-- DELIBERATELY still on {{ .ConfirmationURL }} — same reason as RESET PASSWORD below.
+     An invited user has no password yet, so verifyOtp + AuthCallback's unconditional
+     navigate('/dashboard') would drop them into the app with no way to set one. Needs the
+     same AuthCallback type-routing change first. Low urgency: the app sends no invites today
+     (no caller of admin.inviteUserByEmail), so this template is currently unused. -->
 <!-- ==================== INVITE USER START ==================== -->
 <!DOCTYPE html>
 <html lang="en">
@@ -213,6 +218,10 @@
 <!-- INVITE USER END -->
 
 
+<!-- Converted to token_hash. Safe: magiclink just needs a session, and AuthCallback's
+     navigate('/dashboard') is the correct destination for it.
+     Not currently exercised — nothing in src/ calls signInWithOtp, so no magic link is sent
+     today. Converted anyway so the template is correct whenever that ships. -->
 <!-- ==================== MAGIC LINK START ==================== -->
 <!DOCTYPE html>
 <html lang="en">
@@ -260,7 +269,12 @@
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                 <tr>
                                     <td style="padding: 16px 0 32px;">
-                                        <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
+                                        <!-- token_hash link on our OWN domain (not the supabase.co /verify redirect):
+                                             iOS Universal Links and Android App Links only match the URL the user
+                                             actually taps, never a server-side 302, so this is what lets the native
+                                             app intercept sign-in. /auth-callback does the verifyOtp for both
+                                             native and browser. Requires Supabase Site URL = https://getforgenta.com. -->
+                                        <a href="{{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=magiclink" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
                                             Sign In Now
                                         </a>
                                     </td>
@@ -271,7 +285,7 @@
                                 Button not working? Copy and paste this link into your browser:
                             </p>
                             <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
-                                {{ .ConfirmationURL }}
+                                {{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=magiclink
                             </p>
                         </td>
                     </tr>
@@ -302,6 +316,9 @@
 <!-- MAGIC LINK END -->
 
 
+<!-- Converted to token_hash. Safe: email_change just needs a session, and /dashboard is the
+     correct destination. This is the ONE live user-facing flow of the four remaining
+     templates — src/pages/Settings.tsx:257 calls supabase.auth.updateUser({ email }). -->
 <!-- ==================== CHANGE EMAIL START ==================== -->
 <!DOCTYPE html>
 <html lang="en">
@@ -360,7 +377,15 @@
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                 <tr>
                                     <td style="padding: 0 0 32px;">
-                                        <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
+                                        <!-- token_hash link on our OWN domain (not the supabase.co /verify redirect):
+                                             iOS Universal Links and Android App Links only match the URL the user
+                                             actually taps, never a server-side 302, so this is what lets the native
+                                             app intercept the confirmation. /auth-callback does the verifyOtp for
+                                             both native and browser. Requires Site URL = https://getforgenta.com.
+                                             NOTE: with Secure Email Change enabled Supabase sends this template to
+                                             BOTH the old and new address, each with its own token_hash. Both must be
+                                             confirmed before the change applies. -->
+                                        <a href="{{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=email_change" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
                                             Confirm New Email
                                         </a>
                                     </td>
@@ -371,7 +396,7 @@
                                 Button not working? Copy and paste this link into your browser:
                             </p>
                             <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
-                                {{ .ConfirmationURL }}
+                                {{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=email_change
                             </p>
                         </td>
                     </tr>
@@ -402,6 +427,20 @@
 <!-- CHANGE EMAIL END -->
 
 
+<!-- DELIBERATELY still on {{ .ConfirmationURL }} — do NOT "fix" this to token_hash
+     without the code change described below.
+
+     Recovery mode is entered ONLY via the URL hash: src/pages/Auth.tsx checks
+     `hash.includes('type=recovery')` to switch to the set-password form and to set the
+     `forgenta:recovery_pending` flag that suppresses AuthContext's SIGNED_IN auto-navigate.
+     A token_hash link produces no hash, and src/pages/AuthCallback.tsx unconditionally
+     navigates to /dashboard on a successful verifyOtp. Converting this template would
+     therefore silently sign the user in and skip the set-password screen entirely —
+     they could never actually reset their password.
+
+     To convert: make AuthCallback route by otpType (recovery -> /auth in set-password mode,
+     setting forgenta:recovery_pending first) instead of always /dashboard. That is an app
+     code change requiring a new build, not a template edit. -->
 <!-- ==================== RESET PASSWORD START ==================== -->
 <!DOCTYPE html>
 <html lang="en">
