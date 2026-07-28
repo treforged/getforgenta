@@ -1,65 +1,68 @@
-# Handoff — 2026-07-27 (session 32) — 5-item batch: **items 1–3 DONE + committed `cd48de32` (local only, NOT pushed)**. Items 4 (debt chart year filter) and 5 (email-verify deep link) NOT started. Item 5 blocked on two credentials from Tre.
+# Handoff — 2026-07-27 (session 33) — items 4 & 5 DONE + **PUSHED to main**. Remaining: 2 Supabase dashboard steps (IN FLIGHT when gate hit), edge fn deploy, verification.
 
-## 📋 THE 5 REQUESTS THIS SESSION
-1. ✅ "all pictures are being blocked from upload" — FIXED
-2. ✅ "does my app respect do not track requests?" — answered NO, then implemented DNT + GPC
-3. ✅ "create a right to delete notice" — new /delete-data page
-4. ⏭️ "add year filter to chart on debt payoff tab" — NOT STARTED (design decided, see below)
-5. ⏭️ "make sure email verification takes them to the app if they have it downloaded" — NOT STARTED (design decided + blocked on credentials)
+## 📋 WHERE SESSION 32 LEFT OFF vs NOW
+Session 32 finished items 1–3. This session did **item 4 (debt chart year filter)** and **item 5 (email verification → native app)** in full, plus the Apple/Play credential work that was blocking item 5.
 
-## ✅ DONE — commit `cd48de32` (LOCAL ONLY, do not push without asking)
-Backups: `backups/2026-07-27_200550/` (vercel.json, analytics.ts, Legal.tsx, App.tsx, CreditCardEngine.tsx, Settings.tsx, AndroidManifest.xml).
-`npx tsc --noEmit` clean after all edits.
+**Everything is now PUSHED** (`1247644b..515fe48a`). This was explicitly authorized by Tre ("if thats everything we can push"). Standing no-auto-push rule still applies to future work.
 
-### 1. Image upload — ROOT CAUSE + FIX
-`src/lib/build-photos.ts:24` sanitizes every upload by `URL.createObjectURL(file)` → `img.src = blobUrl` (canvas re-encode to strip EXIF). The CSP in `vercel.json` was `img-src 'self' data: https:` — **no `blob:`** — so the decode was refused, `img.onerror` fired, and EVERY upload failed with "Image could not be decoded — file may be corrupt or unsafe". Hit web AND native (Capacitor `server.url` = getforgenta.com, same CSP).
-**Fix:** `img-src 'self' data: blob: https:`. One token. ⚠️ Only takes effect once deployed to Vercel — Tre cannot verify uploads work until this is pushed/deployed.
+## ✅ COMMITS THIS SESSION (all pushed)
+- `3b8fd2a8` [debt/legal] — item 4 chart filter + Settings→/delete-data link
+- `dcfdf3f4` [auth] — token_hash email verification code path
+- `82c75f9e` [auth] — assetlinks.json + apple-app-site-association
+- `515fe48a` [ios] — Associated Domains entitlement wired into pbxproj
 
-### 2. DNT / GPC
-Was NOT respected (zero references anywhere). Tre chose "honor both".
-`src/lib/analytics.ts`: added exported `hasTrackingOptOutSignal()` (checks `navigator.globalPrivacyControl === true`, then `navigator.doNotTrack ?? window.doNotTrack ?? navigator.msDoNotTrack` === '1'/'yes'), plus global type augmentations. `initGA()` early-returns on it; `trackSignUp()` also guards. Signal deliberately OVERRIDES stored cookie consent. Privacy Policy gained section "8a. Do Not Track & Global Privacy Control".
+Backups: `backups/2026-07-27_session33/`. `npx tsc --noEmit` clean, **221/221 tests green** after every step.
 
-### 3. Right to Delete notice
-New `src/components/legal/DeleteDataContent.tsx` (11 sections: right, how to submit, verification, timelines, what's deleted, what's retained + why, service providers, consequences, non-discrimination, appeals, contact). Route `/delete-data` added in `App.tsx`, rendered by the existing `Legal` shell; 4th tab added to desktop nav ("Right to Delete") and BOTH mobile tab rows ("Deletion"); `isDelete` + `isTerms` flags replace the old `!isPrivacy && !isRefund` ternaries. Privacy Policy §8 Deletion now links to it.
-⏭️ NOT DONE: a link from Settings → Danger Zone (near the Delete Account button, `src/pages/Settings.tsx:~786-830`) to `/delete-data`. Small, worth adding.
+### Item 4 — debt chart year filter (DONE)
+`src/components/debt/CreditCardEngine.tsx`. `chartYears` via `usePersistedState<'1'|'2'|'3'|'5'>('tre:debt:chart-years','5')` (line ~131) — matches the existing `accordionYear` convention rather than plain useState. `visibleChartData` = `debtChartData.slice(0, years*12)`; `chartTickInterval` = `max(0, ceil(years*12/10)-1)` so 5Y still yields 5 (identical to the old hardcoded value). Pills render in a new `justify-between` header row. Display-only — projections still run full `PROJECTION_MONTHS`, payoff/ETA untouched.
+Also added the deferred `Link to="/delete-data"` in Settings Danger Zone.
 
-**⚠️ WHILE VERIFYING THE NOTICE WAS TRUTHFUL, FOUND + FIXED 2 REAL DELETION GAPS in `supabase/functions/delete-account/index.ts`:**
-- `public.subscriptions` (tracked bills) has **NO foreign key to auth.users** (verified via SQL) → `auth.admin.deleteUser` did NOT cascade it and it was missing from `USER_TABLES` → rows would survive account deletion forever as orphaned personal data. Added `"subscriptions"` to `USER_TABLES`.
-- The **`build-photos` storage bucket is PUBLIC** and its objects were never deleted → a deleted user's photos stayed reachable at their public URLs forever. Added `USER_STORAGE_BUCKETS` + `listUserObjects()` helper (Storage `list()` is not recursive; layout is `${userId}/${buildId}/${uuid}.jpg`, so it walks one level) + a non-fatal step 5b that removes them.
-- Verified all OTHER tables missing from `USER_TABLES` (ai_advisor_history, ai_usage_events, car_build_items/phases/builds, lump_sum_transfers, payment_plans, email_nudges) DO cascade (`confdeltype='c'` on auth.users) — no action needed.
-- Live orphan check ran clean: **0 orphaned subscriptions, 0 orphaned photos** — the leak was latent, nothing has actually leaked.
-- ⚠️ **The edge function is edited but NOT DEPLOYED.** Needs a deploy to take effect.
+### Item 5 — email verification opening the native app (CODE DONE)
+The critical design point from session 32 was correct and is implemented:
+- **`supabase-email-templates.html`** CONFIRM SIGNUP block only — both the CTA href (~line 72) and plain-text fallback (~line 87) now emit `{{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=signup`. Magic Link / Reset Password / Change Email / Invite deliberately NOT touched (same latent flaw — flag to Tre as follow-ups).
+- **`src/pages/AuthCallback.tsx`** rewritten — `token_hash` branch calls `supabase.auth.verifyOtp` with an otp `type` whitelisted against `EMAIL_OTP_TYPES`, navigates `/dashboard`, shows a recoverable error + "Back to sign in" otherwise. Existing custom-scheme "Open Forgenta" UI preserved for the OAuth path. Works in a plain desktop browser.
+- **`src/App.tsx`** DeepLinkHandler — `token_hash` deep links forward to `/auth-callback` so verification has ONE implementation for native + web.
+- **`AndroidManifest.xml`** — `autoVerify="true"` https intent-filter, `pathPrefix` scoped to `/auth-callback` and `/auth` only (NOT whole host, so `/builds/share/:token` stays in the browser).
+- **`public/.well-known/assetlinks.json`** — `com.treforged.forged` + SHA-256 `91:82:33:1F:5D:C6:57:F2:CC:53:92:89:4B:6B:0D:14:44:62:94:FC:BA:3D:1F:17:92:C1:74:5B:0A:D5:DA:D8` (Google-held Play App Signing key, read from Play Console → App signing / `…/keymanagement`).
+- **`public/.well-known/apple-app-site-association`** — `JAGC2SWGG4.com.treforged.forged`, components `/auth-callback`, `/auth` (+ `/*`).
+- **VERIFIED:** `.well-known` dotfolder DOES survive `vite build` into `dist/`, and both files parse as valid JSON. `vercel.json` already serves AASA as `application/json` (patched session 32).
 
-## ⏭️ ITEM 4 — Debt Payoff chart year filter (NOT STARTED)
-**Tre chose: segmented `1Y / 2Y / 3Y / 5Y` horizon buttons** (not a calendar-year picker, no separate "All").
-All in `src/components/debt/CreditCardEngine.tsx` (backup already taken):
-- `debtChartData` useMemo is at **line ~983**, builds `PROJECTION_MONTHS` (=60, from `src/lib/scheduling.ts:38`) rows.
-- Chart JSX at **lines ~1150–1169** (`{debtChartData.length > 0 && (...)}`, `<LineChart data={debtChartData}>`).
-- Plan: `const [chartYears, setChartYears] = useState<1|2|3|5>(5)` — **default 5 to preserve current behavior**; `const visibleChartData = useMemo(() => debtChartData.slice(0, chartYears * 12), [debtChartData, chartYears])`; feed that to `<LineChart>`; render the 4 buttons in the existing `<h3>` header row (justify-between), styled like the other small pill buttons in this file.
-- XAxis `interval` is currently hardcoded `5` (line ~1159). Make it dynamic so tick density stays sane: `Math.max(0, Math.ceil((chartYears * 12) / 10) - 1)` → 5Y=5 (identical to today), 3Y=3, 2Y=2, 1Y=1.
+### Apple / Play account work DONE IN BROWSER this session
+- **Apple Team ID = `JAGC2SWGG4`** (confirmed on-page).
+- **Associated Domains ENABLED** on App ID `com.treforged.forged`. This **invalidated** the `Forged App Store` provisioning profile (Apple warned; Tre approved via AskUserQuestion).
+- **Profile REGENERATED** — now carries `associated-domains`, `applesignin`, `beta-reports-active`. In-App Purchase emits no entitlement key on App Store profiles, so nothing was lost. Cert `TreVon Hines(Distribution)` (exp Apr 18 2027) preserved.
+- **`ios/App/App/App.entitlements`** created (`applinks:getforgenta.com`), wired via `CODE_SIGN_ENTITLEMENTS = App/App.entitlements` in **both** Debug and Release in `project.pbxproj`. plist validated with plistlib.
+- **Tre updated the `BUILD_PROVISION_PROFILE_BASE64` GitHub secret himself** (I encoded the .mobileprovision to his clipboard — 16560 chars, single line, decodes to 12420 bytes — but did not paste it; signing material must not go through me).
 
-## ⏭️ ITEM 5 — Email verification opening the native app (NOT STARTED, BLOCKED)
-**🔴 BLOCKED — Tre answered "I'll paste both values now" but had not pasted them when the context gate hit. ASK HIM AGAIN FIRST:**
-1. **Apple Team ID** (Apple Developer → Membership). Currently only a GH secret `APPLE_TEAM_ID` (`.github/workflows/ios-build.yml:102`), not in the repo, and the AASA file needs it as a literal.
-2. **Android app-signing SHA-256** (Play Console → Setup → App integrity → App signing key certificate — the GOOGLE-held key, not the upload key, since Play App Signing is on).
+## 🔴 IN FLIGHT WHEN THE GATE HIT — DO THIS FIRST
+Tre said **"go into supabase and do it for me"**, i.e. he authorized doing these two dashboard steps in the browser. I had only located the template line numbers when the context gate fired. **Nothing was changed in Supabase.**
 
-### Current state (all verified this session — nothing is set up)
-- `public/` has NO `.well-known/` at all — no `assetlinks.json`, no `apple-app-site-association`.
-- `AndroidManifest.xml` has only the custom-scheme intent-filter (`com.treforged.forged`), no `https` + `autoVerify` filter.
-- iOS has NO Associated Domains entitlement and no `.entitlements` file in `ios/App/App/` (would need `CODE_SIGN_ENTITLEMENTS` wired into `project.pbxproj` for Debug AND Release — hand-edit carefully). Apple Developer portal must also have Associated Domains enabled on the App ID or signing fails.
-- `vercel.json` already patched this session to serve `/.well-known/apple-app-site-association` as `application/json` (it has no file extension). Vercel checks the filesystem before `rewrites`, so `public/.well-known/*` is served rather than being swallowed by the SPA rewrite — **but verify a `.well-known` dotfolder actually survives `vite build` into `dist/` (check `ls dist/.well-known` after a build).**
+1. **Site URL** → Supabase dashboard (project `mdtosrbfkextcaezuclh`) → Authentication → URL Configuration → set Site URL = `https://getforgenta.com`. Required, since the template now uses `{{ .SiteURL }}`.
+2. **Confirm signup template** → Authentication → Email Templates → Confirm signup → replace with the block in `supabase-email-templates.html` **lines 8–123** (between `CONFIRM SIGNUP START` / `CONFIRM SIGNUP END`).
+   - Suggested method: extract lines 9–122 to a temp file, `Set-Clipboard`, then Ctrl+A / Ctrl+V in the dashboard's code editor. Do NOT paste the START/END comment markers.
+   - ⚠️ Until BOTH are done, confirmation emails still use the old `supabase.co/auth/v1/verify` redirect and **none of the app-link work has any visible effect**.
 
-### 🎯 THE CRITICAL DESIGN POINT (do not miss this — association files alone will NOT work)
-`src/pages/Auth.tsx:443` sets `emailRedirectTo: ${window.location.origin}/auth`, so the emailed link is Supabase's `{{ .ConfirmationURL }}` = `<project>.supabase.co/auth/v1/verify?...&redirect_to=https://getforgenta.com/auth`. The user taps a **supabase.co** URL that 302s to getforgenta.com. **iOS Universal Links and Android App Links only match the URL the user actually tapped — they never fire on a server-side redirect.** So universal links alone would change nothing.
-**Fix = switch the Confirm Signup email to a token_hash link on our own domain:**
-- `supabase-email-templates.html` (root, the file Tre pastes into the Supabase dashboard) — CONFIRM SIGNUP block, lines ~8–118: change the `<a href="{{ .ConfirmationURL }}">` (line ~67) and the plain-text fallback (line ~82) to `{{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&type=signup`. Requires Supabase Site URL = `https://getforgenta.com`.
-- `src/pages/AuthCallback.tsx` (33 lines, currently ONLY renders an "Open Forgenta" custom-scheme button): add a `token_hash` branch → `supabase.auth.verifyOtp({ token_hash, type })` → navigate `/dashboard` on success, show an error + link to `/auth` on failure. Keep the existing custom-scheme UI for the OAuth path. **This page must keep working on desktop/web** (a user without the app lands here in a browser) — that's why the verify lives here rather than in the native handler.
-- `DeepLinkHandler` in `src/App.tsx` (~line 153, `CapApp.addListener('appUrlOpen')`, already matches `path.includes('auth-callback')` and handles `code` / `access_token`): add a `token_hash` branch that just `navigate('/auth-callback' + incoming.search)` so AuthCallback does the verify — one implementation for both native and web.
-- `AndroidManifest.xml`: add an `autoVerify="true"` intent-filter for `https` host `getforgenta.com`, **scoped by `pathPrefix` to `/auth-callback` and `/auth` only** — deliberately NOT the whole host, because capturing e.g. `/builds/share/:token` would force public share links into the app behind a login wall.
-- Scope note: only the **Confirm Signup** template is in scope per Tre's ask. Magic Link, Reset Password, Change Email, and Invite have the identical redirect problem — flag them to Tre as follow-ups, don't silently change them.
+## ⏭️ ALSO STILL OPEN
+- **`supabase/functions/delete-account/index.ts` is STILL NOT DEPLOYED** (edited in session 32's `cd48de32`). Both deletion gaps — `subscriptions` rows + public `build-photos` objects — remain open in production. Tre was asked and had not answered. Deploy via Supabase MCP `deploy_edge_function` or CLI.
+- **Dependabot**: 1 moderate vuln on main, `https://github.com/treforged/getforgenta/security/dependabot/56`. Untouched, unrelated.
+- Old lingering items: GA `sign_up` key event still unmarked; Search Console indexing never started.
+
+## 🧭 BUILD / DEPLOY STATE AT HANDOFF
+- Push `1247644b..515fe48a` triggered 5 workflows.
+- **Android Build & Upload to Play Store: SUCCESS** → auto-deploying to Play **production** (10% staged, auto-promotes to 100% after 24h). This is a REAL RELEASE.
+- **iOS Build & Upload to App Store: IN PROGRESS** at handoff — this is the live test of the new entitlement + regenerated profile secret. **CHECK IT FIRST:** `gh run list --limit 5`. If it failed at signing, the `BUILD_PROVISION_PROFILE_BASE64` secret likely didn't take.
+- A background job (`gh run watch`) was watching both; its output may be stale/orphaned after /clear — just use `gh run list`.
+- Vercel deploys off the same push.
+
+## ✅ VERIFICATION CHECKLIST (after the 2 Supabase steps)
+1. **Image upload works** (session 32 CSP fix) — fastest proof the deploy landed. Was failing with "Image could not be decoded".
+2. `https://getforgenta.com/.well-known/assetlinks.json` returns JSON; `/.well-known/apple-app-site-association` returns JSON with `Content-Type: application/json` (NOT text/html).
+3. Debt chart `1Y/2Y/3Y/5Y` pills; 5Y identical to before.
+4. `/delete-data` renders; Settings → Danger Zone link reaches it.
+5. **Email confirm on a device with the app installed** → link opens the APP, not the browser. Android App Link verification can lag a few minutes post-install.
+6. **Same link on desktop** → verifies and lands on `/dashboard`.
 
 ## 🧭 STATE
-- Branch `main`. `cd48de32` is **LOCAL, NOT PUSHED** (per standing rule).
-- Nothing deployed: the CSP upload fix and the delete-account fix both need a deploy before Tre can see any change.
-- No MCP browser tabs opened this session. Supabase project `mdtosrbfkextcaezuclh`.
-- Prior sessions' work (blog pipeline hardening, GA4 fix) is CLOSED — see git history, not this file. Only lingering old items: GA `sign_up` key event still unmarked, and Search Console indexing never started.
+- Branch `main`, clean, **pushed through `515fe48a`**.
+- Supabase project `mdtosrbfkextcaezuclh`.
+- One Chrome MCP tab open (was on Apple Developer profile download page). Tab IDs do NOT survive /clear — call `tabs_context_mcp` fresh.
