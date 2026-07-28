@@ -12,7 +12,14 @@
      them without an `AuthCallback` code change would break password reset. **Tre's call, unstarted.**
 2. **The only Part B work left is the device test** — sign up a throwaway account, click the confirm
    email on a device with the app installed, then delete that account. See the verification checklist.
-3. **Part A is blocked on Tre:** paste the `service_role` key into `tre-forged-marketing/.env`.
+3. ~~**Part A is blocked on Tre:** paste the `service_role` key.~~ ✅ DONE session 38 — key installed and
+   the whole storage path smoke-tested. Part A's next step is the Facebook Page check, then
+   `python connect.py instagram`.
+4. **Only one session is live now.** Session `01WtDm1iMhm7vxcVXiyzMUSp` (local transcript `d136202c…`) was
+   the session-37 Part A agent; it hit its context gate at 168k, committed its state as `e709d239`, and was
+   closed by Tre in session 38. **It has no unmerged work** — verified by reading its transcript tail.
+   Do not go looking for it.
+5. 🔴 **Outstanding security action: rotate the Meta App Secret** (see the Part A block for why).
 
 ## ✅ DONE (Part B, session 38) — confirm-signup 🔒 FIXED AND VERIFIED LIVE
 Re-pasted the confirm-signup body from `supabase-email-templates.html` using a **UTF-8** clipboard,
@@ -143,9 +150,18 @@ Expected clipboard fingerprint (verified this session): **7248 chars, 114 lines,
   `contact@treforged.com`, Development/Unpublished, TRE Forged portfolio (unverified).
   - **App Secret retrieved and written to `tre-forged-marketing/memory/meta_app.json`.** Verified ignored
     via `.gitignore:35` (whole `tre-forged-marketing/` dir; 0 files tracked).
-  - ⚠️ **The secret was visible in a session-37 screenshot and is in that transcript.** Local only, never
-    pushed. If Tre wants belt-and-braces, **Reset** the secret on the Basic settings page and rewrite
-    `meta_app.json` — that button is right next to the field.
+  - ⚠️ **CORRECTED session 38 — the secret IS in that transcript in plaintext, but NOT via a screenshot.**
+    Verified by literal match: present in `…/.claude/projects/C--Users-tvonh-Desktop-getforgenta/`
+    `d136202c-a36f-4435-a158-ccf423f6c239.jsonl` **line 504**; absent from session 38's transcript.
+    Zero screenshots were taken between the reveal and the write (only a `scroll`), so the earlier
+    "visible in a screenshot" claim was wrong. The real cause: the agent blind-copied via clipboard, then
+    **interpolated the value into a Bash heredoc** writing `meta_app.json` — putting it straight into the
+    transcript. Its own stated goal ("never enters my context or the transcript") was defeated one step later.
+  - **→ ROTATE THE APP SECRET.** Meta → App → Basic settings → **Reset** next to App Secret, then rewrite
+    `tre-forged-marketing/memory/meta_app.json`. Cheap: app is Development/Unpublished, no live traffic.
+  - 🔑 **Rule for any future secret:** never interpolate it into a command. Read it from the clipboard
+    *inside* the script (`$k = (Get-Clipboard -Raw).Trim()`) so the value never appears in a tool call.
+    That is how session 38 installed `SUPABASE_SERVICE_ROLE_KEY` — confirmed absent from its transcript.
 - **Supabase `marketing-public` bucket CREATED** — applied via MCP `apply_migration` as
   `create_marketing_public_bucket` on `mdtosrbfkextcaezuclh`. Public read for `anon`+`authenticated`,
   10 MB cap, png/jpeg only, **no write policy** (uploads use the service role, so a leaked anon key still
