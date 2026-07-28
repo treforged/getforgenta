@@ -27,10 +27,48 @@ const USER_TABLES = [
   "savings_goals",
   "debts",
   "recurring_rules",
+  // Tracked bills/subscriptions. This table has NO foreign key to auth.users,
+  // so deleting the auth user does NOT cascade here — it must be listed
+  // explicitly or the rows survive as orphaned personal data.
+  "subscriptions",
   "plaid_items",
   "accounts",
   "profiles",
 ] as const;
+
+/** Storage buckets holding user-uploaded files under a `${userId}/` prefix. */
+const USER_STORAGE_BUCKETS = ["build-photos"] as const;
+
+/**
+ * Collect every object path a user owns in a bucket. Layout is
+ * `${userId}/${buildId}/${uuid}.jpg`, and Storage's list() is not recursive,
+ * so the per-build folders are walked one level down.
+ */
+async function listUserObjects(
+  supabase: ReturnType<typeof createClient>,
+  bucket: string,
+  userId: string,
+): Promise<string[]> {
+  const store = supabase.storage.from(bucket);
+  const { data: folders, error } = await store.list(userId, { limit: 1000 });
+  if (error) throw new Error(error.message);
+  if (!folders) return [];
+
+  const paths: string[] = [];
+  for (const folder of folders) {
+    // A row with no id is a folder placeholder; anything else is a file.
+    if (folder.id) {
+      paths.push(`${userId}/${folder.name}`);
+      continue;
+    }
+    const { data: files, error: subErr } = await store.list(`${userId}/${folder.name}`, { limit: 1000 });
+    if (subErr) throw new Error(subErr.message);
+    for (const file of files ?? []) {
+      paths.push(`${userId}/${folder.name}/${file.name}`);
+    }
+  }
+  return paths;
+}
 
 async function callPlaidRemoveForUser(
   supabase: ReturnType<typeof createClient>,
@@ -195,6 +233,30 @@ Deno.serve(async (req) => {
         deleteSpan.end("ERROR", new Error(delErr.message));
       } else {
         deleteSpan.end("OK");
+      }
+    }
+
+    // ── 5b. Delete uploaded files ──────────────────────────────────────────
+    // Storage objects are not covered by any foreign key, so removing the auth
+    // user leaves them in place. The build-photos bucket is PUBLIC, meaning a
+    // deleted user's photos would stay reachable at their public URLs forever.
+    for (const bucket of USER_STORAGE_BUCKETS) {
+      const storageSpan = tracer.startSpan(`storage.${bucket}.remove`, {
+        parentSpanId: rootSpan.spanId,
+        kind: "CLIENT",
+        attributes: { "storage.bucket": bucket, "user.hash": userHash },
+      });
+      try {
+        const paths = await listUserObjects(supabase, bucket, userId);
+        if (paths.length > 0) {
+          const { error: rmErr } = await supabase.storage.from(bucket).remove(paths);
+          if (rmErr) throw new Error(rmErr.message);
+        }
+        storageSpan.end("OK");
+      } catch (storageErr) {
+        // Non-fatal: never block account deletion on a storage cleanup failure.
+        console.error(`delete-account: storage cleanup failed for ${bucket}:`, storageErr);
+        storageSpan.end("ERROR", storageErr);
       }
     }
 

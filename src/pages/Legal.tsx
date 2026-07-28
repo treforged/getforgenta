@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/cookie-consent';
 import { useCookieConsent } from '@/hooks/useCookieConsent';
 import { Shield, ChevronDown, ChevronUp, X } from 'lucide-react';
+import DeleteDataContent from '@/components/legal/DeleteDataContent';
 
 function CookiePreferencesInline() {
   const { consent, acceptAll, rejectNonEssential, saveCustom } = useCookieConsent();
@@ -250,12 +251,25 @@ function PrivacyContent() {
           <p><span className="text-foreground font-medium">Correction:</span> You can update your account
           information and financial data directly within the app via Settings.</p>
           <p><span className="text-foreground font-medium">Deletion:</span> You can delete your account at any
-          time from the Settings page. This permanently removes all your data.</p>
+          time from the Settings page. This permanently removes all your data. See our{' '}
+          <Link to="/delete-data" className="text-primary hover:underline">Right to Delete Notice</Link>{' '}
+          for the full process, timelines, and what we are required to retain.</p>
           <p><span className="text-foreground font-medium">Portability:</span> Premium subscribers can export
           their financial data to CSV. Contact support to request a full data export in JSON format.</p>
           <p><span className="text-foreground font-medium">Objection:</span> You may contact us to object to
           specific processing of your data. We will respond within 30 days.</p>
         </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="font-display font-semibold text-base">8a. Do Not Track &amp; Global Privacy Control</h2>
+        <p className="text-muted-foreground leading-relaxed">
+          Forgenta honors browser-level opt-out signals. If your browser or extension sends a Global Privacy
+          Control (GPC) signal or a Do Not Track (DNT) header, we do not load Google Analytics and no analytics
+          events are sent, even if you previously accepted analytics cookies. The signal takes precedence over
+          your stored cookie preference. Essential functionality (authentication, security, and your saved
+          financial data) is unaffected, as it is required to operate the service and is not tracking.
+        </p>
       </section>
 
       <section className="space-y-3">
@@ -600,6 +614,8 @@ export default function Legal() {
   const containerRef = useRef<HTMLDivElement>(null);
   const isPrivacy = pathname === '/privacy';
   const isRefund = pathname === '/refund';
+  const isDelete = pathname === '/delete-data';
+  const isTerms = !isPrivacy && !isRefund && !isDelete;
 
   useEffect(() => {
     containerRef.current?.scrollTo(0, 0);
@@ -630,7 +646,7 @@ export default function Legal() {
           <Link
             to="/terms"
             className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-              !isPrivacy && !isRefund ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              isTerms ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
             style={{ borderRadius: 'var(--radius)' }}
           >
@@ -644,6 +660,15 @@ export default function Legal() {
             style={{ borderRadius: 'var(--radius)' }}
           >
             Refund Policy
+          </Link>
+          <Link
+            to="/delete-data"
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              isDelete ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+            }`}
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            Right to Delete
           </Link>
         </nav>
 
@@ -669,7 +694,7 @@ export default function Legal() {
             <Link
               to="/terms"
               className={`flex-1 text-center px-3 py-2 text-xs font-medium border transition-colors ${
-                !isPrivacy && !isRefund
+                isTerms
                   ? 'border-primary text-primary bg-primary/5'
                   : 'border-border text-muted-foreground hover:text-foreground'
               }`}
@@ -688,15 +713,26 @@ export default function Legal() {
             >
               Refunds
             </Link>
+            <Link
+              to="/delete-data"
+              className={`flex-1 text-center px-3 py-2 text-xs font-medium border transition-colors ${
+                isDelete
+                  ? 'border-primary text-primary bg-primary/5'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              }`}
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Deletion
+            </Link>
           </div>
         </div>
 
         {/* Content */}
         <main className="flex-1 min-w-0">
           <h1 className="font-display font-bold text-2xl tracking-tight mb-8">
-            {isPrivacy ? 'Privacy Policy' : isRefund ? 'Refund Policy' : 'Terms of Service'}
+            {isPrivacy ? 'Privacy Policy' : isRefund ? 'Refund Policy' : isDelete ? 'Right to Delete Notice' : 'Terms of Service'}
           </h1>
-          {isPrivacy ? <PrivacyContent /> : isRefund ? <RefundContent /> : <TermsContent />}
+          {isPrivacy ? <PrivacyContent /> : isRefund ? <RefundContent /> : isDelete ? <DeleteDataContent /> : <TermsContent />}
 
           {/* Bottom nav — mobile only */}
           <div className="sm:hidden mt-10 space-y-3">

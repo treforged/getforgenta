@@ -4,12 +4,41 @@ declare global {
   interface Window {
     dataLayer?: unknown[];
     gtag?: (...args: unknown[]) => void;
+    doNotTrack?: string | null;
+  }
+  interface Navigator {
+    // Global Privacy Control — not yet in the DOM lib typings
+    globalPrivacyControl?: boolean;
+    // Legacy vendor-prefixed Do Not Track
+    msDoNotTrack?: string | null;
   }
 }
 
 const MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
 
 let initialized = false;
+
+/**
+ * True when the browser is broadcasting an opt-out of tracking.
+ *
+ * Two distinct signals are honored:
+ *  - Global Privacy Control (`Sec-GPC`) — a legally binding opt-out request
+ *    under CPRA (California), CPA (Colorado), and CTDPA (Connecticut).
+ *  - Do Not Track — deprecated and voluntary, but still sent by Firefox and
+ *    several privacy browsers; we treat it as an opt-out too.
+ *
+ * Either signal suppresses analytics regardless of stored cookie consent, so a
+ * consent record captured before the user enabled the signal cannot override it.
+ */
+export function hasTrackingOptOutSignal(): boolean {
+  if (typeof navigator === 'undefined') return false;
+
+  if (navigator.globalPrivacyControl === true) return true;
+
+  // DNT lives in three places depending on browser vintage; '1' means opt out.
+  const dnt = navigator.doNotTrack ?? window.doNotTrack ?? navigator.msDoNotTrack;
+  return dnt === '1' || dnt === 'yes';
+}
 
 /**
  * Load Google Analytics 4 (gtag.js) and start a session. Idempotent, web-only,
@@ -20,6 +49,7 @@ export function initGA(): void {
   if (initialized) return;
   if (Capacitor.isNativePlatform()) return; // web-only
   if (!MEASUREMENT_ID) return;
+  if (hasTrackingOptOutSignal()) return; // DNT / GPC overrides stored consent
 
   const script = document.createElement('script');
   script.async = true;
@@ -47,6 +77,7 @@ export function initGA(): void {
  * (e.g. analytics consent not granted, native platform, or no Measurement ID).
  */
 export function trackSignUp(method: 'email' | 'oauth'): void {
+  if (hasTrackingOptOutSignal()) return;
   if (!window.gtag) return;
   window.gtag('event', 'sign_up', { method });
 }

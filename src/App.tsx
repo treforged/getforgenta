@@ -142,6 +142,7 @@ function AppRoutes() {
       <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/refund" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
+      <Route path="/delete-data" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
       <Route path="/subscriptions" element={<Navigate to="/budget" replace />} />
       <Route path="/car-fund" element={<Navigate to="/goals" replace />} />
       <Route path="*" element={<NotFound />} />
