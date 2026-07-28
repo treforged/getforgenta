@@ -50,8 +50,8 @@ Tre said **"go into supabase and do it for me"**, i.e. he authorized doing these
 ## 🧭 BUILD / DEPLOY STATE AT HANDOFF
 - Push `1247644b..515fe48a` triggered 5 workflows.
 - **Android Build & Upload to Play Store: SUCCESS** → auto-deploying to Play **production** (10% staged, auto-promotes to 100% after 24h). This is a REAL RELEASE.
-- **iOS Build & Upload to App Store: IN PROGRESS** at handoff — this is the live test of the new entitlement + regenerated profile secret. **CHECK IT FIRST:** `gh run list --limit 5`. If it failed at signing, the `BUILD_PROVISION_PROFILE_BASE64` secret likely didn't take.
-- A background job (`gh run watch`) was watching both; its output may be stale/orphaned after /clear — just use `gh run list`.
+- **iOS Build & Upload to App Store: SUCCESS** — confirms the Associated Domains entitlement signs cleanly against the regenerated profile, i.e. the `BUILD_PROVISION_PROFILE_BASE64` secret took correctly. The iOS signing risk is CLOSED; no need to re-verify it.
+- CodeQL (Actions/JS/TS/Python) and CodeQL (Android) both SUCCESS; CodeQL (iOS) was still running (routine, non-blocking).
 - Vercel deploys off the same push.
 
 ## ✅ VERIFICATION CHECKLIST (after the 2 Supabase steps)
