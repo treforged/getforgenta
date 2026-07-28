@@ -64,7 +64,12 @@
                             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                                 <tr>
                                     <td style="padding: 16px 0 32px;">
-                                        <a href="{{ .ConfirmationURL }}" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
+                                        <!-- token_hash link on our OWN domain (not the supabase.co /verify redirect):
+                                             iOS Universal Links and Android App Links only match the URL the user
+                                             actually taps, never a server-side 302, so this is what lets the native
+                                             app intercept confirmation. /auth-callback does the verifyOtp for both
+                                             native and browser. Requires Supabase Site URL = https://getforgenta.com. -->
+                                        <a href="{{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=signup" style="display: inline-block; background: linear-gradient(135deg, #d4af37 0%, #f4d483 100%); color: #0a0a0a; text-decoration: none; font-size: 16px; font-weight: 600; padding: 18px 48px; border-radius: 8px; letter-spacing: 0.5px; text-transform: uppercase; box-shadow: 0 8px 24px rgba(212, 175, 55, 0.3);">
                                             Confirm &amp; Sign In
                                         </a>
                                     </td>
@@ -79,7 +84,7 @@
                                 Button not working? Copy and paste this link into your browser:
                             </p>
                             <p style="margin: 0; font-size: 13px; word-break: break-all; color: #d4af37;">
-                                {{ .ConfirmationURL }}
+                                {{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=signup
                             </p>
 
                         </td>

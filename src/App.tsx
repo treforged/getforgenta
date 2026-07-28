@@ -170,6 +170,14 @@ function DeepLinkHandler() {
           // Dismiss the SFSafariViewController / in-app browser sheet
           Browser.close().catch(() => {});
 
+          // Email-link flow (Confirm Signup etc.). Hand the token straight to the
+          // AuthCallback route so verification has exactly one implementation shared
+          // by native and web — a user without the app lands on the same page in a browser.
+          if (incoming.searchParams.get('token_hash')) {
+            navigate(`/auth-callback${incoming.search}`, { replace: true });
+            return;
+          }
+
           const code = incoming.searchParams.get('code');
 
           // PKCE flow

@@ -29,6 +29,19 @@
                 <data android:scheme="com.treforged.forged" />
             </intent-filter>
 
+            <!-- Android App Links for email confirmation. Deliberately scoped by pathPrefix to
+                 the auth routes only: claiming the whole getforgenta.com host would pull public
+                 links such as /builds/share/:token into the app behind a login wall.
+                 Requires https://getforgenta.com/.well-known/assetlinks.json to be live with the
+                 Play App Signing SHA-256 before autoVerify succeeds. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="getforgenta.com" android:pathPrefix="/auth-callback" />
+                <data android:scheme="https" android:host="getforgenta.com" android:pathPrefix="/auth" />
+            </intent-filter>
+
         </activity>
 
         <!-- Monthly Surplus widget -->
