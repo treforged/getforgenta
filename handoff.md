@@ -1,18 +1,46 @@
-# Handoff — 2026-07-28 (session 37, PART B / auth emails) — Magic Link + Change Email SAVED & VERIFIED ✅
+# Handoff — 2026-07-28 (session 38, PART B / auth emails) — ALL FOUR TEMPLATES CLOSED ✅
 
-> ⚠️ **Two session-37 agents ran in parallel.** This block is the **Part B (auth email)** agent. The
-> block immediately below it is the **Part A (marketing)** agent. Both are current; neither supersedes
-> the other. The Part A block's line "Part B is untouched by session 37" was true when written and is
-> now **out of date** — Part B moved, as recorded here. The session-36 Part B sections further down are
-> **superseded by this block** wherever they conflict.
+> ⚠️ Everything below this block is **historical**. Where it conflicts with this block, this block wins.
+> The remaining Part B work is **testing on a device**, not editing templates.
 
-## ⚡ START HERE (session 38, Part B)
-1. **Both of session 36's open templates are now live and verified.** Magic Link and Change Email are
-   saved in the Supabase dashboard, persisted through a reload, with correct `token_hash` links.
-   **Do not redo them.** Ignore session 36's "Change Email save FAILED" section below — resolved.
-2. **One item left, small and self-contained:** re-save the **Confirm sign up** template to fix a
-   mangled 🔒 emoji that session 36 baked in. Everything needed is below except the dashboard slug.
-3. Nothing blocks Tre from testing signup on TestFlight. `origin/main` == `main`.
+## ⚡ START HERE (session 39)
+1. **Part B template work is DONE. All four auth email templates are settled — do not touch them.**
+   - **Confirm sign up** — live, `token_hash`, 🔒 clean (fixed session 38).
+   - **Change Email** — live, `token_hash`, verified session 37.
+   - **Magic Link** — live, `token_hash`, verified session 37. Not exercised by any code yet.
+   - **Invite + Reset Password** — deliberately NOT converted. See the rationale further down; converting
+     them without an `AuthCallback` code change would break password reset. **Tre's call, unstarted.**
+2. **The only Part B work left is the device test** — sign up a throwaway account, click the confirm
+   email on a device with the app installed, then delete that account. See the verification checklist.
+3. **Part A is blocked on Tre:** paste the `service_role` key into `tre-forged-marketing/.env`.
+
+## ✅ DONE (Part B, session 38) — confirm-signup 🔒 FIXED AND VERIFIED LIVE
+Re-pasted the confirm-signup body from `supabase-email-templates.html` using a **UTF-8** clipboard,
+saved, reloaded, and read the live editor:
+- Line 8: `@media (prefers-color-scheme: light)` — new template intact
+- Line 64: `<a href="{{ .SiteURL }}/auth-callback?token_hash={{ .TokenHash }}&amp;type=signup"`
+- Line 79: same URL as the copy/paste fallback
+- **Line 89: `🔒 Security Notice` — single clean glyph, mojibake gone.** This was the whole fix.
+- 114 lines, ends `</html>` at line 114. Subject left as `Confirm Your Forged Account`.
+
+### 🔑 The slug that cost two sessions: `confirm-sign-up`
+Not `confirm-signup`. Full URL:
+`…/auth/templates/confirm-sign-up`. **All four slugs are now known** — no more guessing:
+`confirm-sign-up`, `change-email-address`, `magic-link-or-otp`, plus the invite/recovery ones (unvisited).
+Getting it: open `…/auth/templates`, wait for the tab title to become the full
+`Emails | Authentication | FORGENTA | TRE Forged LLC | Supabase`, then `find` for the template link and
+read its `href`. That worked first try; guessing does not.
+
+### Confirmed again: the save mechanism is NOT flaky
+4/4 successful saves across sessions 37-38 on the identical procedure. What fails is
+`Page.captureScreenshot` timing out (~30s) after heavy editor interaction — it did so **3 times** this
+session, including once right after the paste and once right after Save. **Every time, waiting 10s and
+retrying returned a live, correct page.** Never conclude a save failed because a screenshot failed.
+
+### Root cause recap (the reusable lesson)
+Windows PowerShell 5.1's `Get-Content` defaults to the **ANSI codepage**, so session 36 read the emoji
+as mojibake and pasted it that way. Always pass `-Encoding UTF8`, and always verify the clipboard
+(`mojibake=$([regex]::Matches($c,'Ã|â€').Count)` must be `0`) before pasting.
 
 ## ✅ DONE (Part B, session 37)
 
@@ -42,7 +70,9 @@ procedure. What actually varies is `Page.captureScreenshot` timing out (~30s) af
 interaction. **Wait 6-10s and retry the screenshot — the tab is alive and the save already committed.**
 Never conclude a save failed because a screenshot failed. No Management API fallback is needed.
 
-## ⚠️ THE ONE OPEN PART-B ITEM — confirm-signup has a mangled 🔒
+## ~~⚠️ THE ONE OPEN PART-B ITEM — confirm-signup has a mangled 🔒~~ — ✅ RESOLVED session 38
+> Kept for the root-cause explanation only. The fix is applied and verified live; the "slug unknown"
+> note below is answered: it is **`confirm-sign-up`**.
 
 ### Root cause (this bit is the real lesson)
 Session 36 built the paste clipboard with bare `Get-Content`. **Windows PowerShell 5.1's `Get-Content`
@@ -274,8 +304,8 @@ Authentication → Emails → Templates → Confirm sign up. **Live and persiste
 ---
 
 ## ⏭️ STILL OPEN (Part B)
-- **Magic Link + Change Email**: written and committed (`359cf1c0`), dashboard save still pending. See
-  "Change Email save FAILED" at the top.
+- ~~**Magic Link + Change Email**: dashboard save pending.~~ ✅ DONE session 37. All template saves are
+  now complete — see the session-38 block at the top.
 - **Invite + Reset Password: deliberately NOT converted.** Do not "fix" these — session 36 traced the
   root cause and it is not a template problem:
   - Recovery mode is entered **only via the URL hash**. `src/pages/Auth.tsx:110` checks
