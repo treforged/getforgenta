@@ -31,6 +31,24 @@ Same place (Edge Functions → Secrets). **Until it is set, every draft reply re
 drafts. This is deliberate: the SDK client is built lazily so a missing key degrades the reply text instead
 of killing the whole function at import.
 
+### 🔐 HOW TO INSTALL ALL THREE SECRETS WITHOUT LEAKING THEM (do this in session 45)
+There is **no Supabase CLI installed** (confirmed again 44b: `supabase` not on PATH; `npx` IS available at
+`C:\Program Files\nodejs\npx.ps1`, so `npx supabase@latest secrets set …` is worth trying **first** — it
+would avoid the browser entirely). Otherwise: **dashboard only, via Chrome MCP.**
+
+**Never read a secret into the transcript. Never screenshot a page showing one.** Use the clipboard as the
+carrier and paste with a keystroke:
+1. Focus the target field in the Supabase dashboard (Edge Functions → Secrets → Add new secret).
+2. Send **Ctrl+V** via the `computer` tool. The value moves clipboard → field without entering context.
+3. To move Reddit's generated credentials, use `javascript_tool` to read the DOM node and call
+   `navigator.clipboard.writeText(...)` — **return only a length or a boolean, never the value.**
+   Then Ctrl+V into Supabase. This keeps both credentials out of the transcript end to end.
+
+⚠️ **Session 44b tried `Get-Clipboard` and it came back EMPTY** even though Tre had just copied the
+Anthropic key. Nothing was installed. **Always verify the clipboard is non-empty and plausible
+(`length`, `StartsWith('sk-ant-')`) before pasting, and re-ask Tre to copy if it is empty** — do not
+proceed on the assumption the copy landed.
+
 ## ✅ DONE THIS SESSION (deployed as v15, ACTIVE, `verify_jwt: false` preserved)
 ### Tre's two asks
 - **`MAX_POSTS_PER_DIGEST` 10 → 3.** Interpreted as digest size (posts you get drafts for and act on);
