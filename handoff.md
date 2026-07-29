@@ -1,3 +1,97 @@
+# Handoff — 2026-07-28 (session 39, PART A / Instagram OAuth) — ROOT CAUSE FOUND AND FIXED ✅
+
+> Everything below this session-39 block is historical. Where it conflicts, this block wins.
+> Part B was NOT touched this session. Its only remaining item is still the device test.
+
+## ⚡ START HERE (session 40)
+1. **The IG OAuth blocker is solved.** `meta_auth.py` needs NO rewrite and `config_id` is NOT required.
+   See the root cause below. Do not go re-read the Login-for-Business docs; that lead was a red herring.
+2. **One step remains before `python connect.py instagram` will succeed: link @getforgenta to a
+   Facebook Page.** As of session 39 it is linked to no Page. Tre confirmed this directly.
+3. **The Page already exists, do not create one.** Meta Business Suite, TRE Forged portfolio
+   (`business_id=119852363557972`) already holds **`TRE Forged LLC`**, asset id **`952482017937853`**,
+   flagged "Primary business page". Open question for Tre: link @getforgenta to that existing Page, or
+   make a separate Forgenta-branded Page? Either works for the API. Nobody has decided.
+4. **Tre regained @getforgenta password access late in session 39** and is logged in. The earlier
+   lockout (no password, Quo business number not receiving recovery SMS, no email on file) is RESOLVED.
+   That also re-opens the Instagram Login route as a fallback, see below.
+
+## 🔑 ROOT CAUSE (the reusable lesson)
+`connect.py instagram` failed with:
+`Invalid Scopes: instagram_basic, instagram_content_publish, pages_show_list, pages_read_engagement, business_management`
+
+Session 38 read that as the Facebook-Login-for-Business `config_id` problem. **That was wrong.**
+The real cause: **not a single permission had ever been added to the app.** On
+`…/use_cases/customize/permissions/`, every row showed an "Add" button. An app cannot request
+permissions it has not added, so Facebook rejects the whole scope list at once.
+
+**Fixed in session 39.** Used the "Add required content permissions" button on
+`…/use_cases/customize/API-Setup-with-Facebook-login/`. All five now read **"Ready for testing"**:
+`instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`,
+`business_management`.
+
+**Verified after the fix:** the OAuth dialog renders the real consent flow ("Continue as Tre Hines?",
+title "Facebook Login for Business"), then a business picker. No scope error, and **no `config_id` was
+ever demanded.** Plain `scope=` works. `localhost:8723` is accepted, so the redirect-URI contradiction
+noted in session 37 is a non-issue in Development mode.
+
+### Naming trap
+The setup page displays the permission as `instagram_content_publishing`, but the actual scope name
+(and what lands in the permissions table) is **`instagram_content_publish`**, which is what
+`meta_auth.py` already sends. Do not "fix" the code to match the UI label.
+
+## ✅ Also verified session 39
+- **App credentials are good.** Fetched `/{app_id}` with an app access token: `Forgenta Publisher`,
+  app_id `1521659006403853`. The session-38 secret rotation took, and the secret works.
+  Script kept at `scratchpad/check_meta_app.py`; it prints no secret values.
+- Businesses visible on the consent screen: `TRE Forged` (119852363557972), `TreVon;Hines`
+  (746756017441246), `Shopify: b9bc83 1681115883 business` (709418370890813), `Tre` (151819799805004).
+  **Pick TRE Forged.**
+- The app also exposes a second path, **Instagram API with Instagram Login**: separate Instagram app
+  name `Forgenta Publisher-IG`, **Instagram app ID `1988472578452818`**, own secret. That route needs no
+  Facebook Page at all, but needs a browser login at instagram.com and would mean rewriting
+  `meta_auth.py` (endpoints move to `instagram.com/oauth/authorize` + `graph.instagram.com`) plus
+  `instagram.py`'s base URL. **Only worth it if the Page link turns out to be unwanted.** Page-link
+  route is zero code change.
+
+## 🔧 CODE CHANGED (one file, one line)
+`tre-forged-marketing/src/publish/oauth.py`: `_TIMEOUT_SECONDS` 300 → 900, plus a comment.
+Reason: Login for Business runs 4+ consent screens; Tre hit the 5-minute timeout mid-flow while on the
+business picker. The timeout message reads from the same constant, so it now says "15 minutes".
+Backup: `backups/2026-07-28_213305/tre-forged-marketing/src/publish/oauth.py`.
+**Remember `tre-forged-marketing/` is gitignored (`.gitignore:35`), so that backup is the only copy.**
+
+## 🔁 HOW TO RUN THE CONNECT FLOW (works, reuse verbatim)
+`webbrowser.open` plus buffered stdout makes this awkward. What worked:
+```bash
+cd tre-forged-marketing && PYTHONUNBUFFERED=1 BROWSER="cmd /c rem" python connect.py instagram
+```
+run in background. `PYTHONUNBUFFERED=1` is what makes the auth URL appear in the output file;
+`BROWSER="cmd /c rem"` suppresses the duplicate default-browser tab. Then grep the URL out of the task
+output file and drive it with Chrome MCP `navigate`.
+- The `state` is generated per run and must match, so **you cannot reuse an old URL**. Always relaunch.
+- To kill a stuck run: `netstat -ano | grep 8723` then `taskkill //F //PID <pid>`. The port stays held
+  otherwise and the next run cannot bind.
+- Tre must click through personally: it grants ongoing access and picks business assets.
+
+## ⏭️ NEXT (Part A), in order
+1. **Link @getforgenta to a Facebook Page** (decide: existing `TRE Forged LLC` vs a new Forgenta Page).
+   Can be done from the IG app (Edit profile → Page) or now from desktop since Tre has the password.
+   Also confirm @getforgenta is a Professional (Business/Creator) account.
+2. Relaunch the connect flow per the recipe above. Expect `/me/accounts` to return the Page with
+   `instagram_business_account` populated. If it returns empty, the link did not actually take.
+3. Publish `posts/blog_carousel.json` (PI.1) for real.
+4. Then the rest of session 38's Part A list: push `treforgedwebsite`, MB.3 (`Landing.tsx`), MB.5, MB.4, MB.6.
+
+## 🧭 STATE (session 39)
+- Branch `main`. Only tracked change this session is `handoff.md`. The `oauth.py` edit is untracked
+  (gitignored dir).
+- Meta dashboard changes made: 5 permissions added to the Instagram API use case. **No Configuration was
+  created** (turned out unnecessary). No Page created, no Page linked.
+- Nothing about Part B changed.
+
+---
+
 # Handoff — 2026-07-28 (session 38, PART B / auth emails) — ALL FOUR TEMPLATES CLOSED ✅
 
 > ⚠️ Everything below this block is **historical**. Where it conflicts with this block, this block wins.
