@@ -1,3 +1,91 @@
+# Handoff — 2026-07-29 (session 42) — FB crosspost + previews BUILT AND VERIFIED. Two dashboard steps left for Tre.
+
+> Read this block first. It supersedes the session-41b block below, which was the design doc for this work.
+> **All the code in that plan is now written and exercised.** Hit the context gate mid-verification.
+
+## ⚡ START HERE (session 43)
+Everything is implemented and runs. **Two things still need Tre in a browser, and until step 1 is done
+the Facebook crosspost will fail every time** (`--check` says so explicitly, it is not a silent failure):
+
+1. **Add `pages_manage_posts` to the app**, then reconnect. `debug_token` (re-run this session) confirms
+   the live token's scopes are still: `pages_show_list, business_management, instagram_basic,
+   instagram_content_publish, pages_read_engagement, public_profile`. **No `pages_manage_posts`.**
+   developers.facebook.com → `Forgenta Publisher` → Instagram use case → Customize → Permissions → Add.
+   Then `python connect.py instagram` — the scope is already in `meta_auth.SCOPES`, so the re-consent
+   picks it up automatically and stores the Page id and real deadlines.
+2. **Create the System User** (optional but removes the 90-day re-consent forever). Full recipe unchanged
+   in the session-41b block below. When its token is in `.env` as `META_ACCESS_TOKEN` + `FB_PAGE_ID`,
+   `config.py` uses it for both IG and FB and ignores `connections.json`. `.env.example` documents both keys.
+
+**Do not re-do any of the code.** Do not re-litigate the preview design (see the HTML dead end below).
+
+## ✅ WHAT WAS BUILT (all under `tre-forged-marketing/`, still entirely gitignored)
+| File | Change |
+|---|---|
+| `src/publish/facebook.py` | **NEW.** Page publishing: single photo, and album via unpublished `/photos` → `/feed` with JSON-encoded `attached_media`. No container polling (FB is synchronous). `preflight()` reports Page name + whether `pages_manage_posts` is present. |
+| `src/publish/preview.py` | **NEW.** Composes a PNG review sheet (slides grid + caption + FB message + approve command), uploads it plus full-res slides, and lists/deletes previews. |
+| `src/publish/config.py` | `FacebookConfig` + `load_facebook_config()`; `META_ACCESS_TOKEN` system-user path takes priority for both IG and FB; `load_preview_storage_config()`. |
+| `src/publish/accounts.py` | `token_type` in `{page, system_user}` ⇒ never expires; new `days_until_reauth()` reads the real 90-day data-access deadline; `status_line` rewritten. |
+| `src/publish/meta_auth.py` | `pages_manage_posts` added to SCOPES; `_find_instagram_accounts` now stores `page_id`; `_inspect_token()` records `token_type`, `scopes`, `data_access_expires_at`; **stopped stamping the fake expiry**. |
+| `src/publish/storage.py` | `upload_bytes()` for explicit object paths + content types. |
+| `src/publish/http.py` | `post_json()` (Supabase Storage list). |
+| `src/gdrive.py` | `_get_or_create_folder` takes a parent; new `archive_post()` uploads slides + `caption.txt` to a dated subfolder and shares it link-readable. |
+| `publish.py` | `--preview`, `--preview-clean [PREFIX]`, `--no-facebook`, `--no-archive`, `--facebook-caption`; crosspost wired **inside the existing `try:`, after IG, before the `finally:` cleanup** (ordering is load-bearing — FB fetches the images by URL); crosspost failure warns and never fails the run; `--check` extended. |
+| `.env.example` | `PREVIEW_BUCKET`, `META_ACCESS_TOKEN`, `FB_PAGE_ID` documented. |
+
+**Backup of every pre-edit file: `backups/2026-07-29_231213/tre-forged-marketing/`** — includes
+`memory/connections.json`, which until now had **no copy anywhere**. That dir is not in git.
+
+## ✅ VERIFIED THIS SESSION (do not re-verify)
+- `python publish.py --check` →
+  `Facebook Page: 1301429399713605 — Forgenta — MISSING pages_manage_posts, crossposting will fail`,
+  preview bucket + Drive archive both reported, `Token works. 99 posts remaining`.
+- `python connect.py` → `connected as getforgenta — token does not expire; re-consent in 89 days`.
+  **The "59 days left" fiction is gone**; that number is now the real `data_access_expires_at`
+  (**2026-10-27**), re-derived from `debug_token`, not hardcoded.
+- `--preview` end to end: review sheet uploaded, public URL serves `image/png` 200 anonymously,
+  **sheet visually inspected and correct** (5 slides in a 3+2 grid, caption 377/2200, FB block, approve box).
+- Drive archive created and link-shared: `https://drive.google.com/drive/folders/18DRo68c9208Xlo189Y--RrwXgnOBt04i`
+- `--preview-clean <prefix>` removed 6 objects. Cleanup works.
+- Supabase migration **`create_marketing_previews_bucket`** applied to `mdtosrbfkextcaezuclh`:
+  bucket `marketing-previews`, public read for anon+authenticated, 10 MB, no write policy. Idempotent.
+- `memory/connections.json` repaired in place: fake `expires_at` removed, `page_id`, `token_type: page`,
+  `scopes`, and `data_access_expires_at` added. Script (prints no secrets) was in the session scratchpad.
+
+## 🚧 THE HTML PREVIEW DEAD END — do not retry it
+The first implementation hosted a real HTML page in the bucket. Two failures, in order:
+1. `text/html; charset=utf-8` is rejected — **Supabase matches `allowed_mime_types` against the whole
+   header string**, so the charset suffix reads as an unknown type. Fixed by sending bare `text/html`.
+2. Then it uploaded fine but **Supabase serves hosted HTML back as `Content-Type: text/plain`** (verified
+   with curl). That is a deliberate, non-configurable anti-XSS sanitization — the browser shows source,
+   never a rendered page. **Supabase Storage cannot host a viewable HTML preview.**
+
+That is why the preview is a **composed PNG**, which renders natively on every device including a phone's
+photo viewer. The rationale is written into `preview.py`'s module docstring so nobody re-attempts it.
+
+## ⏭️ NEXT, in order
+1. Tre: add `pages_manage_posts` → `python connect.py instagram` → `python publish.py --check` must read
+   **"ready to post"**. Only then is a crosspost possible.
+2. **First real crosspost needs Tre's approval — it posts publicly to the Page.** Preview it first:
+   `python publish.py --post posts/blog_carousel.json --preview`, then approve.
+3. Optional polish (deliberately skipped at the gate): when the FB message is identical to the IG caption,
+   the sheet prints the whole caption twice. Collapse it to just the "same as Instagram" note. ~5 lines in
+   `preview.py`'s `facebook_message` block.
+4. Optional: System User token (step 2 above), then `README.md` — it still documents only the IG flow,
+   with nothing about previews, the Drive archive, or crossposting.
+5. Then the pre-existing queue: push `treforgedwebsite` (`6332812` + backups commit) → Rich Results Test,
+   MB.3 (`Landing.tsx`), MB.5 Reddit, MB.4, MB.6, and Part B's device test.
+
+## 🧭 STATE (session 42)
+- **No tracked source file changed. The only commit is `handoff.md`** — every file above lives inside
+  gitignored `tre-forged-marketing/`.
+- Preview bucket currently holds **one** review sheet (`previews/2026-07-29/032000-…`) left in place as a
+  working example. `python publish.py --preview-clean` wipes all of them.
+- `marketing-public` untouched and still at 0 objects; the PI.1 Instagram post from session 41 is untouched.
+- Nothing was published to Instagram or Facebook this session.
+
+---
+
 # Handoff — 2026-07-29 (session 41b) — NEW WORKSTREAM: FB crosspost + system-user token. DESIGNED, NOT BUILT.
 
 > Read this block first, then the session-41 block below it (IG OAuth + PI.1 publish, both DONE).
