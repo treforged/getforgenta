@@ -214,6 +214,59 @@ Page is already open and correct: Business Suite → Settings → **Forgenta** p
    deliberate — session 37 leaked the app secret by interpolating it into a tool call. **Do not shortcut it.**
 5. Then `python publish.py --check` → must read **ready to post** (not `MISSING pages_manage_posts`).
 
+## 🔴 BLOCKER FOUND LATE IN SESSION 44 — the app and the assets are in DIFFERENT portfolios
+**This invalidates the "What Tre needs to do" steps above as written.** Do not follow them until the
+portfolio split is resolved. Tre spotted this: he could only add system users in TRE Forged.
+
+| Object | Portfolio |
+|---|---|
+| App `Forgenta Publisher` `1521659006403853` | **TRE Forged `119852363557972`** |
+| Page `Forgenta 1301429399713605` + IG `getforgenta 17841479728392773` | **Forgenta `876474914946059`** |
+
+Confirmed: `…/apps/1521659006403853/settings/basic/` auto-resolves its URL to `business_id=119852363557972`.
+
+**Why this blocks the system user:** a system user can only mint a token for an app **its own portfolio
+owns**, and can only be assigned assets **its own portfolio owns**. Neither portfolio has both, so
+neither can produce a working token.
+- System user in **Forgenta** → has the assets, but `Forgenta Publisher` won't appear in the app dropdown.
+- System user in **TRE Forged** → has the app, but the Page/IG can't be assigned.
+
+**The app must move to Forgenta, not the reverse** — session 40 proved Meta refuses to remove a Page or an
+IG from a portfolio while the two are connected to each other. The app is the cheap object to move
+(unpublished, dev mode, no review history); the Page/IG are not movable.
+
+### ❌ FAILED ATTEMPT (session 44) — "Connect an app ID"
+Forgenta → Settings → Accounts → **Apps** (`…/latest/settings/apps?business_id=876474914946059`) —
+currently **"No apps added"**. The **Add** button offers three choices:
+`Create a new app ID` / **`Connect an app ID`** / `Request access to an app ID`.
+
+`Connect an app ID` dialog says: *"The current owners of the app will receive your request. If they
+approve it, this business portfolio will become the owner."* — exactly the transfer we want.
+Entered `1521659006403853` → **"There was an unexpected technical issue. Please try again."**
+
+**This failure is REAL, not the bogus-modal gotcha.** Reloaded the Apps page afterwards: still
+"No apps added". **Nothing changed. No transfer happened. No request is known to exist.**
+I was opening Forgenta → **Requests** to check for a pending request when the context gate hit; that page
+had not finished rendering, so **its contents are unknown — check it first in session 45.**
+
+### ⏭️ NEXT (session 45), in order
+1. **Check Forgenta → Requests** (`…/latest/settings/requests?business_id=876474914946059`) for a pending
+   app request from the failed attempt. If one is pending, approve it from the **TRE Forged** side instead
+   of retrying.
+2. **Most likely real fix: remove the app from TRE Forged FIRST**, then `Connect an app ID` in Forgenta.
+   Meta very likely rejects claiming an app that is already owned by a portfolio the same person admins —
+   the flow is written for a *third-party* owner. Path: TRE Forged Settings → Accounts → Apps →
+   `Forgenta Publisher` → Remove. ⚠️ Verify beforehand that removing it does not invalidate the live token
+   in `memory/connections.json` (backup exists at `backups/2026-07-30_oauthdiag/`). **IG publishing
+   currently works — do not break it.** If unsure, ask Tre before removing.
+3. **Alternative that moves nothing: put the system user in TRE Forged** (which already owns the app) and
+   **partner-share** the Page + IG from Forgenta → TRE Forged. This is session 40's ladder step 2, which
+   **Tre already approved** and which was never tested. System users can be assigned partner-shared assets.
+   Cheaper and more reversible than an ownership transfer — **consider trying this before step 2.**
+4. Only after the app and assets are reachable from one portfolio, resume the system-user recipe above.
+
+**Tre explicitly approved the permissions needed to do this work in the browser** (session 44).
+
 ## ✅ DONE THIS SESSION (all staged, nothing left to build)
 | Thing | State |
 |---|---|
