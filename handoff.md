@@ -7,8 +7,13 @@
 **Instagram OAuth is DONE.** `connect.py` reports:
 `instagram  connected as getforgenta — 59 days left`, posting through Page **Forgenta**.
 Token expires ~2026-09-25; rerun `python connect.py instagram` before then.
-**The next action is publishing `posts/blog_carousel.json` (PI.1) for real** — dry-run is green and
-Tre has not yet approved the live post.
+
+**PI.1 IS PUBLISHED.** The blog carousel went live on @getforgenta with Tre's explicit approval:
+**https://www.instagram.com/p/DbXEZtolWC6/** — media ID `17936735565325442`. Verified live in-browser:
+5-slide carousel, caption + 7 hashtags, Forgenta branding correct. **The whole marketing pipeline
+(render → Supabase host → Graph API publish → cleanup) is proven end to end. MB.1 is DONE.**
+
+**The next action is item 2 below (push `treforgedwebsite`).**
 
 ## 🔑 ROOT CAUSE OF THE 3-SESSION BLOCKER — the emoji in the portfolio name
 Ladder step 1 worked. **Tre renamed `Mental Pin🎯` → `Forgenta`** between sessions 40 and 41, and the
@@ -58,9 +63,17 @@ block anything. Ignore it.
   one-time authorization code, **already exchanged and now dead**. The long-lived access token itself
   never entered the transcript — it went straight into `connections.json` inside the script.
 
+## 📤 PUBLISH RUN — verified end to end (session 41)
+`python publish.py --post posts/blog_carousel.json`:
+- Rendered 5 slides → uploaded to `marketing-public` under `2026/07/29/<uuid>_<name>.png`
+- Created 5 child containers, then the carousel → **media ID `17936735565325442`**
+- Post live at **https://www.instagram.com/p/DbXEZtolWC6/**, confirmed rendering in-browser
+- Cleanup ran; **`storage.objects` for `marketing-public` = 0 rows** (checked via SQL, not the
+  public URL — per the CDN-cache warning below, a public-URL read would have lied)
+- Quota after publish still reported 100 remaining in 24h
+
 ## ⏭️ NEXT (Part A), in order
-1. **Publish `posts/blog_carousel.json` for real** — `python publish.py --post posts/blog_carousel.json`.
-   Needs Tre's go-ahead (it posts publicly to @getforgenta). Dry-run already verified.
+1. ~~Publish `posts/blog_carousel.json`.~~ ✅ DONE session 41, live and verified.
 2. Push `treforgedwebsite` (`6332812` + the backups commit), then Google Rich Results Test.
 3. MB.3 (`Landing.tsx`), MB.5 Reddit (confirm paid-vs-organic), MB.4, MB.6.
 4. Part B's one remaining item: the device test (throwaway signup → confirm email on device → delete).
