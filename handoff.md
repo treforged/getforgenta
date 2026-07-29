@@ -1,3 +1,96 @@
+# Handoff — 2026-07-29 (session 44) — REDDIT SCOUT: root cause was WRONG in session 42. Redesigned + deployed v14. One smoke test unread.
+
+> This block supersedes the **session-42 Reddit Scout block** further down. The FB-crosspost blocks
+> (sessions 43/42/41b) are a **separate workstream and completely untouched this session** — still accurate.
+> Hit the context gate right after deploying v14, with one live smoke test still in flight.
+
+## ⚡ START HERE (session 45)
+**First action: read the result of pg_net request `243`** (the v14 smoke test, `?debug=true`, safe — sends no
+email, writes no rows, spends no Gemini). It was still in `net.http_request_queue` at the gate.
+```sql
+select id, status_code, timed_out, left(content, 800) from net._http_response where id = 243;
+```
+- **Expect `"source": "search fallback"`** and a non-zero `total`. That means v14 works and the scout is fixed.
+- If `"source": "new listing"` — even better, the listing served Supabase this time.
+- If `reddit_fetch_failed` with `"lastStatus": <code>` — **that status code is the whole answer**; see
+  "if the fallback also fails" below. Re-run the probe with the recipe in the session-42 block (unchanged).
+
+## 🔑 SESSION 42'S DIAGNOSIS WAS INCOMPLETE — three corrections, all evidence-backed
+1. **It is a per-IP quota, and it is far tighter than anyone assumed. CONFIRMED, not inferred.**
+   Session 42 left this as "inference from two data points, I did not test this." **Tested now:** from Tre's
+   own residential IP, one `search.rss` request succeeded, then **the very next request 3 seconds later
+   429'd, and so did the two after it.** Recovery took over a minute.
+   ⇒ **Pacing is worthless and retrying costs quota.** The v12 retry layer (4 attempts × 6 queries) could
+   fire **24 requests** against a limiter that allows roughly one. The "fix" was feeding the problem.
+2. **The morning 13:00 slot is NOT deduping to zero — it is failing outright.** Session 42 could not tell
+   these apart. Today's 13:00 cron run is in the edge logs: **v12, HTTP 502, 120,236 ms** — i.e.
+   `reddit_fetch_failed`, every query blocked, and it blew the 120s timeout doing it. The zero rows since
+   2026-05-23 are a **broken morning run**, not quiet dedup. **Do not retire the morning slot on the old
+   "it finds nothing" theory** — that theory is dead. Re-decide only after v14 has run at 13:00.
+3. **No hidden duplicate cron job.** `net._http_response` rows 240 (13:00) and 241 (15:00) carrying the old
+   5000ms timeout are **`plaid-daily-sync` and `unverified-nudge-daily`**, not the scout. Jobs 13 and 14 are
+   the only scout jobs, both `active`, both `has_timeout = true`. Checked — don't re-check.
+
+## ✅ THE REDESIGN (deployed, `verify_jwt: false` preserved)
+**Measured, not guessed:** one request to `r/<5 subs>/new.rss?limit=100` returns **100 posts covering ~22
+hours** (oldest 2026-07-28T17:28, newest 2026-07-29T15:22). That is **4x the 24 posts v12 got from six
+requests**, from a single request, and 22h comfortably covers the 12h gap between runs.
+
+### v13 — one request per run
+Deleted `SEARCH_QUERIES`, `QUERY_PACING_MS`, `searchReddit`. One `new.rss` listing request; `scorePost`
+already does the keyword filtering the six searches were approximating, so this is a **wider** net, not a
+narrower one. Retries 4→3 with 20s/40s backoffs (the window is ~60s; a 4s retry is a guaranteed waste),
+`retryDelayMs` now **floors** `Retry-After` instead of trusting a 1-2s value. Added `coverage_hours` to
+every response plus a warning if it ever drops under 13h (that is the one silent failure mode left: the
+100-post cap truncating the window).
+
+### ❌ v13 smoke test FAILED — and the failure is the useful part
+`{"error":"reddit_fetch_failed","fetch":{"attempted":1,"ok":0,"rateLimited":0,"failed":1}}` in **503 ms**.
+**`failed`, not `rateLimited`, and instant** ⇒ a non-429/non-5xx status, i.e. Reddit **refused the listing
+endpoint outright for Supabase's egress IP** — the exact same URL that returns 100 posts from Tre's IP.
+Not a rate limit. Not a bad URL. An endpoint/IP block.
+
+### v14 — fallback + the observability that was missing
+- **`fetchListing` → generic `fetchFeed(query, url, stats)`.** Try `new.rss`; if it yields nothing, fall
+  back to **one broad `search.rss` query** (`budget OR budgeting OR debt OR spending OR mint OR ynab`).
+  Search has **always** been served to Supabase (v12 proved it), so the fallback is the proven path.
+  Still ≤2 requests. Retrying a blocked endpoint cannot help; **switching endpoints** can.
+- **`FetchStats` gained `source` and `lastStatus`.** v13's `"failed": 1` was not enough to tell a rate
+  limit from a block from a bad URL — that ambiguity cost a whole deploy cycle. Never remove these.
+- Coverage warning now fires only when `source === "new listing"` (the search feed is keyword-filtered, so
+  a short window there means nothing).
+
+### If the fallback also fails
+`lastStatus` will say why. A 403 on both endpoints means Reddit is blocking Supabase's egress wholesale,
+and the real fix is **authenticated Reddit access**: a free "script" app at reddit.com/prefs/apps →
+client id + secret → `oauth.reddit.com` with a token. Quota goes to ~100 requests/minute and the whole
+class of problem disappears. **Needs Tre** (create the app, set `REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET`
+as edge secrets in the dashboard — there is no MCP tool for edge secrets and no Supabase CLI installed).
+
+## ⏭️ STILL OPEN — 3 items, all needing Tre
+1. **Disable the local scheduled task. STILL BLOCKED — `schtasks /change /tn "ForgentaRedditScout"
+   /disable` returned "Access is denied." again this session, from both Bash and PowerShell.** It needs an
+   **elevated** PowerShell. Task confirmed still live: `Status: Ready, Next Run Time: 7/30/2026 9:00 PM`.
+   Verify after: `schtasks /query /tn "ForgentaRedditScout" /fo LIST` → `Disabled`.
+   Tre's decision was explicit: **keep Supabase cron, retire the local task. Do not re-litigate.**
+   Don't delete `scripts/reddit-scout.mjs` — only the schedule is retired.
+   ⚠️ That script still carries the **silent-429 bug AND the 30-request storm** the edge function just shed.
+   Until the task is disabled it is both duplicating digests and burning the shared IP quota.
+2. **Rotate `REDDIT_SCOUT_SECRET`** (Tre approved). Procedure unchanged in the session-42 block below —
+   follow it exactly; it is designed so the value never enters an agent transcript. **Do not shortcut it.**
+3. **Morning-slot keep-or-drop** — now genuinely diagnosable, see correction 2. Decide after a 13:00 run
+   on v14: check `net._http_response` for `source`/`coverage_hours`.
+
+## 🧭 STATE (session 44)
+- **One source file changed:** `supabase/functions/reddit-scout/index.ts` (v12 → **v14, ACTIVE**).
+  Pre-edit backup: `backups/2026-07-29_112342/supabase/functions/reddit-scout/index.ts` (not in git).
+- Local file and deployed v14 are in sync.
+- **Nothing was emailed, no rows written, no Gemini spent** — every probe used `?debug=true`.
+- No secret rotated. No cron job altered this session. No Meta/Instagram/Facebook state touched.
+- `net._http_response` ids: **242** = v13's failing smoke test, **243** = v14's, unread at the gate.
+
+---
+
 # Handoff — 2026-07-29 (session 43) — `pages_manage_posts` ADDED to the app ✅. Re-consent FAILS with "Permissions error" ❌.
 
 > Read this block first. It supersedes the session-42 block below (which is still accurate about the code).

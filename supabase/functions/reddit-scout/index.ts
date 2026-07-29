@@ -16,34 +16,52 @@ const SUBREDDITS = [
   "Frugal",
 ];
 
-const SEARCH_QUERIES = [
-  "budgeting app recommendation",
-  "mint alternative",
-  "best budget app",
-  "track spending app",
-  "debt payoff app",
-  "personal finance app",
-];
-
-// Reddit rate-limits unauthenticated RSS aggressively. Searching all subreddits
-// in a single multireddit request cuts the request count from
-// SUBREDDITS.length * SEARCH_QUERIES.length down to SEARCH_QUERIES.length.
+// Reddit's unauthenticated RSS quota is per-IP and extremely tight: measured
+// live, a second request roughly 3s after the first is already 429'd, and the
+// window takes over a minute to clear. Pacing does not help and retrying costs
+// quota, so the only lever that works is issuing FEWER requests.
+//
+// Hence: one request per run. A multireddit `new` listing returns the 100 most
+// recent posts across all five subreddits, measured at ~22 hours of coverage —
+// comfortably more than the 12-hour gap between runs, and a strictly wider net
+// than the keyword searches this replaced (scorePost already does the keyword
+// filtering those searches were approximating).
 const MULTIREDDIT = SUBREDDITS.join("+");
+const LISTING_LIMIT = 100;
+const LISTING_URL =
+  `https://www.reddit.com/r/${MULTIREDDIT}/new.rss?limit=${LISTING_LIMIT}`;
+
+// Reddit does not serve every endpoint to every caller: the listing above works
+// from a residential IP but has been seen rejected outright (a fast non-429,
+// non-5xx status) from Supabase's egress, while search has always been served.
+// So search is the fallback, as one broad query rather than the six narrow ones
+// that used to run. Retrying a blocked endpoint cannot help; switching does.
+const SEARCH_FALLBACK_URL =
+  `https://www.reddit.com/r/${MULTIREDDIT}/search.rss` +
+  `?q=${encodeURIComponent("budget OR budgeting OR debt OR spending OR mint OR ynab")}` +
+  `&sort=new&restrict_sr=on&t=week&limit=${LISTING_LIMIT}`;
 
 const SCORE_THRESHOLD = 10;
 const MAX_POSTS_PER_DIGEST = 10;
 const MAX_AGE_HOURS = 168;
 
-const FETCH_MAX_ATTEMPTS = 4;
-const FETCH_BACKOFF_MS = 4000;
-const FETCH_MAX_BACKOFF_MS = 30000;
-const QUERY_PACING_MS = 1500;
+// Backoffs are long because the quota window is ~60s; a short retry is simply a
+// wasted request. Worst case here is ~60s of sleeping, well inside the 120s
+// pg_net timeout the cron jobs use.
+const FETCH_MAX_ATTEMPTS = 3;
+const FETCH_BACKOFF_MS = 20000;
+const FETCH_MAX_BACKOFF_MS = 60000;
 
 interface FetchStats {
   attempted: number;
   ok: number;
   rateLimited: number;
   failed: number;
+  // Which feed actually produced the posts, and the last non-OK status seen.
+  // Without these a failed run reports only "failed: 1", which is not enough to
+  // tell a rate limit from a block from a bad URL.
+  source: string | null;
+  lastStatus: number | null;
 }
 
 interface RedditPost {
@@ -117,23 +135,20 @@ function parseAtomFeed(xml: string): RedditPost[] {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Reddit answers a rate-limited request with 429 and sometimes a Retry-After
-// header. Prefer that value when it is present and sane.
+// header. Prefer that value when present, but floor it at FETCH_BACKOFF_MS: the
+// observed quota window is ~60s, so retrying after the couple of seconds Reddit
+// sometimes advertises just burns one of only three attempts.
 function retryDelayMs(resp: Response, attempt: number): number {
   const header = Number(resp.headers.get("retry-after"));
-  if (Number.isFinite(header) && header > 0) {
-    return Math.min(header * 1000, FETCH_MAX_BACKOFF_MS);
-  }
-  return Math.min(FETCH_BACKOFF_MS * attempt, FETCH_MAX_BACKOFF_MS);
+  const advertised = Number.isFinite(header) && header > 0 ? header * 1000 : 0;
+  const backoff = Math.max(advertised, FETCH_BACKOFF_MS * attempt);
+  return Math.min(backoff, FETCH_MAX_BACKOFF_MS);
 }
 
 // Returns [] only after exhausting retries. Every outcome is logged and counted
 // so a run that silently fetched nothing cannot look like a run that found
 // nothing new.
-async function searchReddit(query: string, stats: FetchStats): Promise<RedditPost[]> {
-  const url =
-    `https://www.reddit.com/r/${MULTIREDDIT}/search.rss` +
-    `?q=${encodeURIComponent(query)}&sort=new&restrict_sr=on&t=week&limit=100`;
-
+async function fetchFeed(query: string, url: string, stats: FetchStats): Promise<RedditPost[]> {
   stats.attempted += 1;
 
   for (let attempt = 1; attempt <= FETCH_MAX_ATTEMPTS; attempt++) {
@@ -148,6 +163,7 @@ async function searchReddit(query: string, stats: FetchStats): Promise<RedditPos
       if (resp.status === 429 || resp.status >= 500) {
         // Drain the body so the connection can be reused.
         await resp.text().catch(() => "");
+        stats.lastStatus = resp.status;
         if (attempt === FETCH_MAX_ATTEMPTS) {
           console.warn(`reddit ${resp.status} "${query}" — giving up after ${attempt} attempts`);
           if (resp.status === 429) stats.rateLimited += 1;
@@ -163,6 +179,7 @@ async function searchReddit(query: string, stats: FetchStats): Promise<RedditPos
       if (!resp.ok) {
         await resp.text().catch(() => "");
         console.warn(`reddit ${resp.status} "${query}" — not retryable`);
+        stats.lastStatus = resp.status;
         stats.failed += 1;
         return [];
       }
@@ -170,6 +187,7 @@ async function searchReddit(query: string, stats: FetchStats): Promise<RedditPos
       const xml = await resp.text();
       const posts = parseAtomFeed(xml);
       stats.ok += 1;
+      stats.source = query;
       console.log(`reddit 200 "${query}" → ${posts.length} posts`);
       return posts;
     } catch (e) {
@@ -351,23 +369,42 @@ Deno.serve(async (req: Request) => {
   const debug = new URL(req.url).searchParams.get("debug") === "true";
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-  const fetchStats: FetchStats = { attempted: 0, ok: 0, rateLimited: 0, failed: 0 };
+  const fetchStats: FetchStats = {
+    attempted: 0, ok: 0, rateLimited: 0, failed: 0, source: null, lastStatus: null,
+  };
   const postMap = new Map<string, RedditPost>();
-  for (const query of SEARCH_QUERIES) {
-    const posts = await searchReddit(query, fetchStats);
-    for (const p of posts) postMap.set(p.id, p);
-    await sleep(QUERY_PACING_MS);
+
+  let posts = await fetchFeed("new listing", LISTING_URL, fetchStats);
+  if (fetchStats.ok === 0) {
+    console.warn("new listing unavailable — falling back to search");
+    posts = await fetchFeed("search fallback", SEARCH_FALLBACK_URL, fetchStats);
   }
+  for (const p of posts) postMap.set(p.id, p);
+
+  // How far back the listing actually reached. If this ever drops below the gap
+  // between runs, the 100-post cap is truncating the window and posts are being
+  // missed silently — that is the one failure mode this design can still have.
+  const oldest = Math.min(...Array.from(postMap.values(), (p) => p.created_utc));
+  const coverageHours = postMap.size
+    ? Math.round((Date.now() / 1000 - oldest) / 360) / 10
+    : 0;
   console.log(
     `fetch summary: ${fetchStats.ok}/${fetchStats.attempted} ok, ` +
       `${fetchStats.rateLimited} rate-limited, ${fetchStats.failed} failed, ` +
-      `${postMap.size} unique posts`
+      `${postMap.size} posts via ${fetchStats.source ?? "nothing"}, ${coverageHours}h coverage`
   );
+  // Only meaningful for the full listing; the search fallback is keyword-filtered
+  // so a short window there says nothing about truncation.
+  if (fetchStats.source === "new listing" && postMap.size && coverageHours < 13) {
+    console.warn(
+      `listing covered only ${coverageHours}h — under the 12h run gap, posts may be missed`
+    );
+  }
 
-  // Every query failing means the run gathered no signal at all. Report that as
+  // Both feeds failing means the run gathered no signal at all. Report that as
   // an error instead of letting it read as "no new posts today".
   if (fetchStats.ok === 0) {
-    console.error("reddit fetch failed for every query — no posts gathered");
+    console.error("every reddit feed failed — no posts gathered");
     return new Response(
       JSON.stringify({ sent: 0, error: "reddit_fetch_failed", fetch: fetchStats }),
       { status: 502, headers: { "Content-Type": "application/json" } }
@@ -378,7 +415,7 @@ Deno.serve(async (req: Request) => {
     const scored = Array.from(postMap.values())
       .map((p) => ({ score: scorePost(p), age_h: Math.round((Date.now() / 1000 - p.created_utc) / 3600), title: p.title, sub: p.subreddit }))
       .sort((a, b) => b.score - a.score);
-    return new Response(JSON.stringify({ total: postMap.size, fetch: fetchStats, top: scored.slice(0, 20) }, null, 2), {
+    return new Response(JSON.stringify({ total: postMap.size, coverage_hours: coverageHours, fetch: fetchStats, top: scored.slice(0, 20) }, null, 2), {
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -402,7 +439,7 @@ Deno.serve(async (req: Request) => {
 
   if (unseen.length === 0) {
     return new Response(
-      JSON.stringify({ sent: 0, message: "No new qualifying posts found.", total_fetched: postMap.size, qualified: qualified.length, fetch: fetchStats }),
+      JSON.stringify({ sent: 0, message: "No new qualifying posts found.", total_fetched: postMap.size, coverage_hours: coverageHours, qualified: qualified.length, fetch: fetchStats }),
       { headers: { "Content-Type": "application/json" } }
     );
   }
@@ -424,7 +461,7 @@ Deno.serve(async (req: Request) => {
 
   await sendDigest(unseen);
 
-  return new Response(JSON.stringify({ sent: unseen.length, fetch: fetchStats }), {
+  return new Response(JSON.stringify({ sent: unseen.length, coverage_hours: coverageHours, fetch: fetchStats }), {
     headers: { "Content-Type": "application/json" },
   });
 });
