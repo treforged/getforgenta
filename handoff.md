@@ -1,3 +1,125 @@
+# Handoff — 2026-07-29 (session 41b) — NEW WORKSTREAM: FB crosspost + system-user token. DESIGNED, NOT BUILT.
+
+> Read this block first, then the session-41 block below it (IG OAuth + PI.1 publish, both DONE).
+> **Hit the context gate before writing any code. Zero source files were modified.** Only a backup
+> directory was created. Everything below is design, decisions, and verified facts — implement directly.
+
+## ⚡ START HERE (session 42)
+Tre asked for two things and **chose both approaches explicitly — do not re-litigate**:
+1. **Auto-crosspost IG posts to the Facebook Page** → **"Build it into publish.py"** (native IG
+   share-to-Facebook was offered and rejected).
+2. **Auto-renew the token** → **"System User token"** (never expires, no 90-day re-auth).
+
+Nothing is built. Start at "IMPLEMENTATION PLAN" below.
+
+## 🔑 VERIFIED TOKEN FACTS (from `debug_token`, do not re-verify)
+The stored token in `tre-forged-marketing/memory/connections.json`:
+
+| Field | Value |
+|---|---|
+| type | **PAGE** |
+| expires_at | **never (0)** |
+| data_access_expires_at | **2026-10-27** (90 days from connect) |
+| profile_id | `1301429399713605` (Page Forgenta) |
+| app | `Forgenta Publisher` / `1521659006403853` |
+| scopes | `pages_show_list, business_management, instagram_basic, instagram_content_publish, pages_read_engagement, public_profile` |
+
+**Two conclusions:**
+- **The "59 days left" in `connect.py` is a display BUG, not a real expiry.** `meta_auth.py:168` saves the
+  **Page** token but `meta_auth.py:172` stamps it with the **user** token's 60-day `expires_in`. Page
+  tokens derived from a long-lived user token never expire. `accounts.days_until_expiry` then reports
+  fiction, and `config.load_instagram_config` would refuse a perfectly good token after 60 days.
+- **The real clock is `data_access_expires_at` (90 days) and it CANNOT be refreshed by API.** There is no
+  grant that resets it; Meta requires human re-consent. This is exactly why the system-user route was chosen.
+- **`pages_manage_posts` is NOT granted.** Page scopes are read-only (`pages_show_list`,
+  `pages_read_engagement`). Posting to the Page is impossible until that permission is added AND re-consented.
+
+Inspection script (prints metadata only, never token/secret values, safe to re-run):
+`<scratchpad>/debug_token.py` — scratchpad is session-scoped, so copy it if you want it to survive.
+
+## 🧱 DASHBOARD PREREQUISITES (both need Tre; do these BEFORE testing code)
+1. **Add `pages_manage_posts` to the app.** developers.facebook.com → `Forgenta Publisher` →
+   the Instagram use case → Customize → Permissions → Add. Session 39 proved the pattern: a permission
+   that has not been *added* to the app makes Facebook reject the **entire** scope string with
+   `Invalid Scopes: …`, listing every scope, which reads misleadingly like a config problem.
+2. **Create the System User.** Business Suite → Settings for portfolio **Forgenta `876474914946059`**
+   → Users → System Users → Add → name e.g. `forgenta-publisher-bot`, role **Admin** →
+   **Assign assets**: Page `Forgenta 1301429399713605` (full control) AND
+   Instagram `getforgenta 17841479728392773` (full control) → **Generate new token** → pick app
+   `Forgenta Publisher` → tick `instagram_basic`, `instagram_content_publish`, `pages_show_list`,
+   `pages_read_engagement`, `pages_manage_posts`, `business_management` → copy token.
+   - Do step 1 first: the generate-token screen only offers permissions the app has.
+   - ⚠️ **The token is shown once.** Install it via clipboard *inside* a script
+     (`$k = (Get-Clipboard -Raw).Trim()`) — never interpolate a secret into a tool call. That rule exists
+     because session 37 leaked the app secret into a transcript exactly that way.
+   - Verify after install by re-running `debug_token.py`: expect `type: SYSTEM_USER`, `expires_at: never`,
+     and **no `data_access_expires_at`**.
+
+## 🛠 IMPLEMENTATION PLAN (all under `tre-forged-marketing/`, entirely gitignored)
+
+### Backup already taken — reuse it, do not re-create
+`backups/2026-07-28_230650/tre-forged-marketing/` holds pre-edit `publish.py`,
+`src/publish/config.py`, `src/publish/meta_auth.py`. **That is the only safety net; this dir is not in git.**
+
+### 1. NEW `src/publish/facebook.py` (~110 lines)
+Mirror `instagram.py`'s shape (same `PublishError`/`PublishResult` idiom, stdlib `http.py` only).
+- **Multi-image (album):** for each URL `POST /{page_id}/photos` with `{url, published: "false"}` →
+  collect `id` as `media_fbid`. Then `POST /{page_id}/feed` with
+  `{message, attached_media: json.dumps([{"media_fbid": id}, ...])}` → post id.
+  `attached_media` must be a **JSON-encoded string**, not repeated params.
+- **Single image:** `POST /{page_id}/photos` with `{url, caption: message}` → returns `id` + `post_id`.
+- Permalink: `https://www.facebook.com/{post_id}`.
+- **No container polling.** FB `/photos` is synchronous — this is the key difference from `instagram.py`;
+  do not copy `_await_container`.
+- No 10-image cap (that limit is Instagram's).
+
+### 2. `src/publish/config.py`
+- Add `FacebookConfig` (frozen dataclass: `page_id`, `access_token`, `graph_version`, `api_base` property)
+  and `load_facebook_config()`.
+- **Add a system-user token path that takes priority over `connections.json`:** if
+  `META_ACCESS_TOKEN` is set in `.env`, use it for BOTH `InstagramConfig` and `FacebookConfig`, paired
+  with `IG_USER_ID` and `FB_PAGE_ID`. This keeps the OAuth path intact as a fallback instead of
+  ripping it out.
+- **Fix the false-expiry refusal** at `config.py:93-97`: it raises `ConfigError` on `days < 0`, which
+  would reject the never-expiring page token after 60 days. Gate it on the record actually being an
+  expiring token.
+
+### 3. `src/publish/meta_auth.py`
+- Add `"pages_manage_posts"` to `SCOPES` (line 28-34).
+- `_find_instagram_accounts` (line 102): add `id` to the `fields` list and store it as `page_id` —
+  **the Page ID is currently never persisted**, and `facebook.py` needs it.
+- Stop stamping the fake expiry: pass `expires_in_seconds=None` at line 172 so `accounts.save` does not
+  write `expires_at` for a non-expiring Page token.
+
+### 4. `publish.py`
+- Crosspost **inside the existing `try:` in `_publish()` (line 121-153), AFTER the IG publish but BEFORE
+  the `finally:` cleanup.** ⚠️ Ordering is load-bearing: the `finally` block deletes the hosted images,
+  and Facebook fetches them by URL at post time. Cleaning up first breaks the crosspost.
+- Wrap the FB call so a failure **warns and does not abort** — Instagram is already live by then and
+  must not be reported as failed.
+- Add `--no-facebook` to skip. Crosspost by default when FB config is present.
+- Optional `facebook_caption` key in the post JSON, defaulting to the IG caption.
+- Extend `_check()` (line 156) to report the Page and whether `pages_manage_posts` is present.
+
+### 5. `.env` additions (values are all known, none secret except the token)
+```
+META_ACCESS_TOKEN=<system user token>   # install via clipboard, never inline
+IG_USER_ID=17841479728392773
+FB_PAGE_ID=1301429399713605
+```
+Also update `.env.example` with the key names only.
+
+### 6. Verify
+`python publish.py --check` → then a **real crosspost needs Tre's approval** (it posts publicly).
+Re-post `posts/blog_carousel.json` or use a throwaway single image.
+
+## 🧭 STATE (session 41b)
+- **No source files modified. No commits except `handoff.md`.** The only artifact is the backup dir above.
+- The IG connection from session 41 is live and working; PI.1 is published and untouched.
+- `storage.objects` for `marketing-public` = 0 rows (cleanup verified after the PI.1 publish).
+
+---
+
 # Handoff — 2026-07-28 (session 41, PART A / Instagram OAuth) — ✅ CONNECTED. BLOCKER CLOSED.
 
 > Everything below this session-41 block is historical. Where it conflicts, this block wins.
