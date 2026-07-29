@@ -1,3 +1,72 @@
+# Handoff — 2026-07-28 (session 41, PART A / Instagram OAuth) — ✅ CONNECTED. BLOCKER CLOSED.
+
+> Everything below this session-41 block is historical. Where it conflicts, this block wins.
+> Part B was NOT touched this session. Its only remaining item is still the device test.
+
+## ⚡ START HERE (session 42)
+**Instagram OAuth is DONE.** `connect.py` reports:
+`instagram  connected as getforgenta — 59 days left`, posting through Page **Forgenta**.
+Token expires ~2026-09-25; rerun `python connect.py instagram` before then.
+**The next action is publishing `posts/blog_carousel.json` (PI.1) for real** — dry-run is green and
+Tre has not yet approved the live post.
+
+## 🔑 ROOT CAUSE OF THE 3-SESSION BLOCKER — the emoji in the portfolio name
+Ladder step 1 worked. **Tre renamed `Mental Pin🎯` → `Forgenta`** between sessions 40 and 41, and the
+portfolio **immediately appeared in the Login-for-Business business picker** as
+`Forgenta / 876474914946059` — same business_id, now visible.
+
+**The reusable lesson: a non-ASCII character (emoji) in a Meta business-portfolio name causes the
+portfolio to be silently dropped from the OAuth consent picker.** No error, no warning — it just is not
+in the list. If an asset is provably owned by a portfolio that does not appear in the picker, **check the
+portfolio name for emoji/non-ASCII before doing anything else.**
+
+Ladder steps 2-4 (partner share, ownership move, Instagram Login rewrite) were **never needed**. The
+hard constraint about not being able to disconnect IG↔Page is now moot — don't act on it.
+
+## ✅ What the consent flow actually looked like (for the next re-auth in ~59 days)
+Order of screens, all driven successfully via Chrome MCP:
+1. `forced_account_switch` → **Continue** (switch to Tre Hines). This screen is new; it did not appear in
+   session 40.
+2. "Continue as Tre Hines?" → **Continue as Tre Hines**
+3. **Pages picker** — `Forgenta 1301429399713605` + `TRE Forged LLC 952482017937853`.
+   Chose **"Opt in to current Pages only"** (default) and selected **Forgenta only**.
+4. **Business picker** — `Forgenta 876474914946059` now first in the list, above `TRE Forged`,
+   `TreVon;Hines`, `Shopify: …`. Selected **Forgenta only**, "current Businesses only".
+5. **Instagram picker** — `getforgenta 17841479728392773` + `treforged 17841448902863324`.
+   Selected **getforgenta only**.
+6. Review screen (5 grants, all matching `meta_auth.py`'s scopes) → **Save**
+7. "Tre Hines has been connected to Forgenta Publisher" → **Got it** → redirect to
+   `localhost:8723/callback` → tab title becomes **"Instagram connected"**.
+
+Note: Tre's **"Partial access only"** role on the IG asset (flagged as a worry in session 40) did **not**
+block anything. Ignore it.
+
+## ✅ Verified working after connect
+- `python connect.py` → `instagram  connected as getforgenta — 59 days left`
+- `python publish.py --check` → **"Token works. 100 posts remaining in the next 24h."**
+  IG user ID `17841479728392773`, bucket `marketing-public`, Graph `v21.0`, project `mdtosrbfkextcaezuclh`.
+- `python publish.py --post posts/blog_carousel.json --dry-run` → renders 5 slides
+  (`carousel_square_money_advicethat_costsnothing_01..05.png`), caption **377/2200 chars**.
+
+## 🧭 STATE (session 41)
+- **No code changed.** Only `handoff.md`. `oauth.py`'s `_TIMEOUT_SECONDS = 900` from session 39 is still
+  in place and still untracked (`tre-forged-marketing/` is gitignored, `.gitignore:35`).
+- New file on disk: **`tre-forged-marketing/memory/connections.json`** holds the long-lived token.
+  Gitignored with the rest of that dir. **This is the only copy — it is not in git and not in `backups/`.**
+- Port `8723` released cleanly; the script exited 0 on its own.
+- ⚠️ The OAuth `?code=…` appears in this session's transcript (it was in the callback URL). It is a
+  one-time authorization code, **already exchanged and now dead**. The long-lived access token itself
+  never entered the transcript — it went straight into `connections.json` inside the script.
+
+## ⏭️ NEXT (Part A), in order
+1. **Publish `posts/blog_carousel.json` for real** — `python publish.py --post posts/blog_carousel.json`.
+   Needs Tre's go-ahead (it posts publicly to @getforgenta). Dry-run already verified.
+2. Push `treforgedwebsite` (`6332812` + the backups commit), then Google Rich Results Test.
+3. MB.3 (`Landing.tsx`), MB.5 Reddit (confirm paid-vs-organic), MB.4, MB.6.
+4. Part B's one remaining item: the device test (throwaway signup → confirm email on device → delete).
+
+---
+
 # Handoff — 2026-07-28 (session 40, PART A / Instagram OAuth) — REAL BLOCKER IDENTIFIED: assets live in an invisible portfolio
 
 > Everything below this session-40 block is historical. Where it conflicts, this block wins.
