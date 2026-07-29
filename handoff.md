@@ -1,3 +1,74 @@
+# Handoff — 2026-07-29 (session 43) — `pages_manage_posts` ADDED to the app ✅. Re-consent FAILS with "Permissions error" ❌.
+
+> Read this block first. It supersedes the session-42 block below (which is still accurate about the code).
+> Hit the context gate mid-debug of the OAuth re-consent.
+
+## ⚡ START HERE (session 44)
+**The dashboard prerequisite from session 42 is DONE.** `pages_manage_posts` is now on the app.
+**The remaining blocker is new: the OAuth re-consent completes all four consent screens, then dies.**
+
+### What Tre actually did before this session — read this, it changes nothing but avoids a wrong turn
+Tre said "i enabled it on the instagram app, to the forgenta page for post, reel and story." That is the
+**Instagram mobile app's** Sharing-to-other-apps → Facebook toggles, NOT the developer-app permission.
+**Those toggles are irrelevant to us:** verified against Meta docs — native crossposting applies only to
+posts created *in the Instagram app*. Content published through the **Content Publishing API** (what
+`publish.py` uses) is never crossposted by that setting. `publish.py`'s own FB path remains the mechanism.
+**Do not tell Tre to re-check those toggles and do not remove the FB code.**
+
+## ✅ DONE THIS SESSION (dashboard, verified)
+1. **`pages_manage_posts` was NOT available in the Instagram API use case at all** — that use case offers
+   only `pages_read_engagement` and `pages_show_list`. Session 42's instruction ("Instagram use case →
+   Customize → Permissions → Add") was therefore impossible as written.
+2. **Fix: added a second use case.** Use cases → Add use cases → filter **Content management** →
+   **"Manage everything on your Page"** (`use_case_enum=PAGES_API`) → Save. The app now carries two use
+   cases. Inside it, `pages_manage_posts` → Add.
+3. **Verified live after reload: `pages_manage_posts` = "Ready for testing".**
+   URL: `…/apps/1521659006403853/use_cases/customize/?use_case_enum=PAGES_API&business_id=119852363557972&selected_tab=permissions&product_route=use_cases`
+   ⚠️ Clicking Add twice throws a bogus "Something went wrong" modal — **the first click already took.**
+   Reload before concluding it failed.
+
+## ❌ THE NEW BLOCKER — re-consent ends in "Permissions error"
+`connect.py instagram` now emits the scope string **including `pages_manage_posts`** (confirmed in the
+auth URL). Driving it via Chrome MCP, all four screens rendered correctly and were selected correctly:
+1. `forced_account_switch` → Continue
+2. Continue as Tre Hines
+3. Pages picker — **Forgenta `1301429399713605`** already ticked, "current Pages only"
+4. Business picker — **Forgenta `876474914946059`** already ticked
+5. Instagram picker — **getforgenta `17841479728392773`** already ticked
+6. **Review screen showed SIX grants, including the new "Create and manage content on your Page"** —
+   proof the scope reached the dialog. Clicked **Save**.
+
+**Result: red error card "Could not link Forgenta Publisher to Facebook — You may not be connected to the
+network or we could not establish a connection with our server."** and the local callback server logged
+**`Sign-in did not complete: Permissions error`**. Retried once from a fresh `connect.py` run; the second
+attempt reached the same account-switch screen when the context gate hit.
+
+### Leads for session 44, in order
+- **Most likely: the new PAGES_API use case has no Facebook Login configuration of its own.** The IG use
+  case has "API setup with Facebook login"; the Pages use case may need the same set up before its
+  permission is grantable. Check `…/use_cases/customize/?use_case_enum=PAGES_API` left nav for a login-
+  setup tab and whether it is unconfigured.
+- Get the **real** callback query params. `Permissions error` is `oauth.py`'s own paraphrase; the raw
+  `error`, `error_code`, `error_reason`, `error_description` are in the redirect URL. Log them, or watch
+  the address bar at the moment of redirect. **Do this before theorizing further.**
+- Only after those: consider that a permission at "Ready for testing" in a *second* use case may need the
+  app's Facebook-Login-for-Business config to list it explicitly.
+- Fallback that sidesteps all of this: the **System User token** (session 42 block below). A system user
+  token is generated with permissions ticked directly and never runs the consent dialog.
+
+## 🧭 STATE (session 43)
+- **No source file changed. No commit yet this session other than this handoff.**
+- **`memory/connections.json` is UNCHANGED and still valid** — the failed consent never wrote it.
+  `python publish.py --check` still reports `MISSING pages_manage_posts, crossposting will fail` and
+  `Token works. 99 posts remaining`. **Instagram publishing still works today; only FB crosspost is blocked.**
+- Port `8723` was deliberately killed at the gate (PID 29196). It is **free**. Both background
+  `connect.py` runs exited 1 — that is the kill and the permissions error, not a code bug.
+- Nothing was published to Instagram or Facebook. Nothing was deleted.
+- Meta dashboard now differs from session 42 in exactly two ways: the **PAGES_API use case exists**, and
+  **`pages_manage_posts` is added/Ready for testing**. Both are additive and safe to leave.
+
+---
+
 # Handoff — 2026-07-29 (session 42) — FB crosspost + previews BUILT AND VERIFIED. Two dashboard steps left for Tre.
 
 > Read this block first. It supersedes the session-41b block below, which was the design doc for this work.
