@@ -1,3 +1,75 @@
+# Handoff — 2026-07-29 (session 44b) — REDDIT IS 403-BLOCKING SUPABASE. Scout redesigned (v15) + switched to Claude API. Needs 2 keys from Tre.
+
+> Supersedes the session-44 block below, which is still accurate about the redesign but was written
+> before the smoke test came back. FB-crosspost blocks (43/42/41b) untouched.
+
+## ⚡ START HERE (session 45)
+**The scout cannot fetch Reddit at all right now, and no amount of code fixes it.** Everything else is done.
+
+### 🔴 THE FINDING THAT CHANGES EVERYTHING — Reddit 403s Supabase's egress IP
+v14 smoke test (pg_net request 243): `{"error":"reddit_fetch_failed","fetch":{"attempted":2,"ok":0,
+"rateLimited":0,"failed":2,"source":null,"lastStatus":403}}`.
+**Both** endpoints — `new.rss` AND `search.rss` — returned **403** from Supabase. Note `search.rss`
+**worked that same morning** (v12 pulled 24 posts from it), so Reddit escalated from throttling to an
+outright IP block during the session. The identical URL still returns 100 posts from Tre's residential IP.
+**This is not a rate limit, not a bug, and not fixable by changing endpoints, pacing, or retries.**
+
+### ⏭️ THE FIX — authenticated Reddit access (NEEDS TRE, ~5 min)
+Unauthenticated RSS is dead for this IP. OAuth moves the quota to ~100 req/min and is the real answer.
+1. reddit.com/prefs/apps → **create app** → type **script** → name `ForgentaScout`, redirect
+   `http://localhost:8080` (unused for script apps) → note the **client id** (under the app name) and **secret**.
+2. Supabase dashboard → Edge Functions → Secrets → add `REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET`.
+   (No MCP tool for edge secrets and no Supabase CLI installed — **dashboard only**.)
+3. Then an agent rewrites `fetchFeed` to POST `https://www.reddit.com/api/v1/access_token`
+   (grant_type=client_credentials, HTTP Basic id:secret) and hit `https://oauth.reddit.com/r/<multi>/new`
+   with `Authorization: Bearer <token>` + the existing User-Agent. **JSON, not RSS** — `parseAtomFeed`
+   gets replaced by a `data.children[].data` mapper. Keep FetchStats/`lastStatus`, they earned their keep.
+
+### 🔑 ALSO NEEDS TRE: `ANTHROPIC_API_KEY`
+Same place (Edge Functions → Secrets). **Until it is set, every draft reply reads
+`[reply generation failed — ANTHROPIC_API_KEY not configured]`** — the digest still sends, it just has no
+drafts. This is deliberate: the SDK client is built lazily so a missing key degrades the reply text instead
+of killing the whole function at import.
+
+## ✅ DONE THIS SESSION (deployed as v15, ACTIVE, `verify_jwt: false` preserved)
+### Tre's two asks
+- **`MAX_POSTS_PER_DIGEST` 10 → 3.** Interpreted as digest size (posts you get drafts for and act on);
+  `LISTING_LIMIT` stays 100 because that is the *fetch* width and cutting it would break coverage.
+- **Gemini → Claude.** `gemini-2.5-flash` replaced with **`claude-opus-5`** via the official SDK
+  (`npm:@anthropic-ai/sdk`). Notes for whoever touches this next:
+  - `output_config: {effort: "low"}` — one short reply is not reasoning-heavy.
+  - `max_tokens: 4000`. **Thinking is ON by default on Opus 5 and max_tokens caps thinking + text
+    together** — sizing this at ~600 for a 280-word reply would truncate. Do not "optimize" it down.
+  - `betas: ["server-side-fallback-2026-07-01"]` + `fallbacks: "default"`, and an explicit
+    `stop_reason === "refusal"` check. Reddit posts are untrusted input; a refusal returns **HTTP 200**,
+    so it must be checked, not caught.
+  - System prompt moved to the real `system` param (Gemini used `system_instruction`), which is a
+    stronger boundary against prompt injection from post bodies. Added an output-only-the-reply line.
+  - `isOnBrandReply` validation kept unchanged.
+
+### The v14 redesign (still correct, see session-44 block for the evidence)
+One request per run, `new.rss` listing with a `search.rss` fallback, 3 retries at 20s/40s,
+`FetchStats.source`/`lastStatus`, `coverage_hours`. **`lastStatus` is what produced the 403 finding above** —
+v13 reported only `"failed": 1` and cost a whole deploy cycle to diagnose. Never remove those two fields.
+
+## ⏭️ STILL OPEN — unchanged, all need Tre
+1. **Local scheduled task STILL LIVE** — `schtasks /change /tn "ForgentaRedditScout" /disable` returned
+   "Access is denied." from both Bash and PowerShell this session. Needs an **elevated** PowerShell.
+   `Status: Ready, Next Run: 7/30/2026 9:00 PM`. Decision was explicit: keep Supabase cron, retire the
+   local task, **do not re-litigate**. Don't delete `scripts/reddit-scout.mjs`, only the schedule is retired.
+   ⚠️ That script still has the 30-request storm — it is likely **part of why the IP got blocked**.
+2. **Rotate `REDDIT_SCOUT_SECRET`** — procedure unchanged in the session-42 block; follow it exactly.
+3. **Morning-slot keep-or-drop** — moot until Reddit access works.
+
+## 🧭 STATE (session 44b)
+- One source file changed: `supabase/functions/reddit-scout/index.ts` (v12 → **v15 ACTIVE**).
+  Backup: `backups/2026-07-29_112342/`. Local file and v15 are in sync.
+- **Nothing emailed, no rows written, no Gemini or Claude tokens spent** — every probe used `?debug=true`.
+- No secret rotated, no cron altered, no Meta/IG/FB state touched.
+- pg_net ids: 242 = v13 failing test, **243 = the 403 finding**.
+
+---
+
 # Handoff — 2026-07-29 (session 44) — REDDIT SCOUT: root cause was WRONG in session 42. Redesigned + deployed v14. One smoke test unread.
 
 > This block supersedes the **session-42 Reddit Scout block** further down. The FB-crosspost blocks
