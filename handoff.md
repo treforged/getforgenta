@@ -1,3 +1,73 @@
+# Handoff — 2026-07-29 (session 45) — ✅ PORTFOLIO SPLIT SOLVED via partner share. System user is the only step left, and it needs Tre.
+
+> Supersedes the **session-44 FB-crosspost block**. The Reddit Scout blocks (44b/44/42) are a **separate
+> workstream and were NOT touched this session** — Tre said mid-session he was working Reddit in another
+> session. Do not act on the Reddit items from here.
+
+## ⚡ START HERE (session 46)
+**The blocker that consumed sessions 43 and 44 is GONE.** The app and the assets are now reachable from
+one portfolio. Everything remaining is a Meta-dashboard task only Tre can perform.
+
+### ✅ WHAT CHANGED — Forgenta now partner-shares its assets to TRE Forged
+Forgenta → Settings → Users → **Partners** → Add → *"Give a partner access to your assets"* →
+partner business ID **`119852363557972`** (TRE Forged) → assigned:
+
+| Asset | Access granted |
+|---|---|
+| Facebook Page **Forgenta** `1301429399713605` | Partial access (**Content** + **Insights**) |
+| Instagram **getforgenta** `17841479728392773` | Partial access (**Content** + **Insights**) |
+
+Verified live: *"TRE Forged can access 2 business assets."*
+- **Deliberately NOT "Full access"**, contrary to the session-44 recipe. **Content** is the task that maps
+  to `pages_manage_posts`; **Insights** maps to `pages_read_engagement`. Those plus the asset assignment
+  itself cover every scope `publish.py` needs. Least privilege, and editable later via **Manage** on the
+  partner row if something turns out to be missing.
+- **Fully reversible** from Forgenta → Partners → TRE Forged. The dialog states the assets *remain in
+  Forgenta's portfolio*; nothing was transferred or moved. **Nothing about the working IG token changed.**
+
+### 🔑 WHY THIS BEATS THE APP TRANSFER — do not go back to `Connect an app ID`
+Session 44's plan was to move the app from TRE Forged → Forgenta. That failed with a generic technical
+error. **Confirmed dead this session:** Forgenta → Requests → **"Needs review" is empty AND "Sent" is
+empty.** The failed attempt left **no pending request anywhere**. Do not retry it, and do not remove the
+app from TRE Forged — that step is now unnecessary. Partner sharing gets the assets to the app instead of
+dragging the app to the assets, and it is the reversible direction.
+
+### ⏭️ WHAT TRE MUST DO (dashboard, ~5 min) — I was permission-blocked at exactly this point
+The **Create system user** dialog was open and filled-in-ready when the Chrome classifier denied both the
+typing and the submit. That is the correct boundary: creating the identity and minting its token are
+Tre's to do. Page is open at
+`https://business.facebook.com/latest/settings/system_users?business_id=119852363557972`
+(**note: TRE Forged `119852363557972`, NOT Forgenta** — the app lives here, and that is the whole point).
+
+1. **Add** → name `forgenta-publisher-bot` → role **Employee** is sufficient (assets are assigned
+   explicitly; Admin is not required) → Create system user.
+2. **Add assets** → **Apps** → `Forgenta Publisher` `1521659006403853` → Manage app.
+3. **Add assets** → **Pages** → `Forgenta` and **Instagram accounts** → `getforgenta`.
+   ⚠️ **This is the one unproven step.** These are *partner-shared*, not owned, assets. Meta is documented
+   to allow assigning partner-shared assets to a system user, but it was never tested here. If they do not
+   appear in the picker, look under the **"Assets assigned to you"** tab first; if they are genuinely
+   unassignable, the fallback is to re-do the partner share with **Full access** instead of partial.
+4. **Generate new token** → app `Forgenta Publisher` → tick `instagram_basic`,
+   `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`,
+   `business_management` → **Copy**.
+5. Immediately run:
+   `powershell -File "C:\Users\tvonh\Desktop\getforgenta\tre-forged-marketing\scripts\install_system_user_token.ps1"`
+   It reads the token **from the clipboard**, validates shape, writes `META_ACCESS_TOKEN` to `.env`, clears
+   the clipboard, and prints no secret. **Do not shortcut it** — session 37 leaked the app secret by
+   interpolating it into a tool call.
+   ⚠️ Session 44b's `Get-Clipboard` came back **empty** after a copy that looked successful. **Verify the
+   clipboard is non-empty before trusting the install**, and re-copy if it is.
+6. `python publish.py --check` → must read **ready to post**, not `MISSING pages_manage_posts`.
+
+## 🧭 STATE (session 45)
+- **No source file changed. No code written. The only commit is `handoff.md`.**
+- Meta dashboard changed in exactly **one** way: the Forgenta→TRE Forged partner share above.
+  **No system user exists yet. No token exists yet. No consent was granted.**
+- `tre-forged-marketing/memory/connections.json` **untouched**; IG publishing still works today.
+- Nothing published to Instagram or Facebook. No Reddit/Supabase/cron/secret state touched.
+
+---
+
 # Handoff — 2026-07-29 (session 44b) — REDDIT IS 403-BLOCKING SUPABASE. Scout redesigned (v15) + switched to Claude API. Needs 2 keys from Tre.
 
 > Supersedes the session-44 block below, which is still accurate about the redesign but was written
@@ -36,18 +106,34 @@ There is **no Supabase CLI installed** (confirmed again 44b: `supabase` not on P
 `C:\Program Files\nodejs\npx.ps1`, so `npx supabase@latest secrets set …` is worth trying **first** — it
 would avoid the browser entirely). Otherwise: **dashboard only, via Chrome MCP.**
 
-**Never read a secret into the transcript. Never screenshot a page showing one.** Use the clipboard as the
-carrier and paste with a keystroke:
-1. Focus the target field in the Supabase dashboard (Edge Functions → Secrets → Add new secret).
-2. Send **Ctrl+V** via the `computer` tool. The value moves clipboard → field without entering context.
-3. To move Reddit's generated credentials, use `javascript_tool` to read the DOM node and call
-   `navigator.clipboard.writeText(...)` — **return only a length or a boolean, never the value.**
-   Then Ctrl+V into Supabase. This keeps both credentials out of the transcript end to end.
+**Never read a secret into the transcript. Never screenshot a page showing one.**
 
-⚠️ **Session 44b tried `Get-Clipboard` and it came back EMPTY** even though Tre had just copied the
-Anthropic key. Nothing was installed. **Always verify the clipboard is non-empty and plausible
-(`length`, `StartsWith('sk-ant-')`) before pasting, and re-ask Tre to copy if it is empty** — do not
-proceed on the assumption the copy landed.
+### ❌ AGENT-DRIVEN CLIPBOARD PASTE IS IMPOSSIBLE — all three routes tried and failed (44b)
+Chrome deliberately prevents automation from reading the user's clipboard. **Do not retry these:**
+1. **`computer` synthetic `ctrl+v`** into the focused field — tried twice, field stayed empty. Synthetic
+   key events cannot trigger a real clipboard read.
+2. **`javascript_tool` + `navigator.clipboard.readText()`** in page context — **hung the renderer and
+   timed out the CDP call after 45s.** The page recovered on its own and no dialog appeared, but this
+   wastes 45s and risks a blocked tab.
+3. **PowerShell `SendKeys('^v')`** to the Chrome window — **ABANDONED AS UNSAFE.** Only one Chrome
+   window exposes a `MainWindowTitle` (it was `Meta Business Suite`); the MCP tab group's window is not
+   addressable that way. Activating the wrong window and firing a paste would inject a live API key into
+   an unrelated third-party site. **Never blind-fire SendKeys with a secret in the clipboard.**
+
+### ✅ THE PROCEDURE THAT WORKS — agent preps, Tre pastes
+The agent does everything except the paste, so the value never touches the transcript **and** never
+risks landing in the wrong window:
+1. Agent: verify clipboard shape in PowerShell — `length`, `StartsWith('sk-ant-')`, no whitespace.
+   **Never print the value.** If `Get-Clipboard` is EMPTY, stop and ask Tre to re-copy (this happened
+   once in 44b — do not assume the copy landed).
+2. Agent: open `…/functions/secrets`, type the **Name** into the form, click the **Value** textarea.
+3. **Tre: press Ctrl+V, then click Save.** One keystroke.
+4. Agent: verify by reloading and confirming the name appears in the Custom secrets table. That table
+   shows only **SHA256 digests**, never values, so reading or screenshotting it is safe.
+
+For Reddit's generated credentials the same split applies — the agent can call
+`navigator.clipboard.writeText(...)` (**writing** is allowed; only reading is blocked) to load a value
+from the Reddit page into the clipboard, returning **only a length**, but Tre still performs the paste.
 
 ## ✅ DONE THIS SESSION (deployed as v15, ACTIVE, `verify_jwt: false` preserved)
 ### Tre's two asks
