@@ -25,9 +25,26 @@ const SEARCH_QUERIES = [
   "personal finance app",
 ];
 
+// Reddit rate-limits unauthenticated RSS aggressively. Searching all subreddits
+// in a single multireddit request cuts the request count from
+// SUBREDDITS.length * SEARCH_QUERIES.length down to SEARCH_QUERIES.length.
+const MULTIREDDIT = SUBREDDITS.join("+");
+
 const SCORE_THRESHOLD = 10;
 const MAX_POSTS_PER_DIGEST = 10;
 const MAX_AGE_HOURS = 168;
+
+const FETCH_MAX_ATTEMPTS = 4;
+const FETCH_BACKOFF_MS = 4000;
+const FETCH_MAX_BACKOFF_MS = 30000;
+const QUERY_PACING_MS = 1500;
+
+interface FetchStats {
+  attempted: number;
+  ok: number;
+  rateLimited: number;
+  failed: number;
+}
 
 interface RedditPost {
   id: string;
@@ -60,7 +77,13 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function parseAtomFeed(xml: string, subreddit: string): RedditPost[] {
+// A multireddit feed mixes subreddits, so the subreddit has to come from each
+// entry's own permalink rather than from the request.
+function subredditFromPermalink(permalink: string): string {
+  return /^\/r\/([^/]+)\//.exec(permalink)?.[1] ?? "unknown";
+}
+
+function parseAtomFeed(xml: string): RedditPost[] {
   const posts: RedditPost[] = [];
   const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
   let m: RegExpExecArray | null;
@@ -78,24 +101,89 @@ function parseAtomFeed(xml: string, subreddit: string): RedditPost[] {
     const selftext = stripHtml(decodeEntities(rawContent)).slice(0, 2000);
     const created_utc = updated ? new Date(updated).getTime() / 1000 : 0;
 
-    posts.push({ id: idMatch[1], title, selftext, subreddit, permalink, created_utc });
+    posts.push({
+      id: idMatch[1],
+      title,
+      selftext,
+      subreddit: subredditFromPermalink(permalink),
+      permalink,
+      created_utc,
+    });
   }
 
   return posts;
 }
 
-async function searchReddit(subreddit: string, query: string): Promise<RedditPost[]> {
-  const url = `https://www.reddit.com/r/${subreddit}/search.rss?q=${encodeURIComponent(query)}&sort=new&restrict_sr=on&t=week`;
-  try {
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "ForgentaScout/1.0 (automated digest tool)" },
-    });
-    if (!resp.ok) return [];
-    const xml = await resp.text();
-    return parseAtomFeed(xml, subreddit);
-  } catch {
-    return [];
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Reddit answers a rate-limited request with 429 and sometimes a Retry-After
+// header. Prefer that value when it is present and sane.
+function retryDelayMs(resp: Response, attempt: number): number {
+  const header = Number(resp.headers.get("retry-after"));
+  if (Number.isFinite(header) && header > 0) {
+    return Math.min(header * 1000, FETCH_MAX_BACKOFF_MS);
   }
+  return Math.min(FETCH_BACKOFF_MS * attempt, FETCH_MAX_BACKOFF_MS);
+}
+
+// Returns [] only after exhausting retries. Every outcome is logged and counted
+// so a run that silently fetched nothing cannot look like a run that found
+// nothing new.
+async function searchReddit(query: string, stats: FetchStats): Promise<RedditPost[]> {
+  const url =
+    `https://www.reddit.com/r/${MULTIREDDIT}/search.rss` +
+    `?q=${encodeURIComponent(query)}&sort=new&restrict_sr=on&t=week&limit=100`;
+
+  stats.attempted += 1;
+
+  for (let attempt = 1; attempt <= FETCH_MAX_ATTEMPTS; attempt++) {
+    try {
+      const resp = await fetch(url, {
+        headers: {
+          "User-Agent": "ForgentaScout/1.0 (automated digest tool)",
+          "Accept": "application/atom+xml",
+        },
+      });
+
+      if (resp.status === 429 || resp.status >= 500) {
+        // Drain the body so the connection can be reused.
+        await resp.text().catch(() => "");
+        if (attempt === FETCH_MAX_ATTEMPTS) {
+          console.warn(`reddit ${resp.status} "${query}" — giving up after ${attempt} attempts`);
+          if (resp.status === 429) stats.rateLimited += 1;
+          else stats.failed += 1;
+          return [];
+        }
+        const delay = retryDelayMs(resp, attempt);
+        console.warn(`reddit ${resp.status} "${query}" (attempt ${attempt}/${FETCH_MAX_ATTEMPTS}), retrying in ${delay}ms`);
+        await sleep(delay);
+        continue;
+      }
+
+      if (!resp.ok) {
+        await resp.text().catch(() => "");
+        console.warn(`reddit ${resp.status} "${query}" — not retryable`);
+        stats.failed += 1;
+        return [];
+      }
+
+      const xml = await resp.text();
+      const posts = parseAtomFeed(xml);
+      stats.ok += 1;
+      console.log(`reddit 200 "${query}" → ${posts.length} posts`);
+      return posts;
+    } catch (e) {
+      if (attempt === FETCH_MAX_ATTEMPTS) {
+        console.warn(`reddit fetch error "${query}": ${e instanceof Error ? e.message : String(e)}`);
+        stats.failed += 1;
+        return [];
+      }
+      await sleep(Math.min(FETCH_BACKOFF_MS * attempt, FETCH_MAX_BACKOFF_MS));
+    }
+  }
+
+  stats.failed += 1;
+  return [];
 }
 
 // ── Scoring ────────────────────────────────────────────────────────────────────
@@ -263,20 +351,34 @@ Deno.serve(async (req: Request) => {
   const debug = new URL(req.url).searchParams.get("debug") === "true";
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+  const fetchStats: FetchStats = { attempted: 0, ok: 0, rateLimited: 0, failed: 0 };
   const postMap = new Map<string, RedditPost>();
-  for (const subreddit of SUBREDDITS) {
-    for (const query of SEARCH_QUERIES) {
-      const posts = await searchReddit(subreddit, query);
-      for (const p of posts) postMap.set(p.id, p);
-      await new Promise((r) => setTimeout(r, 400));
-    }
+  for (const query of SEARCH_QUERIES) {
+    const posts = await searchReddit(query, fetchStats);
+    for (const p of posts) postMap.set(p.id, p);
+    await sleep(QUERY_PACING_MS);
+  }
+  console.log(
+    `fetch summary: ${fetchStats.ok}/${fetchStats.attempted} ok, ` +
+      `${fetchStats.rateLimited} rate-limited, ${fetchStats.failed} failed, ` +
+      `${postMap.size} unique posts`
+  );
+
+  // Every query failing means the run gathered no signal at all. Report that as
+  // an error instead of letting it read as "no new posts today".
+  if (fetchStats.ok === 0) {
+    console.error("reddit fetch failed for every query — no posts gathered");
+    return new Response(
+      JSON.stringify({ sent: 0, error: "reddit_fetch_failed", fetch: fetchStats }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   if (debug) {
     const scored = Array.from(postMap.values())
       .map((p) => ({ score: scorePost(p), age_h: Math.round((Date.now() / 1000 - p.created_utc) / 3600), title: p.title, sub: p.subreddit }))
       .sort((a, b) => b.score - a.score);
-    return new Response(JSON.stringify({ total: postMap.size, top: scored.slice(0, 20) }, null, 2), {
+    return new Response(JSON.stringify({ total: postMap.size, fetch: fetchStats, top: scored.slice(0, 20) }, null, 2), {
       headers: { "Content-Type": "application/json" },
     });
   }
@@ -300,14 +402,14 @@ Deno.serve(async (req: Request) => {
 
   if (unseen.length === 0) {
     return new Response(
-      JSON.stringify({ sent: 0, message: "No new qualifying posts found.", total_fetched: postMap.size, qualified: qualified.length }),
+      JSON.stringify({ sent: 0, message: "No new qualifying posts found.", total_fetched: postMap.size, qualified: qualified.length, fetch: fetchStats }),
       { headers: { "Content-Type": "application/json" } }
     );
   }
 
   for (const post of unseen) {
     post.draft_reply = await generateReply(post);
-    await new Promise((r) => setTimeout(r, 300));
+    await sleep(300);
   }
 
   await supabase.from("reddit_scout_seen_posts").insert(
@@ -322,7 +424,7 @@ Deno.serve(async (req: Request) => {
 
   await sendDigest(unseen);
 
-  return new Response(JSON.stringify({ sent: unseen.length }), {
+  return new Response(JSON.stringify({ sent: unseen.length, fetch: fetchStats }), {
     headers: { "Content-Type": "application/json" },
   });
 });

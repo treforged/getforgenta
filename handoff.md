@@ -86,6 +86,121 @@ photo viewer. The rationale is written into `preview.py`'s module docstring so n
 
 ---
 
+# Handoff — 2026-07-29 (session 42) — REDDIT SCOUT: root-caused + fixed + deployed. 3 items left, all need Tre.
+
+> This block is a **separate workstream** from the FB-crosspost block below it. That one is still
+> untouched and still accurate — start there if Reddit Scout is done.
+
+## ⚡ START HERE (session 43) — 3 leftovers, in order
+1. **Disable the local scheduled task (NEEDS AN ADMIN SHELL — I was denied).**
+   `schtasks /change /tn "ForgentaRedditScout" /disable` returned **"Access is denied."**
+   Run it from an elevated PowerShell. Verify with
+   `schtasks /query /tn "ForgentaRedditScout" /fo LIST` → expect `Scheduled Task State: Disabled`.
+   **Until this runs, the double-schedule is still live** and next Thu 9PM will send a duplicate digest.
+   Tre's decision was explicit: **keep Supabase cron, retire the local task. Do not re-litigate.**
+   Don't delete `scripts/reddit-scout.mjs` — only the schedule was retired.
+2. **Rotate `REDDIT_SCOUT_SECRET`** (Tre approved). Procedure below — it is designed so the value never
+   enters an agent transcript. **Do not shortcut it by generating the secret in chat.**
+3. Optional: decide whether to keep the **13:00 UTC morning cron**. See "morning slot" below.
+
+## 🔑 WHAT WAS ACTUALLY WRONG (three separate defects, don't re-diagnose)
+The handoff called this a "double-schedule" problem. That was real but it was the *smallest* of three.
+
+1. **Reddit was 429ing ~everything, silently.** `searchReddit`/`fetchSubreddit` did
+   `if (!resp.ok) return []` — no retry, no backoff, no log. The 7/23 local run shows it plainly:
+   query 1 → `200, 12 posts`; **queries 2-30 → all `429`**. The run still exited 0 and emailed a digest,
+   so it looked healthy while operating at ~1/30 of intended coverage. **This was the real bug.**
+2. **Double schedule with split dedup state.** Local task deduped via `scripts/.scout-seen.json`;
+   the edge function dedupes via the `reddit_scout_seen_posts` table. Neither could see the other, so the
+   same post could be emailed twice and billed to Gemini twice.
+3. **pg_net's 5s timeout made cron blind.** Every run logged
+   `Timeout of 5000 ms reached`. It is fire-and-forget, so the function still ran to completion
+   server-side and inserted rows (edge logs show a real cron run at **29.3s / HTTP 200**) — but pg_net
+   could never report a genuine failure either. Fixed, see below.
+
+## ✅ DONE THIS SESSION
+### `supabase/functions/reddit-scout/index.ts` — rewritten fetch layer, **DEPLOYED as v12**
+`verify_jwt: false` preserved (it authenticates via the `x-webhook-secret` header, and cron sends no JWT).
+- **Multireddit consolidation.** All 5 subreddits now go in one request (`r/a+b+c+d+e/search.rss`),
+  cutting requests from `5 subs × 6 queries = 30` to **6**. This is what actually beat the rate limit.
+- `subredditFromPermalink()` — a multireddit feed mixes subs, so the sub now comes from each entry's
+  own permalink instead of from the request argument. **Verified against live data**: entries came back
+  tagged `debtfree`, `personalfinance`, `povertyfinance` correctly.
+- Retry with backoff on 429/5xx (4 attempts, 4s→30s, honors `Retry-After`), every outcome logged.
+- `FetchStats` (`attempted/ok/rateLimited/failed`) returned in **every** response body.
+- **New 502 guard**: if `ok === 0` the run returns `{"error":"reddit_fetch_failed"}` with status 502
+  instead of silently reading as "no new posts today". That failure mode is what hid defect 1 for weeks.
+
+### Live smoke test (real, against v12, via `?debug=true`)
+`{"total": 24, "fetch": {"attempted": 6, "ok": 3, "rateLimited": 3, "failed": 0}}`
+**Before: 30 requests → 1 ok → 12 posts. After: 6 requests → 3 ok → 24 posts.** Yield doubled and the
+failures are now visible instead of silent.
+
+⚠️ **3 of 6 queries are STILL rate-limited.** Do not treat the scout as fully healthy.
+**Evidence on what to try next:** cutting volume 5x moved the success rate 3% → 50%, while the old
+400ms-paced version at high volume got 29/30 blocked. That points at a **per-IP request quota, not
+pacing** — so *reducing request count further* (fewer queries) is the promising lever, and raising
+`QUERY_PACING_MS` probably is not. **I did not test this**; it is inference from two data points.
+
+### Cron timeout — FIXED
+Both jobs (`reddit-scout-morning` 13, `reddit-scout-evening` 14) now pass
+`timeout_milliseconds := 120000`. Verified: `has_timeout = true` on both, secret preserved, both `active`.
+Done via `cron.alter_job` inside a `DO` block that read the existing secret out of `cron.job.command`
+with a regex, so the value was never printed.
+
+## 🔴 SECURITY — rotate `REDDIT_SCOUT_SECRET`
+`cron.job.command` stores the webhook secret in **plaintext**, and reading that row to diagnose the jobs
+**put the value into this session's transcript.** It is not in the repo. Blast radius is low (the endpoint
+only triggers a marketing digest; worst case is burned Gemini quota) but Tre approved rotating it.
+
+**Rotation procedure — keeps the value out of any agent transcript. Order matters or cron 401s.**
+1. In the **Supabase SQL editor** (Tre, not an agent), create the new value and read it there:
+   ```sql
+   create table if not exists _secret_rotation (k text primary key, v text);
+   insert into _secret_rotation values ('reddit_scout', encode(gen_random_bytes(32), 'hex'))
+     on conflict (k) do update set v = excluded.v;
+   select v from _secret_rotation where k = 'reddit_scout';   -- read it here, copy it
+   ```
+2. Dashboard → Edge Functions → Secrets → set **`REDDIT_SCOUT_SECRET`** to that value.
+   (There is no MCP tool for edge-function secrets and **no Supabase CLI installed** — dashboard only.)
+3. Only after step 2 lands, an agent can point cron at it **without ever seeing it** — same
+   `DO` + `cron.alter_job` shape used for the timeout fix, but sourcing `s` from
+   `(select v from _secret_rotation where k='reddit_scout')` instead of from the regex.
+4. `drop table _secret_rotation;`
+5. Verify with a `?debug=true` call (recipe below). A 401 means steps 2 and 3 disagree.
+
+### Recipe: invoke the function from SQL without exposing the secret
+```sql
+select net.http_post(
+  url := 'https://mdtosrbfkextcaezuclh.supabase.co/functions/v1/reddit-scout?debug=true',
+  headers := jsonb_build_object('Content-Type','application/json',
+    'x-webhook-secret', (select (regexp_match(command,'x-webhook-secret[^:]*:\s*.?([0-9a-f]{32,})'))[1]
+                         from cron.job where jobid = 13)),
+  body := '{}'::jsonb, timeout_milliseconds := 120000) as request_id;
+-- then poll: select status_code, left(content,1200) from net._http_response where id = <request_id>;
+```
+⚠️ **`?debug=true` is the safe probe** — it returns scored posts and **sends no email, writes no rows,
+spends no Gemini**. A bare call sends a real digest to tre@treforged.com. Poll takes **~90s**; while
+in flight the row is in `net.http_request_queue` and **absent** from `net._http_response`. An empty
+result is "still running", not failure. Don't conclude anything before the queue row clears.
+
+## 🧭 MORNING SLOT — open question, evidence gathered
+`reddit_scout_seen_posts` has had **zero rows from the 13:00 UTC slot since 2026-05-23**; every row since
+is 01:00. Could be that the evening run consumes the day's new posts and morning finds nothing new after
+dedup, or the morning slot is genuinely failing. **Now diagnosable**: with the 120s timeout plus
+`FetchStats` in the body, check `net._http_response` after a 13:00 run. Decide keep-or-drop from that.
+
+## 🧭 STATE (session 42)
+- **One source file changed:** `supabase/functions/reddit-scout/index.ts` (deployed v11 → **v12, ACTIVE**).
+  Backup of the pre-edit original: `backups/2026-07-28_231919/supabase/functions/reddit-scout/index.ts`.
+- `scripts/reddit-scout.mjs` **untouched** — it carries the same silent-429 bug, but it is being retired
+  by schedule, so it was deliberately not fixed. If Tre ever revives it, port the v12 fetch layer over.
+- Dashboard/DB changes: edge function v12; `cron.alter_job` on jobs 13 and 14 (timeout only).
+- No secret was rotated yet. No email was sent this session (debug path only).
+- `net._http_response` id **238** is this session's smoke test, if you want to re-read it.
+
+---
+
 # Handoff — 2026-07-29 (session 41b) — NEW WORKSTREAM: FB crosspost + system-user token. DESIGNED, NOT BUILT.
 
 > Read this block first, then the session-41 block below it (IG OAuth + PI.1 publish, both DONE).
