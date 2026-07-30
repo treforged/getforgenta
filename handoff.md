@@ -88,7 +88,15 @@ Plaid-synced 2026-07-29 13:00 except Prime Visa (2026-07-30 20:36 = session 54's
 | Discover it Card | credit_card | 9082.71 | apr 12.89, min 189, pref `full`, due 1 |
 | Apple Card / Venture X | credit_card | 0 / 0 | pref `statement` |
 
-### ⏭️ NEXT STEP — compare live cash against the fixture's, then re-run the diagnostic
+### ⏭️ NEXT STEP — 🔑 **START IN THE BROWSER, NOT THE FIXTURE.** The app is signed in and readable.
+**Do this first, it is far cheaper than any fixture work:** open the Debt tab, expand **Prime Visa**,
+set the toggle to **Variable**, and read the actual per-month rows for **Sep 2026 → Mar 2027**.
+Capture, per month: payment, interest, start/end balance. That immediately answers whether the band
+is real, which months truly carry interest, and what the payments are — the exact numbers every
+fixture run this session had to guess at. ⚠️ **Also check the month labels**: the label fix
+(`57a48d5f`) is committed but **NOT deployed**, so the live app still drops Feb 2027 and shows Mar
+twice on a day-29/30/31 clock — part of Tre's reported range may be that bug, not interest.
+**Only if the browser reading still does not explain it**, fall back to:
 1. Read the fixture's `accounts` cash rows (`forecast-inputs.real.json`, capturedAt 2026-07-20) and
    diff the four cash accounts against the table above. **If fixture cash is materially higher than
    $3,848.11 + $5 + $72.92 + $106.17, that is the answer** — patch all cash balances (not just Prime
@@ -101,12 +109,15 @@ Plaid-synced 2026-07-29 13:00 except Prime Visa (2026-07-30 20:36 = session 54's
    needs `serializeForecastCapture(inputs)` run in the live app against the real `ForecastInputs`.
    Budget for writing that snippet; it is not a copy-paste.
 
-## 🚧 BLOCKED — browser route to the live app does not work from here
-Tre said "im logged in so you can look". **It does not work:** the extension has no tab group, and a
-new tab it creates is **NOT authenticated** — `getforgenta.com/dashboard` redirects to `/auth`.
-🔴 **I did not and will not sign in (credentials are off-limits).** Also note pins/UI state are
-`useState`, so even a working tab would not show Tre's session state. **Do not retry this route** —
-ask Tre to read values off his own screen, or use the Supabase MCP (which works fine, see above).
+## ✅ UNBLOCKED — the browser route to the live app now WORKS
+Initially a new extension tab was **not** authenticated (`getforgenta.com/dashboard` → `/auth`), and
+🔴 **I did not and will not sign in myself (credentials are off-limits).** **Tre signed in by hand in
+the MCP tab**, so the live app is now readable directly.
+🔑 **This is the fastest route to the remaining interest question** — read Prime Visa's actual
+per-month rows off the live Debt tab instead of guessing at fixture deltas. If a future session finds
+the tab logged out again, **ask Tre to sign in; do not attempt it.**
+⚠️ Pins/UI state live in localStorage now, but `expandedCard`, toggles etc. are per-browser — the
+extension tab is a *different* view from whatever Tre has open in his own window.
 
 ## 🧭 STATE
 - **One code commit: `35795c33`** (pin persistence, above) on `debt-grace-preservation`.
