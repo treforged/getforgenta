@@ -1,3 +1,80 @@
+# Handoff — 2026-07-30 (session 47b) — TOKEN WORKS, but FB publish needs a **Page token**, not the system-user token. Fix is verified and ~10 lines. NOT yet applied.
+
+> Supersedes the 47 block below on the publish path only; everything 47 says about the token install stands.
+
+## ⚡ START HERE (session 48) — apply one fix, then publish
+**Nothing is published to Facebook. Instagram already has this post (Tre confirmed) — do NOT re-post to IG.**
+
+### 🔴 THE FAILURE (real, reproduced once, nothing partially created)
+`python publish.py --post posts/blog_carousel.json --facebook-only …` died on the first photo upload:
+```
+HTTP 403 …/v21.0/1301429399713605/photos
+(#200) Unpublished posts must be posted to a page as the page itself.
+```
+**Root cause:** `META_ACCESS_TOKEN` is a **system-user (user-level) token**. Page photo/feed writes must be
+made **as the Page**, which requires a **Page access token** derived from it. `--check` passes anyway
+because reading the Page name and `debug_token` both work fine with the user-level token — **`--check`
+being green does not prove publishing works.** Don't trust it alone again.
+
+### ✅ THE FIX — mechanism already verified live, just not wired in
+```
+GET {api_base}/{page_id}?fields=access_token&access_token=<system user token>
+```
+returned a **207-char Page token, distinct from the system-user token**, for Page `Forgenta`. So the asset
+assignment and scopes are correct; only the token *kind* is wrong.
+
+Apply in **`src/publish/facebook.py`** (the layer that knows it must act as the Page — do NOT put this in
+`config.py`; `preflight()` deliberately wants the user-level token):
+1. Add a module-level cache + resolver, e.g. `_page_token(cfg)` that GETs the URL above, falls back to
+   `cfg.access_token` if the response has no `access_token` (a real Page token in `connections.json`
+   already works today — that path must not regress), and caches per `page_id`.
+2. Use it in place of `cfg.access_token` in **`_upload_photo`** and in the **`/feed`** call in
+   `publish_album`. Leave `preflight()` alone.
+3. Re-run the publish command in "THE COMMAND" below.
+
+### 🎯 THE COMMAND (Tre approved this exact post + caption; the link variant was his pick)
+Facebook Page only, no IG, no second Drive archive (session 47b already archived it):
+```
+cd tre-forged-marketing
+python publish.py --post posts/blog_carousel.json --facebook-only --no-archive --facebook-caption "<the message below>"
+```
+Message (chosen over the IG-identical version because "Link in bio" is meaningless on a Page):
+```
+Free money advice, no strings.
+
+The Forge is our blog, and all of it is free to read. No signup, no email gate, no trial that quietly starts billing you. Budgeting, debt payoff, credit, and car ownership, written in plain language with real numbers.
+
+New posts go up daily: https://treforged.com/blog
+
+#personalfinance #budgeting #debtfree #moneytips #financialfreedom #creditscore #forgenta
+```
+**Re-confirm with Tre before running it** — it posts publicly. He approved it this session, but verify the
+fix produced a Page token first (a `--dry-run` cannot catch this class of bug; it never calls Graph).
+
+## ✅ DONE THIS SESSION (47b)
+- **`publish.py` gained `--facebook-only`** (first tracked-behavior change in this workstream; file is
+  inside gitignored `tre-forged-marketing/`, backup at `backups/2026-07-30_004500/`).
+  - Mirrors `--no-facebook`; the two are mutually exclusive and `argparse` errors if both are passed.
+  - Skips the IG publish and the quota read, still hosts images (FB fetches them by URL) and still
+    cleans them up in the `finally`.
+  - **`_crosspost` gained `fatal=`**: under `--facebook-only` a Page failure must exit non-zero rather
+    than print the "Instagram is still live" warning — there is no IG post to protect. That is exactly
+    why the 403 above surfaced instead of being swallowed.
+  - Guard: `--facebook-only` with no Page message exits rather than doing nothing.
+- **Preview generated and reviewed by Tre** (5 slides, caption 377/2200):
+  `…/marketing-previews/previews/2026-07-30/004311-money-advice-that-costs-nothing/review.png`
+  Drive archive: `https://drive.google.com/drive/folders/1dBYKu4eqTu0xpv5zgSvDVrhBlKGnv1v8`
+  Clean up later with `python publish.py --preview-clean previews/2026-07-30/004311-money-advice-that-costs-nothing`
+
+## 🧭 STATE (session 47b)
+- **Nothing published to Facebook or Instagram.** The 403 hit on photo 1 of 5; no unpublished photo and no
+  feed post was created on the Page. Verify on the Page before re-running if you want certainty.
+- One file changed: `tre-forged-marketing/publish.py` (gitignored). `facebook.py` is **untouched** — the
+  fix above is not applied.
+- `.env`, `connections.json`, Meta dashboard, Reddit/Supabase/cron: all unchanged since session 47.
+
+---
+
 # Handoff — 2026-07-29 (session 47) — ✅✅ TOKEN INSTALLED. `--check` reads **ready to post**. The FB-crosspost blocker (sessions 42-46) is CLOSED.
 
 > Supersedes every FB-crosspost block below. The Reddit Scout blocks (44b/44/42) are a **separate
