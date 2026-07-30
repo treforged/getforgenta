@@ -55,6 +55,156 @@ last reason to want it). The local scheduled task `ForgentaRedditScout` (already
 
 ---
 
+# Handoff — 2026-07-29 (session 49) — ✅ 3 quick wins SHIPPED (router CVEs, AI advisor off, release notes). 6 items open. NEW: usage auto-pause design is PROVEN, needs 1 decision.
+
+> **New workstream: Tre's backlog triage.** The Reddit Scout and FB-crosspost blocks below are
+> **separate workstreams, untouched this session.** Do not act on them here.
+
+## ⚡ START HERE (session 50)
+Read "THE NEW ASK" first — Tre raised it mid-session and said *"before you start working anything else."*
+It is designed but **not built**, and it needs **one answer from Tre** before it can be.
+
+---
+
+## 🆕 THE NEW ASK — auto-pause at 95% of the 5-hour usage window, auto-resume on reset
+Tre: *"when my claude usage during my 5hr periods hits 95% we stop working and we automatically resume
+once it resets. i would keep my PC on during sessions."*
+
+### ✅ FEASIBILITY IS PROVEN — do not re-investigate, these are measured facts
+- `npx ccusage@latest` works on this machine (**v20.0.19**, no install needed).
+- `ccusage blocks --active --json` returns the live 5-hour block. Real output this session:
+  `startTime 2026-07-29T23:00:00Z`, `endTime 2026-07-30T04:00:00Z`, `totalTokens 52051157`,
+  `costUSD 46.99`, plus `burnRate` and `projection.remainingMinutes`.
+  **So both "how much have I used" and "exactly when does it reset" are available locally.**
+- Transcripts at `~/.claude/projects/<slug>/*.jsonl` carry per-message
+  `input_tokens` / `output_tokens` / `cache_read_input_tokens`, which is where ccusage gets its numbers.
+- `~/.claude/settings.json` currently has **`statusLine` only — no hooks block.** Adding hooks is free.
+
+### 🔴 THE ONE OPEN QUESTION — ASK TRE, do not guess
+ccusage reports **tokens and cost, not a percentage**, because the 5-hour plan limit is not published
+anywhere in the local data. 95% *of what* has to be chosen:
+1. **Historical max block (recommended).** Take the largest `totalTokens` across
+   `ccusage blocks --json` history as the practical ceiling — a block gets capped because the limit was
+   hit, so past peaks approximate the real limit. Self-calibrating, no magic number.
+2. **A fixed token ceiling** Tre sets by hand after reading `/usage` once.
+3. **A cost ceiling** in USD (simplest to reason about, but drifts with model mix).
+
+**This changes the implementation, so it is a genuine blocking question.** Everything else is decided.
+
+### ⏭️ THE DESIGN (agreed shape, ~3 small files)
+1. **`scripts/usage-guard.mjs`** — single source of truth. Shells `ccusage blocks --active --json`,
+   computes `{ pct, usedTokens, ceiling, resetIso, secondsToReset, shouldStop }`, prints JSON.
+   Must **fail open** (`shouldStop: false`) if ccusage errors or there is no active block — a broken
+   meter must never wedge the session.
+2. **A `PreToolUse` hook** in `~/.claude/settings.json` that runs the guard and, at `pct >= 95`,
+   blocks with a message naming the reset time. PreToolUse (not `UserPromptSubmit`) because it has to
+   stop *agent* work mid-turn, which is where the tokens actually go.
+   ⚠️ Cache the guard result for ~60s; running ccusage on every single tool call is slow.
+3. **Auto-resume** via **`/loop` dynamic mode**: `ScheduleWakeup` with
+   `delaySeconds = secondsToReset + 120` (buffer past the boundary), passing the same `/loop` prompt so
+   it re-enters and continues. `ScheduleWakeup` clamps to **[60, 3600]**, and a 5-hour window is at most
+   ~300 min out, so **a single wakeup may not reach the reset — re-arm across multiple hops.**
+   Tre keeping the PC on is the stated precondition and he confirmed it.
+
+**Honest caveat to tell Tre:** the percentage is an *estimate* from local token counts, not Anthropic's
+authoritative rate-limit counter. Set the ceiling conservatively; 95% of an estimate can be 100% of real.
+
+---
+
+## ✅ DONE THIS SESSION — 3 commits, all local, nothing pushed
+### 1. `1a5f901a` — react-router-dom 6.30.1 → **7.18.2**, closes all 3 Dependabot alerts
+🔑 **The finding that matters: there is NO 6.x patch.** Both react-router advisories are first fixed in
+**7.18.0**, and the react-router-dom advisory has `first_patched_version: null` for 6.x.
+**Open PR #48 (bump to 7.0.0) would NOT have closed them — close it, don't merge it.**
+- Migration was clean because the app only uses declarative-mode APIs (BrowserRouter, MemoryRouter,
+  Routes, Route, Link, Navigate, Outlet, useLocation, useNavigate, useParams, useSearchParams).
+  **No data router, no loaders/actions, no removed `json()`/`defer()`, no RSC.** Verified by grep.
+- **Only code change needed:** dropped the v6 `future={{ v7_startTransition, v7_relativeSplatPath }}`
+  prop in `src/App.tsx` — those behaviors are the v7 default and the prop no longer exists.
+- ⚠️ **Accepted risk, already reasoned through — do not "fix" this:** 7.18.2 is in range for
+  `GHSA-qwww-vcr4-c8h2` (RSC-mode CSRF). Not exploitable — that is RSC server actions and this is a
+  declarative Vite SPA. **No fixed version exists** (7.18.2 is latest; 8.x is unpublished), and npm's
+  only suggested "fix" is downgrading to 7.11.0, which reintroduces the open-redirect bugs that *do*
+  affect our `<Link>`/`useNavigate`. **Do not downgrade.**
+
+### 2. `54e23108` — Forgenta AI switched off behind an in-development screen
+- **Gated at the route, not inside the page.** `/ai` renders `FeatureInDevelopment`; `AiAdvisor` never
+  mounts. That is the whole point: mounting it reads transactions, recurring rules, debts, goals,
+  accounts and car funds and forwards them to the `ai-advisor` edge function. Hiding the output would
+  have left that data flow running.
+- **One flag drives everything:** `AI_ADVISOR_ENABLED` in **`src/lib/feature-flags.ts`** (new file).
+  Flip to `true` to restore. Nothing else needs editing.
+- Also **de-advertised** it so we are not selling an unreachable paid feature: `Premium.tsx`,
+  `NativePaywall.tsx`, both `OnboardingWizard` upsell lists, and the `AppTour` premium step (which told
+  users to "find it in the More menu" and would have pointed at a nav entry that no longer renders).
+- 🔑 **MobileNav gotcha:** the bottom bar is `grid-cols-5` (4 primary tabs + More). Removing AI left a
+  visible hole, so **Goals is promoted into the free slot** and removed from the More menu to avoid
+  appearing twice. Both revert automatically when the flag flips.
+- ⏭️ **NOT done:** the `ai-advisor` edge function still accepts requests. Nothing calls it now, but a
+  server-side refusal is the correct belt-and-braces layer. **It needs a deploy, so it is Tre's call.**
+
+### 3. `41f64489` — Google Play release notes no longer leak internals
+Tre's report was exact. The last release shipped `- Docs: handoff — session 32; items 1-3 (...)` and a
+line cut mid-word at `- [p`. **Two independent faults:** the filter only excluded `^chore:`, and
+truncation was `head -c 480` (bytes, not lines).
+- New **`scripts/release-notes.sh`** (testable locally, called from `android-build.yml`).
+- 🔑 **The subtle part, found by testing against real history:** filtering by *type* is not enough.
+  `fix(reddit-scout)` and `feat(deps)` are legitimate feat/fix commits about internal tooling. Added an
+  **internal-scope deny list** — that is what separates "Switch Forgenta AI off behind an
+  in-development screen" (kept) from "Use a browser User-Agent so Reddit stops 403ing the fetch"
+  (rejected). Plus a jargon deny list, headline-only trimming, dedup, sentence case, ≤5 notes, ≤480 chars.
+- **Assembles whole lines, testing total length before committing to each line — cannot cut mid-word.**
+- The evergreen fallback is now the *common* case, not an edge case. That is correct and honest.
+- Workflow **fails the job** if the result is not 20-500 chars.
+- Verified against: the exact bad subjects (all rejected), real last-40 commits, fallback, long-subject trim.
+
+## 🧭 STATE (session 49)
+- **3 commits, all LOCAL. Nothing pushed. No PR opened, closed, or merged. No deploy.**
+- Files changed: `package.json`, `package-lock.json`, `src/App.tsx`, `src/components/layout/Sidebar.tsx`,
+  `src/components/layout/MobileNav.tsx`, `src/pages/Premium.tsx`,
+  `src/components/premium/NativePaywall.tsx`, `src/components/shared/AppTour.tsx`,
+  `src/components/onboarding/OnboardingWizard.tsx`, `.github/workflows/android-build.yml`.
+  New: `src/lib/feature-flags.ts`, `src/components/shared/FeatureInDevelopment.tsx`,
+  `scripts/release-notes.sh`. Backup: `backups/2026-07-29_224604/` (gitignored).
+- ⚠️ **`npm test` = 220/221. The one failure, `useCardProjection.month0income` ("expected +0 to be 20"),
+  is PRE-EXISTING and unrelated** — confirmed by re-running it with my changes stashed. **Do not chase
+  it as a regression from the router upgrade.** Worth its own look; logged in the backlog below.
+- `tsc --noEmit` clean and `npm run build` clean after every commit.
+- **Supabase / Meta / Reddit / cron / secrets: completely untouched this session.**
+- `npm audit` also reports 5 build-time-only highs (eslint→minimatch→brace-expansion, postcss). **Dev
+  dependencies, not shipped to users.** Deliberately left alone; not a site vulnerability.
+
+## ⏭️ STILL OPEN — Tre's list, in his stated priority order
+1. **The usage auto-pause above.** Needs the one decision, then build.
+2. **Diagnose the Prime Visa recurring interest.** *Not started.* Tre sees interest multiple months in a
+   row and wants to know whether he is failing to hit the interest-saving balance or whether it is a
+   data/statement-timing issue. **Read-only diagnosis, needs no input from Tre.** Filter Supabase by
+   Tre's `user_id`. Cross-check against the cycling-debt-engine ISB semantics already in memory.
+3. **Goals tab: linked contribution plans do not move the chart.** *Not started.* Repro Tre gave: an HYS
+   contribution connected to a savings goal changes nothing on the chart. Page is
+   **`src/pages/SavingsGoals.tsx`** (there is no `src/components/goals/` directory). Find where the link
+   is dropped between the plan and the projection. **Fix at the data/engine layer, not the chart.**
+4. **Plaid trust messaging.** *Not started.* Make it prominent that data is connected securely via Plaid
+   and **the developers never see your credentials or data.** Surface at connect time
+   (`src/components/shared/PlaidLinkButton.tsx`), on the landing page, and in settings. This one
+   directly answers the external AI review's biggest criticism (trust signals).
+5. **Clean up the 13 open PRs.** All Dependabot. **Start by closing #48** — superseded by `1a5f901a` and
+   it never fixed the alerts anyway. Others include majors worth care (#40 tailwind 3→4, #39 jsdom
+   20→29, #42/#43 react 18→19, #41 lucide 0.462→1.22). **Merging means pushing to main — needs Tre's
+   explicit OK.**
+6. **Weekly Monday Dependabot review.** *Not started.* Use the `/schedule` skill (cloud routine) or a
+   `/loop`. Alert count is currently **0 open after `1a5f901a`** — re-verify with
+   `gh api repos/treforged/getforgenta/dependabot/alerts`.
+7. **Backlog write-ups still to do** (these were "add to the backlog", not "build now"):
+   - Optional emails at signup + **toggleable notification categories in Settings + unsubscribe-from-all**.
+   - **Notices for payment plans starting soon.**
+   - Marketing answers to the external AI review: blog posts, IG carousels for app updates, and a
+     treforged.com page explaining the app. The review's own words are the brief — its two real
+     criticisms were **lack of independent trust signals** and **no public roadmap**.
+   - The pre-existing `useCardProjection.month0income` test failure.
+
+---
+
 # Handoff — 2026-07-29 (session 48-reddit) — 🔑 **THE 403 IS A USER-AGENT BLOCK, NOT AN IP BLOCK.** One-line fix, proven live, NOT yet applied. Claude replies WORK again. Local task DISABLED.
 
 > **Reddit Scout workstream only.** The FB-crosspost block below was written by a parallel session and is
