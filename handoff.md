@@ -184,6 +184,9 @@ Rough per-sub share: Debt and povertyfinance dominate, then CRedit, DaveRamsey.
 ---
 
 ## 🧭 STATE — what is actually built. **NOTHING IS DEPLOYED. v20 IS STILL LIVE.**
+> ⚠️ **THIS SECTION WAS WRITTEN MID-SESSION AND IS NOW OUT OF DATE — see "REVISED STATE" below it.**
+> Parts A, B and C were finished after this was written. The file is **no longer mid-refactor.**
+
 - **One edit made to `supabase/functions/reddit-scout/index.ts`** (Part A, step 1 of 4): replaced the
   single `SUBREDDITS` array with `DISCLOSE_SUBREDDITS` + `ADVICE_ONLY_SUBREDDITS`, a `SUBREDDITS`
   spread of both, `type ReplyPolicy`, `DISCLOSE_SET`, and `replyPolicyFor()` (case-insensitive,
@@ -202,7 +205,41 @@ Rough per-sub share: Debt and povertyfinance dominate, then CRedit, DaveRamsey.
   `net._http_response` row has aged out (~6h TTL), so its `coverage_hours` is unrecoverable. Not a
   problem — superseded by the 30.3h measurement above.
 
-## ⏭️ NEXT STEPS — resume here, in this order
+## ✅ REVISED STATE (end of session 50-reddit) — Parts A, B, C are CODE-COMPLETE but UNVERIFIED
+Tre confirmed the **2 disclose + 2 advice** quota split, and all three parts were then implemented in
+`supabase/functions/reddit-scout/index.ts`. Present in the file now:
+- `DISCLOSE_PROMPT` + `ADVICE_PROMPT`; `isOnBrandReply(reply, policy)` is **policy-aware** (the landmine
+  described below is CLOSED); `ScoredPost.policy` resolved once at qualification so prompt selection,
+  validation and the digest label cannot disagree.
+- `MAX_DISCLOSE_PER_DIGEST = 2`, `MAX_ADVICE_PER_DIGEST = 2`, unused disclose slots deliberately not
+  backfilled with advice posts.
+- `ReplyResult` discriminated union with `retryable`; `isRetryableError`; `?mode=retry`;
+  `MAX_RETRY_ATTEMPTS = 24`; rows inserted only for posts included in a sent digest.
+
+### 🔴 What is verified vs not — do not assume this works yet
+- **Table `reddit_scout_pending_runs` EXISTS** — migration applied and confirmed via
+  `information_schema.tables`.
+- ❌ **NOT deployed.** Live function is still **v20**, i.e. the OLD single-prompt version.
+- ❌ **Retry cron job does NOT exist** — confirmed `0` jobs matching `%mode=retry%`.
+- ❌ **Job 14 still `active = false`** — confirmed. **The scout is still dead.**
+- ❌ **No type-check, no `?debug=reply`, no `?debug=true`, no live run.** Zero Anthropic calls spent
+  this session. A **Claude API outage was ongoing** (status.claude.com), so reply-quality verification
+  was not possible — but that outage is the ideal window to verify the Part B defer path.
+
+### ⏭️ REMAINING WORK — this is the real list now
+1. **Deploy** — `verify_jwt: false` **MUST** be preserved.
+2. **Create the retry cron job**: `*/5 1-6 * * *` calling `?mode=retry`. Copy the `x-webhook-secret`
+   header shape from job 14's existing `command`. The 01:00–06:00 window IS the give-up rule.
+3. **Verify `?debug=reply` for BOTH policies** (sends nothing, writes nothing): the advice draft must
+   contain **no** "forgenta" and no URL; the disclose draft must contain both "forgenta" and a
+   disclosure phrase. ⚠️ Needs the outage over.
+4. **Verify the defer path** — can be done DURING an outage: a retryable failure must return 503
+   `{deferred:true}`, write **no** rows, send **no** email, and upsert a `pending` row.
+5. **`?debug=true`** — confirm `coverage_hours` ≥ 24 on the 10-sub list (measured 30.3h from a
+   residential IP pre-deploy).
+6. **`select cron.alter_job(14, active := true);`** ← LAST. The scout sends nothing until this runs.
+
+## ⏭️ ORIGINAL NEXT STEPS (superseded by the list above; kept for the design rationale)
 ### Part A — per-sub reply policy (1 of 4 steps done)
 2. **Split `SYSTEM_PROMPT` into two.** Keep the existing one as `DISCLOSE_PROMPT`, adding a required
    one-line affiliation disclosure. Write `ADVICE_PROMPT`: same voice and 60–110 word cap, genuinely
