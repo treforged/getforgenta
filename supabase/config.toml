@@ -2,3 +2,11 @@ project_id = "mdtosrbfkextcaezuclh"
 
 [functions.plaid-sync-all]
 verify_jwt = false
+
+# Called by pg_cron via pg_net, which cannot mint a Supabase JWT. The function
+# authenticates the caller itself with the x-webhook-secret header and returns 401
+# without it. This entry exists so a CLI deploy cannot silently re-enable JWT
+# verification and break the cron — deploys through the MCP/dashboard have to pass
+# verify_jwt: false explicitly, and have done so on every version to date.
+[functions.reddit-scout]
+verify_jwt = false
