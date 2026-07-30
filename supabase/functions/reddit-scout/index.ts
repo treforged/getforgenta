@@ -300,6 +300,15 @@ function anthropicClient(): Anthropic {
 // low because writing one short reply is not a reasoning-heavy task.
 const REPLY_MAX_TOKENS = 4000;
 
+// Anthropic SDK errors carry the HTTP status on the error object; the status is
+// what distinguishes a billing rejection (400/429) from a bad key (401) from an
+// outage (5xx), and it is exactly what the bare catch used to throw away.
+function describeError(e: unknown): string {
+  const status = (e as { status?: number } | null)?.status;
+  const message = e instanceof Error ? e.message : String(e);
+  return status ? `HTTP ${status}: ${message}` : message;
+}
+
 async function generateReply(post: RedditPost): Promise<string> {
   const userContent = `Subreddit: r/${post.subreddit}\nTitle: ${post.title}\nBody: ${post.selftext.slice(0, 800)}`;
 
@@ -336,8 +345,12 @@ async function generateReply(post: RedditPost): Promise<string> {
       ? reply
       : "[reply generation failed — output validation rejected this response, review manually]";
   } catch (e) {
-    console.warn(`claude reply generation failed: ${e instanceof Error ? e.message : String(e)}`);
-    return "[reply generation failed]";
+    // Surface the real reason in the digest itself. A bare "[reply generation
+    // failed]" cost a whole session to trace back to an Anthropic spend-limit
+    // rejection. SDK error messages never contain the key, so this is safe.
+    const detail = describeError(e);
+    console.warn(`claude reply generation failed: ${detail}`);
+    return `[reply generation failed — ${detail}]`;
   }
 }
 
@@ -400,7 +413,35 @@ Deno.serve(async (req: Request) => {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const debug = new URL(req.url).searchParams.get("debug") === "true";
+  const debugMode = new URL(req.url).searchParams.get("debug");
+  const debug = debugMode === "true";
+
+  // `?debug=reply` exercises reply generation alone against a synthetic post:
+  // no Reddit fetch, no rows written, no email sent. It exists because the only
+  // way to see a reply failure used to be a real run that also spent quota and
+  // burned three post IDs into reddit_scout_seen_posts.
+  if (debugMode === "reply") {
+    const sample: RedditPost = {
+      id: "debug",
+      title: "How do I start budgeting when I'm living paycheck to paycheck?",
+      selftext:
+        "I make about $3,200 a month and it all disappears. I have $6k on a credit card at 24% APR and a car payment. Where do I even start?",
+      subreddit: "personalfinance",
+      permalink: "/r/personalfinance/comments/debug/",
+      created_utc: Math.floor(Date.now() / 1000),
+    };
+    const reply = await generateReply(sample);
+    return new Response(
+      JSON.stringify({
+        debug: "reply",
+        key_present: Boolean(ANTHROPIC_API_KEY),
+        ok: !reply.startsWith("[reply generation failed"),
+        reply,
+      }, null, 2),
+      { headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   const fetchStats: FetchStats = {
