@@ -110,7 +110,50 @@ sequencing question after presenting the correction.**
 
 ---
 
-# Handoff — 2026-07-30 (session 52-reddit) — ✅✅ **DEPLOYED, VERIFIED LIVE, CRON RE-ENABLED. THE TWO-POLICY + AUTO-DEFER WORKSTREAM IS CLOSED.** v21 ACTIVE. Only the secret rotation remains.
+# Handoff — 2026-07-30 (session 53-reddit) — ✅ **`REDDIT_SCOUT_SECRET` ROTATED AND VERIFIED LIVE. THE REDDIT SCOUT WORKSTREAM HAS NOTHING OPEN.**
+
+> **Reddit Scout workstream only.** Supersedes every Reddit Scout block below on state.
+> Everything in session 52 stayed true; this session only closed the last item.
+
+## ⚡ START HERE — the workstream is CLOSED. Do not re-rotate, re-deploy, or re-probe.
+The secret rotation that had been open since session 42 is **done**. v21 is still ACTIVE, unchanged —
+**no source file was touched this session and no deploy happened.** The only remaining Reddit Scout
+activity is passive: watch the first real 01:00 UTC digest for the two non-blocking items session 52
+flagged (advice-draft word count, and the never-yet-fired defer path).
+
+## ✅ WHAT SHIPPED — rotation, all 5 steps, value never entered the transcript
+1. **New 64-char hex secret generated in-database** (`encode(gen_random_bytes(32),'hex')`) into the
+   staging table `_secret_rotation`. **It was inserted without ever being `select`ed by an agent** —
+   only `length(v)` was read back. Tre read the value in the SQL editor and set it in the dashboard.
+2. **Verified before touching cron** that all three jobs shared **one** identical secret
+   (`count(distinct …) = 1`), so a single `replace()` would cover them.
+3. **Jobs 13, 14 and 19 all repointed** in one `DO` block: regex the old secret out of each
+   `cron.job.command`, `replace()` it with the staged value, `cron.alter_job(… command := …)`.
+   🔑 **Same never-print pattern as session 52's job-19 creation. Reuse it for any future rotation.**
+   Verified after the fact by predicate only — `has_new_secret`, `has_secret_header`, `has_timeout`,
+   `is_retry`, plus schedules and `active` flags **all preserved** (13 still `false`, 14 and 19 `true`).
+4. **`drop table _secret_rotation;`** — confirmed gone via `to_regclass(...) is null`.
+5. **Verified live: pg_net 260 → 200** `{"mode":"retry","run_date":"2026-07-30","skipped":"no pending run"}`.
+   A 401 would have meant the dashboard secret and the cron commands disagreed. They agree.
+
+🔑 **Why the retry no-op was the right probe:** the `x-webhook-secret` check sits at the top of
+`Deno.serve` (~line 699), **before** the `?mode=retry` branch, so the no-op path is a full auth test that
+touches neither Reddit nor Anthropic. **Use `?mode=retry` for any future auth check — `?debug=true`
+costs a Reddit fetch and `?debug=reply` costs 2 Opus calls.**
+
+## 🧭 STATE — nothing consumed
+- **`reddit_scout_seen_posts` still 129 rows. `reddit_scout_pending_runs` still 0 rows.** Nothing
+  emailed, **zero Anthropic calls spent this session**, no rows written.
+- **No source file changed. No deploy. v21 still ACTIVE.** The only diff is this handoff.
+- Job 13 remains `active = false` and **still must not be unscheduled** — it (and now 14) is where the
+  pg_net probe recipe reads the secret from.
+- pg_net id used: **260**.
+- ⚠️ **The old secret is dead.** Any stale copy of it — in notes, an old transcript, a scratch file —
+  will now 401. That is the point; don't "restore" one.
+
+---
+
+# Handoff — 2026-07-30 (session 52-reddit) — ✅✅ **DEPLOYED, VERIFIED LIVE, CRON RE-ENABLED. THE TWO-POLICY + AUTO-DEFER WORKSTREAM IS CLOSED.** v21 ACTIVE. Only the secret rotation remains. **(Superseded above: the rotation is now DONE.)**
 
 > **Reddit Scout workstream only.** Supersedes every Reddit Scout block below on state.
 > The rules audit, the root cause, and the design rationale below all still stand — do not re-derive them.
