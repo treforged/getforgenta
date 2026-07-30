@@ -110,24 +110,73 @@ sequencing question after presenting the correction.**
 
 ---
 
-# Handoff — 2026-07-30 (session 53-reddit, part 2) — ✅ Acute-crisis posts now downgrade to advice-only; reply length tightened. **CODE-COMPLETE AND COMMITTED (`1a5a96ff` on main). NOT DEPLOYED — v21 is still live, so tonight's 01:00 UTC digest runs the OLD rules.**
+# Handoff — 2026-07-30 (session 54-reddit) — ✅✅ **DEPLOYED AND VERIFIED LIVE. v23 ACTIVE. THE REDDIT SCOUT WORKSTREAM HAS NOTHING OPEN.**
 
-## ⚡ START HERE — DEPLOY FIRST, before anything else. It is the only open item.
-Session 53 part 2 hit the **context gate at ~156k before deploying** — the deploy needs the full
-~1,050-line file in a tool call (~25-30k tokens) and there was no room left for it plus the probe plus a
-clean handoff. **Nothing is wrong with the code.** Deploy it, run the probe, done.
-⚠️ **Until this deploys, the 01:00 UTC digest keeps running v21 and can still draft a disclosed product
-mention under an eviction/crisis post** — the exact thing this change exists to stop.
+> **Reddit Scout workstream only.** Supersedes every Reddit Scout block below on state.
+> The design rationale in the session 53 part-2 block below still stands and must not be re-derived.
 
-The only thing standing between this and live is the deploy. Everything else is done and tested.
-1. **Deploy** `supabase/functions/reddit-scout/index.ts` via MCP `deploy_edge_function` with
-   **`verify_jwt: false` passed explicitly** (MCP ignores config.toml — unchanged footgun).
-2. **`?debug=reply`** — now **3 Opus calls, not 2**. Expect three cases:
-   `disclose-sub-normal` → `policy:"disclose"`, mentions Forgenta + disclosure;
-   `advice-sub` → `policy:"advice"`, no mention;
-   `disclose-sub-crisis` → **`policy:"advice"`, `crisis_downgraded:true`, `mentions_forgenta:false`**.
-   That third case is the whole point of this change.
-3. Nothing else. Cron 14/19 and the secret are untouched and correct.
+## ⚡ START HERE — nothing is open. Do not re-deploy, do not re-probe.
+The one open item from session 53 part 2 (the deploy) is **done**. Tonight's 01:00 UTC digest runs the
+new crisis-downgrade rules.
+- **Deployed** `supabase/functions/reddit-scout/index.ts` via MCP `deploy_edge_function` with
+  `verify_jwt: false` passed explicitly. **v21 → v23 ACTIVE** (the platform's version counter jumped by
+  two; only one deploy was issued). `verify_jwt: false` confirmed `false` on the response. The deploy
+  carried commit `1a5a96ff` byte-for-byte — no source change this session.
+- **`?debug=reply` (pg_net 261) → 200, `ok: true` on all three cases.** 3 Opus calls spent.
+
+| case | policy | crisis_downgraded | mentions_forgenta | has_disclosure | has_url | words |
+|---|---|---|---|---|---|---|
+| disclose-sub-normal (povertyfinance) | disclose | false | **true** | **true** | false | 90 |
+| advice-sub (debtfree) | advice | false | **false** | false | false | 111 |
+| **disclose-sub-crisis (povertyfinance)** | **advice** | **true** | **false** | false | false | 97 |
+
+The third row is the whole point of the change and it landed exactly as specified. The crisis draft
+itself is genuinely good — it corrects the legal premise ("a 30-day notice to vacate isn't an eviction",
+Texas requires a suit and a judgment), names 211, a food bank and Texas RioGrande Legal Aid, tells them
+to ask shelters about pet fostering, and never mentions the product. **Compare against this if the
+crisis path ever drifts.**
+
+### ⚠️ ONE NON-BLOCKING OBSERVATION — do not act on it yet
+The advice draft came back at **111 words against the newly tightened 60-100 cap** (it was 114 against
+60-110 last session, so the tightening moved it by 3 words). Word count is still **prompt-only, with no
+validator check** — deliberately, per the standing call that a length rule would reject otherwise-good
+drafts and burn slots. 🔑 **Two samples is not a trend. Do not add a length check to the validator.** If
+several *real* digests run long, tighten the prompt again; the disclose (90) and crisis (97) drafts both
+respected the cap, so this is drift on one sample, not a broken rule.
+
+## 🧭 STATE
+- **No source file changed this session.** The only diff is this handoff. No commit to the function.
+- **Nothing emailed, no rows written.** `reddit_scout_seen_posts` still 129, `reddit_scout_pending_runs`
+  still 0. **3 Opus calls spent** (the `?debug=reply` probe), nothing else.
+- **Crons 14 and 19 untouched and correct.** The secret is untouched (rotated + verified session 53).
+- pg_net id used: **261**. Secret was never selected into the transcript — the probe re-used the
+  session-52/53 pattern: a `DO` block that regexes `x-webhook-secret` and the function URL out of **job
+  13's** `command` and feeds them straight into `net.http_post`. **Reuse this; job 13 must stay
+  scheduled-but-inactive because it is where that recipe reads the secret from.**
+- ⏭️ Only passive work remains: watch the first real 01:00 UTC digest for the advice-draft word count
+  and the **never-yet-fired defer path** (expected shape: 503 `{deferred:true, attempts:1}`, one pending
+  row, no seen rows, no email).
+
+## 📮 BAN APPEAL — short version delivered, still Tre's to send
+Tre rejected the ~230-word draft ("I won't send the message to appeal the ban like that") and chose
+**shorter and less apologetic** over cutting the self-incriminating admission. Delivered, 66 words:
+
+> I'm appealing my permanent ban. I broke rule 2: I recommended my own budgeting app in a thread without
+> disclosing that I built it, and one of those comments was worded as though I were just a user of it.
+> That was wrong, and I understand why it read as astroturfing. If reinstated I won't mention the app in
+> this sub again, in any form. Thanks for considering it.
+
+🔑 **The "worded as though I were just a user" clause is load-bearing** — it owns the *"that's what most
+of the friends I know are using currently"* line, which is what turned this into a permanent ban rather
+than a warning. A mod re-reading the thread will see it, so an appeal that omits it fails on contact.
+Tre was told this and kept it. **Do not offer a version without it.** Guidance unchanged: send once via
+reply to the ban modmail, never follow up, expect silence, and **never use a second account** — the real
+exposure is a sitewide `getforgenta.com` domain ban, which would take out r/budget and r/povertyfinance
+too.
+
+---
+
+# Handoff — 2026-07-30 (session 53-reddit, part 2) — ✅ Acute-crisis posts now downgrade to advice-only; reply length tightened. **(Superseded above: DEPLOYED as v23 and verified live. Kept for the design rationale.)**
 
 ## 🔴 WHY THIS EXISTS — do not "simplify" it back into a prompt instruction
 A real r/povertyfinance post (lost both jobs + 30-day notice to vacate + rent due tomorrow) drafted a
