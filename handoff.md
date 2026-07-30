@@ -33,11 +33,17 @@ catch this class of bug either — it never calls Graph.
   Meta dashboard: **untouched.**
 - Ran with `--no-archive` (47b already archived to Drive) and `--facebook-only` (no IG re-post).
 - Hosted images were uploaded to Supabase Storage for FB to fetch and **cleaned up in the `finally`**.
-- Preview cleanup still pending if wanted:
-  `python publish.py --preview-clean previews/2026-07-30/004311-money-advice-that-costs-nothing`
-- ⚠️ Still unfixed from session 47: `scripts/install_system_user_token.ps1` line 44
-  (`Set-Clipboard -Value ''` throws on PS 5.1 → script exits 1 after a successful `.env` write, and
-  does not clear the clipboard). Fix before the next token install.
+- **Preview cleaned.** `--preview-clean previews/2026-07-30/004311-money-advice-that-costs-nothing`
+  removed 6 objects (review sheet + 5 slides); a second run reported 0, so the prefix is empty.
+  Note bare `--preview-clean` deletes **every** hosted preview — it was deliberately not run.
+- **✅ `scripts/install_system_user_token.ps1` line 44 FIXED** (the session-47 bug). `Set-Clipboard
+  -Value ''` was **reproduced throwing `ArgumentNullException`** on this machine's PS 5.1, which with
+  `$ErrorActionPreference = 'Stop'` killed the script *after* `.env` was already written — hence the
+  lying exit code and the token left in the clipboard. Replaced with
+  `[System.Windows.Forms.Clipboard]::Clear()` (verified OK), wrapped in `try/catch` that warns and
+  prints the manual command instead of failing, plus an explicit `exit 0`. **A clipboard failure must
+  never fail an install that already succeeded.**
+  Backup: `backups/2026-07-29_222320/tre-forged-marketing/scripts/install_system_user_token.ps1`.
 
 ---
 
