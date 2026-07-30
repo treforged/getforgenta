@@ -78,11 +78,64 @@ type ReplyPolicy = "disclose" | "advice";
 // casing comes from Reddit and does not always match the list above.
 const DISCLOSE_SET = new Set(DISCLOSE_SUBREDDITS.map((s) => s.toLowerCase()));
 
+// 🔑 Acute-emergency override, added 2026-07-30 after a real r/povertyfinance post
+// (job loss + a 30-day notice to vacate + rent due tomorrow) drafted a disclosed
+// product mention. r/budget and r/povertyfinance permit that mention, so nothing
+// was violated — but a post about losing your housing tomorrow is not a budgeting
+// question, and an app plug underneath it reads as predatory however cleanly it is
+// disclosed. Tre cut the mention by hand; this makes that automatic.
+//
+// ⚠️ Deliberately ACUTE signals only (Tre's explicit call). General financial
+// distress — being broke, behind on a bill, in collections — is what
+// r/povertyfinance *is*, so a broad hardship filter would downgrade nearly every
+// post there and leave the disclose slots permanently empty. Ordinary "I'm living
+// paycheck to paycheck, where do I start" posts must keep the disclose policy:
+// that is exactly where the app legitimately helps.
+const CRISIS_PATTERN = new RegExp(
+  [
+    // Imminent loss of housing.
+    "evict(ed|ion)?|notice to vacate|kicked out|lose (my|our) (home|apartment|place)",
+    "losing (my|our) (home|apartment|place)|homeless|nowhere to (live|go|sleep)",
+    "sleeping in (my|the) car|shelter tonight|foreclos(e|ed|ure)",
+    // Utilities about to be cut.
+    // The up-to-3-word gap matters: "electricity IS GETTING shut off" and "power
+    // ABOUT TO BE cut off" both read naturally and both were missed by a version
+    // that allowed only one filler word.
+    "shut ?off notice|disconnect(ion)? notice",
+    "(power|electric(ity)?|water|gas|heat)\\b(?:\\s+\\w+){0,3}\\s+(shut|turned|cut) off",
+    // Food.
+    "no food|can'?t afford (food|groceries)|haven'?t eaten|food bank|food pantry|go hungry",
+    // Medication and care being rationed or skipped.
+    "can'?t afford (my )?(medication|meds|insulin|prescription|treatment|surgery)",
+    "ration(ing)? (my )?(insulin|meds|medication)|skipping doses",
+    // Safety.
+    "domestic (violence|abuse)|abusive (partner|husband|wife|boyfriend|girlfriend)",
+    "fleeing|restraining order",
+    // Imminent loss of the vehicle that gets them to work.
+    "repossess(ed|ion)?|repo('?d| my car)",
+    // Crisis language that must never sit above a product pitch.
+    "suicidal|kill myself|end my life|don'?t want to be here anymore",
+  ].join("|"),
+  "i",
+);
+
+// Title and body are searched together: the giveaway is often in one and not the
+// other (this post's title carried "30 day notice to vacate", the body carried the
+// job loss).
+function isAcuteCrisis(title: string, selftext: string): boolean {
+  return CRISIS_PATTERN.test(`${title}\n${selftext}`);
+}
+
 // Defaults to the restrictive policy. If a subreddit somehow appears that is not
 // on either list (a cross-posted permalink, a renamed sub), the safe outcome is a
 // reply that mentions nothing, never an undisclosed promotion.
-function replyPolicyFor(subreddit: string): ReplyPolicy {
-  return DISCLOSE_SET.has(subreddit.toLowerCase()) ? "disclose" : "advice";
+//
+// 🔑 This only ever DOWNGRADES disclose → advice. It can never turn an advice-only
+// sub into a disclose one, so a false positive costs one product mention and a
+// false negative is no worse than the pre-2026-07-30 behavior.
+function replyPolicyFor(subreddit: string, title = "", selftext = ""): ReplyPolicy {
+  if (!DISCLOSE_SET.has(subreddit.toLowerCase())) return "advice";
+  return isAcuteCrisis(title, selftext) ? "advice" : "disclose";
 }
 
 // Reddit's unauthenticated RSS quota is per-IP and extremely tight: measured
@@ -358,7 +411,7 @@ function scorePost(post: RedditPost): number {
 // policies and only the product mention differs, so the shared parts live in
 // their own constants rather than being duplicated into two prompts that then
 // drift apart.
-const VOICE_RULES = `- 60 to 110 words. Shorter is better. Never longer.
+const VOICE_RULES = `- 60 to 100 words. This is a ceiling, not a target to fill: if the answer is complete at 70 words, stop at 70. Before you answer, re-read your draft and cut every sentence that is not doing work.
 - Never say "honestly". No em dashes. No bullet points, no numbered lists, no headings.
 - Write plainly. Contractions, a sentence fragment, and mild hedging ("might be worth a look", "worked for me anyway") read as real.
 - No marketing adjectives (seamless, powerful, robust, game-changer, life-changing), no superlatives, no feature lists.
@@ -412,6 +465,8 @@ ${VOICE_RULES}
 - Do not name, link, or hint at any app, tool, website, company, or service, including your own. Suggesting a plain method (a spreadsheet, a separate account, an autopay date) is fine; naming a product is not.
 
 Shape: answer the actual question directly with specific, concrete advice for this person's situation. Real numbers, an order of operations, what to do first and what to ignore for now. Stop once you have actually answered it.
+
+If the post describes an emergency rather than a budgeting question — an eviction notice, a shutoff, no food, no safe place to sleep, no money for medication — answer the emergency and nothing else. Say the one thing that changes their next 48 hours. Name the free help that actually exists: 211, local legal aid, a tenants' rights line, a food bank, a utility hardship program. Be precise about what a notice does and does not legally mean, and tell them to check their state or city rules rather than asserting a rule that may not apply where they are. Do not pivot to budgeting or spending-tracking advice, do not moralize about past decisions, and keep any sympathy to one short clause at the start.
 
 ${OUTPUT_RULE}
 
@@ -715,29 +770,44 @@ Deno.serve(async (req: Request) => {
   // three post IDs into reddit_scout_seen_posts.
   //
   // It runs BOTH policies, because they have opposite pass conditions and one
-  // sample can only ever prove one of them. Two Opus calls per probe.
+  // sample can only ever prove one of them, plus the acute-crisis downgrade,
+  // which is the only way to see that a disclose sub correctly produced no
+  // product mention. THREE Opus calls per probe.
   if (debugMode === "reply") {
     const title = "How do I start budgeting when I'm living paycheck to paycheck?";
     const selftext =
       "I make about $3,200 a month and it all disappears. I have $6k on a credit card at 24% APR and a car payment. Where do I even start?";
     // r/povertyfinance is on the disclose list, r/debtfree on the advice-only
     // list, so these route through replyPolicyFor exactly as a real post would.
-    const samples = ["povertyfinance", "debtfree"].map((subreddit) => ({
-      id: `debug-${subreddit}`,
-      title,
-      selftext,
-      subreddit,
-      permalink: `/r/${subreddit}/comments/debug/`,
+    // The third sample is the same disclose sub with acute-crisis wording drawn
+    // from the real 2026-07-30 post: it must come back `advice`, proving the
+    // downgrade fires on content and not just on the subreddit.
+    const samples = [
+      { subreddit: "povertyfinance", title, selftext, label: "disclose-sub-normal" },
+      { subreddit: "debtfree", title, selftext, label: "advice-sub" },
+      {
+        subreddit: "povertyfinance",
+        title: "I lost both my jobs and came home to a 30 day notice to vacate. Rent is due tomorrow. Do I pay it?",
+        selftext:
+          "I'm broke. If I pay rent I'm left with $22 until the 2nd. My landlord is turning my unit into an Airbnb and I have 30 days to be out. I have a cat and I can't lose her. I'm in Texas and don't qualify for unemployment.",
+        label: "disclose-sub-crisis",
+      },
+    ].map((s) => ({
+      ...s,
+      id: `debug-${s.label}`,
+      permalink: `/r/${s.subreddit}/comments/debug/`,
       created_utc: Math.floor(Date.now() / 1000),
     }));
 
     const results = [];
     for (const sample of samples) {
-      const policy = replyPolicyFor(sample.subreddit);
+      const policy = replyPolicyFor(sample.subreddit, sample.title, sample.selftext);
       const result = await generateReply(sample, policy);
       results.push({
+        case: sample.label,
         subreddit: sample.subreddit,
         policy,
+        crisis_downgraded: replyPolicyFor(sample.subreddit) === "disclose" && policy === "advice",
         ok: result.ok,
         retryable: result.ok ? null : result.retryable,
         words: result.text.split(/\s+/).length,
@@ -871,7 +941,7 @@ Deno.serve(async (req: Request) => {
 
   if (debug) {
     const scored = Array.from(postMap.values())
-      .map((p) => ({ score: scorePost(p), age_h: Math.round((Date.now() / 1000 - p.created_utc) / 3600), title: p.title, sub: p.subreddit, policy: replyPolicyFor(p.subreddit) }))
+      .map((p) => ({ score: scorePost(p), age_h: Math.round((Date.now() / 1000 - p.created_utc) / 3600), title: p.title, sub: p.subreddit, policy: replyPolicyFor(p.subreddit, p.title, p.selftext) }))
       .sort((a, b) => b.score - a.score);
     return new Response(JSON.stringify({ total: postMap.size, coverage_hours: coverageHours, fetch: fetchStats, top: scored.slice(0, 20) }, null, 2), {
       headers: { "Content-Type": "application/json" },
@@ -886,7 +956,7 @@ Deno.serve(async (req: Request) => {
         ...post,
         relevance_score,
         draft_reply: "",
-        policy: replyPolicyFor(post.subreddit),
+        policy: replyPolicyFor(post.subreddit, post.title, post.selftext),
       });
     }
   }
