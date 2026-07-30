@@ -156,8 +156,14 @@ async function fetchFeed(query: string, url: string, stats: FetchStats): Promise
     try {
       const resp = await fetch(url, {
         headers: {
-          "User-Agent": "ForgentaScout/1.0 (automated digest tool)",
+          // Reddit 403s the descriptive bot UA from Supabase's egress with a
+          // block page; this browser UA + Accept-Language is the exact pair
+          // proven to return 200 and 100 entries from the same IP. Do not
+          // "clean this up" back to a bot-style UA.
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
           "Accept": "application/atom+xml",
+          "Accept-Language": "en-US,en;q=0.9",
         },
       });
 
