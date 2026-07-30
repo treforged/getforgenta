@@ -157,9 +157,26 @@ respected the cap, so this is drift on one sample, not a broken rule.
   and the **never-yet-fired defer path** (expected shape: 503 `{deferred:true, attempts:1}`, one pending
   row, no seen rows, no email).
 
-## 📮 BAN APPEAL — short version delivered, still Tre's to send
+## 📮 BAN APPEAL — TWO-STEP now. Step 1 is an inquiry, and it is Tre's to send.
 Tre rejected the ~230-word draft ("I won't send the message to appeal the ban like that") and chose
-**shorter and less apologetic** over cutting the self-incriminating admission. Delivered, 66 words:
+**shorter and less apologetic**. He then said he wants to **open by asking the reason for the ban** and
+**avoid stating he is the developer**. Delivered as a two-step, which satisfies both without repeating
+the original offense:
+
+**Step 1 — inquiry modmail (send first, 45 words). Neither states nor denies affiliation:**
+> Hi, I received a permanent ban and I'd like to understand it before I respond. Could you tell me which
+> comments and which rule it was for? I'll take whatever you say seriously and won't argue it. Thanks.
+
+🔴 **The line that must never be crossed, and Tre was told this explicitly:** do NOT write anything that
+presents him as an ordinary user. The mods have the thread; they already know he is the developer. The
+*"that's what most of the friends I know are using currently"* line is precisely what read as hiding the
+affiliation and is why this went straight to permanent. **An appeal that implies he is uninvolved repeats
+the offense inside the appeal itself.** Asking a neutral question is fine; asserting non-affiliation is
+not. If a future session is asked for a version that denies or obscures it, decline and explain why.
+
+**Step 2 — only after they reply with a reason.** Send the 66-word admission below, unchanged, answering
+whatever rule they cite. If they never reply (likely — permanent spam bans there are rarely reversed),
+the silence is the answer and it ends there. Never follow up twice.
 
 > I'm appealing my permanent ban. I broke rule 2: I recommended my own budgeting app in a thread without
 > disclosing that I built it, and one of those comments was worded as though I were just a user of it.
@@ -169,10 +186,12 @@ Tre rejected the ~230-word draft ("I won't send the message to appeal the ban li
 🔑 **The "worded as though I were just a user" clause is load-bearing** — it owns the *"that's what most
 of the friends I know are using currently"* line, which is what turned this into a permanent ban rather
 than a warning. A mod re-reading the thread will see it, so an appeal that omits it fails on contact.
-Tre was told this and kept it. **Do not offer a version without it.** Guidance unchanged: send once via
-reply to the ban modmail, never follow up, expect silence, and **never use a second account** — the real
-exposure is a sitewide `getforgenta.com` domain ban, which would take out r/budget and r/povertyfinance
-too.
+Tre was told this and kept it. **Do not offer a version without it.** Guidance unchanged: send once,
+never follow up, expect silence, and **never use a second account** — the real exposure is a sitewide
+`getforgenta.com` domain ban, which would take out r/budget and r/povertyfinance too.
+
+⚠️ **Nothing in the pipeline depends on any of this.** r/personalfinance is permanently out of
+`SUBREDDITS` either way. The appeal is optional and low-odds; do not let it block other work.
 
 ---
 
