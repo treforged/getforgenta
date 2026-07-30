@@ -1,3 +1,170 @@
+# Handoff — 2026-07-30 (session 50-reddit) — 🔴 **THE r/personalfinance BAN WAS NEVER FIXED, ONLY RELOCATED.** Root cause found by reading all 15 subs' rules. Two-policy redesign APPROVED by Tre and PARTLY BUILT. **BOTH CRON JOBS ARE OFF — job 14 MUST be re-enabled.**
+
+> **Reddit Scout workstream only.** Every block below is superseded on the reply-content question.
+> The FB-crosspost and backlog-triage blocks are separate workstreams, untouched this session.
+
+## 🚨 READ THIS FIRST — the scout is currently DISABLED and will not run
+**`cron.alter_job(14, active := false)` was run this session.** Jobs **13 AND 14 are now both
+`active = false`**, so **no digest will be sent at all** until job 14 is turned back on:
+```sql
+select cron.alter_job(14, active := true);
+```
+Both jobs' `command` (webhook secret) and `timeout_milliseconds` were **verified preserved** after the
+change. Re-enabling is the **last step** of the work below — do not re-enable before the deploy, or a
+digest goes out with drafts that violate 8 of 10 subs' rules.
+
+**Why it was paused:** Tre reported a live Claude API outage (status.claude.com). `generateReply`
+failures do **not** abort a run, and the `reddit_scout_seen_posts` insert happens regardless, so a run
+during the outage emails a digest of error strings **and permanently consumes 3 post IDs** (they never
+reappear). Pausing was the reversible bridge; Tre's actual ask is the auto-defer feature in **Part B**.
+
+---
+
+## 🔴 THE ROOT CAUSE — this is the finding that matters, do not re-derive it
+Session 49 assumed the ban came from **ad-shaped wording** and rewrote `SYSTEM_PROMPT` to read casually.
+**That diagnosis was wrong.** I read the actual rules for all 15 subreddits. The real cause is
+**undisclosed self-promotion by the app's own developer**, which most finance subs ban *regardless of
+how the comment is worded*. r/debtfree is the clearest: *"Promotion of anything owned by you or someone
+affiliated with you, **even if not monetized**"* — and it names "app" explicitly.
+
+**Removing r/personalfinance did not fix this. It moved it.** As of v20, **5 of 7 subs banned the drafts
+outright, and the other 2 required a disclosure the prompt explicitly forbids** — so v20 generates
+rule-violating drafts for **all 7**. r/Money, added in session 49 as a "safe" backfill, is the single
+most hostile sub on the list: *"Spammers will now be banned permanently after their first offense."*
+
+### 🔑 Tre asked whether the prompt could be written so it "doesn't even seem like self promo at all,
+### that way we can stay on all subs." I said no, and he accepted the alternative. Do not build it.
+The rules turn on **affiliation, not wording**. A prompt tuned to not *seem* like promo isn't compliant,
+it's just harder for a mod to catch — that is evading moderation, not following the rules. It also
+backfires: mods read comment history, and one account repeatedly name-dropping the same small app across
+finance subs is a textbook spam signature whose downside is a **sitewide domain ban on
+getforgenta.com**, far worse than 5 subreddit bans. **Do not reopen this or "optimize" the prompt to
+avoid detection**, even if asked again in different words.
+
+### ✅ THE APPROVED ALTERNATIVE — Tre stays on all subs, legitimately
+Two prompts, selected per post off `post.subreddit` (the code already has it):
+- **`disclose` policy** (2 subs whose rules permit it): mention Forgenta once **with** a short natural
+  affiliation disclosure ("full disclosure, I built it").
+- **`advice` policy** (8 subs that ban it): genuinely useful advice, **no product mention at all**.
+  Compliant everywhere, and it builds the account history that makes a later mention credible.
+
+## 📋 THE RULES AUDIT — 15 subs, read live 2026-07-30. Cached findings; re-reading is expensive.
+🔑 **Reddit's `/about/rules.json` now 403s even from Tre's residential IP with the browser UA.**
+**`https://old.reddit.com/r/<sub>/about/rules/` returns 200 HTML** — that is the only route that works.
+Space requests ~5s apart. (`www.reddit.com/.../about/rules/` returns 200 but only ~8KB of shell.)
+
+| Sub | Verdict | Rule |
+|---|---|---|
+| **budget** | ✅ disclose | rule 3 — must disclose affiliation / standing to benefit |
+| **povertyfinance** | ✅ disclose | rule 5 — must disclose affiliation |
+| Money | ❌ advice-only | "No ads, self-promotion" + **permanent ban, 1st offense** |
+| debtfree | ❌ advice-only | "anything owned by you… even if not monetized", names "app" |
+| Frugal | ❌ advice-only | rule 4 no self-promo/solicitation/market research |
+| FinancialPlanning | ❌ advice-only | rule 1 no advertising or solicitation |
+| MiddleClassFinance | ❌ advice-only | rule 6 — needs mod pre-approval + flair |
+| DaveRamsey | ❌ advice-only | rule 5 — no self-promo for traffic/money |
+| Debt | ❌ advice-only | rule 2 — promotion of anything owned by you |
+| CRedit | ❌ advice-only | rule 3 no self-promotion, permanent-ban language |
+| CreditCards | ❌ excluded | rule 4 no self-promotional content (+ volume) |
+| StudentLoans | ❌ excluded | rule 2 no marketing/self-promo (+ volume) |
+| MoneyDiariesACTIVE | ❌ not added | rule 6 mod approval first |
+| YNAB | ❌ not added | rule 2 — self-promo of apps needs mod approval. Competitor sub: highest-intent posts, but advice-only there has little marketing value |
+| androidapps | ❌ not added | rule 2 bans all self-promo/dev content |
+| **iosapps** | 🕓 **future** | rule 3: *"ALWAYS disclose your relationship to your software in comments"* — **but gated behind 10 karma in that sub**, which Tre lacks. Add to `DISCLOSE_SUBREDDITS` once he has it. |
+
+**r/personalfinance stays out permanently — Tre is banned, he cannot post there disclosed or not.**
+
+### ✅ Coverage verified for the new 10-sub list — 30.3h, comfortably over the 24h floor
+Measured live against the exact new multireddit URL: **HTTP 200, 100 entries, oldest 30.3h old.**
+That was the reason to skip the high-traffic subs — the 100-post cap is what silently drops posts.
+Rough per-sub share: Debt and povertyfinance dominate, then CRedit, DaveRamsey.
+**Re-measure with `?debug=true` after deploying** and keep `coverage_hours` ≥ 24.
+
+---
+
+## 🧭 STATE — what is actually built. **NOTHING IS DEPLOYED. v20 IS STILL LIVE.**
+- **One edit made to `supabase/functions/reddit-scout/index.ts`** (Part A, step 1 of 4): replaced the
+  single `SUBREDDITS` array with `DISCLOSE_SUBREDDITS` + `ADVICE_ONLY_SUBREDDITS`, a `SUBREDDITS`
+  spread of both, `type ReplyPolicy`, `DISCLOSE_SET`, and `replyPolicyFor()` (case-insensitive,
+  **defaults to the restrictive `advice` policy** for unknown subs). The full rules audit is written
+  into the comments there so it survives this handoff.
+- ⚠️ **The local file is therefore MID-REFACTOR and must not be deployed as-is.** `replyPolicyFor` is
+  defined but unused, and `isOnBrandReply` still hard-requires the word "forgenta" — deploying now
+  would make **every advice-only draft** fail validation. **v20 (the last good deploy) is untouched
+  and still ACTIVE**, and both crons are off, so live state is safe.
+- Backup of the pre-edit file: **`backups/2026-07-30_044700/supabase/functions/reddit-scout/index.ts`**
+  (gitignored).
+- **Nothing emailed, no rows written, no Anthropic calls spent, no secret rotated, no migration applied,
+  no deploy.** `reddit_scout_seen_posts` still at **129 rows**.
+- Verified deployed **v20** matches the local pre-edit file and carries `verify_jwt: false`.
+- Today's **01:00 UTC run already happened on v19/old sub list** and wrote 3 rows; its
+  `net._http_response` row has aged out (~6h TTL), so its `coverage_hours` is unrecoverable. Not a
+  problem — superseded by the 30.3h measurement above.
+
+## ⏭️ NEXT STEPS — resume here, in this order
+### Part A — per-sub reply policy (1 of 4 steps done)
+2. **Split `SYSTEM_PROMPT` into two.** Keep the existing one as `DISCLOSE_PROMPT`, adding a required
+   one-line affiliation disclosure. Write `ADVICE_PROMPT`: same voice and 60–110 word cap, genuinely
+   useful advice, **no product mention, no URL, no CTA**. Keep the injection-defense paragraph verbatim
+   in **both**.
+3. 🔑 **Make `isOnBrandReply` policy-aware — this is the landmine.** It currently returns `false` unless
+   the reply contains "forgenta", so it would reject 100% of advice-only drafts and the digest would be
+   nothing but validation errors. New shape: `disclose` → must contain "forgenta" **and** a disclosure
+   marker (`/i built|i made|i work on|full disclosure|i'm the (dev|developer|founder)/i`); `advice` →
+   must **not** contain "forgenta" or any URL. Keep the injection checks for both.
+4. `generateReply(post)` picks the prompt and the validator via `replyPolicyFor(post.subreddit)`.
+5. **Digest email labels each post with its policy** so Tre can see at a glance whether he may mention
+   the app. Without this the two reply types are indistinguishable in the inbox.
+6. **Reserve digest slots per policy.** `MAX_POSTS_PER_DIGEST = 3` with 8 advice-only subs would mean
+   most digests contain **zero** chances to mention Forgenta — a regression in marketing value versus
+   today. Agreed fix: **up to 2 `disclose` + up to 2 `advice` (max 4)**, selected by score within each
+   bucket. Not optional if the advice-only subs are added.
+
+### Part B — outage auto-defer (Tre's explicit ask; nothing built yet)
+Tre asked for "auto check if api is down prior to fire, recheck every 5 min, fire once operational."
+**Agreed adjustment, already explained to him and accepted:** no separate pre-flight probe. Instead a
+**retryable failure on the first draft** (429, 5xx, 529, network error) means "API is down" → abort the
+run **before any insert or email**, record a pending run, return 503 `{deferred:true}`. A probe costs an
+extra call and can pass a second before the real call fails. Same outcome, cheaper and more accurate.
+- `generateReply` must return a discriminated result (`{ok:true,text}` / `{ok:false,text,retryable}`)
+  instead of a bare string — the retryable/non-retryable split is what drives everything.
+  **400 (spend limit) and 401 are NOT retryable** — deferring on those would loop forever.
+- **Non-retryable per-post failures (refusal, validation) still write their seen row** and appear in the
+  digest with the error. Deliberate: those are permanent for that post, and not recording them means the
+  post reappears every day and wastes a slot forever.
+- New table `reddit_scout_pending_runs (run_date date primary key, created_at, attempts, last_error,
+  status)`, status `pending|completed|abandoned`. RLS on, no policies (edge fn uses the service role).
+  Needs `apply_migration`.
+- New `?mode=retry` branch: if no `pending` row for today's UTC date → **return immediately**, touching
+  neither Reddit nor Anthropic (it will run ~72×/day, so this path must stay free). Otherwise run
+  normally; on success mark `completed`.
+- New cron job on **`*/5 1-6 * * *`** calling `?mode=retry`. 🔑 **The 01:00–06:00 window IS the give-up
+  rule** — no separate timeout logic, and no digest can ever land at a random hour days later. Add a
+  `MAX_RETRY_ATTEMPTS` safety that marks `abandoned`.
+- Copy the `x-webhook-secret` header shape from job 14's existing `command`.
+
+### Part C — stop burning leads on failed drafts
+Largely subsumed by Part B (an outage now defers before the insert), but keep the invariant explicit:
+**rows are inserted only for posts actually included in a sent digest.**
+
+### Then, in order
+7. Deploy — **`verify_jwt: false` MUST be preserved.**
+8. Verify with `?debug=reply` (sends nothing, writes nothing) for **both** policies — confirm the
+   advice-only draft contains no "forgenta" and the disclose draft contains the disclosure.
+   ⚠️ **The Claude outage was ongoing at the end of this session** — reply-quality verification needs it
+   over. **But the outage is the ideal window to verify Part B's defer path fires**, which needs no
+   healthy API.
+9. `?debug=true` — confirm `coverage_hours` ≥ 24 on the 10-sub list.
+10. **`select cron.alter_job(14, active := true);`** ← the scout is dead until this runs.
+
+## ⏭️ ALSO STILL OPEN (unchanged)
+- **Rotate `REDDIT_SCOUT_SECRET`** — procedure unchanged in the session-42 block; steps 1–2 are Tre's
+  (SQL editor + dashboard) by design so the value never enters a transcript. **Note:** after rotating,
+  **both** job 13 and job 14 commands need updating, and job 13 is the one the pg_net probe recipe reads
+  the secret from.
+
+---
+
 # Handoff — 2026-07-30 (session 49-reddit) — ✅✅ **REDDIT SCOUT WORKS END TO END, AND THE REPLIES NO LONGER READ AS ADS.** v20 ACTIVE. Nothing is blocked.
 
 > **Reddit Scout workstream only.** The FB-crosspost block below is closed and untouched.

@@ -9,20 +9,81 @@ const REDDIT_SCOUT_SECRET = Deno.env.get("REDDIT_SCOUT_SECRET")!;
 const DIGEST_TO = Deno.env.get("DIGEST_TO") ?? "tre@treforged.com";
 const DIGEST_FROM = Deno.env.get("DIGEST_FROM") ?? "Forgenta Scout <scout@treforged.com>";
 
-// r/personalfinance was removed 2026-07-29: Tre is banned there, so its posts
-// were the largest source of leads he cannot act on. MiddleClassFinance, budget,
-// and Money backfill the volume it was carrying.
-// ⚠️ Self-promo rules vary by subreddit and are not verifiable from here. Check
-// each sub's rules before replying, and drop any sub that produces a warning.
-const SUBREDDITS = [
-  "FinancialPlanning",
+// Every subreddit below had its rules read directly (old.reddit /about/rules/)
+// on 2026-07-30. That audit found the r/personalfinance ban was NOT caused by
+// ad-shaped wording alone — it was caused by UNDISCLOSED self-promotion by the
+// app's own developer, which most finance subs prohibit outright. Rewriting the
+// prose more casually does not fix that; it only makes it harder for a mod to
+// spot, which is evasion rather than compliance. So the fix is structural: the
+// subs are split by what their rules actually permit, and each gets a different
+// kind of reply.
+//
+// ⚠️ Moving a sub between these lists without reading its rules first is how
+// the original ban happened. Re-read the rules before touching either list.
+
+// Rules explicitly permit promoting an affiliated product IN COMMENTS provided
+// the affiliation is disclosed:
+//   r/budget          rule 3 — "must have a disclosure stating if they are
+//                     affiliated with or stand to benefit from the product"
+//   r/povertyfinance  rule 5 — "You need to disclose if you have an affiliation
+//                     with a site or service you are linking to"
+const DISCLOSE_SUBREDDITS = [
+  "budget",
   "povertyfinance",
+];
+
+// Rules prohibit self-promotion in comments regardless of disclosure, so replies
+// here must NOT mention Forgenta at all. They are still worth drafting: genuinely
+// useful advice builds the account history and credibility that makes any later
+// mention land, and it is the only compliant way to be present in these subs.
+//   r/Money              "No ads, self-promotion..." + permanent ban, 1st offense
+//   r/debtfree           "anything owned by you or someone affiliated with you,
+//                        even if not monetized" — names "app" explicitly
+//   r/Frugal             rule 4 "No self-promotion, solicitation, or market research"
+//   r/FinancialPlanning  rule 1 "No advertising or solicitation"
+//   r/MiddleClassFinance rule 6 — self-promo needs mod pre-approval + flair
+//   r/DaveRamsey         rule 5 — "Self-promotion with the goal of driving
+//                        traffic or making money is not acceptable"
+//   r/Debt               rule 2 "Promotion of web content, products, services,
+//                        companies, or anything else owned..."
+//   r/CRedit             rule 3 "No Self-Promotion" — "whether explicit or" implied
+const ADVICE_ONLY_SUBREDDITS = [
+  "FinancialPlanning",
+  "MiddleClassFinance",
+  "Money",
   "debtfree",
   "Frugal",
-  "MiddleClassFinance",
-  "budget",
-  "Money",
+  "DaveRamsey",
+  "Debt",
+  "CRedit",
 ];
+
+// r/personalfinance is absent because Tre is BANNED there — he cannot post at
+// all, disclosed or not. Do not re-add it.
+//
+// r/iosapps is a genuine future candidate for the disclose list: its rule 3 says
+// "ALWAYS disclose your relationship to your software in comments promoting your
+// app". But it gates comment promotion behind 10 karma earned in that sub, which
+// Tre does not have yet. Add it once he does, not before.
+//
+// Deliberately excluded for volume, not rules: r/CreditCards, r/StudentLoans,
+// r/financialindependence, r/Bogleheads. All ban self-promo anyway, and all are
+// high-traffic enough to push the 100-post listing below its 24h coverage floor
+// for comparatively weak leads.
+const SUBREDDITS = [...DISCLOSE_SUBREDDITS, ...ADVICE_ONLY_SUBREDDITS];
+
+type ReplyPolicy = "disclose" | "advice";
+
+// Case-insensitive: the subreddit is parsed out of each entry's permalink, whose
+// casing comes from Reddit and does not always match the list above.
+const DISCLOSE_SET = new Set(DISCLOSE_SUBREDDITS.map((s) => s.toLowerCase()));
+
+// Defaults to the restrictive policy. If a subreddit somehow appears that is not
+// on either list (a cross-posted permalink, a renamed sub), the safe outcome is a
+// reply that mentions nothing, never an undisclosed promotion.
+function replyPolicyFor(subreddit: string): ReplyPolicy {
+  return DISCLOSE_SET.has(subreddit.toLowerCase()) ? "disclose" : "advice";
+}
 
 // Reddit's unauthenticated RSS quota is per-IP and extremely tight: measured
 // live, a second request roughly 3s after the first is already 429'd, and the
