@@ -121,19 +121,18 @@ jobs:
           else
             RANGE="-6"
           fi
-          NOTES=$(git log $RANGE --format="%s" 2>/dev/null \
-            | grep -viE '^chore:' \
-            | sed -E 's/^\[[a-zA-Z0-9_-]+\]:[[:space:]]*//' \
-            | sed -E 's/^(.)/\U\1/' \
-            | sed 's/^/- /' \
-            | head -n 6)
-          if [ -z "$NOTES" ]; then
-            NOTES="Small optimizations compound over time, same principle your budget runs on. This release clears a few debts in our codebase: performance improvements, stability fixes, and a smoother experience under the hood."
-          fi
-          # Google Play's per-locale release-notes limit is 500 chars - stay under it with margin.
-          printf '%s\n' "$NOTES" | head -c 480 > whatsnew/whatsnew-en-US
-          echo "--- Generated whatsnew-en-US ---"
+          # Filtering, sentence-casing, dedup, the 500-char Play limit and
+          # word-boundary truncation all live in the script so they can be
+          # tested locally. See scripts/release-notes.sh.
+          bash scripts/release-notes.sh "$RANGE" > whatsnew/whatsnew-en-US
+          echo "--- Generated whatsnew-en-US ($(wc -c < whatsnew/whatsnew-en-US) chars) ---"
           cat whatsnew/whatsnew-en-US
+          # Hard stop rather than let Play reject the upload or publish a stub.
+          CHARS=$(wc -c < whatsnew/whatsnew-en-US)
+          if [ "$CHARS" -gt 500 ] || [ "$CHARS" -lt 20 ]; then
+            echo "::error::whatsnew-en-US is $CHARS chars; must be 20-500."
+            exit 1
+          fi
 
       - name: Deploy to Google Play (Production, staged 10%)
         uses: r0adkll/upload-google-play@v1
