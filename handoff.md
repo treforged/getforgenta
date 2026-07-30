@@ -110,6 +110,74 @@ sequencing question after presenting the correction.**
 
 ---
 
+# Handoff — 2026-07-30 (session 53-reddit, part 2) — ✅ Acute-crisis posts now downgrade to advice-only; reply length tightened. **CODE-COMPLETE AND COMMITTED (`1a5a96ff` on main). NOT DEPLOYED — v21 is still live, so tonight's 01:00 UTC digest runs the OLD rules.**
+
+## ⚡ START HERE — one step: deploy, then verify
+The only thing standing between this and live is the deploy. Everything else is done and tested.
+1. **Deploy** `supabase/functions/reddit-scout/index.ts` via MCP `deploy_edge_function` with
+   **`verify_jwt: false` passed explicitly** (MCP ignores config.toml — unchanged footgun).
+2. **`?debug=reply`** — now **3 Opus calls, not 2**. Expect three cases:
+   `disclose-sub-normal` → `policy:"disclose"`, mentions Forgenta + disclosure;
+   `advice-sub` → `policy:"advice"`, no mention;
+   `disclose-sub-crisis` → **`policy:"advice"`, `crisis_downgraded:true`, `mentions_forgenta:false`**.
+   That third case is the whole point of this change.
+3. Nothing else. Cron 14/19 and the secret are untouched and correct.
+
+## 🔴 WHY THIS EXISTS — do not "simplify" it back into a prompt instruction
+A real r/povertyfinance post (lost both jobs + 30-day notice to vacate + rent due tomorrow) drafted a
+**disclosed Forgenta mention**. Nothing was violated — povertyfinance is a disclose sub — but a product
+plug under someone losing their housing tomorrow reads as predatory however cleanly it is disclosed.
+Tre cut the mention by hand and asked for it to be automatic.
+
+🔑 **It could NOT be done in the prompt.** `isOnBrandReply` under the `disclose` policy *requires* a
+Forgenta mention, so telling the model "skip the mention on crisis posts" would have made the validator
+**reject every crisis draft** and fill the digest with error strings — the same landmine session 50
+defused. It is therefore a **deterministic policy downgrade at qualification**, which is where policy is
+already resolved once on `ScoredPost` so prompt, validator and digest badge cannot disagree.
+
+## ✅ WHAT CHANGED — `supabase/functions/reddit-scout/index.ts`, commit `1a5a96ff`
+- **`CRISIS_PATTERN` + `isAcuteCrisis(title, selftext)`**, searched over title and body together.
+- **`replyPolicyFor(subreddit, title?, selftext?)`** — only ever downgrades `disclose → advice`, never
+  upgrades. A false positive costs one product mention; a false negative is no worse than v21.
+- ⚠️ **ACUTE signals only, and this was Tre's explicit choice — do not broaden it.** Options presented
+  were acute-only / broad-hardship / drop povertyfinance entirely; he picked **acute-only**. General
+  financial distress (broke, behind on a bill, collections, medical debt, job loss alone) **is what
+  r/povertyfinance IS** — a broad filter downgrades nearly every post there and leaves the disclose
+  slots permanently empty, since unused disclose slots are deliberately not backfilled.
+- **`ADVICE_PROMPT`** gained emergency-shaped guidance modeled on Tre's own hand-written reply: answer
+  the emergency only, name free help (211, legal aid, tenants' rights, food banks, utility hardship
+  programs), defer to state/city rules rather than asserting one, no pivot to budgeting, sympathy capped
+  at one clause.
+- **`VOICE_RULES` 60-110 → 60-100 words** with an explicit cut pass, after the live 114-word draft.
+  🔑 **Still prompt-only — no length check was added to the validator**, per the standing call that a
+  length rule would reject otherwise-good drafts and burn slots.
+- **`?debug=reply` gained a third sample** using the real post's wording, so the downgrade is provable.
+
+### ✅ Crisis detection tested offline — 25 cases, 25 green
+Test script (scratchpad, not committed) extracts `CRISIS_PATTERN` from the source so it cannot drift.
+Downgrades correctly: the real post, eviction, homelessness, sleeping in car, foreclosure, utility
+shutoff, no food/food bank, insulin + rationing, DV, repossession, suicidal language.
+**Correctly stays `disclose`:** paycheck-to-paycheck budgeting, "broke generally", behind on phone bill,
+collections, $4k medical debt, job loss alone, overdraft, credit score, emergency-fund saving, moving
+somewhere cheaper, cancelled subscriptions.
+🔑 **One real bug found and fixed by the test:** `"electricity is getting shut off"` was missed because
+the first version allowed only ONE filler word between the utility noun and "shut off". Now up to three.
+
+## 🧭 STATE
+- **NOT deployed. v21 still ACTIVE.** No Anthropic calls spent on this change; nothing emailed; no rows.
+- `reddit_scout_seen_posts` 129, `reddit_scout_pending_runs` 0 — unchanged.
+- Backup of the pre-edit file: **`backups/2026-07-30_163227/`** (gitignored).
+- Typecheck clean apart from the **two pre-existing** implicit-`any` on the Anthropic SDK
+  `message.content.filter((b) => …)`, which only appear because the SDK types can't resolve outside Deno.
+- ⚠️ **Branch note:** this commit was first made as `b956ec82` on **`debt-grace-preservation`** by
+  accident (a parallel session had checked that branch out mid-conversation). It was **cherry-picked to
+  main as `1a5a96ff`** and the feature branch was **deliberately left untouched** — dropping it from the
+  middle would have rebased that session's two later commits into new SHAs right after it wrote its
+  handoff. The file is **byte-identical on both branches**, so the eventual merge is conflict-free. **Do
+  not try to "clean up" the duplicate.**
+
+---
+
 # Handoff — 2026-07-30 (session 53-reddit) — ✅ **`REDDIT_SCOUT_SECRET` ROTATED AND VERIFIED LIVE. THE REDDIT SCOUT WORKSTREAM HAS NOTHING OPEN.**
 
 > **Reddit Scout workstream only.** Supersedes every Reddit Scout block below on state.
