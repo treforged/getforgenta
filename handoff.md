@@ -1,3 +1,108 @@
+# Handoff — 2026-07-30 (session 54-debt) — 🔴 **P1's PREMISE IS OVERTURNED BY MEASUREMENT. DO NOT BUILD THE GRACE CASCADE TIER WITHOUT READING THIS.** Month-label bug found and FIXED. Branch `debt-grace-preservation`.
+
+> **Debt-engine workstream.** Supersedes the session-52-debt block below on diagnosis and next steps.
+> Reddit Scout was OUT OF SCOPE (parallel session). ⚠️ **That parallel session committed `b956ec82`
+> (reddit-scout) ONTO THIS BRANCH** because it shares the working directory. Expect it to ride along
+> when `debt-grace-preservation` merges. Not harmful, but do not be surprised by it.
+
+## ⚡ START HERE — the session-52 blocking question is ANSWERED, and P1 is now bad value
+1. ✅ **`accounts.installment_balance` being NULL is HARMLESS.** `useCardProjection.ts:104-118` calls
+   `deriveUpfrontPlanFields(rawCards, paymentPlans, …)` and **overrides** the account fields.
+   Fixture proof: `simCards[Prime Visa].installmentBalance = 5145.16` (= $4,164.26 + $980.90) and
+   `installmentMonthlyPayment = 510.50` (= $347.02 + $163.48). **The engine is NOT charging 27.49% on
+   the 0% promo balance.** The accounts columns are redundant. Do not re-investigate this.
+2. 🔴 **P1 (recurring grace cascade tier) would recover ~$56/YEAR, not the large sum session 52 assumed.**
+   Measured, not reasoned. See the table below. **Get an explicit decision before building it.**
+
+## 📊 THE MEASUREMENT THAT CHANGES EVERYTHING — `src/lib/__tests__/grace-diagnostic.test.ts` (committed `ed6940be`)
+Ran the converged plan on the live 07-20 fixture and dumped per-month `monthlyInterest` (>0 = grace lost).
+
+| m | Prime Visa pay | grace target | interest |
+|---|---|---|---|
+| m1 (ISB pin) | $1,008.00 | $2,042.96 | $0 |
+| m2 | $1,215.00 | $1,861.76 | **$30.26** |
+| m3 | $1,324.00 | $1,323.97 | **$18.22** |
+| m4-m8 | $658-$1,133 | met | $0 |
+| m9 | $677.00 | $1,167.84 | **$7.40** |
+| m10-m12 | met | met | $0 |
+
+**Prime Visa loses grace in 3 of 12 months. Total modeled interest: $55.88/yr.**
+**Discover: $1,464.30/yr** — 26x larger, but it is `paymentPreference:'full'` genuinely revolving
+$9,608 @ 19.49%. Grace does not apply to it (`:1606` only updates `graceMap` for `'statement'`).
+🔑 Interest in month m is driven by the shortfall in month **m-1** (one-month lag). Do not read the
+same row's pay/interest as cause and effect.
+
+### 🔴 THREE SESSION-52 CLAIMS THAT ARE WRONG — do not carry them forward
+1. **"The plan pays the $500 target."** FALSE. The engine pays Prime Visa $1,008-$1,324/mo.
+   `targetPayment` is read ONLY at `:328`, in the simple per-card projection that feeds the DISPLAY.
+   It never enters the Step 5 cascade. The $500 was a display-path number.
+2. **"From month 2 there is no ISB concept, just plain avalanche"** — true but HARMLESS. Step 5b caps
+   statement cards at `cascadeTarget` (`:1340-1348`), which is the **identical expression** `:1616`
+   uses to re-arm grace, and Prime Visa's 27.49% APR puts it FIRST in avalanche order.
+   **Plain avalanche IS the grace-preserving behavior here.**
+3. **"Discover should pull back."** It already does — Discover sits at its bare min ($253) in m2 and
+   m8, exactly the months Prime Visa is hungry.
+
+### 🔑 `cascadeTarget` is the CORRECT recurring target (this part of P1 was right)
+`startBal = balances.get(id)` is the month-START balance, before that month's purchases
+(`:1346`, comment "avoid prepaying new purchases"). The month-0 gap ($1,532 target vs $1,007.95 ISB)
+exists only because the live synced balance already contains post-statement-close purchases the
+engine cannot see. That is exactly what the manual ISB field is for. **Not a bug.**
+
+## ✅ SHIPPED THIS SESSION
+### 1. Month-label bug FIXED (`57a48d5f`) — Tre's report, root-caused and closed
+**Symptom (Tre, live UI):** Prime Visa's 2027 month dropdown has **no Feb 2027 and shows Mar twice.**
+**Root cause:** `projectCard` (`:304`) and `projectCardVariable` (`:438`) built each row's label by
+**mutating today's date** with `setMonth()`. On a day-29/30/31 clock that overflows any shorter
+target month. From Jul 30 2026, month +7 => "Feb 30 2027" => rolls to **Mar 2** => label "Mar 2027";
+the next row is also "Mar 2027". From a **Jan-31 clock only 4 of 6 labels were unique** (Feb, Apr and
+Jun all lost). **Label-only — the row MATH was always correct.**
+**Fix:** `d.setDate(1)` before `setMonth()` at both sites. Regression test
+`src/lib/__tests__/credit-card-engine.monthLabels.test.ts` (day-30 and day-31 clocks), RED-verified
+first (17/18 then 4/6 unique), now green.
+🔑 **This bug is date-dependent — it is invisible on days 1-28. Do not "clean up" the `setDate(1)`.**
+
+### 2. Prime Visa `min_payment` corrected in PRODUCTION: `0` -> **`450.79`**
+Tre supplied the real Chase minimum. Applied via Supabase to
+`accounts` id `9111bd9f-4704-4acb-97f7-cf1ab40bc764`, user `a72f416e-433a-4055-9ab0-9feae4e60edf`.
+🔑 **No plan impact TODAY, by design:** `revolvingMinDue` (`:156`) computes
+`contractRevMin = max(0, 450.79 - 510.50) = 0`, and `minPaymentIsManual` short-circuits at `:159`.
+It correctly **starts binding once the Amazon plans finish** and `installmentMonthlyPayment` drops to 0.
+Old value was `0` if a revert is ever needed.
+
+## ⏭️ OPEN — Tre's live report does NOT match the fixture. Investigate on LIVE data first.
+🔴 **Tre reports interest on Prime Visa for Sep 2026 through Mar 2027 in the live app.** The 07-20
+fixture shows only 3 bad months (m2/m3/m9). **The fixture is 10 days stale and `min_payment` just
+changed from 0 to 450.79.** Reconcile before drawing any conclusion:
+- Recapture the fixture from live, or run the diagnostic against live inputs.
+- ⚠️ Some of those labels may be **the month-label bug itself** (Feb 2027 was being rendered as
+  "Mar 2027"), so re-check the range AFTER the fix is deployed. Part of the report may already be fixed.
+- 🔑 **Tre gets a PAYCHECK ON CHASE'S DUE DATE (day 7).** He raised this explicitly. It makes the ISB
+  far more affordable on the due date than a mid-month cash view suggests. Q12 added a pre-paycheck
+  cutoff in the floor loops (`5998c911`) — **verify it applies to the CC floor path here** rather than
+  assuming. This may be the real mechanism behind the Sep-Mar band.
+
+## 🧭 STATE
+- **Branch `debt-grace-preservation`** off `main`. 3 commits: `ed6940be` (diagnostic),
+  `b956ec82` (**reddit-scout, NOT MINE** — parallel session), `57a48d5f` (label fix). **Not pushed.**
+- Backup of the pre-edit engine: **`backups/2026-07-30_163320/src/lib/credit-card-engine.ts`** (gitignored).
+- **Test suite: 223/224 pass.** The 1 failure, `useCardProjection.month0income.test.ts`, is
+  **PRE-EXISTING** — verified by stashing my change and reproducing it identically. It is itself
+  **date-dependent** ("a scheduled bill due later this month" has no room on the 30th), i.e. the SAME
+  end-of-month class of bug as the label fix. **Worth fixing next; it is not a regression.**
+- `src/lib/__tests__/grace-diagnostic.test.ts` is a **temporary diagnostic** — delete or promote it.
+- One production data write (min_payment above). No deploy, no cron, no migration, no push.
+
+## ⏭️ RECOMMENDED NEXT STEPS, in order
+1. **Reconcile Tre's Sep 2026-Mar 2027 report against live data** (above). This is the only open bug.
+2. **Do NOT build P1** without a fresh decision — $56/yr for a medium-high-risk Step 5 reorder in the
+   code that took Q2-Q12 (07-08 -> 07-20) to stabilize, plus a guaranteed golden-fixture recapture.
+3. **P2 (`GRACE_LOST` warning) is still cheap and worth it** — emit on the existing
+   `flags`/`warningMessages` channel at `:1616` so the 3 bad months are visible instead of silent.
+4. **The real money is Discover: $1,464/yr @ 19.49%.** Untouched by any grace work.
+
+---
+
 # Handoff — 2026-07-30 (session 52-debt) — Prime Visa interest DIAGNOSED, engine fix PLANNED not built. 🔴 **My first diagnosis was WRONG and is corrected below — read the correction before anything else.**
 
 > **Backlog-triage workstream (session-49 item 2).** Reddit Scout was explicitly OUT OF SCOPE this
