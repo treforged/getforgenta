@@ -442,6 +442,45 @@ Deno.serve(async (req: Request) => {
     );
   }
 
+  // `?debug=fetchprobe` answers one question: which Reddit-shaped endpoint, if
+  // any, will still talk to Supabase's egress IP. The RSS feeds 403 from here
+  // while returning 200 for the identical URL from a residential IP, and Reddit
+  // has closed self-serve API app creation, so the fix has to be an endpoint or
+  // a host that is not blocked. One request each, no retries, no state touched.
+  if (debugMode === "fetchprobe") {
+    const BROWSER_UA =
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+    const candidates: Array<{ name: string; url: string; ua: string }> = [
+      { name: "www new.rss (current UA)", url: LISTING_URL, ua: "ForgentaScout/1.0 (automated digest tool)" },
+      { name: "www new.rss (browser UA)", url: LISTING_URL, ua: BROWSER_UA },
+      { name: "old new.rss (browser UA)", url: `https://old.reddit.com/r/${MULTIREDDIT}/new.rss?limit=${LISTING_LIMIT}`, ua: BROWSER_UA },
+      { name: "www new.json (browser UA)", url: `https://www.reddit.com/r/${MULTIREDDIT}/new.json?limit=${LISTING_LIMIT}`, ua: BROWSER_UA },
+      { name: "search.rss (browser UA)", url: SEARCH_FALLBACK_URL, ua: BROWSER_UA },
+      { name: "pullpush submissions", url: "https://api.pullpush.io/reddit/search/submission/?subreddit=personalfinance&size=25", ua: BROWSER_UA },
+    ];
+
+    const results = [];
+    for (const c of candidates) {
+      try {
+        const resp = await fetch(c.url, { headers: { "User-Agent": c.ua } });
+        const body = await resp.text().catch(() => "");
+        results.push({
+          name: c.name,
+          status: resp.status,
+          bytes: body.length,
+          entries: (body.match(/<entry>/g) ?? []).length,
+          json_children: (body.match(/"kind":\s*"t3"/g) ?? []).length,
+        });
+      } catch (e) {
+        results.push({ name: c.name, status: null, error: describeError(e) });
+      }
+      await sleep(1000);
+    }
+    return new Response(JSON.stringify({ debug: "fetchprobe", results }, null, 2), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
   const fetchStats: FetchStats = {
