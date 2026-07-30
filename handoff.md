@@ -112,7 +112,13 @@ sequencing question after presenting the correction.**
 
 # Handoff — 2026-07-30 (session 53-reddit, part 2) — ✅ Acute-crisis posts now downgrade to advice-only; reply length tightened. **CODE-COMPLETE AND COMMITTED (`1a5a96ff` on main). NOT DEPLOYED — v21 is still live, so tonight's 01:00 UTC digest runs the OLD rules.**
 
-## ⚡ START HERE — one step: deploy, then verify
+## ⚡ START HERE — DEPLOY FIRST, before anything else. It is the only open item.
+Session 53 part 2 hit the **context gate at ~156k before deploying** — the deploy needs the full
+~1,050-line file in a tool call (~25-30k tokens) and there was no room left for it plus the probe plus a
+clean handoff. **Nothing is wrong with the code.** Deploy it, run the probe, done.
+⚠️ **Until this deploys, the 01:00 UTC digest keeps running v21 and can still draft a disclosed product
+mention under an eviction/crisis post** — the exact thing this change exists to stop.
+
 The only thing standing between this and live is the deploy. Everything else is done and tested.
 1. **Deploy** `supabase/functions/reddit-scout/index.ts` via MCP `deploy_edge_function` with
    **`verify_jwt: false` passed explicitly** (MCP ignores config.toml — unchanged footgun).
@@ -162,6 +168,29 @@ collections, $4k medical debt, job loss alone, overdraft, credit score, emergenc
 somewhere cheaper, cancelled subscriptions.
 🔑 **One real bug found and fixed by the test:** `"electricity is getting shut off"` was missed because
 the first version allowed only ONE filler word between the utility noun and "shut off". Now up to three.
+
+## 📮 SEPARATE ITEM — r/personalfinance ban appeal drafted, NOT yet sent (Tre's to send)
+Tre surfaced the **actual banned comments** for the first time this session. Worth recording, because the
+old handoffs only said "the prompt was ad-shaped" and the truth is more specific and more serious.
+
+**What actually happened:** three promotional comments in ONE thread (a budgeting-app recommendation
+post), all as the developer, **none disclosing affiliation**, two carrying `getforgenta.com`. A different
+commenter's post in that same thread had **already been removed by a mod for rule 2** before Tre's last
+one went up.
+
+🔑 **The aggravating line, and the reason this went straight to permanent rather than a warning:**
+*"That's what most of the friends I know are using currently."* That frames him as an ordinary user, not
+the person who built the product. Mods read that as astroturfing. **Any appeal that does not address it
+fails the moment a mod re-reads the thread.**
+
+A full appeal draft was given to Tre in-session (honest, ~230 words, admits the affiliation and the
+"friends" line explicitly, commits to never mentioning the app there again, no links, no re-pitch).
+**Not sent yet.** Guidance given with it: send once via reply to the ban modmail, never follow up, expect
+silence or no (permanent spam bans there are rarely reversed), and **never use a second account** — the
+real exposure is a sitewide `getforgenta.com` domain ban, which would take out r/budget and
+r/povertyfinance too. One open choice left to Tre: whether to keep the self-incriminating sentence about
+the "friends" line (recommended keep) or cut it — **if he asks for the version without it, that is a
+one-paragraph edit, not a rewrite.**
 
 ## 🧭 STATE
 - **NOT deployed. v21 still ACTIVE.** No Anthropic calls spent on this change; nothing emailed; no rows.
