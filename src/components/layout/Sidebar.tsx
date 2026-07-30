@@ -9,6 +9,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -20,7 +21,7 @@ const navItems = [
   { to: '/builds', icon: Wrench, label: 'Builds' },
   { to: '/goals', icon: PiggyBank, label: 'Goals' },
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
-  { to: '/ai', icon: Sparkles, label: 'AI Advisor' },
+  ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
   { to: '/settings', icon: Settings, label: 'Settings' },
   { to: '/premium', icon: Crown, label: 'Upgrade' },
 ];

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 export type TourVariant = 'new-user' | 'premium';
 
@@ -49,11 +50,12 @@ const PREMIUM_STEPS: TourStep[] = [
     title: 'Premium unlocked',
     body: 'You now have access to every feature in Forgenta. Here\'s what\'s new for you.',
   },
-  {
+  // Skipped while the feature is off — the step points at a nav entry that is not rendered.
+  ...(AI_ADVISOR_ENABLED ? [{
     emoji: '🤖',
     title: 'AI Advisor',
     body: 'Get a financial health score, spending analysis, and ask any money question. Find it in the More menu.',
-  },
+  }] : []),
   {
     emoji: '🏦',
     title: 'Bank auto-sync',

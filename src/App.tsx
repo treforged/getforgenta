@@ -15,6 +15,9 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import CookieBanner from "@/components/shared/CookieBanner";
 import Analytics from "@/components/shared/Analytics";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import FeatureInDevelopment from "@/components/shared/FeatureInDevelopment";
+import { AI_ADVISOR_ENABLED } from "@/lib/feature-flags";
+import { Sparkles } from "lucide-react";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
 
@@ -122,7 +125,14 @@ function AppRoutes() {
         <Route path="/net-worth" element={<Navigate to="/accounts" replace />} />
         <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Forecast /></ErrorBoundary></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SettingsPage /></ErrorBoundary></Suspense>} />
-        <Route path="/ai" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><AiAdvisor /></ErrorBoundary></Suspense>} />
+        <Route path="/ai" element={AI_ADVISOR_ENABLED
+          ? <Suspense fallback={<PageLoader />}><ErrorBoundary><AiAdvisor /></ErrorBoundary></Suspense>
+          : <FeatureInDevelopment
+              title="Forgenta AI"
+              icon={<Sparkles size={18} className="text-primary" />}
+              message="Forgenta AI is temporarily unavailable while we finish the controls and policies covering how your account data is shared with it. It will be back once that work is done."
+            />
+        } />
         <Route path="/premium" element={<Suspense fallback={<PageLoader />}><Premium /></Suspense>} />
         <Route path="/premium/success" element={<Suspense fallback={<PageLoader />}><PremiumSuccess /></Suspense>} />
         <Route path="/premium/cancel" element={<Suspense fallback={<PageLoader />}><PremiumCancel /></Suspense>} />

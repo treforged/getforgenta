@@ -9,12 +9,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState, useEffect } from 'react';
+import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
+// The bottom bar is a 5-column grid: 4 primary tabs plus the "More" button. When
+// the AI tab is switched off, Goals takes the free slot so the grid stays filled.
 const PRIMARY = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/budget', icon: Sliders, label: 'Budget' },
   { to: '/debt', icon: Landmark, label: 'Debt', highlight: true },
-  { to: '/ai', icon: Sparkles, label: 'AI' },
+  AI_ADVISOR_ENABLED
+    ? { to: '/ai', icon: Sparkles, label: 'AI' }
+    : { to: '/goals', icon: PiggyBank, label: 'Goals' },
 ];
 
 const SECONDARY = [
@@ -22,7 +27,7 @@ const SECONDARY = [
   { to: '/accounts', icon: Building2, label: 'Accounts' },
   { to: '/vehicles', icon: Car, label: 'Vehicles' },
   { to: '/builds', icon: Wrench, label: 'Builds' },
-  { to: '/goals', icon: PiggyBank, label: 'Goals' },
+  ...(AI_ADVISOR_ENABLED ? [{ to: '/goals', icon: PiggyBank, label: 'Goals' }] : []),
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];

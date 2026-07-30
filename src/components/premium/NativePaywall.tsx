@@ -11,13 +11,15 @@ import {
   openAndroidOfferRedemption,
 } from '@/lib/purchases';
 import { useSubscription } from '@/hooks/useSubscription';
+import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 const FEATURE_LIST = [
   'Advanced dashboard',
   'Export to CSV/PDF',
   'Unlimited savings goals & debts',
   'Custom rule categories',
-  'AI Advisor',
+  // Only advertised while the feature is actually reachable.
+  ...(AI_ADVISOR_ENABLED ? ['AI Advisor'] : []),
   'Priority support',
 ];
 

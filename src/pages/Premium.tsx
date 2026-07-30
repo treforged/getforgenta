@@ -11,12 +11,21 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { tracedInvoke } from '@/lib/tracer';
 import { toast } from 'sonner';
 import NativePaywall from '@/components/premium/NativePaywall';
+import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 // Initialise Stripe outside the component so the promise is stable across renders
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
 
 const free = ['Budget control', 'Basic dashboard', 'Transaction tracking', 'Up to 3 savings goals', 'Up to 3 debt trackers', 'Vehicle/Car Fund Tracker'];
-const premium = ['Advanced dashboard', 'Export to CSV/PDF', 'Unlimited savings goals & debts', 'Custom rule categories', 'AI Advisor', 'Priority support'];
+const premium = [
+  'Advanced dashboard',
+  'Export to CSV/PDF',
+  'Unlimited savings goals & debts',
+  'Custom rule categories',
+  // Only advertised while the feature is actually reachable.
+  ...(AI_ADVISOR_ENABLED ? ['AI Advisor'] : []),
+  'Priority support',
+];
 
 type Phase = 'pricing' | 'loading' | 'checkout';
 

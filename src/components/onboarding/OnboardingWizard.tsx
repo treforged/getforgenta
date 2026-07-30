@@ -5,6 +5,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import PlaidLinkButton from '@/components/shared/PlaidLinkButton';
 import ModalShell from '@/components/shared/ModalShell';
+import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 import {
   X, ChevronRight, Crown, Check, Shield,
   DollarSign, CreditCard, PiggyBank, Zap,
@@ -234,7 +235,7 @@ function FirstUpsell({
 }) {
   const highlights = [
     'Auto-sync bank balances every morning',
-    'AI Advisor — ask anything about your money',
+    ...(AI_ADVISOR_ENABLED ? ['AI Advisor — ask anything about your money'] : []),
     'Up to 3 linked accounts with real transaction import',
     'Advanced 60-month cash flow forecast',
     'Export reports as PDF or CSV',
@@ -294,7 +295,7 @@ function SecondUpsell({
 }) {
   const perks = [
     'Auto-sync every morning — wake up to fresh balances',
-    'AI Advisor — ask your money anything, get real answers',
+    ...(AI_ADVISOR_ENABLED ? ['AI Advisor — ask your money anything, get real answers'] : []),
     'Up to 3 linked accounts vs. manual-only on free',
     'Advanced 60-month forecast with Plaid data',
     'Cancel anytime',
