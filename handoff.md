@@ -1,4 +1,4 @@
-# Handoff — 2026-07-30 (session 55-debt) — 🔴 **Tre's Sep 2026→Mar 2027 report is STILL UNREPRODUCED. Three hypotheses ELIMINATED by measurement. The remaining lead is LIVE CASH, and live account rows are captured below.** Branch `debt-grace-preservation`. **NO code changed.**
+# Handoff — 2026-07-30 (session 55-debt) — ✅ **Payment pins now PERSIST + manual edits surfaced (`35795c33`).** 🔴 **Tre's Sep 2026→Mar 2027 report is STILL UNREPRODUCED — three hypotheses ELIMINATED, remaining lead is LIVE CASH (live accounts captured below).** Branch `debt-grace-preservation`.
 
 > **Debt-engine workstream.** Supersedes session-54-debt on the reconciliation only.
 > Everything session 54 shipped (month-label fix, min_payment write) and everything it says about
@@ -37,14 +37,37 @@ just interest saving balance for the first month."*
 `:961` reading the sim's own `monthlyInterest` — exactly what `grace-diagnostic.test.ts` measures.**
 The ISB pin is already in the fixture (`statementBalance 1007.95`). **Do not re-ask this question.**
 
-## 🔑 REAL FINDING, worth shipping on its own — payment pins DO NOT PERSIST
-`CreditCardEngine.tsx:139` is `useState<Record<string, Record<number, number>>>({})` with **no loader
-from localStorage or the DB** — the only writers are the pin/revert handlers (`:1102`, `:1111`,
-`:1124`, `:1147`). So **every pin is silently lost on reload, navigation, or mobile resume.**
-Anomaly B (07-20) went to real trouble making pins converge correctly through the engine; having them
-evaporate on F5 looks unintended. **Fix is small and self-contained:** swap `useState` for the
-`usePersistedState` hook already used at `:120` for `tre:debt:paymentMode`. **Not built — Tre has not
-approved it.** Far lower risk than P1.
+## ✅ SHIPPED THIS SESSION — payment pins now PERSIST + manual edits are loud (`35795c33`)
+**The bug:** `CreditCardEngine.tsx:139` was `useState<…>({})` with **no loader from localStorage or
+the DB**, so **every pin was silently lost on reload, navigation, or mobile resume** — discarding
+deliberate planning work the engine converges around (Anomaly B, 07-20). Tre asked for it fixed.
+
+**What changed — one file, `src/components/debt/CreditCardEngine.tsx`:**
+1. **Persisted** via `usePersistedState('tre:debt:overrides', {})` — the same store already used for
+   `tre:debt:strategy` / `tre:debt:paymentMode` / `tre:debt:expanded-card`.
+2. 🔑 **Orphan prune (`useEffect` after `handleAutoAdjust`).** Pins now outlive sessions, so a card
+   closed/removed after a pin was set would leave a stale key — enough to keep `overrideData`
+   (`:940`) active forever against a card that no longer exists. Prunes to live card ids once
+   `cards` is populated, **returning `prev` unchanged when nothing is stale so it cannot loop.**
+   ⚠️ **Do not "simplify" that identity check away.**
+3. **Manual-edit banner** below Reset & Recalculate, shown when `pinnedMonthCount > 0`: counts pinned
+   months (and cards, when >1), states the edits are saved across sessions, and carries a **Clear
+   all** button wired to `handleAutoAdjust`.
+4. **Louder per-item marking:** card badge is now solid primary with a count (`N edited`, was a faint
+   `overrides` pill); edited rows get `bg-primary/15` + a left accent bar (was `bg-primary/5`), and
+   the row pill is solid.
+
+**Reset & Recalculate needed no change** — `handleAutoAdjust` already ended in `setOverrides({})`
+(`:1147`); with persistence that now clears the stored copy too. Per-month `revertMonth` and
+per-card `revertAllForCard` likewise persist automatically.
+
+✅ **Typecheck clean. Test suite 223/224.** 🔑 **The 1 failure,
+`useCardProjection.month0income.test.ts`, is the SAME PRE-EXISTING date-dependent failure session 54
+documented** (verified there by stashing). **Not a regression from this change — do not "fix" it as
+if it were.** It is still worth fixing on its own (same end-of-month class as the label bug).
+Backup of the pre-edit file: **`backups/2026-07-30_191910/`** (gitignored).
+⏭️ **Not verified in a browser** — the live app is unreachable from here (see BLOCKED below).
+Tre should confirm the banner renders and pins survive a reload.
 
 ## ⏭️ THE REMAINING LEAD — live CASH, not card fields. Card fields are now RULED OUT.
 Every Prime Visa card-level field in the fixture already matches live (verified by direct query
@@ -86,8 +109,8 @@ new tab it creates is **NOT authenticated** — `getforgenta.com/dashboard` redi
 ask Tre to read values off his own screen, or use the Supabase MCP (which works fine, see above).
 
 ## 🧭 STATE
-- **Zero code changes. Working tree clean on `debt-grace-preservation` apart from this file.**
-  No commits to source, **no Supabase writes** (all `select`), no deploy, no cron touched.
+- **One code commit: `35795c33`** (pin persistence, above) on `debt-grace-preservation`.
+  **No Supabase writes** (all `select`), no deploy, no cron touched, **not pushed**.
 - Scratch diagnostic `src/lib/__tests__/zz-scratch-consistent.test.ts` was written, run, and
   **deleted**. To recreate: patch `inputs.accounts` for Prime Visa, then call
   `renderProjectionFromFixture` + `projectCard` (consistent) and `runDebtCashConvergence` (variable).
