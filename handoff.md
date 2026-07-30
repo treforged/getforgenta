@@ -129,7 +129,34 @@ It is designed but **not built**, and it needs **one answer from Tre** before it
 
 ---
 
-## 🆕 THE NEW ASK — auto-pause at 95% of the 5-hour usage window, auto-resume on reset
+## ✅ BUILT AND VERIFIED — usage auto-pause (commit `b859c257`). The question below is ANSWERED.
+**Tre chose: 90% of the historical max 5-hour block.** Built as
+**`.claude/hooks/usage-guard.mjs`**, registered as a **global `PreToolUse` hook** in
+`~/.claude/settings.json` (account-wide limit, so not project-scoped). Existing `Stop` hook preserved;
+re-registration is idempotent. Backup: `backups/2026-07-29_224604/settings.json.bak`.
+
+- **Ceiling measured live: `107,246,770` tokens** from **67 completed blocks**. Current block was 2.3%.
+- ⚠️ **Takes effect on the next session start.** Tre must `/clear` or restart for the hook to load.
+- **Fails open everywhere.** ccusage missing/offline/slow/changed-shape all allow the call through.
+- `ScheduleWakeup`, `Task*` and `TodoWrite` stay allowed while paused, or the agent could not arrange
+  its own resume. On denial the hook prints the reset time and the exact `delaySeconds` to use.
+- 🔑 **Two Windows landmines, already solved — do not reintroduce:** `npx.cmd` cannot be spawned
+  directly (**EINVAL** since Node 18.20/20.12), and an args array alongside `shell:true` is deprecated.
+  ccusage is invoked as **one fixed shell string built only from literals**. The first version hit the
+  EINVAL and **silently failed open — correct behavior, but the guard never actually engaged.** That is
+  the failure mode a fail-open design hides, so **always verify the deny path explicitly**
+  (`FORGENTA_USAGE_THRESHOLD=1`) rather than trusting that "no output" means healthy.
+- Caches active block 2 min, ceiling 24 h, so a per-tool-call hook is not shelling out to npx each time.
+- Tunable at runtime via `FORGENTA_USAGE_THRESHOLD`.
+
+### ⏭️ What is left on this item
+**Only the resume loop is unproven.** The hook tells the agent to call `ScheduleWakeup`, but that path
+has never fired for real (usage never reached 90% this session). When it does, confirm the re-arm works:
+`ScheduleWakeup` clamps to **[60, 3600]** and a 5-hour window can be ~300 min out, so **one wakeup will
+often fire early and must re-arm.** Auto-resume also requires Tre to be running work under **`/loop`**,
+otherwise there is no prompt to resume; flag that to him if he expects it to continue unattended.
+
+## 🗄️ ORIGINAL ASK (kept for the reasoning trail) — auto-pause at 95%, auto-resume on reset
 Tre: *"when my claude usage during my 5hr periods hits 95% we stop working and we automatically resume
 once it resets. i would keep my PC on during sessions."*
 
@@ -238,7 +265,7 @@ truncation was `head -c 480` (bytes, not lines).
   dependencies, not shipped to users.** Deliberately left alone; not a site vulnerability.
 
 ## ⏭️ STILL OPEN — Tre's list, in his stated priority order
-1. **The usage auto-pause above.** Needs the one decision, then build.
+1. ~~The usage auto-pause.~~ **DONE** (`b859c257`), except the resume loop is unproven — see above.
 2. **Diagnose the Prime Visa recurring interest.** *Not started.* Tre sees interest multiple months in a
    row and wants to know whether he is failing to hit the interest-saving balance or whether it is a
    data/statement-timing issue. **Read-only diagnosis, needs no input from Tre.** Filter Supabase by
