@@ -1,3 +1,46 @@
+# Handoff — 2026-07-30 (session 48) — ✅✅ **PUBLISHED TO FACEBOOK. The FB-crosspost workstream (sessions 41b-47b) is CLOSED.**
+
+> Supersedes every FB-crosspost block below. The Reddit Scout blocks (44b/44/42) are a **separate
+> workstream and were NOT touched this session.** Do not act on them here.
+
+## ⚡ START HERE (session 49)
+**Nothing in this workstream is open.** The Page post is live. Do not re-post it; do not re-post to IG
+(Instagram already had it before this session).
+
+Live post: `https://www.facebook.com/122098784811416621/posts/122098783701416621`
+Post ID `1301429399713605_122098783701416621`, created `2026-07-30T02:08:57Z`, **5 images attached**,
+message verified via Graph to be the link variant (`New posts go up daily: https://treforged.com/blog`),
+not the IG "Link in bio" text.
+
+### ✅ THE FIX THAT CLOSED IT — `src/publish/facebook.py`, exactly as session 47b specified
+Added `_page_token(cfg)`: GETs `{api_base}/{page_id}?fields=access_token`, falls back to
+`cfg.access_token` when the field is absent (so a real Page token in `connections.json` still works),
+caches per `page_id` in `_PAGE_TOKEN_CACHE`. Used in `_upload_photo` and the `/feed` call in
+`publish_album`. **`preflight()` left alone** — `debug_token` needs the user-level token.
+Verified before publishing: resolver returned a **204-char token, distinct** from the 202-char
+system-user token; `preflight` still read `Forgenta — ready to post`.
+Backup: `backups/2026-07-29_215930/tre-forged-marketing/src/publish/facebook.py`.
+
+### 🔑 THE LESSON WORTH KEEPING
+`--check` green does **not** prove publishing works. Reads (Page name, `debug_token`) succeed with a
+user-level token; **Page photo/feed writes require a Page token derived from it.** `--dry-run` cannot
+catch this class of bug either — it never calls Graph.
+
+## 🧭 STATE (session 48)
+- One file changed: `tre-forged-marketing/src/publish/facebook.py` (inside gitignored
+  `tre-forged-marketing/`, so **the only commit is `handoff.md`**).
+- `publish.py` unchanged from 47b (`--facebook-only` already in place). `.env`, `connections.json`,
+  Meta dashboard: **untouched.**
+- Ran with `--no-archive` (47b already archived to Drive) and `--facebook-only` (no IG re-post).
+- Hosted images were uploaded to Supabase Storage for FB to fetch and **cleaned up in the `finally`**.
+- Preview cleanup still pending if wanted:
+  `python publish.py --preview-clean previews/2026-07-30/004311-money-advice-that-costs-nothing`
+- ⚠️ Still unfixed from session 47: `scripts/install_system_user_token.ps1` line 44
+  (`Set-Clipboard -Value ''` throws on PS 5.1 → script exits 1 after a successful `.env` write, and
+  does not clear the clipboard). Fix before the next token install.
+
+---
+
 # Handoff — 2026-07-30 (session 47b) — TOKEN WORKS, but FB publish needs a **Page token**, not the system-user token. Fix is verified and ~10 lines. NOT yet applied.
 
 > Supersedes the 47 block below on the publish path only; everything 47 says about the token install stands.
