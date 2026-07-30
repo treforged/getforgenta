@@ -1,3 +1,115 @@
+# Handoff — 2026-07-30 (session 52-debt) — Prime Visa interest DIAGNOSED, engine fix PLANNED not built. 🔴 **My first diagnosis was WRONG and is corrected below — read the correction before anything else.**
+
+> **Backlog-triage workstream (session-49 item 2).** Reddit Scout was explicitly OUT OF SCOPE this
+> session (it ran in a parallel session — see the block immediately below, which is authoritative for it).
+> **NO code changed. NO data changed. NO deploy. Read-only apart from this file.**
+
+## ⚡ START HERE — one thing to verify, then the plan is ready to build
+🔑 **Check whether `accounts.installment_balance` / `installment_monthly_payment` being NULL on Prime
+Visa actually matters, given `payment_plans` already carries both Amazon plans.** Unresolved, and it
+**changes the size of the problem**:
+- `credit-card-engine.ts` computes interest on `revBal = bal - instBal` (`:321`, `:1044`). `instBal`
+  comes from `accounts.installment_balance`, which is **NULL** for Prime Visa → `instBal = 0`.
+- If that is the live path, the engine is charging **27.49% on the 0% Amazon promo balance** — a large
+  overstatement of Tre's real interest.
+- If the `payment_plans` path (`installmentChargeByMonth` / `upfrontDueFor`) already handles it, the
+  accounts fields are harmlessly redundant. **Do not assume either way — trace it.**
+
+## 🔴 THE CORRECTION — do not repeat this mistake
+I diagnosed `accounts.statement_balance = 1007.95` on Prime Visa as **stale and impossible** against a
+$6,976.94 balance. **That was wrong.** Tre corrected it and he is right.
+
+**`statement_balance` is misnamed. The UI calls it the "interest-saving balance" and that is what it is**
+(`CreditCardEngine.tsx:1083`, `credit-card-engine.ts:265-268`). On a Chase card carrying 0% promotional
+debt the ISB is **deliberately LESS than the statement balance** — it is the non-promo portion you must
+pay to avoid interest. A large gap between ISB and total balance is **normal and expected**, not corruption.
+
+**Confirmed from `payment_plans` — two active 0% Amazon plans sit on Prime Visa:**
+| Plan | Provider | Total | Monthly | Start | plan_type |
+|---|---|---|---|---|---|
+| Car Amazon Starter Pack | Amazon 12 Months | $4,164.26 | $347.02 | 2026-06-23 | upfront |
+| ExtremeOnlineStore CF Aero Kit | Amazon | $980.90 | $163.48 | 2026-07-01 | upfront |
+
+$5,145.16 charged upfront at 0% — exactly the shape that produces a ~$1,008 ISB on a ~$6,977 card.
+
+⚠️ **A "staleness / expiry" fix for `statement_balance` was proposed and Tre answered "timestamp +
+one-cycle expiry" — that answer was given to a question built on the WRONG premise. DO NOT BUILD IT** on
+that basis. (A set-date stamp may still have a much smaller independent argument, since Chase
+recalculates the ISB every cycle while the app's value is static. Re-derive it honestly if you want it.)
+
+## 🧭 LIVE DATA (read 2026-07-30; Plaid-synced 2026-07-29 13:00) — Tre's user_id `a72f416e-433a-4055-9ab0-9feae4e60edf`
+`accounts` row for Prime Visa (`9111bd9f-4704-4acb-97f7-cf1ab40bc764`):
+`balance 6976.94 | apr 27.49 | credit_limit 14400 | statement_balance 1007.95 | payment_preference
+'statement' | statement_balance_phase false | min_payment 0 (min_payment_is_manual TRUE) | due_day 7 |
+installment_balance NULL | installment_monthly_payment NULL`
+Discover (`34c9574b-…`): `balance 9082.71 | apr 12.89 | min_payment 189 | payment_preference 'full'`.
+🔑 **`debts` and `accounts` disagree on the same cards** — `debts` Prime Visa says balance 5037.73,
+min 231.15, limit 12000 (stale, updated 2026-06-21). The engine reads **`accounts`** for balance/APR/min
+but pulls **`target_payment` from `debts`** (`credit-card-engine.ts:259`) — Prime Visa target = **$500**.
+
+## ✅ THE DIAGNOSIS THAT STANDS — he is failing to hit the ISB, and the engine never tries to
+Prime Visa's ISB is **$1,007.95/month**. The plan pays the **$500** target. He misses the ISB every
+month, so the non-promo portion accrues 27.49%. **A real payment-plan shortfall, not a data artifact.**
+Tre's framing is exactly right and he restated it twice: *"in order to meet its interest saving balance,
+if it couldn't make it, discover should have pulled back some"* / *"the interest saving balance could be
+paid if discover cuts back."* ~$1,008/month IS affordable if Discover pulls back toward its $189 minimum.
+🔴 **My earlier claim that "no pullback can help / nothing will change" was sized against $6,977 and is
+WRONG — discard it entirely.**
+
+## 🧠 ENGINE FINDINGS — pullback EXISTS and is already maximal, but only for ONE month
+Read from source; do not re-derive.
+- **The ISB pin already outranks everything.** `pinnedStep5Total` is deducted off the top of the
+  discretionary pool (`credit-card-engine.ts:1385`), the save-up cap (`:1402`), the convergence target
+  (`:1415`), and the minimum pool in the FLOOR_BREACHED branch (`:1433`). Pinned cards are excluded from
+  the cascade (`:1429`, `:1463`) and paid exactly their pin (`:1505-1507`). So Discover **is** already
+  squeezed for the ISB — in the pin month only.
+- 🔴 **GAP 1 — the pin is a single month, not recurring.** `:880-886` stores one `{dueMonth, amount}`
+  with `dueMonth ∈ {0,1}` (`dueDay 7 >= today 30` is false ⇒ **dueMonth = 1**). `:1025` returns
+  `undefined` for `m > ms.dueMonth`, so **from month 2 on there is no ISB concept at all** — plain
+  avalanche. This is precisely why it does not pay the ISB *always*. Q9 (2026-07-16, the SAME user
+  complaint) closed only the **cash-floor** half; this half was never addressed.
+- 🔴 **GAP 2 — Step 5a pays every other card's minimum BEFORE grace is funded** (`:1470-1480`).
+  Discover's $189 min lands ahead of the dollars that would keep Prime Visa in grace.
+  🔑 **Hard limit on any pullback: `revolvingMinDue` (`:154-161`). Discover can go to $189 and NO LOWER**
+  — contractual. That floor must never move.
+- 🔴 **GAP 3 — grace failure is silent.** `:1616` just flips `graceMap` false and interest starts. No
+  flag, despite an existing `flags` / `warningMessages` channel (`UNSTABLE`, `FLOOR_BREACHED`,
+  `CARD_AT_RISK`) sitting right there.
+- Grace seed (`:298`, `:870`): `paymentPreference === 'statement' && (statementBalancePhase ||
+  statementBalance != null || balance <= monthlyNewPurchases + 0.01)`. Given the correction above,
+  `statementBalance != null` as a grace seed is **defensible** (a set ISB does imply the card is being
+  kept in grace) — **it is NOT the bug I claimed it was.** The real bug is that grace is only
+  *maintained* if the pin is paid, and the pin exists for one month.
+
+## ⏭️ THE PLAN — shape approved, decisions NOT finalized
+Tre's 3rd answer was *"read my response to the other questions then come back to me"*, so **re-ask the
+sequencing question after presenting the correction.**
+- **P1 — grace preservation as a recurring cascade TIER.** New tier between Step 5a and 5b (`:1482`),
+  funding each in-grace statement card up to `cascadeTarget(card)` (`:1340-1356` — already exactly
+  `startBal - instBal + interest`) **before** any card gets above-minimum cash. Order by APR desc.
+  Every other card keeps its `revolvingMinDue` from Step 5a.
+  🔑 **IT MUST BE A CASCADE TIER, NOT A RECURRING PIN.** `forecast-convergence.ts:63-68` gives
+  `pinnedMonths` **NaN** target feedback. Making the pin recurring marks EVERY month pinned and hands the
+  convergence loop no signal at all — it would break convergence outright. Hardest constraint in the change.
+  ⚠️ **Open decision: all-or-nothing vs partial funding** when the target does not fit. Tre has NOT
+  answered — the question he was asked was mis-framed around $6,977. Re-ask it against $1,007.95, where
+  the all-or-nothing argument is much weaker because the target is usually affordable.
+- **P2 — surface it.** Emit `GRACE_LOST` + shortfall on the existing warning channel.
+- **Risk: medium-high.** Step 5 ordering is what Q2–Q12 and Anomalies A/B took 07-08 → 07-20 to
+  stabilize. Golden fixtures WILL move (`goldenTierA` pinned Jul 2027) — budget a fixture recapture, and
+  re-run `src/lib/__tests__/q9-diagnostic.isbPullback.test.ts` on the live fixture, since this tier
+  deliberately moves cash EARLIER in the month, which is exactly what Q9's floor work defends against.
+  **Own branch, own session.**
+
+## 🧭 STATE
+- **Zero files changed except this one. No Supabase writes, no migration, no deploy, no cron touched.**
+  All Supabase access was `select`-only.
+- Noted, not acted on: `min_payment = 0` with `min_payment_is_manual = true` on Prime Visa makes `:258`
+  skip the $25 fallback and `:159` skip re-inflation ⇒ **the engine believes Prime Visa has no mandatory
+  payment.** The stale `debts` row has the plausible figure ($231.15). Needs a decision from Tre.
+
+---
+
 # Handoff — 2026-07-30 (session 52-reddit) — ✅✅ **DEPLOYED, VERIFIED LIVE, CRON RE-ENABLED. THE TWO-POLICY + AUTO-DEFER WORKSTREAM IS CLOSED.** v21 ACTIVE. Only the secret rotation remains.
 
 > **Reddit Scout workstream only.** Supersedes every Reddit Scout block below on state.
