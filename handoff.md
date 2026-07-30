@@ -1,4 +1,67 @@
-# Handoff — 2026-07-29 (session 49-reddit) — ✅✅ **REDDIT SCOUT IS FULLY WORKING END TO END. The fetch workstream (sessions 42-48) is CLOSED.** A real digest went out with 3 real Claude-written replies.
+# Handoff — 2026-07-30 (session 49-reddit) — ✅✅ **REDDIT SCOUT WORKS END TO END, AND THE REPLIES NO LONGER READ AS ADS.** v20 ACTIVE. Nothing is blocked.
+
+> **Reddit Scout workstream only.** The FB-crosspost block below is closed and untouched.
+> Supersedes every Reddit Scout block below. **Two separate pieces of work happened this session** —
+> the UA fix (block below, still accurate) and then the reply-style rewrite (this block).
+
+## ⚡ START HERE (session 50)
+**Nothing is open except the two small items under STILL OPEN.** The scout fetches, scores, drafts,
+emails, and dedupes correctly on a **once-daily** cron. Do not re-diagnose the 403. Do not revisit
+Reddit OAuth. Do not re-litigate the cadence or the subreddit list — Tre decided both this session.
+
+### 🔴 THE THING THAT MATTERS MOST — Tre is BANNED from r/personalfinance
+It happened in his first week on Reddit and **the cause was the prompt, not the wording.** The old
+`SYSTEM_PROMPT` mandated a five-part ad: lead with the app name, list features, close with
+`getforgenta.com, also on Google Play and iOS TestFlight`. A moderator reads that as spam however casual
+the prose is. **Never reintroduce a URL, an app-store mention, or a closing CTA.** There is a comment at
+the prompt saying so; leave it there.
+
+### ✅ WHAT CHANGED THIS SESSION (all live in v20, commit `494462a0`)
+1. **`SYSTEM_PROMPT` fully rewritten.** 60-110 words hard cap. Answer the OP's question first with real
+   advice; mention Forgenta **once, by name only**, as a secondary aside. No URL, no app stores, no CTA,
+   no feature lists, no marketing adjectives, no complimenting the OP. At most ONE product detail, and
+   only when it fits the post. Injection-defense paragraph kept verbatim.
+2. **Subreddits changed.** `personalfinance` **removed** (banned; its posts were leads Tre cannot act on
+   and were 3 of the top 4 in the last digest). Added **`MiddleClassFinance`, `budget`, `Money`** to
+   backfill. ⚠️ **Their self-promo rules are unverified** — a comment at the list says to check each sub
+   and drop any that produces a warning. Tre picked "drop and add replacements"; the specific three were
+   my choice, so they are the first thing to revisit if a sub turns hostile.
+3. **Once-daily cadence.** Coverage is ~24h and the two slots were 12h apart, so they overlapped badly.
+   **Job 13 `reddit-scout-morning` is now `active = false`.** Job 14 `reddit-scout-evening` (`0 1 * * *`)
+   is the only live schedule. 🔑 **Job 13 was DEACTIVATED, NOT DELETED, on purpose — its `command` is
+   where the probe recipe below reads the webhook secret from.** Do not unschedule it.
+4. Coverage warning threshold 13h → 24h, email footer "twice daily" → "daily", `?debug=reply` now returns
+   a `words` count, `?debug=reply`'s synthetic post moved off r/personalfinance.
+
+### ✅ VERIFIED LIVE — pg_net **255**, `?debug=reply`, 200, `ok: true`, **102 words**
+Sample output, for the next agent to compare against if the style ever drifts:
+> Start by writing down every fixed thing that has to get paid: rent, car, insurance, phone, minimums.
+> Whatever's left is your actual grocery and gas money for the month… The 24% is the part that's quietly
+> eating you, so anything extra should go there before anything else. I use Forgenta to project income
+> and bills out a few months, which at least gave me a real payoff date to aim at instead of a vague
+> feeling of never.
+
+No link, no CTA, one product detail, in range. **This is the target.**
+
+### 🧭 STATE (session 49-reddit, part 2)
+- `supabase/functions/reddit-scout/index.ts`: **v19 → v20 ACTIVE**, `verify_jwt: false` preserved.
+  **Local file and v20 are in sync** (the deploy payload carried a few extra edits that were then
+  back-applied locally — verified). Backup: `backups/2026-07-29_reply-style/` (gitignored).
+- Commits, all local, **not pushed**: `d60adb7a` (UA fix), `90b2b946` (handoff), `494462a0` (this work).
+- **Nothing emailed and no rows written in part 2.** `?debug=reply` sends no email and writes nothing.
+  **One Opus call** spent (255). Total for the session: 4 (three in the real run 254, one here).
+- Memory updated: `marketing_reddit.md` now carries the ban and the no-URL rule;
+  `marketing_reddit_scout.md`'s "close with getforgenta.com" rule was **wrong and is fixed**.
+
+### ⏭️ STILL OPEN (only these two)
+1. **Rotate `REDDIT_SCOUT_SECRET`** — procedure unchanged in the session-42 block. Follow it exactly.
+2. **Watch the first once-daily run** (01:00 UTC) on the new subreddit list. Check `coverage_hours` is
+   still ≥24 — the sub list changed, so the 100-post window now covers a different volume of traffic. If
+   coverage drops under 24h the listing is truncating and posts are being missed silently.
+
+---
+
+# Handoff — 2026-07-29 (session 49-reddit, part 1) — ✅ UA fix landed; fetch workstream (sessions 42-48) CLOSED. A real digest went out with 3 real Claude-written replies.
 
 > **Reddit Scout workstream only.** The FB-crosspost block below is closed and untouched here.
 > Supersedes every Reddit Scout block below (48/47/44b/44/42).
