@@ -136,6 +136,110 @@ Fix line 44 to that before the next use, or the next token lingers in the clipbo
 
 ---
 
+# Handoff — 2026-07-29 (session 47) — REDDIT SCOUT: 403 is GONE, RSS works. Reddit API app is IMPOSSIBLE now. Claude replies fail — diagnostic staged, not yet written.
+
+> **Reddit Scout workstream only.** The Meta/FB-crosspost blocks below (46/45/44) were **NOT touched
+> this session** and remain accurate. Do not act on them here.
+
+## ⚡ START HERE (session 48)
+One thing is broken and one small edit is staged but **not yet made**. Everything else is resolved.
+
+### 🟢 THE 403 IS GONE — this invalidates session 44b's entire plan
+pg_net request **244** (`?debug=true`, safe): HTTP 200, `{"total":100,"coverage_hours":21.8,
+"fetch":{"attempted":1,"ok":1,"rateLimited":0,"failed":0,"source":"new listing","lastStatus":null}}`.
+The **primary `new.rss` listing served Supabase directly**, zero failures. The IP block that consumed
+session 44b was **temporary**. Reddit OAuth is no longer an outage fix, only insurance.
+**Do not rewrite `fetchFeed` for OAuth.** Tre decided: **drop it, keep RSS.**
+
+### 🔴 REDDIT API APP CREATION IS NO LONGER POSSIBLE — do not retry, it is not our account
+Tre asked me to create the script app. I filled the form at `reddit.com/prefs/apps` correctly
+(name `ForgentaScout`, type **script**, about `https://www.getforgenta.com`, redirect
+`http://localhost:8080`), Tre ticked the reCAPTCHA (**agents cannot complete CAPTCHAs**) and submitted.
+Reddit returned a notice linking the **Responsible Builder Policy** and **created nothing** — verified by
+reloading `prefs/apps` and confirming the "developed applications" section is **empty**.
+
+**This is ecosystem-wide, not account-specific:** as of 2026, Reddit **closed self-serve API app
+creation**. Every new OAuth client goes through a manual support-ticket approval, and the form rejects
+silently rather than explaining. Small/personal projects are the most-rejected category and many
+requests get no response. Sources: the policy page (403s to WebFetch), Apollo-Reborn issue #82,
+redditapis.com "Reddit Data API in 2026".
+**Tre chose not to file the approval request. Nothing was created on his Reddit account.**
+
+### ❌ THE ACTUAL BUG — Claude draft replies fail, cause still unknown
+`ANTHROPIC_API_KEY` **is set in Supabase** (Tre added it this session). A **real** run was fired with
+Tre's explicit approval — pg_net **246**, HTTP 200, `{"sent":3,"coverage_hours":23.4,...}`. The digest
+email arrived, but **Tre confirms the draft replies read "reply generation failed".**
+
+**That exact string means the SDK call threw** (`index.ts:338-341` catch branch), *not* the
+missing-key branch — which would have said `[reply generation failed — ANTHROPIC_API_KEY not
+configured]`. So **the key is being read; the API call itself is being rejected.**
+
+Timing corroborates: the whole run took **4,176 ms**. Reply generation is **sequential with a 300ms
+sleep** (`index.ts:481-484`), so 3 posts = ≥900ms of pure sleep, and the Reddit fetch alone took
+~1,400ms. That leaves **~1.9s for three Opus 5 calls** (~630ms each) for a ~280-word reply with
+thinking on. Not plausible — it matches a fast rejection (401/400).
+
+**RULED OUT — do not re-check these.** I verified every request parameter against the `claude-api`
+skill and they are all current and correctly paired:
+- `model: "claude-opus-5"` ✅ · `max_tokens: 4000` ✅ · `output_config: {effort:"low"}` ✅
+- `betas: ["server-side-fallback-2026-07-01"]` + `fallbacks: "default"` ✅ — this **is** the correct
+  pairing for the scalar `"default"` form (the array form is the older `-2026-06-01` header).
+  Do not "fix" this to `-2026-06-01`; that pairing 400s.
+- `import Anthropic from "npm:@anthropic-ai/sdk"` is **unpinned**, so it resolves to latest. Not stale.
+
+**Leading theory: the key value itself** — a stray newline/space from the paste, a truncated paste, or
+the wrong secret name. A 401 returns in ~600ms, which fits the timing exactly.
+
+### ⏭️ THE STAGED FIX (backup taken, edit NOT yet made)
+The root defect is that `generateReply`'s catch **swallows the error message** — the same class of
+blind spot as the missing `lastStatus` in session 44, which cost a whole deploy cycle. Do this:
+1. In `supabase/functions/reddit-scout/index.ts`, make the catch at **line 338-341** include the real
+   error (`e.message`, and `e.status` if present) in the returned placeholder string. Anthropic SDK
+   error messages **do not contain the key**, so this is safe.
+2. Add a `?debug=reply` branch so one reply can be generated against a synthetic post and the error
+   returned in the response body — **without sending an email or writing rows**. Model it on the
+   existing `if (debug)` block at `index.ts:448`.
+3. Deploy (**`verify_jwt: false` MUST be preserved** — it authenticates via `x-webhook-secret` and cron
+   sends no JWT), probe with the SQL recipe below, read the error, then fix the actual cause.
+4. If it turns out to be the key: Tre re-adds it via **dashboard only** (no MCP tool for edge secrets,
+   no Supabase CLI installed) using the **agent-preps / Tre-pastes** split in the session-44b block.
+   **Agents cannot read the clipboard — all three routes failed in 44b. Do not retry them.**
+
+⚠️ One more thing to check while in there: `ANTHROPIC_API_KEY` is read at **module scope**
+(`index.ts:4`). A warm function instance booted before Tre added the secret would hold the old empty
+value — but that would produce the *"not configured"* string, which is **not** what Tre saw, so this is
+unlikely to be it. A redeploy forces a fresh boot and rules it out for free.
+
+### 🔬 Probe recipe (used twice this session, works)
+```sql
+select net.http_post(
+  url := 'https://mdtosrbfkextcaezuclh.supabase.co/functions/v1/reddit-scout?debug=true',
+  headers := jsonb_build_object('Content-Type','application/json',
+    'x-webhook-secret', (select (regexp_match(command,'x-webhook-secret[^:]*:\s*.?([0-9a-f]{32,})'))[1]
+                         from cron.job where jobid = 13)),
+  body := '{}'::jsonb, timeout_milliseconds := 120000) as request_id;
+-- then: select id, status_code, timed_out, left(content,900) from net._http_response where id = <id>;
+```
+**Dropping `?debug=true` sends a REAL digest and writes rows — needs Tre's approval first.**
+
+## 🧭 STATE (session 47)
+- **No source file changed. No code deployed. The only commit is this handoff.**
+- Backup of the file about to be edited: **`backups/2026-07-29_replydiag/supabase/functions/reddit-scout/index.ts`** (gitignored, not committed).
+- **Supabase:** one **real** digest emailed to Tre, and **3 rows written to `reddit_scout_seen_posts`** —
+  those posts will **not** reappear in future digests. Two `?debug=true` probes wrote nothing.
+  pg_net ids: **244** (debug, the 403-is-gone finding), **246** (the real run).
+- **No secret rotated, no cron altered, no edge function deployed.** Function still at **v15/version 16**.
+- **Reddit:** nothing created, account unchanged. **Meta/IG/FB:** completely untouched.
+
+## ⏭️ STILL OPEN (unchanged, both need Tre)
+1. **Local scheduled task `ForgentaRedditScout` is STILL LIVE** — `schtasks /change /tn
+   "ForgentaRedditScout" /disable` returns "Access is denied." Needs an **elevated** PowerShell.
+   It will send a **duplicate digest** and still carries the 30-request storm. Decision was explicit:
+   keep Supabase cron, retire the local task. **Do not re-litigate.** Don't delete `scripts/reddit-scout.mjs`.
+2. **Rotate `REDDIT_SCOUT_SECRET`** — procedure unchanged in the session-42 block. Follow it exactly.
+
+---
+
 # Handoff — 2026-07-29 (session 46) — ✅ ASSETS ASSIGNED. Token dialog is STAGED AND WAITING. Tre clicks two buttons, then one script.
 
 > Supersedes the session-45 block below (still accurate on history/rationale). The Reddit Scout blocks
