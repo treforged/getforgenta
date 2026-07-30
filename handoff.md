@@ -1,3 +1,110 @@
+# Handoff — 2026-07-30 (session 55-debt) — 🔴 **Tre's Sep 2026→Mar 2027 report is STILL UNREPRODUCED. Three hypotheses ELIMINATED by measurement. The remaining lead is LIVE CASH, and live account rows are captured below.** Branch `debt-grace-preservation`. **NO code changed.**
+
+> **Debt-engine workstream.** Supersedes session-54-debt on the reconciliation only.
+> Everything session 54 shipped (month-label fix, min_payment write) and everything it says about
+> P1 being bad value ($56/yr) still stands and **must not be re-derived**.
+> **Read-only session apart from this file. No commits to code, no Supabase writes, no deploy.**
+
+## ⚡ START HERE — do not re-run the three eliminations below. Go straight to "THE REMAINING LEAD".
+The open bug is unchanged: **Tre sees Prime Visa accruing interest Sep 2026 through Mar 2027 in the
+live app; every fixture run shows 1-3 scattered bad months.** I closed off three explanations. None
+of them is it.
+
+### ❌ ELIMINATED 1 — "he's on the Consistent toggle"
+There IS a second display path — `CreditCardEngine.tsx:972` calls `projectCard()` when
+`paymentMode === 'consistent'`, and that walk pays a flat `targetPayment` ($500) instead of the
+cascade, so it is genuinely more pessimistic and DOES produce a contiguous band. **But the band is
+Aug-Nov 2026 ($62.81), and with live deltas Aug-Dec 2026 ($94.93) — never Sep→Mar.**
+🔑 **Tre confirmed he is on Variable.** Path eliminated on both shape and toggle.
+
+### ❌ ELIMINATED 2 — "the 10-day data drift explains it"
+Patched the 07-20 fixture in-memory with both known live deltas (`balance` 6677.62 → **6976.94**,
+`min_payment` 0 → **450.79**) and re-ran both paths:
+
+| path | bad months | 12mo interest |
+|---|---|---|
+| Variable (converged) | **Sep 2026 only** | **$37.12** |
+| Consistent (`projectCard`, flat $500) | Aug-Dec 2026 | $94.93 |
+
+🔴 **The live deltas made it BETTER, not worse** (Variable went from 3 bad months / $55.88 to 1 / $37.12).
+So the drift is not the mechanism. Do not re-test this.
+
+### ❌ ELIMINATED 3 — "he has payment pins set" (MY error — I asked a badly worded question)
+I asked whether pins were set and Tre answered yes, but he meant **the first-month interest-saving
+balance**, not user payment overrides. He then corrected it explicitly: *"i have no pinned payments,
+just interest saving balance for the first month."*
+⚠️ **So `overrides` is `{}`, `overrideData` is null, and the UI takes the plain Variable branch at
+`:961` reading the sim's own `monthlyInterest` — exactly what `grace-diagnostic.test.ts` measures.**
+The ISB pin is already in the fixture (`statementBalance 1007.95`). **Do not re-ask this question.**
+
+## 🔑 REAL FINDING, worth shipping on its own — payment pins DO NOT PERSIST
+`CreditCardEngine.tsx:139` is `useState<Record<string, Record<number, number>>>({})` with **no loader
+from localStorage or the DB** — the only writers are the pin/revert handlers (`:1102`, `:1111`,
+`:1124`, `:1147`). So **every pin is silently lost on reload, navigation, or mobile resume.**
+Anomaly B (07-20) went to real trouble making pins converge correctly through the engine; having them
+evaporate on F5 looks unintended. **Fix is small and self-contained:** swap `useState` for the
+`usePersistedState` hook already used at `:120` for `tre:debt:paymentMode`. **Not built — Tre has not
+approved it.** Far lower risk than P1.
+
+## ⏭️ THE REMAINING LEAD — live CASH, not card fields. Card fields are now RULED OUT.
+Every Prime Visa card-level field in the fixture already matches live (verified by direct query
+below). What the fixture CANNOT be trusted on is the **cash position feeding the cascade**: less
+surplus ⇒ Prime Visa funded below `cascadeTarget` ⇒ grace lost across a long band. That is the only
+mechanism left that produces a *contiguous* Sep→Mar band on the Variable path.
+
+### 🧭 LIVE `accounts` READ 2026-07-30 (user `a72f416e-433a-4055-9ab0-9feae4e60edf`, active only)
+Plaid-synced 2026-07-29 13:00 except Prime Visa (2026-07-30 20:36 = session 54's min_payment write).
+🔑 **Funding account is `933cbc10-bceb-4c20-8227-4a02e6db728a` "TOTAL CHECKING" = $3,848.11.**
+| account | type | balance | notes |
+|---|---|---|---|
+| TOTAL CHECKING | checking | **3848.11** | the debt funding account |
+| Checking | checking | 5.00 | |
+| General Operations | checking | 72.92 | |
+| Savings Account | savings | 106.17 | |
+| **Prime Visa** | credit_card | **6976.94** | apr 27.49, limit 14400, **ISB 1007.95**, pref `statement`, due 7, min **450.79** manual, installment cols NULL |
+| Discover it Card | credit_card | 9082.71 | apr 12.89, min 189, pref `full`, due 1 |
+| Apple Card / Venture X | credit_card | 0 / 0 | pref `statement` |
+
+### ⏭️ NEXT STEP — compare live cash against the fixture's, then re-run the diagnostic
+1. Read the fixture's `accounts` cash rows (`forecast-inputs.real.json`, capturedAt 2026-07-20) and
+   diff the four cash accounts against the table above. **If fixture cash is materially higher than
+   $3,848.11 + $5 + $72.92 + $106.17, that is the answer** — patch all cash balances (not just Prime
+   Visa's two fields) and re-run, expecting the band to lengthen toward Sep→Mar.
+2. Also diff **`rules`** (recurring income/expenses) and **`payment_plans`** — a new recurring expense
+   added since 07-20 would drain the same surplus. `payment_plans` was NOT re-queried this session.
+3. Only if cash+rules do not explain it, get a fresh fixture capture.
+   ⚠️ **There is NO capture snippet in the repo** — `forecast-fixture-io.ts:6` points at
+   `docs/forecast-engine-plan.md` "Stage 2" but that doc does **not** contain it (checked). A capture
+   needs `serializeForecastCapture(inputs)` run in the live app against the real `ForecastInputs`.
+   Budget for writing that snippet; it is not a copy-paste.
+
+## 🚧 BLOCKED — browser route to the live app does not work from here
+Tre said "im logged in so you can look". **It does not work:** the extension has no tab group, and a
+new tab it creates is **NOT authenticated** — `getforgenta.com/dashboard` redirects to `/auth`.
+🔴 **I did not and will not sign in (credentials are off-limits).** Also note pins/UI state are
+`useState`, so even a working tab would not show Tre's session state. **Do not retry this route** —
+ask Tre to read values off his own screen, or use the Supabase MCP (which works fine, see above).
+
+## 🧭 STATE
+- **Zero code changes. Working tree clean on `debt-grace-preservation` apart from this file.**
+  No commits to source, **no Supabase writes** (all `select`), no deploy, no cron touched.
+- Scratch diagnostic `src/lib/__tests__/zz-scratch-consistent.test.ts` was written, run, and
+  **deleted**. To recreate: patch `inputs.accounts` for Prime Visa, then call
+  `renderProjectionFromFixture` + `projectCard` (consistent) and `runDebtCashConvergence` (variable).
+  🔑 **Vitest swallows `console.log` here — you MUST pass `--silent=false --reporter=verbose`** or the
+  run passes with no output and looks like it did nothing.
+- `src/lib/__tests__/grace-diagnostic.test.ts` (committed `ed6940be`) is still the temporary
+  diagnostic session 54 flagged — still needs deleting or promoting.
+- ⚠️ Unchanged from session 54: `b956ec82` (reddit-scout) rides along on this branch; do not clean up.
+
+## ✅ CONFIRMED INDEPENDENTLY THIS SESSION (session 54 was right; don't re-verify)
+`accounts.installment_balance` being NULL is harmless — **both** consumers override it with the
+derived $5,145.16 carve-out: `useCardProjection.ts:104-119` and `CreditCardEngine.tsx:243-252`.
+The fixture run confirms `instBal=$5145.16 instPmt=$510.50` on Prime Visa. Not charging 27.49% on the
+0% Amazon promo. **Closed for good.**
+
+---
+
 # Handoff — 2026-07-30 (session 54-debt) — 🔴 **P1's PREMISE IS OVERTURNED BY MEASUREMENT. DO NOT BUILD THE GRACE CASCADE TIER WITHOUT READING THIS.** Month-label bug found and FIXED. Branch `debt-grace-preservation`.
 
 > **Debt-engine workstream.** Supersedes the session-52-debt block below on diagnosis and next steps.
