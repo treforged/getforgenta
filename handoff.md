@@ -165,7 +165,24 @@ requests get no response. Sources: the policy page (403s to WebFetch), Apollo-Re
 redditapis.com "Reddit Data API in 2026".
 **Tre chose not to file the approval request. Nothing was created on his Reddit account.**
 
-### ❌ THE ACTUAL BUG — Claude draft replies fail, cause still unknown
+### ✅ ROOT CAUSE FOUND AT THE END OF THE SESSION — Anthropic spend limit, NOT the key
+**Tre found this on his Anthropic API page:** *"You have reached your specified API usage limits. You
+will regain access on 2026-08-01 at 00:00 UTC."* **He raised the limit to $5.**
+
+That is the whole explanation. A spend-limit rejection returns immediately, which matches both the
+`[reply generation failed]` string (the SDK **threw**) and the ~630ms-per-call timing exactly.
+**The `ANTHROPIC_API_KEY` was never the problem — do not re-paste it, do not rotate it, do not
+investigate the secret.** Ignore the "leading theory: the key value itself" text below; it is
+superseded and kept only for the reasoning trail.
+
+**Expected next state: reply generation now works with NO code change.** Verify with a real run
+(recipe below, **drop `?debug=true`** — needs Tre's approval, sends an email and writes rows) and
+confirm the digest contains real prose mentioning Forgenta rather than a bracketed placeholder.
+
+The staged diagnostic edit below is now **optional but still recommended** — the genuine defect it
+fixes is that a swallowed error made a simple billing rejection take a whole session to identify.
+
+### ❌ THE BUG AS DIAGNOSED MID-SESSION (superseded by the block above — reasoning trail only)
 `ANTHROPIC_API_KEY` **is set in Supabase** (Tre added it this session). A **real** run was fired with
 Tre's explicit approval — pg_net **246**, HTTP 200, `{"sent":3,"coverage_hours":23.4,...}`. The digest
 email arrived, but **Tre confirms the draft replies read "reply generation failed".**
