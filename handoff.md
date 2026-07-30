@@ -217,8 +217,12 @@ Tre confirmed the **2 disclose + 2 advice** quota split, and all three parts wer
   `MAX_RETRY_ATTEMPTS = 24`; rows inserted only for posts included in a sent digest.
 
 ### 🔴 What is verified vs not — do not assume this works yet
-- **Table `reddit_scout_pending_runs` EXISTS** — migration applied and confirmed via
-  `information_schema.tables`.
+- **Table `public.reddit_scout_pending_runs` EXISTS** — migration applied to production and confirmed
+  via `information_schema.tables`. 🔑 **DO NOT re-create it or "fix" its shape.** The live shape is
+  **`run_date` (PK), `created_at`, `updated_at`, `attempts`, `last_error`,
+  `status` (`pending|completed|abandoned`), RLS ON with no policies** (the edge fn uses the service
+  role, which bypasses RLS). Note this includes **`updated_at`**, which the older Part B sketch further
+  down this block omits — the live table is the authority, not that sketch.
 - ❌ **NOT deployed.** Live function is still **v20**, i.e. the OLD single-prompt version.
 - ❌ **Retry cron job does NOT exist** — confirmed `0` jobs matching `%mode=retry%`.
 - ❌ **Job 14 still `active = false`** — confirmed. **The scout is still dead.**
@@ -227,7 +231,11 @@ Tre confirmed the **2 disclose + 2 advice** quota split, and all three parts wer
   was not possible — but that outage is the ideal window to verify the Part B defer path.
 
 ### ⏭️ REMAINING WORK — this is the real list now
-1. **Deploy** — `verify_jwt: false` **MUST** be preserved.
+1. **Deploy.** ✅ **The `verify_jwt: false` footgun is now fixed at the source:** session 51 added
+   `[functions.reddit-scout] verify_jwt = false` to **`supabase/config.toml`**, so it is declared in the
+   repo instead of depending on every deploy remembering to pass it. Still **confirm** it reads `false`
+   after deploying (cron sends no JWT and authenticates via `x-webhook-secret`; a `true` here 401s every
+   run), but it should no longer need to be set by hand.
 2. **Create the retry cron job**: `*/5 1-6 * * *` calling `?mode=retry`. Copy the `x-webhook-secret`
    header shape from job 14's existing `command`. The 01:00–06:00 window IS the give-up rule.
 3. **Verify `?debug=reply` for BOTH policies** (sends nothing, writes nothing): the advice draft must
