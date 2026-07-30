@@ -301,7 +301,11 @@ export function projectCard(card: CardData, months = PROJECTION_MONTHS): CardPro
 
   for (let m = 1; m <= simMonths; m++) {
     if (payoffMonth !== null) break;
+    // Anchor to day 1 BEFORE shifting the month: setMonth() on a day-29/30/31 date overflows any
+    // shorter target month (Jul 30 + 7 => "Feb 30" => Mar 2), which silently dropped February from
+    // the card's month dropdown and duplicated March. Label-only, but the dropdown reads it.
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + m - 1);
     const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
     const startBal = bal;
@@ -435,7 +439,9 @@ export function projectCardVariable(
     if (!hasPref && bal <= 0 && payoffMonth !== null) break;
     if (isCycling && m > months) break;
 
+    // Anchor to day 1 before shifting the month — see projectCard above (Feb-skip / Mar-dupe).
     const d = new Date();
+    d.setDate(1);
     d.setMonth(d.getMonth() + m - 1);
     const label = d.toLocaleString('en', { month: 'short', year: 'numeric' });
     const startBal = bal;
