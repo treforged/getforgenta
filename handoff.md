@@ -1,4 +1,61 @@
-# Handoff — 2026-07-30 (session 51-reddit) — ✅ **PARTS A AND B ARE CODE-COMPLETE AND COMMITTED (`5d92200d`). Migration APPLIED.** ⛔ **NOT DEPLOYED — v20 is still live and job 14 is still OFF.** Next session: deploy, verify, re-enable. ~4 steps.
+# Handoff — 2026-07-30 (session 52-reddit) — ✅✅ **DEPLOYED, VERIFIED LIVE, CRON RE-ENABLED. THE TWO-POLICY + AUTO-DEFER WORKSTREAM IS CLOSED.** v21 ACTIVE. Only the secret rotation remains.
+
+> **Reddit Scout workstream only.** Supersedes every Reddit Scout block below on state.
+> The rules audit, the root cause, and the design rationale below all still stand — do not re-derive them.
+
+## ⚡ START HERE — nothing in this workstream is open except one item
+All 4 remaining steps from session 51 are DONE and verified live. **Do not re-deploy, do not re-run the
+probes, do not re-create the retry cron.** The only thing still open is **rotating
+`REDDIT_SCOUT_SECRET`** (procedure unchanged in the session-42 block; steps 1-2 are Tre's by design so
+the value never enters a transcript). ⚠️ After rotating, **three** job commands now need updating — 13,
+14, and the new **19**, not two.
+
+## ✅ WHAT SHIPPED THIS SESSION — all four steps, in order, each verified
+1. **Deployed** `supabase/functions/reddit-scout/index.ts` via MCP `deploy_edge_function` with
+   `verify_jwt: false` passed explicitly. **v20 → v21 ACTIVE**, `verify_jwt` confirmed `false` on the
+   response. No source change — the deploy carried commit `5d92200d` exactly as committed.
+2. **`?debug=reply` (pg_net 256) → 200, `ok: true` for BOTH policies.** The session-50 Claude outage is
+   over. Every flag landed as specified:
+   - `povertyfinance` → `policy:"disclose"`, `mentions_forgenta:true`, **`has_disclosure:true`**,
+     `has_url:false`, **89 words**. Text: *"…I use Forgenta for this, full disclosure, I built it…"*
+   - `debtfree` → `policy:"advice"`, **`mentions_forgenta:false`**, `has_disclosure:false`,
+     `has_url:false`, 114 words.
+3. **`?debug=true` (pg_net 257) → 200.** `total: 100`, **`coverage_hours: 34.4`** (floor is 24, so
+   comfortable), `source:"new listing"`, `failed: 0`, `rateLimited: 0`. Per-post `policy` present in the
+   output. Top scorer was r/povertyfinance at 42, 4h old, `policy: disclose`.
+4. **Crons.** `cron.alter_job(14, active := true)` — **job 14 is LIVE again** on `0 1 * * *`. New
+   **job 19 `reddit-scout-retry`** on **`*/5 1-6 * * *`** hitting `?mode=retry`, `active = true`.
+   🔑 **Its command was derived in-database** from job 14's via `replace()` inside a `DO` block, so the
+   webhook secret was never selected into a transcript. Verified after the fact by predicate only
+   (`has_secret_header`, `is_retry`, `has_timeout := 120000` — all true). **Reuse this pattern.**
+
+### ✅ Retry no-op path smoke-tested live (pg_net 258) — free, as designed
+`?mode=retry` with nothing pending returned **200 `{"mode":"retry","run_date":"2026-07-30","skipped":"no
+pending run"}`**, touching neither Reddit nor Anthropic. That is the path that fires ~60×/window, so it
+had to stay free, and it is.
+
+### 🧭 STATE — what was and was not consumed
+- **`reddit_scout_seen_posts` still 129 rows. `reddit_scout_pending_runs` still 0 rows.** Nothing
+  emailed. **2 Opus calls spent** (the two in `?debug=reply`), nothing else.
+- pg_net ids: **256** debug=reply, **257** debug=true, **258** retry no-op.
+- No secret rotated. Job 13 still `active = false` and still **must not be unscheduled** — it is where
+  the probe recipe reads the secret from.
+- No source file changed this session; the only diff is this handoff.
+
+### ⚠️ TWO THINGS TO WATCH ON THE FIRST REAL RUN (01:00 UTC) — neither is blocking
+- **The advice draft came back at 114 words against a 60-110 cap.** Word count is a prompt instruction,
+  not a validator rule, so it passed correctly — `isOnBrandReply` checks mentions, disclosure and URLs,
+  not length. It is a small prompt-adherence drift, not a bug. **Do not add a length check to the
+  validator on the strength of one sample** — that would start rejecting otherwise-good drafts and burn
+  slots. If several digests run long, tighten the prompt instead.
+- **The defer path has still never fired for real.** It was built and reviewed but the outage ended
+  before it could be exercised, and it cannot be tested without a genuinely unavailable API. Expected
+  shape when it does: **503 `{deferred:true, attempts:1}`**, one `pending` row, **no seen rows, no
+  email**. Check that pair specifically.
+
+---
+
+# Handoff — 2026-07-30 (session 51-reddit) — ✅ Parts A and B code-complete and committed (`5d92200d`), migration applied. **Superseded above: the deploy, both probes, and the cron work are all DONE.** Kept for the design rationale.
 
 > **Reddit Scout workstream only.** Supersedes the session-50 block below on state and
 > next steps; everything it says about the RULES AUDIT and the root cause still stands and
