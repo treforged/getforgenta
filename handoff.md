@@ -1,3 +1,60 @@
+# Handoff — 2026-07-29 (session 49-reddit) — ✅✅ **REDDIT SCOUT IS FULLY WORKING END TO END. The fetch workstream (sessions 42-48) is CLOSED.** A real digest went out with 3 real Claude-written replies.
+
+> **Reddit Scout workstream only.** The FB-crosspost block below is closed and untouched here.
+> Supersedes every Reddit Scout block below (48/47/44b/44/42).
+
+## ⚡ START HERE (session 50)
+**Nothing in the fetch/reply path is open.** The scout fetches, scores, drafts, emails, and dedupes
+correctly on the twice-daily Supabase cron. Do not re-diagnose the 403; do not revisit Reddit OAuth.
+
+Only two items remain, both small and both listed under STILL OPEN.
+
+### ✅ THE UA FIX LANDED AND IT WORKED — v19 ACTIVE, commit `d60adb7a`
+Session 48's diagnosis was exactly right. In `fetchFeed` the bot UA was swapped for
+`Mozilla/5.0 (Windows NT 10.0; Win64; x64) … Chrome/131.0.0.0 Safari/537.36` plus
+`Accept-Language: en-US,en;q=0.9`. **No retries or extra requests were added** — the ~60s per-IP quota is
+real and one request per run is still correct. `verify_jwt: false` preserved on the deploy.
+
+| Probe | Result |
+|---|---|
+| pg_net **253** `?debug=true` | **200**, `total: 100`, `source: "new listing"`, `coverage_hours: 24.1`, 0 failed |
+| pg_net **254** real run | **200**, `{"sent":3, "coverage_hours":24.2, fetch:{ok:1, failed:0}}` |
+
+**Keep the browser UA.** An inline comment says so at the call site. A future "cleanup" back to a
+descriptive bot UA re-breaks the whole function.
+
+### ✅ CLAUDE REPLIES ARE CONFIRMED REAL, NOT PLACEHOLDERS — by timing, and it is conclusive
+The real run took **44,376 ms** (edge log, v19). Compare: a successful `?debug=reply` call is **14,606 ms**,
+and the spend-limit-rejected calls in session 47 were **~630 ms each**. 3 × ~14.6s + 0.9s of inter-post
+sleep + 1.4s fetch ≈ 44.4s. **Three genuine Opus generations, not three fast rejections.**
+⚠️ **Tre should still eyeball the digest email once** to confirm the prose reads on-brand — timing proves
+the API calls succeeded, not that the copy is good. Three Opus calls were spent this session.
+
+### 🧭 STATE (session 49-reddit)
+- One source file changed: `supabase/functions/reddit-scout/index.ts`, **v18 → v19 ACTIVE**. Local file
+  and v19 in sync. Commit **`d60adb7a`** (local only, not pushed).
+  Backup: `backups/2026-07-29_ua-fix/` (gitignored).
+- **A real digest WAS emailed to `tre@treforged.com`** and **3 rows were written** to
+  `reddit_scout_seen_posts` (now 126 rows total) — those posts will not reappear. Highest scorers were
+  r/personalfinance "Multiple accounts/cards as a digital cash stuffing method" (53), "Turning 18 soon…
+  HYSA" (46), "What's Next? The Boring Middle" (43).
+- pg_net ids: **253** debug probe, **254** the real run. No secret rotated, no cron altered.
+  Meta/IG/FB untouched.
+
+### ⏭️ STILL OPEN (only these two)
+1. **Rotate `REDDIT_SCOUT_SECRET`** — procedure unchanged in the session-42 block. Follow it exactly; it is
+   designed so the value never enters an agent transcript. **Do not shortcut it.**
+2. **Morning-slot keep-or-drop.** Now genuinely decidable for the first time: the 13:00 slot's zero rows
+   since 2026-05-23 were the 403, not quiet dedup. Let a couple of 13:00 cron runs happen on v19, then
+   check `net._http_response` for `sent`/`coverage_hours` and decide. Coverage is ~24h against a 12h run
+   gap, so the two slots genuinely overlap — dropping one is defensible once there is data.
+
+**Do not reopen:** Reddit OAuth (self-serve app creation is closed ecosystem-wide; the UA fix removed the
+last reason to want it). The local scheduled task `ForgentaRedditScout` (already **Disabled** in session
+48; `scripts/reddit-scout.mjs` stays on disk, only the schedule is retired).
+
+---
+
 # Handoff — 2026-07-29 (session 48-reddit) — 🔑 **THE 403 IS A USER-AGENT BLOCK, NOT AN IP BLOCK.** One-line fix, proven live, NOT yet applied. Claude replies WORK again. Local task DISABLED.
 
 > **Reddit Scout workstream only.** The FB-crosspost block below was written by a parallel session and is
