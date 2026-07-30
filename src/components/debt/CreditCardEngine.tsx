@@ -136,7 +136,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const [statementBalInput, setStatementBalInput] = useState('');
 
   const [targetInput, setTargetInput] = useState('');
-  const [overrides, setOverrides] = useState<Record<string, Record<number, number>>>({});
+  // Pinned per-month payments, persisted: these are deliberate user edits that the engine
+  // re-converges around (Anomaly B), so losing them on reload/navigation/mobile-resume silently
+  // threw away intentional planning work. Same store as 'tre:debt:paymentMode' above.
+  const [overrides, setOverrides] = usePersistedState<Record<string, Record<number, number>>>('tre:debt:overrides', {});
   const [editingMonth, setEditingMonth] = useState<{ cardId: string; month: number } | null>(null);
   const [monthPayInput, setMonthPayInput] = useState('');
   const [liquidCashOpen, setLiquidCashOpen] = useState(false);
@@ -1147,6 +1150,22 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     setOverrides({});
   };
 
+  // Pins persist across sessions, so a card that was closed/removed since the pin was set would
+  // otherwise leave an orphan key in storage — enough to keep the override path active forever
+  // against a card that no longer exists. Prune once the real card list is known. Returning `prev`
+  // unchanged when nothing is stale keeps this from looping.
+  useEffect(() => {
+    if (cards.length === 0) return;
+    const liveIds = new Set(cards.map(c => c.id));
+    setOverrides(prev => {
+      const kept = Object.fromEntries(Object.entries(prev).filter(([id]) => liveIds.has(id)));
+      return Object.keys(kept).length === Object.keys(prev).length ? prev : kept;
+    });
+  }, [cards, setOverrides]);
+
+  const pinnedCardCount = Object.keys(overrides).length;
+  const pinnedMonthCount = Object.values(overrides).reduce((s, m) => s + Object.keys(m).length, 0);
+
   if (cards.length === 0) {
     return (
       <div className="card-forged p-8 text-center">
@@ -1205,6 +1224,32 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </button>
           <span className="text-[9px] sm:text-[10px] text-muted-foreground">Targets ending cash ≈ safe minimum ({formatCurrency(recommendedSafeMinimum, false)})</span>
         </div>
+
+        {/* Manual-edit banner. Pins now survive reloads, so the plan on screen can be a hand-edited
+            one from a previous session — that has to be obvious at a glance, not just a small pill
+            down on the individual card. */}
+        {pinnedMonthCount > 0 && (
+          <div className="flex items-start gap-2 border border-primary/40 bg-primary/10 p-2.5 sm:p-3" style={{ borderRadius: 'var(--radius)' }}>
+            <Edit2 size={13} className="text-primary shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] sm:text-xs font-semibold text-primary">
+                Manually edited plan — {pinnedMonthCount} {pinnedMonthCount === 1 ? 'month' : 'months'} pinned
+                {pinnedCardCount > 1 && ` across ${pinnedCardCount} cards`}
+              </p>
+              <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
+                These payments are locked to amounts you set, and every other card is rebalanced around them.
+                Pinned edits are saved and will still be here next time you open the app.
+              </p>
+            </div>
+            <button
+              onClick={handleAutoAdjust}
+              className="shrink-0 flex items-center gap-1 border border-primary/40 text-primary px-2 py-1 text-[9px] sm:text-[10px] font-medium btn-press hover:bg-primary/20"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <RotateCcw size={10} /> Clear all
+            </button>
+          </div>
+        )}
 
         {/* Summary Stats */}
         <div className="card-forged p-4 sm:p-5">
@@ -1589,8 +1634,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           </span>
                         )}
                         {hasOverrides && (
-                          <span className="text-[8px] sm:text-[9px] px-1.5 py-0.5 bg-primary/15 text-primary border border-primary/30 font-medium" style={{ borderRadius: 'var(--radius)' }}>
-                            overrides
+                          <span className="text-[8px] sm:text-[9px] px-1.5 py-0.5 bg-primary text-primary-foreground border border-primary font-semibold flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
+                            <Edit2 size={8} /> {Object.keys(cardOverrides).length} edited
                           </span>
                         )}
                       </div>
@@ -1794,7 +1839,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         const displayEnd = isRevolvingMonth ? adjustedDisplayBalance(row.endBalance, cumAtIdx) : Math.max(0, row.endBalance);
                         const displayStart = isRevolvingMonth ? adjustedDisplayBalance(row.startBalance, cumBeforeIdx) : row.startBalance;
                         return (
-                          <div key={row.month} className={`border-b border-border/30 hover:bg-muted/10 ${isOverridden ? 'bg-primary/5' : ''}`}>
+                          <div key={row.month} className={`border-b border-border/30 hover:bg-muted/10 ${isOverridden ? 'bg-primary/15 border-l-2 border-l-primary' : ''}`}>
                             {/* Main row: Month | Payment | End Balance */}
                             <div className="grid grid-cols-3 gap-x-3 py-1.5">
                               <div className="px-2 text-[10px] sm:text-[11px] font-medium">{row.label}</div>
@@ -1812,7 +1857,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                     <span className="font-semibold text-primary">
                                       {row.payment > 0 ? `-${formatCurrency(row.payment, false)}` : '—'}
                                     </span>
-                                    {isOverridden && <span className="text-[8px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>edited</span>}
+                                    {isOverridden && <span className="text-[8px] font-semibold text-primary-foreground bg-primary px-1 py-0.5 flex items-center gap-0.5" style={{ borderRadius: 'var(--radius)' }}><Edit2 size={7} /> edited</span>}
                                     {(isPremium || isDemo) && !proj.card.autopayFullBalance && row.startBalance > 0 && (
                                       <button
                                         onClick={(e) => { e.stopPropagation(); setEditingMonth({ cardId: proj.card.id, month: idx }); setMonthPayInput(String(Math.round(row.payment))); }}
