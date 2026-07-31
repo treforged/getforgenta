@@ -61,7 +61,7 @@ export function getUpfrontCardPlanDates(plan: PaymentPlan, cardDueDay: number | 
   }
   const start = new Date(plan.start_date + 'T00:00:00');
   // First occurrence of the card's due day strictly after the purchase…
-  let y = start.getFullYear();
+  const y = start.getFullYear();
   let mo = start.getMonth();
   if (start.getDate() >= cardDueDay) mo += 1;
   // …belongs to the already-closed statement — skip it; first installment is the one after.

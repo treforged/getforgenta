@@ -33,6 +33,21 @@ export default tseslint.config(
       // `cond ? a() : b()` as a statement is an established pattern here for
       // conditional Set mutation (next.has(id) ? next.delete(id) : next.add(id)).
       '@typescript-eslint/no-unused-expressions': ['error', { allowTernary: true, allowShortCircuit: true }],
+      // 2026-07-31: eslint-plugin-react-hooks 5 -> 7 (required by the eslint 10
+      // bump that clears the brace-expansion/minimatch advisories) ships a new
+      // compiler-backed rule set. It flags 55 pre-existing sites that were never
+      // linted before. These are real signals, not false positives, so they are
+      // staged as warnings rather than switched off - blocking on them here
+      // would have made a security bump into an unrelated 55-file refactor.
+      // TODO: burn these down in a dedicated pass, then restore to 'error'.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/immutability': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/refs': 'warn',
+      'react-hooks/static-components': 'warn',
+      'react-hooks/preserve-manual-memoization': 'warn',
+      // New in eslint 10 core, same rationale as above.
+      'no-useless-assignment': 'warn',
     },
   },
   {
