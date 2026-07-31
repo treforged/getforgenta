@@ -1,3 +1,99 @@
+# Handoff — 2026-07-30 (session 57-debt) — ✅✅ **TRE'S Sep 2026 → Mar 2027 BAND IS REPRODUCED LIVE, TO THE CENT. The bug is REAL and the display path is NOT the converged plan.** Branch `debt-grace-preservation`.
+
+> **Debt-engine workstream.** Supersedes session 56 on the reconciliation. Every elimination in
+> sessions 54/55/56 still stands and **must not be re-run** — they were all correct, they just
+> weren't the mechanism.
+> **One config change (`.claude/settings.json` SessionStart hook). No engine code touched, no
+> Supabase writes, no deploy.**
+
+## ⚡ START HERE — the reconciliation is DONE. The open task is now hypothesis 1, and only that.
+The 3-session-old question "why does Tre see a band when the fixture shows scattered months" is
+**answered**. Do not re-read the live page, do not re-diff the fixture, do not re-run scenarios A-F.
+
+## ✅ THE LIVE READ — Prime Visa, Debt tab, Variable + Avalanche, 2026-07-30
+Read directly off the expanded card in the signed-in MCP tab. **These are the real rendered rows.**
+
+| Month (as the UI labels it) | Payment | Interest | End balance |
+|---|---|---|---|
+| Jul 2026 | — | — | $6,977 |
+| Aug 2026 | $1,008 | $0 | $6,255 |
+| **Sep 2026** | $829 | **$37.12** | $5,612 |
+| **Oct 2026** | $1,648 | **$34.07** | $4,146 |
+| **Nov 2026** | $799 | **$12.20** | $3,508 |
+| **Dec 2026** | $799 | **$9.27** | $2,867 |
+| **Jan 2027** | $791 | **$6.28** | $2,295 |
+| "Mar 2027" ⚠️ **really Feb 2027** | $349 | $0 | $2,094 |
+| **Mar 2027** | $714 | **$8.22** | $2,349 |
+| Apr 2027 → Dec 2027 | — | $0 | — |
+
+🔑 **Sum = $107.16, and the card's TOTAL INTEREST tile reads $107. The table is internally consistent —
+this is the real rendered plan, not a misread.**
+**The band is Sep 2026 → Mar 2027. Contiguous. Exactly Tre's report.** It is NOT a label artifact and
+NOT data drift. Card-level tiles at the same moment: INTEREST/MO **$0.00**, Interest-free 13 mo (Jul 2027),
+MIN PAYMENT $451, PURCHASES/MO $148, ISB **$1,008 manual**.
+
+### 🔑 The $97.56 header tile is ENTIRELY DISCOVER — do not attribute any of it to Prime Visa
+Discover it Card live: INTEREST/MO **$97.56**, TOTAL INTEREST **$890**, balance $9,083 @ 12.89%,
+`Full Balance`, min $189. Session 54's "the real money is Discover" is confirmed against the live UI.
+
+## 🔴 HYPOTHESIS 1 IS NOW THE ONLY LEAD, AND IT HAS TEETH — the display ≠ the converged plan
+Compare the payments above against the converged engine (session 54 diagnostic + session 56 scenario F):
+
+| month | converged engine pays | **live UI pays** |
+|---|---|---|
+| m2 | $1,215 | **$829** |
+| m3 | $1,324 | **$1,648** |
+| m4-m8 | $658 - $1,133 | **$799 / $799 / $791 / $349 / $714** |
+
+Converged scenario F: **Sep 2026 = $37.12 and every other month $0** (12-mo total $37.12).
+Live: **Sep 2026 = $37.12 and then five more interest months** (12-mo total $107.16).
+🔑 **They agree on Sep to the cent and diverge from Oct onward.** A wholly independent sim would not
+match Sep exactly, so this is not "two unrelated numbers" — it is one path handing off to another.
+That is the signature of the `variableSim` fallback at **`CreditCardEngine.tsx:963`**
+`(monthlyInterest ?? variableSim.monthlyInterest)` (same pattern :959-962), where `variableSim` (:451)
+is the component-local, **NOT cash-converged** sim.
+⚠️ **DO NOT "fix" the `??` before proving it fires.** Instrument first: log whether `monthlyInterest`
+is `undefined` at render, and for which month indices. The fallback exists for a reason.
+
+## ✅ THE MONTH-LABEL BUG IS CONFIRMED LIVE IN PRODUCTION (as session 56 predicted)
+The 2027 dropdown renders **Jan 2027, Mar 2027, Mar 2027, Apr 2027** — **Feb 2027 missing, Mar twice**,
+from a Jul-30 clock. That is exactly `57a48d5f`, which is committed **on this branch and NOT deployed**.
+Balance chaining proves the mapping (row 2 starts $2,295 = Jan's end; row 3 starts $2,094 = row 2's end),
+so **the second "Mar 2027" is the true Mar and the first is Feb.**
+🔑 **It did NOT cause the band** — it only hid Feb. The band is real with or without it. **Deploying the
+label fix is now a separate, safe, obvious win.**
+
+## ⏭️ EXACT NEXT STEPS
+1. **Instrument `CreditCardEngine.tsx:959-963`** — prove whether `monthlyInterest` (and the balance /
+   cycling props) are `undefined` at render, and from which month index. That single fact decides
+   whether this is a display bug or an engine bug.
+2. If the fallback IS firing: the fix is to make the converged props reach the display, **not** to
+   change `variableSim`. Trace `useCardProjection` → the props feeding `:959-963`.
+3. **Deploy the label fix `57a48d5f`** (merge/push `debt-grace-preservation`) — independent of the above.
+4. Still open, unchanged: delete-or-promote `grace-diagnostic.test.ts` (`ed6940be`);
+   `useCardProjection.month0income.test.ts` is still the PRE-EXISTING date-dependent failure (223/224),
+   **not a regression**; `b956ec82` (reddit-scout) still rides along on this branch.
+
+## 🛠️ ONE CONFIG CHANGE THIS SESSION — `/clear` then `.` now auto-resumes
+Tre asked to stop retyping "continue from handoff". **`/clear` itself cannot be automated** — no hook can
+issue a slash command; `context-gate.mjs` can only prompt for it. What changed is the **`SessionStart`
+hook in `.claude/settings.json`** (it already fired on `clear`): its `additionalContext` now says to read
+handoff.md in full, resume from next-steps, and that **a lone `.` from the user IS the instruction to
+continue — do not ask what to work on, do not summarize and stop.**
+✅ Verified: `settings.json` parses, and the hook command executes and emits valid JSON.
+Backup: **`backups/2026-07-30_223525/`** (gitignored).
+
+## 🧭 STATE
+- **No engine/component code changed. No Supabase writes, no deploy, no cron, no push.**
+- Only files touched: `.claude/settings.json` (hook text) and this file.
+- The signed-in MCP tab does **not** survive across sessions as a tab group, but **the Chrome profile
+  stays logged in** — a fresh `navigate` to `getforgenta.com/debt` loaded fully authenticated with no
+  sign-in. 🔑 **Just navigate; do not ask Tre to sign in again unless you actually land on `/auth`.**
+- 🔑 **To re-read the rows:** expand Prime Visa, then use `get_page_text` (not screenshots) — the whole
+  month table comes back as text in one call. The year tabs (2026/2027/…) each need their own click.
+
+---
+
 # Handoff — 2026-07-30 (session 56-debt) — 🔴 **THE LIVE DATA IS NOT THE EXPLANATION. Hypotheses 4 (cash), 5 (new plans/rules) and 6 (stale deployed code) ALL ELIMINATED BY MEASUREMENT.** Browser tab is SIGNED IN and parked on the Debt tab. Branch `debt-grace-preservation`.
 
 > **Debt-engine workstream.** Supersedes session-55 on the reconciliation only.
