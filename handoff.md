@@ -1,3 +1,100 @@
+# Handoff — 2026-07-30 (session 56-debt) — 🔴 **THE LIVE DATA IS NOT THE EXPLANATION. Hypotheses 4 (cash), 5 (new plans/rules) and 6 (stale deployed code) ALL ELIMINATED BY MEASUREMENT.** Browser tab is SIGNED IN and parked on the Debt tab. Branch `debt-grace-preservation`.
+
+> **Debt-engine workstream.** Supersedes session-55 on the reconciliation only.
+> Everything session 55 shipped (`35795c33` pin persistence) and its three eliminations still stand.
+> **Read-only session. Zero files changed, zero commits except this one, no Supabase writes, no deploy.**
+
+## ⚡ START HERE — the fixture/data track is EXHAUSTED. Go straight to the browser. It is signed in.
+Tre signed into the MCP tab this session; `getforgenta.com/debt` loads fully. **The single remaining
+task is to expand Prime Visa and read its Sep 2026 → Mar 2027 rows.** I hit the context gate with the
+page loaded and the card not yet expanded. **Do not re-run any fixture scenario below.**
+
+### ✅ CONFIRMED LIVE OFF THE DEBT TAB (screenshot, 2026-07-30)
+Strategy **Avalanche**, Payment Mode **Variable** (confirms session 55's toggle elimination against
+the live UI, not just Tre's word). Cash floor 2700, Safe Min $2,700, funding account **TOTAL CHECKING
+$3,848**. Header tiles: **TOTAL CC BALANCE $16,060 · UTILIZATION 35.4% · MONTHLY INTEREST $97.56 ·
+PAYOFF ETA 13 mo**. Est. liquid cash $4,697, Safe to Pay $1,552, Minimums Due $0.
+🔑 **$97.56 is the current-month all-card figure** — my converged sim puts Prime Visa's Sep-2026 spike
+at $37.12 and Discover carries the rest. Reconcile the per-card split when the card is expanded.
+
+## ❌ ELIMINATED 4 — "live CASH is lower, so the cascade underfunds Prime Visa"
+This was session 55's stated remaining lead. **It points the WRONG WAY.** Live `accounts` vs the
+07-20 fixture: TOTAL CHECKING **1,999.65 → 3,848.11 (+1,848.46)**, General Operations 57.24 → 72.92,
+Discover **9,608.64 → 9,082.71 (−525.93)**, Checking/Savings unchanged. **More surplus and less
+Discover debt shortens the band, it cannot lengthen it.** Do not re-test this.
+
+## ❌ ELIMINATED 5 — "a new recurring expense / payment plan drains the surplus"
+Live `payment_plans` and `recurring_rules` DO contain objects absent from the fixture, and one looked
+extremely promising, but measurement killed all of them.
+**New/changed since the 07-20 capture:**
+- 🆕 **Carnival Ultimate Package** — Flex Pay, $1,080, **$120/mo × 9, start 2026-08-24**,
+  `monthly_charge`, paid from **TOTAL CHECKING (the debt funding account)**. Window **Aug 2026 → Apr
+  2027**, which straddles Tre's reported Sep→Mar; with the one-month interest lag it aligned almost
+  perfectly. **It still changes nothing.**
+- 🆕 `GF Part of Cruise Ultimate` — income +$52/mo, 2026-08-18 → 2027-04-18 (offsets Carnival).
+- mom payback re-cut **$228 × 5 → $190 × 6**; Bucket Seats start **2027-01-05 → 2027-12-05**;
+  HYS transfer **$100 → $300** but start moved to **2027-08-17** (outside the window entirely).
+
+**Scenario table — patched the fixture with each delta and ran the real converged engine:**
+| scenario | bad months | 12mo interest |
+|---|---|---|
+| A. fixture as captured, 07-20 clock | Sep 26, Oct 26, Apr 27 | $55.88 |
+| B. fixture, 07-30 clock | Sep 2026 | $30.26 |
+| C. + live cash/card balances | Sep 2026 | $37.12 |
+| D. + live plans WITHOUT Carnival | Sep 2026 | $37.12 |
+| E. + Carnival | Sep 2026 | $37.12 |
+| F. ALL deltas (cash + plans + rules) | Sep 2026 | $37.12 |
+
+🔴 **C through F are byte-identical row for row.** No live data delta moves Prime Visa's grace outcome
+at all. **The data is not the mechanism. Stop recapturing the fixture — a fresh capture would produce
+scenario F, which is already measured.**
+
+## ❌ ELIMINATED 6 — "production is running an older engine"
+`origin/main` is what Vercel builds. It is **54 commits behind local `main`**, which looks alarming and
+is not. `git diff origin/main..main -- src/lib/credit-card-engine.ts src/lib/forecast-convergence.ts
+src/lib/revolving-payoff.ts src/hooks/useCardProjection.ts src/components/debt/` is **EMPTY** — the
+entire debt engine and every debt component are identical. Q12 (`a08eb34b`, `e59efd46`) is confirmed
+an ancestor of `origin/main`. The 54 commits are reddit-scout, feature-flags, paywall and handoffs.
+⚠️ **The ONE un-deployed debt change is the month-label fix `57a48d5f`** (it lives on this branch, not
+on main), so **production still renders the day-30 label bug**: from a Jul-30 clock Feb 2027 shows as
+"Mar 2027" and Mar appears twice. **Part of Tre's reported range is probably that, not interest.**
+
+## ⏭️ THE TWO REMAINING HYPOTHESES — both need the live page, both are cheap now
+1. 🔑 **THE STRONGEST LEAD — the `variableSim` display fallback.**
+   `CreditCardEngine.tsx:963` reads `(monthlyInterest ?? variableSim.monthlyInterest)` — same pattern
+   on lines 959-962 for balances, cycling owed and cycling interest. When the converged props from
+   `useCardProjection` are absent/undefined, the display silently falls back to **`variableSim`
+   (`:451`), a component-local sim that is NOT cash-converged** and can be materially more
+   pessimistic. Every measurement I ran went through the *converged* path, so this fallback has
+   **never been measured**. If the live page is rendering the fallback, that alone could produce a
+   contiguous band. **Check this first.**
+2. **The month-label bug** inflating the apparent range (see ELIMINATED 6).
+
+### ⏭️ EXACT NEXT STEPS
+1. In the signed-in tab, expand **Prime Visa** on the Debt tab and capture per month for
+   **Sep 2026 → Mar 2027**: payment, interest, start/end balance. Compare against scenario F
+   (Sep 2026 = $37.12, every other month $0).
+2. If the live rows show interest where F shows zero, instrument hypothesis 1: confirm whether
+   `monthlyInterest` is undefined at render. **Do not "fix" the `??` fallback before proving it
+   fires** — it exists for a reason.
+3. Also verify the month labels in the dropdown while there (Feb 2027 present? Mar twice?).
+
+## 🧭 STATE
+- **Zero code changed. Working tree clean apart from this file. No commits but this one, no push,
+  no Supabase writes (all `select`), no deploy, no cron touched.**
+- The 6-scenario harness is preserved OUTSIDE the repo at
+  **`<scratchpad>/zz-scratch-livedeltas.test.ts`** (it was written to
+  `src/lib/__tests__/zz-scratch-livedeltas.test.ts`, run, then removed so it does not run in the
+  suite). It patches the fixture with the live cash/plans/rules deltas and prints calendar-labelled
+  per-month rows. 🔑 **Vitest swallows `console.log` here — you MUST pass
+  `--silent=false --reporter=verbose`.**
+- Unchanged and still open from session 55: `grace-diagnostic.test.ts` (`ed6940be`) still needs
+  deleting or promoting; `useCardProjection.month0income.test.ts` is still the PRE-EXISTING
+  date-dependent failure (223/224) — **not a regression**; `b956ec82` (reddit-scout) still rides
+  along on this branch.
+
+---
+
 # Handoff — 2026-07-30 (session 55-debt) — ✅ **Payment pins now PERSIST + manual edits surfaced (`35795c33`).** 🔴 **Tre's Sep 2026→Mar 2027 report is STILL UNREPRODUCED — three hypotheses ELIMINATED, remaining lead is LIVE CASH (live accounts captured below).** Branch `debt-grace-preservation`.
 
 > **Debt-engine workstream.** Supersedes session-54-debt on the reconciliation only.
