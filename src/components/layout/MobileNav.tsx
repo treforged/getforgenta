@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 // The bottom bar is a 5-column grid: 4 primary tabs plus the "More" button. When
@@ -37,12 +37,14 @@ export default function MobileNav() {
   const { signOut } = useAuth();
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
-  const [showMore, setShowMore] = useState(false);
+  // The More panel stores the route it was opened on rather than a bare boolean,
+  // so it closes itself the moment the route changes — covering primary tabs, the
+  // back button and programmatic navigation alike, with no effect to reset it.
+  const [moreOpenedAt, setMoreOpenedAt] = useState<string | null>(null);
+  const showMore = moreOpenedAt === pathname;
+  const setShowMore = (open: boolean) => setMoreOpenedAt(open ? pathname : null);
 
   const moreActive = SECONDARY.some(i => pathname === i.to);
-
-  // Auto-close More panel whenever the route changes (covers primary tabs, back button, programmatic nav)
-  useEffect(() => { setShowMore(false); }, [pathname]);
 
   return (
     <>

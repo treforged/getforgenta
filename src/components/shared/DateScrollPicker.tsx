@@ -137,9 +137,20 @@ export default function DateScrollPicker({ value, onChange }: { value: string; o
   const maxDay = new Date(yr, mo, 0).getDate();
   const safeDay = Math.min(dy, maxDay);
 
-  useEffect(() => {
-    if (dy !== safeDay) setDy(safeDay);
-  }, [dy, safeDay]);
+  // Changing month or year can strand the selected day past the end of the new
+  // month (Jan 31 → Feb). That clamp used to be a write-back effect reacting to
+  // its own state; it now happens in the two handlers that can cause it, which
+  // is the only way to reach an out-of-range day. Behaviour is unchanged: the
+  // clamp is still sticky, so Jan 31 → Feb → Mar lands on the 28th.
+  const selectMonth = (m: number) => {
+    setMo(m);
+    setDy(d => Math.min(d, new Date(yr, m, 0).getDate()));
+  };
+
+  const selectYear = (y: number) => {
+    setYr(y);
+    setDy(d => Math.min(d, new Date(y, mo, 0).getDate()));
+  };
 
   useEffect(() => {
     const mm = String(mo).padStart(2, '0');
@@ -173,11 +184,11 @@ export default function DateScrollPicker({ value, onChange }: { value: string; o
       className="flex bg-secondary border border-border overflow-hidden"
       style={{ borderRadius: 'var(--radius)' }}
     >
-      <ScrollColumn items={MONTHS} selected={mo} onSelect={setMo} />
+      <ScrollColumn items={MONTHS} selected={mo} onSelect={selectMonth} />
       <div className="w-px bg-border/30 self-stretch" />
       <ScrollColumn items={days} selected={safeDay} onSelect={setDy} />
       <div className="w-px bg-border/30 self-stretch" />
-      <ScrollColumn items={years} selected={yr} onSelect={setYr} />
+      <ScrollColumn items={years} selected={yr} onSelect={selectYear} />
     </div>
   );
 }

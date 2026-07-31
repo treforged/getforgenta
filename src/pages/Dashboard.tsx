@@ -276,7 +276,12 @@ export default function Dashboard() {
     if (isDemo || profileLoading || debtsLoading || goalsLoading || acctLoading || onboardingInitRef.current) return;
     onboardingInitRef.current = true;
     const alreadySeenThisSession = sessionStorage.getItem(FOUNDER_NOTE_KEY) === '1';
+    // One-shot onboarding decision, latched by onboardingInitRef so it runs once
+    // per mount. It waits on four async queries (profile/debts/goals/accounts)
+    // and reads sessionStorage, so it can be decided neither during render nor in
+    // a lazy initializer — the inputs simply do not exist yet at mount.
     if (profile?.founder_note_seen === false && !alreadySeenThisSession) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFounderNoteVisible(true);
     } else if (
       profile?.onboarding_completed === false &&

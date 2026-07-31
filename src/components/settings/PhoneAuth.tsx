@@ -18,6 +18,10 @@ export function PhoneAuth() {
     if (p) setStep('confirmed');
   }, []);
 
+  // Not a synchronous setState: loadPhone awaits supabase.auth.getUser() before
+  // it touches state, so the setStates land a microtask later, off the effect
+  // body. The rule cannot see through the async function boundary.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadPhone(); }, [loadPhone]);
 
   const handleSendOtp = async () => {

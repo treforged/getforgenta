@@ -805,6 +805,11 @@ export default function AiAdvisor() {
 
   // Load consent status, history, and today's usage count on mount
   useEffect(() => {
+    // Short-circuit for demo/logged-out: skip the history + usage fetch and mark
+    // the page loaded. Cannot be a lazy initializer — `user` starts null and is
+    // populated by auth hydration after mount, so this branch has to react to
+    // that transition rather than be decided once at mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!user || isDemo) { setConsentStatus('accepted'); setHistoryLoaded(true); return; }
     const todayStart = new Date();
     todayStart.setUTCHours(0, 0, 0, 0);

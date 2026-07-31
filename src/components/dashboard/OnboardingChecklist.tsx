@@ -40,6 +40,11 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
   // Load manual overrides from tour_flags on mount / profile change
   useEffect(() => {
     const flags = getTourFlags(profile);
+    // Not derivable from `profile`: the user can also tick an item locally
+    // (setOverrides below), so this state is server truth plus optimistic local
+    // writes. The profile query resolves after mount, so a lazy initializer
+    // cannot cover it either.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOverrides({
       accounts: !!flags['checklist_accounts'],
       budget:   !!flags['checklist_budget'],

@@ -42,6 +42,10 @@ export function TwoFactorAuth() {
     setLoading(false);
   }, []);
 
+  // Not a synchronous setState: loadFactors awaits supabase.auth.mfa.listFactors()
+  // before setFactors/setLoading, so both land a microtask later, off the effect
+  // body. The rule cannot see through the async function boundary.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadFactors(); }, [loadFactors]);
 
   // ── TOTP enrollment ────────────────────────────────────────────────────────

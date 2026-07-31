@@ -10,18 +10,18 @@ import AppTour from '@/components/shared/AppTour';
 export default function PremiumSuccess() {
   const { refetch } = useSubscription();
   const [searchParams] = useSearchParams();
-  const [polling, setPolling] = useState(true);
-  const [verified, setVerified] = useState(false);
-
   const rawSessionId = searchParams.get('session_id');
   const sessionIdResult = premiumSuccessParamsSchema.safeParse({ session_id: rawSessionId });
   const sessionId = sessionIdResult.success ? sessionIdResult.data.session_id : null;
 
+  // Seeded from the URL rather than set to false by the effect: with no valid
+  // session_id there is nothing to poll for, and that is knowable on the first
+  // render. Avoids a frame of the "verifying" state on a malformed return URL.
+  const [polling, setPolling] = useState(!!sessionId);
+  const [verified, setVerified] = useState(false);
+
   useEffect(() => {
-    if (!sessionId) {
-      setPolling(false);
-      return;
-    }
+    if (!sessionId) return;
 
     let cancelled = false;
 

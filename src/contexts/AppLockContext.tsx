@@ -103,7 +103,10 @@ export const useAppLock = () => useContext(AppLockContext);
 export function AppLockProvider({ children }: { children: React.ReactNode }) {
   const isNative = Capacitor.isNativePlatform();
 
-  const [ready, setReady] = useState(false);
+  // Web is ready immediately — there is no lock to restore, and `isNative` is
+  // fixed for the lifetime of the process. Seeding it here rather than calling
+  // setReady(true) from the init effect saves the web path a wasted render.
+  const [ready, setReady] = useState(!isNative);
   const [isLocked, setIsLocked] = useState(false);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [lockType, setLockTypeState] = useState<LockType>('pin');
@@ -121,7 +124,7 @@ export function AppLockProvider({ children }: { children: React.ReactNode }) {
   // Lock on app kill + reopen: runs on every fresh JS load (process start).
   // Background → foreground does not re-run this effect.
   useEffect(() => {
-    if (!isNative) { setReady(true); return; }
+    if (!isNative) return; // `ready` already seeded true for web
 
     async function init() {
       debugLog('INIT_START');

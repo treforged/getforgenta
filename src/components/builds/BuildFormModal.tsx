@@ -20,6 +20,11 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
 
   useEffect(() => {
     if (open) {
+      // Resets the form to the build being edited each time the modal opens. The
+      // component stays mounted while closed (it only returns null), so its state
+      // survives between openings and has to be reset explicitly. The fields are
+      // user-editable, so they cannot be derived from the `build` prop.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(build ? {
         name: build.name,
         year: build.year ? String(build.year) : '',

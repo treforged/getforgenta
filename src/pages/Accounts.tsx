@@ -305,7 +305,12 @@ export default function Accounts() {
 
   const openAdd = (preType?: string) => { setForm({ ...emptyForm, account_type: preType ?? '' }); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
 
+  // Deep-link command: /accounts?new=1 opens the add-account form on arrival.
+  // openAdd sets seven pieces of form state at once, so this is a one-shot mount
+  // action driven by the URL (an external system), not derived state. Deps are
+  // deliberately empty — it must fire on arrival only, never on later re-renders.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (searchParams.get('new') === '1') openAdd(searchParams.get('type') ?? undefined);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

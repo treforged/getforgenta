@@ -19,6 +19,10 @@ export default function AccountUpdateReminder() {
 
     // Show if: (1) not demo, (2) it's 1st-7th of month, (3) not dismissed this month yet
     if (!isDemo && dayOfMonth >= 1 && dayOfMonth <= 7 && dismissedKey !== monthKey) {
+      // One-shot visibility decision from two external systems — the wall clock
+      // and localStorage. Deriving it during render instead would mean reading
+      // both on every render, which is the impurity the sibling rule forbids.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShouldShow(true);
     }
   }, [isDemo]);

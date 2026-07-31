@@ -81,6 +81,12 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
       const saved = profile.forecast_assumptions as (Partial<AssumptionsType> & { taxOverride?: unknown }) | null;
       if (saved && typeof saved === 'object') {
         const { taxOverride: _dropped, ...migrated } = { ...saved };
+        // One-shot hydration of the saved forecast assumptions, guarded by
+        // assumptionsLoaded so it can never re-run and clobber user edits. The
+        // assumptions are user-editable and debounce-saved back to the profile,
+        // so they cannot be derived from it; the profile query resolves after
+        // mount, so a lazy initializer cannot cover this either.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setAssumptionsState(prev => ({ ...prev, ...migrated }));
         assumptionsLoaded.current = true;
       }

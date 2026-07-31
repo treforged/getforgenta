@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   CookieConsentState,
   loadConsent,
@@ -20,35 +20,29 @@ interface UseCookieConsentReturn {
 }
 
 export function useCookieConsent(): UseCookieConsentReturn {
-  const [consent, setConsent] = useState<CookieConsentState | null>(null);
-  const [status, setStatus] = useState<ConsentStatus>('pending');
+  // Read localStorage in a lazy initializer rather than a mount effect. The
+  // stored consent never changes between the initializer and the first commit,
+  // and initializing here means a returning visitor no longer gets one frame of
+  // the cookie banner before it is dismissed again.
+  // If nothing is stored, status stays 'pending' → banner shows.
+  const [consent, setConsent] = useState<CookieConsentState | null>(() => loadConsent());
 
-  useEffect(() => {
-    const stored = loadConsent();
-    if (stored) {
-      setConsent(stored);
-      setStatus('decided');
-    }
-    // If null, status stays 'pending' → banner shows
-  }, []);
+  // `status` was a second piece of state, but it was set to 'decided' in exactly
+  // the same places `consent` was set to a value, and never anywhere else — so it
+  // is derived instead of stored.
+  const status: ConsentStatus = consent ? 'decided' : 'pending';
 
   const acceptAll = useCallback(() => {
-    const state = saveConsent({ analytics: true, marketing: true });
-    setConsent(state);
-    setStatus('decided');
+    setConsent(saveConsent({ analytics: true, marketing: true }));
   }, []);
 
   const rejectNonEssential = useCallback(() => {
-    const state = saveConsent({ analytics: false, marketing: false });
-    setConsent(state);
-    setStatus('decided');
+    setConsent(saveConsent({ analytics: false, marketing: false }));
   }, []);
 
   const saveCustom = useCallback(
     (prefs: Pick<CookieConsentState, 'analytics' | 'marketing'>) => {
-      const state = saveConsent(prefs);
-      setConsent(state);
-      setStatus('decided');
+      setConsent(saveConsent(prefs));
     },
     [],
   );

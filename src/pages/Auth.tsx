@@ -109,6 +109,11 @@ export default function Auth() {
     // Supabase establishes the recovery session from the hash tokens.
     if (hash.includes('type=recovery')) {
       sessionStorage.setItem('forgenta:recovery_pending', '1');
+      // Picks the form mode out of the URL hash / query — an external system.
+      // This branch is inseparable from its two side effects (the sessionStorage
+      // flag that suppresses AuthContext's redirect, and the history rewrite that
+      // strips the tokens), so it belongs in an effect, not an initializer.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMode('set-password');
       window.history.replaceState(null, '', window.location.pathname);
       return;
@@ -504,6 +509,13 @@ export default function Auth() {
   // Auto-submit when 6 digits entered for TOTP
   useEffect(() => {
     if (mfaFactorType === 'totp' && mfaCode.length === 6 && !loading) {
+      // Auto-submit once the 6th TOTP digit lands. Kept as an effect rather than
+      // moved into the input's onChange because the code can also arrive by paste
+      // and by iOS SMS/keyboard autofill, which do not all route through the same
+      // handler — reacting to the value is what makes every path submit.
+      // The !loading guard plus setLoading(true) inside handleMfaVerify keeps it
+      // to a single submission.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       handleMfaVerify();
     }
   }, [mfaCode, mfaFactorType, loading, handleMfaVerify]);

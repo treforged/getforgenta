@@ -41,6 +41,10 @@ export function LinkedAccounts() {
     setLoading(false);
   }, []);
 
+  // Not a synchronous setState: loadIdentities' first statement is an await on
+  // supabase.auth.getUser(), so every setState in it runs a microtask later, off
+  // the effect body. The rule cannot see through the async function boundary.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadIdentities(); }, [loadIdentities]);
 
   const getProviderLabel = (providerId: string) =>

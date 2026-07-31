@@ -119,7 +119,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const [strategy, setStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
   const [paymentMode, setPaymentMode] = usePersistedState<'variable' | 'consistent'>('tre:debt:paymentMode', 'variable');
   const [cashFloor, setCashFloorLocal] = useState(() => profile?.cash_floor != null ? Number(profile.cash_floor) : 1000);
+  // Re-hydrates the locally editable cash floor when the server value arrives or
+  // changes. The lazy initializer above covers the case where profile is already
+  // cached; this covers the first load, where the query resolves after mount.
+  // The value is user-editable, so it cannot simply be read from `profile`.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (profile?.cash_floor != null) setCashFloorLocal(Number(profile.cash_floor));
   }, [profile?.cash_floor]);
   // Only one card's accordion open at a time — prevents the page from getting overcrowded

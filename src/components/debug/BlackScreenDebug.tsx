@@ -119,6 +119,11 @@ export default function BlackScreenDebug() {
 
   useEffect(() => {
     if (!open) return;
+    // Not a synchronous setState: refresh is `setEntries(await readLog())`, so
+    // the write happens after the log read resolves, off the effect body. The
+    // rule cannot see through the async function boundary. This is also a
+    // dev-only native overlay gated on DEV_EMAIL — it never runs for users.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
     const id = setInterval(refresh, 2000);
     return () => clearInterval(id);

@@ -205,14 +205,22 @@ export default function BudgetControl() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyRuleForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [starterSeeded, setStarterSeeded] = useState(false);
+  // Guard only — never read during render. A ref rather than state because it
+  // must flip synchronously: with state, a second effect run in the same tick
+  // still sees `false` and seeds the starter rules twice.
+  const starterSeededRef = useRef(false);
   const profileLoaded = useRef(false);
 
+  // Hydrates the paycheck/tax/deductions form from the server profile once it
+  // arrives. Every field is user-editable afterwards and auto-saved back, so
+  // none of it can be derived from `profile`; the query resolves after mount, so
+  // a lazy initializer cannot cover it either.
   useEffect(() => {
     if (profile) {
       const wg = Number(profile.weekly_gross_income) || 1875;
       const pf = (profile.paycheck_frequency as PayFrequency) || 'weekly';
       const perPaycheck = pf === 'biweekly' ? wg * 2 : pf === 'monthly' ? wg * 52 / 12 : wg;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWeeklyGross(wg);
       setWeeklyGrossInput(String(Math.round(perPaycheck * 100) / 100));
       const loadedTr = profile.tax_rate ?? 22;
@@ -249,13 +257,13 @@ export default function BudgetControl() {
   }, [profile]);
 
   useEffect(() => {
-    if (!rulesLoading && !isDemo && user && rules.length === 0 && !starterSeeded) {
-      setStarterSeeded(true);
+    if (!rulesLoading && !isDemo && user && rules.length === 0 && !starterSeededRef.current) {
+      starterSeededRef.current = true;
       DEFAULT_STARTER_RULES.forEach(r => {
         addRule.mutate({ ...r, active: true, due_month: null, payment_source: null, deposit_account: null, notes: r.notes || '' });
       });
     }
-  }, [rulesLoading, isDemo, user, rules.length, starterSeeded, addRule]);
+  }, [rulesLoading, isDemo, user, rules.length, addRule]);
 
   // Auto-save income/tax with debounce + auto-sync income rule
   const resolveAmt = (d: PaycheckDeduction, gross: number) =>

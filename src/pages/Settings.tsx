@@ -155,8 +155,14 @@ export default function SettingsPage() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
+  // Hydrates the settings form from the server profile once it arrives. These
+  // fields are user-editable afterwards, so they cannot be derived from `profile`
+  // — the form has to own them, and the profile query resolves after mount, so a
+  // lazy initializer cannot cover it either. setDirty(false) at the end marks the
+  // freshly loaded values as the clean baseline.
   useEffect(() => {
     if (profile) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplayName(profile.display_name || '');
       setCurrency(profile.currency || 'USD');
       setWeeklyGrossIncome(String(profile.weekly_gross_income || 1875));
