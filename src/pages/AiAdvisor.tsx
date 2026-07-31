@@ -913,6 +913,11 @@ export default function AiAdvisor() {
     const { clean: finalQ, flagged: qFlagged } = filterProfanity(rawQ);
     if (qFlagged) { toast.warning('Your message contained inappropriate language and was cleaned.'); }
 
+    // False positive: handleAsk is only ever invoked from onClick/onKeyDown (see the three call
+    // sites below), never during render, so this clock read and the lastAskTime ref access that
+    // depends on it are both event-handler code. The compiler-backed rule cannot see that the
+    // arrow wrappers (`() => handleAsk(q)`) keep it out of the render path.
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     if (now - lastAskTime.current < COOLDOWN_MS) {
       setError('Please wait a moment before asking again.');
@@ -1184,7 +1189,10 @@ export default function AiAdvisor() {
 
   // ── Snapshot bar ──────────────────────────────────────────────────────────────
 
-  const SnapshotBar = () => (
+  // A plain render helper, not a component: declaring a component inside render creates a new
+  // component type on every render, which makes React unmount and remount the whole subtree.
+  // Calling this instead splices the JSX straight into the parent's tree.
+  const renderSnapshotBar = () => (
     <div className="px-4 py-2 lg:px-6 border-b border-border/30 shrink-0 grid grid-cols-3 gap-2">
       {[
         { label: 'Income',     value: formatCurrency(snapshot.monthlyIncome, false) },
@@ -1277,7 +1285,7 @@ export default function AiAdvisor() {
         </div>
 
         {/* Snapshot bar — only on fresh chat */}
-        {view === 'new' && <SnapshotBar />}
+        {view === 'new' && renderSnapshotBar()}
 
         {/* ── Chat thread ── */}
         <div

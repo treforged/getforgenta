@@ -27,10 +27,16 @@ export default function SubscriptionExpiryBanner() {
   if (!subscription?.cancel_at_period_end || dismissed) return null;
   if (!subscription.current_period_end) return null;
 
+  // Deliberate render-time clock read. A countdown is inherently time-dependent, and the
+  // alternatives are worse: state + effect renders "expires in 0 days" for one frame, and the
+  // banner is re-rendered far more often than the once-a-day granularity it displays, so an
+  // unstable read cannot actually produce a visibly wrong value.
+  // eslint-disable-next-line react-hooks/purity
+  const nowMs = Date.now();
   const daysLeft = Math.max(
     0,
     Math.ceil(
-      (new Date(subscription.current_period_end).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      (new Date(subscription.current_period_end).getTime() - nowMs) / (1000 * 60 * 60 * 24),
     ),
   );
 

@@ -383,6 +383,10 @@ export default function BudgetControl() {
     doAutoSave(weeklyGross, taxRate, paycheckDay, payFrequency, next);
   };
   const addDeductionFromCatalog = (item: { label: string; mode: 'flat' | 'pct'; preTax: boolean }) => {
+    // False positive: this runs from the catalog's onClick, never during render. Generating the
+    // row id from the clock + a random suffix is exactly the kind of one-shot impurity an event
+    // handler is allowed; the compiler-backed rule just cannot prove the call site.
+    // eslint-disable-next-line react-hooks/purity
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const next = [...deductions, { id, label: item.label, value: 0, mode: item.mode, preTax: item.preTax }];
     setDeductions(next);
@@ -1076,6 +1080,13 @@ export default function BudgetControl() {
 
           {!deductionsCollapsed && <>
           {/* Deduction rows — grouped by type */}
+          {/* The ref access the rule reports is transitive and legitimate: this block reads no
+              ref itself, but the row handlers it builds call doAutoSave(), which touches
+              profileLoaded/autoSaveTimer — inside an event handler, where refs belong. The rule
+              attributes that to the IIFE because the IIFE itself runs during render.
+              TODO: extracting this 100+ line block into its own component would remove the
+              attribution properly; deferred as a refactor rather than folded into a lint pass. */}
+          {/* eslint-disable-next-line react-hooks/refs */}
           {(() => {
             const isCatalogItem = (label: string) => DEDUCTION_CATALOG.some(c => c.label.toLowerCase() === label.toLowerCase());
             const getGroup = (label: string): string => {

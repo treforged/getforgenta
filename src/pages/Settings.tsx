@@ -544,6 +544,9 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 {trustedDevices.map(device => {
                   const isCurrentDevice = (() => { try { return localStorage.getItem('forged:trusted_device_id') === device.device_id; } catch { return false; } })();
+                  // Deliberate render-time clock read: trusted-device expiry is a 30-day
+                  // threshold, so no realistic re-render can straddle it and flip the badge.
+                  // eslint-disable-next-line react-hooks/purity
                   const isExpired = Date.now() - new Date(device.trusted_at).getTime() >= 30 * 24 * 60 * 60 * 1000;
                   return (
                     <div key={device.device_id} className="flex items-center justify-between gap-3 bg-secondary border border-border px-3 py-2" style={{ borderRadius: 'var(--radius)' }}>

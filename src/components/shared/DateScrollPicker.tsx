@@ -44,12 +44,19 @@ function ScrollColumn({ items, selected, onSelect }: {
   // attaches onWheel as a passive listener, so preventDefault() there is a silent no-op
   // (logs "Unable to preventDefault inside passive event listener invocation") — the native
   // scroll wins anyway. Has to be a real listener attached with passive: false.
+  // These three only exist so the wheel listener below (attached once, never re-attached) can
+  // read the latest props. They are synced in an effect rather than written during render:
+  // a render-phase ref write is not safe under React 19's concurrent rendering, where a render
+  // can be thrown away or replayed. The listener only ever reads them from a real wheel event,
+  // i.e. after commit, so post-commit syncing is soon enough.
   const itemsRef = useRef(items);
   const selectedRef = useRef(selected);
   const onSelectRef = useRef(onSelect);
-  itemsRef.current = items;
-  selectedRef.current = selected;
-  onSelectRef.current = onSelect;
+  useEffect(() => {
+    itemsRef.current = items;
+    selectedRef.current = selected;
+    onSelectRef.current = onSelect;
+  });
 
   useEffect(() => {
     const el = ref.current;

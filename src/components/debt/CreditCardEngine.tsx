@@ -976,7 +976,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     });
 
     return baseProjs;
-  }, [cards, paymentMode, variableSim, overrideData, overrides, perCardPayments, perCardPaymentsScaled, month0, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
+    // perCardPaymentsScaled and month0 are deliberately NOT dependencies: per the comment above,
+    // this memo reads the raw sim payments on purpose and never touches either value, so listing
+    // them only forced redundant re-projections.
+  }, [cards, paymentMode, variableSim, overrideData, overrides, perCardPayments, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
 
   // Cumulative PASS-3 surplus routed to each card — the shared step3-display adjustment, so
   // accordion/chart balances match the Forecast month popup and CSV export. Display-only:
