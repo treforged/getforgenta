@@ -143,6 +143,13 @@ export function generateScheduledEvents(
       }
     } else if (rule.frequency === 'yearly') {
       const d = new Date(Math.max(from.getTime(), startDate.getTime()));
+      // Zero the day BEFORE setMonth. `d` still carries today's day-of-month here, so on a
+      // day-29/30/31 clock setMonth() into a shorter month overflows into the next one — from
+      // Jul 30, due_month 2 (Feb) becomes "Feb 30" => Mar 2, and the setDate below then pins a
+      // February bill in MARCH. That displaces the actual charge, not just its label, every year,
+      // and is invisible on days 1-28. Same defect class as the month-label fix in
+      // credit-card-engine.ts. Covered by scheduling.yearlyDueMonthOverflow.test.ts — do not remove.
+      d.setDate(1);
       d.setMonth((rule.due_month ?? 1) - 1);
       d.setDate(rule.due_day || 1);
       if (d < from) d.setFullYear(d.getFullYear() + 1);
