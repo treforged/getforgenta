@@ -87,7 +87,15 @@ describe('runDebtCashConvergence — manual ISB pin on the golden fixture (Q4/Q5
   maybeIt('clock=+11d (2026-07-26, all July due days passed): converges with no floor breach', () => {
     const { out, ccFree, floorBreaches } = runScenario(11);
     expect(out.converged, 'convergence loop must settle within the pass budget').toBe(true);
-    expect(out.passes, 'pass count regressed toward the budget cliff').toBeLessThanOrEqual(12);
+    // Re-pinned 12→13 on 2026-07-30 with the scheduling.ts yearly due_month overflow fix. This
+    // scenario's clock is capturedAt(2026-07-20) + 11d = Jul 31 — a day-31 clock, precisely where
+    // the overflow was live. The fixture carries $683 of due_month:2 yearly bills (Pet Insurance
+    // $583 + Pettable $100) that were being scheduled into March; they now correctly land in
+    // February, so the cash walk this loop converges against genuinely changed. Only the pass
+    // count moved: convergence, the Jul 2027 payoff and the empty floor-breach list below are all
+    // unchanged, and 13 still sits far under the 24-pass budget. The capturedAt scenario above is
+    // a day-20 clock, cannot overflow, and its 18-pass pin was unaffected.
+    expect(out.passes, 'pass count regressed toward the budget cliff').toBeLessThanOrEqual(13);
     expect(ccFree, 'CC Debt Free milestone should fire within the horizon').toBeTruthy();
     // Jul 2027 since the 2026-07-20 re-pin (real paymentPlans in the harness — the earlier
     // Jun 2027 was measured with paymentPlans=[], a $228/mo-richer sim walk).

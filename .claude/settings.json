@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"const fs=require('fs');if(fs.existsSync('handoff.md')){console.log(JSON.stringify({hookSpecificOutput:{hookEventName:'SessionStart',additionalContext:'handoff.md exists at the repo root. Read it in full before starting any work - it may contain an in-progress handoff from a previous session (goals, current state, active files, changes made, failed attempts, next steps).'}}))}\"",
+            "command": "node -e \"const fs=require('fs');if(fs.existsSync('handoff.md')){console.log(JSON.stringify({hookSpecificOutput:{hookEventName:'SessionStart',additionalContext:'handoff.md exists at the repo root. Read it IN FULL before doing anything else - it contains the in-progress handoff from the previous session (goals, current state, active files, changes made, failed attempts, next steps). Then resume the work directly from its next-steps section. If the user message is nothing but a period, that IS the instruction: continue from handoff. No further instruction is coming - do not ask what to work on, do not summarize and stop, just pick up the next step and do it.'}}))}\"",
             "timeout": 10
           }
         ]
