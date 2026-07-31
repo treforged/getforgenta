@@ -1,3 +1,69 @@
+# Handoff — 2026-07-31 (session 60-debt) — ✅✅✅ **THE DEPLOY IS DONE. `main` pushed `951c2825..d56d3184` (69 commits). Android is LIVE on Play Store production (staged 10%). The predicted merge conflict DID NOT HAPPEN.** Now on `main`, not the branch.
+
+> Continues session 59. **Session 59's two `scheduling.ts` fixes are unchanged and now deployed.**
+> **No Supabase writes this session (zero queries of any kind). No cron touched. No source file edited.**
+
+## ⚡ START HERE — the deploy is CLOSED. The only open engineering item is the Sep–Dec 2026 band.
+
+## ✅ THE DEPLOY — done, verified, nothing regressed
+1. `git checkout main && git merge debt-grace-preservation` → **clean auto-merge, ZERO conflicts.**
+   🔑 **Session 59 predicted a nasty conflict in `supabase/functions/reddit-scout/index.ts` (the same
+   change committed twice on both lines). It did not occur** — git's ort strategy resolved it silently.
+   ⚠️ **I did not take that on trust.** `git diff ORIG_HEAD HEAD -- supabase/functions/reddit-scout/index.ts`
+   came back **EMPTY**, i.e. the merged file is **byte-identical to main's deployed v23**. The live edge
+   function did not regress. **Do not re-litigate this; it is measured, not assumed.**
+2. ✅ `npx tsc --noEmit` clean. ✅ Suite **232/233** — the single failure is the documented
+   pre-existing `useCardProjection.month0income.test.ts`. **Exactly the predicted result.**
+3. ✅ Pushed `951c2825..d56d3184`.
+
+### 📦 CI OUTCOMES on `d56d3184`
+| workflow | result |
+|---|---|
+| **Android Build & Upload to Play Store** | ✅ **success — "Deploy to Google Play (Production, staged 10%)"**, auto-promotes to 100% after 24h |
+| CodeQL (Actions, JS/TS, Python) | ✅ success |
+| CodeQL (Android) | ✅ success |
+| **iOS Build & Upload to App Store** | ✅ **success — IPA built, exported and uploaded to App Store Connect** |
+| CodeQL (iOS) | still in progress at handoff time (scan only, non-blocking) |
+
+⚠️ **Non-blocking annotation on every workflow:** Node 20 is deprecated on GH runners and these
+actions are being force-run on Node 24 — `actions/checkout@v4`, `setup-java@v4`, `setup-node@v4`,
+`upload-artifact@v4`, `google-github-actions/auth@v2`. **Bump these to v5 before the forced runtime
+becomes a hard failure.** Not urgent today; it is a warning, not an error.
+
+## 🔴 NEW, UNTRIAGED — 3 moderate Dependabot vulns + the audit workflow is RED
+- The push printed **"GitHub found 3 vulnerabilities on treforged/getforgenta's default branch (3 moderate)"**.
+- 🔑 **`Dependency Vulnerability Audit` is `completed failure` on TWO recent SHAs (`d134f097`, `9568b602`)** —
+  those are Dependabot branches, not `main`, but the workflow is failing and nobody has looked.
+- Dependabot opened PRs against the new `main` for **`react-router` / `react-router-dom`**,
+  `brace-expansion`, `postcss`, and a large Capacitor/Radix/LaunchDarkly batch.
+  ⚠️ **react-router deserves care: this deploy already carried an un-exercised react-router-dom 6 → 7
+  major upgrade into production.** Do not stack another router change on top blind — verify routing in
+  the live web app first.
+
+## ⏭️ NEXT STEPS
+1. **Confirm with Tre in the LIVE app** that Feb 2027 now shows its **$683** (Pet Insurance $583 +
+   Pettable $100) and Mar 2027 dropped from **$961 → ~$278**. This is the user-visible proof of the fix.
+2. **Chase the Sep–Dec 2026 + Jan 2027 half of the interest band** — still UNEXPLAINED and still the
+   last piece of Tre's original report. It is the **cash cascade**, NOT purchases; the purchases
+   explanation is spent. Session 59 re-ran scenario F post-fix and still got `Sep 2026 only, $37.12`,
+   so **the fixture harness does not reproduce the live band** — that gap is the thing to chase.
+3. Triage the Dependabot/audit items above.
+4. Still open, unchanged: delete-or-promote `grace-diagnostic.test.ts` (`ed6940be`); fix the
+   pre-existing `useCardProjection.month0income.test.ts` (same end-of-month class as the two fixed bugs).
+
+## 🧭 STATE (session 60)
+- **On branch `main`, pushed and clean.** `debt-grace-preservation` is merged; it can be deleted, but
+  it is harmless to keep and no one has asked.
+- **Zero Supabase access this session — not even a `select`.** No cron, no migration, no data write.
+- Only file edited this session: `handoff.md`.
+- 🔑 **Tre asked mid-deploy: "are you messing up what's being applied to my credit card?"** Answered:
+  **no** — nothing this session touched his card, balances, or any real payment. The scheduling fix
+  only corrects *which month the app draws* the Feb 21 yearly bills in; Chase bills him Feb 21 either
+  way. **The monthly-clamp fix changes none of his current numbers** (verified: he has no monthly rule
+  with `due_day > 28`). Worth repeating if he asks again.
+
+---
+
 # Handoff — 2026-07-30 (session 59-debt) — ✅✅ **BOTH `scheduling.ts` DATE BUGS ARE FIXED, TESTED AND VERIFIED (`81d5772d` yearly, `5c030e1b` monthly). $683 of February bills now land in February.** 🔴 **TRE APPROVED THE FULL 69-COMMIT DEPLOY AND IT IS STILL UNPUSHED — the merge conflicts in a LIVE edge function. Recipe is below; do it first.** Branch `debt-grace-preservation`.
 
 > Continues session 58 (same day, same branch). **Session 58's diagnosis was 100% correct** — every
