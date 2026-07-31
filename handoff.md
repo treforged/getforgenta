@@ -1,3 +1,146 @@
+# Handoff — 2026-07-31 (session 61-deps) — ✅✅✅ **ALL 8 VULNS CLEARED (`npm audit` = 0), Node-20 ACTION DEPRECATION CLEARED, REACT 19 + REACT-ROUTER 8 SHIPPED. 4 commits, LOCAL ONLY — NOTHING PUSHED.** On `main`.
+
+> Continues session 60. Session 60's deploy is closed and untouched. **No Supabase access this
+> session — zero queries. No cron touched. No edge function touched. No migration.**
+
+## ⚡ START HERE — everything Tre asked for is DONE and verified. The open item is: PUSH IT.
+
+Tre's instruction was: *"work on the vulnerabilities before continuing cc work. the node version
+bumps as well. and plan and work the react issues."* All three are complete.
+
+## 📦 THE 4 COMMITS (local, unpushed, on `main`, ahead of `97134057`)
+| sha | what |
+|---|---|
+| `b451337c` | postcss + brace-expansion/minimatch advisories (eslint 9→10) |
+| `331919fc` | GH Actions off the deprecated Node 20 runtime |
+| `794b5ae7` | React 18.3.1 → 19.2.7 |
+| `cdcf3d3a` | react-router-dom 7 → react-router 8.3.0 |
+
+Backup of every original: **`backups/2026-07-31_093346/`** (44 files — package.json,
+package-lock.json, all 7 workflows, the 35 router-touching src files).
+
+## 🔑 THE FINDING THAT SHAPED THE WHOLE SESSION
+**`react-router` 8.3.0 is the ONLY release that fixes GHSA-qwww-vcr4-c8h2, and it hard-requires
+`react >=19.2.7`.** There is no patched 7.x — npm's only proposed "fix" was a *downgrade* to 7.11.0.
+So the router vuln, Dependabot #42 and #43 were never three separate items; they were one coupled
+upgrade. **Tre was shown this and explicitly chose the full chain over the safe downgrade.**
+He also explicitly chose "bump all including setup-node v7" for the actions.
+
+## ✅ 1. VULNS — 8 high → **0**. `npm audit` is clean.
+- **postcss** 8.5.15 → 8.5.25 (GHSA-r28c-9q8g-f849 path traversal). Build-time only, patch bump.
+- **brace-expansion/minimatch** (GHSA-mh99-v99m-4gvg DoS): the vulnerable nodes came *only* from
+  eslint 9's legacy dep chain, so **eslint 9 → 10** removed them at the root.
+  ⚠️ **Do not "fix" this with an override alone.** npm's collapsed advisory range is `<=5.0.7`,
+  which as a semver range **swallows the entire patched 1.x line** — `1.1.18` *is* the fix but still
+  reports as vulnerable. This was measured, not guessed. Overrides are still in `package.json`
+  (`brace-expansion@1`→1.1.18, `brace-expansion@>=2`→5.0.9) and should stay.
+- **react-router** — see §3.
+
+### ⚠️ THE ONE PIECE OF DEBT THIS SESSION CREATED — 55 staged lint warnings
+eslint-plugin-react-hooks 5 → 7 came along for the ride (v5 does not peer-support eslint 10). v7
+ships a **compiler-backed rule set that flags 55 never-before-linted sites**:
+`set-state-in-effect` (23), `immutability` (16), `purity` (5), `refs` (4), `static-components` (1),
+`preserve-manual-memoization` (1), plus eslint 10's new core `no-useless-assignment` (8).
+**These are REAL signals, not false positives.** They were set to `'warn'` in `eslint.config.js`
+with a dated comment + TODO — deliberately *not* switched off — so that a security bump did not
+turn into an unrelated 55-file refactor. **`npm run lint` is 0 errors / 60 warnings.**
+🔴 **NEXT AGENT: burning these down is a good dedicated task.** `set-state-in-effect` and
+`immutability` are exactly the class React 19 tightens, so some may be latent bugs.
+One real `prefer-const` error was fixed for free in `src/lib/payment-plan-generator.ts`.
+
+## ✅ 2. NODE 20 / ACTION BUMPS — annotation cleared on all 7 workflows
+```
+actions/checkout           v4 -> v7      actions/upload-artifact    v4 -> v7
+actions/setup-node         v4 -> v7      google-github-actions/auth v2 -> v3
+actions/setup-java         v4 -> v5      github/codeql-action       v3 -> v4
+```
+🔑 **Verified against each `action.yml`, not assumed: `upload-artifact@v5` STILL declares
+`runs.using: node20`** — bumping only to v5 would NOT have cleared the annotation. v6 is the first
+node24 release. `r0adkll/upload-google-play@v1` and `maxim-lobanov/setup-xcode@v1` already resolve
+to node24 and were **left alone deliberately**.
+
+Breaking-change review of the two that could have broken the store pipelines:
+- **checkout v7**'s only behavior change blocks fork-PR checkout for `pull_request_target` /
+  `workflow_run`. **No workflow here uses either trigger** — grepped, does not apply.
+- **auth v3** says "removes old parameters". **All five inputs we pass**
+  (`workload_identity_provider`, `service_account`, `create_credentials_file`, `token_format`,
+  `access_token_scopes`) **were confirmed present in v3's action.yml.** This gates the Play Store
+  credential, so it was checked directly rather than trusted.
+- setup-java v5: `distribution`/`java-version` are passed explicitly, so changed defaults can't bite.
+- upload-artifact v7's new `archive` input defaults to the old behavior.
+
+Diff is **23 lines, all `uses:` version strings, nothing structural.** ⚠️ **UNEXERCISED until the
+next push to `main`** — that push runs the real Android/iOS store pipelines.
+
+## ✅ 3. REACT 19 + ROUTER 8
+**App code needed ZERO changes for React 19.** Audited every React 19 removal first: already on
+`createRoot`; no `defaultProps` on function components, no `propTypes`, no string refs, no
+argument-less `useRef`, no `JSX.Element`. The 2 `forwardRef` sites are still supported.
+
+🔑 **Three deps capped their peer at React 18 and blocked the upgrade — `vaul` 0.9.9,
+`next-themes` 0.3.0, `react-day-picker` 8.10.1. ALL THREE were dead shadcn/ui scaffold with ZERO
+imports anywhere in the repo, so they were REMOVED, not bumped.** This notably dodged adopting
+react-day-picker's v8→v10 API rewrite to satisfy a package nothing calls. Every direct dep's peer
+range was checked up front rather than discovering blockers one `npm install` at a time.
+
+**Router:** v8 deletes the `react-router-dom` package outright (no 8.x published under that name),
+so this is a package swap, not a version bump. **35 files** `from 'react-router-dom'` →
+`from 'react-router'`. All 11 symbols in use (BrowserRouter, MemoryRouter, Routes, Route, Link,
+Navigate, Outlet, useLocation, useNavigate, useParams, useSearchParams) were **verified present in
+v8's export map by importing it before rewriting anything.** `RouterProvider`/`HydratedRouter` move
+to `react-router/dom` in v8 — neither is used here.
+
+🔑 **CAUGHT A SILENT ONE: `vite.config.ts` chunked on `'node_modules/react-router-dom/'`** and would
+have quietly stopped matching, dropping the router out of `vendor-react` into the main bundle.
+Fixed and **proven fixed**: `vendor-react` is **224.30 kB** post-migration vs **181.79 kB** before.
+
+## 🧪 VERIFICATION — all green
+- **`npm audit`: found 0 vulnerabilities** (from 8 high).
+- **`npx tsc --noEmit`: 0 errors.**
+- **Suite 232/233** — the single failure is the **documented pre-existing**
+  `useCardProjection.month0income.test.ts`. **Unchanged baseline, not a regression.**
+- **`npm run lint`: 0 errors** / 60 warnings (see §1 debt).
+- **Clean production build** (`rm -rf dist && npm run build`) succeeds.
+- ✅ **LIVE SMOKE TEST in the browser on `localhost:8081`** — because the handoff warned 6→7 shipped
+  un-exercised and this stacks 7→8 + React 19 on top. **Verified rendering AND client-side
+  navigation:** `/` landing, `/auth`, `/privacy`, `useNavigate` (`/auth` → `/dashboard` via Try
+  Demo), and **nested `<Outlet>` routing via the sidebar (`/dashboard` → `/forecast`)**. The demo
+  dashboard rendered fully — sidebar, recharts, all widgets.
+  ⚠️ **Honest caveat: the console-message tool captured nothing** (tracking starts on first call and
+  the pages had already loaded). **Console errors were NOT actually verified — re-check with a
+  reload if you want that signal.**
+
+## ⏭️ NEXT STEPS
+1. 🔴 **PUSH.** 4 commits sit local on `main`. Pushing exercises the bumped actions AND ships React
+   19 + router 8 to both stores. **Tre has NOT been asked for the push yet — ask first.**
+   Standing rule: never auto-push.
+2. **Recommend Tre click through the live web app after deploy** — auth, dashboard, forecast, debt
+   payoff, settings. Two stacked router majors deserve real-user eyes, and mobile (Capacitor)
+   routing was NOT smoke-tested at all, only web.
+3. **Close the stale Dependabot PRs this supersedes:** #42, #43 (react/react-dom), #49 (postcss),
+   #50 (brace-expansion), #46 (setup-node), #33 (codeql-action). Still open and untouched:
+   **#47** (44-package production group incl. Capacitor/LaunchDarkly/Radix), #41 lucide-react,
+   #40 tailwind 3→4, #39 jsdom, #38 globals, #37 sonner, #36 @types/node, #35 dev-deps group.
+4. **Burn down the 55 staged react-hooks warnings** (§1), then restore those rules to `'error'`.
+5. 🔎 **Noticed, NOT acted on:** `src/components/ui/` holds only **4 files** (skeleton, sonner, tabs,
+   tooltip) but package.json carries **~30 `@radix-ui/*` packages**. Most are probably dead like
+   vaul/next-themes/react-day-picker were. A `knip`/`depcheck` pass could shrink the tree a lot.
+6. **Unchanged from session 60, still open:** the **Sep–Dec 2026 + Jan 2027 interest band** (the
+   cash cascade, NOT purchases — the fixture harness does not reproduce the live band); confirm with
+   Tre in the live app that **Feb 2027 shows $683** and Mar 2027 dropped **$961 → ~$278**;
+   delete-or-promote `grace-diagnostic.test.ts` (`ed6940be`); fix the pre-existing
+   `useCardProjection.month0income.test.ts`.
+
+## 🧭 STATE (session 61)
+- **On `main`, 4 commits ahead of `origin/main`. Working tree clean apart from this handoff.**
+- **Zero Supabase access. Zero cron. Zero edge-function changes. No push.**
+- Files changed: `package.json`, `package-lock.json`, `eslint.config.js`, `vite.config.ts`,
+  `src/lib/payment-plan-generator.ts`, 35 router-import files, all 7 `.github/workflows/*.yml`.
+- **Nothing in this session touched Tre's credit card, balances, payment plans, or any real money
+  path** — it was dependencies, CI config, and import paths only.
+
+---
+
 # Handoff — 2026-07-31 (session 60-debt) — ✅✅✅ **THE DEPLOY IS DONE. `main` pushed `951c2825..d56d3184` (69 commits). Android is LIVE on Play Store production (staged 10%). The predicted merge conflict DID NOT HAPPEN.** Now on `main`, not the branch.
 
 > Continues session 59. **Session 59's two `scheduling.ts` fixes are unchanged and now deployed.**
