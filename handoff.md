@@ -36,7 +36,7 @@ MIN PAYMENT $451, PURCHASES/MO $148, ISB **$1,008 manual**.
 Discover it Card live: INTEREST/MO **$97.56**, TOTAL INTEREST **$890**, balance $9,083 @ 12.89%,
 `Full Balance`, min $189. Session 54's "the real money is Discover" is confirmed against the live UI.
 
-## 🔴 HYPOTHESIS 1 IS NOW THE ONLY LEAD, AND IT HAS TEETH — the display ≠ the converged plan
+## 🔴 THE DISPLAY ≠ THE FIXTURE RUN (but see ELIMINATED 7 — the cause is inputs, not the display path)
 Compare the payments above against the converged engine (session 54 diagnostic + session 56 scenario F):
 
 | month | converged engine pays | **live UI pays** |
@@ -63,13 +63,40 @@ so **the second "Mar 2027" is the true Mar and the first is Feb.**
 🔑 **It did NOT cause the band** — it only hid Feb. The band is real with or without it. **Deploying the
 label fix is now a separate, safe, obvious win.**
 
+## ❌ ELIMINATED 7 — HYPOTHESIS 1 IS DEAD. The `variableSim` fallback is NOT firing. **Proven, no instrumentation needed.**
+🔑 **The live UI header read "MONTHLY PROJECTION (FORECAST SIM)".** `CreditCardEngine.tsx:1774-1776`
+renders that exact string only when `paymentMode === 'variable'` **and `perCardPaymentsScaled` is
+truthy**; it would say "(Variable)" if that prop were null.
+Chain of custody, all verified by reading:
+- `DebtPayoff.tsx:373-379` passes **every** one of these props off the **same** object —
+  `perCardPaymentsScaled`, `monthlyBalances`, `monthlyInterest` are all `cardProjection?.X ?? null`.
+- `useCardProjection.ts` returns them in **one object literal** — `perCardPaymentsScaled` at `:1877`
+  and `monthlyInterest: activeSim.monthlyInterest` at `:1883`. **They ship together or not at all.**
+∴ `perCardPaymentsScaled` non-null ⇒ `monthlyInterest` non-null ⇒ **the `??` at `:963` cannot fire.**
+⚠️ **Do NOT touch the `??` fallbacks at `:959-963`. They are innocent.** And do not "instrument to
+confirm" — the rendered label already is the measurement.
+
+## 🔑 WHAT THAT MEANS — the live rows ARE the converged engine's own output
+The band is **not** a display artifact. `runDebtCashConvergence` genuinely produces Sep 2026 → Mar 2027
+interest **on the live inputs**. So the divergence from scenario F is an **input delta session 56 never
+patched**. Session 56 patched only `accounts` cash/balances, `payment_plans` and `recurring_rules`.
+**It did NOT patch: `goals`, `carFunds`, `transactions`, `profile`, or the `assumptions`
+(incomeGrowth, taxReturnMonth)** — all of which `DebtPayoff.tsx:358-372` feeds in.
+
+### 👀 VISIBLE EVIDENCE IN THE LIVE ROWS — the purchases are NOT flat
+The card tile says PURCHASES/MO $148, but the live monthly rows show **irregular spikes**:
+Aug 2026 **+$286**, Jan 2027 **+$213**, Mar 2027 **+$961**, May 2027 **+$227**, Jul 2027 +$213,
+Aug 2027 +$286. **A $961 charge lands in Mar 2027 — the exact month of the trailing $8.22 interest.**
+🔑 **Scheduled purchases (builds / goals / car funds) are hitting the card and breaking grace.** That is
+the most likely mechanism and it is completely absent from every fixture scenario run so far.
+
 ## ⏭️ EXACT NEXT STEPS
-1. **Instrument `CreditCardEngine.tsx:959-963`** — prove whether `monthlyInterest` (and the balance /
-   cycling props) are `undefined` at render, and from which month index. That single fact decides
-   whether this is a display bug or an engine bug.
-2. If the fallback IS firing: the fix is to make the converged props reach the display, **not** to
-   change `variableSim`. Trace `useCardProjection` → the props feeding `:959-963`.
-3. **Deploy the label fix `57a48d5f`** (merge/push `debt-grace-preservation`) — independent of the above.
+1. 🔑 **Chase the purchase spikes, not the display.** Find what schedules CC purchases per month
+   (`augmentedCCPurchases` / `cardPurchasesPerMonth`) and identify the Mar-2027 **$961** and Aug-2026
+   **$286** items. Check `goals`, `carFunds` and the Builds feature first.
+2. Then re-run the converged engine with those inputs patched in and confirm the band reproduces
+   offline. **That** is the reproduction that makes the bug fixable in a test.
+3. **Deploy the label fix `57a48d5f`** (merge/push `debt-grace-preservation`) — independent, safe win.
 4. Still open, unchanged: delete-or-promote `grace-diagnostic.test.ts` (`ed6940be`);
    `useCardProjection.month0income.test.ts` is still the PRE-EXISTING date-dependent failure (223/224),
    **not a regression**; `b956ec82` (reddit-scout) still rides along on this branch.
