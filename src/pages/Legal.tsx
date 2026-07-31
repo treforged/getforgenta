@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/cookie-consent';
 import { useCookieConsent } from '@/hooks/useCookieConsent';

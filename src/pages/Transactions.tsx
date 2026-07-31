@@ -16,7 +16,7 @@ import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, getMonthlyPlanCashExpenses, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';

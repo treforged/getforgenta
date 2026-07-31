@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { X, ChevronDown, ChevronUp, Shield } from 'lucide-react';
 import { COOKIE_CATEGORIES, CookieConsentState } from '@/lib/cookie-consent';
 import { useCookieConsent } from '@/hooks/useCookieConsent';

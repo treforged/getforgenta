@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 
 /**
  * Right to Delete Notice — the standalone deletion disclosure required by the

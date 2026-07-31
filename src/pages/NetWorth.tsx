@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useAccounts, useAssets, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, useProfile, useRecurringRules } from '@/hooks/useSupabaseData';

@@ -1,4 +1,4 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link } from 'react-router';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import DemoBanner from '@/components/shared/DemoBanner';

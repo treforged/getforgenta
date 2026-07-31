@@ -1,4 +1,4 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router';
 import { useDemo } from '@/contexts/DemoContext';
 
 const routeDescriptions: Record<string, string> = {

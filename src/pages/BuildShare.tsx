@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router';
 import { Check, ExternalLink, ChevronDown, Printer } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePublicBuild } from '@/hooks/useSupabaseData';

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { Fingerprint, Delete, AlertTriangle } from 'lucide-react';
 import { useAppLock, MAX_FAILED_ATTEMPTS } from '@/hooks/useAppLock';
 import { supabase } from '@/lib/supabase';

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { AlertTriangle, CalendarDays, CheckCircle2, ArrowRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { cn } from '@/lib/utils';

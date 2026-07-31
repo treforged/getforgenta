@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { Skeleton } from '@/components/ui/skeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';

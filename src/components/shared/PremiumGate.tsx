@@ -1,5 +1,5 @@
 import { Lock, Crown, Check } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { cn } from '@/lib/utils';
 
 type PremiumGateProps = {

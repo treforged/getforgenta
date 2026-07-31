@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';

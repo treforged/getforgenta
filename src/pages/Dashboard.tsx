@@ -58,7 +58,7 @@ import {
   CalendarDays, AlertTriangle, Info, X, Car, Shield, Check, FileDown, LayoutDashboard,
 } from 'lucide-react';
 import { exportDashboardPdf } from '@/lib/exportPdf';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { calculateMonthlyPayment } from '@/lib/calculations';
