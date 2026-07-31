@@ -374,6 +374,21 @@ export default function Builds() {
   }
 
   // ── Phase drag (desktop) ─────────────────────────────────
+  //
+  // `react-hooks/immutability` is disabled for the whole desktop-drag block below.
+  //
+  // Why this is not the violation the rule thinks it is:
+  //   * `dragPhaseIdRef` / `dragItemIdRef` are written ONLY from DOM drag handlers
+  //     (onDragStart / onDragEnd / onDrop). Every write site was traced — none of
+  //     them is reachable during render.
+  //   * The rule flags them because the same refs are READ inside two effects: the
+  //     items-sync effect (~:102) and the auto-scroll dragover listener (~:116).
+  //     Both reads happen from a real DOM event, i.e. after commit.
+  //   * They are held in refs ON PURPOSE so that a drag in progress does NOT trigger
+  //     a re-render. Promoting them to state re-renders the dragged node mid-drag,
+  //     which cancels the native HTML5 drag operation.
+  //
+  /* eslint-disable react-hooks/immutability */
   function onPhaseDragStart(e: React.DragEvent, phaseId: string) {
     dragPhaseIdRef.current = phaseId;
     dragItemIdRef.current = null;
@@ -494,6 +509,7 @@ export default function Builds() {
     }
     reorderItems.mutate(withOrders.map(it => ({ id: it.id, sort_order: it.sort_order, phase_id: it.phase_id })));
   }, [displayItems, reorderItems]);
+  /* eslint-enable react-hooks/immutability */
 
   // ── Mobile arrow reorder ─────────────────────────────────
   function handleMovePhase(phaseId: string, direction: 'up' | 'down') {

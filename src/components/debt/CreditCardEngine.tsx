@@ -551,7 +551,29 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // ── Apply Forecast growth-rate assumptions to future months ──────────────
     // Income raises apply as a step in the configured month each year.
     // Month 0 is left unchanged (uses actual remaining transaction amounts).
-    let incMult = 1;
+    // Pre-compute the compounding raise multiplier per month. This is order-dependent
+    // (each raise compounds on the previous one), so it is built once in a plain loop
+    // rather than accumulated inside the map() callback below — a render-scope variable
+    // must not be reassigned from a closure.
+    const incMultByMonth = (() => {
+      const out: number[] = new Array(PROJECTION_MONTHS).fill(1);
+      let mult = 1;
+      for (let m = 0; m < PROJECTION_MONTHS; m++) {
+        if (m > 0 && incomeGrowthEnabled && (incomeGrowth ?? 0) > 0) {
+          const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+          if (d.getMonth() + 1 === (raiseMonth ?? 3)) {
+            if (raiseMode === 'flat') {
+              const currentAnnual = monthlyTakeHome * 12 * mult;
+              if (currentAnnual > 0) mult *= (1 + (incomeGrowth ?? 0) / currentAnnual);
+            } else {
+              mult *= (1 + (incomeGrowth ?? 0) / 100);
+            }
+          }
+        }
+        out[m] = mult;
+      }
+      return out;
+    })();
     // Pre-compute bonus month index for non-recurring bonus (first occurrence in window)
     const firstBonusIdx = (!bonusRecurring && bonusEnabled && (bonusAmount ?? 0) > 0)
       ? (() => {
@@ -565,14 +587,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const growthAdjustedMonthEvents = (monthEvents ?? []).map((ev, m) => {
       if (m === 0) return ev;
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-      if (incomeGrowthEnabled && (incomeGrowth ?? 0) > 0 && d.getMonth() + 1 === (raiseMonth ?? 3)) {
-        if (raiseMode === 'flat') {
-          const currentAnnual = monthlyTakeHome * 12 * incMult;
-          if (currentAnnual > 0) incMult *= (1 + (incomeGrowth ?? 0) / currentAnnual);
-        } else {
-          incMult *= (1 + (incomeGrowth ?? 0) / 100);
-        }
-      }
+      const incMult = incMultByMonth[m];
       // Inject bonus + tax return into regular monthly income — same slot as Forecast PASS 1
       // so extra cash is available for debt allocation that month, not deferred post-allocation.
       let bonusTaxInc = 0;
