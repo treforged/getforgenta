@@ -1,4 +1,101 @@
-# Handoff — 2026-07-30 (session 58-debt) — 🔴🔴 **NEW MONEY-MOVING BUG FOUND AND FULLY ROOT-CAUSED: `scheduling.ts:146` displaces February yearly bills into March. Same `setMonth()` overflow class as `57a48d5f`, but this one moves REAL CHARGES, not labels. FIX IS ONE LINE AND NOT YET WRITTEN.** Branch `debt-grace-preservation`.
+# Handoff — 2026-07-30 (session 59-debt) — ✅ **SESSION 58's YEARLY OVERFLOW BUG IS FIXED, TESTED AND VERIFIED END-TO-END (`81d5772d`). $683 of February bills now land in February.** 🔴 **The SAME FILE's `monthly` branch has a SEPARATE, WORSE drift bug — MEASURED, not fixed. That is the next target.** Branch `debt-grace-preservation`.
+
+> Continues session 58 (same day, same branch). **Session 58's diagnosis was 100% correct** — every
+> number in it reconciled. **Do not re-derive it.** No Supabase writes, no deploy, no push.
+
+## ⚡ START HERE — the yearly fix is DONE. Two things are open: DEPLOY, and the `monthly` branch.
+
+## ✅ SHIPPED — `81d5772d` "fix(scheduling): February yearly bills no longer displaced into March"
+Exactly session 58's one-line prescription: **`d.setDate(1);` before `d.setMonth(...)`** in the
+`yearly` branch, with an explanatory comment matching the `credit-card-engine.ts` sites.
+
+**RED verified first** — the new test emitted `2027-03-21` where `2027-02-21` was expected, precisely
+as predicted. **New test `src/lib/__tests__/scheduling.yearlyDueMonthOverflow.test.ts`** (5 cases):
+day-30, day-31 and day-28 clocks, a long-month rule, and 4 consecutive repeat occurrences.
+
+### 📐 VERIFIED END-TO-END on the real fixture rules, Jul-30 clock — the money actually moved
+Bucketed every active yearly rule by the month `generateScheduledEvents` schedules it into, run
+against the pre-fix commit and the fixed one:
+| | Feb 2027 | Mar 2027 |
+|---|---|---|
+| **before** | *(no row at all)* | **$813** = Pettable $100 + Pet Insurance $583 + Costco $130 |
+| **after** | **$683** = Pettable + Pet Insurance | **$130** = Costco only |
+🔑 **This reconciles session 58's live read to the cent.** Live Mar 2027 was `148 + 583 + 100 + 130 =
+$961`; it is now `148 + 130 = $278`, and February gets its $683 back. Costco (`due_day 31,
+due_month 3`) correctly stays in March — March has 31 days, so it never overflowed.
+
+### 📌 ONE golden baseline legitimately re-pinned — `forecast-convergence.manualISB.test.ts`
+`out.passes` **12 → 13** in the `+11d` scenario **only**. That scenario's clock is
+capturedAt(2026-07-20) + 11d = **Jul 31**, a day-31 clock, i.e. exactly where the overflow was live —
+so the fixture's two `due_month:2` rules move back into February and the cash walk the loop converges
+against genuinely changed. ⚠️ **Not a blind re-pin:** `converged`, the **Jul 2027** payoff and the
+**empty floor-breach list** are all unchanged, and 13 is far under the 24-pass budget. The
+`capturedAt` scenario is a day-20 clock, cannot overflow, and its 18-pass pin was untouched.
+
+✅ **Suite 228/229** (was 223/224 + my 5 new tests). The single failure is still
+`useCardProjection.month0income.test.ts` — the **documented pre-existing date-dependent** one,
+**not a regression**. ✅ **Typecheck clean.** Backup: `backups/2026-07-30_230043/src/lib/scheduling.ts`.
+
+## 🔴 NEXT TARGET — the `monthly` branch at `scheduling.ts:129-143` IS broken. I measured it.
+Session 58 said "verify it separately, it may be safe." **It is NOT safe — it is worse than the
+yearly bug**, and it is a *different* defect, so it needs its own fix and its own test.
+```js
+d.setDate(rule.due_day || 1);          // day is now due_day (can be 31)
+if (d < from) d.setMonth(d.getMonth() + 1);
+while (d <= effectiveEnd) { push(d); d.setMonth(d.getMonth() + 1); }  // carries the day forward
+```
+**Measured output — a `due_day: 31` monthly rule from a Jul 15 clock:**
+`2026-07-31, 2026-08-31, 2026-10-01, 2026-11-01, 2026-12-01, 2027-01-01, 2027-02-01, 2027-03-01`
+🔑 **September is SKIPPED ENTIRELY, and the rule then permanently drifts to the 1st of every month,
+forever.** A month with no charge and a permanent date shift — worse than the yearly one-month slip.
+⚠️ **`d.setDate(1)` does NOT fix this one.** The cause is *cumulative*: the mutated day is carried
+into the next `setMonth`. The fix must re-derive each occurrence from a fixed anchor and **clamp
+`due_day` to that month's length** (a day-31 rule should land on Feb 28, not Mar 3).
+❓ **Product decision needed before coding:** for a day-31 rule in a 30-day month, is the correct
+behavior **clamp to the last day** (Chase/most billers) or **roll to the 1st of the next month**?
+Clamping is almost certainly right, but it changes real charge dates — **ask Tre.**
+⚠️ Unlike the yearly fix, this is **NOT date-dependent on today's clock** — it affects any day-29/30/31
+monthly rule at all times, so expect a **much larger golden-fixture ripple.** Own commit, own review.
+
+## 🧭 WHAT IS STILL UNEXPLAINED — the band is still TWO causes, and only one is now fixed
+- ✅ The **Mar 2027** $8.22 interest and the $961 spike are explained and fixed.
+- ❌ **Sep–Dec 2026 + Jan 2027 remains UNEXPLAINED.** Those months carry the flat $148 base with no
+  spikes, so that interest comes from the **cash cascade**, not purchases. **Do not close Tre's
+  report on this fix alone.**
+- 🔑 **Re-ran session 56's scenario F (all live deltas, Jul-30 clock) after the fix: STILL
+  `Sep 2026 only, $37.12`, unchanged.** So the fixture harness *still* does not reproduce the live
+  Sep→Jan band. That gap is now the single most valuable thing to chase, and it is NOT purchases.
+
+## ⏭️ EXACT NEXT STEPS
+1. **DEPLOY.** Two committed, un-deployed debt fixes now sit on this branch: the month-label fix
+   `57a48d5f` and this yearly fix `81d5772d`. **Tre cannot see either in production yet.** Merging
+   and pushing `debt-grace-preservation` is a safe, obvious win. ⚠️ `b956ec82` (reddit-scout) still
+   rides along on this branch.
+2. **Ask Tre the clamp-vs-roll question above**, then fix the `monthly` branch TDD-style.
+3. **Chase the Sep–Dec 2026 cash-cascade half of the band** — the purchases explanation is now spent.
+4. Still open, unchanged: delete-or-promote `grace-diagnostic.test.ts` (`ed6940be`); fix the
+   pre-existing `useCardProjection.month0income.test.ts` (same end-of-month class as these two bugs).
+
+## 🧭 STATE
+- **One commit: `81d5772d`** (scheduling.ts + new test + the manualISB re-pin). Working tree clean.
+  **No Supabase writes, no deploy, no cron, no push.**
+- Scratch harnesses preserved OUTSIDE the repo in this session's scratchpad:
+  `zz-scratch-livedeltas.test.ts` (session 56's 6-scenario runner, trimmed to F and given a purchases
+  column) and `zz-scratch-purchmove.test.ts` (the Feb/Mar bucket table above). Both were run from
+  `src/lib/__tests__/` and **removed**. 🔑 **Vitest swallows `console.log` — pass
+  `--silent=false --reporter=verbose`.** 🔑 `cardProjection.monthlyPurchases` does **not** exist;
+  purchases enter the engine as the **`cardPurchasesPerMonth`** *input* (`credit-card-engine.ts:704-708`),
+  built upstream, so a purchases column has to be read there, not off the projection.
+- ⚠️ **`git stash` incident, resolved, nothing lost.** I ran `git stash push src/lib/scheduling.ts`
+  when the file was already committed (nothing to save, so **no entry was created**), then a paired
+  `git stash pop` — which popped one of **Tre's two pre-existing `main` stashes** and left
+  `credit-card-engine.ts` in a `UU` conflict. Git **retains** a stash on conflict, so I reset the file
+  to HEAD and **both stashes are verified still present** (`WIP on main: 95d93a58` and
+  `On main: temp stash before rebase`). 🔑 **Never pair push/pop blind — check `git stash list` first.**
+
+---
+
+# Handoff — 2026-07-30 (session 58-debt) — 🔴🔴 **NEW MONEY-MOVING BUG FOUND AND FULLY ROOT-CAUSED: `scheduling.ts:146` displaces February yearly bills into March. Same `setMonth()` overflow class as `57a48d5f`, but this one moves REAL CHARGES, not labels. FIX IS ONE LINE AND NOT YET WRITTEN.** Branch `debt-grace-preservation`. **(SUPERSEDED: fixed in session 59 above as `81d5772d`.)**
 
 > Continues session 57 (same day, same branch). Session 57's findings below all stand.
 > **No source file changed this session. Read-only apart from handoff.md. No Supabase writes (all
