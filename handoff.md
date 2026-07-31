@@ -1,4 +1,4 @@
-# Handoff — 2026-07-30 (session 59-debt) — ✅ **SESSION 58's YEARLY OVERFLOW BUG IS FIXED, TESTED AND VERIFIED END-TO-END (`81d5772d`). $683 of February bills now land in February.** 🔴 **The SAME FILE's `monthly` branch has a SEPARATE, WORSE drift bug — MEASURED, not fixed. That is the next target.** Branch `debt-grace-preservation`.
+# Handoff — 2026-07-30 (session 59-debt) — ✅✅ **BOTH `scheduling.ts` DATE BUGS ARE FIXED, TESTED AND VERIFIED (`81d5772d` yearly, `5c030e1b` monthly). $683 of February bills now land in February.** 🔴 **TRE APPROVED THE FULL 69-COMMIT DEPLOY AND IT IS STILL UNPUSHED — the merge conflicts in a LIVE edge function. Recipe is below; do it first.** Branch `debt-grace-preservation`.
 
 > Continues session 58 (same day, same branch). **Session 58's diagnosis was 100% correct** — every
 > number in it reconciled. **Do not re-derive it.** No Supabase writes, no deploy, no push.
@@ -36,9 +36,9 @@ against genuinely changed. ⚠️ **Not a blind re-pin:** `converged`, the **Jul
 `useCardProjection.month0income.test.ts` — the **documented pre-existing date-dependent** one,
 **not a regression**. ✅ **Typecheck clean.** Backup: `backups/2026-07-30_230043/src/lib/scheduling.ts`.
 
-## 🔴 NEXT TARGET — the `monthly` branch at `scheduling.ts:129-143` IS broken. I measured it.
-Session 58 said "verify it separately, it may be safe." **It is NOT safe — it is worse than the
-yearly bug**, and it is a *different* defect, so it needs its own fix and its own test.
+## ✅ ALSO SHIPPED — `5c030e1b` the `monthly` branch clamp. **Both scheduling bugs are now fixed.**
+Session 58 said "verify it separately, it may be safe." **It was NOT safe — it was worse than the
+yearly bug**, and it was a *different* defect, so it got its own fix and its own test.
 ```js
 d.setDate(rule.due_day || 1);          // day is now due_day (can be 31)
 if (d < from) d.setMonth(d.getMonth() + 1);
@@ -48,14 +48,22 @@ while (d <= effectiveEnd) { push(d); d.setMonth(d.getMonth() + 1); }  // carries
 `2026-07-31, 2026-08-31, 2026-10-01, 2026-11-01, 2026-12-01, 2027-01-01, 2027-02-01, 2027-03-01`
 🔑 **September is SKIPPED ENTIRELY, and the rule then permanently drifts to the 1st of every month,
 forever.** A month with no charge and a permanent date shift — worse than the yearly one-month slip.
-⚠️ **`d.setDate(1)` does NOT fix this one.** The cause is *cumulative*: the mutated day is carried
-into the next `setMonth`. The fix must re-derive each occurrence from a fixed anchor and **clamp
-`due_day` to that month's length** (a day-31 rule should land on Feb 28, not Mar 3).
-❓ **Product decision needed before coding:** for a day-31 rule in a 30-day month, is the correct
-behavior **clamp to the last day** (Chase/most billers) or **roll to the 1st of the next month**?
-Clamping is almost certainly right, but it changes real charge dates — **ask Tre.**
-⚠️ Unlike the yearly fix, this is **NOT date-dependent on today's clock** — it affects any day-29/30/31
-monthly rule at all times, so expect a **much larger golden-fixture ripple.** Own commit, own review.
+`d.setDate(1)` does NOT fix this one — the cause is *cumulative*, the mutated day carried into the
+next `setMonth`. **Rewritten to re-derive each occurrence from a `(year, monthIndex)` cursor,
+clamping `due_day` to that month's length.**
+✅ **Tre decided CLAMP TO LAST DAY** (2026-07-30), matching Chase/most billers: a 31st due date bills
+Feb 28/29 and Apr 30. Every month gets exactly one charge, none skipped. **Do not re-ask this.**
+RED verified first. New test `scheduling.monthlyDueDayClamp.test.ts` (4 cases: day-31 across eight
+months, leap-year Feb 29, a day-30 rule, a day-15 no-regression).
+🔑 **ZERO golden-fixture movement, and that is VERIFIED not assumed:** no active monthly rule in the
+fixture has `due_day >= 29` (max 28), and **a live query confirms Tre has none either** — his only
+day-31 rule is Costco, which is *yearly* in March (31 days, never overflows). **So this fix changes
+none of Tre's current numbers.** It is correctness for the moment he adds a 30th/31st monthly bill.
+⚠️ **Corollary: the goldens do NOT cover this code path.** The new unit test is its only guard.
+📌 **Left deliberately unchanged (separate, unasked):** when `start_date` is in the future and
+`due_day` falls earlier in that month, the monthly branch still emits one occurrence BEFORE the
+rule's start date (it compares against `from`, not the anchor). Pre-existing; would move money;
+**ask before touching.**
 
 ## 🧭 WHAT IS STILL UNEXPLAINED — the band is still TWO causes, and only one is now fixed
 - ✅ The **Mar 2027** $8.22 interest and the $961 spike are explained and fixed.
@@ -66,19 +74,48 @@ monthly rule at all times, so expect a **much larger golden-fixture ripple.** Ow
   `Sep 2026 only, $37.12`, unchanged.** So the fixture harness *still* does not reproduce the live
   Sep→Jan band. That gap is now the single most valuable thing to chase, and it is NOT purchases.
 
-## ⏭️ EXACT NEXT STEPS
-1. **DEPLOY.** Two committed, un-deployed debt fixes now sit on this branch: the month-label fix
-   `57a48d5f` and this yearly fix `81d5772d`. **Tre cannot see either in production yet.** Merging
-   and pushing `debt-grace-preservation` is a safe, obvious win. ⚠️ `b956ec82` (reddit-scout) still
-   rides along on this branch.
-2. **Ask Tre the clamp-vs-roll question above**, then fix the `monthly` branch TDD-style.
-3. **Chase the Sep–Dec 2026 cash-cascade half of the band** — the purchases explanation is now spent.
-4. Still open, unchanged: delete-or-promote `grace-diagnostic.test.ts` (`ed6940be`); fix the
+## 🔴🔴 THE ONE OPEN ACTION — **TRE APPROVED THE FULL DEPLOY. IT IS NOT DONE. DO THIS FIRST.**
+✅ **Tre was fully informed and said SHIP EVERYTHING** (2026-07-30). He was explicitly told it pushes
+**69 commits** — the 54 already sitting unpushed on local `main` (reddit-scout v20-v23, feature
+flags, paywall/Premium, the AI-in-development gate, **a react-router-dom 6 → 7 major upgrade never
+run in production**) plus this branch's 15 — and that it triggers **both** a Vercel web production
+deploy **and** an Android **Play Store production** release (10% staged, auto-promoting to 100%).
+**Do not re-ask whether to ship. Do not re-scope it smaller.** He chose this with the risks stated.
+
+🔴 **WHY IT IS NOT DONE: the merge is NOT a fast-forward and WILL CONFLICT. I stopped rather than
+resolve it on a low context budget, in a function that is LIVE.**
+`main` has **5 commits the branch does not**, and the collision is nasty:
+- `main` `1a5a96ff` **"feat(reddit-scout): downgrade acute-crisis posts to advice-only, tighten reply
+  length"** and branch `b956ec82` have the **SAME commit message and the same intent** — the change
+  was committed **twice, independently, on both lines**. Both touch
+  `supabase/functions/reddit-scout/index.ts` (~96 lines each).
+- 🔑 **`main`'s version is the one DEPLOYED AND VERIFIED LIVE as reddit-scout v23** (`c500fc30`).
+  **`main` is authoritative for that file. Take main's side; do NOT let the branch's older duplicate
+  regress a live edge function.** Verify the merged file still contains the v23 crisis-downgrade
+  behavior before pushing.
+- `handoff.md` will also conflict (both lines appended blocks). Keep **both**, newest first.
+
+### ⏭️ EXACT DEPLOY RECIPE
+1. `git checkout main && git merge debt-grace-preservation`.
+2. Resolve `supabase/functions/reddit-scout/index.ts` **in main's favour** (it is v23 = live).
+   Resolve `handoff.md` by keeping both sides. Nothing else should conflict.
+3. Re-run `npx tsc --noEmit` and the full suite. **Expect 232/233** — the single failure must be
+   `useCardProjection.month0income.test.ts` and nothing else.
+4. `git push origin main`. Then **watch the Android workflow** — it goes to Play Store production.
+
+## ⏭️ AFTER THE DEPLOY
+1. **Chase the Sep–Dec 2026 cash-cascade half of the band** — the purchases explanation is now spent
+   (see "WHAT IS STILL UNEXPLAINED"). This is the last piece of Tre's original report.
+2. Confirm with Tre that Feb 2027 now shows its $683 and Mar 2027 dropped to ~$278 in the live app.
+3. Still open, unchanged: delete-or-promote `grace-diagnostic.test.ts` (`ed6940be`); fix the
    pre-existing `useCardProjection.month0income.test.ts` (same end-of-month class as these two bugs).
 
 ## 🧭 STATE
-- **One commit: `81d5772d`** (scheduling.ts + new test + the manualISB re-pin). Working tree clean.
-  **No Supabase writes, no deploy, no cron, no push.**
+- **Three commits on `debt-grace-preservation`: `81d5772d`** (yearly fix + test + manualISB re-pin),
+  **`0bcde412`** (handoff), **`5c030e1b`** (monthly clamp + test). Working tree clean.
+  **No Supabase writes (all `select`), no deploy, no cron, NOT PUSHED — see the deploy block above.**
+- ✅ Final suite **232/233**, typecheck clean. Backups: `backups/2026-07-30_230043/` (yearly) and
+  `backups/2026-07-30_234152/` (monthly), both gitignored.
 - Scratch harnesses preserved OUTSIDE the repo in this session's scratchpad:
   `zz-scratch-livedeltas.test.ts` (session 56's 6-scenario runner, trimmed to F and given a purchases
   column) and `zz-scratch-purchmove.test.ts` (the Feb/Mar bucket table above). Both were run from
