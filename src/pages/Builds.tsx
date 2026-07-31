@@ -81,6 +81,10 @@ export default function Builds() {
   const [dragPhaseOrder, setDragPhaseOrder] = useState<CarBuildPhase[] | null>(null);
   const [dragItemOrder, setDragItemOrder] = useState<CarBuildItem[] | null>(null);
 
+  // Which phases are expanded — lifted so drops can close siblings. Declared here, above the
+  // build-switch reset effect below, so the effect is not closing over a setter declared later.
+  const [expandedPhaseIds, setExpandedPhaseIds] = useState<Set<string>>(new Set());
+
   // Reset optimistic state when build switches
   const prevBuildId = useRef<string | null>(null);
   useEffect(() => {
@@ -141,8 +145,6 @@ export default function Builds() {
     };
   }, []);
 
-  // Which phases are expanded — lifted so drops can close siblings
-  const [expandedPhaseIds, setExpandedPhaseIds] = useState<Set<string>>(new Set());
   function setPhaseExpanded(id: string, val: boolean) {
     setExpandedPhaseIds(prev => {
       const next = new Set(prev);

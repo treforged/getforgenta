@@ -298,15 +298,16 @@ export default function Accounts() {
     return accounts;
   }, [accounts, filterType]);
 
+  const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
+  const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
+  const [editingPlaidAprSynced, setEditingPlaidAprSynced] = useState(false);
+  const [editingPlaidMinSynced, setEditingPlaidMinSynced] = useState(false);
+
   const openAdd = (preType?: string) => { setForm({ ...emptyForm, account_type: preType ?? '' }); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
 
   useEffect(() => {
     if (searchParams.get('new') === '1') openAdd(searchParams.get('type') ?? undefined);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [editingPlaidLinked, setEditingPlaidLinked] = useState(false);
-  const [editingPlaidLiability, setEditingPlaidLiability] = useState(false);
-  const [editingPlaidAprSynced, setEditingPlaidAprSynced] = useState(false);
-  const [editingPlaidMinSynced, setEditingPlaidMinSynced] = useState(false);
 
   const openEdit = (a: AccountRow) => {
     const matchDebt = debts.find(d => d.name.toLowerCase() === a.name.toLowerCase());

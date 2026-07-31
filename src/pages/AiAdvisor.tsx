@@ -160,14 +160,18 @@ function MiniPieChart({ title, data }: { title: string; data: { label: string; v
   const total = data.reduce((s, d) => s + d.value, 0);
   if (total === 0) return null;
   const size = 80; const r = 30; const cx = 40; const cy = 40;
-  let angle = -Math.PI / 2;
+  // Each slice's start angle comes from a prefix sum rather than an accumulator mutated inside
+  // map(): mutating a variable declared in render from within the callback is exactly what
+  // React 19 flags, and the prefix sum makes each slice independent of iteration order.
+  const startAngles: number[] = [];
+  data.reduce((acc, d) => { startAngles.push(acc); return acc + (d.value / total) * 2 * Math.PI; }, -Math.PI / 2);
   const slices = data.map((d, i) => {
     const sweep = (d.value / total) * 2 * Math.PI;
+    const angle = startAngles[i];
     const x1 = cx + r * Math.cos(angle);
     const y1 = cy + r * Math.sin(angle);
-    angle += sweep;
-    const x2 = cx + r * Math.cos(angle);
-    const y2 = cy + r * Math.sin(angle);
+    const x2 = cx + r * Math.cos(angle + sweep);
+    const y2 = cy + r * Math.sin(angle + sweep);
     return { path: `M${cx},${cy}L${x1},${y1}A${r},${r},0,${sweep > Math.PI ? 1 : 0},1,${x2},${y2}Z`, color: PIE_COLORS[i % PIE_COLORS.length], ...d };
   });
   return (
