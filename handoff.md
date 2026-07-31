@@ -1,3 +1,95 @@
+# Handoff — 2026-07-30 (session 58-debt) — 🔴🔴 **NEW MONEY-MOVING BUG FOUND AND FULLY ROOT-CAUSED: `scheduling.ts:146` displaces February yearly bills into March. Same `setMonth()` overflow class as `57a48d5f`, but this one moves REAL CHARGES, not labels. FIX IS ONE LINE AND NOT YET WRITTEN.** Branch `debt-grace-preservation`.
+
+> Continues session 57 (same day, same branch). Session 57's findings below all stand.
+> **No source file changed this session. Read-only apart from handoff.md. No Supabase writes (all
+> `select`), no deploy, no push.**
+
+## ⚡ START HERE — the diagnosis is DONE and arithmetically airtight. Go straight to the fix.
+**Do not re-derive the purchase reconciliation below. Every number is checked against the live UI.**
+
+## 🔴 THE BUG — `src/lib/scheduling.ts:144-148`, the `yearly` branch
+```js
+const d = new Date(Math.max(from.getTime(), startDate.getTime()));  // today: Jul 30 2026, day=30
+d.setMonth((rule.due_month ?? 1) - 1);   // due_month 2 (Feb) -> setMonth(1) -> "Feb 30" -> Mar 2 💥
+d.setDate(rule.due_day || 1);            // -> Mar 21
+if (d < from) d.setFullYear(d.getFullYear() + 1);   // -> Mar 21 2027
+```
+`d` still carries **today's day-of-month (30)** when `setMonth()` runs, so any target month shorter than
+today's day overflows into the next month. **February always overflows on a day-29/30/31 clock.**
+🔑 **This is EXACTLY the bug fixed in `57a48d5f` (`credit-card-engine.ts:304-309`, `:442-445`), which
+already carries the explanatory comment. The same defect exists here and was missed.** The fix is the
+same one line: **`d.setDate(1);` before `d.setMonth(...)`** (then the existing `setDate(due_day)` is
+correct as-is).
+⚠️ **Date-dependent: invisible on days 1-28.** Today is the 30th. Any test MUST pin a day-29/30/31 clock.
+
+### 📐 THE PROOF — live Prime Visa purchases reconcile to the cent, and only with this bug present
+Live `recurring_rules` on Prime Visa (`9111bd9f-4704-4acb-97f7-cf1ab40bc764`, user
+`a72f416e-433a-4055-9ab0-9feae4e60edf`), read this session:
+| rule | cat | amount | freq | due_day | due_month | start_date |
+|---|---|---|---|---|---|---|
+| Fuel | Gas | $65 | biweekly | 5 | — | — |
+| ICloud | Subs | $9.99 | monthly | 17 | — | — |
+| Spotify | Subs | $8 | monthly | 17 | — | 2026-03-18 |
+| **Pet Insurance** | Pets | **$583** | yearly | 21 | **2 (Feb)** | — |
+| **Pettable** | Subs | **$100** | yearly | 21 | **2 (Feb)** | — |
+| Costco Membership | Subs | $130 | yearly | 31 | 3 (Mar) | 2026-03-31 |
+| Chewy | Subs | $79 | yearly | 10 | 5 (May) | — |
+| Amazon + Amazon Prime | Subs | $69 ×2 | yearly | 1 | 8 (Aug) | — |
+
+**Base month = 2 × $65 + $9.99 + $8 = $147.99 ⇒ the $148 the UI shows.** Then:
+| live row | live purchases | composition | ✓ |
+|---|---|---|---|
+| Aug 2026 | **$286** | 148 + 69 + 69 (both Amazon, due_month 8 → Aug, **no overflow**) | ✓ |
+| Jan / Jul / Dec 2027 | **$213** | 148 + 65 (**3rd biweekly Fuel**) | ✓ |
+| **Feb 2027** (renders as "Mar") | **$148** | base only — **Pet Insurance + Pettable are MISSING** | 💥 |
+| **Mar 2027** | **$961** | 148 + **583 + 100** (displaced from Feb) + 130 (Costco, correct) | 💥 |
+| May 2027 | **$227** | 148 + 79 (Chewy, due_month 5 → May, no overflow) | ✓ |
+🔑 **$683 of yearly bills is charged a month late, every year, for any user with a February yearly
+rule** — and only when the app is opened on the 29th/30th/31st. Aug/Mar/May prove the non-overflow
+months are correct, so this is specifically the short-month overflow, not a systematic off-by-one.
+
+### ⚠️ SCOPE — this is NOT debt-only. Check before fixing.
+`generateScheduledEvents` is shared. `scheduling.ts` feeds the Forecast and cash-floor paths too, so
+**this one line moves numbers across the whole app**, not just the Debt tab. Expect golden fixtures to
+shift. **Treat as its own change with its own review** (see next steps).
+
+## ⏭️ EXACT NEXT STEPS — TDD, in this order
+1. **RED first.** New test `src/lib/__tests__/scheduling.yearlyDueMonthOverflow.test.ts`. Call
+   `generateScheduledEvents(rules, accounts, months, from)` — 🔑 **it takes an explicit `from` Date as
+   the 4th arg, so pin `new Date(2026, 6, 30)`** (no fake timers needed). Assert a `due_month: 2,
+   due_day: 21` yearly rule emits a **February** date. It will currently emit March. Also assert a
+   day-31 clock (`new Date(2027, 0, 31)`) and a day-28 clock (must stay green — proves no regression).
+2. **GREEN.** Add `d.setDate(1);` immediately before `d.setMonth(...)` at `scheduling.ts:146`.
+   **Do not touch the `monthly` branch at `:130-132` in the same commit** — it has the same shape
+   (`setDate(due_day)` then `setMonth(+1)`) and may or may not have the same defect; **verify it
+   separately, it is a different ordering and may be safe.**
+3. **Run the FULL suite** and diff carefully. Baseline is **223/224**; the known failure is
+   `useCardProjection.month0income.test.ts` (pre-existing, date-dependent, **not a regression**).
+   Any *other* movement is this change rippling into forecast/golden fixtures — investigate, do not
+   re-pin blindly.
+4. **Back up before editing** (`backups/YYYY-MM-DD_HHMMSS/src/lib/scheduling.ts`) per CLAUDE.md.
+5. Then re-check the Debt tab: the Mar-2027 $8.22 interest should **move to Feb 2027**, not vanish.
+
+## 🧭 WHAT THIS DOES AND DOES NOT EXPLAIN — be honest about this
+- ✅ It fully explains the **Mar 2027** interest ($8.22) and the odd **$961** spike.
+- ❌ It does **NOT** explain the **Sep–Dec 2026 + Jan 2027** part of the band. Those months carry the
+  flat $148 base with no spikes, so that interest comes from the **cash cascade**, not purchases.
+  **The band is therefore TWO separate causes.** Do not close Tre's report on this fix alone.
+- Still true from session 57: the display path is innocent (ELIMINATED 7) and the live rows are the
+  converged engine's genuine output.
+
+## 🧭 STATE
+- **No code changed this session. handoff.md is the only diff.** No Supabase writes (all `select`),
+  no deploy, no cron, no push. Session 57's commits `425f0190` and `fd031d7e` are the branch head.
+- Live table names confirmed: recurring rules live in **`recurring_rules`** (NOT `rules` — that query
+  errors), and `CC_DEFAULT_CATEGORIES` is at `credit-card-engine.ts:114-118`.
+- 🔑 **`useCardProjection.ts:203`** — every active expense rule with **no `payment_source`** whose
+  category is in `CC_DEFAULT_CATEGORIES` is silently assigned to the **highest-APR card**, i.e. Prime
+  Visa. Worth knowing; not implicated in this bug (all 9 rules above have an explicit source).
+- Browser tab was left signed in on the Debt tab with Prime Visa expanded (tab 1527580966).
+
+---
+
 # Handoff — 2026-07-30 (session 57-debt) — ✅✅ **TRE'S Sep 2026 → Mar 2027 BAND IS REPRODUCED LIVE, TO THE CENT. The bug is REAL and the display path is NOT the converged plan.** Branch `debt-grace-preservation`.
 
 > **Debt-engine workstream.** Supersedes session 56 on the reconciliation. Every elimination in
