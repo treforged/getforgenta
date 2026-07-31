@@ -514,7 +514,6 @@ export function projectCardVariable(
       // the payment column). $1 comfortably clears rounding while catching the hundreds-of-dollars
       // divergences that motivated this guard.
       if (Math.abs(residual) > 1) {
-        // eslint-disable-next-line no-console
         console.warn(`[projectCardVariable] ${card.name} ${label} does not reconcile: End ${bal} ≠ Start ${startBal} + purch ${newPurchases} + int ${interest} − pay ${Math.round(payment * 100) / 100} (residual ${residual})`);
       }
     }
@@ -1217,7 +1216,9 @@ export function simulateVariablePayoff(
     // Phase B — distribute the remaining pool toward full payoff, proportional to what's left
     // owed (so a card with a bigger carried-forward shortfall gets more of the pool, without ever
     // zeroing out a competing card outright).
-    paidOffPool = distributeProportionally(
+    // Phase B is the last claim on this pool — what it returns unspent is deliberately left as
+    // cash rather than cascaded further, so the leftover is discarded rather than reassigned.
+    distributeProportionally(
       paidOffPool, unpinnedPaidOffCards,
       id => Math.max(0, (owedByCard.get(id) ?? 0) - (paidSoFar.get(id) ?? 0)),
     );
@@ -1804,8 +1805,10 @@ export function generateRecommendations(
     return Math.min(...dueDays);
   })();
 
-  let remainingTransactionIncome = 0;
-  let remainingTransactionExpenses = 0;
+  // Declared without a seed on purpose: every branch of the if/else-if/else below assigns both,
+  // so TS's definite-assignment check will flag any future branch that forgets to.
+  let remainingTransactionIncome: number;
+  let remainingTransactionExpenses: number;
   // Whether we fell back to the monthlyExpenses scalar (which already has plan cash outflow folded
   // in by the caller). In that degenerate no-transactions/no-rules case, don't subtract
   // month0PlanOutflow again below — it would double-count.

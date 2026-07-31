@@ -888,7 +888,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       const dueDay = card?.dueDay ?? null;
       // Due date already passed this month → payment is next month's, just save for it.
       const pastDue = !card?.autopayFullBalance && dueDay !== null && dueDay < todayDay;
-      let reason = '';
+      let reason: string;
       let isMinimumOnly = false;
       if (card?.autopayFullBalance || (card && card.balance <= 0)) {
         // Cycling / zero-balance card — show preference-aware label

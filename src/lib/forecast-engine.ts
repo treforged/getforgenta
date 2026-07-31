@@ -166,7 +166,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // cash" by default — earmark it out so it isn't offered up for CC paydown while it's spoken
     // for. Disappears on its own once a car fund's phase flips to 'loan' (see getCarFundEarmark).
     liquidBal = Math.max(0, liquidBal - getCarFundEarmark(carFunds, forecastFundingAccountId));
-    let totalLiabilityBal = active.filter((a) => liabilityTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
+    // Re-derived from the card projection + loan schedules on every month of the loop below
+    // (see step 3), so it needs no account-derived seed — nothing reads it before that.
+    let totalLiabilityBal: number;
 
     const accountMap = new Map(accounts.map((a) => [a.id, a]));
     const goalLinkedAccountIds = new Set(goals.filter((g) => g.linked_account).map((g) => g.linked_account as string));
@@ -251,8 +253,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // Aggregate scalars derived from per-account Maps (fixes retire-linked goal double-counting)
     let retireBal = Array.from(perAcctRetire.values()).reduce((s, a) => s + a.balance, 0);
     let investBal = Array.from(perAcctInvest.values()).reduce((s, a) => s + a.balance, 0);
-    let savingsBal = Array.from(perAcctSavings.values()).reduce((s, a) => s + a.balance, 0)
-      + Array.from(goalPools.values()).reduce((s, p) => s + p.balance, 0);
+    // Unlike retireBal/investBal (read for growth before step 4f), savingsBal is only ever read
+    // after 4f re-derives it from perAcctSavings + goalPools, so no seed value is needed.
+    let savingsBal: number;
 
     const nowDate = new Date();
 
@@ -1093,8 +1096,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // balance clears and it settles into cycling mode — ccDebtBalance is a deliberate one-way
       // 0-once-cycling signal (see credit-card-engine.ts), so liabilities/net worth would otherwise
       // understate debt for any card that pays its statement in full every month but still spends.
+      // totalLiabilityBal is not set from this raw value — step 4 below recomputes it from
+      // adjCCLiab (the revolving-surplus-adjusted figure) before anything reads it.
       const ccLiabilityBalThisMonth = cardProjectionData?.data[i]?.displayCCBalance ?? b.ccDebtBalance;
-      totalLiabilityBal = ccLiabilityBalThisMonth + b.otherDebtBalance + carLoanBalanceByMonth[i];
 
       const investGrowthAmt = Math.round(investBal * monthlyInvestGrowth * 100) / 100;
       const retireGrowthAmt = Math.round(retireBal * monthlyRetireGrowth * 100) / 100;

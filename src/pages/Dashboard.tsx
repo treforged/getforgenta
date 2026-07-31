@@ -677,7 +677,7 @@ export default function Dashboard() {
       .reduce((s, c) => s + c.monthlyNewPurchases, 0);
     const recommendations = m0.perCardAdjusted.map(item => {
       const card = simCards.find(c => c.id === item.id);
-      let reason = '';
+      let reason: string;
       let isMinimumOnly = false;
       if (card?.autopayFullBalance || (card && card.balance <= 0)) {
         if (card?.paymentPreference === 'statement') reason = 'Statement balance';

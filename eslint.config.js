@@ -5,7 +5,10 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['dist'] },
+  // backups/ holds gitignored timestamped copies of source files (see CLAUDE.md backup
+  // policy). Linting them is pure noise, and a backed-up eslint.config.js gives
+  // typescript-eslint a second candidate tsconfigRootDir, which fails the whole run.
+  { ignores: ['dist', 'backups'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['src/**/*.{ts,tsx}'],
