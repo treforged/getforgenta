@@ -36,21 +36,22 @@ export default tseslint.config(
       // `cond ? a() : b()` as a statement is an established pattern here for
       // conditional Set mutation (next.has(id) ? next.delete(id) : next.add(id)).
       '@typescript-eslint/no-unused-expressions': ['error', { allowTernary: true, allowShortCircuit: true }],
-      // 2026-07-31: eslint-plugin-react-hooks 5 -> 7 (required by the eslint 10
-      // bump that clears the brace-expansion/minimatch advisories) ships a new
-      // compiler-backed rule set. It flags 55 pre-existing sites that were never
-      // linted before. These are real signals, not false positives, so they are
-      // staged as warnings rather than switched off - blocking on them here
-      // would have made a security bump into an unrelated 55-file refactor.
-      // TODO: burn these down in a dedicated pass, then restore to 'error'.
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/immutability': 'warn',
-      'react-hooks/purity': 'warn',
-      'react-hooks/refs': 'warn',
-      'react-hooks/static-components': 'warn',
-      'react-hooks/preserve-manual-memoization': 'warn',
-      // New in eslint 10 core, same rationale as above.
-      'no-useless-assignment': 'warn',
+      // eslint-plugin-react-hooks 5 -> 7 (pulled in by the eslint 10 bump that
+      // cleared the brace-expansion/minimatch advisories) added a compiler-backed
+      // rule set that flagged 60 pre-existing sites never linted before. They
+      // were staged as warnings so a security bump would not turn into an
+      // unrelated 60-file refactor, then burned down to zero on 2026-07-31 and
+      // promoted to 'error' here. Every site was triaged individually: genuine
+      // violations were fixed, and the remainder carry a scoped disable stating
+      // the reason at the site. New violations now block.
+      'react-hooks/set-state-in-effect': 'error',
+      'react-hooks/immutability': 'error',
+      'react-hooks/purity': 'error',
+      'react-hooks/refs': 'error',
+      'react-hooks/static-components': 'error',
+      'react-hooks/preserve-manual-memoization': 'error',
+      // New in eslint 10 core; burned down in the same pass.
+      'no-useless-assignment': 'error',
     },
   },
   {
