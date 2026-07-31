@@ -1,3 +1,149 @@
+# Handoff — 2026-07-31 (session 63-lint) — ✅ **LINT DEBT CLOSED: 33 → 0 WARNINGS, RULES PROMOTED TO `'error'`. 11 commits LOCAL & UNPUSHED. Tre chose "smoke test first, then decide" on the push — SMOKE TEST IS 1/5 DONE.** On `main`.
+
+> Continues sessions 61 + 62. **No Supabase access, no cron, no edge function, no migration, no push, no dependency changes.**
+
+## ⚡ START HERE
+
+**The lint task is FINISHED — do not re-open it.** All three next-steps from session 62 are done:
+burn-down complete, rules restored to `'error'`, TODO block deleted.
+
+**The one thing left is the smoke test Tre asked for, then the push question.**
+Tre was asked how to handle the push and chose **"Smoke test first, then decide"**, then added:
+**"im not at the computer so test on the demo account"** — so use demo mode, never real credentials.
+
+### 🔴 SMOKE TEST STATUS — 1 of 5 done
+Dev server was running on **http://localhost:8082/** (ports 8080/8081 were already in use).
+It is a background task from session 63 and **may be dead — restart with `npm run dev` and re-check the port.**
+
+| # | what to verify | why it matters | status |
+|---|---|---|---|
+| 1 | **Cookie banner** | `useCookieConsent` moved to a lazy initializer | ✅ **PASSED** — banner shows when nothing stored, "Reject non-essential" persists, does NOT reappear or flash on reload |
+| 2 | **MobileNav "More" panel** | `showMore` is now derived from the route, not a boolean + reset effect | ⬜ **NOT DONE** — resize to mobile width, open More, tap an item, confirm the panel closes on navigate AND on back-button |
+| 3 | **DateScrollPicker day clamp** | clamp moved from an effect into the month/year handlers | ⬜ **NOT DONE** — pick Jan 31, switch to Feb → must land on 28; then switch to Mar → **must STAY 28** (sticky clamp is the pre-existing behaviour, not a bug) |
+| 4 | **`useIsMobile` breakpoint** | rewritten on `useSyncExternalStore` | ⬜ **NOT DONE** — resize across 768px, confirm layout flips and no desktop-frame flash on a mobile-width first load |
+| 5 | **AiAdvisor pie + SnapshotBar, DateScrollPicker wheel** | session 62 changes, **never smoke-tested either** | ⬜ **NOT DONE** — inherited debt from session 62, still un-exercised |
+
+**Demo mode entry point was not located before the context gate fired.** Look for a "Try demo"/"View demo"
+affordance on the landing page or an explicit demo route; `useDemo()` / `DemoContext` is the backing context.
+
+## 📦 COMMITS NOW LOCAL & UNPUSHED (11 total, ahead of `d56d3184`)
+| sha | what | session |
+|---|---|---|
+| `b451337c` | postcss + brace-expansion/minimatch advisories | 61 |
+| `331919fc` | GH Actions off deprecated Node 20 runtime | 61 |
+| `794b5ae7` | React 18.3.1 → 19.2.7 | 61 |
+| `cdcf3d3a` | react-router-dom 7 → react-router 8.3.0 | 61 |
+| `88d524a6` | session-61 handoff doc | 61 |
+| `0e11f51d` | 8 no-useless-assignment dead stores | 62 |
+| `12fb7b32` | purity / refs / static-components / exhaustive-deps | 62 |
+| `ace26fae` | declaration-order + render-accumulator immutability | 62 |
+| `6457db25` | session-62 handoff doc | 62 |
+| `8e684f22` | **all 10 `react-hooks/immutability`** | 63 |
+| `0a15b15a` | **all 23 `react-hooks/set-state-in-effect`** | 63 |
+| `e6ce5389` | **rules promoted `warn` → `error`** | 63 |
+
+Backup of every session-63 original: **`backups/2026-07-31_lintdebt2/`** (22 files, taken from `HEAD`).
+
+## ✅ WHAT WAS DONE — 33 → 0 warnings, 0 errors
+
+### `8e684f22` — the 10 `immutability` warnings
+- **`CreditCardEngine.tsx:571`** `incMult` was a render-scope variable compounded from inside the
+  `growthAdjustedMonthEvents` **map() callback**. Hoisted into an `incMultByMonth` array built once
+  in a plain loop. 🔑 **Verified `monthEvents.length === PROJECTION_MONTHS` exactly** (built by a
+  `for (i < PROJECTION_MONTHS)` loop at `:410`), so the per-month lookup can never be `undefined`.
+  Order-dependent compounding preserved exactly: month 0 skipped, raise applied in-month before use.
+- **`Builds.tsx` (9 sites)** — scoped `/* eslint-disable react-hooks/immutability */` over the whole
+  desktop-drag block (now ~`:376`–`:511`), with the call-site trace written at the top of the block.
+  ⚠️ **This was session 62's predicted call and it was confirmed by tracing, not assumed**: all 9
+  writes are in DOM drag handlers, never render; the rule blames render because the same refs are
+  read by the items-sync (`:102`) and auto-scroll (`:116`) effects, whose reads run from real drag
+  events after commit. **The refs are refs ON PURPOSE — re-rendering mid-drag cancels native HTML5 DnD.**
+
+### `0a15b15a` — the 23 `set-state-in-effect` warnings
+🔑 **Session 62 predicted "expect most to be the legitimate sync-server-data pattern." That was
+roughly right but incomplete — 7 of the 23 were genuinely fixable.** Three kinds:
+
+**Genuine fixes (7):**
+- **`use-mobile.tsx` → `useSyncExternalStore`.** A media query IS an external store. Correct value
+  now on first render instead of one commit later, so mobile stops painting a desktop-layout frame.
+  `getServerSnapshot` returns `false`, which is exactly what the old hook returned first (`!!undefined`).
+- **`useCookieConsent.ts`** — localStorage into a lazy initializer. **Also deleted the `status` state
+  entirely**: it was set to `'decided'` in exactly the places `consent` got a value and nowhere else,
+  so it is now derived. ✅ **This one is smoke-tested and passes.**
+- **`MobileNav.tsx`** — panel stores the route it was opened on; `showMore = moreOpenedAt === pathname`.
+  Closes itself on any navigation, reset effect deleted.
+- **`DateScrollPicker.tsx`** — day clamp moved from an effect reacting to its own state into the
+  month/year select handlers. ⚠️ **Clamp deliberately kept STICKY** (Jan 31 → Feb → Mar = 28th), which
+  is what the old effect did. **Do not "fix" that into 31 without asking — it is preserved behaviour.**
+- **`AppLockContext.tsx`** — `ready` seeded `useState(!isNative)`; `isNative` is fixed for the process.
+- **`PremiumSuccess.tsx`** — `polling` seeded `useState(!!sessionId)`.
+- **`BudgetControl.tsx`** — `starterSeeded` state → **ref**. Never read in render, and the ref is
+  strictly safer: with state, a second effect run in the same tick still saw `false` and could seed
+  the starter rules **twice**.
+
+**Async-boundary false positives (4)** — `LinkedAccounts`, `PhoneAuth`, `TwoFactorAuth`,
+`BlackScreenDebug`. Every one is `useEffect(() => { loadX(); })` where `loadX` **awaits** a
+Supabase/log call before touching state, so the setState runs a microtask later, off the effect body.
+**The rule cannot see through the async function boundary.** Suppressed with that trace at each site.
+
+**Legitimate external-state hydration (12)** — `Settings`, `BudgetControl`, `CreditCardEngine`,
+`CardProjectionContext`, `OnboardingChecklist`, `BuildFormModal`, `AccountUpdateReminder`,
+`Accounts`, `AiAdvisor`, `Auth` ×2, `Dashboard`. Forms hydrated from a server profile that resolves
+**after** mount, or one-shot decisions driven by URL / sessionStorage / wall clock. Fields are
+user-editable afterwards → not derivable; source doesn't exist at mount → lazy initializer can't cover it.
+
+⚠️ **Placement gotcha that cost a cycle:** for this rule the disable comment must sit immediately
+above **the reported setState line**, NOT above the `useEffect(`. Putting it above the `useEffect`
+produces BOTH an "Unused eslint-disable directive" warning AND the original warning.
+
+### `e6ce5389` — the ratchet is now real
+`set-state-in-effect`, `immutability`, `purity`, `refs`, `static-components`,
+`preserve-manual-memoization`, `no-useless-assignment` all promoted `'warn'` → `'error'` in
+`eslint.config.js`; the dated TODO block is deleted.
+🔑 **Verified it actually BITES, not just that it passes**: a throwaway component with setState in a
+mount effect was written to `src/`, linted → **exit 1, reported as `error`**, then deleted.
+
+## 🧪 VERIFICATION
+- ✅ **`npx tsc --noEmit`: 0 errors** (after every commit).
+- ✅ **Suite 232/233** — the single failure is the **documented pre-existing**
+  `useCardProjection.month0income.test.ts`. **Unchanged baseline, not a regression.**
+- ✅ **`npm run lint`: 0 errors, 0 warnings** with the rules at `'error'`.
+- ✅ **`npm run build`: succeeds** (the >500 kB chunk notice is pre-existing advisory).
+  🔑 **This closes session 62's "no production build was run" gap.**
+- ⚠️ **Browser smoke test only 1/5 done — see the table at the top.**
+
+## ⏭️ NEXT STEPS
+1. **Finish the 4 remaining smoke-test rows** (demo account, Tre is away from the computer).
+2. 🔴 **THEN ASK TRE ABOUT THE PUSH.** 11 commits sit local. Pushing exercises the bumped GH Actions
+   for the first time AND ships React 19 + two router majors to both stores (Android auto-promotes to
+   100% after 24h). **Standing rule: never auto-push.** Tre has already been asked once and deferred
+   pending the smoke test — so come back with the smoke-test result, don't re-ask cold.
+3. **Everything else from session 61 is untouched and still open**: close superseded Dependabot PRs
+   (#42, #43, #49, #50, #46, #33); the ~30 `@radix-ui/*` packages vs only 4 files in
+   `src/components/ui/` (a `knip`/`depcheck` pass); the **Sep–Dec 2026 + Jan 2027 interest band**;
+   confirm Feb 2027 shows **$683** and Mar 2027 dropped **$961 → ~$278**; delete-or-promote
+   `grace-diagnostic.test.ts`; fix `useCardProjection.month0income.test.ts`.
+
+## 🧭 STATE (session 63)
+- **On `main`, 11 commits ahead of `origin/main`.** Working tree clean apart from this handoff.
+- **Zero Supabase access. Zero cron. Zero edge-function changes. No push. No dependency changes.**
+- Files changed this session (22 backed up, 21 edited): `eslint.config.js`, `src/hooks/use-mobile.tsx`,
+  `src/hooks/useCookieConsent.ts`, `src/components/builds/BuildFormModal.tsx`,
+  `src/components/dashboard/OnboardingChecklist.tsx`, `src/components/debt/CreditCardEngine.tsx`,
+  `src/components/debug/BlackScreenDebug.tsx`, `src/components/layout/MobileNav.tsx`,
+  `src/components/settings/{LinkedAccounts,PhoneAuth,TwoFactorAuth}.tsx`,
+  `src/components/shared/{AccountUpdateReminder,DateScrollPicker}.tsx`,
+  `src/contexts/{AppLockContext,CardProjectionContext}.tsx`,
+  `src/pages/{Accounts,AiAdvisor,Auth,BudgetControl,Dashboard,PremiumSuccess,Settings}.tsx`.
+- **Nothing this session changed any money math.** The only engine-adjacent edit was the `incMult`
+  hoist, which is arithmetically identical and traced; the 232/233 suite result is unchanged from
+  the session-61/62 baseline.
+- ⚠️ **`backups/` is eslint-ignored on purpose** (session 62 finding): a backed-up `eslint.config.js`
+  gives typescript-eslint a second candidate `tsconfigRootDir` and fails the ENTIRE run with 206
+  fatal parse errors. This session's backup dir contains no config copy, so it is safe.
+
+---
+
 # Handoff — 2026-07-31 (session 62-lint) — 🟡 **LINT DEBT 60 → 33 WARNINGS. 3 new commits, LOCAL ONLY. THE 4 SESSION-61 COMMITS ARE STILL UNPUSHED — Tre chose to work the lint debt FIRST.** On `main`.
 
 > Continues session 61. **No Supabase access, no cron, no edge function, no migration, no push.**
