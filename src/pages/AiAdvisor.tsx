@@ -115,7 +115,7 @@ function ScoreRing({ score, size = 88 }: { score: number; size?: number }) {
   const cx = size / 2;
 
   return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90 absolute inset-0" style={{ display: 'block' }}>
         <circle cx={cx} cy={cx} r={r} fill="none" stroke="currentColor" strokeWidth="6" className="text-border/50" />
         <circle
@@ -272,7 +272,7 @@ function EntryView({ entry, isFirst }: { entry: ChatEntry; isFirst: boolean }) {
           <div className="flex justify-end">
             <div className="flex items-center gap-2 max-w-[88%] min-w-0">
               <div
-                className="text-xs px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug break-words min-w-0"
+                className="text-xs px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug wrap-break-word min-w-0"
                 style={{ borderRadius: 'var(--radius)' }}
               >
                 {entry.question}
@@ -307,7 +307,7 @@ function EntryView({ entry, isFirst }: { entry: ChatEntry; isFirst: boolean }) {
         <div className="flex justify-end">
           <div className="flex items-center gap-2 max-w-[88%] min-w-0">
             <div
-              className="text-xs px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug break-words min-w-0"
+              className="text-xs px-3 py-2 bg-primary text-primary-foreground font-medium leading-snug wrap-break-word min-w-0"
               style={{ borderRadius: 'var(--radius)' }}
             >
               {question}

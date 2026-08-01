@@ -19,7 +19,7 @@ export default function ProgressBar({ value, max, className, showLabel = false, 
         thick ? "h-3" : "h-1.5"
       )} style={{ borderRadius: 'var(--radius)' }}>
         <div
-          className="h-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-500 ease-out"
+          className="h-full bg-linear-to-r from-primary to-primary/70 transition-all duration-500 ease-out"
           style={{ width: `${pct}%`, borderRadius: 'var(--radius)' }}
         />
       </div>

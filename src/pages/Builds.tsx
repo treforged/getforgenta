@@ -614,7 +614,7 @@ export default function Builds() {
         )}
         <button
           onClick={() => { setEditingBuild(null); setFormOpen(true); }}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors shrink-0"
           style={{ background: '#c8a84b', color: '#000' }}
         >
           <Plus size={13} /> New Build

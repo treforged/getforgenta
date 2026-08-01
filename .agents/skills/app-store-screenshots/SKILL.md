@@ -1047,7 +1047,7 @@ When you present the finished work:
 | Export is blank | Use double-call trick; move element on-screen before capture |
 | Phone screens black in export | Images not inlined — use `preloadAllImages()` + `img()` helper |
 | Some slides missing images | Non-deterministic fetch race — same fix as above |
-| Export button scrolls off toolbar | Split toolbar: scrollable controls left (`flex: 1`), fixed button right (`flex-shrink: 0`) |
+| Export button scrolls off toolbar | Split toolbar: scrollable controls left (`flex: 1`), fixed button right (`shrink: 0`) |
 | Page has horizontal scroll | Add `overflowX: "hidden"` on the outermost wrapper div |
 | Screenshots rejected by App Store | Source PNGs have alpha channel — flatten to RGB (composite onto black) |
 | Android tablet orientation ignored | Derive `cW/cH/slides` from `device + orientation` combo, not just `device` |

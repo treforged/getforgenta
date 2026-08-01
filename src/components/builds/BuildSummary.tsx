@@ -17,7 +17,7 @@ export default function BuildSummary({ phases, items }: BuildSummaryProps) {
   return (
     <div className="mt-8 border border-border rounded overflow-hidden">
       <div className="flex justify-between items-center px-5 py-[13px] border-b border-border bg-card/50">
-        <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em]" style={{ color: '#c8a84b' }}>
+        <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest" style={{ color: '#c8a84b' }}>
           Grand Total (active phases)
         </span>
         <span className="font-mono text-base font-medium" style={{ color: '#c8a84b' }}>
@@ -25,7 +25,7 @@ export default function BuildSummary({ phases, items }: BuildSummaryProps) {
         </span>
       </div>
       <div className="flex justify-between items-center px-5 py-[13px] border-b border-border">
-        <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em]">
+        <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest">
           Spent (marked complete)
         </span>
         <span className="font-mono text-sm" style={{ color: '#3a8a5a' }}>
@@ -33,7 +33,7 @@ export default function BuildSummary({ phases, items }: BuildSummaryProps) {
         </span>
       </div>
       <div className="flex justify-between items-center px-5 py-[13px]">
-        <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em]">
+        <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest">
           Remaining
         </span>
         <span className="font-mono text-sm text-foreground">

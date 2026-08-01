@@ -477,7 +477,7 @@ export default function Accounts() {
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
       {/* Plaid link success overlay */}
       {plaidSyncResult && !plaidSyncing && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
           <div className="card-forged w-full max-w-sm p-5 flex flex-col gap-4">
             <div className="flex flex-col items-center text-center gap-1.5">
               <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
@@ -540,7 +540,7 @@ export default function Accounts() {
 
       {/* Delete account confirmation modal */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-background/85 backdrop-blur-sm p-4" onClick={() => setDeleteConfirm(null)}>
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/85 backdrop-blur-sm p-4" onClick={() => setDeleteConfirm(null)}>
           <div className="card-forged w-full max-w-sm p-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
@@ -579,7 +579,7 @@ export default function Accounts() {
 
       {/* Plaid exchange/sync loading overlay */}
       {plaidSyncing && (
-        <div className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-background/85 backdrop-blur-sm gap-3">
+        <div className="fixed inset-0 z-70 flex flex-col items-center justify-center bg-background/85 backdrop-blur-sm gap-3">
           <Loader2 size={28} className="animate-spin text-primary" />
           <p className="text-sm font-semibold text-foreground">Linking your bank…</p>
           <p className="text-xs text-muted-foreground">Exchanging token and syncing balances</p>
@@ -797,7 +797,7 @@ export default function Accounts() {
                   </div>
                 </div>
               </div>
-              {a.notes && <p className="text-xs text-muted-foreground mt-2 ml-12 break-words">{a.notes}</p>}
+              {a.notes && <p className="text-xs text-muted-foreground mt-2 ml-12 wrap-break-word">{a.notes}</p>}
             </div>
           );
         })}

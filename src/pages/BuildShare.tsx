@@ -127,7 +127,7 @@ export default function BuildShare() {
               {displayName ? `${displayName}'s Mod List` : build.name}
             </h1>
             {subLabel && (
-              <div className="text-[13px] font-mono text-muted-foreground mt-2 tracking-[0.1em] uppercase">
+              <div className="text-[13px] font-mono text-muted-foreground mt-2 tracking-widest uppercase">
                 {subLabel}
               </div>
             )}
@@ -230,23 +230,23 @@ export default function BuildShare() {
                   className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
                   onClick={() => togglePhase(ph.id)}
                 >
-                  <div className="text-2xl font-display font-bold leading-none flex-shrink-0" style={{ color }}>
+                  <div className="text-2xl font-display font-bold leading-none shrink-0" style={{ color }}>
                     <span className="inline-block w-2 h-2 rounded-full mr-1.5 mb-0.5 align-middle" style={{ background: color }} />
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-sm font-semibold uppercase tracking-wide text-foreground break-words">
+                      <span className="text-sm font-semibold uppercase tracking-wide text-foreground wrap-break-word">
                         {ph.title}
                       </span>
                       {allDone && !ph.hidden && (
-                        <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
+                        <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0"
                           style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>
                           ✓ Done
                         </span>
                       )}
                       {ph.hidden && (
-                        <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0"
+                        <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0"
                           style={{ color: '#666', borderColor: '#444' }}>
                           Planned
                         </span>
@@ -256,12 +256,12 @@ export default function BuildShare() {
                       {doneCount > 0 ? `${doneCount} / ${phItems.length} complete` : `${phItems.length} item${phItems.length !== 1 ? 's' : ''}`}
                     </div>
                   </div>
-                  <div className="font-mono text-base font-medium text-right flex-shrink-0 mr-2" style={{ color: '#c8a84b' }}>
+                  <div className="font-mono text-base font-medium text-right shrink-0 mr-2" style={{ color: '#c8a84b' }}>
                     {phTotal > 0 ? `$${phTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
                   </div>
                   <ChevronDown
                     size={14}
-                    className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200 print:hidden', isExpanded && 'rotate-180')}
+                    className={cn('shrink-0 text-muted-foreground transition-transform duration-200 print:hidden', isExpanded && 'rotate-180')}
                   />
                 </div>
 
@@ -274,12 +274,12 @@ export default function BuildShare() {
                         className={`print-item flex items-center gap-2.5 px-4 py-3 border-b border-[#141414] ${item.completed ? 'opacity-50' : ''}`}
                       >
                         {/* Complete indicator */}
-                        <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 ${item.completed ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white' : 'border-border bg-transparent'}`}>
+                        <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 ${item.completed ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white' : 'border-border bg-transparent'}`}>
                           {item.completed && <Check size={11} strokeWidth={3} />}
                         </div>
 
                         {/* Label */}
-                        <div className="text-[13px] font-mono text-muted-foreground flex-shrink-0 w-7 text-center">
+                        <div className="text-[13px] font-mono text-muted-foreground shrink-0 w-7 text-center">
                           {itemLabel(i, ii, phItems.length)}
                         </div>
 
@@ -289,7 +289,7 @@ export default function BuildShare() {
                             {item.name}
                           </div>
                           {item.brand && (
-                            <div className="text-[12px] font-mono text-muted-foreground mt-0.5 break-words">{item.brand}</div>
+                            <div className="text-[12px] font-mono text-muted-foreground mt-0.5 wrap-break-word">{item.brand}</div>
                           )}
                           {item.link && isSafeUrl(item.link).safe && (
                             <a
@@ -308,7 +308,7 @@ export default function BuildShare() {
                         </div>
 
                         {/* Price */}
-                        <div className="text-right flex-shrink-0">
+                        <div className="text-right shrink-0">
                           {item.price !== null
                             ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
                             : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>

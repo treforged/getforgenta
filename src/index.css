@@ -1,24 +1,241 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-* { scrollbar-width: none; -ms-overflow-style: none; }
-*::-webkit-scrollbar { display: none; }
+@plugin 'tailwindcss-animate';
 
-/* Desktop: show thin scrollbars for mouse/trackpad users */
-@media (hover: hover) and (pointer: fine) {
-  * { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
-  *::-webkit-scrollbar { display: block; width: 4px; height: 4px; }
-  *::-webkit-scrollbar-track { background: transparent; }
-  *::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
-  *::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+@custom-variant dark (&:is(.dark *));
+
+@utility container {
+  margin-inline: auto;
+  padding-inline: 2rem;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
 }
 
-/* Thin scrollbars inside popups/drawers (all devices) */
-.popup-scroll { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
-.popup-scroll::-webkit-scrollbar { display: block; width: 3px; }
-.popup-scroll::-webkit-scrollbar-track { background: transparent; }
-.popup-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 2px; }
+@theme {
+  --font-display: Outfit, sans-serif;
+  --font-body: Inter, sans-serif;
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-gold: hsl(var(--gold));
+  --color-silver: hsl(var(--silver));
+  --color-graphite: hsl(var(--graphite));
+  --color-gunmetal: hsl(var(--gunmetal));
+  --color-obsidian: hsl(var(--obsidian));
+  --color-crimson: hsl(var(--crimson));
+  --color-success: hsl(var(--success));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-shimmer: shimmer 2s infinite linear;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility font-display {
+  font-family: var(--font-display);
+}
+
+@utility font-body {
+  font-family: var(--font-body);
+}
+
+@utility text-gold {
+  color: hsl(var(--gold));
+}
+
+@utility card-forged {
+  @apply bg-card border border-border;
+  border-radius: var(--radius);
+}
+
+@utility btn-press {
+  @apply active:scale-[0.98] transition-transform duration-75;
+  @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
+}
+
+@utility card-clickable {
+  /* Clickable card — stronger border + press feedback */
+  @apply cursor-pointer transition-all duration-200;
+  @apply hover:border-primary/50;
+  @apply active:scale-[0.99] active:border-primary/70;
+}
+
+@utility safe-area-pb {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+@utility pt-safe {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+@utility pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 80px);
+}
+
+@utility min-h-screen-safe {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+@utility mobile-page-gutter {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+
+  @media (min-width: 640px) {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@utility icon-btn {
+  /* 44px minimum tap target for icon-only buttons */
+  @apply flex items-center justify-center min-h-[44px] min-w-[44px];
+}
+
+@layer utilities {
+  /* Convert fixed-px micro-labels to rem so they scale with the user's text-size preference.
+     These override Tailwind's generated arbitrary-value utilities at the same layer.
+     They stay plain escaped selectors rather than `@utility`, because a v4 utility name
+     must be alphanumeric and cannot contain brackets. */
+  .text-\[9px\]   { font-size: 0.611rem; line-height: 1rem; }
+  .text-\[9\.5px\]{ font-size: 0.639rem; line-height: 1rem; }
+  .text-\[10px\]  { font-size: 0.667rem; line-height: 1.1rem; }
+  .text-\[11px\]  { font-size: 0.722rem; line-height: 1.15rem; }
+}
+
+@layer utilities {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Desktop: show thin scrollbars for mouse/trackpad users */
+  @media (hover: hover) and (pointer: fine) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--border)) transparent;
+    }
+    *::-webkit-scrollbar {
+      display: block;
+      width: 4px;
+      height: 4px;
+    }
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    *::-webkit-scrollbar-thumb {
+      background: hsl(var(--border));
+      border-radius: 2px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--muted-foreground));
+    }
+  }
+
+  /* Thin scrollbars inside popups/drawers (all devices) */
+  .popup-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .popup-scroll::-webkit-scrollbar {
+    display: block;
+    width: 3px;
+  }
+  .popup-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .popup-scroll::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
+}
 
 @layer base {
   :root {
@@ -152,69 +369,6 @@
 }
 
 @layer utilities {
-  .font-display {
-    font-family: var(--font-display);
-  }
-
-  .font-body {
-    font-family: var(--font-body);
-  }
-
-  .text-gold {
-    color: hsl(var(--gold));
-  }
-
-  .card-forged {
-    @apply bg-card border border-border;
-    border-radius: var(--radius);
-  }
-
-  .btn-press {
-    @apply active:scale-[0.98] transition-transform duration-75;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
-  }
-
-  /* Clickable card — stronger border + press feedback */
-  .card-clickable {
-    @apply cursor-pointer transition-all duration-200;
-    @apply hover:border-primary/50;
-    @apply active:scale-[0.99] active:border-primary/70;
-  }
-
-  .safe-area-pb {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
-  }
-
-  .pt-safe {
-    padding-top: max(0.75rem, env(safe-area-inset-top));
-  }
-
-  .pb-safe {
-    padding-bottom: calc(env(safe-area-inset-bottom) + 80px);
-  }
-
-  .min-h-screen-safe {
-    min-height: 100vh;
-    min-height: 100dvh;
-  }
-
-  .mobile-page-gutter {
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
-
-  @media (min-width: 640px) {
-    .mobile-page-gutter {
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-  }
-
-  /* 44px minimum tap target for icon-only buttons */
-  .icon-btn {
-    @apply flex items-center justify-center min-h-[44px] min-w-[44px];
-  }
-
   /* Native selects — always show a visible chevron */
   select {
     -webkit-appearance: none;
@@ -225,11 +379,4 @@
     background-size: 1em 1em;
     padding-right: 2rem;
   }
-
-  /* Convert fixed-px micro-labels to rem so they scale with the user's text-size preference.
-     These override Tailwind's generated arbitrary-value utilities at the same layer. */
-  .text-\[9px\]   { font-size: 0.611rem; line-height: 1rem; }
-  .text-\[9\.5px\]{ font-size: 0.639rem; line-height: 1rem; }
-  .text-\[10px\]  { font-size: 0.667rem; line-height: 1.1rem; }
-  .text-\[11px\]  { font-size: 0.722rem; line-height: 1.15rem; }
 }

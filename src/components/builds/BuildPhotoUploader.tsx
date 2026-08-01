@@ -46,7 +46,7 @@ export default function BuildPhotoUploader({ buildId, userId, photos, onPhotosCh
 
   return (
     <div className="space-y-2">
-      <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em]">
+      <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest">
         Build Photos ({photos.length}/{MAX_PHOTOS})
       </div>
       <div className="grid grid-cols-3 gap-2">
