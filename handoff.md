@@ -1,3 +1,168 @@
+# Handoff — 2026-08-01 (session 66-smoke) — ✅ **TAILWIND V4 VISUAL SMOKE COMPLETE, 9 SCREENS + MODAL, ZERO visual regressions.** ✅ **One REAL a11y regression found and FIXED (`1b69acce`).** ⚠️ Still on **`tailwind-v4-migration`**, 5 local commits, unpushed.
+
+> Session goal was handoff-65 next-step 1 (finish the visual smoke) and 2 (PR #35).
+> Item 1 is CLOSED. Item 2 is HALF-DONE and is where the next session starts.
+
+## ⚡ START HERE (session 67)
+
+1. 🟡 **Finish the PR #35 dev-dependency bumps** — the analysis is DONE and below, the
+   `npm install` was NOT run. Backup of `package.json`/`package-lock.json` already taken at
+   `backups/2026-08-01_094*/`. Just run the install, verify, commit.
+2. 🔴 **Merge/push decision with Tre** — unchanged, still needs him. **Standing rule: never auto-push.**
+3. 🟡 **Six more open Dependabot PRs than handoff 65 claimed** (see PR TABLE below).
+
+## ✅ TAILWIND V4 VISUAL SMOKE — DONE, PASSED. Do not re-run it.
+
+Demo mode, dev server on **http://localhost:8090/**. Screens verified rendering correctly:
+
+| screen | verdict |
+|---|---|
+| Landing | ✅ gold branding, hero, store badges, cookie banner |
+| Dashboard | ✅ sidebar, cards, donut chart, budget snapshot |
+| Transactions | ✅ payment-plan progress bars, badges, selects, filter pills |
+| **Add Transaction modal** | ✅ overlay, date wheel w/ gold highlight, selects, **placeholders muted (not v4 currentColor/50%)**, **focus ring present** |
+| Debt Payoff | ✅ tabs, toggle, trajectory chart (1Y/2Y/3Y/5Y), stat row |
+| Accounts | ✅ net-worth stat grid, history chart, filter pills |
+| Budget Control | ✅ the raw-`<input>`-heavy screen, all styled correctly |
+| Forecast | ✅ milestones, cash-floor callout, projection chart |
+| Goals / Vehicles / Builds / Settings | ✅ incl. Builds' `text-[9px]` micro-labels and Settings' switches |
+
+**The one thing handoff 65 flagged to look at (raw `<input>` placeholders outside shadcn's Input) is
+CLEAN.** Verified visually on the Add Transaction modal and Budget Control.
+
+⚠️ **The Debt trajectory chart looks EMPTY for ~1s after mount — that is Recharts' entry animation,
+not a bug.** It renders fully on a second screenshot. Don't chase it.
+
+## ✅ THE REAL FINDING — `outline-none` kept its NAME but changed its MEANING (`1b69acce`)
+
+The `@tailwindcss/upgrade` codemod renamed `outline-none` → `outline-hidden` **only inside
+`src/index.css`** and left **all 28 occurrences in JSX class strings untouched**. Handoff 65's commit
+message claimed the rename was part of the template rewrites; it was not. In v4:
+
+```
+v3 outline-none   -> outline: 2px solid transparent; outline-offset: 2px
+v4 outline-none   -> outline-style: none                      <- what 28 call sites silently became
+v4 outline-hidden -> outline-style: none
+                     + @media (forced-colors:active){ outline: 2px solid #0000 }
+```
+
+**Both suppress the UA focus ring identically in normal rendering — which is exactly why the visual
+smoke test found nothing.** The loss only appears in **Windows High Contrast / forced-colors mode**,
+where v3's transparent outline got forced to a visible color and v4's `outline-style:none` does not.
+So 28 controls lost their high-contrast focus indicator: sign-in / sign-up / MFA / phone-auth inputs,
+settings + onboarding forms, builds editors, AI advisor composer, cookie-banner toggle, shadcn tabs.
+
+Fixed by completing the rename across 12 files (28 occurrences, renames only, 28+/28-).
+
+**Verified at the emitted-CSS level, not just by eyeball** — this is the technique to reuse:
+```
+npm run build
+grep -o "@media (forced-colors:active){[^}]*outline-hidden[^}]*}[^}]*}" dist/assets/*.css
+```
+All three variants now carry the forced-colors rule:
+`.outline-hidden`, `.focus\:outline-hidden:focus`, `.focus-visible\:outline-hidden:focus-visible`.
+`grep -ro "outline-none" src/` is now **0**.
+
+⚠️ `outline-none` **still appears in the emitted CSS** — that is Tailwind v4's automatic content
+detection scanning `node_modules/tailwindcss/dist/lib.js` and finding the literal string. Harmless
+unused utility. **Not a leftover from src. Do not "fix" it.**
+
+⚠️ Also note `grep -c` on the built CSS is useless (minified = one line). Use `grep -o ... | wc -l`.
+
+## 🟡 PR #35 — ANALYSIS DONE, INSTALL NOT RUN. This is the next task.
+
+**4 of the 10 updates are already absorbed or obsolete — do NOT redo them:**
+
+| package | PR wants | reality |
+|---|---|---|
+| `autoprefixer` | 10.5.4 | **REMOVED** in the v4 migration. Moot. |
+| `eslint-plugin-react-refresh` | 0.5.3 | already `^0.5.3` |
+| `typescript-eslint` | 8.65.0 | already `^8.65.0` |
+| `postcss` | 8.5.23 | already pinned `8.5.25`, **ahead** |
+
+**6 are still real — installed versions match the PR's "from" exactly:**
+
+| package | from | to |
+|---|---|---|
+| `@playwright/test` | 1.58.2 | 1.62.0 |
+| `@tailwindcss/typography` | 0.5.19 | 0.5.20 |
+| `@vitejs/plugin-react` | 6.0.1 | 6.0.4 |
+| `supabase` | 2.107.0 | 2.109.1 |
+| `vite` | 8.0.16 | 8.1.5 |
+| `vitest` | 4.1.0 | 4.1.10 |
+
+All are within-major minor/patch. **Apply them locally rather than merging PR #35** — the PR is
+`CONFLICTING` against our branch's `package.json`/`package-lock.json`, same reason the majors were
+done by hand last session. Backup of both files is ALREADY TAKEN (`backups/2026-08-01_094*/`).
+
+## 📋 PR TABLE — handoff 65 said "only #35 remains". **That was wrong: 7 are open.**
+
+| PR | what | note |
+|---|---|---|
+| #35 | dev-dependencies group, 10 updates | CONFLICTING — the real remaining work, see above |
+| #36 | @types/node 26 | **superseded** by local `d206f361` |
+| #37 | sonner 2.0.7 | **superseded** by local `4ae65a0b` (only MERGEABLE one) |
+| #38 | globals 17 | **superseded** by local `d206f361` |
+| #39 | jsdom 29 | **superseded** by local `d206f361` |
+| #40 | tailwindcss 4.3.1 | **superseded** by local `7f613919` (we went to 4.3.3) |
+| #41 | lucide-react 1.22 | **superseded** by local `4ae65a0b` |
+
+#36–#41 are open only because our work is **unpushed**. They should close themselves once the branch
+lands. ⚠️ **Do NOT close them manually without asking Tre** — last session's closes of #42/#43 were
+explicitly authorized; that authorization does not carry forward.
+
+## 🧪 VERIFICATION (after `1b69acce`)
+
+`tsc` **0 errors** · `eslint src --max-warnings=0` **0/0** · `npm run build` **succeeds** ·
+suite **232/233**.
+
+⚠️ The single failure is **still** `useCardProjection.resimulateWithDebtCash.test.ts`
+(`expected 3 to be <= 2`) and **still** the known date-dependent one. Handoff 65 proved via a
+`git worktree` at `5305156e` with the OLD dependency set that it is not caused by any dep bump.
+**It is not a regression. Do not "fix" it.**
+
+## 🖥 BROWSER NOTES (cost me time — read before driving Chrome)
+
+- ⚠️ **`javascript_tool` is BLOCKED this session** ("BLOCKED: Cookie/query string data") whenever the
+  snippet touches link `href`s. The handoff-65 iframe trick for mobile widths **could not be used.**
+- ⚠️ **`computer` `zoom` corrupts the screenshot pipeline.** After a couple of `zoom` calls every
+  later `screenshot` came back as the stale 98x69 zoom region. **Recovery that worked: open a NEW TAB
+  via `tabs_create_mcp` and re-navigate.** Prefer full screenshots over `zoom`.
+- ⚠️ **`resize_window` does not change the rendered viewport** (still 1568px wide) — confirms
+  handoff 65's note that Chrome refuses to resize a maximized window.
+  **→ MOBILE-WIDTH RENDERING IS STILL UNVERIFIED for Tailwind v4.** Not believed risky (the diff is
+  renames only, and `sm:`/`md:` variants are untouched), but it is honestly untested.
+- `screenshot` routinely times out on the first call and succeeds on an immediate retry. Just retry.
+- Demo entry = landing page **"See Demo"**. Demo state is in-memory; **any reload drops you to
+  `/auth`**.
+- Did NOT touch the cookie banner (accepting/rejecting consent is a permission-required action).
+
+## 🧭 STATE (session 66)
+
+- Branch `tailwind-v4-migration`, now **5 commits ahead of `main`**, nothing pushed.
+- New commit: `1b69acce` fix(a11y): finish the v4 outline-none -> outline-hidden rename in templates.
+- Backups: `backups/2026-08-01_093524/` (the 12 outline files),
+  `backups/2026-08-01_094*/` (package.json + package-lock.json, taken for the #35 work, unused so far).
+- Dev server running on **8090**. 8080–8084 are stale servers from earlier sessions serving OLD code.
+
+## ⏭️ NEXT STEPS (session 67)
+
+1. **Run the 6 PR-#35 dev-dep bumps** (table above), then `tsc` / `eslint` / `build` / suite, commit.
+   Watch `vite` 8.0.16→8.1.5 and `vitest` 4.1.0→4.1.10 most closely.
+2. **Merge/push decision with Tre.** Both stores auto-deploy from `main` and Android auto-promotes to
+   100% after 24h, so a regression reaching main reaches users fast. Visual smoke is now DONE, which
+   was the stated precondition. Recommend merging.
+3. **Mobile-width visual check** if a working technique is found (see BROWSER NOTES).
+4. **Unchecked Supabase errors in `Onboarding.tsx`** — the insert block for accounts, budget items,
+   debts and savings goals still ignores its errors. That is what hid the `apy`/`apy_rate` bug for so
+   long. Worth a dedicated pass.
+5. Everything still inherited and unchanged: `use-mobile.tsx` dead-hook question (**needs Tre**);
+   the **Sep–Dec 2026 + Jan 2027 interest band**; confirm Feb 2027 = **$683** and Mar 2027
+   **$961 → ~$278**; `@radix-ui/*` vs 4 files in `src/components/ui/` (`knip`/`depcheck`);
+   delete-or-promote `grace-diagnostic.test.ts`.
+
+---
+
 # Handoff — 2026-08-01 (session 65-deps) — ✅ **GITHUB VULNS: ZERO OPEN.** ✅ **ALL CI GREEN.** ✅ **EVERY DEPENDABOT MAJOR DONE incl. TAILWIND 4.** ⚠️ On branch **`tailwind-v4-migration`**, NOT main. 4 local commits, unpushed.
 
 > Tre's instruction this session: "work on github vulnerabilities first", then when asked how to
