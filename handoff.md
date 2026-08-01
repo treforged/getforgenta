@@ -1,4 +1,28 @@
-# Handoff — 2026-08-01 (session 64-smoke) — ✅ **SMOKE TEST 5/5 DONE, ALL PASS. NOTHING WAS CHANGED — ZERO code edits this session.** The ONLY open item is 🔴 **the push decision, which is Tre's.** On `main`.
+# Handoff — 2026-08-01 (session 64-smoke) — ✅ **SMOKE TEST 5/5 PASS, ZERO code edits.** ✅ **PUSHED — Tre said "push".** On `main`, **in sync with `origin/main`.**
+
+## 🚀 THE PUSH HAPPENED — verify CI before anything else
+`d56d3184..5305156e`, **15 commits**, pushed 2026-08-01 on Tre's explicit instruction.
+**Nothing is local/unpushed any more — every "11/14 commits unpushed" note below is HISTORICAL.**
+
+Runs kicked off immediately (`gh run list`):
+
+| workflow | id | state at handoff |
+|---|---|---|
+| CodeQL (Actions, JS/TS, Python) | 30683737196 | ✅ success |
+| CodeQL (Android) | 30683737194 | 🔄 in_progress |
+| CodeQL (iOS) | 30683737159 | 🔄 in_progress |
+| **iOS Build & Upload to App Store** | 30683737188 | 🔄 in_progress |
+| **Android Build & Upload to Play Store** | 30683737179 | 🔄 in_progress |
+
+🔴 **FIRST ACTION NEXT SESSION: `gh run list` / `gh run view <id> --log-failed`.** This is the first
+run of the bumped GH Actions runtimes AND the first store build carrying **React 19 + two router
+majors** — so a failure here is expected-risk, not a surprise. **Android auto-promotes to 100% after
+24h**, so a bad Android build needs catching inside that window (`Promote Android Staged Rollout`).
+GitHub also flagged **3 high Dependabot vulns** on the default branch on push — triage alongside the
+already-open superseded-PR cleanup.
+
+---
+
 
 > Continues session 63. **No code changes, no Supabase, no cron, no edge function, no migration, no push, no dependency changes.** The only write is this handoff.
 
@@ -80,8 +104,9 @@ So the shared hook is **dead code**; the rewrite ships zero user-visible change 
   (single documented pre-existing `useCardProjection.month0income.test.ts` failure) all still stand.
 
 ## ⏭️ NEXT STEPS (session 64)
-1. 🔴 **The push question — Tre's call, ask it first.** Smoke test is 5/5 green; that was the
-   precondition Tre set.
+1. ✅ ~~The push question~~ — **DONE, Tre said push; 15 commits are on `origin/main`.**
+   🔴 Replaced by: **verify the 4 in-flight CI runs** (table at the top of this file) and triage the
+   3 high Dependabot vulns GitHub reported on push.
 2. Decide the `use-mobile.tsx` dead-hook question above (delete vs wire up) — **needs Tre**.
 3. Everything from session 61 still open (unchanged): close superseded Dependabot PRs
    (#42, #43, #49, #50, #46, #33); `@radix-ui/*` vs 4 files in `src/components/ui/` (`knip`/`depcheck`);
