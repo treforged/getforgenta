@@ -1,3 +1,96 @@
+# Handoff — 2026-08-01 (session 64-smoke) — ✅ **SMOKE TEST 5/5 DONE, ALL PASS. NOTHING WAS CHANGED — ZERO code edits this session.** The ONLY open item is 🔴 **the push decision, which is Tre's.** On `main`.
+
+> Continues session 63. **No code changes, no Supabase, no cron, no edge function, no migration, no push, no dependency changes.** The only write is this handoff.
+
+## ⚡ START HERE
+
+**Do not re-run the smoke test and do not re-open the lint work.** Both are closed.
+Session 63 left exactly one thing: finish rows 2–5 of the smoke test and then come back to Tre
+about the push. **Rows 2–5 are now done and every one passed.** So the next action is:
+
+🔴 **ASK TRE ABOUT THE PUSH, leading with the smoke-test result** (14 commits ahead of
+`origin/main`, incl. handoff docs). Pushing exercises the bumped GH Actions for the first time AND
+ships React 19 + two router majors to both stores (Android auto-promotes to 100% after 24h).
+**Standing rule: never auto-push.** Tre already deferred once pending this test — report the result,
+don't re-ask cold.
+
+## ✅ SMOKE-TEST RESULTS (all 5 rows)
+
+| # | what | result |
+|---|---|---|
+| 1 | Cookie banner (`useCookieConsent` lazy initializer) | ✅ PASS (session 63) |
+| 2 | MobileNav "More" panel | ✅ **PASS** — closes on navigate AND does not reopen on back |
+| 3 | DateScrollPicker day clamp | ✅ **PASS** — Jan 31 → Feb = **28**, → Mar **stays 28** (sticky preserved) |
+| 4 | `useIsMobile` breakpoint | ✅ **PASS in isolation** — but see the ⚠️ finding: the hook has **no consumers** |
+| 5 | AiAdvisor pie + SnapshotBar, DateScrollPicker wheel | ✅ **PASS** (pie proved by parity harness; advisor UI is flag-gated off) |
+
+### 🔬 How it was tested (Tre was away from the computer → demo mode only)
+- Dev server on **http://localhost:8083/** (8080–8082 were occupied by stale servers — **make sure
+  you are on the fresh one; the stale ones serve OLD code**). Demo entry = landing page **"See Demo"**
+  link (`/dashboard` + `setIsDemo(true)`). ⚠️ **Demo state is in-memory (`useState`) — ANY reload
+  drops you back to `/auth`.** Re-enter from the landing page instead of reloading.
+- 🔑 **Chrome refuses to resize a maximized window, so mobile widths were tested by driving the app
+  inside a same-origin `<iframe>` sized to 420 px.** `innerWidth`/`matchMedia` are per-frame, so the
+  app genuinely sees a mobile viewport. This is the technique to reuse — window resizing does nothing.
+- ⚠️ **Two browser-tool traps that each cost a cycle:** the `find` tool is a separate rate-limited
+  model call (it 429'd) — use `read_page`/`javascript_tool` DOM queries instead. And in a background
+  tab **`requestAnimationFrame` is frozen and `setTimeout` is clamped to ~1 s**, so polling loops hang
+  the CDP call for 45 s and time out. Use a `MutationObserver` or few/long waits.
+
+### Row 2 — MobileNav
+Opened More on `/dashboard`, tapped Transactions → panel closed, route changed. Pressed **back** →
+returned to `/dashboard` and the panel **stayed closed**. The feared failure mode (returning to the
+route where More was opened re-satisfies `moreOpenedAt === pathname` and re-opens the panel) **cannot
+happen**: every `<Link>` in the panel calls `setShowMore(false)` first, which nulls `moreOpenedAt`
+(`MobileNav.tsx:45`, :84).
+
+### Row 3 — DateScrollPicker
+Driven through the real Add-Transaction picker. Jan → day 31 → **Feb = 28** (day column also shrank to
+28) → **Mar = 28** (column back to 31). Sticky clamp intact — **do not "fix" it to 31.**
+Also verified the **year** handler, which row 3 didn't ask for: **Feb 29 2028 → year 2029 = Feb 28.**
+
+### Row 4 — `useIsMobile` ⚠️ READ THIS
+The rewritten hook is **correct**: probed in isolation inside the 420 px frame with the app's own
+React, it returned `true` on the very first render (no false frame), and it flips live across the
+boundary — **767 → true, 768 → false, back to 420 → true**, with `matchMedia` change events firing.
+🔑 **BUT `src/hooks/use-mobile.tsx` HAS ZERO IMPORTERS.** `Builds.tsx` — the only file that mentions
+`isMobile` — **defines its own local `useIsMobile` at `Builds.tsx:20`** based on `(hover: none)`
+(pointer capability, for drag-and-drop), *not* on a width breakpoint. That is why Builds renders
+desktop grip handles at 420 px on a desktop browser: **correct behaviour, not a regression.**
+So the shared hook is **dead code**; the rewrite ships zero user-visible change and carries zero risk.
+**Decide later whether to delete it or point `Builds.tsx` at it — that is a behaviour change
+(`hover:none` ≠ `max-width:767px`) and needs Tre. Do not silently "unify" them.**
+
+### Row 5
+- **SnapshotBar (dashboard):** donut renders with all four segments + legend, numbers consistent
+  (`2,675 + 4,720 − 2,934 = 4,461`). ✅
+- **DateScrollPicker wheel:** one wheel notch = **exactly one row**, both directions. ✅
+- **AiAdvisor pie:** ⛔ **not reachable in the running app — `AI_ADVISOR_ENABLED` is `false`**, `/ai`
+  renders "In development". Instead the `MiniPieChart` change (accumulator-in-`map()` → prefix sum)
+  was proved by a **parity harness comparing old vs new slice-path strings**: single slice, two even,
+  three uneven, a >π dominant sweep (large-arc flag), a zero-value slice mid-list, 12 small slices,
+  repeating decimals → **ALL BYTE-IDENTICAL**. Harness lives in the scratchpad (`pie-parity.mjs`),
+  not in the repo. The rest of AiAdvisor stays unexercised until the flag flips — acceptable, since
+  the flag also keeps it away from users.
+
+## 🧭 STATE (session 64)
+- **On `main`, 14 commits ahead of `origin/main`** (the 11 from sessions 61–63 + handoff docs).
+- **Working tree clean apart from this handoff. NO source file was touched this session.**
+- No new verification was needed: 63's `tsc` 0 errors / lint 0-0 / build-succeeds / suite 232-233
+  (single documented pre-existing `useCardProjection.month0income.test.ts` failure) all still stand.
+
+## ⏭️ NEXT STEPS (session 64)
+1. 🔴 **The push question — Tre's call, ask it first.** Smoke test is 5/5 green; that was the
+   precondition Tre set.
+2. Decide the `use-mobile.tsx` dead-hook question above (delete vs wire up) — **needs Tre**.
+3. Everything from session 61 still open (unchanged): close superseded Dependabot PRs
+   (#42, #43, #49, #50, #46, #33); `@radix-ui/*` vs 4 files in `src/components/ui/` (`knip`/`depcheck`);
+   the **Sep–Dec 2026 + Jan 2027 interest band**; confirm Feb 2027 = **$683** and Mar 2027
+   **$961 → ~$278**; delete-or-promote `grace-diagnostic.test.ts`; fix
+   `useCardProjection.month0income.test.ts`.
+
+---
+
 # Handoff — 2026-07-31 (session 63-lint) — ✅ **LINT DEBT CLOSED: 33 → 0 WARNINGS, RULES PROMOTED TO `'error'`. 11 commits LOCAL & UNPUSHED. Tre chose "smoke test first, then decide" on the push — SMOKE TEST IS 1/5 DONE.** On `main`.
 
 > Continues sessions 61 + 62. **No Supabase access, no cron, no edge function, no migration, no push, no dependency changes.**
