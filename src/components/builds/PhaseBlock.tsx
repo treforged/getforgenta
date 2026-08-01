@@ -272,8 +272,8 @@ export default function PhaseBlock({
     setItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], ...fields } }));
   }
 
-  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-none focus:border-[#c8a84b] font-sans';
-  const monoInput = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-none focus:border-[#c8a84b] font-mono';
+  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-hidden focus:border-[#c8a84b] font-sans';
+  const monoInput = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-hidden focus:border-[#c8a84b] font-mono';
   const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-widest mb-1';
   const modeBtnCls = (active: boolean) => cn(
     'px-2.5 py-[3px] text-[10px] font-mono uppercase tracking-wider rounded border transition-colors',

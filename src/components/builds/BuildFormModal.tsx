@@ -54,7 +54,7 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
     });
   }
 
-  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-2 rounded focus:outline-none focus:border-[#c8a84b] font-mono';
+  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-2 rounded focus:outline-hidden focus:border-[#c8a84b] font-mono';
   const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5';
 
   return (

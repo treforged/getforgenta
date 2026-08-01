@@ -473,7 +473,7 @@ export default function SettingsPage() {
         <div>
           <label className="text-xs text-muted-foreground uppercase">Display Name</label>
           <input value={displayName} onChange={e => { setDisplayName(e.target.value); markDirty(); }}
-            className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring" style={{ borderRadius: 'var(--radius)' }} placeholder="Your name" />
+            className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring" style={{ borderRadius: 'var(--radius)' }} placeholder="Your name" />
         </div>
       </div>
 
@@ -503,7 +503,7 @@ export default function SettingsPage() {
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
                   placeholder="New email address"
-                  className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-full sm:flex-1 min-w-0 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                   style={{ borderRadius: 'var(--radius)' }}
                 />
                 <button
@@ -607,7 +607,7 @@ export default function SettingsPage() {
                   value={currentPassword}
                   onChange={e => setCurrentPassword(e.target.value)}
                   placeholder="Current password"
-                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                   style={{ borderRadius: 'var(--radius)' }}
                 />
                 <input
@@ -615,7 +615,7 @@ export default function SettingsPage() {
                   value={newPassword}
                   onChange={e => setNewPassword(e.target.value)}
                   placeholder="New password (min 6 characters)"
-                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-full bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                   style={{ borderRadius: 'var(--radius)' }}
                 />
                 <input
@@ -623,7 +623,7 @@ export default function SettingsPage() {
                   value={confirmNewPassword}
                   onChange={e => setConfirmNewPassword(e.target.value)}
                   placeholder="Confirm new password"
-                  className={`w-full bg-secondary border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
+                  className={`w-full bg-secondary border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring ${
                     confirmNewPassword && confirmNewPassword !== newPassword
                       ? 'border-destructive focus:ring-destructive'
                       : 'border-border'
@@ -870,7 +870,7 @@ export default function SettingsPage() {
                 value={deleteConfirmText}
                 onChange={e => setDeleteConfirmText(e.target.value)}
                 placeholder="DELETE"
-                className="w-full bg-secondary border border-destructive/30 px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-destructive"
+                className="w-full bg-secondary border border-destructive/30 px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-destructive"
                 style={{ borderRadius: 'var(--radius)' }}
               />
               <div className="flex flex-col gap-2 sm:flex-row">

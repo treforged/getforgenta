@@ -223,7 +223,7 @@ export function TwoFactorAuth() {
             value={totpCode}
             onChange={e => setTotpCode(e.target.value.replace(/\D/g, ''))}
             placeholder="000000"
-            className="w-full bg-secondary border border-border px-3 py-2 text-sm text-foreground text-center tracking-widest focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full bg-secondary border border-border px-3 py-2 text-sm text-foreground text-center tracking-widest focus:outline-hidden focus:ring-1 focus:ring-ring"
             style={{ borderRadius: 'var(--radius)' }}
           />
           <div className="flex gap-2">

@@ -1358,7 +1358,7 @@ export default function AiAdvisor() {
               }}
               placeholder={atLimit ? `Daily limit reached (${limitDay}/day) — resets midnight UTC` : (activeEntries.length > 0 ? 'Ask a follow-up…' : 'Ask anything about your finances…')}
               maxLength={500}
-              className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50 min-w-0 resize-none overflow-y-auto leading-snug"
+              className="flex-1 bg-secondary border border-border px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-hidden focus:border-primary/50 transition-colors disabled:opacity-50 min-w-0 resize-none overflow-y-auto leading-snug"
               style={{ borderRadius: 'var(--radius)' }}
               disabled={blocked}
             />

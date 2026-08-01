@@ -127,7 +127,7 @@ function Input({ value, onChange, onBlur, placeholder, type = 'text', prefix }: 
         onChange={e => onChange(e.target.value)}
         onBlur={onBlur}
         placeholder={placeholder}
-        className={`w-full bg-secondary border border-border py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${prefix ? 'pl-7 pr-3' : 'px-3'}`}
+        className={`w-full bg-secondary border border-border py-2.5 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring ${prefix ? 'pl-7 pr-3' : 'px-3'}`}
         style={{ borderRadius: 'var(--radius)' }}
       />
     </div>
@@ -139,7 +139,7 @@ function Select({ value, onChange, options }: { value: string; onChange: (v: str
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      className="w-full bg-secondary border border-border px-3 py-2.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+      className="w-full bg-secondary border border-border px-3 py-2.5 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
       style={{ borderRadius: 'var(--radius)' }}
     >
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
