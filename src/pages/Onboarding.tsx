@@ -262,7 +262,7 @@ export default function Onboarding() {
           name: 'High-Yield Savings',
           account_type: 'high_yield_savings',
           balance: parseFloat(data.savingsBalance),
-          apy: parseFloat(data.savingsApy) || 0,
+          apy_rate: parseFloat(data.savingsApy) || 0,
         });
       }
 
