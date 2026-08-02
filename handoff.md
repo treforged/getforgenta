@@ -1,3 +1,92 @@
+# Handoff — 2026-08-01 (session 67) — ✅ **PR #35 DEV-DEP BUMPS DONE.** ✅ **PR #52 MERGED — TAILWIND V4 IS ON `main` AND DEPLOYING.** 🔴 **PR #53 (one-line vite fix) green but merge BLOCKED by the classifier.**
+
+> Session goal was handoff-66 next-step 1 (PR #35 bumps) and 2 (merge/push decision).
+> Both CLOSED. Tre then asked for the vite one-liner, which became PR #53.
+
+## ⚡ START HERE (session 68)
+
+1. 🔴 **Merge PR #53** — https://github.com/treforged/getforgenta/pull/53. One line,
+   `__dirname` → `import.meta.dirname` in `vite.config.ts`. All checks green, MERGEABLE.
+   Tre authorized it; `gh pr merge 53 --merge --delete-branch` was **denied by the auto-mode
+   classifier**. ⚠️ **Approving a merge interactively does NOT persist** — it authorized that
+   one call only (this is why #52 went through and #53 did not, same session). For unattended
+   merges Tre must add a real Bash permission rule in settings; otherwise he merges in the UI.
+   **Do not re-litigate whether to merge.**
+2. 🟡 **Dependabot PRs #35–#41 are STILL OPEN** ~20 min after #52 merged. Dependabot closes
+   superseded PRs on its next scheduled run, not instantly. Re-check next session.
+   ⚠️ **Do NOT close them manually without asking Tre.**
+3. 🔴 **Tailwind v4 is now on `main`, which auto-deploys**; Android auto-promotes to 100% after
+   24h. **Mobile-width rendering was never verified** (handoff 66 BROWSER NOTES: Chrome refused
+   to resize, iframe trick blocked). If anything bites, that is where. Real-device spot-check.
+4. 🟡 Rest of the backlog unchanged — see handoff 66 next-steps 3–5.
+
+## ✅ PR #52 — MERGED (`1508f3c3`, 2026-08-02T03:50Z)
+
+36 files, +1716/−1305: the Tailwind 3.4 → 4.3 migration, the forced-colors `outline-hidden`
+a11y fix, and all dependency work. Branch `tailwind-v4-migration` deleted, all checks green
+at merge (audit · GitGuardian · Vercel · Vercel Preview Comments).
+
+⚠️ **`--delete-branch` deleted the local branch too, orphaning the session-67 handoff commit
+`b7fd88f4`** (committed after the push, so the PR never carried it). Recovered with
+`git checkout b7fd88f4 -- handoff.md`. **Lesson: commit and push handoff.md BEFORE merging,
+or the merge eats it.**
+
+## 🟡 PR #53 — OPEN, GREEN, one line
+
+`vite.config.ts:20` `path.resolve(__dirname, …)` → `path.resolve(import.meta.dirname, …)`.
+Silences the vite 8.2.0 `configLoader: 'native'` deprecation warning; **confirmed gone** from
+the vitest banner afterwards. `tsc` clean · `npm run build` succeeds (that *is* the alias proof —
+every `src` import goes through `@`, so a broken alias fails the build) · suite 232/233 unchanged.
+Backup: `backups/2026-08-01_235500/vite.config.ts`.
+
+## ✅ PR #35 — CLOSED (`6fc3258d`)
+
+Applied locally, not by merging the PR (it is CONFLICTING against this branch). Caret ranges
+pulled current patches, so several resolved **above** the PR's target — all within-major:
+
+| package | was | PR wanted | resolved |
+|---|---|---|---|
+| `@playwright/test` | 1.58.2 | 1.62.0 | **1.62.1** |
+| `@tailwindcss/typography` | 0.5.19 | 0.5.20 | 0.5.20 |
+| `@vitejs/plugin-react` | 6.0.1 | 6.0.4 | **6.0.5** |
+| `supabase` | 2.107.0 | 2.109.1 | **2.111.0** |
+| `vite` | 8.0.16 | 8.1.5 | **8.2.0** |
+| `vitest` | 4.1.0 | 4.1.10 | 4.1.10 |
+
+The other 4 in the group were already absorbed/moot — handoff 66's analysis was correct, verified.
+
+## 🧪 VERIFICATION (after `6fc3258d`)
+
+`tsc` **0 errors** · `eslint src --max-warnings=0` **0/0** · `npm run build` **succeeds** ·
+`npm audit` **0 vulnerabilities** · suite **232/233**.
+
+⚠️ The one failure is **still** `useCardProjection.resimulateWithDebtCash.test.ts`
+(`expected 3 to be <= 2`), the known date-dependent one, byte-identical to before the bump.
+**Not a regression. Do not "fix" it.**
+
+## ⚠️ NEW, MINOR — a `vite` 8.2.0 forward-compat warning
+
+`vitest`/`vite` now print: *"Your Vite config uses features that are unsupported by
+`configLoader: 'native'`, which is planned to become the default"* — `__dirname` at
+`vite.config.ts:20:25`. Fix is one line (`import.meta.dirname`). **Left undone deliberately**
+to keep the dep-bump diff scoped. Cheap cleanup for a future session.
+
+⚠️ `npm install` emitted an `EPERM` cleanup warning on a stale `@rolldown/.binding-*` dir
+(a file lock, likely an old dev server). Install still reported success and the build works.
+Harmless.
+
+## 🧭 STATE (session 67)
+
+- Branch `tailwind-v4-migration` **pushed**, tracking `origin/`. 6 commits ahead of `main`.
+- New commit: `6fc3258d` chore(deps): apply the 6 real dev-dependency bumps from Dependabot PR #35.
+- **PR #52** open against `main`. Checks: `audit` pass · GitGuardian pass · Vercel pass ·
+  Vercel Preview Comments pass. `MERGEABLE`.
+- Backup used: `backups/2026-08-01_093923/` (package.json + package-lock.json), taken last session.
+- ⚠️ Merging main auto-deploys both stores; Android auto-promotes to 100% after 24h.
+  Tre accepted that when he chose to merge.
+
+---
+
 # Handoff — 2026-08-01 (session 66-smoke) — ✅ **TAILWIND V4 VISUAL SMOKE COMPLETE, 9 SCREENS + MODAL, ZERO visual regressions.** ✅ **One REAL a11y regression found and FIXED (`1b69acce`).** ⚠️ Still on **`tailwind-v4-migration`**, 5 local commits, unpushed.
 
 > Session goal was handoff-65 next-step 1 (finish the visual smoke) and 2 (PR #35).
