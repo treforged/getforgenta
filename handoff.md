@@ -1,13 +1,23 @@
-# Handoff — 2026-08-02 (session 69) — ✅ **ALL FIVE Dependabot PRs (#54–#58) NOW RESOLVED on `deps/post-tailwind-batch`.** ✅ **Recharts 3 visual check COMPLETE — every chart screen verified.** ✅ **Goals growth chart rewritten and verified.** 6 commits, UNPUSHED.
+# Handoff — 2026-08-02 (session 69) — ✅ **PR #59 MERGED (`7b3c9d63`).** All five Dependabot PRs (#54–#58) resolved, recharts 3 visual pass complete, Goals growth chart rewritten. **This stream is CLOSED and deploying.**
 
 ## ⚡ START HERE (session 70)
 
-1. 🔴 **Branch is PUSHED and [PR #59](https://github.com/treforged/getforgenta/pull/59) is OPEN.
-   Only step left: wait for checks, then `gh pr merge 59`.** Tre pre-approved #54–#58.
-   Merging #59 should auto-close #54, #55, #56, #57, #58. **Do not close them manually first.**
-   ⚠️ **Push `handoff.md` BEFORE the merge** — session 67's merge ate the handoff commit.
-   ⚠️ `gh pr merge` approval does **not** persist between calls; expect to need Tre each time.
-2. 🟡 Backlog otherwise unchanged — see handoff 66 next-steps 3–5.
+1. 🟡 **Re-check #54, #55, #57, #58 — they should self-close** now that #59 landed (#56 already
+   closed itself when the packages were removed). #35 self-closed the same way in session 67, so
+   give Dependabot time. ⚠️ **Do NOT close them manually without asking Tre.**
+2. 🟡 **#36–#41 are still open and untouched** — lucide-react, tailwindcss, jsdom, globals, sonner,
+   @types/node. #40 (tailwindcss 3.4 → 4.3) is almost certainly moot now that v4 is on `main`;
+   verify before touching it.
+3. 🟡 Optional cleanups spotted this session, neither acted on:
+   - `src/pages/NetWorth.tsx` is lazy-imported at `App.tsx:30` but `/net-worth` is a
+     `<Navigate to="/accounts">` (`App.tsx:125`) — dead page.
+   - Goals keep **stale `linked_rule_ids` pointing at deleted rules** (Tre's `Savings` goal carries
+     `9f2c0934…`, which no longer exists). Harmless — the code filters missing rules out — but
+     nothing ever cleans them off.
+4. 🟡 Rest of the backlog unchanged — see handoff 66 next-steps 3–5.
+
+✅ The merge did **not** eat this handoff — it was pushed first, per the session-67 lesson. Keep doing that.
+⚠️ `gh pr merge` approval still does not persist between calls; Tre approved #59 explicitly.
 
 ## ✅ GOALS CHART ROUND 2 (`bfc4e991`) — Tre's two follow-ups, both root-caused on LIVE data
 
