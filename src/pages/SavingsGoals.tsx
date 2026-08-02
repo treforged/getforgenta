@@ -16,6 +16,7 @@ import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-r
 import * as DebtEngine from '@/lib/credit-card-engine';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { buildSavingsGrowthData } from '@/lib/savings-growth';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
@@ -257,33 +258,19 @@ const toMonthly = (amount: number, freq: string) =>
   : amount;
 
 function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
-  const chartData = useMemo(() => {
-    const today = new Date();
-    const todayYear = today.getFullYear();
-    const todayMonth = today.getMonth();
-    const months: Record<string, string | number>[] = [];
-    for (let i = 0; i < 12; i++) {
-      const entry: Record<string, string | number> = { month: new Date(todayYear, todayMonth + i).toLocaleString('en', { month: 'short', year: '2-digit' }) };
-      goals.forEach(g => {
-        let monthsContributed = i;
-        if (g.contribution_start_date) {
-          const start = new Date(g.contribution_start_date + 'T00:00:00');
-          const j = (start.getFullYear() - todayYear) * 12 + (start.getMonth() - todayMonth);
-          if (j > 0) monthsContributed = Math.max(0, i - (j - 1));
-        }
-        const r = Number(g.effective_apy || 0) / 12 / 100;
-        const pv = Number(g.current_amount);
-        const pmt = Number(g.monthly_contribution);
-        const n = monthsContributed;
-        const fv = r > 0 && n > 0
-          ? pv * Math.pow(1 + r, n) + pmt * (Math.pow(1 + r, n) - 1) / r
-          : pv + pmt * n;
-        entry[g.name ?? ''] = Math.min(fv, Number(g.target_amount));
-      });
-      months.push(entry);
-    }
-    return months;
-  }, [goals]);
+  const { rows: chartData, series } = useMemo(() => buildSavingsGrowthData(
+    goals.map((g, i) => ({
+      id: g.id ?? String(i),
+      name: g.name ?? '',
+      currentAmount: Number(g.current_amount),
+      monthlyContribution: Number(g.monthly_contribution),
+      annualApyPercent: Number(g.effective_apy || 0),
+      contributionStartDate: g.contribution_start_date ?? null,
+      lumpSums: Array.isArray(g.lump_sum_payments)
+        ? (g.lump_sum_payments as unknown as GoalLumpSum[]).map(ls => ({ date: ls.date, amount: Number(ls.amount) }))
+        : [],
+    })),
+  ), [goals]);
 
   if (goals.length === 0) return null;
   return (
@@ -296,7 +283,7 @@ function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
           <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
           <Tooltip contentStyle={{ background: 'hsl(0, 0%, 8%)', border: '1px solid hsl(0, 0%, 15%)', borderRadius: 'var(--radius)', fontSize: 12 }} formatter={(value) => formatCurrency(Number(value), false)} />
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-          {goals.map((g, i) => <Line key={g.id} dataKey={g.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={{ r: 3 }} />)}
+          {series.map((s, i) => <Line key={s.key} dataKey={s.key} name={s.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={{ r: 3 }} />)}
         </LineChart>
       </ResponsiveContainer>
     </div>
