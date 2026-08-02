@@ -16,6 +16,7 @@ import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-r
 import * as DebtEngine from '@/lib/credit-card-engine';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { buildSavingsGrowthData, estimateGoalCompletionMonths, type GrowthGoalInput } from '@/lib/savings-growth';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
@@ -256,47 +257,41 @@ const toMonthly = (amount: number, freq: string) =>
   : freq === 'yearly' ? amount / 12
   : amount;
 
+/** Map an enriched goal onto the pure projection model's input shape. */
+const toGrowthGoal = (g: EnrichedGoal, index: number): GrowthGoalInput => ({
+  id: g.id ?? String(index),
+  name: g.name ?? '',
+  currentAmount: Number(g.current_amount),
+  monthlyContribution: Number(g.monthly_contribution),
+  annualApyPercent: Number(g.effective_apy || 0),
+  contributionStartDate: g.contribution_start_date ?? null,
+  lumpSums: Array.isArray(g.lump_sum_payments)
+    ? (g.lump_sum_payments as unknown as GoalLumpSum[]).map(ls => ({ date: ls.date, amount: Number(ls.amount) }))
+    : [],
+});
+
 function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
-  const chartData = useMemo(() => {
-    const today = new Date();
-    const todayYear = today.getFullYear();
-    const todayMonth = today.getMonth();
-    const months: Record<string, string | number>[] = [];
-    for (let i = 0; i < 12; i++) {
-      const entry: Record<string, string | number> = { month: new Date(todayYear, todayMonth + i).toLocaleString('en', { month: 'short', year: '2-digit' }) };
-      goals.forEach(g => {
-        let monthsContributed = i;
-        if (g.contribution_start_date) {
-          const start = new Date(g.contribution_start_date + 'T00:00:00');
-          const j = (start.getFullYear() - todayYear) * 12 + (start.getMonth() - todayMonth);
-          if (j > 0) monthsContributed = Math.max(0, i - (j - 1));
-        }
-        const r = Number(g.effective_apy || 0) / 12 / 100;
-        const pv = Number(g.current_amount);
-        const pmt = Number(g.monthly_contribution);
-        const n = monthsContributed;
-        const fv = r > 0 && n > 0
-          ? pv * Math.pow(1 + r, n) + pmt * (Math.pow(1 + r, n) - 1) / r
-          : pv + pmt * n;
-        entry[g.name ?? ''] = Math.min(fv, Number(g.target_amount));
-      });
-      months.push(entry);
-    }
-    return months;
-  }, [goals]);
+  const { rows: chartData, series } = useMemo(
+    () => buildSavingsGrowthData(goals.map(toGrowthGoal)),
+    [goals],
+  );
+  // 60 monthly points is far too many labels and dots to draw: thin the axis to
+  // roughly one tick a year (one every other year on a phone) and drop the dots.
+  const tickInterval = Math.max(0, Math.ceil(chartData.length / (window.innerWidth < 640 ? 5 : 10)) - 1);
 
   if (goals.length === 0) return null;
   return (
     <div className="card-forged p-4 sm:p-5 overflow-hidden w-full">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 sm:mb-5">Savings Growth Projection</h3>
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Savings Growth Projection</h3>
+      <p className="text-[10px] text-muted-foreground mb-3 sm:mb-5">Next 5 years — includes interest, planned contributions, and future start dates</p>
       <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : 260}>
         <LineChart data={chartData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
-          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)', textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} interval={window.innerWidth < 640 ? Math.ceil(chartData.length / 5) : 0} />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)', textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} interval={tickInterval} />
           <YAxis tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} />
-          <Tooltip contentStyle={{ background: 'hsl(0, 0%, 8%)', border: '1px solid hsl(0, 0%, 15%)', borderRadius: 'var(--radius)', fontSize: 12 }} formatter={(value: number) => formatCurrency(value, false)} />
+          <Tooltip contentStyle={{ background: 'hsl(0, 0%, 8%)', border: '1px solid hsl(0, 0%, 15%)', borderRadius: 'var(--radius)', fontSize: 12 }} formatter={(value) => formatCurrency(Number(value), false)} />
           <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-          {goals.map((g, i) => <Line key={g.id} dataKey={g.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={{ r: 3 }} />)}
+          {series.map((s, i) => <Line key={s.key} dataKey={s.key} name={s.name} stroke={CHART_COLORS[i % CHART_COLORS.length]} strokeWidth={2.5} dot={chartData.length > 24 ? false : { r: 3 }} activeDot={{ r: 4 }} />)}
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -516,18 +511,15 @@ export default function SavingsGoals() {
     update.mutate({ id: goalId, lump_sum_payments: lumps as unknown as Json });
   };
 
+  // Uses the same month-by-month accrual as the growth chart, so the estimate
+  // and the chart can never disagree: interest, a future contribution start
+  // date, and planned lump sums all count toward the date.
   function estimateCompletion(g: EnrichedGoal): string {
-    const remaining = Number(g.target_amount) - Number(g.current_amount);
-    if (remaining <= 0) return 'Complete';
-    if (Number(g.monthly_contribution) <= 0) return 'Set contribution';
-    let delay = 0;
-    if (g.contribution_start_date) {
-      const today = new Date();
-      const start = new Date(g.contribution_start_date + 'T00:00:00');
-      const j = (start.getFullYear() - today.getFullYear()) * 12 + (start.getMonth() - today.getMonth());
-      delay = Math.max(0, j - 1);
+    if (Number(g.current_amount) >= Number(g.target_amount)) return 'Complete';
+    const months = estimateGoalCompletionMonths(toGrowthGoal(g, 0), Number(g.target_amount));
+    if (months === null) {
+      return Number(g.monthly_contribution) > 0 ? 'Beyond 50 yrs' : 'Set contribution';
     }
-    const months = delay + Math.ceil(remaining / Number(g.monthly_contribution));
     const date = new Date(); date.setMonth(date.getMonth() + months);
     return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }
