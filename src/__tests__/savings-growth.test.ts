@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSavingsGrowthData, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildSavingsGrowthData, estimateGoalCompletionMonths, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
 
 const TODAY = new Date(2026, 0, 15); // Jan 2026, fixed so the suite is date-independent
 
@@ -70,6 +70,27 @@ describe('buildSavingsGrowthData', () => {
     expect(rows[0][series[1].key]).toBe(500);
   });
 
+  it('projects a full 5 years by default', () => {
+    const { rows } = buildSavingsGrowthData([goal()], { today: TODAY });
+    expect(GROWTH_MONTHS).toBe(60);
+    expect(rows).toHaveLength(60);
+    expect(rows[0].month).toBe('Jan 26');
+    expect(rows[59].month).toBe('Dec 30');
+  });
+
+  it('shows a contribution that only starts in a later year', () => {
+    // The case that looked broken on the 12-month chart: nothing happens for
+    // 18 months, then the transfer rule kicks in and the line climbs.
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 0, monthlyContribution: 500, contributionStartDate: '2027-07-01' })],
+      { today: TODAY },
+    );
+    const k = series[0].key;
+    expect(rows[17][k]).toBe(0);   // Jun 27, still nothing
+    expect(rows[18][k]).toBe(500); // Jul 27, first contribution
+    expect(rows[24][k]).toBe(3500);
+  });
+
   it('does not cap the projection at the target amount', () => {
     const { rows, series } = buildSavingsGrowthData(
       [goal({ currentAmount: 5000, monthlyContribution: 1000 })],
@@ -77,5 +98,38 @@ describe('buildSavingsGrowthData', () => {
     );
     const k = series[0].key;
     expect(rows[2][k]).toBe(7000);
+  });
+});
+
+describe('estimateGoalCompletionMonths', () => {
+  it('returns 0 when the goal is already funded', () => {
+    expect(estimateGoalCompletionMonths(goal({ currentAmount: 5000 }), 5000, { today: TODAY })).toBe(0);
+  });
+
+  it('counts plain monthly contributions', () => {
+    // 1000 now, 100/mo, no interest -> 2000 after 10 months
+    expect(estimateGoalCompletionMonths(goal(), 2000, { today: TODAY })).toBe(10);
+  });
+
+  it('pushes the date out when contributions start later', () => {
+    const later = goal({ contributionStartDate: '2027-01-01' }); // 12 months out
+    expect(estimateGoalCompletionMonths(later, 2000, { today: TODAY })).toBe(21);
+  });
+
+  it('pulls the date in when interest and lump sums are counted', () => {
+    const withLump = goal({ lumpSums: [{ date: '2026-03-01', amount: 900 }] });
+    expect(estimateGoalCompletionMonths(withLump, 2000, { today: TODAY })).toBe(2);
+    const withApy = goal({ annualApyPercent: 12 });
+    expect(estimateGoalCompletionMonths(withApy, 2000, { today: TODAY })).toBeLessThan(10);
+  });
+
+  it('reaches the target on interest alone with no contributions', () => {
+    const idle = goal({ monthlyContribution: 0, annualApyPercent: 12 });
+    expect(estimateGoalCompletionMonths(idle, 1100, { today: TODAY })).toBe(10);
+  });
+
+  it('returns null when nothing can ever fund the goal', () => {
+    const stalled = goal({ monthlyContribution: 0, annualApyPercent: 0 });
+    expect(estimateGoalCompletionMonths(stalled, 5000, { today: TODAY })).toBeNull();
   });
 });
