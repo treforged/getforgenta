@@ -2,10 +2,31 @@
 
 ## ⚡ START HERE (session 70)
 
-1. 🔴 **Push the branch, open the PR, merge.** Nothing is blocking it. Tre pre-approved #54–#58.
-   ⚠️ **Commit + push `handoff.md` BEFORE the merge** — session 67's merge ate the handoff commit.
+1. 🔴 **Branch is PUSHED. Open/merge the PR.** Nothing is blocking it. Tre pre-approved #54–#58.
+   ⚠️ **Push `handoff.md` BEFORE the merge** — session 67's merge ate the handoff commit.
    ⚠️ `gh pr merge` approval does **not** persist between calls; expect to need Tre each time.
 2. 🟡 Backlog otherwise unchanged — see handoff 66 next-steps 3–5.
+
+## ✅ GOALS CHART ROUND 2 (`bfc4e991`) — Tre's two follow-ups, both root-caused on LIVE data
+
+**"My HYS transfer rule starts next year but isn't showing in the chart."** Not a rules bug —
+the chart only covered **12 months**. Confirmed in Supabase: rule `HYS`, transfer, $300/mo,
+`start_date` **2027-08-17** = month **12** from Aug 2026, i.e. exactly ONE month past the old
+window. Horizon is now `PROJECTION_MONTHS` (**60**), matching the Forecast's 5 years.
+X-axis ticks thinned to ~yearly and per-point dots dropped so 60 points stay legible.
+
+**"I don't believe the estimated completion date is correct."** He was right. `estimateCompletion()`
+ran its **own** cruder math — no interest, no lump sums, and `delay = j - 1` — so it disagreed with
+the chart next to it. It now calls `estimateGoalCompletionMonths()`, stepping the **same** accrual.
+Returns `'Beyond 50 yrs'` past a 600-month cap.
+
+**Live-verified on Tre's real account** (not demo): Savings goal reads **$410 at Aug 27**
+($106.17 balance + first $300 transfer + interest), then climbs; Est. completion **Sep 2032**.
+Suite now **247/248** (15 tests in `savings-growth.test.ts`), same known failure.
+
+⚠️ Data note: the `Savings` goal lists two `linked_rule_ids` but only one (`73a5c998…` = HYS)
+still exists; `9f2c0934…` is a deleted rule. The code filters missing rules out, so this is
+harmless — but it means **stale rule ids are never cleaned off goals**. Possible small cleanup.
 
 ## ✅ #56 RESOLVED — packages REMOVED, not bumped (`78e26643`)
 
