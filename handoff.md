@@ -1,3 +1,66 @@
+# Handoff — 2026-08-02 (session 69) — ✅ **ALL FIVE Dependabot PRs (#54–#58) NOW RESOLVED on `deps/post-tailwind-batch`.** ✅ **Recharts 3 visual check COMPLETE — every chart screen verified.** ✅ **Goals growth chart rewritten and verified.** 6 commits, UNPUSHED.
+
+## ⚡ START HERE (session 70)
+
+1. 🔴 **Push the branch, open the PR, merge.** Nothing is blocking it. Tre pre-approved #54–#58.
+   ⚠️ **Commit + push `handoff.md` BEFORE the merge** — session 67's merge ate the handoff commit.
+   ⚠️ `gh pr merge` approval does **not** persist between calls; expect to need Tre each time.
+2. 🟡 Backlog otherwise unchanged — see handoff 66 next-steps 3–5.
+
+## ✅ #56 RESOLVED — packages REMOVED, not bumped (`78e26643`)
+
+Tre chose the recommended option. `npm uninstall @hookform/resolvers react-hook-form`.
+Zero source imports repo-wide (re-verified), the consuming `src/components/ui/form.tsx` is gone.
+Drops 2 deps and closes #56 permanently. `npm audit` still 0 vulnerabilities.
+
+## ✅ GOALS GROWTH CHART REWRITTEN (`df5480e9`) — new file `src/lib/savings-growth.ts`
+
+Tre: "fix the chart on the goals tab so it actually shows the accurate change over time."
+The old inline closed-form FV in `SavingsGrowthChart` had **four** real defects:
+
+| defect | effect |
+|---|---|
+| interest only accrued during contributing months | a goal with a future `contribution_start_date` sat flat, earning nothing |
+| planned lump sums ignored entirely | Roth/planned contributions never showed on the chart |
+| `Math.min(fv, target_amount)` cap | any goal at/over target flat-lined instead of showing its real path |
+| `dataKey={g.name}` | duplicate names collided; a `.` or `[` in a name = recharts nested-path lookup → line plots **nothing** |
+
+Replaced with a **month-by-month accrual** extracted to a pure, tested function:
+balance compounds every month · contributions begin on their start month · lump sums land in their
+dated month · month 0 is today's real balance · lump sums dated ≤ today are assumed already in the
+balance. Series keys are positional (`s0`, `s1`), with `name={s.name}` carrying the label to the
+Legend/Tooltip. **7 new unit tests**, `src/__tests__/savings-growth.test.ts`.
+
+## 🧪 VERIFICATION
+
+`tsc` **0 errors** · `eslint src --max-warnings=0` **0/0** · `npm run build` **succeeds** ·
+suite **239/240** (the one failure is still the known date-dependent
+`useCardProjection.resimulateWithDebtCash`, **not a regression**; total rose 233→240 = 7 new tests).
+
+### Visual check — RECHARTS 3 PASS IS NOW COMPLETE
+
+| screen | chart | verdict |
+|---|---|---|
+| Goals | growth `LineChart` | ✅ both series, correct legend names, **tooltip math exact**: Feb 27 = $5,800 + 6×$300 + HYS interest = **$7,749**; Vacation (0% APY) = $850 + 6×$150 = **$1,750** |
+| Forecast | `ComposedChart` | ✅ assets bars + liabilities + net worth line + retirement all render |
+| Accounts | Net Worth History `LineChart` | ✅ renders |
+| Landing / Dashboard / Debt Payoff / Vehicles | — | ✅ verified session 68 |
+
+**`/net-worth` is a `<Navigate to="/accounts">`** (`src/App.tsx:125`) — the "NetWorth screen" on the
+old checklist *is* the Accounts page chart. Note `src/pages/NetWorth.tsx` is still lazy-imported at
+`App.tsx:30` but never rendered — **dead route, worth a cleanup pass later.**
+
+Backup: `backups/2026-08-02_160356/` (package.json, package-lock.json, SavingsGoals.tsx).
+
+## 🖥 SESSION NOTES
+
+- Demo entry: `/auth` → **"Try Demo"** → in-app sidebar nav. **Direct URL navigation drops the demo
+  session** back to `/auth` — always click through the sidebar.
+- ⚠️ `screenshot` still times out on the first call and succeeds on retry (3rd time, occasionally).
+  Not a frozen renderer. Same as sessions 66 and 68.
+
+---
+
 # Handoff — 2026-08-02 (session 68) — ✅ **4 of the 5 new Dependabot PRs APPLIED AND VERIFIED on branch `deps/post-tailwind-batch`, 4 commits, UNPUSHED.** ⚠️ **#56 is NOT a bump — the package is DEAD CODE, needs Tre's call.** Context gate fired mid visual-check.
 
 > Tre confirmed **mobile looks fine** (Tailwind v4 mobile risk from session 67 is CLOSED — do not re-raise it)
