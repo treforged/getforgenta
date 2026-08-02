@@ -2,7 +2,9 @@
 
 ## ⚡ START HERE (session 70)
 
-1. 🔴 **Branch is PUSHED. Open/merge the PR.** Nothing is blocking it. Tre pre-approved #54–#58.
+1. 🔴 **Branch is PUSHED and [PR #59](https://github.com/treforged/getforgenta/pull/59) is OPEN.
+   Only step left: wait for checks, then `gh pr merge 59`.** Tre pre-approved #54–#58.
+   Merging #59 should auto-close #54, #55, #56, #57, #58. **Do not close them manually first.**
    ⚠️ **Push `handoff.md` BEFORE the merge** — session 67's merge ate the handoff commit.
    ⚠️ `gh pr merge` approval does **not** persist between calls; expect to need Tre each time.
 2. 🟡 Backlog otherwise unchanged — see handoff 66 next-steps 3–5.
