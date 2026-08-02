@@ -27,7 +27,6 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Transactions = lazy(() => import("@/pages/Transactions"));
 const DebtPayoff = lazy(() => import("@/pages/DebtPayoff"));
 const SavingsGoals = lazy(() => import("@/pages/SavingsGoals"));
-const NetWorth = lazy(() => import("@/pages/NetWorth"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const Premium = lazy(() => import("@/pages/Premium"));
 const PremiumSuccess = lazy(() => import("@/pages/PremiumSuccess"));

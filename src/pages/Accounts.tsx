@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useAccounts, useDebts, useAccountReconciliations, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
+import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import type { Tables } from '@/integrations/supabase/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -132,6 +133,8 @@ export default function Accounts() {
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const { data: snapshots, loading: snapshotsLoading } = useNetWorthSnapshots();
+  // Keeps the Net Worth History chart below fed with fresh points.
+  useNetWorthSnapshotRecorder();
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
   const [showForm, setShowForm] = useState(false);
