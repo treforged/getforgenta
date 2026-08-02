@@ -1,3 +1,88 @@
+# Handoff — 2026-08-02 (session 68) — ✅ **4 of the 5 new Dependabot PRs APPLIED AND VERIFIED on branch `deps/post-tailwind-batch`, 4 commits, UNPUSHED.** ⚠️ **#56 is NOT a bump — the package is DEAD CODE, needs Tre's call.** Context gate fired mid visual-check.
+
+> Tre confirmed **mobile looks fine** (Tailwind v4 mobile risk from session 67 is CLOSED — do not re-raise it)
+> and said **"I approve all upcoming changes for these PRs"**, meaning #54–#58.
+
+## ⚡ START HERE (session 69)
+
+1. 🔴 **ASK TRE ABOUT #56 — it is not a version bump, it is a deletion.**
+   `@hookform/resolvers` **and** `react-hook-form` are **both entirely unused**. Repo-wide grep
+   (`react-hook-form|@hookform`) hits **only** `package.json`, `package-lock.json`, `handoff.md` —
+   zero source files. `src/components/ui/form.tsx`, the shadcn component that consumed them, **no
+   longer exists.** So bumping 3 → 5 is pure churn. Options:
+   - **(a) remove both packages** — correct, drops 2 deps, closes #56 permanently. *Recommended.*
+   - **(b) bump anyway** — zero risk, closes the PR, keeps dead weight.
+   Tre's "I approve all upcoming changes for these PRs" was approval to bump, **not** to delete a
+   dependency. **That is why this was left undone — ask, do not assume.**
+2. 🟡 **Finish the recharts 3 visual check** — 4 of ~8 chart screens verified (below). Remaining:
+   **Goals** (`SavingsGoals.tsx` — one of the 3 files I edited, so this one MATTERS), **Forecast**,
+   **Accounts**, **NetWorth**.
+3. 🟡 **Then push the branch, open a PR, merge.** Tre pre-approved these five.
+   ⚠️ **The `gh pr merge` approval does NOT persist between calls** — expect to be blocked and to
+   need him each time unless he adds a real Bash permission rule.
+
+## ✅ APPLIED AND VERIFIED — branch `deps/post-tailwind-batch` (off `main` @ `36c6787a`)
+
+| commit | PR | change |
+|---|---|---|
+| `11595e1a` | #54 | `actions/setup-java` `@v5` → `@v5.6.0` in `android-build.yml` + `codeql-android.yml` |
+| `714c1fa1` | #55 | `@revenuecat/purchases-capacitor` 13.2.4 → 13.2.5 |
+| `8eff828c` | #57 | `tailwind-merge` 2.6.1 → 3.6.0 |
+| `a9764538` | #58 | **`recharts` 2.15.4 → 3.10.1** + 4 call-site fixes |
+
+⚠️ **#54 note:** `@v5` already floated to 5.6.0 automatically; pinning to `@v5.6.0` is what
+Dependabot wants and is the security-recommended practice, but it **loses auto-patching**.
+Applied as Dependabot proposed. Flag to Tre if he disagrees.
+
+**`tailwind-merge` v3** is the release built for Tailwind v4, so this *realigns* with the migration
+rather than risking it. Single call site: `cn()` in `src/lib/utils.ts`. Conflict resolution verified
+directly in node — `p-2/p-4`, `text-sm/text-lg`, `outline-none/outline-hidden`, `bg-*`, `size-*` all
+resolve correctly.
+
+## 🔧 RECHARTS 3 — the only real breaking change, and it was small
+
+v3 widened `Tooltip` `formatter`/`labelFormatter` parameter types to `ValueType | undefined` and
+`ReactNode`. **Exactly 4 call sites** declared narrower params and stopped compiling. Fix: drop the
+explicit param annotation (contextual typing now supplies it) and coerce at point of use —
+`Number(v)` / `String(d)` — which is what the runtime already did. **No behavior change.**
+
+```
+src/components/debt/CreditCardEngine.tsx  formatter
+src/pages/SavingsGoals.tsx                formatter
+src/pages/Vehicles.tsx                    formatter + labelFormatter
+```
+
+Everything else imported from recharts (`LineChart Line Bar ComposedChart PieChart Pie Cell XAxis
+YAxis CartesianGrid Tooltip Legend ResponsiveContainer ReferenceLine`) exists unchanged in v3.
+`tsc` clean · `eslint src --max-warnings=0` 0/0 · build succeeds · suite **232/233** (same known
+date-dependent `useCardProjection.resimulateWithDebtCash` failure — **not a regression**).
+
+### Visual check — 4 screens done, ALL PASS
+
+| screen | chart | verdict |
+|---|---|---|
+| Landing | — | ✅ styling intact (also clears tailwind-merge v3) |
+| Dashboard | donut `PieChart` | ✅ renders, legend correct |
+| Dashboard | `ComposedChart` bars+line | ✅ renders, **custom tooltip content works** (May / $8,213 / $3,712 / $4,501) |
+| Debt Payoff | `LineChart` 5Y + Legend | ✅ **the edited formatter works** — `Chase Sapphire : $1,919`, `Discover It : $4,676` |
+| Vehicles | loan `LineChart` | ✅ **both edited formatters work** — `Dec 2028` / `Remaining : $14,845` |
+
+**Still unverified: Goals, Forecast, Accounts, NetWorth.** Goals is the priority — `SavingsGoals.tsx`
+is one of the three files edited.
+
+## 🖥 SESSION NOTES
+
+- Dev server on **8091** (`npm run dev -- --port 8091`), still running. Demo entry = landing
+  **"See Demo"** → `/dashboard`. Reload drops you to `/auth`.
+- ⚠️ **`screenshot` times out on the first call almost every time and succeeds on an immediate
+  retry.** Same as session 66. Just retry; the renderer is not actually frozen.
+- `hover` over a chart is the way to exercise a Tooltip formatter. `find` will NOT locate charts —
+  they are SVG and absent from the accessibility tree. Screenshot instead.
+- Backup: `backups/2026-08-02_154537/` (both workflows, package.json, package-lock.json, and the
+  3 edited source files).
+
+---
+
 # Handoff — 2026-08-02 (session 67) — ✅ **PR #35 BUMPS DONE.** ✅ **PR #52 AND #53 BOTH MERGED — TAILWIND V4 + THE VITE FIX ARE ON `main` AND DEPLOYING.** Branch work for this stream is CLOSED.
 
 > Session goal was handoff-66 next-step 1 (PR #35 bumps) and 2 (merge/push decision).
