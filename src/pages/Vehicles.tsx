@@ -643,8 +643,8 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
               contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,15%)', borderRadius: 'var(--radius)', fontSize: 12 }}
               labelStyle={{ color: 'hsl(0,0%,100%)' }}
               itemStyle={{ color: 'hsl(0,0%,100%)' }}
-              labelFormatter={(d: string) => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              formatter={(v: number) => [formatCurrency(v, false), 'Remaining']}
+              labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+              formatter={(v) => [formatCurrency(Number(v), false), 'Remaining']}
             />
             <Line dataKey="balance" stroke="hsl(43,56%,52%)" strokeWidth={2} dot={false} />
           </LineChart>
