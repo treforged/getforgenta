@@ -62,7 +62,7 @@ function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolea
             >
               <span className="text-xs flex items-start gap-1.5 min-w-0 flex-1" style={{ color: l.onClick ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))' }}>
                 {l.op && <span className="text-primary font-bold shrink-0 mt-px">{l.op}</span>}
-                <span className={`break-words ${l.onClick ? 'underline decoration-dotted underline-offset-2' : ''}`}>{l.label}</span>
+                <span className={`wrap-break-word ${l.onClick ? 'underline decoration-dotted underline-offset-2' : ''}`}>{l.label}</span>
                 {l.onClick && <ChevronRight size={11} className="shrink-0 mt-px text-muted-foreground" />}
               </span>
               <span className="text-xs font-display font-bold text-foreground whitespace-nowrap shrink-0">{l.value}</span>
@@ -334,7 +334,7 @@ export default function Forecast() {
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
       {!isDemo && !assumptionsTutorialSeen && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center"
+          className="fixed inset-0 z-60 flex items-center justify-center"
           style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}
           onClick={() => setAssumptionsTutorialSeen(true)}
         >

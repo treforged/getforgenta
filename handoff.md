@@ -1,4 +1,366 @@
-# Handoff — 2026-08-01 (session 64-smoke) — ✅ **SMOKE TEST 5/5 DONE, ALL PASS. NOTHING WAS CHANGED — ZERO code edits this session.** The ONLY open item is 🔴 **the push decision, which is Tre's.** On `main`.
+# Handoff — 2026-08-01 (session 66-smoke) — ✅ **TAILWIND V4 VISUAL SMOKE COMPLETE, 9 SCREENS + MODAL, ZERO visual regressions.** ✅ **One REAL a11y regression found and FIXED (`1b69acce`).** ⚠️ Still on **`tailwind-v4-migration`**, 5 local commits, unpushed.
+
+> Session goal was handoff-65 next-step 1 (finish the visual smoke) and 2 (PR #35).
+> Item 1 is CLOSED. Item 2 is HALF-DONE and is where the next session starts.
+
+## ⚡ START HERE (session 67)
+
+1. 🟡 **Finish the PR #35 dev-dependency bumps** — the analysis is DONE and below, the
+   `npm install` was NOT run. Backup of `package.json`/`package-lock.json` already taken at
+   `backups/2026-08-01_094*/`. Just run the install, verify, commit.
+2. 🔴 **Merge/push decision with Tre** — unchanged, still needs him. **Standing rule: never auto-push.**
+3. 🟡 **Six more open Dependabot PRs than handoff 65 claimed** (see PR TABLE below).
+
+## ✅ TAILWIND V4 VISUAL SMOKE — DONE, PASSED. Do not re-run it.
+
+Demo mode, dev server on **http://localhost:8090/**. Screens verified rendering correctly:
+
+| screen | verdict |
+|---|---|
+| Landing | ✅ gold branding, hero, store badges, cookie banner |
+| Dashboard | ✅ sidebar, cards, donut chart, budget snapshot |
+| Transactions | ✅ payment-plan progress bars, badges, selects, filter pills |
+| **Add Transaction modal** | ✅ overlay, date wheel w/ gold highlight, selects, **placeholders muted (not v4 currentColor/50%)**, **focus ring present** |
+| Debt Payoff | ✅ tabs, toggle, trajectory chart (1Y/2Y/3Y/5Y), stat row |
+| Accounts | ✅ net-worth stat grid, history chart, filter pills |
+| Budget Control | ✅ the raw-`<input>`-heavy screen, all styled correctly |
+| Forecast | ✅ milestones, cash-floor callout, projection chart |
+| Goals / Vehicles / Builds / Settings | ✅ incl. Builds' `text-[9px]` micro-labels and Settings' switches |
+
+**The one thing handoff 65 flagged to look at (raw `<input>` placeholders outside shadcn's Input) is
+CLEAN.** Verified visually on the Add Transaction modal and Budget Control.
+
+⚠️ **The Debt trajectory chart looks EMPTY for ~1s after mount — that is Recharts' entry animation,
+not a bug.** It renders fully on a second screenshot. Don't chase it.
+
+## ✅ THE REAL FINDING — `outline-none` kept its NAME but changed its MEANING (`1b69acce`)
+
+The `@tailwindcss/upgrade` codemod renamed `outline-none` → `outline-hidden` **only inside
+`src/index.css`** and left **all 28 occurrences in JSX class strings untouched**. Handoff 65's commit
+message claimed the rename was part of the template rewrites; it was not. In v4:
+
+```
+v3 outline-none   -> outline: 2px solid transparent; outline-offset: 2px
+v4 outline-none   -> outline-style: none                      <- what 28 call sites silently became
+v4 outline-hidden -> outline-style: none
+                     + @media (forced-colors:active){ outline: 2px solid #0000 }
+```
+
+**Both suppress the UA focus ring identically in normal rendering — which is exactly why the visual
+smoke test found nothing.** The loss only appears in **Windows High Contrast / forced-colors mode**,
+where v3's transparent outline got forced to a visible color and v4's `outline-style:none` does not.
+So 28 controls lost their high-contrast focus indicator: sign-in / sign-up / MFA / phone-auth inputs,
+settings + onboarding forms, builds editors, AI advisor composer, cookie-banner toggle, shadcn tabs.
+
+Fixed by completing the rename across 12 files (28 occurrences, renames only, 28+/28-).
+
+**Verified at the emitted-CSS level, not just by eyeball** — this is the technique to reuse:
+```
+npm run build
+grep -o "@media (forced-colors:active){[^}]*outline-hidden[^}]*}[^}]*}" dist/assets/*.css
+```
+All three variants now carry the forced-colors rule:
+`.outline-hidden`, `.focus\:outline-hidden:focus`, `.focus-visible\:outline-hidden:focus-visible`.
+`grep -ro "outline-none" src/` is now **0**.
+
+⚠️ `outline-none` **still appears in the emitted CSS** — that is Tailwind v4's automatic content
+detection scanning `node_modules/tailwindcss/dist/lib.js` and finding the literal string. Harmless
+unused utility. **Not a leftover from src. Do not "fix" it.**
+
+⚠️ Also note `grep -c` on the built CSS is useless (minified = one line). Use `grep -o ... | wc -l`.
+
+## 🟡 PR #35 — ANALYSIS DONE, INSTALL NOT RUN. This is the next task.
+
+**4 of the 10 updates are already absorbed or obsolete — do NOT redo them:**
+
+| package | PR wants | reality |
+|---|---|---|
+| `autoprefixer` | 10.5.4 | **REMOVED** in the v4 migration. Moot. |
+| `eslint-plugin-react-refresh` | 0.5.3 | already `^0.5.3` |
+| `typescript-eslint` | 8.65.0 | already `^8.65.0` |
+| `postcss` | 8.5.23 | already pinned `8.5.25`, **ahead** |
+
+**6 are still real — installed versions match the PR's "from" exactly:**
+
+| package | from | to |
+|---|---|---|
+| `@playwright/test` | 1.58.2 | 1.62.0 |
+| `@tailwindcss/typography` | 0.5.19 | 0.5.20 |
+| `@vitejs/plugin-react` | 6.0.1 | 6.0.4 |
+| `supabase` | 2.107.0 | 2.109.1 |
+| `vite` | 8.0.16 | 8.1.5 |
+| `vitest` | 4.1.0 | 4.1.10 |
+
+All are within-major minor/patch. **Apply them locally rather than merging PR #35** — the PR is
+`CONFLICTING` against our branch's `package.json`/`package-lock.json`, same reason the majors were
+done by hand last session. Backup of both files is ALREADY TAKEN (`backups/2026-08-01_094*/`).
+
+## 📋 PR TABLE — handoff 65 said "only #35 remains". **That was wrong: 7 are open.**
+
+| PR | what | note |
+|---|---|---|
+| #35 | dev-dependencies group, 10 updates | CONFLICTING — the real remaining work, see above |
+| #36 | @types/node 26 | **superseded** by local `d206f361` |
+| #37 | sonner 2.0.7 | **superseded** by local `4ae65a0b` (only MERGEABLE one) |
+| #38 | globals 17 | **superseded** by local `d206f361` |
+| #39 | jsdom 29 | **superseded** by local `d206f361` |
+| #40 | tailwindcss 4.3.1 | **superseded** by local `7f613919` (we went to 4.3.3) |
+| #41 | lucide-react 1.22 | **superseded** by local `4ae65a0b` |
+
+#36–#41 are open only because our work is **unpushed**. They should close themselves once the branch
+lands. ⚠️ **Do NOT close them manually without asking Tre** — last session's closes of #42/#43 were
+explicitly authorized; that authorization does not carry forward.
+
+## 🧪 VERIFICATION (after `1b69acce`)
+
+`tsc` **0 errors** · `eslint src --max-warnings=0` **0/0** · `npm run build` **succeeds** ·
+suite **232/233**.
+
+⚠️ The single failure is **still** `useCardProjection.resimulateWithDebtCash.test.ts`
+(`expected 3 to be <= 2`) and **still** the known date-dependent one. Handoff 65 proved via a
+`git worktree` at `5305156e` with the OLD dependency set that it is not caused by any dep bump.
+**It is not a regression. Do not "fix" it.**
+
+## 🖥 BROWSER NOTES (cost me time — read before driving Chrome)
+
+- ⚠️ **`javascript_tool` is BLOCKED this session** ("BLOCKED: Cookie/query string data") whenever the
+  snippet touches link `href`s. The handoff-65 iframe trick for mobile widths **could not be used.**
+- ⚠️ **`computer` `zoom` corrupts the screenshot pipeline.** After a couple of `zoom` calls every
+  later `screenshot` came back as the stale 98x69 zoom region. **Recovery that worked: open a NEW TAB
+  via `tabs_create_mcp` and re-navigate.** Prefer full screenshots over `zoom`.
+- ⚠️ **`resize_window` does not change the rendered viewport** (still 1568px wide) — confirms
+  handoff 65's note that Chrome refuses to resize a maximized window.
+  **→ MOBILE-WIDTH RENDERING IS STILL UNVERIFIED for Tailwind v4.** Not believed risky (the diff is
+  renames only, and `sm:`/`md:` variants are untouched), but it is honestly untested.
+- `screenshot` routinely times out on the first call and succeeds on an immediate retry. Just retry.
+- Demo entry = landing page **"See Demo"**. Demo state is in-memory; **any reload drops you to
+  `/auth`**.
+- Did NOT touch the cookie banner (accepting/rejecting consent is a permission-required action).
+
+## 🧭 STATE (session 66)
+
+- Branch `tailwind-v4-migration`, now **5 commits ahead of `main`**, nothing pushed.
+- New commit: `1b69acce` fix(a11y): finish the v4 outline-none -> outline-hidden rename in templates.
+- Backups: `backups/2026-08-01_093524/` (the 12 outline files),
+  `backups/2026-08-01_094*/` (package.json + package-lock.json, taken for the #35 work, unused so far).
+- Dev server running on **8090**. 8080–8084 are stale servers from earlier sessions serving OLD code.
+
+## ⏭️ NEXT STEPS (session 67)
+
+1. **Run the 6 PR-#35 dev-dep bumps** (table above), then `tsc` / `eslint` / `build` / suite, commit.
+   Watch `vite` 8.0.16→8.1.5 and `vitest` 4.1.0→4.1.10 most closely.
+2. **Merge/push decision with Tre.** Both stores auto-deploy from `main` and Android auto-promotes to
+   100% after 24h, so a regression reaching main reaches users fast. Visual smoke is now DONE, which
+   was the stated precondition. Recommend merging.
+3. **Mobile-width visual check** if a working technique is found (see BROWSER NOTES).
+4. **Unchecked Supabase errors in `Onboarding.tsx`** — the insert block for accounts, budget items,
+   debts and savings goals still ignores its errors. That is what hid the `apy`/`apy_rate` bug for so
+   long. Worth a dedicated pass.
+5. Everything still inherited and unchanged: `use-mobile.tsx` dead-hook question (**needs Tre**);
+   the **Sep–Dec 2026 + Jan 2027 interest band**; confirm Feb 2027 = **$683** and Mar 2027
+   **$961 → ~$278**; `@radix-ui/*` vs 4 files in `src/components/ui/` (`knip`/`depcheck`);
+   delete-or-promote `grace-diagnostic.test.ts`.
+
+---
+
+# Handoff — 2026-08-01 (session 65-deps) — ✅ **GITHUB VULNS: ZERO OPEN.** ✅ **ALL CI GREEN.** ✅ **EVERY DEPENDABOT MAJOR DONE incl. TAILWIND 4.** ⚠️ On branch **`tailwind-v4-migration`**, NOT main. 4 local commits, unpushed.
+
+> Tre's instruction this session: "work on github vulnerabilities first", then when asked how to
+> handle the PR backlog he chose **all of it**: close #42/#43, merge #33, merge #51, *"perform all
+> the version updates"*. That is what happened.
+
+## ⚡ START HERE (session 66)
+
+**The vulnerability question is CLOSED — do not re-audit it.** All four surfaces are clean (table
+below). **Do not re-run the Tailwind codemod; the migration is done and committed.**
+
+Three things are open, in order:
+
+1. 🔴 **Finish the Tailwind v4 visual smoke test.** Only the landing page was eyeballed before the
+   context gate fired. It rendered correctly (gold branding, card styling, rounded buttons, dark
+   theme, cookie banner all intact). **The authed/demo screens are unverified.**
+2. 🟡 **Dependabot PR #35** — dev-dependencies group, 10 updates. The only Dependabot PR left open.
+   It is `CONFLICTING` and much of it may already be absorbed by this session's work; re-check
+   before doing anything.
+3. 🔴 **Decide the branch + push question with Tre** (see MERGE/PUSH below). **Standing rule: never
+   auto-push.**
+
+## ✅ SECURITY — ALL CLEAR (this was the ask; it is answered)
+
+| surface | open |
+|---|---|
+| Dependabot alerts | **0** — all 55 historical alerts are `fixed` |
+| CodeQL / code scanning | **0** |
+| Secret scanning | **0** |
+| local `npm audit` | **0 vulnerabilities** |
+
+The **"3 high Dependabot vulns"** GitHub flagged on last session's push were already closed by the
+pushed bumps (`postcss`, `brace-expansion`/`minimatch`, `react-router` 8.3.0) plus Dependabot's own
+follow-ups. Repo security config verified healthy: Dependabot security updates, secret scanning, and
+**push protection** all enabled.
+
+## ✅ CI FROM LAST SESSION'S PUSH — ALL 5 GREEN
+
+Including both risky store builds carrying React 19 + two router majors: **iOS Build & Upload ✅**,
+**Android Build & Upload ✅**, all three CodeQL ✅. `Promote Android Staged Rollout` also ran clean
+at 08:15Z. **Nothing needed catching in the 24h auto-promote window.**
+
+## 📦 THE 4 NEW LOCAL COMMITS (on `tailwind-v4-migration`, branched off main)
+
+| sha | what |
+|---|---|
+| `6325225d` | **fix(onboarding): write `apy_rate`, not the nonexistent `apy` column** |
+| `d206f361` | @types/node 26, globals 17, jsdom 29; tsconfig `lib` → ES2022 |
+| `4ae65a0b` | sonner 2.0.7, lucide-react 1.22 |
+| `7f613919` | **Tailwind CSS 3.4 → 4.3** |
+
+Plus two merge commits already on `origin/main` from this session: `5dd9b786` (#33 codeql-action v4)
+and `79f9568b` (#51 production-dependencies, 42 minors).
+
+## 🐛 THE REAL BUG FOUND THIS SESSION — `apy` vs `apy_rate`
+
+The supabase-js **2.99 → 2.111** bump in #51 tightened Insert typing and turned a silent production
+bug into a TS2322. `src/pages/Onboarding.tsx:265` was inserting **`apy`** into `accounts`, **but that
+column does not exist** — it is `apy_rate`. **Verified against the live database**, not just the
+generated types:
+
+```sql
+select column_name from information_schema.columns
+where table_schema='public' and table_name='accounts' and column_name in ('apy','apy_rate');
+-- returns apy_rate ONLY
+```
+
+Every other file in the codebase (8 of them) already used `apy_rate`; Onboarding was the lone outlier.
+PostgREST rejects an insert naming an unknown column and **that call does not check its error**, so
+any user who entered a savings balance during onboarding **silently never got their High-Yield
+Savings account created.** Fixed by the rename.
+
+⚠️ **FOLLOW-UP NOT DONE (deliberately out of scope):** that insert — and its siblings for budget
+items, debts, and savings goals in the same function — **still ignore their Supabase errors.** Worth
+a dedicated pass; it is why the bug stayed invisible.
+
+## ⚠️ TEST BASELINE CHANGED — AND IT IS NOT A REGRESSION (do not "fix" it)
+
+The suite is **232/233**, same count as before, **but the failing file swapped**:
+
+- `useCardProjection.month0income.test.ts` — the long-documented failure — **now PASSES.**
+- `useCardProjection.resimulateWithDebtCash.test.ts` — **now FAILS** (`expected 3 to be <= 2`).
+
+**Proven not to be caused by the dependency updates.** A `git worktree` at the pre-merge commit
+`5305156e` with `npm ci` (i.e. the OLD dependency set) reproduces **exactly the same pair**:
+resimulate fails, month0income passes. Both tests build their scenario from `new Date()` with
+`payment_due_day: 1`, and **today is the 1st** — they are the same date-dependent class the handoff
+has tracked for many sessions. They simply traded places when the calendar rolled to Aug 1.
+
+⚠️ Don't burn time trying to fake the system date via a vitest `setupFiles` override — **two attempts
+failed** (`--setupFiles` is not a valid CLI flag; a custom config could not `mergeConfig` the base
+because `vite.config.ts` exports a callback, and a hand-written config resolved "no tests"). The
+worktree comparison is the technique that actually worked and is cheap — reuse it.
+
+## 🎨 TAILWIND V4 — WHAT WAS DONE AND WHAT TO WATCH
+
+Ran the official `@tailwindcss/upgrade` codemod. **It aborted on its first run** with
+``Error: `@utility text-[9px]` defines an invalid utility name`` and needed three manual fixes:
+
+1. It had converted four escaped selectors (`.text-\[9px\]` and friends) into `@utility text-[9px]`,
+   which v4 rejects — **a v4 utility name must be alphanumeric and cannot contain brackets.** Put
+   them back as plain escaped selectors inside `@layer utilities`. **Do not re-convert these.** They
+   deliberately override Tailwind's generated arbitrary-value utilities so micro-labels use rem and
+   still scale with the user's text-size preference (an accessibility feature).
+2. The codemod does **not** touch `postcss.config.js` — it must load `@tailwindcss/postcss`; the bare
+   `tailwindcss:` plugin entry is a v3 form that silently does nothing in v4.
+3. Removed `autoprefixer` (v4 prefixes internally).
+
+Config now lives in CSS: `@import 'tailwindcss'`, `@theme`, `@plugin 'tailwindcss-animate'`,
+`@custom-variant dark`. `tailwind.config.ts` is gone.
+
+**The v4 default changes the codemod does NOT fix were each checked:**
+- **border color** (v3 gray-200 → v4 currentColor): safe. The codemod's compat shim *plus* the app's
+  own `* { @apply border-border }` base rule (which survived, later in the cascade) keep it.
+- **ring width** (v3 3px → v4 1px): safe. **Zero bare `ring` classes** in src — all are explicit `ring-N`.
+- **placeholder color** (now `currentColor` at 50%): shadcn's Input already pins
+  `placeholder:text-muted-foreground`, so **only raw `<input>` elements outside that component could
+  look different.** ← the one thing to actually look at in the smoke test.
+- **button cursor**: checked the emitted preflight, no `cursor: default` rule. No regression.
+
+Template rewrites across 25 files are renames only: `flex-shrink-0`→`shrink-0`, `z-[70]`→`z-70`,
+`tracking-[0.1em]`→`tracking-widest` (exact equivalent), `outline-none`→`outline-hidden`.
+
+Also confirmed **every custom utility still used in `src/` is present in the emitted CSS**; the ones
+missing (`safe-area-pb`, `mobile-page-gutter`, `pb-safe`, `min-h-screen-safe`) have **zero usages in
+src** and are correctly tree-shaken.
+
+## 🧪 VERIFICATION (re-run after every one of the 4 commits)
+
+`tsc` **0 errors** · `eslint` **0/0** · `npm run build` **succeeds** · suite **232/233** (only the
+date-dependent failure above). CSS bundle 99,162 bytes.
+
+`tsconfig.json` `lib` went **ES2020 → ES2022**: `@types/node` 26 stopped leaking post-ES2020 lib
+declarations, exposing that `Accounts.tsx:829` already calls `Array.prototype.at(-1)` at runtime.
+`target` untouched; `.at()` is a runtime method not syntax, so **emit is unchanged**.
+
+## 🔀 MERGE / PUSH — NEEDS TRE
+
+Work is on **`tailwind-v4-migration`**, deliberately, because Tailwind is the one change with real
+visual risk. Options to put to Tre: merge to main after the visual smoke, or open a PR. **Both stores
+auto-deploy from main and Android auto-promotes to 100% after 24h**, so a Tailwind regression reaching
+main reaches users fast. Recommend: **finish the visual smoke first, then merge.**
+
+## 🖥 SMOKE-TEST SETUP (live right now)
+
+Dev server running on **http://localhost:8084/** — 8080–8083 are held by **stale servers from earlier
+sessions that serve OLD code**; make sure you are on 8084 or a fresh one. Demo entry = landing page
+**"See Demo"** (`/dashboard` + `setIsDemo(true)`). ⚠️ Demo state is in-memory — **any reload drops you
+to `/auth`**; re-enter from the landing page rather than reloading. For mobile widths, drive the app
+inside a same-origin **`<iframe>` sized to 420px** — Chrome refuses to resize a maximized window.
+
+## 🧭 STATE (session 65)
+
+- Branch `tailwind-v4-migration`, 4 commits ahead of `main`. **Nothing pushed this session.**
+- `main` itself is 1 commit ahead of `origin/main` (session 64's handoff doc `caaa50d5`).
+- Backups: `backups/2026-08-01_063658/` (package.json, package-lock.json, tailwind.config.ts,
+  postcss.config.js, eslint.config.js, vite.config.ts, src/index.css).
+- Dependabot PRs: **#42/#43 closed as superseded, #33 and #51 merged.** Only **#35** remains open.
+
+## ⏭️ NEXT STEPS (session 66)
+
+1. Finish the **Tailwind v4 visual smoke** in demo mode — focus on raw `<input>` placeholders,
+   borders, focus rings, and the modals/drawers.
+2. Handle **PR #35** (dev-dependencies group, 10 updates).
+3. **Merge/push decision with Tre.**
+4. Consider the **unchecked Supabase errors** in `Onboarding.tsx`'s insert block (see above).
+5. Everything still inherited and unchanged: the `use-mobile.tsx` dead-hook question (delete vs wire
+   up — **needs Tre**, `hover:none` ≠ `max-width:767px`); the **Sep–Dec 2026 + Jan 2027 interest
+   band**; confirm Feb 2027 = **$683** and Mar 2027 **$961 → ~$278**; `@radix-ui/*` vs 4 files in
+   `src/components/ui/` (`knip`/`depcheck`); delete-or-promote `grace-diagnostic.test.ts`.
+
+---
+
+# Handoff — 2026-08-01 (session 64-smoke) — ✅ **SMOKE TEST 5/5 PASS, ZERO code edits.** ✅ **PUSHED — Tre said "push".** On `main`, **in sync with `origin/main`.**
+
+## 🚀 THE PUSH HAPPENED — verify CI before anything else
+`d56d3184..5305156e`, **15 commits**, pushed 2026-08-01 on Tre's explicit instruction.
+**Nothing is local/unpushed any more — every "11/14 commits unpushed" note below is HISTORICAL.**
+
+Runs kicked off immediately (`gh run list`):
+
+| workflow | id | state at handoff |
+|---|---|---|
+| CodeQL (Actions, JS/TS, Python) | 30683737196 | ✅ success |
+| CodeQL (Android) | 30683737194 | 🔄 in_progress |
+| CodeQL (iOS) | 30683737159 | 🔄 in_progress |
+| **iOS Build & Upload to App Store** | 30683737188 | 🔄 in_progress |
+| **Android Build & Upload to Play Store** | 30683737179 | 🔄 in_progress |
+
+🔴 **FIRST ACTION NEXT SESSION: `gh run list` / `gh run view <id> --log-failed`.** This is the first
+run of the bumped GH Actions runtimes AND the first store build carrying **React 19 + two router
+majors** — so a failure here is expected-risk, not a surprise. **Android auto-promotes to 100% after
+24h**, so a bad Android build needs catching inside that window (`Promote Android Staged Rollout`).
+GitHub also flagged **3 high Dependabot vulns** on the default branch on push — triage alongside the
+already-open superseded-PR cleanup.
+
+---
+
 
 > Continues session 63. **No code changes, no Supabase, no cron, no edge function, no migration, no push, no dependency changes.** The only write is this handoff.
 
@@ -80,8 +442,9 @@ So the shared hook is **dead code**; the rewrite ships zero user-visible change 
   (single documented pre-existing `useCardProjection.month0income.test.ts` failure) all still stand.
 
 ## ⏭️ NEXT STEPS (session 64)
-1. 🔴 **The push question — Tre's call, ask it first.** Smoke test is 5/5 green; that was the
-   precondition Tre set.
+1. ✅ ~~The push question~~ — **DONE, Tre said push; 15 commits are on `origin/main`.**
+   🔴 Replaced by: **verify the 4 in-flight CI runs** (table at the top of this file) and triage the
+   3 high Dependabot vulns GitHub reported on push.
 2. Decide the `use-mobile.tsx` dead-hook question above (delete vs wire up) — **needs Tre**.
 3. Everything from session 61 still open (unchanged): close superseded Dependabot PRs
    (#42, #43, #49, #50, #46, #33); `@radix-ui/*` vs 4 files in `src/components/ui/` (`knip`/`depcheck`);

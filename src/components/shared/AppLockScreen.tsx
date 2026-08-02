@@ -83,7 +83,7 @@ export default function AppLockScreen() {
   if (!ready || !isLocked) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-background flex flex-col items-center justify-center gap-8 px-8" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="fixed inset-0 z-9999 bg-background flex flex-col items-center justify-center gap-8 px-8" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Branding */}
       <div className="text-center space-y-1">
         <p className="font-display font-bold text-xl tracking-tight">Forgenta</p>

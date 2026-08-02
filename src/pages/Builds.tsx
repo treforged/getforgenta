@@ -573,7 +573,7 @@ export default function Builds() {
             <select
               value={activeBuild?.id ?? ''}
               onChange={e => { setActiveBuildId(e.target.value); setDragPhaseOrder(null); setDragItemOrder(null); }}
-              className="w-full appearance-none bg-card border border-border text-foreground text-sm font-mono px-3 py-2 pr-8 rounded focus:outline-none focus:border-[#c8a84b] cursor-pointer"
+              className="w-full appearance-none bg-card border border-border text-foreground text-sm font-mono px-3 py-2 pr-8 rounded focus:outline-hidden focus:border-[#c8a84b] cursor-pointer"
             >
               {builds.map((b: CarBuild) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -614,7 +614,7 @@ export default function Builds() {
         )}
         <button
           onClick={() => { setEditingBuild(null); setFormOpen(true); }}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors shrink-0"
           style={{ background: '#c8a84b', color: '#000' }}
         >
           <Plus size={13} /> New Build
@@ -631,7 +631,7 @@ export default function Builds() {
               <input
                 readOnly
                 value={shareUrl()}
-                className="w-full bg-[#111] border border-border rounded px-3 py-1.5 text-[12px] text-[#8ab0e0] focus:outline-none select-all"
+                className="w-full bg-[#111] border border-border rounded px-3 py-1.5 text-[12px] text-[#8ab0e0] focus:outline-hidden select-all"
                 onFocus={e => e.target.select()}
               />
               <div className="flex items-center justify-between gap-2">

@@ -739,7 +739,7 @@ export default function Auth() {
               onChange={e => { setMfaError(''); setMfaCode(e.target.value.replace(/\D/g, '')); }}
               placeholder={mfaFactorType === 'totp' ? '000000' : 'Verification code'}
               autoFocus
-              className={`w-full bg-secondary border px-3 py-3 text-lg text-foreground text-center tracking-[0.4em] focus:outline-none focus:ring-1 ${mfaError ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-ring'}`}
+              className={`w-full bg-secondary border px-3 py-3 text-lg text-foreground text-center tracking-[0.4em] focus:outline-hidden focus:ring-1 ${mfaError ? 'border-destructive focus:ring-destructive' : 'border-border focus:ring-ring'}`}
               style={{ borderRadius: 'var(--radius)' }}
             />
 
@@ -802,7 +802,7 @@ export default function Auth() {
                 minLength={6}
                 maxLength={128}
                 placeholder="At least 6 characters"
-                className="w-full mt-1 bg-secondary border border-border px-3 py-3 text-base text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full mt-1 bg-secondary border border-border px-3 py-3 text-base text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                 style={{ borderRadius: 'var(--radius)' }}
               />
             </div>
@@ -816,7 +816,7 @@ export default function Auth() {
                 minLength={6}
                 maxLength={128}
                 placeholder="Re-enter your new password"
-                className={`w-full mt-1 bg-secondary border px-3 py-3 text-base text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
+                className={`w-full mt-1 bg-secondary border px-3 py-3 text-base text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring ${
                   mismatch ? 'border-destructive focus:ring-destructive' : 'border-border'
                 }`}
                 style={{ borderRadius: 'var(--radius)' }}
@@ -916,7 +916,7 @@ export default function Auth() {
                 placeholder="Your name"
                 maxLength={50}
                 autoComplete="name"
-                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                 style={{ borderRadius: 'var(--radius)' }}
               />
             </div>
@@ -931,7 +931,7 @@ export default function Auth() {
               required
               maxLength={254}
               autoComplete={mode === 'signup' ? 'email' : 'username'}
-              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
               style={{ borderRadius: 'var(--radius)' }}
             />
           </div>
@@ -958,7 +958,7 @@ export default function Auth() {
                 minLength={6}
                 maxLength={128}
                 autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
                 style={{ borderRadius: 'var(--radius)' }}
               />
             </div>
@@ -976,7 +976,7 @@ export default function Auth() {
                 maxLength={128}
                 placeholder="Re-enter your password"
                 autoComplete="new-password"
-                className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring ${
+                className={`w-full mt-1 bg-secondary border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring ${
                   confirmPassword && confirmPassword !== password
                     ? 'border-destructive focus:ring-destructive'
                     : 'border-border'

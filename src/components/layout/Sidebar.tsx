@@ -45,7 +45,7 @@ export default function Sidebar() {
     >
       <div className="flex items-center justify-between px-3 h-14 border-b border-sidebar-border">
         {!collapsed && (
-          <Link to={brandTo} className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0">
+          <Link to={brandTo} className="flex items-center gap-2 hover:opacity-80 transition-opacity shrink-0">
             <img
               src="/logo-transparent.png"
               alt="Forgenta"

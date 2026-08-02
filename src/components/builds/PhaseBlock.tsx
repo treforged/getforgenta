@@ -272,9 +272,9 @@ export default function PhaseBlock({
     setItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], ...fields } }));
   }
 
-  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-none focus:border-[#c8a84b] font-sans';
-  const monoInput = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-none focus:border-[#c8a84b] font-mono';
-  const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-[0.1em] mb-1';
+  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-hidden focus:border-[#c8a84b] font-sans';
+  const monoInput = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-hidden focus:border-[#c8a84b] font-mono';
+  const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-widest mb-1';
   const modeBtnCls = (active: boolean) => cn(
     'px-2.5 py-[3px] text-[10px] font-mono uppercase tracking-wider rounded border transition-colors',
     active ? 'border-[#c8a84b] text-[#c8a84b]' : 'border-border text-muted-foreground hover:border-muted-foreground',
@@ -307,51 +307,51 @@ export default function PhaseBlock({
             onDragStart={e => onPhaseDragStart(e, phase.id)}
             onDragEnd={onPhaseDragEnd}
             onClick={e => e.stopPropagation()}
-            className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 flex-shrink-0"
+            className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 shrink-0"
             title="Drag to reorder"
           >
             <GripVertical size={16} />
           </div>
         ) : (
-          <div className="flex flex-col gap-0.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="flex flex-col gap-0.5 shrink-0" onClick={e => e.stopPropagation()}>
             <button disabled={isFirst} onClick={() => onMovePhase('up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowUp size={12} /></button>
             <button disabled={isLast} onClick={() => onMovePhase('down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowDown size={12} /></button>
           </div>
         )}
 
-        <div className="text-2xl font-display font-bold leading-none flex-shrink-0" style={{ color }}>
+        <div className="text-2xl font-display font-bold leading-none shrink-0" style={{ color }}>
           <span className="inline-block w-2 h-2 rounded-full mr-1.5 mb-0.5 align-middle" style={{ background: color }} />
           {phaseIndex + 1}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-1.5 min-w-0">
-            <button onClick={openTitleEdit} className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-[#c8a84b] transition-all flex-shrink-0 mt-0.5" title="Rename phase">
+            <button onClick={openTitleEdit} className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-[#c8a84b] transition-all shrink-0 mt-0.5" title="Rename phase">
               <Pencil size={12} />
             </button>
-            <span className="text-sm font-semibold uppercase tracking-wide text-foreground break-words flex-1 min-w-0">{phase.title}</span>
+            <span className="text-sm font-semibold uppercase tracking-wide text-foreground wrap-break-word flex-1 min-w-0">{phase.title}</span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             {allDone && (
-              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border flex-shrink-0" style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>✓ Done</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0" style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>✓ Done</span>
             )}
             <span className="text-[12px] font-mono text-muted-foreground">{phase.hidden ? `planned · ${subtitle}` : subtitle}</span>
           </div>
         </div>
 
-        <div className="font-mono text-base font-medium text-right flex-shrink-0" style={{ color: '#c8a84b' }}>
+        <div className="font-mono text-base font-medium text-right shrink-0" style={{ color: '#c8a84b' }}>
           {phaseTotal > 0 ? `$${phaseTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
         </div>
 
-        <button onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }} title={phase.hidden ? 'Phase hidden (planned) — click to show' : 'Hide phase (mark as planned)'} className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }} title={phase.hidden ? 'Phase hidden (planned) — click to show' : 'Hide phase (mark as planned)'} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
           {phase.hidden ? <EyeOff size={14} style={{ color: '#c8a84b' }} /> : <Eye size={14} />}
         </button>
 
-        <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="flex-shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all">
+        <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all">
           <Trash2 size={13} />
         </button>
 
-        <ChevronDown size={14} className={cn('flex-shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')} />
+        <ChevronDown size={14} className={cn('shrink-0 text-muted-foreground transition-transform duration-200', isExpanded && 'rotate-180')} />
       </div>
 
       {/* Inline title edit */}
@@ -396,11 +396,11 @@ export default function PhaseBlock({
                   onDrop={e => !isMobile && onItemDrop(e, item.id, phase.id)}
                 >
                   {!isMobile ? (
-                    <div draggable onDragStart={e => onItemDragStart(e, item.id)} onDragEnd={onItemDragEnd} onClick={e => e.stopPropagation()} className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 flex-shrink-0" title="Drag to reorder">
+                    <div draggable onDragStart={e => onItemDragStart(e, item.id)} onDragEnd={onItemDragEnd} onClick={e => e.stopPropagation()} className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 shrink-0" title="Drag to reorder">
                       <GripVertical size={14} />
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-0.5 flex-shrink-0">
+                    <div className="flex flex-col gap-0.5 shrink-0">
                       <button disabled={ii === 0} onClick={() => onMoveItemArrow(item.id, phase.id, 'up')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowUp size={10} /></button>
                       <button disabled={ii === items.length - 1} onClick={() => onMoveItemArrow(item.id, phase.id, 'down')} className="text-muted-foreground disabled:opacity-20 hover:text-foreground transition-colors p-0.5"><ArrowDown size={10} /></button>
                     </div>
@@ -409,23 +409,23 @@ export default function PhaseBlock({
                   <button
                     onClick={() => onToggleItem(item.id, !item.completed)}
                     className={cn(
-                      'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5',
+                      'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200 mt-0.5',
                       item.completed ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white' : 'border-border bg-transparent hover:border-[#3a8a5a]',
                     )}
                   >
                     {item.completed && <Check size={11} strokeWidth={3} />}
                   </button>
 
-                  <div className="text-[13px] font-mono text-muted-foreground flex-shrink-0 w-7 text-center mt-0.5">
+                  <div className="text-[13px] font-mono text-muted-foreground shrink-0 w-7 text-center mt-0.5">
                     {itemLabel(phaseIndex, ii, items.length)}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className={cn('text-sm text-[#c8c2b8] leading-snug break-words', item.completed && 'line-through')}>
+                    <div className={cn('text-sm text-[#c8c2b8] leading-snug wrap-break-word', item.completed && 'line-through')}>
                       {item.name}
                     </div>
                     {item.brand && (
-                      <div className="text-[12px] font-mono text-muted-foreground mt-0.5 break-words">{item.brand}</div>
+                      <div className="text-[12px] font-mono text-muted-foreground mt-0.5 wrap-break-word">{item.brand}</div>
                     )}
                     {(linkedPlan || linkedTx) && (
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -448,7 +448,7 @@ export default function PhaseBlock({
                     )}
                   </div>
 
-                  <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                  <div className="text-right shrink-0 flex flex-col items-end gap-1">
                     {item.price !== null
                       ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
                       : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
@@ -458,14 +458,14 @@ export default function PhaseBlock({
                     </button>
                   </div>
 
-                  <button onClick={() => onDeleteItem(item.id)} className="flex-shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all ml-0.5">
+                  <button onClick={() => onDeleteItem(item.id)} className="shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all ml-0.5">
                     <Trash2 size={13} />
                   </button>
                 </div>
 
                 {/* Inline item edit panel */}
                 {openItemEdit === item.id && itemEdits[item.id] && (
-                  <div className="bg-[#0e0e0e] border-b border-border px-4 py-3 pl-[4.5rem]" onClick={e => e.stopPropagation()}>
+                  <div className="bg-[#0e0e0e] border-b border-border px-4 py-3 pl-18" onClick={e => e.stopPropagation()}>
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
                       {/* Left column */}
                       <div className="space-y-2.5">
@@ -750,7 +750,7 @@ export default function PhaseBlock({
               }));
               setOpenItemEdit(newId);
             }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 text-[12px] font-mono uppercase tracking-[0.1em] text-muted-foreground hover:text-[#c8a84b] hover:bg-[#0d0d0d] transition-colors border-t border-dashed border-[#1e1e1e]"
+            className="flex items-center gap-2 w-full px-4 py-2.5 text-[12px] font-mono uppercase tracking-widest text-muted-foreground hover:text-[#c8a84b] hover:bg-[#0d0d0d] transition-colors border-t border-dashed border-[#1e1e1e]"
           >
             <Plus size={14} /> Add Item
           </button>

@@ -66,12 +66,12 @@ function GoalLumpSumModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
+      className="fixed inset-0 z-60 flex items-end sm:items-center justify-center sm:p-4"
       style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
       onClick={onClose}
     >
       <div
-        className="card-forged w-full sm:max-w-md flex flex-col rounded-t-[var(--radius)] rounded-b-none sm:rounded-b-[var(--radius)]"
+        className="card-forged w-full sm:max-w-md flex flex-col rounded-t-(--radius) rounded-b-none sm:rounded-b-(--radius)"
         style={{ maxHeight: 'calc(88dvh - env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -637,7 +637,7 @@ export default function SavingsGoals() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2 min-w-0">
-                    <h3 className="text-sm font-semibold break-words">{g.name}</h3>
+                    <h3 className="text-sm font-semibold wrap-break-word">{g.name}</h3>
                     <span className="text-[9px] px-1.5 py-0.5 bg-muted/50 border border-border text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>{g.goal_type || 'Custom'}</span>
                     {isLinked && (
                       <span className="text-[9px] px-1.5 py-0.5 bg-primary/10 border border-primary/20 text-primary flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
@@ -645,7 +645,7 @@ export default function SavingsGoals() {
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground break-words leading-relaxed">
+                  <p className="text-xs text-muted-foreground wrap-break-word leading-relaxed">
                     {g.linked_rules && g.linked_rules.length > 0
                       ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
                       : `${formatCurrency(Number(g.monthly_contribution), false)}/mo contribution`
@@ -663,7 +663,7 @@ export default function SavingsGoals() {
                 </div>
               </div>
               <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-                <span className="text-lg font-display font-bold text-primary break-words">{formatCurrency(Number(g.current_amount), false)}</span>
+                <span className="text-lg font-display font-bold text-primary wrap-break-word">{formatCurrency(Number(g.current_amount), false)}</span>
                 <span className="text-xs text-muted-foreground">of {formatCurrency(Number(g.target_amount), false)}</span>
               </div>
               <ProgressBar value={Number(g.current_amount)} max={Number(g.target_amount)} color={pct >= 100 ? 'success' : 'gold'} />

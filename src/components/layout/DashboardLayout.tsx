@@ -25,7 +25,7 @@ export default function DashboardLayout() {
             overflow-y-auto
             px-3
             pb-[calc(5.5rem+env(safe-area-inset-bottom))]
-            ${isDemo ? 'pt-3' : 'pt-[max(0.75rem,env(safe-area-inset-top))]'}
+            ${isDemo ? 'pt-3' : 'pt-safe'}
             sm:px-4
             lg:px-6
             lg:pb-8

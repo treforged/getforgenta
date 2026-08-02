@@ -887,7 +887,7 @@ export default function BudgetControl() {
   <div className={`flex flex-col gap-2 py-3 border-b border-border/50 last:border-0 sm:flex-row sm:items-center sm:justify-between ${!r.active ? 'opacity-40' : ''}`}>
     <div className="min-w-0 flex-1">
       <div className="flex items-center gap-1.5 flex-wrap">
-      <p className="text-sm sm:text-base font-medium break-words">{r.name}</p>
+      <p className="text-sm sm:text-base font-medium wrap-break-word">{r.name}</p>
       {r.isSub && (
         <span
           className="text-[9px] px-1 py-0.5 bg-accent/20 text-accent-foreground border border-accent/30 shrink-0"
@@ -906,7 +906,7 @@ export default function BudgetControl() {
       )}
     </div>
 
-    <p className="mt-1 text-xs sm:text-sm text-muted-foreground break-words">
+    <p className="mt-1 text-xs sm:text-sm text-muted-foreground wrap-break-word">
       {freqLabel(r.frequency)} · Day {r.due_day}
       {r.due_month ? ` / Month ${r.due_month}` : ''}
       {r.start_date ? ` · Starts ${r.start_date}` : ''}
@@ -1132,7 +1132,7 @@ export default function BudgetControl() {
                         type="text"
                         value={d.label}
                         onChange={e => updateDeduction(d.id, { label: e.target.value })}
-                        className="flex-1 min-w-0 bg-transparent text-xs font-semibold text-foreground outline-none border-b border-transparent hover:border-border focus:border-primary transition-colors"
+                        className="flex-1 min-w-0 bg-transparent text-xs font-semibold text-foreground outline-hidden border-b border-transparent hover:border-border focus:border-primary transition-colors"
                       />
                     )}
                     <button onClick={() => removeDeduction(d.id)} className="text-muted-foreground hover:text-destructive shrink-0 p-1.5 -mr-1.5"><X size={14} /></button>
@@ -1290,35 +1290,35 @@ export default function BudgetControl() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 border-t border-border">
           <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success break-words">
+  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
     {formatCurrency(paycheckNet, false)}
   </p>
 </div>
 
 <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Monthly Gross</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-foreground break-words">
+  <p className="mt-1 text-base sm:text-lg font-display font-bold text-foreground wrap-break-word">
     {formatCurrency(monthlyGross, false)}
   </p>
 </div>
 
 <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Monthly Take-Home</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success break-words">
+  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
     {formatCurrency(monthlyTakeHome, false)}
   </p>
 </div>
 
 <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Annual Gross</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-foreground break-words">
+  <p className="mt-1 text-base sm:text-lg font-display font-bold text-foreground wrap-break-word">
     {formatCurrency(annualGross, false)}
   </p>
 </div>
 
 <div className="card-forged p-3 text-left">
   <p className="text-xs sm:text-sm text-muted-foreground">Annual Take-Home</p>
-  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success break-words">
+  <p className="mt-1 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
     {formatCurrency(annualTakeHome, false)}
   </p>
 </div>

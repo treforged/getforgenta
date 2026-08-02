@@ -111,7 +111,7 @@ export function PhoneAuth() {
               value={otp}
               onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
               placeholder="Verification code"
-              className="flex-1 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="flex-1 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
               style={{ borderRadius: 'var(--radius)' }}
             />
             <button
@@ -148,7 +148,7 @@ export function PhoneAuth() {
               value={phone}
               onChange={e => setPhone(e.target.value)}
               placeholder="+15551234567"
-              className="flex-1 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="flex-1 bg-secondary border border-border px-3 py-2 text-xs text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
               style={{ borderRadius: 'var(--radius)' }}
             />
             <button

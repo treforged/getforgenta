@@ -35,7 +35,7 @@ export default function BuildHeader({ build, phases, items }: BuildHeaderProps) 
             {build.name}
           </h1>
           {subLabel && (
-            <div className="text-[13px] font-mono text-muted-foreground mt-2 tracking-[0.1em] uppercase">
+            <div className="text-[13px] font-mono text-muted-foreground mt-2 tracking-widest uppercase">
               {subLabel}
             </div>
           )}
