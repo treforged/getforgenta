@@ -1,3 +1,94 @@
+# Handoff — 2026-08-02 (session 70) — ✅ **Dependabot backlog fully CLEARED (0 open PRs).** ✅ **Found and fixed a LIVE BUG: net-worth snapshot recording had been dead since 2026-05-22** (`883339bc`, local, unpushed).
+
+## ⚡ START HERE (session 71)
+
+1. 🔴 **The net-worth fix needs ONE live verification I could not do.** The write path only runs
+   for a real logged-in user, so demo mode can't exercise it. **Next time Tre opens `/accounts`
+   while signed in, a snapshot should be written.** Confirm with:
+   `select user_id, snapshot_date, net_worth, created_at from net_worth_snapshots order by created_at desc limit 5;`
+   Baseline before the fix: **61 rows, newest `created_at` = 2026-05-22 19:38:47+00.** A new row
+   with today's date = fixed. No new row after he visits Accounts = reopen the investigation.
+2. 🟡 `883339bc` is **local and unpushed** — Tre has not been asked to push it.
+3. 🟡 Remaining backlog unchanged: handoff 66 next-steps 4–5 (unchecked Supabase errors in
+   `Onboarding.tsx`'s insert block; `use-mobile.tsx` dead-hook question **needs Tre**; the
+   Sep–Dec 2026 + Jan 2027 interest band; `@radix-ui/*` vs 4 files in `src/components/ui/`;
+   delete-or-promote `grace-diagnostic.test.ts`).
+4. 🟡 Stale `linked_rule_ids` on goals (session-69 item 3b) still **not** acted on. Tre's `Savings`
+   goal carries `9f2c0934…`, a deleted rule. Harmless — the code filters missing rules out.
+
+## ✅ DEPENDABOT: ALL SIX STALE PRs CLOSED — backlog is now empty
+
+#54–#58 self-closed once #59 landed, as predicted. **#36–#41 never would have**: every one was
+already satisfied on `main` (verified in both `package.json` and `package-lock.json`), but all six
+sat `CONFLICTING`/`DIRTY` on `package-lock.json`, which is what stopped Dependabot from rebasing or
+auto-closing them. **Tre approved closing them with a comment**; each got one naming the superseding
+version. `gh pr list` is now empty.
+
+| PR | wanted | already on `main` |
+|---|---|---|
+| #41 lucide-react | 1.22.0 | 1.28.0 |
+| #40 tailwindcss | 4.3.1 | 4.3.3 |
+| #39 jsdom | 29.1.1 | 29.1.1 |
+| #38 globals | 17.7.0 | 17.8.0 |
+| #37 sonner | 2.0.7 | 2.0.7 |
+| #36 @types/node | 26.0.1 | 26.1.2 |
+
+**Post-merge CI for #59 is all green:** Android build ✅, iOS build ✅, CodeQL Actions/Android ✅
+(CodeQL iOS still running — it always takes ~25m). Nothing to catch in the Android 24h window.
+
+## 🔴 THE REAL FIND — "dead page cleanup" was actually a production data bug (`883339bc`)
+
+Session 69's next-step 3 called `src/pages/NetWorth.tsx` a **dead page worth deleting**. It was the
+opposite: that page held the **only** writer of `net_worth_snapshots` — a once-per-7-days auto-save
+effect. When `/net-worth` became `<Navigate to="/accounts">`, the page stopped mounting and
+**snapshot recording silently died.** Confirmed in Supabase: **last row written 2026-05-22**, ~72
+days of nothing. The Accounts "Net Worth History" chart has been drawing a **frozen series** the
+whole time. **Deleting the file as suggested would have made that permanent and unrecoverable.**
+
+There is no other writer — no cron, no edge function, no DB trigger. Verified across `src/`,
+`supabase/functions/`, and `supabase/migrations/`.
+
+### The fix Tre chose (of 4 options): extract to a hook, keep the old math
+
+- **`src/lib/net-worth-snapshot.ts`** (new) — pure `aggregateNetWorth` / `shouldRecordSnapshot` /
+  `hasRecordableData`. **13 unit tests**, `src/__tests__/net-worth-snapshot.test.ts`.
+- **`src/hooks/useNetWorthSnapshotRecorder.ts`** (new) — the effect, now mounted on **Accounts**,
+  where the chart is actually read.
+- **`src/pages/NetWorth.tsx` DELETED** + its unused lazy import at `App.tsx:30`. The
+  `/net-worth` → `/accounts` redirect stays.
+
+⚠️ **The aggregation math is a straight port and must stay that way.** It is live accounts (credit
+cards = liabilities, everything else = assets) **plus manual assets/liabilities** whose name doesn't
+duplicate a live account. Accounts.tsx's own `summary` totals (lines 265–267) count **live accounts
+only** — reusing those was the rejected option, because it would drop manual rows and put a step
+change mid-history. Real-data check: 2 of 3 users have zero manual rows, the third has a single
+$8,000 manual liability that would have vanished.
+
+Hardened while extracting: newest snapshot is taken **by date** rather than trusting array order;
+a failed write **clears the once-per-mount latch** so a later mount retries.
+
+## 🧪 VERIFICATION
+
+`tsc` **0 errors** · `eslint src --max-warnings=0` **0/0** · `npm run build` **succeeds** · suite
+**260/261** (248 → 261 = 13 new tests; the one failure is still the known date-dependent
+`useCardProjection.resimulateWithDebtCash`, **not a regression**).
+
+Demo smoke on `/accounts`: page renders, Net Worth History chart intact, console clean, and
+**row count stayed at 61** — the demo guard correctly persists nothing. The real-user write path is
+the open item in START HERE #1.
+
+Backup: `backups/2026-08-02_165833/` (App.tsx, Accounts.tsx, NetWorth.tsx).
+
+## 🖥 SESSION NOTES
+
+- Dev server came up on **8093** (8091 was still held by an older session). Demo entry: `/auth` →
+  **"Try Demo"** → sidebar nav.
+- ⚠️ Clicking "Try Demo" **by `ref` did nothing**; clicking by **coordinate** worked. Worth trying
+  coordinates first when a click looks like it silently no-ops.
+- ⚠️ `screenshot` still times out on the first call and succeeds on retry. Sessions 66, 68, 69, 70.
+
+---
+
 # Handoff — 2026-08-02 (session 69) — ✅ **PR #59 MERGED (`7b3c9d63`).** All five Dependabot PRs (#54–#58) resolved, recharts 3 visual pass complete, Goals growth chart rewritten. **This stream is CLOSED and deploying.**
 
 ## ⚡ START HERE (session 70)
