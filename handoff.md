@@ -1,24 +1,35 @@
-# Handoff — 2026-08-01 (session 67) — ✅ **PR #35 DEV-DEP BUMPS DONE.** ✅ **PR #52 MERGED — TAILWIND V4 IS ON `main` AND DEPLOYING.** 🔴 **PR #53 (one-line vite fix) green but merge BLOCKED by the classifier.**
+# Handoff — 2026-08-02 (session 67) — ✅ **PR #35 BUMPS DONE.** ✅ **PR #52 AND #53 BOTH MERGED — TAILWIND V4 + THE VITE FIX ARE ON `main` AND DEPLOYING.** Branch work for this stream is CLOSED.
 
 > Session goal was handoff-66 next-step 1 (PR #35 bumps) and 2 (merge/push decision).
-> Both CLOSED. Tre then asked for the vite one-liner, which became PR #53.
+> Both CLOSED. Tre then asked for the vite one-liner (#53). Both PRs merged with his approval.
 
 ## ⚡ START HERE (session 68)
 
-1. 🔴 **Merge PR #53** — https://github.com/treforged/getforgenta/pull/53. One line,
-   `__dirname` → `import.meta.dirname` in `vite.config.ts`. All checks green, MERGEABLE.
-   Tre authorized it; `gh pr merge 53 --merge --delete-branch` was **denied by the auto-mode
-   classifier**. ⚠️ **Approving a merge interactively does NOT persist** — it authorized that
-   one call only (this is why #52 went through and #53 did not, same session). For unattended
-   merges Tre must add a real Bash permission rule in settings; otherwise he merges in the UI.
-   **Do not re-litigate whether to merge.**
-2. 🟡 **Dependabot PRs #35–#41 are STILL OPEN** ~20 min after #52 merged. Dependabot closes
-   superseded PRs on its next scheduled run, not instantly. Re-check next session.
+1. 🔴 **Mobile-width spot-check on a real device.** Tailwind v4 is live on `main`, which
+   auto-deploys; Android auto-promotes to 100% after 24h. **Mobile widths were NEVER verified**
+   (handoff 66 BROWSER NOTES: Chrome refused to resize a maximized window, the iframe trick was
+   blocked). Low risk — the diff is renames only and `sm:`/`md:` variants are untouched — but
+   it is the one untested surface on a release that reaches users fast. **Highest priority.**
+2. 🟡 **FIVE NEW Dependabot PRs opened against the new `main`** (#54–#58), three of them MAJORS
+   that need Tre's call:
+   | PR | bump | note |
+   |---|---|---|
+   | #58 | `recharts` 2.15.4 → **3.10.1** | 🔴 MAJOR. Every chart in the app. Needs a visual pass. |
+   | #57 | `tailwind-merge` 2.6.1 → **3.6.0** | 🔴 MAJOR, and it pairs with the v4 migration — check `cn()`. |
+   | #56 | `@hookform/resolvers` 3.10.0 → **5.5.7** | 🔴 MAJOR, two majors at once. All forms. |
+   | #55 | `@revenuecat/purchases-capacitor` 13.2.4 → 13.2.5 | 🟢 patch, production-dependencies group |
+   | #54 | `actions/setup-java` 5 → 5.6.0 | 🟢 CI only |
+3. 🟡 **#35 CLOSED ITSELF** after the merge, as predicted. **#36–#41 are still open** —
+   Dependabot hadn't caught up yet. Re-check; they should self-close.
    ⚠️ **Do NOT close them manually without asking Tre.**
-3. 🔴 **Tailwind v4 is now on `main`, which auto-deploys**; Android auto-promotes to 100% after
-   24h. **Mobile-width rendering was never verified** (handoff 66 BROWSER NOTES: Chrome refused
-   to resize, iframe trick blocked). If anything bites, that is where. Real-device spot-check.
 4. 🟡 Rest of the backlog unchanged — see handoff 66 next-steps 3–5.
+
+## ✅ PR #53 — MERGED (`d702bf75`)
+
+Fast-forward onto `1508f3c3`. `vite.config.ts` + this handoff. Branch deleted.
+⚠️ **Approving a `gh pr merge` interactively does NOT persist** — #52's approval authorized that
+one call, and #53 was blocked minutes later in the same session until Tre approved again. For
+unattended merges he must add a real Bash permission rule in settings.
 
 ## ✅ PR #52 — MERGED (`1508f3c3`, 2026-08-02T03:50Z)
 
