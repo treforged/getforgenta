@@ -23,13 +23,24 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/react-router/')) return 'vendor-react';
-          if (id.includes('node_modules/@tanstack/react-query')) return 'vendor-query';
-          if (id.includes('node_modules/@supabase/supabase-js')) return 'vendor-supabase';
-          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
-          if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
-          if (id.includes('node_modules/recharts')) return 'vendor-charts';
+        // NOTE: this used to be `manualChunks`. Vite 8 bundles with rolldown,
+        // which treats `manualChunks` as a compat shim and silently ignored it
+        // for React's CJS modules: react/react-dom/clsx were physically placed
+        // inside the `vendor-charts` chunk, so the entry chunk statically
+        // imported vendor-charts just to get React — pulling all 412 kB of
+        // recharts into first paint on Landing and Auth, which show no charts.
+        // `codeSplitting.groups` is rolldown's native API and is honoured.
+        // Keeps ~400 kB raw (~119 kB gzip) out of the initial payload.
+        codeSplitting: {
+          groups: [
+            { name: 'vendor-react', test: /node_modules[\\/](react|react-dom|scheduler|react-router)[\\/]/, priority: 100 },
+            { name: 'vendor-utils', test: /node_modules[\\/](clsx|tailwind-merge|class-variance-authority)[\\/]/, priority: 100 },
+            { name: 'vendor-query', test: /node_modules[\\/]@tanstack[\\/]react-query/, priority: 90 },
+            { name: 'vendor-supabase', test: /node_modules[\\/]@supabase[\\/]supabase-js/, priority: 90 },
+            { name: 'vendor-icons', test: /node_modules[\\/]lucide-react[\\/]/, priority: 90 },
+            { name: 'vendor-motion', test: /node_modules[\\/]framer-motion[\\/]/, priority: 90 },
+            { name: 'vendor-charts', test: /node_modules[\\/]recharts[\\/]/, priority: 90 },
+          ],
         },
       },
     },
