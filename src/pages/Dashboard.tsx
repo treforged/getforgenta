@@ -18,7 +18,8 @@ import { categorizeExpenses, getDebtPaymentsByCard } from '@/lib/expense-filteri
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
 import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, type AccountRow } from '@/hooks/useSupabaseData';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
-import { generateScheduledEvents, getUpcomingEvents, formatDateShort } from '@/lib/scheduling';
+import { generateScheduledEvents, getUpcomingEvents, formatDateShort, type ScheduledEvent } from '@/lib/scheduling';
+import { toScheduledObligations } from '@/lib/upcoming-obligations';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
 import {
@@ -41,9 +42,9 @@ import {
   getPaychecksInMonth,
 } from '@/lib/pay-schedule';
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
-import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
+import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
 import { buildNetWorthBreakdown, totalsFromBreakdown } from '@/lib/net-worth';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -536,10 +537,48 @@ export default function Dashboard() {
     return { income, expenses, cashFlow, totalDebt, totalSaved, savingsRate, carSaved, carGoal };
   }, [currentMonthTransactions, expenseBreakdown, totalDebtPayments, debts, goals, carFunds, accountMap]);
 
+  const creditCardIds = useMemo(
+    () => new Set(accounts.filter(a => a.active && a.account_type === 'credit_card').map(a => a.id)),
+    [accounts],
+  );
+
+  // Card payments due this month, read from the canonical month-0 projection every other surface
+  // uses (perCardAdjusted) rather than the legacy breakdown, so the widget agrees with
+  // /transactions and /debt. Kept separate from `debtPaymentTxns` above, which still feeds the
+  // month-end cash and savings-rate figures off the legacy engine.
+  const debtObligationTxns = useMemo(() => {
+    const m0 = cardProjection?.month0;
+    if (!m0) return [];
+    const simCards = cardProjection?.simCards ?? [];
+    return createDebtPaymentTransactions(
+      m0.perCardAdjusted.map(rec => ({
+        cardId: rec.id,
+        cardName: rec.name,
+        payment: rec.payment,
+        dueDay: simCards.find(c => c.id === rec.id)?.dueDay ?? null,
+      })),
+      fundingAccountId,
+    );
+  }, [cardProjection, fundingAccountId]);
+
+  const carLoanTxns = useMemo(() => generateCarLoanTransactions(carFunds ?? []), [carFunds]);
+  const planTxns = useMemo(() => generatePaymentPlanTransactions(paymentPlans ?? []), [paymentPlans]);
+
+  // Recurring rules alone left the upcoming/bills widgets blind to card payments, the auto loan
+  // and vehicle insurance — all three already visible on /transactions. See lib/upcoming-obligations.
   const scheduledEvents = useMemo(() => {
-    if (!rules.length) return [];
-    try { return generateScheduledEvents(rules, accounts, 1); } catch { return []; }
-  }, [rules, accounts]);
+    let ruleEvents: ScheduledEvent[] = [];
+    if (rules.length) {
+      try { ruleEvents = generateScheduledEvents(rules, accounts, 1); } catch { ruleEvents = []; }
+    }
+    return [
+      ...ruleEvents,
+      ...toScheduledObligations(debtObligationTxns, 'Card payment'),
+      ...toScheduledObligations(carLoanTxns, 'Vehicle'),
+      // Plan installments charged to a card are already covered by that card's payment above.
+      ...toScheduledObligations(planTxns, 'Payment plan', creditCardIds),
+    ].sort((a, b) => a.date.localeCompare(b.date));
+  }, [rules, accounts, debtObligationTxns, carLoanTxns, planTxns, creditCardIds]);
 
   const upcomingWeek = useMemo(() => getUpcomingEvents(scheduledEvents, 7), [scheduledEvents]);
   const upcomingMonth = useMemo(() => getUpcomingEvents(scheduledEvents, 30), [scheduledEvents]);
