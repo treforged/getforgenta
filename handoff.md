@@ -1,3 +1,118 @@
+# Handoff — 2026-08-04 09:00 — session 71 — branch `main` — ✅ **PAGE-LOAD ROOT CAUSE FOUND AND FIXED (−400 kB first paint).** ✅ Onboarding silent-write bug fixed. 3 commits, **local + unpushed**.
+
+## ⚡ START HERE (session 72)
+
+1. 🟢 **Finish the `@radix-ui` dependency cleanup — investigation is DONE, nothing has been edited yet.**
+   Facts already established this session: **27 `@radix-ui/*` packages are declared in `package.json`,
+   but a repo-wide grep (all `.ts/.tsx/.js/.jsx/.css`, excluding `node_modules`, `backups`, `dist`,
+   `graphify-out`) finds exactly TWO in use: `@radix-ui/react-tabs` and `@radix-ui/react-tooltip`.**
+   `src/components/ui/` holds only 4 files: `skeleton.tsx`, `sonner.tsx`, `tabs.tsx`, `tooltip.tsx`.
+   So ~25 direct deps are removable. **Do not remove them blindly** — first confirm nothing pulls them
+   in indirectly in a way that matters (`npm ls <pkg>`), then remove, reinstall, and run
+   `tsc` + `eslint` + suite + `npm run build`. Ask Tre before committing a 25-package removal.
+2. 🟡 Remaining backlog, unchanged: `use-mobile.tsx` dead-hook question (**needs Tre**); stale
+   `linked_rule_ids` on goals; the Sep–Dec 2026 + Jan 2027 interest band.
+3. 🟡 **New, found this session, NOT fixed:** `src/components/onboarding/OnboardingWizard.tsx:47`
+   has the same unchecked-write bug class — `supabase.from('profiles').update({ onboarding_completed: true })`
+   ignores its error, so a failed update silently makes the dashboard wizard reappear later. One line
+   to fix; left alone to keep this session's diff scoped. Mention it to Tre.
+4. 🔴 **Nothing is pushed.** 3 commits sit local. Standing rule: never auto-push.
+
+## ✅ 1. PAGE LOAD — SOLVED. The previous session's hypothesis was WRONG.
+
+`21ecd0f5 perf(build): use rolldown codeSplitting so React stops dragging recharts into first paint`
+
+**No source file imports recharts eagerly.** Session 70b was hunting for one; it does not exist.
+
+**Real root cause:** Vite 8 bundles with **rolldown**, which treats `rollupOptions.output.manualChunks`
+as a **compat shim and silently ignores it for React's CJS modules**. `manualChunks` *was* called with
+`node_modules/react/index.js` and *did* return `'vendor-react'` — verified by logging every id — yet
+react, react-dom and clsx were physically emitted **inside the `vendor-charts` chunk**, while
+`vendor-react` held only react-router. The entry chunk therefore statically imported `vendor-charts`
+just to obtain `require_react`, dragging all 412 kB of recharts into first paint on Landing and Auth.
+
+**Fix:** `vite.config.ts` now uses rolldown's native `output.codeSplitting.groups` — react/react-dom/
+scheduler/react-router at priority 100, plus a `vendor-utils` group (clsx/tailwind-merge/cva) so clsx
+does not re-anchor the entry to vendor-charts. All other vendor groups unchanged.
+
+**Result: initial payload 1456 kB → 1057 kB raw (−400 kB, ~119 kB gzip), still 23 refs.**
+`vendor-charts` no longer appears in `dist/index.html` or in the entry chunk's imports at all.
+
+**Verified:** `tsc` clean · 261/261 tests · production build green · `vite preview` smoke test of
+Landing, `/auth`, and the demo dashboard (which renders its recharts donut from the now-lazy chunk)
+with **zero console errors**.
+
+### 🔧 HOW THIS WAS DIAGNOSED — reuse this, do not guess at source imports
+
+Two techniques settled it; both are worth repeating for any "why is X in the entry" question:
+
+1. **Module-graph BFS.** A temporary vite config with a plugin that walks `getModuleInfo(id).importedIds`
+   forward from the entry. It found **no static path to recharts**, while correctly finding
+   `index.html → src/main.tsx → src/App.tsx → src/pages/Landing.tsx → framer-motion` — so the tracer
+   was sound and the source-file hypothesis was dead.
+2. **Read the unminified entry.** Build with `minify: false` and look at the literal import line. It said:
+   `import { _ as require_react, g as require_react_dom, h as clsx } from "./vendor-charts-….js";`
+   That single line is the whole answer.
+
+⚠️ **Traps encountered:**
+- `chunk.modules` in rolldown lists **reachable** modules, not **owned** ones. It reported `react/index.js`
+  as living in vendor-charts, vendor-react AND others. Useless for ownership questions — do not trust it.
+- **Vite caches builds.** A `console.log` inside `manualChunks` silently stopped printing between runs;
+  that meant a cached build, not "no ids matched".
+- `advancedChunks` works but warns it is **deprecated in favour of `codeSplitting`** — use `codeSplitting`.
+- Writing a diag build to a repo-local `dist-diag/` left a locked directory (Windows EPERM on the next
+  `emptyOutDir`). Write diagnostic builds to the scratchpad instead.
+
+⚠️ **Still true and still deliberate:** do NOT delete the `vendor-charts` group. It is correct now.
+
+**Next-biggest first-paint item is `vendor-motion` (120 kB)**, legitimately needed by `src/pages/Landing.tsx:3`.
+Deferring it needs source changes to Landing. **Tre was offered this and chose config-only for now.**
+
+## ✅ 2. ONBOARDING SILENT-WRITE BUG — FIXED
+
+`9d9acaf6 fix(onboarding): check every Supabase write so failed sections stop failing silently`
+
+All **six** writes in `src/pages/Onboarding.tsx` `handleFinish` ignored their result. supabase-js
+**returns** errors rather than throwing, so the surrounding `try/catch` never fired: a user whose
+inserts were all rejected still saw *"Your financial profile is ready!"* and still got the
+`onboarding_done` flag. **This is the mechanism that hid the `apy`/`apy_rate` bug.**
+
+**Tre chose the semantics explicitly** (do not re-litigate): the `profiles` update **throws** on error
+(idempotent, safe to retry, nothing downstream is meaningful without it); the five optional inserts
+(`budget_items`, `debts`, `accounts`, `savings_goals`, `car_funds`) each check their error, push a
+section label onto a `failed[]` array, and **continue**. If `failed.length > 0` the user gets one toast
+naming exactly which sections were not saved. Rationale: one bad section cannot discard the others, and
+a retry cannot duplicate rows that already landed.
+
+**Not done, deliberately:** no component test was added. There are **no page/component tests anywhere
+in this repo** (the suite is engine/hook only) and covering this would mean mocking the supabase client,
+AuthContext, react-router and sonner to render a ~900-line page. Verified instead via tsc + eslint +
+suite + build. Flagging so it is a conscious gap, not an oversight.
+
+## ✅ 3. GRACE DIAGNOSTIC — DELETED
+
+`e2561a84 chore(test): delete the temporary grace diagnostic`
+
+`src/lib/__tests__/grace-diagnostic.test.ts` was self-labelled *"temporary — delete before commit"*,
+had **0 `expect()` calls** (a pure `console.log` dump), and **always skipped in CI** because its
+`forecast-inputs.real.json` fixture is gitignored. The behaviour it probed has real assertion coverage:
+`credit-card-engine.cyclingShortfallInterest` (20 assertions), `manualStatementBalance` (17),
+`revolving-payoff` (7). Recoverable from git history. Suite is now **260/260 across 63 files**.
+
+## 🧭 STATE
+
+- Branch `main`, **3 commits ahead of `origin/main`**, working tree clean apart from this handoff.
+- Suite **260/260**, `tsc --noEmit` clean, `eslint` clean on touched files, `npm run build` green.
+- Files changed this session: `vite.config.ts`, `src/pages/Onboarding.tsx`,
+  deleted `src/lib/__tests__/grace-diagnostic.test.ts`.
+- Backups: `backups/2026-08-04_004851/vite.config.ts`,
+  `backups/2026-08-04_085403/src/pages/Onboarding.tsx`,
+  `backups/2026-08-04_085633/src/lib/__tests__/grace-diagnostic.test.ts`.
+- **Zero Supabase writes, zero cron changes, zero edge-function changes, zero dependency changes, no push.**
+- Temporary diag configs (`vite.config.diag.mts`, `vite.config.readable.mts`) were deleted; the repo is clean.
+
+---
+
 # Handoff — 2026-08-04 (session 70b) — ✅ **PUSHED + CI GREEN + snapshot fix LIVE-VERIFIED.** 🔬 **Page-load investigation IN PROGRESS — one diagnostic away from the answer.**
 
 ## ⚡ START HERE (session 71)
