@@ -2,13 +2,10 @@
 
 ## ⚡ START HERE (session 71)
 
-1. 🔴 **The net-worth fix needs ONE live verification I could not do.** The write path only runs
-   for a real logged-in user, so demo mode can't exercise it. **Next time Tre opens `/accounts`
-   while signed in, a snapshot should be written.** Confirm with:
-   `select user_id, snapshot_date, net_worth, created_at from net_worth_snapshots order by created_at desc limit 5;`
-   Baseline before the fix: **61 rows, newest `created_at` = 2026-05-22 19:38:47+00.** A new row
-   with today's date = fixed. No new row after he visits Accounts = reopen the investigation.
-2. 🟡 `883339bc` is **local and unpushed** — Tre has not been asked to push it.
+1. 🔴 **PUSH `883339bc`.** The fix is **LIVE-VERIFIED locally** (see below) but is **local and
+   unpushed**, so **production is still not recording snapshots.** Tre has been told; he has not
+   yet said push. Nothing else blocks it.
+2. ✅ ~~net-worth fix needs live verification~~ — **DONE 2026-08-04, see below.**
 3. 🟡 Remaining backlog unchanged: handoff 66 next-steps 4–5 (unchecked Supabase errors in
    `Onboarding.tsx`'s insert block; `use-mobile.tsx` dead-hook question **needs Tre**; the
    Sep–Dec 2026 + Jan 2027 interest band; `@radix-ui/*` vs 4 files in `src/components/ui/`;
@@ -74,8 +71,22 @@ a failed write **clears the once-per-mount latch** so a later mount retries.
 `useCardProjection.resimulateWithDebtCash`, **not a regression**).
 
 Demo smoke on `/accounts`: page renders, Net Worth History chart intact, console clean, and
-**row count stayed at 61** — the demo guard correctly persists nothing. The real-user write path is
-the open item in START HERE #1.
+**row count stayed at 61** — the demo guard correctly persists nothing.
+
+### ✅ LIVE-VERIFIED 2026-08-04 — the real-user write path works
+
+Tre signed in on the local dev server and opened `/accounts`. A row was written immediately:
+
+`2026-08-04` · assets **12487.26203874** · liabilities **16915.61** · net worth **-4428.34796126**
+· `created_at 2026-08-04 04:01:50Z` — the first snapshot since 2026-05-22.
+
+Aggregation cross-checked against the `accounts` table **to the penny**: live non-CC balances =
+12487.26203874, live CC balances = 16915.61, zero manual rows. No double-counting. The
++1,173.98 → -4,428.35 swing since May is **real data** (card balances 9,123 → 16,916), not an artifact.
+
+⚠️ **First attempt looked like a failure and wasn't.** Tre signed in on **production**, which still
+runs the old code because the fix was never pushed — so no row appeared. Verify against the **local
+dev server**, or push first. Don't re-debug the recorder over this.
 
 Backup: `backups/2026-08-02_165833/` (App.tsx, Accounts.tsx, NetWorth.tsx).
 
