@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Json, Tables } from '@/integrations/supabase/types';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { usePersistedState } from '@/hooks/usePersistedState';
+import { useIsViewportBelow } from '@/hooks/use-mobile';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
@@ -275,16 +276,17 @@ function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
     () => buildSavingsGrowthData(goals.map(toGrowthGoal)),
     [goals],
   );
+  const isMobile = useIsViewportBelow(640);
   // 60 monthly points is far too many labels and dots to draw: thin the axis to
   // roughly one tick a year (one every other year on a phone) and drop the dots.
-  const tickInterval = Math.max(0, Math.ceil(chartData.length / (window.innerWidth < 640 ? 5 : 10)) - 1);
+  const tickInterval = Math.max(0, Math.ceil(chartData.length / (isMobile ? 5 : 10)) - 1);
 
   if (goals.length === 0) return null;
   return (
     <div className="card-forged p-4 sm:p-5 overflow-hidden w-full">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Savings Growth Projection</h3>
       <p className="text-[10px] text-muted-foreground mb-3 sm:mb-5">Next 5 years — includes interest, planned contributions, and future start dates</p>
-      <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 200 : 260}>
+      <ResponsiveContainer width="100%" height={isMobile ? 200 : 260}>
         <LineChart data={chartData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
           <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)', textAnchor: 'end' }} angle={-45} height={50} axisLine={false} tickLine={false} interval={tickInterval} />

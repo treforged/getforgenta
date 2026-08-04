@@ -5,6 +5,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
+import { useIsViewportBelow } from '@/hooks/use-mobile';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions, usePaymentPlans } from '@/hooks/useSupabaseData';
 import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
@@ -279,7 +280,7 @@ export default function Forecast() {
 
   const gridStroke = 'hsl(0, 0%, 18%)';
   const tickStyle = { fontSize: 10, fill: 'hsl(240, 4%, 50%)' };
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
+  const isMobile = useIsViewportBelow(640);
   const xInterval = filterYear === 'all' ? (isMobile ? 5 : 4) : (isMobile ? 2 : 1);
 
   // Helper to check visibility — a series is visible if NOT in hiddenSeries
@@ -846,7 +847,7 @@ export default function Forecast() {
               </div>
               {freePreview && <span className="text-[9px] text-muted-foreground">Showing 12 of 60 months</span>}
             </div>
-            <ResponsiveContainer width="100%" height={window.innerWidth < 640 ? 220 : 260}>
+            <ResponsiveContainer width="100%" height={isMobile ? 220 : 260}>
               {chartMode === 'combo' ? (
                 <ComposedChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                   <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />

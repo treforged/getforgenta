@@ -56,7 +56,7 @@ interface PhaseBlockProps {
   phaseIndex: number;
   items: CarBuildItem[];
   allPhases: CarBuildPhase[];
-  isMobile: boolean;
+  isTouch: boolean;
   isFirst: boolean;
   isLast: boolean;
   isDragging: boolean;
@@ -95,7 +95,7 @@ interface PhaseBlockProps {
 }
 
 export default function PhaseBlock({
-  phase, phaseIndex, items, allPhases, isMobile,
+  phase, phaseIndex, items, allPhases, isTouch,
   isFirst, isLast, isDragging, isDragOver, dragItemId, dragOverItemId, itemDropBelow,
   onUpdatePhase, onDeletePhase, onAddItem, onUpdateItem, onDeleteItem, onToggleItem,
   onMovePhase, onMoveItemArrow,
@@ -288,10 +288,10 @@ export default function PhaseBlock({
         isDragging && 'opacity-40',
         isDragOver && 'border-[#c8a84b] shadow-[0_0_0_1px_#c8a84b]',
       )}
-      onDragOver={e => !isMobile && onPhaseDragOver(e, phase.id)}
-      onDrop={e => !isMobile && onPhaseDrop(e, phase.id)}
+      onDragOver={e => !isTouch && onPhaseDragOver(e, phase.id)}
+      onDrop={e => !isTouch && onPhaseDrop(e, phase.id)}
       onDragEnter={e => {
-        if (!isMobile && dragItemId && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
+        if (!isTouch && dragItemId && !e.currentTarget.contains(e.relatedTarget as Node | null)) {
           onItemDragEnterPhase(phase.id);
         }
       }}
@@ -301,7 +301,7 @@ export default function PhaseBlock({
         className="flex items-center gap-3 px-4 py-3 bg-card cursor-pointer hover:bg-card/80 select-none"
         onClick={() => onSetExpanded(!isExpanded)}
       >
-        {!isMobile ? (
+        {!isTouch ? (
           <div
             draggable
             onDragStart={e => onPhaseDragStart(e, phase.id)}
@@ -376,7 +376,7 @@ export default function PhaseBlock({
       {isExpanded && (
         <div className="border-t border-border">
           {items.map((item, ii) => {
-            const isItemTarget = dragOverItemId === item.id && !isMobile;
+            const isItemTarget = dragOverItemId === item.id && !isTouch;
             const linkedTx = transactions.find(t => t.car_build_item_id === item.id);
             const linkedPlan = item.payment_plan_id ? paymentPlans.find(p => p.id === item.payment_plan_id) : null;
             return (
@@ -392,10 +392,10 @@ export default function PhaseBlock({
                     item.completed && 'opacity-50',
                     dragItemId === item.id && 'opacity-40',
                   )}
-                  onDragOver={e => !isMobile && onItemDragOver(e, item.id, phase.id)}
-                  onDrop={e => !isMobile && onItemDrop(e, item.id, phase.id)}
+                  onDragOver={e => !isTouch && onItemDragOver(e, item.id, phase.id)}
+                  onDrop={e => !isTouch && onItemDrop(e, item.id, phase.id)}
                 >
-                  {!isMobile ? (
+                  {!isTouch ? (
                     <div draggable onDragStart={e => onItemDragStart(e, item.id)} onDragEnd={onItemDragEnd} onClick={e => e.stopPropagation()} className="cursor-grab text-muted-foreground opacity-30 hover:opacity-70 shrink-0" title="Drag to reorder">
                       <GripVertical size={14} />
                     </div>
@@ -714,7 +714,7 @@ export default function PhaseBlock({
           })}
 
           {/* Bottom drop zone */}
-          {!isMobile && dragItemId && (
+          {!isTouch && dragItemId && (
             <div
               className="h-4 w-full"
               onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOverBottom(true); }}

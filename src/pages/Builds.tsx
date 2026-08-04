@@ -5,6 +5,7 @@ import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useIsTouch } from '@/hooks/use-mobile';
 import { useCarBuilds, useCarBuildPhases, useCarBuildItems, usePaymentPlans, useTransactions, useAccounts } from '@/hooks/useSupabaseData';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
 import BuildHeader from '@/components/builds/BuildHeader';
@@ -17,23 +18,11 @@ import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
 
 const SHARE_BASE = 'https://getforgenta.com';
 
-function useIsMobile() {
-  const [mobile, setMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(hover: none)');
-    const handler = (e: MediaQueryListEvent) => setMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  return mobile;
-}
-
 export default function Builds() {
   const { user } = useAuth();
   const { isPremium } = useSubscription();
-  const isMobile = useIsMobile();
+  // Drag-and-drop needs a hover-capable pointer, not a narrow viewport.
+  const isTouch = useIsTouch();
 
   const { data: builds, loading: buildsLoading, add: addBuild, update: updateBuild, remove: removeBuild } = useCarBuilds();
 
@@ -722,7 +711,7 @@ export default function Builds() {
           ) : (
             <>
               {displayPhases.map((ph, i) => {
-                const isPhaseTarget = dragOverPhaseId === ph.id && !isMobile;
+                const isPhaseTarget = dragOverPhaseId === ph.id && !isTouch;
                 return (
                   <Fragment key={ph.id}>
                     {isPhaseTarget && !phaseDropBelow && (
@@ -733,7 +722,7 @@ export default function Builds() {
                       phaseIndex={i}
                       items={itemsByPhase[ph.id] ?? []}
                       allPhases={displayPhases}
-                      isMobile={isMobile}
+                      isTouch={isTouch}
                       isFirst={i === 0}
                       isLast={i === displayPhases.length - 1}
                       isDragging={draggingPhaseId === ph.id}
