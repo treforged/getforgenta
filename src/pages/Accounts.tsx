@@ -4,7 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
-import { useAccounts, useDebts, useAccountReconciliations, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
+import { useAccounts, useAssets, useDebts, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
+import { aggregateNetWorth, LIABILITY_ACCOUNT_TYPES } from '@/lib/net-worth';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import type { Tables } from '@/integrations/supabase/types';
 import { useDemo } from '@/contexts/DemoContext';
@@ -68,7 +69,8 @@ const ACCOUNT_TYPES = [
 ];
 
 const ASSET_TYPES = ['checking', 'savings', 'high_yield_savings', 'hsa', 'business_checking', 'brokerage', 'roth_ira', '401k', 'cash', 'other_asset'];
-const LIABILITY_TYPES = ['credit_card', 'mortgage', 'student_loan', 'auto_loan', 'other_liability'];
+// Filters and form fields key off the same liability set the net-worth rollup uses.
+const LIABILITY_TYPES: readonly string[] = LIABILITY_ACCOUNT_TYPES;
 const LOAN_TYPES = ['mortgage', 'student_loan', 'auto_loan', 'other_liability'];
 const LIQUID_TYPES = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'];
 const INVESTMENT_TYPES = ['brokerage'];
@@ -131,6 +133,8 @@ export default function Accounts() {
   const { isPremium } = useSubscription();
   const { data: accounts, add, update, remove, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
+  const { data: manualAssets } = useAssets();
+  const { data: manualLiabilities } = useLiabilities();
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const { data: snapshots, loading: snapshotsLoading } = useNetWorthSnapshots();
@@ -266,11 +270,10 @@ export default function Accounts() {
     const investments = active.filter(a => INVESTMENT_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
     const retirement = active.filter(a => RETIREMENT_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
     const ccDebt = active.filter(a => a.account_type === 'credit_card').reduce((s, a) => s + Number(a.balance), 0);
-    const totalLiabilities = active.filter(a => LIABILITY_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
-    const totalAssets = active.filter(a => ASSET_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
-    const netWorth = totalAssets - totalLiabilities;
+    // Same rollup as the Dashboard tile and the recorded snapshot, manual rows included.
+    const { totalAssets, totalLiabilities, netWorth } = aggregateNetWorth(active, manualAssets, manualLiabilities);
     return { liquidCash, investments, retirement, ccDebt, totalLiabilities, totalAssets, netWorth };
-  }, [activeAccounts]);
+  }, [activeAccounts, manualAssets, manualLiabilities]);
 
   const netWorthTrend = useMemo(() => {
     if (snapshots.length === 0) {

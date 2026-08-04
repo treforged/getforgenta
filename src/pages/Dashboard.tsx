@@ -44,6 +44,7 @@ import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, type Mon
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
+import { buildNetWorthBreakdown, totalsFromBreakdown } from '@/lib/net-worth';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
   Line, CartesianGrid, ComposedChart,
@@ -126,15 +127,6 @@ interface DashboardGoalEntry {
   target_amount: number;
   isCar?: boolean;
 }
-
-const ACCOUNT_TYPE_TO_GROUP: Record<string, string> = {
-  checking: 'Checking', savings: 'Savings', high_yield_savings: 'Savings',
-  business_checking: 'Checking', cash: 'Cash', brokerage: 'Brokerage',
-  '401k': 'Retirement', roth_ira: 'Retirement', ira: 'Retirement',
-  hsa: 'Retirement', credit_card: 'Credit Card',
-  mortgage: 'Mortgage', student_loan: 'Student Loan', auto_loan: 'Auto Loan',
-  other_liability: 'Other Liability', other_asset: 'Other Asset',
-};
 
 function CalcDrawer({
   open,
@@ -477,52 +469,26 @@ export default function Dashboard() {
     [baseTxns, debtPaymentTxns],
   );
 
-  const accountSummary = useMemo(() => {
-    if (!accounts.length) {
-      return { liquidCash: 0, totalAssets: 0, totalLiabilities: 0, netWorth: 0, ccDebt: 0, ccLimit: 0 };
-    }
+  // One rollup drives both the NET WORTH tile and the breakdown lists below it,
+  // so the itemised rows always sum to the headline number. See lib/net-worth.ts.
+  const netWorthBreakdown = useMemo(
+    () => buildNetWorthBreakdown(accounts, manualAssets, manualLiabilities),
+    [accounts, manualAssets, manualLiabilities],
+  );
 
+  const accountSummary = useMemo(() => {
     const active = accounts.filter(a => a.active);
     const liquidTypes = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'];
-    const investTypes = ['brokerage'];
-    const retireTypes = ['roth_ira', '401k'];
-    const liabilityTypes = ['credit_card', 'student_loan', 'auto_loan', 'other_liability'];
-    const assetTypes = [...liquidTypes, ...investTypes, ...retireTypes, 'other_asset'];
 
     const liquidCash = active.filter(a => liquidTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance || 0), 0);
-    const totalAssets = active.filter(a => assetTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance || 0), 0);
-    const totalLiabilities = active.filter(a => liabilityTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance || 0), 0);
     const ccDebt = active.filter(a => a.account_type === 'credit_card').reduce((s, a) => s + Number(a.balance || 0), 0);
     const ccLimit = active.filter(a => a.account_type === 'credit_card' && a.credit_limit).reduce((s, a) => s + Number(a.credit_limit || 0), 0);
 
-    return { liquidCash, totalAssets, totalLiabilities, netWorth: totalAssets - totalLiabilities, ccDebt, ccLimit };
-  }, [accounts]);
+    return { liquidCash, ...totalsFromBreakdown(netWorthBreakdown), ccDebt, ccLimit };
+  }, [accounts, netWorthBreakdown]);
 
-  const liveAssetsForBreakdown = useMemo(() => {
-    const assetAccountTypes = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa', 'other_asset'];
-    return accounts
-      .filter(a => a.active && assetAccountTypes.includes(a.account_type))
-      .map(a => ({ id: `live:${a.id}`, name: a.name, type: ACCOUNT_TYPE_TO_GROUP[a.account_type] || 'Other', value: Number(a.balance), isLive: true }));
-  }, [accounts]);
-
-  const liveLiabilitiesForBreakdown = useMemo(() => {
-    const liabilityAccountTypes = ['credit_card', 'mortgage', 'student_loan', 'auto_loan', 'other_liability'];
-    return accounts
-      .filter(a => a.active && liabilityAccountTypes.includes(a.account_type))
-      .map(a => ({ id: `live:${a.id}`, name: a.name, type: ACCOUNT_TYPE_TO_GROUP[a.account_type] || 'Other Liability', balance: Number(a.balance), isLive: true }));
-  }, [accounts]);
-
-  const allAssetsForBreakdown = useMemo(() => {
-    const liveNames = new Set(liveAssetsForBreakdown.map(a => a.name.toLowerCase()));
-    const manual = manualAssets.filter(a => !liveNames.has(a.name.toLowerCase())).map(a => ({ ...a, isLive: false }));
-    return [...liveAssetsForBreakdown, ...manual];
-  }, [liveAssetsForBreakdown, manualAssets]);
-
-  const allLiabilitiesForBreakdown = useMemo(() => {
-    const liveNames = new Set(liveLiabilitiesForBreakdown.map(l => l.name.toLowerCase()));
-    const manual = manualLiabilities.filter(l => !liveNames.has(l.name.toLowerCase())).map(l => ({ ...l, isLive: false }));
-    return [...liveLiabilitiesForBreakdown, ...manual];
-  }, [liveLiabilitiesForBreakdown, manualLiabilities]);
+  const allAssetsForBreakdown = netWorthBreakdown.assets;
+  const allLiabilitiesForBreakdown = netWorthBreakdown.liabilities;
 
   const now = new Date();
   const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;

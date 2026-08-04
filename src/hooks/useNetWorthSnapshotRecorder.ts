@@ -2,11 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useAccounts, useAssets, useLiabilities, useNetWorthSnapshots } from '@/hooks/useSupabaseData';
-import {
-  aggregateNetWorth,
-  hasRecordableData,
-  shouldRecordSnapshot,
-} from '@/lib/net-worth-snapshot';
+import { aggregateNetWorth } from '@/lib/net-worth';
+import { hasRecordableData, shouldRecordSnapshot } from '@/lib/net-worth-snapshot';
 
 /**
  * Records a net-worth snapshot at most once every seven days.
