@@ -1,91 +1,73 @@
-# Handoff — 2026-08-04 — session 74 — branch `main` — fixing the site-walk findings
+# Handoff — 2026-08-04 — session 75 — branch `main` — fixing the site-walk findings
 
-Session 73 walked the whole site and wrote `site-walk-findings.md` (repo root, now committed).
-This session started fixing. **Read `site-walk-findings.md` in full before touching anything.**
+Continues session 74. `site-walk-findings.md` (repo root, committed) is still the source list.
+**Read it before touching anything.**
 
 ## 0. GOAL
 
-Tre: "continue working all issues. and fix demo findings." Explicit constraint from session 73:
-**do not delete his account.**
+Tre: "continue working all issues. and fix demo findings." Standing constraint: **do not delete
+his account.** Nothing is pushed — 4 local commits ahead of origin now.
 
-## 1. DONE THIS SESSION (2 commits, both local, NOT pushed)
+## 1. DONE THIS SESSION (2 commits, local, NOT pushed)
 
-### ✅ `014d5a10` — Tre's reported bug, root-caused and fixed
-His report: "the debt payment on the transactions tab for my discover card does not match the
-payment that was on 8/1" (Discover: $3,382 recommended vs −$4,005 in the ledger).
+### ✅ `9a212129` — net worth omitted loans (findings §1.3) — CLOSED for the unambiguous half
 
-**Root cause was NOT stale/persisted snapshots** (session 73's hypothesis) and **not Plaid.**
-Nothing is persisted. `src/pages/Transactions.tsx` ran its **own** 1-month `simulateVariablePayoff`
-with different inputs from the canonical projection every other surface reads:
-- raw `profile.cash_floor` instead of the augmented floor
-- hardcoded `'avalanche'` (ignores `tre:debt:strategy`)
-- funding-account balance, no overrides / vehicle / goal / plan / convergence inputs
+Four surfaces computed net worth four different ways. New **`src/lib/net-worth.ts`** owns the one
+definition; Dashboard, Accounts and the snapshot recorder all call it.
 
-Dashboard, Debt Payoff, Forecast, and the PDF export all read
-`cardProjection.month0.perCardAdjusted`. Transactions now does too, via
-`useCardProjectionContext()` + the existing shared `createDebtPaymentTransactions` helper.
-Minimum-payment cards matched all along because a min payment is invariant to the surplus — that
-is why the bug looked card-specific. Deleted ~80 lines of duplicated sim.
+- liability iff type ∈ `LIABILITY_ACCOUNT_TYPES` (cc, mortgage, student_loan, auto_loan,
+  other_liability); every other active account is an asset (keeps the old "everything else is an
+  asset" behaviour so an unmapped type is never dropped); manual rows added unless a live account
+  on the same side already has that name.
+- `buildNetWorthBreakdown` itemises the rows and `totalsFromBreakdown` reduces **those same rows**,
+  so the Dashboard tile can no longer drift from the breakdown list under it.
+- `net-worth-snapshot.ts` is now cadence-only; aggregation tests moved to
+  `src/__tests__/net-worth.test.ts` (+ loan/mortgage/breakdown coverage).
+- Side corrections: tile gains `mortgage`, `ira`, `hsa` and manual rows; Accounts gains `ira` and
+  manual rows; `Accounts.LIABILITY_TYPES` (filters + form fields) now derives from the shared const.
 
-### ✅ `617fe749` — ordinal suffixes (findings §4.1)
-New `src/lib/ordinal.ts` (`ordinal` / `ordinalSuffix`, 11–13 exception) + a test covering all 31
-days. Replaced **six** call sites (findings said five; `CreditCardEngine.tsx:1517` was a sixth):
-DebtRecommendationsWidget, CreditCardEngine ×4, Accounts subtitle, Forecast obligations list.
-Kills the live `Due 1th` on Tre's Discover card and `Due 22th` / `due 2th` elsewhere.
+⚠️ **Recorded snapshot history was written under the credit-card-only rule.** Any user with a loan
+account gets a step change in the Net Worth History chart where the rules meet. Old rows left as
+recorded — this is called out in the commit message.
 
-Also **retracted findings §3.6** in `site-walk-findings.md` (payment-plan counter was NOT off by
-one — the card shows installments *paid*, the transaction shows *which* installment).
+### ✅ `b9a5050a` — "UPCOMING THIS WEEK" understated ~25× (old handoff §4)
 
-**Verification:** `npx tsc --noEmit` clean, `npx eslint` clean on every touched file,
-`npm test` **273/273 green** (65 files) after both commits.
+Widgets read `generateScheduledEvents(rules, …)` alone. New **`src/lib/upcoming-obligations.ts`**
+(`toScheduledObligations`) adapts the rows /transactions already builds:
+card payments from `cardProjection.month0.perCardAdjusted` (canonical, **not** the legacy
+`getMonthlyDebtBreakdown`), vehicle loan + insurance from `generateCarLoanTransactions`, plan
+installments from `generatePaymentPlanTransactions` minus card-charged ones. Events sorted by date.
 
-## 2. 🔴 IN PROGRESS — net worth omits loans (findings §1.3). Investigation done, NO code written.
+**Verification for both:** `npx tsc --noEmit` clean, `npx eslint` clean on every touched file,
+`npm test` **283/283 green** (67 files).
 
-Dashboard `NET WORTH −$4,428` = assets − credit cards only. Tre's `2004 Chevorlet C5` 29-month
-auto loan (~$12k, `-$423`/mo in the ledger) is absent. Demo is worse: reports $11,900 vs −$22,600.
+## 2. 🔴 ASK TRE FIRST — two blocked decisions, do not guess (CLAUDE.md AMBIGUITY RULE)
 
-**Three separate net-worth definitions are live — this is the same duplicate-source disease as §1:**
-
-| # | Where | Liabilities counted |
-|---|---|---|
-| A | `src/lib/net-worth-snapshot.ts:69-70` `aggregateNetWorth` (drives the **snapshot history chart**) | **only `credit_card`** — so an `auto_loan` / `student_loan` account is counted as an **ASSET** |
-| B | `src/pages/Dashboard.tsx:489` `accountSummary` (drives the **NET WORTH tile** + `useWidgetSync`) | cc + student_loan + auto_loan + other_liability, **accounts only, no manual rows** |
-| C | `src/pages/Dashboard.tsx:509` `liveLiabilitiesForBreakdown` (drives the **breakdown list**) | B + `mortgage` + merged `manualLiabilities` |
-
-So the breakdown list (C) shows liabilities that the tile above it (B) never subtracts, and the
-history chart (A) treats loan accounts as assets. Accounts.tsx has its own copy of B too — check it.
-
-**Unambiguous fixes** (do these): one shared rollup, used by tile + breakdown + snapshot, with the
-full liability type set and manual rows included.
-⚠️ Memory `project_net_worth_snapshots` warns not to simplify to Accounts' live-only totals, and
-`net-worth-snapshot.ts`'s header says its math is a verbatim port — **adding** loan types and
-manual rows is a correction, but it WILL step-change the recorded history. Say so in the commit.
-
-**AMBIGUOUS — ask Tre, do not guess:** Tre's Chevy loan lives in `car_funds` (fields `loan_amount`,
-`loan_term_months`, `loan_start_date`, `actual_monthly_payment`, `phase`), **not** in `accounts` or
-`liabilities`. There is no stored outstanding balance — it would have to be amortized from
-loan_amount/APR/start date. Question: should an active `car_funds` loan appear as a liability in
-net worth (amortized remaining balance), or does he track it manually in `liabilities`?
+1. **`car_funds` loan in net worth?** Tre's Chevy loan lives in `car_funds` (`loan_amount`,
+   `loan_term_months`, `loan_start_date`, `actual_monthly_payment`, `phase`), **not** in `accounts`
+   or `liabilities`, and stores no outstanding balance — it would have to be amortized from
+   loan_amount/APR/start date. Should an active `car_funds` loan appear as a liability (amortized
+   remaining balance), or does he track it manually in `liabilities`? Until answered, net worth
+   still omits it unless he has a matching `auto_loan` account or manual row.
+2. **Migrating the legacy debt engine will move displayed numbers.** See §3.1 below.
 
 ## 3. NEXT STEPS (in order)
 
-1. Finish §2 above: unambiguous rollup unification first; ask Tre the `car_funds` question.
-2. Findings §4 in the old handoff — "UPCOMING THIS WEEK" understates ~25× ($65 shown vs $1,669
-   actual: omits debt payments, auto-loan payments, insurance). Dashboard.
-3. **Same root cause as §1, still unfixed:** `getMonthlyDebtBreakdown` is a *second* legacy debt
-   engine still driving `Dashboard.tsx:457-478` (its internal ledger → month-end cash, savings
-   rate), `BudgetControl.tsx:544`, and `SavingsGoals.tsx:375`. Only the *widget* was migrated to
-   `perCardAdjusted`. Migrating these three is likely the real fix for findings §2.2 (Budget's
-   "matches Debt tab Safe to Pay" invariant) and part of §2.4. **It will move displayed numbers on
-   Dashboard/Budget — flag that to Tre before doing it.**
-4. Findings §2.6 / §2.4 / §2.3 (budget snapshot rows don't sum; three expense definitions; five
-   cash-floor values) need a **product decision from Tre** — which definition is canonical. The
-   CLAUDE.md AMBIGUITY RULE applies. Ask, don't pick.
-5. Finish the real-data walk: **Budget, Debt, Forecast, Goals, Vehicles, Settings never visited
+1. **Same root cause as §1, still unfixed:** `getMonthlyDebtBreakdown` is a *second* legacy debt
+   engine still driving `Dashboard.tsx:449-470` (its ledger → month-end cash, savings rate),
+   `BudgetControl.tsx:544`, `SavingsGoals.tsx:375`. Only the widget and (this session) the upcoming
+   widget read `perCardAdjusted`. Migrating these three is likely the real fix for findings §2.2
+   (Budget's "matches Debt tab Safe to Pay" invariant) and part of §2.4. **It moves numbers on
+   Dashboard/Budget — flag to Tre before doing it.**
+2. Findings §2.6 / §2.4 / §2.3 (budget snapshot rows don't sum; three expense definitions; five
+   cash-floor values) need a **product decision** on which definition is canonical. Ask, don't pick.
+3. Finish the real-data walk: **Budget, Debt, Forecast, Goals, Vehicles, Settings never visited
    while signed in.** Re-verify findings §1.1 (Dashboard +$1,655 vs Forecast −$3,300) on real data.
-6. Mobile/Capacitor viewport pass — not started.
+4. Eyeball the two fixes live once signed in: `/dashboard` NET WORTH tile vs its breakdown list vs
+   `/accounts`, and "Upcoming This Week" vs `/transactions` for the same days.
+5. Mobile/Capacitor viewport pass — not started.
 
-## 4. CARRIED FORWARD, UNRESOLVED (from sessions 72–73)
+## 4. CARRIED FORWARD, UNRESOLVED (from sessions 72–74)
 
 1. **GA4 health UNKNOWN.** Session 27's "LaunchDarkly breaks GA4" is probably a DNT=1 artifact.
    Retest with Do-Not-Track OFF; confirm `VITE_GA_MEASUREMENT_ID` is set in Vercel prod.
@@ -111,10 +93,10 @@ never runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFire
 
 ## 6. FILES
 
-- **Committed this session:** `src/pages/Transactions.tsx`, `src/lib/ordinal.ts` (new),
-  `src/lib/__tests__/ordinal.test.ts` (new), `src/components/dashboard/DebtRecommendationsWidget.tsx`,
-  `src/components/debt/CreditCardEngine.tsx`, `src/pages/Accounts.tsx`, `src/pages/Forecast.tsx`,
-  `site-walk-findings.md`.
-- **Backups:** `backups/2026-08-04_165658/` (all five source files, pre-edit).
-- **Not pushed.** Nothing verified in the live browser yet — the Transactions fix should be
-  eyeballed on `/transactions` against `/debt` once Tre is signed in.
+- **New this session:** `src/lib/net-worth.ts`, `src/lib/upcoming-obligations.ts`,
+  `src/__tests__/net-worth.test.ts`, `src/__tests__/upcoming-obligations.test.ts`.
+- **Modified:** `src/pages/Dashboard.tsx`, `src/pages/Accounts.tsx`,
+  `src/lib/net-worth-snapshot.ts`, `src/hooks/useNetWorthSnapshotRecorder.ts`,
+  `src/__tests__/net-worth-snapshot.test.ts`.
+- **Backups:** `backups/2026-08-04_173605/` (pre-edit originals).
+- **Not pushed.** Nothing verified in the live browser yet.
