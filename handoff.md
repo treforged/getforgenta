@@ -1,3 +1,97 @@
+# Handoff — 2026-08-04 11:00 — session 72 — branch `main` — ✅ **Radix cleanup DONE (−98 kB more off first paint).** ✅ Wizard silent-write fixed. ✅ Mobile-detection consolidated + first hook tests for it. **7 commits local, unpushed.**
+
+## ⚡ START HERE (session 73)
+
+1. 🔴 **Nothing is pushed. 7 commits sit local** (`cb6c0af2`, `2ae24275`, `d3e5a6b3` from this
+   session, plus the 4 from session 71). Standing rule: never auto-push. Ask Tre.
+2. 🟡 Remaining backlog: stale `linked_rule_ids` on goals; the Sep–Dec 2026 + Jan 2027 interest band.
+   Both untouched and unchanged.
+3. 🟡 **Next first-paint win is `vendor-motion` (123 kB)**, needed by `src/pages/Landing.tsx:3`.
+   Deferring it needs a source change to Landing. **Tre was offered this in session 71 and chose
+   config-only.** Re-offer only if he raises page speed again.
+4. 🟢 Possible follow-on, NOT investigated: `cmdk` is now the only reason `@radix-ui/react-dialog`
+   is installed at all. Worth checking whether `cmdk` itself is dead too — if it is, another
+   dependency subtree drops. Cheap to check, do not assume.
+
+## ✅ 1. RADIX CLEANUP — DONE (`cb6c0af2`)
+
+`package.json` declared **27** `@radix-ui/*` packages; a repo-wide grep finds exactly **two**
+imports (`react-tabs`, `react-tooltip`). The other 25 were shadcn scaffolding never used —
+`src/components/ui/` holds only `skeleton.tsx`, `sonner.tsx`, `tabs.tsx`, `tooltip.tsx`.
+
+**Safety check before removing** (reuse this — it is the step that made removal provably safe):
+parsed `package-lock.json` for every non-root dependent of each radix package. Result: only
+`cmdk → @radix-ui/react-dialog`. npm keeps that as a transitive install, so nothing lost a
+dependency it actually needs. `npm uninstall` removed 28 packages total (radix internals shared
+between the 25 collapsed out too).
+
+**Result: first-paint payload 1057 kB → 959 kB raw, 23 → 22 chunk refs.** That is on top of the
+−400 kB from session 71's `codeSplitting` fix. Combined: **1456 kB → 959 kB.**
+
+`components.json` (shadcn config) pins nothing and needed no edit — adding a shadcn component
+later will just re-install what it needs.
+
+**Tre approved the 25-package removal explicitly before commit.**
+
+## ✅ 2. WIZARD SILENT-WRITE — FIXED (`2ae24275`)
+
+`src/components/onboarding/OnboardingWizard.tsx` `markComplete()` awaited its `profiles` update
+but ignored the result. Same bug class as `9d9acaf6`; this was the **last** instance from that audit.
+
+Now: error checked, `toast.error` on failure, wizard **stays open**. Also moved
+`sessionStorage.removeItem(WIZARD_STEP_KEY)` to *after* the write, so a retry resumes at the
+user's step instead of restarting at step 1.
+
+## ✅ 3. MOBILE DETECTION CONSOLIDATED (`d3e5a6b3`) — this was NOT just a dead-hook deletion
+
+The handoff said "`use-mobile.tsx` dead-hook question (needs Tre)". Tre's answer was
+**"do what's best. the app should be consistent."** Investigating found the real problem is bigger
+than the dead file — **there were three mobile checks and two were wrong**:
+
+| site | check | verdict |
+|---|---|---|
+| `src/hooks/use-mobile.tsx` | `useSyncExternalStore`, 768px | correct, **0 importers** |
+| `Builds.tsx` local `useIsMobile` | `(hover: none)` | **correct**, but lying in its name |
+| `Forecast.tsx:282,849` · `SavingsGoals.tsx:280,287` | raw `window.innerWidth < 640` **in a render body** | 🐛 **stale on resize/rotate** |
+
+⚠️ **The key finding: Builds' hook was never a duplicate.** `(hover: none)` is a *capability* test
+(it gates HTML5 drag-and-drop); the shared hook is a *size* test. Merging them naively would have
+been a real regression — a narrow desktop window still has a mouse and must keep drag-and-drop.
+**Do not "simplify" these back into one.** A test now blocks exactly that swap.
+
+**What shipped:** `use-mobile.tsx` exports `useIsViewportBelow(breakpoint)` (layout) and
+`useIsTouch()` (pointer), both subscribed, with `useIsMobile()` kept as the 768px default. Builds'
+local hook deleted; its `isMobile` prop through `PhaseBlock.tsx` renamed `isTouch` (11 refs).
+
+**No layout change anywhere** — the hook is parameterized, so every call site kept its exact
+breakpoint (640 on charts, 768 for `useIsMobile`). The only behavior change is that the four stale
+sites now update on resize.
+
+**New: `src/hooks/__tests__/use-mobile.test.tsx`, 8 tests** over a fake `matchMedia` — first-render
+correctness, re-render on change, breakpoint isolation, unsubscribe, and pointer-vs-width semantics.
+Uses a `// @vitest-environment jsdom` docblock because **vite.config.ts sets no global test
+environment** (default is node) — reuse that docblock for any future component/hook test.
+**Mutation-checked**: swapping `useIsTouch` to a width query fails 2 of the 8.
+
+Note this is the **first hook test of its kind here** — session 71 flagged "no page/component tests
+anywhere in this repo". `@testing-library/react` + `jsdom` were already installed and work fine.
+
+## 🧭 STATE
+
+- Branch `main`, **7 commits ahead of `origin/main`**, tree clean apart from this handoff.
+- Suite **268/268 across 64 files** (was 260/260 across 63), `tsc --noEmit` clean, `eslint` clean on
+  all touched files, `npm run build` green.
+- Files changed this session: `package.json`, `package-lock.json`,
+  `src/components/onboarding/OnboardingWizard.tsx`, `src/hooks/use-mobile.tsx`, `src/pages/Builds.tsx`,
+  `src/components/builds/PhaseBlock.tsx`, `src/pages/Forecast.tsx`, `src/pages/SavingsGoals.tsx`,
+  new `src/hooks/__tests__/use-mobile.test.tsx`.
+- Backups: `backups/2026-08-04_090336/` (package.json + lock),
+  `backups/2026-08-04_090543/` (OnboardingWizard), `backups/2026-08-04_105442/` (the 5 hook files).
+- `graphify update` run — graph is current (14770 nodes, 109341 edges).
+- **Zero Supabase writes, zero cron changes, zero edge-function changes, no push.**
+
+---
+
 # Handoff — 2026-08-04 09:00 — session 71 — branch `main` — ✅ **PAGE-LOAD ROOT CAUSE FOUND AND FIXED (−400 kB first paint).** ✅ Onboarding silent-write bug fixed. 3 commits, **local + unpushed**.
 
 ## ⚡ START HERE (session 72)
