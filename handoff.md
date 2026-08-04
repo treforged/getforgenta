@@ -1,3 +1,97 @@
+# Handoff — 2026-08-04 (session 70b) — ✅ **PUSHED + CI GREEN + snapshot fix LIVE-VERIFIED.** 🔬 **Page-load investigation IN PROGRESS — one diagnostic away from the answer.**
+
+## ⚡ START HERE (session 71)
+
+1. 🔬 **FINISH THE PAGE-LOAD DIAGNOSIS — you are one step from it.** See the section below.
+   The single confirmed win: **`vendor-charts` (412 kB raw / ~119 kB gzip) is eagerly
+   `modulepreload`ed on first paint** even though Landing and Auth show no charts. The built entry
+   chunk **statically imports it** — that is proven, not theorised. **What has NOT been found is
+   which source file creates that static path.** Do not start editing until you find it.
+2. 🟡 Then propose the fix (likely: lazy-load the chart components behind `React.lazy`, and/or
+   split the offending static import). **Get Tre's sign-off before implementing** — he asked to
+   "speed up page loading", not for a specific approach.
+3. 🟡 Backlog unchanged: `Onboarding.tsx` unchecked Supabase errors; `use-mobile.tsx` dead-hook
+   question (**needs Tre**); stale `linked_rule_ids` on goals; Sep–Dec 2026 + Jan 2027 interest
+   band; `@radix-ui/*` vs 4 files in `src/components/ui/`; delete-or-promote `grace-diagnostic.test.ts`.
+
+## ✅ PUSHED — `dfcc122c..294eddf6`, 3 commits, CI ALL GREEN
+
+Tre said "push". Android Build ✅ · iOS Build ✅ · CodeQL Actions/JS/TS ✅ · CodeQL Android ✅
+(CodeQL iOS still in_progress at handoff — it always runs ~25m, not a failure).
+**Production now records net-worth snapshots again.**
+
+## ✅ NET-WORTH FIX LIVE-VERIFIED (2026-08-04) — see the session-70 block below for full detail
+
+Row written on Tre's sign-in: `2026-08-04` · net worth **-4428.34796126** · `created_at 04:01:50Z`.
+Cross-checked against the `accounts` table **to the penny**. First snapshot since 2026-05-22.
+
+⚠️ **The first verification attempt looked like a failure and wasn't** — Tre signed in on
+**production**, which still ran the old code because the fix hadn't been pushed. Now moot (it is
+pushed), but the lesson generalises: **check what's deployed before debugging a "broken" fix.**
+
+## 📱 GOOGLE PLAY'S 2 NOTES — ASSESSED, NO CODE ACTION TAKEN (deliberate)
+
+**(1) Deprecated edge-to-edge APIs.** ✅ **Our code is already correct** — a previous session
+deliberately removed `colorPrimaryDark` (see the comment in `android/app/src/main/res/values/styles.xml`)
+and added `values-v35/styles.xml` disabling platform contrast enforcement, with `EdgeToEdge.enable()`
+owning bar appearance. **Nothing in `android/app/src/` calls the flagged APIs.** The two call sites
+Google names are **inside third-party libraries** — `com.revenuecat.purchases.paywalls.components.StackComponent`
+and `androidx.activity.k.w`. Fix = library upgrades, arriving on their schedule, not ours.
+**Do not "fix" our styles.xml in response to this warning — you would undo a correct fix.**
+
+**(2) R8 low optimization/obfuscation/shrinking (15%).** ✅ **R8 is already fully on** —
+`minifyEnabled true`, `shrinkResources true`, `proguard-android-optimize.txt`
+(`android/app/build.gradle:21-23`). The 15% rates are low because this is a **Capacitor app**: the
+payload is overwhelmingly web assets + WebView, not Java/Kotlin bytecode R8 can shrink. **The metric
+is misleading for our architecture.** Only actionable item is AGP **8.13.0 → 9.0**
+(`android/build.gradle:10`) — major upgrade, real breakage risk, near-zero payoff. Not recommended.
+
+## 🔬 PAGE LOAD — WHAT IS PROVEN SO FAR (Tre: "we do need to speed up page loading")
+
+**Initial payload ≈ 1.45 MB raw.** `dist/index.html` emits **23** `modulepreload`/script/css refs,
+i.e. the browser eagerly downloads all of this before first paint:
+
+| asset | raw | note |
+|---|---|---|
+| **vendor-charts** | **412 kB** | 🔴 **recharts — NO chart on Landing or Auth. Biggest single win.** |
+| index (entry) | 208 kB | |
+| vendor-react | 216 kB | unavoidable |
+| vendor-supabase | 204 kB | |
+| vendor-motion | 124 kB | ⚠️ **legitimate** — `Landing.tsx:3` imports framer-motion and Landing is static |
+| css | 100 kB | |
+| useSupabaseData | 48 kB | |
+| credit-card-engine / scheduling | 28 / 24 kB | app code in the entry graph |
+
+### The proven fact
+
+`dist/assets/index-*.js` (the entry chunk) contains a **static** `from"./vendor-charts-…"`.
+Verified by grepping the built entry's import statements. So recharts is in the entry graph — this
+is not a preload heuristic being over-eager.
+
+### ❌ What has NOT been found yet — this is the next step
+
+**Which source file creates the static path to recharts.** All 21 pages are `lazy()` in `App.tsx`
+except **`Landing`** and **`NotFound`** (`App.tsx:21-22`), and Landing imports no charts.
+
+**7 files import recharts** — `components/dashboard/MonthlyBudgetSnapshot.tsx`,
+`components/debt/CreditCardEngine.tsx`, and pages `Accounts` / `Dashboard` / `Forecast` /
+`SavingsGoals` / `Vehicles`. Every one *should* be behind a lazy boundary.
+
+**Already ruled out** (checked, none import charts): `DashboardLayout`, `SubscriptionContext`,
+`Analytics`, `BlackScreenDebug`, `ui/sonner`, `Landing`, and the `useCardProjection` /
+`credit-card-engine` / `scheduling` lib files (their "CreditCardEngine" hits are types/comments,
+not component imports).
+
+**Suggested next probe:** trace the *built* graph rather than guessing at source — e.g. add
+`build.rollupOptions.output.sourcemap` or use `rolldown`'s chunk metadata / a bundle visualiser to
+get the actual importer chain for `vendor-charts`, or bisect by temporarily stubbing suspects.
+Chunking config lives at **`vite.config.ts:26-33`** (`manualChunks`).
+
+⚠️ **Do not "fix" this by deleting the `vendor-charts` manualChunks rule** — that would scatter
+recharts into page chunks and hide the problem rather than remove it from the entry.
+
+---
+
 # Handoff — 2026-08-02 (session 70) — ✅ **Dependabot backlog fully CLEARED (0 open PRs).** ✅ **Found and fixed a LIVE BUG: net-worth snapshot recording had been dead since 2026-05-22** (`883339bc`, local, unpushed).
 
 ## ⚡ START HERE (session 71)
