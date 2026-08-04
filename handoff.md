@@ -1,17 +1,116 @@
-# Handoff — 2026-08-04 11:00 — session 72 — branch `main` — ✅ **Radix cleanup DONE (−98 kB more off first paint).** ✅ Wizard silent-write fixed. ✅ Mobile-detection consolidated + first hook tests for it. **7 commits local, unpushed.**
+# Handoff — 2026-08-04 12:00 — session 72 — branch `main` — ✅ **PUSHED, CI green, both stores uploaded.** 🔬 **GA4 "outage" from session 27 is probably a MEASUREMENT ARTIFACT — see §A.** 🔴 **Real finding: session replay runs with NO consent and NO DNT check.**
+
+## 🔴 A. GA4 / LAUNCHDARKLY — SESSION 27's CONCLUSION IS PROBABLY WRONG. READ BEFORE ACTING.
+
+**Do not act on the old "LaunchDarkly breaks GA4 for all users" theory without re-testing.** This
+session checked production live and found a simpler explanation for the symptom.
+
+### What was measured live on `https://getforgenta.com` (2026-08-04, Tre's Chrome)
+
+| fact | value |
+|---|---|
+| `navigator.doNotTrack` | **`"1"`** ← **this is the whole story** |
+| `window.gtag` | `undefined` |
+| `window.dataLayer` | `undefined` (not empty — **absent**) |
+| `<script src=googletagmanager>` | **never injected**; only scripts on the page are same-origin |
+| stored consent | `{analytics: true, marketing: true}` from 2026-04-27 |
+| `LDRecord`, `LDObserve` globals | **present — LD session replay IS running** |
+| natives patched by LD | **all 5**: `fetch`, `addEventListener`, `XHR.open`, `console.log`, `pushState` |
+
+**Root cause of the symptom: `src/lib/analytics.ts:52` — `initGA()` early-returns on
+`hasTrackingOptOutSignal()`, and this browser sends DNT=1.** GA is *working exactly as designed*.
+It is not broken; it is deliberately honoring a Do-Not-Track signal.
+
+⚠️ **This is why session 27's "zero client_id, zero /collect **FOR ALL USERS**" is suspect.** That
+conclusion was very likely measured in this same DNT-enabled browser and then generalized. The
+"gtag stalls during bootstrap because LD patched `addEventListener`" mechanism **cannot be what is
+happening here** — gtag's script tag is never even inserted, so there is nothing to stall. The
+failure is upstream of gtag entirely, inside our own early-return.
+
+**This is the second time a confident prior hypothesis was wrong** (session 71 killed the
+"some source file imports recharts" theory the same way). Measure before believing the handoff.
+
+### ⏭️ What session 73 must do to actually settle it
+
+**GA4's real health is still UNKNOWN.** Test in a browser with **DNT off** (fresh Chrome profile,
+Settings → Privacy → "Send a Do Not Track request" OFF; Brave/Firefox send it by default too):
+1. Load `getforgenta.com`, accept analytics consent.
+2. Check `typeof window.gtag` (want `"function"`) and that a
+   `googletagmanager.com/gtag/js?id=…` request fires.
+3. Only if gtag loads but no `/collect` hits fire is the LaunchDarkly-patching theory back on.
+4. Cross-check GA4 Realtime while doing it.
+
+Also confirm `VITE_GA_MEASUREMENT_ID` is actually set in the Vercel production env — a missing ID
+is the *other* silent early-return (`analytics.ts:51`) and looks identical from outside.
+
+### 🔴 B. THE REAL, INDEPENDENT FINDING — session replay has no privacy gate
+
+`src/main.tsx:7` calls `initMonitoring()` **unconditionally at boot**, before any consent exists.
+`src/lib/monitoring.ts` then starts `@launchdarkly/observability` + `@launchdarkly/session-replay`
+with `networkRecording: { enabled: true }`, gated on **nothing but** `VITE_LD_CLIENT_ID` and
+"not native". Separately `src/contexts/AuthContext.tsx:205` calls `identifyMonitoringUser(id, email)`,
+sending the user's **email** to it.
+
+**The inconsistency is the point:** `initGA()` carefully honors stored consent *and* GPC *and* DNT
+(`analytics.ts:33-52`). Session replay — which records the user's screen and network traffic on a
+**financial** app — honors **none of them**. Verified live: LD was running in a browser sending DNT=1.
+
+`src/lib/cookie-consent.ts:10,39` tells users analytics means "Vercel Speed Insights / page load
+timing". It does not mention session recording. **`@vercel/speed-insights` is installed but never
+imported or initialized** — so the consent copy names a tool the app does not run, while not naming
+the one it does.
+
+**NOT FIXED — needs Tre's decision, this is a product/compliance call, not a cleanup:**
+- (a) gate `initMonitoring()` behind `loadConsent()?.analytics` + `hasTrackingOptOutSignal()`, and
+- (b) update the consent copy to name session replay, or
+- (c) drop LD session replay entirely (it is also the thing patching 5 natives, which is a standing
+  risk to *any* third-party script), and
+- (d) decide whether `@vercel/speed-insights` gets wired up or removed.
+
+⚠️ Do **not** silently delete `@vercel/speed-insights` — the consent copy references it, so removing
+the package without fixing the copy makes the disclosure *more* wrong, not less.
 
 ## ⚡ START HERE (session 73)
 
-1. 🔴 **Nothing is pushed. 7 commits sit local** (`cb6c0af2`, `2ae24275`, `d3e5a6b3` from this
-   session, plus the 4 from session 71). Standing rule: never auto-push. Ask Tre.
-2. 🟡 Remaining backlog: stale `linked_rule_ids` on goals; the Sep–Dec 2026 + Jan 2027 interest band.
+0. 🔴 **Read §A and §B above first.** §A corrects a wrong prior conclusion; §B is an unresolved
+   compliance question that needs Tre, not code.
+
+1. ✅ **PUSHED — `294eddf6..8cca215a`, all 8 commits.** Tre approved. Diff was secret-scanned before
+   push (clean; no `backups/`, no gitignored fixtures). **CI: 4/5 green at handoff time including
+   BOTH store uploads** (Android → Play production 10% staged, iOS → App Store); CodeQL (iOS) was
+   still running — **check it finished green.**
+2. 🟢 **DEAD DEPS CONFIRMED, NOT REMOVED — 4 packages, ready to go when Tre says so:**
+   `cmdk`, `embla-carousel-react`, `input-otp`, `react-resizable-panels`. Same shadcn-scaffolding
+   family as the 25 radix packages. Removing `cmdk` also drops `@radix-ui/react-dialog` (cmdk is
+   its only remaining reason to exist). Deliberately left out of the push — Tre approved the 7
+   verified commits, not a new removal.
+3. 🟡 **NEEDS TRE'S CALL: `@vercel/speed-insights` is installed but NEVER imported or initialized.**
+   The only mentions are copy strings in `src/lib/cookie-consent.ts:10,39` listing "Vercel Speed
+   Insights" as an example of what analytics consent covers. So either the integration was never
+   wired up, or it is dead weight — **and the consent copy currently describes something the app
+   does not actually do.** That is a product/compliance judgment, not a cleanup. Do not just delete it.
+4. 🟡 Remaining backlog: stale `linked_rule_ids` on goals; the Sep–Dec 2026 + Jan 2027 interest band.
    Both untouched and unchanged.
-3. 🟡 **Next first-paint win is `vendor-motion` (123 kB)**, needed by `src/pages/Landing.tsx:3`.
+5. 🟡 **Next first-paint win is `vendor-motion` (123 kB)**, needed by `src/pages/Landing.tsx:3`.
    Deferring it needs a source change to Landing. **Tre was offered this in session 71 and chose
    config-only.** Re-offer only if he raises page speed again.
-4. 🟢 Possible follow-on, NOT investigated: `cmdk` is now the only reason `@radix-ui/react-dialog`
-   is installed at all. Worth checking whether `cmdk` itself is dead too — if it is, another
-   dependency subtree drops. Cheap to check, do not assume.
+
+### 🔍 How the dead-dep sweep was done (reuse this — the naive version LIES)
+
+First attempt shelled out to `grep` per package from Node. Some search roots resolved wrong, every
+grep failed silently, and the script reported **39 of 39 deps unused — including `react`**. If a
+dead-code sweep claims a package you can see being imported is unused, the sweep is broken.
+
+The version that worked: read every `.ts/.tsx/.js/.jsx/.mjs/.cjs/.css/.html` file under `src`,
+`scripts`, `supabase` + the root configs into one string (skipping `node_modules`, `dist`,
+`backups`, `graphify-out`, and `package*.json`), then test `blob.includes(dep)`. 3.5 M chars,
+8 candidates out of 39. **Always print the scanned size** — that is what catches an empty scan.
+
+⚠️ **Three of the 8 candidates were false positives — verify before removing:**
+- `@capacitor/android`, `@capacitor/ios` — referenced by **native project files**, not JS. Required
+  for the store builds. Removing them breaks CI.
+- `@launchdarkly/js-client-sdk` — never imported directly, but `highlight.run` depends on it and
+  `src/lib/monitoring.ts` lazy-loads `@launchdarkly/observability` + `session-replay`. Keep.
 
 ## ✅ 1. RADIX CLEANUP — DONE (`cb6c0af2`)
 
