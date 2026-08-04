@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router';
 import { AlertTriangle, CalendarDays, CheckCircle2, ArrowRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
+import { ordinal } from '@/lib/ordinal';
 import type { MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
 
 type Props = {
@@ -95,7 +96,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
                   <span className="text-[9px] text-muted-foreground italic truncate">{r.reason}</span>
                   {r.dueDay && (
                     <span className={cn('text-[9px] text-muted-foreground flex items-center gap-0.5')}>
-                      <CalendarDays size={8} /> Due {r.dueDay}th
+                      <CalendarDays size={8} /> Due {ordinal(r.dueDay)}
                     </span>
                   )}
                 </div>

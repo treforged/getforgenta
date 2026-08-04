@@ -14,6 +14,7 @@ import {
 import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMonth, getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
+import { ordinal } from '@/lib/ordinal';
 import { type Month0Result } from '@/hooks/useCardProjection';
 import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X } from 'lucide-react';
@@ -916,8 +917,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         else if (card?.paymentPreference === 'full') reason = 'Full balance';
         else reason = 'Autopay Full Balance';
       } else if (pastDue) {
-        const suffix = dueDay === 1 ? 'st' : dueDay === 2 ? 'nd' : dueDay === 3 ? 'rd' : 'th';
-        reason = `Saving for ${nextMonthName} ${dueDay}${suffix}`;
+        reason = `Saving for ${nextMonthName} ${ordinal(dueDay)}`;
       } else {
         const min = Math.min(card?.minPayment ?? 0, card?.balance ?? 0);
         isMinimumOnly = item.payment <= min + 0.01;
@@ -1514,7 +1514,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                               <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Cash available by each card's due date</p>
                               {activeCards.map(c => (
                                 <div key={c.id} className="flex justify-between gap-2">
-                                  <span className="text-muted-foreground">{c.name} (due {c.dueDay || 31}th)</span>
+                                  <span className="text-muted-foreground">{c.name} (due {ordinal(c.dueDay || 31)})</span>
                                   <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
                                 </div>
                               ))}
@@ -1596,10 +1596,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     )}
                     <span className="text-[9px] sm:text-[10px] text-muted-foreground italic truncate">{r.reason}</span>
                     {r.dueDay && (() => {
-                      const suffix = r.dueDay === 1 ? 'st' : r.dueDay === 2 ? 'nd' : r.dueDay === 3 ? 'rd' : 'th';
                       return (
                         <span className="text-[9px] text-muted-foreground flex items-center gap-0.5">
-                          <CalendarDays size={8} /> Due {r.pastDue ? `${r.nextMonthName} ` : ''}{r.dueDay}{suffix}
+                          <CalendarDays size={8} /> Due {r.pastDue ? `${r.nextMonthName} ` : ''}{ordinal(r.dueDay)}
                         </span>
                       );
                     })()}
@@ -1664,7 +1663,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       </div>
                       <p className="text-[11px] sm:text-xs text-muted-foreground">
                         {proj.card.apr}% APR · Limit {formatCurrency(proj.card.creditLimit, false)} · Utilization {proj.utilizationNow.toFixed(1)}%
-                        {proj.card.dueDay && <span> · <CalendarDays size={10} className="inline" /> Due {proj.card.dueDay}{proj.card.dueDay === 1 ? 'st' : proj.card.dueDay === 2 ? 'nd' : proj.card.dueDay === 3 ? 'rd' : 'th'}</span>}
+                        {proj.card.dueDay && <span> · <CalendarDays size={10} className="inline" /> Due {ordinal(proj.card.dueDay)}</span>}
                       </p>
                       <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive'}`}>
                         {formatCurrency(Math.max(0, proj.card.balance), false)}
@@ -1698,7 +1697,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   </div>
                   <div>
                     <p className="text-[9px] text-muted-foreground uppercase">Due Date</p>
-                    <p className="text-xs font-semibold">{proj.card.dueDay ? `${proj.card.dueDay}${proj.card.dueDay === 1 ? 'st' : proj.card.dueDay === 2 ? 'nd' : proj.card.dueDay === 3 ? 'rd' : 'th'}` : '—'}</p>
+                    <p className="text-xs font-semibold">{proj.card.dueDay ? ordinal(proj.card.dueDay) : '—'}</p>
                     <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
                   </div>
                   <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.card.monthlyNewPurchases, false)}</p></div>

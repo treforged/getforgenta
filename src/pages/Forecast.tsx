@@ -4,6 +4,7 @@ import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
+import { ordinal } from '@/lib/ordinal';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useIsViewportBelow } from '@/hooks/use-mobile';
 import InstructionsModal from '@/components/shared/InstructionsModal';
@@ -828,7 +829,7 @@ export default function Forecast() {
             {prePaycheckBillsInfo.items.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
                 {prePaycheckBillsInfo.items.map((item, idx) => (
-                  <span key={idx}>{item.name} — {formatCurrency(item.amount, false)} (due {item.dueDay}th)</span>
+                  <span key={idx}>{item.name} — {formatCurrency(item.amount, false)} (due {ordinal(item.dueDay)})</span>
                 ))}
               </div>
             )}

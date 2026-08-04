@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
+import { ordinal } from '@/lib/ordinal';
 import { useAccounts, useDebts, useAccountReconciliations, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import type { Tables } from '@/integrations/supabase/types';
@@ -779,7 +780,7 @@ export default function Accounts() {
                     {a.apr_start_date ? ` · Since ${a.apr_start_date}` : ''}
                     {a.apy_rate != null ? ` · ${a.apy_rate}% APY` : ''}
                     {a.credit_limit ? ` · Limit ${formatCurrency(Number(a.credit_limit), false)}` : ''}
-                    {a.account_type === 'credit_card' && a.payment_due_day ? ` · Due ${a.payment_due_day}th` : ''}
+                    {a.account_type === 'credit_card' && a.payment_due_day ? ` · Due ${ordinal(Number(a.payment_due_day))}` : ''}
                   </p>
                   <div className="flex items-center gap-0.5 mt-2 -ml-1">
                     {a.plaid_account_id && (
