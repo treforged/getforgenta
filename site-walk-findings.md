@@ -132,8 +132,12 @@ transaction-derived total, including the $9,113 income figure in 2.1.
 Transactions → `Payment Plans · 2 active`, but AirPods Pro shows `4/4`, `Remaining: $0`,
 `Ends: 2026-07-13`. Completed plans are not being excluded from the active count.
 
-### 3.6 Payment-plan counter off by one
-Plan card: `MacBook Pro … 3/12`. Generated transaction: `MacBook Pro (4/12)`.
+### 3.6 — RETRACTED (was: payment-plan counter off by one)
+Claimed `MacBook Pro 3/12` on the card vs `MacBook Pro (4/12)` on the transaction. **Not a bug.**
+The card shows *installments paid*; the transaction shows *which installment it is*. For a
+future-dated payment, `n paid` + `this is n+1` is correct. Confirmed by
+`ExtremeOnlineStore CF Aero Kit`, whose past-dated 8/01 row correctly reads `(2/6)` against a
+`2/6` card.
 
 ### 3.7 Dashboard still shows a car goal the Goals page has retired
 Dashboard `GOAL PROGRESS` lists `2024 Honda Civic`; Goals says "Car funds have moved to Vehicles"

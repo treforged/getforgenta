@@ -2,13 +2,13 @@ import { useState, useMemo, useCallback } from 'react';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
-import { useTransactions, useAccounts, useRecurringRules, useDebts, useProfile, useAccountReconciliations, usePaymentPlans, useCarFunds, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
+import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliations, usePaymentPlans, useCarFunds, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
-import { buildCardData, simulateVariablePayoff, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
-import { buildPayConfig, getNormalizedMonthNetIncome, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, type EnrichedTransaction } from '@/lib/pay-schedule';
+import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
+import { createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, type EnrichedTransaction } from '@/lib/pay-schedule';
+import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
-import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import FormModal from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, getMonthlyPlanCashExpenses, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
+import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -46,8 +46,7 @@ export default function Transactions() {
   const { data: transactions, add, update, remove } = useTransactions();
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules, update: updateRule } = useRecurringRules();
-  const { data: debts } = useDebts();
-  const { data: profile } = useProfile();
+  const { cardProjection, forecastFundingAccountId } = useCardProjectionContext();
   const { data: reconciliations } = useAccountReconciliations();
   const { data: paymentPlans, add: addPlan, update: updatePlan, remove: removePlan } = usePaymentPlans();
   const { data: carFunds } = useCarFunds();
@@ -95,18 +94,6 @@ export default function Transactions() {
       .map(t => ({ ...t, isGenerated: Boolean(t.isGenerated), isDebtPayment: false }));
   }, [transactions, rules, accounts]);
 
-  // Generate debt payment transactions from Debt Payoff schedule
-  // Resolve funding account from profile or default to first checking account
-  const fundingAccountId = useMemo(() => {
-    const defaultId = profile?.default_deposit_account;
-    if (defaultId) {
-      const acct = accounts.find(a => a.id === defaultId && a.active);
-      if (acct) return acct.id;
-    }
-    const checking = accounts.find(a => a.account_type === 'checking' && a.active);
-    return checking?.id || '';
-  }, [accounts, profile]);
-
   const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
 
   // Savings/investing rule IDs for "paused" badge
@@ -117,89 +104,26 @@ export default function Transactions() {
     ).map(r => r.id),
   ), [rules]);
 
+  // Debt payment rows come from the SAME canonical month-0 projection the Dashboard widget, the
+  // Debt Payoff tab, and Forecast read (cardProjection.month0.perCardAdjusted). This page used to
+  // run its own 1-month simulateVariablePayoff with a different cash floor (raw profile floor, not
+  // the augmented one), a hardcoded 'avalanche' strategy, and no override / vehicle / goal inputs.
+  // The result: the ledger row for whichever card absorbed the surplus disagreed with the
+  // recommendation shown everywhere else, while minimum-payment cards happened to match.
   const debtPaymentTransactions = useMemo(() => {
-    // Use simulateVariablePayoff month 0 output so Transactions matches the Debt Payoff tab.
-    // generateRecommendations (old approach) only counted income up to the primary due day,
-    // missing any paycheck that arrives after that date but before month end.
-    const cards = buildCardData(accounts, baseTxns, rules, debts);
-    if (cards.length === 0) return [];
-
-    const liquidTypes = ['checking', 'business_checking', 'cash'];
-    const liquidCash = accounts
-      .filter(a => a.active && liquidTypes.includes(a.account_type))
-      .reduce((s, a) => s + Number(a.balance), 0);
-    const fundingAcct = accounts.find(a => a.id === fundingAccountId && a.active);
-    const fundingBalance = fundingAcct ? Number(fundingAcct.balance) : liquidCash;
-    const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
-
-    const ccIds = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
-    const nowDate = new Date();
-    const monthStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth() + 1).padStart(2, '0')}`;
-    const todayStr = nowDate.toISOString().split('T')[0];
-
-    // Full remaining month income (day 31) — same window as CreditCardEngine variableSim
-    const month0Income = getRemainingTransactionIncomeByDay(baseTxns, 31);
-    const month0Expenses = baseTxns
-      .filter(t => {
-        if (t.type !== 'expense') return false;
-        if (!t.date || !t.date.startsWith(monthStr)) return false;
-        if (t.date < todayStr) return false;
-        if (t.category === 'Debt Payments') return false;
-        if (t.category === 'Balance Adjustment') return false;
-        return true;
-      })
-      .reduce((s, t) => s + Number(t.amount), 0);
-
-    // Scalar fallbacks for months 1+ (only month 0 matters here)
-    const payConfig = buildPayConfig(profile);
-    const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
-    const ccPaymentSources = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
-    const _now = new Date();
-    const monthlyExpenses = rules.filter(r => {
-      if (!r.active || r.rule_type !== 'expense') return false;
-      if (r.payment_source && ccPaymentSources.has(r.payment_source)) return false;
-      if (!r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category)) return false;
-      return true;
-    }).reduce((s, r) => {
-      const amt = Number(r.amount);
-      return s + amt * countRuleOccurrencesInMonth(r, _now.getFullYear(), _now.getMonth());
-    }, 0) + getMonthlyPlanCashExpenses(paymentPlans ?? [], _now.getFullYear(), _now.getMonth(), ccPaymentSources);
-
-    const sim = simulateVariablePayoff(
-      cards, fundingBalance, cashFloor, 'avalanche',
-      monthlyTakeHome, monthlyExpenses, 1,
-      undefined, undefined, undefined,
-      month0Income, month0Expenses,
+    const m0 = cardProjection?.month0;
+    if (!m0) return [];
+    const simCards = cardProjection?.simCards ?? [];
+    return createDebtPaymentTransactions(
+      m0.perCardAdjusted.map(rec => ({
+        cardId: rec.id,
+        cardName: rec.name,
+        payment: rec.payment,
+        dueDay: simCards.find(c => c.id === rec.id)?.dueDay ?? null,
+      })),
+      forecastFundingAccountId,
     );
-
-    const checkingAccount = fundingAccountId
-      ? accounts.find(a => a.id === fundingAccountId && a.active)
-      : accounts.find(a => a.account_type === 'checking' && a.active);
-    const paymentSource = checkingAccount ? `account:${checkingAccount.id}` : 'bank_account';
-
-    const results: EnrichedTransaction[] = [];
-    for (const card of cards) {
-      const pay = (sim.monthlyPayments.get(card.id) || [])[0] ?? 0;
-      if (pay <= 0) continue;
-      const dueDay = card.dueDay || 31;
-      const monthEnd = new Date(nowDate.getFullYear(), nowDate.getMonth() + 1, 0).getDate();
-      const effectiveDay = Math.min(dueDay, monthEnd);
-      const d = new Date(nowDate.getFullYear(), nowDate.getMonth(), effectiveDay);
-      const dateStr = d.toISOString().split('T')[0];
-      results.push({
-        id: `debtpay:${card.id}:${dateStr}`,
-        date: dateStr,
-        type: 'expense',
-        amount: Math.round(pay * 100) / 100,
-        category: 'Debt Payments',
-        note: `${card.name} Payment`,
-        payment_source: paymentSource,
-        isGenerated: true,
-        isDebtPayment: true,
-      });
-    }
-    return results;
-  }, [accounts, baseTxns, rules, debts, profile, fundingAccountId, paymentPlans]);
+  }, [cardProjection, forecastFundingAccountId]);
 
   // Map reconciliation records to transaction-like shape for rendering
   const reconciliationTxns: EnrichedTransaction[] = useMemo(() => {
