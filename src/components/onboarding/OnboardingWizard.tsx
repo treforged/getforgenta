@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
@@ -42,10 +43,20 @@ export default function OnboardingWizard({ onComplete, onDismiss }: Props) {
   const totalSteps = stepLabels.length;
 
   const markComplete = async () => {
-    sessionStorage.removeItem(WIZARD_STEP_KEY);
     if (user) {
-      await supabase.from('profiles').update({ onboarding_completed: true }).eq('user_id', user.id);
+      // supabase-js returns errors instead of throwing, so this must be checked
+      // explicitly. A silent failure here leaves onboarding_completed false and
+      // the wizard reappears on the next visit with no explanation.
+      const { error } = await supabase
+        .from('profiles')
+        .update({ onboarding_completed: true })
+        .eq('user_id', user.id);
+      if (error) {
+        toast.error("We couldn't save your setup. Please try again.");
+        return;
+      }
     }
+    sessionStorage.removeItem(WIZARD_STEP_KEY);
     onComplete();
   };
 
