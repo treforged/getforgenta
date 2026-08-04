@@ -212,8 +212,16 @@ export default function Onboarding() {
       const { clean: cleanDisplayName, flagged: nameFlagged } = filterProfanity(rawDisplayName);
       if (nameFlagged) toast.warning('Display name contained inappropriate language and was cleaned.');
 
+      // Sections that failed to save. supabase-js RETURNS errors, it does not throw,
+      // so an unchecked write here fails silently — that is what hid the apy/apy_rate
+      // column bug. The profile update below throws (it is idempotent, so retrying is
+      // safe and nothing else is meaningful without it); the optional inserts that
+      // follow record their failure and carry on, so one bad section cannot discard
+      // the others and a retry cannot duplicate the rows that already landed.
+      const failed: string[] = [];
+
       const refCode = sessionStorage.getItem('forged:ref') || null;
-      await supabase.from('profiles').update({
+      const { error: profileError } = await supabase.from('profiles').update({
         display_name: cleanDisplayName,
         weekly_gross_income: wg,
         gross_income: gross,
@@ -222,6 +230,7 @@ export default function Onboarding() {
         paycheck_frequency: data.paycheckFrequency,
         ...(refCode ? { referred_by: refCode } : {}),
       }).eq('user_id', user!.id);
+      if (profileError) throw profileError;
       if (refCode) sessionStorage.removeItem('forged:ref');
 
       const expenses = [
@@ -232,7 +241,7 @@ export default function Onboarding() {
       ].filter(e => parseFloat(e.amount) > 0);
 
       if (expenses.length > 0) {
-        await supabase.from('budget_items').insert(
+        const { error } = await supabase.from('budget_items').insert(
           expenses.map(e => ({
             user_id: user!.id,
             label: e.label,
@@ -240,11 +249,12 @@ export default function Onboarding() {
             category: e.category,
           }))
         );
+        if (error) failed.push('monthly expenses');
       }
 
       const validDebts = data.debts.filter(d => d.name && parseFloat(d.balance) > 0);
       if (validDebts.length > 0) {
-        await supabase.from('debts').insert(
+        const { error } = await supabase.from('debts').insert(
           validDebts.map(d => ({
             user_id: user!.id,
             name: filterProfanity(d.name.slice(0, LIMITS.debtName)).clean,
@@ -254,21 +264,23 @@ export default function Onboarding() {
             credit_limit: parseFloat(d.creditLimit) || null,
           }))
         );
+        if (error) failed.push('debts');
       }
 
       if (parseFloat(data.savingsBalance) > 0) {
-        await supabase.from('accounts').insert({
+        const { error } = await supabase.from('accounts').insert({
           user_id: user!.id,
           name: 'High-Yield Savings',
           account_type: 'high_yield_savings',
           balance: parseFloat(data.savingsBalance),
           apy_rate: parseFloat(data.savingsApy) || 0,
         });
+        if (error) failed.push('savings account');
       }
 
       const regularGoals = data.goals.filter(g => g.goalType !== 'Car Fund' && g.name && parseFloat(g.targetAmount) > 0);
       if (regularGoals.length > 0) {
-        await supabase.from('savings_goals').insert(
+        const { error } = await supabase.from('savings_goals').insert(
           regularGoals.map(g => ({
             user_id: user!.id,
             name: g.name,
@@ -277,11 +289,12 @@ export default function Onboarding() {
             goal_type: g.goalType,
           }))
         );
+        if (error) failed.push('savings goals');
       }
 
       const carGoals = data.goals.filter(g => g.goalType === 'Car Fund' && g.name);
       if (carGoals.length > 0) {
-        await supabase.from('car_funds').insert(
+        const { error } = await supabase.from('car_funds').insert(
           carGoals.map(g => ({
             user_id: user!.id,
             vehicle_name: g.name,
@@ -294,10 +307,15 @@ export default function Onboarding() {
             loan_term_months: parseInt(g.loanTermMonths) || 60,
           }))
         );
+        if (error) failed.push('car funds');
       }
 
       localStorage.setItem(`forged:onboarding_done_${user!.id}`, '1');
-      toast.success('Your financial profile is ready!');
+      if (failed.length > 0) {
+        toast.error(`Profile saved, but we couldn't add: ${failed.join(', ')}. You can add these from the app.`);
+      } else {
+        toast.success('Your financial profile is ready!');
+      }
       navigate('/dashboard');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to save profile');
