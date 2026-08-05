@@ -2,6 +2,7 @@
 // Single source of truth for income calculations across all tabs
 
 import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './vehicle-loan-engine';
+import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
 import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 import type { CarFund } from './types';
@@ -790,12 +791,19 @@ export function getAugmentedMinSafeCash(
   let prePaycheckBillsTotal = baseTotal;
   const floorItems: { name: string; amount: number; dueDay: number }[] = [...baseItems];
 
-  // For month 0: a due date already past syncCutoffDate means Plaid already captured that
-  // payment — the live balance reflects it, so reserving it in the floor double-counts it.
+  // For month 0: a due date already captured in the balance means Plaid already reflects that
+  // payment, so reserving it in the floor double-counts it.
+  //
+  // §1.1 cause C sweep: this is an OUTFLOW gate, so the comparison is `isCapturedInBalance` —
+  // shared with the CC-minimum, car-loan and loan-insurance gates — rather than the open-coded
+  // `<= syncCutoffDate` it used to be. The settlement lag now applies and the boundary is strict,
+  // so a bill due within the last few days (or exactly on the cutoff) stays reserved in the floor
+  // instead of being assumed cleared. That raises the floor slightly, which reads cash LOW — the
+  // safe direction for a floor whose whole job is to stop the user overcommitting.
   const m0MonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const dueSynced = (dueDay: number) =>
     monthIdx === 0 && !!syncCutoffDate &&
-    `${m0MonthStr}-${String(dueDay).padStart(2, '0')}` <= syncCutoffDate;
+    isCapturedInBalance(dueDateInMonth(m0MonthStr, dueDay), syncCutoffDate);
 
   // Same next-month cutoff getPrePaycheckNextMonthBills applied to baseItems above. An obligation
   // due on or after next month's first paycheck is funded by that paycheck, so reserving it from
