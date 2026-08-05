@@ -122,7 +122,14 @@ describe('useCardProjection floor-breach protection (cycling-card baseline payme
     // small, bounded dip that cycling's water-filling fully recovers the very next month. A dip of
     // this size is nowhere near the ~$120 (to $480) / $0 shortfalls the double-reservation bug
     // produced, so this still fails loudly if that regresses.
-    expect(seriesB.payments[billMonth]).toBeGreaterThanOrEqual(560);
+    //
+    // The dip deepened 560 → 539 in the §1.1 cause C cutoff sweep, and that is the corrected
+    // behavior, not a regression. Card A is due on day 1 and this fixture's syncCutoffDate IS day
+    // 1, so its month-0 minimum used to be waived as "already settled" on the sync day itself —
+    // impossible to know, since `balances.current` excludes pending debits. `m0MinDueSettled` now
+    // applies the settlement lag, so that $200 is correctly reserved in month 0 and is no longer
+    // available to bank toward the annual bill. Recovery the next month is unchanged.
+    expect(seriesB.payments[billMonth]).toBeGreaterThanOrEqual(530);
     expect(seriesB.payments[billMonth]).toBeLessThanOrEqual(601);
     expect(seriesB.payments[billMonth + 1]).toBeGreaterThanOrEqual(600); // fully recovers next month
     // Card A is capped to its minimum in the pre-bill save-up months (months 0-3), and that minimum

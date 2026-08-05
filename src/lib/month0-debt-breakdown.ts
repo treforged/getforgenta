@@ -14,6 +14,7 @@
  * returned, but entirely from `cardProjection.month0`, so every surface reads
  * one number. Extracted verbatim from Dashboard's `dashboardDebtRecs`.
  */
+import { m0MinDueSettled } from '@/lib/credit-card-engine';
 import type { CardData, MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
 import type { Month0Result } from '@/lib/debt-model-types';
 
@@ -55,15 +56,13 @@ export function buildMonth0DebtBreakdown({
   if (!month0 || simCards.length === 0) return emptyMonth0DebtBreakdown(debtStrategy);
 
   const totalAvailableCash = month0.safeToPayTotal;
-  const m0MonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+  // "Is this card's month-0 minimum already paid?" is exactly what `m0MinDueSettled` decides for
+  // the engine. This used to open-code the inverse (`dueDateStr > syncCutoffDate`), so the number
+  // shown here could disagree with the number the engine reserved — §1.1 cause C in miniature.
   const totalMinimumsDue = simCards
     .filter(c => !c.autopayFullBalance && c.balance > 0)
-    .filter(c => {
-      if (!c.dueDay) return true;
-      const dueDateStr = `${m0MonthStr}-${String(c.dueDay).padStart(2, '0')}`;
-      return dueDateStr > syncCutoffDate;
-    })
+    .filter(c => !m0MinDueSettled(c.dueDay, syncCutoffDate, now))
     .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
 
   const autopayTotal = simCards

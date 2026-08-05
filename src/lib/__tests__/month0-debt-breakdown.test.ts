@@ -95,7 +95,8 @@ describe('buildMonth0DebtBreakdown', () => {
     expect(result).toEqual(emptyMonth0DebtBreakdown('avalanche'));
   });
 
-  it('excludes minimums whose due date already passed the sync cutoff', () => {
+  it('excludes minimums whose due date is already captured in the balance', () => {
+    // Cutoff Aug 20 with the 3-day settlement lag ⇒ captured means due before Aug 17.
     const cards = [
       card({ id: 'past', name: 'Paid', dueDay: 1, minPayment: 50 }),
       card({ id: 'future', name: 'Due later', dueDay: 22, minPayment: 40 }),
@@ -107,10 +108,32 @@ describe('buildMonth0DebtBreakdown', () => {
       ]),
       simCards: cards,
       debtStrategy: 'avalanche',
+      syncCutoffDate: '2026-08-20',
+      now: new Date(2026, 7, 20),
+    });
+    expect(result.totalMinimumsDue).toBe(40);
+  });
+
+  // §1.1 cause C sweep: this display now shares `m0MinDueSettled` with the engine, so it inherits
+  // the settlement lag. A minimum due Aug 1 against an Aug 4 sync has NOT provably cleared —
+  // `balances.current` excludes pending debits — so it stays counted rather than silently
+  // disappearing from the total the user is asked to cover.
+  it('still counts a minimum due inside the settlement-lag window', () => {
+    const cards = [
+      card({ id: 'recent', name: 'Just due', dueDay: 1, minPayment: 50 }),
+      card({ id: 'future', name: 'Due later', dueDay: 22, minPayment: 40 }),
+    ];
+    const result = buildMonth0DebtBreakdown({
+      month0: month0([
+        { id: 'recent', name: 'Just due', payment: 0, maxPayment: 0 },
+        { id: 'future', name: 'Due later', payment: 40, maxPayment: 40 },
+      ]),
+      simCards: cards,
+      debtStrategy: 'avalanche',
       syncCutoffDate: CUTOFF,
       now: NOW,
     });
-    expect(result.totalMinimumsDue).toBe(40);
+    expect(result.totalMinimumsDue).toBe(90);
   });
 
   it('caps a minimum at the balance and counts a card with no due day', () => {

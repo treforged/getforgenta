@@ -907,14 +907,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const perCardAdj = month0?.perCardAdjusted ?? [];
     const totalAvailableCash = month0?.safeToPayTotal ?? 0;
     const strategyLabel = strategy === 'avalanche' ? 'Avalanche' : 'Snowball';
-    const m0MonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // Same predicate the engine reserves against — see `m0MinDueSettled`. Was open-coded here
+    // (and in `month0-debt-breakdown.ts`) as `dueDateStr > syncCutoffDate`, which is how this
+    // display could disagree with the engine about the very minimums it was summarising.
     const totalMinimumsdue = cards
       .filter(c => !c.autopayFullBalance && c.balance > 0)
-      .filter(c => {
-        if (!c.dueDay) return true;
-        const dueDateStr = `${m0MonthStr}-${String(c.dueDay).padStart(2, '0')}`;
-        return dueDateStr > syncCutoffDate;
-      })
+      .filter(c => !m0MinDueSettled(c.dueDay, syncCutoffDate, now))
       .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
     const cashWarning = Math.ceil(totalAvailableCash - totalMinimumsdue) < 0;
     const recs = perCardAdj.map(item => {

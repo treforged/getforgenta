@@ -20,14 +20,25 @@ function makeCard(overrides: Partial<CardData>): CardData {
 describe('m0MinDueSettled', () => {
   const now = new Date('2026-07-17T12:00:00');
 
-  it('true when the due date this month is on/before the sync cutoff', () => {
+  it('true when the due date this month is captured in the balance', () => {
+    // Cutoff Jul 15, settlement lag 3 days ⇒ captured means strictly before Jul 12.
     expect(m0MinDueSettled(1, '2026-07-15', now)).toBe(true);
-    expect(m0MinDueSettled(15, '2026-07-15', now)).toBe(true);
+    expect(m0MinDueSettled(11, '2026-07-15', now)).toBe(true);
   });
 
   it('false when the due date has not been captured by a sync yet', () => {
     expect(m0MinDueSettled(20, '2026-07-15', now)).toBe(false);
     expect(m0MinDueSettled(16, '2026-07-15', now)).toBe(false);
+  });
+
+  // §1.1 cause C sweep: this gate now shares `isCapturedInBalance` with the car-loan and
+  // loan-insurance gates, so it inherits both the settlement lag and the strict boundary. A debit
+  // that has posted but not settled is absent from `balances.current`, so a minimum due inside the
+  // lag window must stay reserved — dropping it read cash HIGH, the unsafe direction.
+  it('keeps a minimum reserved inside the settlement-lag window and on the cutoff day itself', () => {
+    expect(m0MinDueSettled(15, '2026-07-15', now)).toBe(false); // due exactly on the cutoff
+    expect(m0MinDueSettled(14, '2026-07-15', now)).toBe(false);
+    expect(m0MinDueSettled(12, '2026-07-15', now)).toBe(false); // boundary: lag edge, not captured
   });
 
   it('false without a sync cutoff or due day (conservative: keep the minimum)', () => {

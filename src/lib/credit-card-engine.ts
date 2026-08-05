@@ -7,6 +7,7 @@ import {
 } from './pay-schedule';
 import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
 import { FLOOR_CUSHION_DOLLARS } from './floor-protection';
+import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
@@ -162,11 +163,20 @@ export function revolvingMinDue(card: CardData, revOwed: number): number {
 
 /**
  * Q11: has this card's CURRENT-month due date already been captured by a Plaid sync?
- * If the due date (this month, at dueDay) is on/before syncCutoffDate, the cycle's minimum was
- * already paid and the live balance reflects it — forcing it again in month 0 double-counts cash
- * (Discover due Jul 1 kept a $227 min in July's plan). Deliberately keyed on the sync cutoff, not
- * `dueDay < today`: a payment made but not yet synced isn't reflected in the balance, so its min
- * must still be reserved. No cutoff or no due day ⇒ never settled (conservative).
+ * If the due date (this month, at dueDay) is already captured in the balance, the cycle's minimum
+ * was already paid and the live balance reflects it — forcing it again in month 0 double-counts
+ * cash (Discover due Jul 1 kept a $227 min in July's plan). Deliberately keyed on the sync cutoff,
+ * not `dueDay < today`: a payment made but not yet synced isn't reflected in the balance, so its
+ * min must still be reserved. No cutoff or no due day ⇒ never settled (conservative).
+ *
+ * §1.1 cause C sweep: the comparison is `isCapturedInBalance`, shared with the car-loan and
+ * loan-insurance gates, rather than the open-coded `dueDate <= syncCutoffDate` this used to be.
+ * That moves two things deliberately — the settlement lag now applies (a minimum due inside the
+ * last SETTLEMENT_LAG_DAYS is NOT assumed paid, because a debit that has posted but not settled is
+ * absent from `balances.current`), and the boundary is now strict, so a minimum due exactly ON the
+ * cutoff day stays reserved instead of vanishing. Both err toward reserving cash, the safe
+ * direction: the failure mode is reading cash low, not recommending a payment the user cannot make.
+ * This is an OUTFLOW gate — the lag belongs here. See `src/lib/sync-cutoff.ts`.
  */
 export function m0MinDueSettled(
   dueDay: number | null | undefined,
@@ -174,8 +184,8 @@ export function m0MinDueSettled(
   now: Date,
 ): boolean {
   if (dueDay == null || !syncCutoffDate) return false;
-  const dueDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
-  return dueDate <= syncCutoffDate;
+  const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return isCapturedInBalance(dueDateInMonth(monthKey, dueDay), syncCutoffDate);
 }
 
 export function getDefaultCardForExpense(category: string, accounts: AccountRow[]): string | null {
