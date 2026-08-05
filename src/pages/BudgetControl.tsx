@@ -23,6 +23,7 @@ import { getDayName, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { CATEGORIES } from '@/lib/types';
 import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
+import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
 
@@ -1359,24 +1360,28 @@ export default function BudgetControl() {
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider mb-1">Budget Allocation</h3>
         <p className="text-sm text-muted-foreground mb-4">{now.toLocaleString('en-US', { month: 'long', year: 'numeric' })} — current month only</p>
         {(() => {
-          const t = totalRecurringIncome;
-          const fixedPct    = t > 0 ? Math.max(0, (totalFixedExpenses    / t) * 100) : 0;
-          const variablePct = t > 0 ? Math.max(0, (totalVariableExpenses / t) * 100) : 0;
-          const debtPct     = t > 0 ? Math.max(0, (totalDebtPayments     / t) * 100) : 0;
-          const xferPct     = t > 0 ? Math.max(0, (totalTransfers        / t) * 100) : 0;
-          const remPct      = t > 0 ? Math.max(0, (remaining             / t) * 100) : 0;
+          const { fixedPct, variablePct, debtPct, xferPct, remPct, overByPct } = getBudgetAllocationShares({
+            income: totalRecurringIncome,
+            fixed: totalFixedExpenses,
+            variable: totalVariableExpenses,
+            debt: totalDebtPayments,
+            transfers: totalTransfers,
+            remaining,
+          });
           const R = 15.91549430918954;
-          const seg = (pct: number, offset: number, color: string) =>
-            pct > 0 ? (
+          const seg = (pct: number, offset: number, color: string) => {
+            const drawn = clipSegment(pct, offset);
+            return drawn > 0 ? (
               <circle
                 cx="18" cy="18" r={R}
                 fill="transparent"
                 stroke={color}
                 strokeWidth="3.5"
-                strokeDasharray={`${pct} ${100 - pct}`}
+                strokeDasharray={`${drawn} ${100 - drawn}`}
                 strokeDashoffset={-offset}
               />
             ) : null;
+          };
           return (
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <svg viewBox="0 0 36 36" className="w-32 h-32 shrink-0 -rotate-90">
@@ -1387,19 +1392,26 @@ export default function BudgetControl() {
                 {seg(xferPct,     fixedPct + variablePct + debtPct,           'hsl(280, 60%, 55%)')}
                 {seg(remPct,      fixedPct + variablePct + debtPct + xferPct, 'hsl(142, 50%, 40%)')}
               </svg>
-              <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-muted-foreground">
-                {[
-                  { label: 'Fixed',     pct: fixedPct,    color: 'hsl(0, 65%, 45%)'   },
-                  { label: 'Variable',  pct: variablePct, color: 'hsl(35, 85%, 50%)'  },
-                  { label: 'Debt',      pct: debtPct,     color: 'hsl(210, 70%, 50%)' },
-                  { label: 'Transfers', pct: xferPct,     color: 'hsl(280, 60%, 55%)' },
-                  { label: 'Remaining', pct: remPct,      color: 'hsl(142, 50%, 40%)' },
-                ].map(({ label, pct, color }) => (
-                  <div key={label} className="flex items-center gap-1.5 min-w-0">
-                    <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: color }} />
-                    <span className="truncate">{label} ({pct.toFixed(0)}%)</span>
-                  </div>
-                ))}
+              <div className="min-w-0">
+                <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-muted-foreground">
+                  {[
+                    { label: 'Fixed',     pct: fixedPct,    color: 'hsl(0, 65%, 45%)'   },
+                    { label: 'Variable',  pct: variablePct, color: 'hsl(35, 85%, 50%)'  },
+                    { label: 'Debt',      pct: debtPct,     color: 'hsl(210, 70%, 50%)' },
+                    { label: 'Transfers', pct: xferPct,     color: 'hsl(280, 60%, 55%)' },
+                    { label: 'Remaining', pct: remPct,      color: 'hsl(142, 50%, 40%)' },
+                  ].map(({ label, pct, color }) => (
+                    <div key={label} className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: color }} />
+                      <span className={`truncate ${pct < 0 ? 'text-destructive font-medium' : ''}`}>{label} ({pct.toFixed(0)}%)</span>
+                    </div>
+                  ))}
+                </div>
+                {overByPct > 0 && (
+                  <p className="mt-3 text-xs sm:text-sm text-destructive font-medium">
+                    Over budget by {overByPct.toFixed(0)}% of income ({formatCurrency(Math.abs(remaining), false)}/mo more allocated than you take home).
+                  </p>
+                )}
               </div>
             </div>
           );

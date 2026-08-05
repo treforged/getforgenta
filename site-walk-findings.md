@@ -340,10 +340,33 @@ Fix: one shared `ordinalSuffix(n)` helper handling the 11/12/13 exception, repla
 > **Verified fixed 2026-08-04:** Accounts reads `Due 15th` / `Due 22nd`, Dashboard's debt widget
 > reads `Due 15th` / `Due 22nd`. No `22th` remains on the walked surfaces.
 
-### 4.2 Budget allocation percentages sum to 146%
+### 4.2 Budget allocation percentages sum to 146% — ✅ FIXED (2026-08-05), verified live
 Fixed 30% + Variable 22% + Debt 77% + Transfers 17% + Remaining 0%. Each is a correct
 percentage-of-income, but presented as an allocation breakdown it reads as broken.
 Remaining is clamped to 0% instead of showing the −46% overspend.
+
+**The 146% headline no longer reproduces in the demo** — Debt now reads 23%, not 77%, and the
+five shares sum to exactly 100%. An earlier fix (most likely §1.2's $2,673 debt-payment
+discrepancy) corrected the debt figure. The clamp itself was still a real defect, just latent:
+`Math.max(0, remaining / t)` hid the overspend for *any* user who over-allocates.
+
+Fixed by extracting the arithmetic to `src/lib/budget-allocation.ts` (9 unit tests, incl. the
+exact 146% shape) and wiring `BudgetControl.tsx` to it:
+- Remaining is no longer clamped — it renders signed, in red, so an over-allocated month reads
+  `Remaining (−46%)` rather than `Remaining (0%)`.
+- The donut keeps meaning *share of take-home*: segments are **clipped** at the full circle
+  instead of wrapping back over the arcs already drawn (a wrap read as a *smaller* allocation
+  than reality). Tre's call, 2026-08-05, over the alternative of rescaling to share-of-spending.
+- A red line under the legend states the overspend in dollars.
+
+Live-verified on **real** data (the demo cannot exercise the over-budget branch): Fixed 52% +
+Variable 14% + Debt 40% + Transfers 2% = 108%, `Remaining (−7%)`, "Over budget by 7% of income
+($324/mo more allocated than you take home)". Ring measured at 51.50 + 13.94 + 34.56 = 100.00
+exactly — Debt clipped from its raw 39.86%, Transfers and the negative Remaining not drawn.
+
+⚠️ **That is a finding in itself:** Tre's real recurring rules allocate ~$324/mo more than his
+recurring income, and this page showed it as `Remaining (0%)` until now. Worth checking against
+§2.4 (three competing expense definitions) before treating it as a true overspend.
 
 ---
 
