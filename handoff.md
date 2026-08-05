@@ -6,7 +6,7 @@ Continues session 78. `site-walk-findings.md` (repo root, committed) is still th
 ## 0. GOAL
 
 Tre: "continue working all issues. and fix demo findings." then "sequence as u see fit."
-Standing constraint: **do not delete his account.** Nothing is pushed — **14 local commits ahead**.
+Standing constraint: **do not delete his account.** Nothing is pushed — **18 local commits ahead** (measured with `git rev-list --count origin/main..HEAD`).
 
 ## 1. DONE THIS SESSION (1 commit, local, NOT pushed)
 
@@ -154,7 +154,7 @@ runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFired: fal
   `src/components/dashboard/MonthlyBudgetSnapshot.tsx`, `src/pages/Dashboard.tsx`,
   `src/lib/__tests__/month0-debt-breakdown.test.ts`, `site-walk-findings.md`.
 - **Backups:** `backups/2026-08-05_075202/` (five source files, pre-change).
-- **Not pushed.** 14 commits ahead of origin.
+- **Not pushed.** 18 commits ahead of origin.
 
 ## 8. LESSON WORTH KEEPING
 
