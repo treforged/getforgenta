@@ -1,84 +1,83 @@
-# Handoff — 2026-08-05 — session 83 — branch `main` — cutoff sweep CLOSED
+# Handoff — 2026-08-05 — session 84 — branch `main` — three UI-vs-engine disagreements closed
 
-Continues session 82. `site-walk-findings.md` (repo root, committed) is still the source list.
+Continues session 83. `site-walk-findings.md` (repo root, committed) is still the source list.
 **Read it before touching anything.**
 
 ## 0. GOAL
 
 Tre: "continue working all issues. and fix demo findings." then "sequence as u see fit."
-Standing constraint: **do not delete his account.** Nothing is pushed — **29 local commits ahead**.
+Standing constraint: **do not delete his account.** Nothing is pushed — **32 local commits ahead**.
 
-## 1. WHAT THIS SESSION DID: THE CUTOFF SWEEP IS FINISHED
+## 1. WHAT THIS SESSION DID — three commits, one theme
 
-Session 82's next-step 1 is **done**. Every month-0 OUTFLOW gate now shares one rule
-(`isCapturedInBalance` in `src/lib/sync-cutoff.ts`). Three commits, each live-verified:
+All three are the same defect shape: **a surface showing a number it did not derive.** Session 79's
+lesson, now hit for the third session running. Worth treating as the default hypothesis whenever two
+surfaces disagree.
 
-- **`0380d56d` (1/4) — CC-minimum gate.** `m0MinDueSettled` open-coded `dueDate <= syncCutoffDate`;
-  now routes through `isCapturedInBalance`. Also collapsed the **two open-coded copies** of the same
-  predicate — `month0-debt-breakdown.ts` and `CreditCardEngine.tsx` each re-derived the inverse
-  (`dueDateStr > syncCutoffDate`), so the minimums they DISPLAYED could disagree with the minimums
-  the engine RESERVED. §1.1 cause C in miniature.
-- **`72455ec2` (2/4) — floor bill-reservation gate.** `getAugmentedMinSafeCash`'s `dueSynced` in
-  `pay-schedule.ts`.
-- **`309865d0` (3+4/4) — plan-installment cash gate + autopay-full zeroing.**
-  `deriveUpfrontPlanFields`'s `upfrontPayByMonth` loop, and `useCardProjection`'s autopay $0
-  recommendation.
+- **`0bcf0ed1` — Forecast's stale floor copy (session 83's next-step 1). LIVE-VERIFIED.**
+  The "Cash floor raised to …" banner re-derived its total from `getPrePaycheckNextMonthBills`
+  (raw base bills) while the engine's floor comes from `getAugmentedMinSafeCash` (base + car loans
+  + vehicle insurance + CC minimums). Banner said $1,655; the popup on the same page said $2,402.
+  Now reads month 0's engine row (`projections.data[0]`: `monthMinSafe` / `settingsCashFloor` /
+  `floorItems`). Demo now shows **$2,402 = 1600 Rent + 55 Gas + 537 RAV4 loan + 210 RAV4
+  insurance**, and the two missing chips appear. Display-only: Forecast Aug END CASH and Dashboard
+  MONTH-END CASH both still **$2,883** (§1.1 invariant holds).
 
-Each inherits two things deliberately: the **settlement lag** (a debit inside the last 3 days is no
-longer assumed settled, because `balances.current` excludes pending debits) and a **strict
-boundary** (a charge due exactly ON the cutoff day stays reserved). Both err toward reserving cash
-— reading cash LOW, the safe direction.
+- **`ca1536ae` — Budget allocation donut (§4.2). LIVE-VERIFIED, on REAL data.**
+  Legend clamped Remaining with `Math.max(0, remaining / income)`, so an over-allocated month
+  printed five shares summing to 146% with `Remaining (0%)`. The donut had the matching flaw: a
+  segment past 100% wrapped back over arcs already drawn, making over-allocation look *smaller*.
+  Extracted the arithmetic to **`src/lib/budget-allocation.ts`** (`getBudgetAllocationShares` +
+  `clipSegment`, 9 unit tests incl. the exact 146% shape) — it was inline JSX in a 1400-line page
+  and therefore untestable. Remaining now renders signed and red; the ring **clips** at the full
+  circle; a red line states the overspend in dollars.
+  **Tre's decision (asked this session):** ring keeps meaning *share of take-home* and clips —
+  chosen over rescaling it to share-of-spending. Don't re-litigate.
 
-### Deliberately NOT swept — documented in place, do not "finish the job"
+- **`b80b381d` — Goal completion milestone (§2.5). NOT live-verified — see §3 step 1.**
+  Goals' "Est. completion" uses `estimateGoalCompletionMonths` (monthly compounding, lump sums,
+  start date); Forecast's "<goal> Complete!" re-derived it as a straight line, no interest, no
+  lump sums. Dec 2028 vs Mar 2029 on a goal earning Marcus's 4.5%. Extracted the APY rule to
+  `getGoalEffectiveApyPercent` (savings-growth.ts) and pointed both at it; the engine now
+  precomputes each goal's completion index and fires the milestone there. `resolvedGoals` gained
+  `resolvedContributionStartDate` + `effectiveApyPercent`. **Milestones are display-only — moves
+  no cash.**
 
-Two sites ask a **credit-card-balance** question, not a funding-cash question, so the outflow lag
-does not belong there. Both now carry a comment saying so:
+### ⚠️ §4.2's headline number no longer reproduces — and that matters
 
-- `getUpfrontPlanProgress` (`payment-plan-generator.ts`) — counts installments PAID to size the
-  remaining 0% principal on the CARD.
-- `useCardProjection`'s plan-charge loop (~line 256) — grows a card balance.
+Demo Debt now reads **23%, not 77%**, and the five shares sum to exactly 100%. An earlier fix
+(most likely §1.2's $2,673 debt-payment discrepancy) corrected it. The clamp was still a genuine
+defect, just **latent**. Generalize: **site-walk findings from 08-04 may already be fixed by later
+commits — re-observe before coding.**
 
-This is session 82's lesson applied: **a shared helper is only safe where the callers ask the same
-question.**
+### ⚠️ FINDING FOR TRE, not a bug: his real budget is over-allocated
 
-### Test changes were behavior pins, not goalpost moves
+The live check landed on his real account (see §5.8) and it exercises the over-budget branch the
+demo cannot: Fixed 52 + Variable 14 + Debt 40 + Transfers 2 = **108%**, `Remaining (−7%)`,
+**"Over budget by 7% of income ($324/mo more allocated than you take home)"**. Until this commit
+that read `Remaining (0%)`. Ring measured 51.50 + 13.94 + 34.56 = 100.00 exactly, Debt clipped
+from 39.86, Transfers and the negative Remaining not drawn — so the fix is verified on the real
+path. **Check it against §2.4 (three competing expense definitions) before calling it a true
+overspend.** Raise with him either way.
 
-`cyclingFloor` is the one that moved a bound (560 → 530). Card A is due day 1 and that fixture's
-`syncCutoffDate` **is** day 1, so its month-0 minimum used to be waived on the sync day itself —
-unknowable. Correctly reserved now, which costs the save-up $200 and deepens that fixture's
-already-documented bounded dip to 539. Recovery next month unchanged; the guard against the
-~$120/$0 double-reservation bug still bites.
+## 2. HOW TO LIVE-CHECK (session 83's §2 rules held up perfectly — keep them)
 
-## 2. ⚠️ NEW ENVIRONMENT GOTCHA — THIS ONE ALMOST REVERTED A CORRECT CHANGE
-
-**Reading the Dashboard or Forecast before the engine converges returns plausible-but-wrong
-numbers.** Mid-settle, step 2 appeared to move Dashboard to **$2,701**, Forecast Aug END CASH to
-**$2,873** (breaking the §1.1 invariant), income Aug $5,850 → $4,548 **and Sep $6,750 → $4,548**,
-with a `1× +$173` badge — i.e. it looked exactly like the income regression session 82 warns about.
-All of it was a partial render. With a **10–11 second** wait the same build reproduced the baseline
-byte-for-byte.
-
-Rules that follow:
-- **Wait ~10s after "See Demo" and ~10s after each in-app nav click.** The 5–7s in session 82's
-  notes is not enough now.
-- **The tell that you read too early is an impossible result** — a month-0-only gate cannot change
-  Sep income. If a change moves a month it structurally cannot reach, suspect the read, not the code.
+- **Wait ~10–11s after "See Demo" and ~10s after each in-app nav click.** Reading mid-settle
+  returns plausible-but-wrong numbers — session 83 nearly reverted a correct change over it.
+- **The tell that you read too early is an impossible result.** If a change moves a month it
+  structurally cannot reach, suspect the read, not the code.
 - **Confirm a suspected regression by stashing the change and re-reading** before believing it.
-  `git stash push <file>` → verify the served transform reverted via curl → re-read. That is what
-  proved the demo is deterministic and the reading was the problem.
+- Confirm the dev server is serving your edit first:
+  `curl -s "http://localhost:8080/src/<path>?t=$(date +%s)" | grep -c <something you just wrote>`.
 
 ## 3. NEXT STEPS (in order)
 
-1. **Forecast's stale floor copy — DIAGNOSED THIS SESSION, NOT YET FIXED. Start here; it is small.**
-   `Forecast.tsx:827` renders "Cash floor raised to {max(cashFloor, prePaycheckBillsInfo.total)}"
-   ($1,655) while the same page's popup reads Cash Floor **$2,402**. Root cause found:
-   `useForecastEngineInputs.ts:72` sets
-   `prePaycheckBillsInfo = getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId)`
-   — the **raw base bills only**. The floor the engine actually uses comes from
-   `getAugmentedMinSafeCash`, which augments that base with car loans, vehicle insurance and CC
-   minimums. So the milestone text shows the **un-augmented** total. Fix is to have the copy read
-   the engine's augmented floor instead of re-deriving from the base — the same "a UI showing a
-   total it did not derive" shape as §1.1. Live-check it (see §2 for wait times).
+1. **Live-verify `b80b381d` (§2.5). Start here; it is one read.** Open Goals, note Emergency Fund's
+   `Est. completion`; open Forecast, find the `… Emergency Fund Complete! 🎯` milestone. They must
+   now name the **same month** (expect Goals' Dec 2028 to win, since it was the one already
+   compounding). Vacation Fund must still read Nov 2027 on both (zero-APY control — if that one
+   moves, the change is wrong). Also worth adding: `getGoalEffectiveApyPercent` has **no unit
+   test**; it was a pure extraction, but pin it.
 2. **§2.9 (needs Tre's decision, don't code it blind)** — car-fund earmark can exceed the account
    it is earmarked from. Demo shows `Balance on hand $0` while Chase Checking holds $2,800 and
    LIQUID CASH reads $9,900, because `getCarFundEarmark` (`vehicle-loan-engine.ts:183`) earmarks
@@ -99,44 +98,41 @@ Rules that follow:
    collides here. Needs `/multi-plan` before any file is touched. **This is what retires the whole
    date heuristic in `sync-cutoff.ts`** — when transaction sync lands, "captured iff a settled
    transaction matches it" should REPLACE the lag, not tune it.
-4. Remaining unblocked demo bugs: **§4.2** (allocation percentages sum to 146%, Remaining clamped
-   to 0% instead of showing the −46% overspend), **§2.5** (Emergency Fund Dec 2028 on Goals vs
-   Mar 2029 in Forecast — Goals appears to apply the Marcus 4.5% APY and Forecast does not),
-   **§2.1 / §3.2 / §3.4** (income double-count, paycheck mis-categorised "Other", duplicate
-   recurring rows — these three may be **demo-fixture** defects; check the fixture before coding).
+4. Remaining demo bugs: **§2.1 / §3.2 / §3.4** (income double-count, paycheck mis-categorised
+   "Other", duplicate recurring rows). These three may be **demo-fixture** defects — check the
+   fixture before coding, and re-observe first (see §1's warning about stale findings).
 5. **§2.4 (three expense definitions) is the one canonical-definition question Tre has NOT
-   answered.** Ask when it next comes up.
+   answered.** Ask when it next comes up. §1's over-allocation finding is a reason to ask sooner.
 6. **§2.3 leftovers:** Debt tab's `$1,000` copy was not touched. **Settings exposes no cash-floor
    control at all**, contradicting Forecast's "your floor setting" copy — raise with Tre.
 7. **§2.7** RAV4 double representation — decision input for the open `car_funds` question. Any fix
    must pick one source of truth per vehicle, never sum both.
 8. Full real-data walk. Budget and Debt were spot-checked on real data in session 77 and agree;
-   Forecast, Goals, Transactions never walked on real data. **The sweep moves real numbers for any
-   Plaid user** (3-day lag, strict boundary) — this walk matters more than it did. Note the demo
-   could NOT positively exercise the CC-minimum gate: demo cards carry no `payment_due_day`, so
-   `dueDay` is null and the gate short-circuits. Unit tests are its only positive verification.
+   Forecast, Goals, Transactions never walked on real data. Session 83's cutoff sweep moves real
+   numbers for any Plaid user (3-day lag, strict boundary). Note the demo could NOT positively
+   exercise the CC-minimum gate: demo cards carry no `payment_due_day`, so `dueDay` is null and the
+   gate short-circuits. Unit tests are its only positive verification.
 9. Mobile/Capacitor viewport pass — not started.
 
 ## 4. LATENT DEFECT FOUND SESSION 82, STILL NOT FILED, NOT FIXED
 
-`forecast-engine.ts:159` picks its starting `liquidBal` from `forecastFundingAccountId` with **no
+`forecast-engine.ts` picks its starting `liquidBal` from `forecastFundingAccountId` with **no
 account-type check** (`active.find(a => a.id === …)` — a savings account would be accepted), while
 `useCardProjection.ts:135` resolves `resolveFundingAccountId(accounts, persistedDebtFundingId,
 forecastFundingAccountId)`. Two consequences: (a) if the user picks a different debt-funding
 account in the Debt tab, the engine still starts from the profile default; (b) the engine skips the
 §2.8 type validation. Invisible in demo (the persisted id resolves to null, so both land on the
 same account). Fix is to route the engine through `src/lib/funding-account.ts` too — but it moves
-real numbers, so pair it with a live check.
+real numbers, so pair it with a live check. **Line number moved this session — grep, don't trust it.**
 
-## 5. ⚠️ ENVIRONMENT GOTCHAS (carried forward; §2 above is the new one and the most important)
+## 5. ⚠️ ENVIRONMENT GOTCHAS (carried forward; all still accurate)
 
-1. **The dev server can serve a STALE transform and silently invalidate a live check.** Always
-   confirm the served module before trusting a live verification:
-   `curl -s "http://localhost:8080/src/<path>?t=$(date +%s)" | grep -c <something you just wrote>`.
-   Fix: restart vite (`Stop-Process -Id <pid on 8080> -Force`, then `npm run dev`).
+1. **The dev server can serve a STALE transform and silently invalidate a live check.** Confirm the
+   served module before trusting a live verification (curl recipe in §2). Fix: restart vite
+   (`Stop-Process -Id <pid on 8080> -Force`, then `npm run dev`).
 2. Landing CTA is **"See Demo"**. `find` + `computer left_click` does nothing; what works is
    `javascript_tool` → `[...document.querySelectorAll('button,a')].find(x=>/see demo/i.test(x.textContent)).click()`
-   then `await new Promise(r=>setTimeout(r,10000))`. Same trick for in-app nav
+   then `await new Promise(r=>setTimeout(r,11000))`. Same trick for in-app nav
    (`querySelectorAll('a')` + exact text match), which keeps demo state alive.
 3. **Reading the Forecast table without opening anything:** `const L=document.body.innerText.split('\n');
    const i=L.lastIndexOf('MONTH'); L.slice(i,i+16)` gives MONTH/+INCOME/−OUT/END CASH then the rows.
@@ -149,22 +145,25 @@ real numbers, so pair it with a live check.
    (e.textContent||'').length<80).click()`, wait ~1.2s, then `document.body.innerText.split('\n').slice(-45)`.
 5. `javascript_tool` returning a long `|`-joined string, or any `body.innerText.slice(...)` around
    a `$`-heavy region, gets `[BLOCKED: Cookie/query string data]`. Return a structured array
-   instead — that always works.
+   instead — that always works. **Reading `.split('\n')` and slicing an index range is fine**, and
+   is what every recipe here does.
 6. Don't put a long sleep in the same `javascript_tool` call as a `location.href` navigation. Do
    the navigation, then sleep in the NEXT call.
 7. Reading component props off the DOM via `__reactFiber$` works only where a component boundary
    exists. The Forecast month row is inline JSX — the walk finds nothing. Read rendered text.
-8. **Demo state is in-memory.** A hard `navigate` drops it and bounces to `/auth` (then "See Demo"
-   again works). An HMR reload can land you on **Tre's real account** if signed in. **Read-only there.**
+8. **Demo state is in-memory. An HMR reload lands you on Tre's real account if signed in — this
+   happened again this session.** Check before interpreting numbers:
+   `/demo/i.test(document.body.innerText.slice(0,600))` — false means real account. **Read-only
+   there.** It is also the ONLY way to exercise branches the demo persona doesn't hit (that is how
+   §4.2's over-budget path got verified), so it is useful, not just a hazard.
 9. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
 10. **Don't put a PowerShell here-string in a compound `;`-chained command.** Bash heredoc +
-    `git commit -F -` works and is what I used. A `python - <<'EOF'` heredoc is the reliable way to
-    do multi-point edits to a test file.
+    `git commit -F -` works and is what I used for all three commits this session.
 11. Dev server on **8080 with `--strictPort`**; up and serving fresh transforms as of this session.
 12. After a browser tool errors with "Couldn't determine which page this action targets", call
     `tabs_context_mcp` once and retry — the tab is still fine.
 
-## 6. CARRIED FORWARD, UNRESOLVED (from sessions 72–82)
+## 6. CARRIED FORWARD, UNRESOLVED (from sessions 72–83)
 
 1. **GA4 health UNKNOWN.** Session 27's "LaunchDarkly breaks GA4" is probably a DNT=1 artifact.
    Retest with Do-Not-Track OFF; confirm `VITE_GA_MEASUREMENT_ID` is set in Vercel prod.
@@ -185,6 +184,8 @@ real numbers, so pair it with a live check.
 7. `getCurrentMonthDebtRecommendations` has zero callers, `@deprecated` in `credit-card-engine.ts`,
    not deleted. `getMonthlyDebtBreakdown` is **still live** behind `useForecastEngineInputs.ts:141`
    / `Forecast.tsx` — deliberately left alone.
+8. `python -m graphify update .` **not run this session** (context gate). Run it next session — two
+   new files landed (`src/lib/budget-allocation.ts` + its test).
 
 ## 7. MEASUREMENT ARTIFACT — do not "fix"
 
@@ -195,26 +196,27 @@ runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFired: fal
 
 ## 8. FILES
 
-- **`0380d56d`:** `src/lib/credit-card-engine.ts`, `src/lib/month0-debt-breakdown.ts`,
-  `src/components/debt/CreditCardEngine.tsx`, + 3 test files.
-- **`72455ec2`:** `src/lib/pay-schedule.ts`.
-- **`309865d0`:** `src/lib/payment-plan-generator.ts`, `src/hooks/useCardProjection.ts`.
-- **Backups:** `backups/2026-08-05_184157/` (all six source files, pre-change).
-- `npx tsc --noEmit` clean, `npx vitest run` **349/349 green**.
-- `python -m graphify update .` run (15622 nodes / 112903 edges).
-- **Not pushed.** 29 commits ahead of origin.
+- **`0bcf0ed1`:** `src/pages/Forecast.tsx`.
+- **`ca1536ae`:** `src/pages/BudgetControl.tsx`, **new** `src/lib/budget-allocation.ts`,
+  **new** `src/lib/__tests__/budget-allocation.test.ts`, `site-walk-findings.md`.
+- **`b80b381d`:** `src/lib/forecast-engine.ts`, `src/lib/savings-growth.ts`,
+  `src/pages/SavingsGoals.tsx`.
+- **Backups:** `backups/2026-08-05_185630/` (all five source files, pre-change).
+- `npx tsc --noEmit` clean, `npx eslint` clean, `npx vitest run` **358/358 green** (349 + 9 new).
+- **Not pushed.** 32 commits ahead of origin.
 
 ## 9. LESSONS WORTH KEEPING
 
-- Session 79: *a UI showing a total it did not derive hides whatever it failed to model.* (Next
-  step 1 is another instance of exactly this.)
+- Session 79: *a UI showing a total it did not derive hides whatever it failed to model.*
 - Session 80: *validate identifiers at the boundary; make the failure mode "no filter", not "filter
   everything".*
 - Session 81: *when two surfaces disagree, line the two derivations up term by term in one table.*
-- Session 82: *a shared helper is only safe if every caller is asking the same question.* Applied
-  this session to STOP a sweep at two sites rather than finish it uniformly.
-- **This session: when a live check reports a regression, check the measurement before the code.**
-  A mid-settle read produced a coherent, believable, entirely fake regression — right down to the
-  specific badge session 82 taught me to watch for. What exposed it was an *impossible* detail: a
-  month-0 gate cannot move September. Stash-and-re-read is the cheap confirmation, and it takes
-  under a minute.
+- Session 82: *a shared helper is only safe if every caller is asking the same question.*
+- Session 83: *when a live check reports a regression, check the measurement before the code.*
+- **This session: a stale bug report is as misleading as a stale measurement.** §4.2's headline
+  (146%, Debt 77%) had already been fixed by an unrelated commit; coding against the report instead
+  of re-observing would have chased a number that no longer existed. Re-observe, then fix what is
+  actually still broken — which here was the *latent* clamp underneath, worth fixing on its own.
+- Corollary, three sessions running: when two surfaces disagree, **the one that re-derives is the
+  one that's wrong.** All three fixes this session were "point the display at the derivation that
+  already exists" — never "write new math".
