@@ -17,6 +17,7 @@ import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-m
 import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { computeFloorProtection } from '@/lib/floor-protection';
+import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
 import type { Tables } from '@/integrations/supabase/types';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
@@ -121,11 +122,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const accountMap = new Map<string, AccountRow>(accounts.map(a => [a.id, a]));
 
       // ── Funding account resolution (mirrors cardProjectionData) ──────────────
-      const liquidTypes = ['checking', 'business_checking', 'cash'];
       const liquidCash = accounts
-        .filter(a => a.active && liquidTypes.includes(a.account_type))
+        .filter(a => a.active && FUNDING_ACCOUNT_TYPES.includes(a.account_type))
         .reduce((s, a) => s + Number(a.balance), 0);
-      const resolvedDebtFundingId = persistedDebtFundingId || forecastFundingAccountId;
+      // Finding §2.8: `persistedDebtFundingId` is localStorage, so it can name an account that no
+      // longer exists (deleted/disconnected) or, in demo mode, a real account's UUID. Taking it on
+      // faith made every cash expense rule look "paid from another account" — month-0 expenses read
+      // $0 and the cash floor collapsed to its base. Resolve against the real account list and fall
+      // through to the profile default; `null` (no exclusion) is the safe end state. See
+      // `src/lib/funding-account.ts`.
+      const resolvedDebtFundingId = resolveFundingAccountId(
+        accounts, persistedDebtFundingId, forecastFundingAccountId,
+      );
       const debtFundingAccount = accounts.find(a => a.active && a.id === resolvedDebtFundingId);
       // Already-saved/gifted down-payment money sitting in this same account is still "available
       // cash" by default — earmark it out so it isn't offered up for CC paydown while it's spoken
@@ -289,7 +297,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       // ── forecastMonthEvents (mirrors Forecast.tsx useMemo exactly) ────────────
       const liquidAccountIds = new Set<string>(
-        accounts.filter(a => a.active && liquidTypes.includes(a.account_type)).map(a => a.id),
+        accounts.filter(a => a.active && FUNDING_ACCOUNT_TYPES.includes(a.account_type)).map(a => a.id),
       );
       const incomeToLiquidRuleIds = new Set<string>(
         rules.filter(r =>

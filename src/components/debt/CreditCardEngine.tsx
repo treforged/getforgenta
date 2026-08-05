@@ -31,10 +31,11 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import PremiumGate from '@/components/shared/PremiumGate';
+import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 
 import type { Tables } from '@/integrations/supabase/types';
 
-const LIQUID_ACCOUNT_TYPES = ['checking', 'business_checking', 'cash'];
+const LIQUID_ACCOUNT_TYPES = FUNDING_ACCOUNT_TYPES;
 
 type Props = {
   accounts: AccountRow[];
@@ -191,7 +192,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const liquidCash = liquidAccounts.reduce((s, a) => s + Number(a.balance), 0);
   // Use defaultFunding as fallback so fundingAccount resolves correctly while
   // accounts are still loading and fundingAccountId may be '' (no localStorage value yet).
-  const resolvedFundingId = fundingAccountId || defaultFunding;
+  // Finding §2.8: fundingAccountId comes from localStorage, so it can name an account that no
+  // longer exists — or, in demo mode, a real account's UUID. Every consumer below asks "is this
+  // expense paid from the funding account?", so an id matching nothing drops every cash expense
+  // out of the estimate. Resolve it against the real account list first; the persisted value is
+  // left untouched so switching data sets (demo ↔ real) never overwrites the user's choice.
+  const resolvedFundingId = resolveFundingAccountId(accounts, fundingAccountId, defaultFunding) ?? '';
   const fundingAccount = liquidAccounts.find(a => a.id === resolvedFundingId);
   const fundingBalance = fundingAccount ? Number(fundingAccount.balance) : liquidCash;
 
@@ -220,9 +226,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Falls back to defaultFunding so the filter is non-empty even before the persisted
   // value resolves (accounts still loading → fundingAccountId may be '').
   const fundingAccountSources = useMemo(() => {
-    const id = fundingAccountId || defaultFunding;
+    const id = resolvedFundingId;
     return id ? new Set([id, `account:${id}`]) : new Set<string>();
-  }, [fundingAccountId, defaultFunding]);
+  }, [resolvedFundingId]);
 
   const monthlyTakeHome = useMemo(() => {
     const now = new Date();
@@ -300,7 +306,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   }, [rules, pauseSavings, ccPaymentSources]);
 
   // Pre-paycheck next-month bills
-  const prePaycheckBills = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, fundingAccountId || null), [rules, payConfig, fundingAccountId]);
+  const prePaycheckBills = useMemo(() => getPrePaycheckNextMonthBills(rules, payConfig, resolvedFundingId || null), [rules, payConfig, resolvedFundingId]);
 
   // recommendedSafeMinimum is computed after variableSim below so it can use the sim's
   // monthlyRevolvingBalances and perCardMinPayments to exactly match Forecast month 0.
@@ -681,7 +687,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // Month 0 is already handled by month0SafeFloor in the sim call.
     const cashFloorByMonth: number[] = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
-      return getMinSafeCash(rules, payConfig, cashFloor, fundingAccountId ?? null, d);
+      return getMinSafeCash(rules, payConfig, cashFloor, resolvedFundingId || null, d);
     });
 
     // ── Look-ahead pre-pass (mirrors Forecast PASS 2) ─────────────────────────────
@@ -778,7 +784,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
-      rules, payConfig, fundingAccountId, carFunds, goals, pauseSavings, syncCutoffDate,
+      rules, payConfig, resolvedFundingId, carFunds, goals, pauseSavings, syncCutoffDate,
       paymentPlans, prePaycheckBills.total]);
 
   // Override-rebalance (Anomaly B): when the user pins any month's payment, rebuild the
@@ -1434,7 +1440,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             <Wallet size={13} className="text-primary shrink-0" />
             <span className="text-[10px] sm:text-[11px] text-muted-foreground uppercase font-medium tracking-wider shrink-0">Funding Account:</span>
             <select
-              value={fundingAccountId}
+              value={resolvedFundingId}
               onChange={e => setFundingAccountId(e.target.value)}
               className="flex-1 min-w-0 bg-secondary border border-border px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}
             >

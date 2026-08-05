@@ -22,6 +22,15 @@ this walk first saw was that artifact, **not** a bug. All findings below come fr
 The app tells the user to deploy $6,488 on the same screen-set where it predicts an overdraft.
 In a financial app this is the highest-severity class of defect.
 
+**Re-measured 2026-08-05 after the §2.8 fix — STILL OPEN, and NOT the same bug as §2.8.**
+Demo now reads Dashboard `MONTH-END CASH $5,833` vs Forecast `Aug 2026 … END CASH $2,346`
+(Forecast no longer goes negative, and both pages moved a long way, but they are still
+**$3,487 apart** — the same order as the original $3,300). §2.8 was a real defect feeding both,
+but it was not this one. Next probe: the two pages' month-end definitions, not their funding
+account, which is now provably shared. Note also Forecast still says the floor was
+"raised to $1,655" while the engine's own floor row reads **$2,402** — chase that first; a floor
+difference of $747 does not explain $3,487, so expect two causes, not one.
+
 ### 1.2 Chase Sapphire's debt payment differs by $2,673 between tabs — ✅ FIXED (`014d5a10`), verified live 2026-08-04
 - Debt Payoff → recommended Chase Sapphire payment **$6,401** (Dashboard widget agrees)
 - Transactions → `Chase Sapphire Payment · debt payoff · 2026-08-15 · **-$3,728**`
@@ -145,7 +154,57 @@ present, and negative projected remaining. That test is what stops it drifting b
 Live demo 2026-08-05: `$4,100 + $5,850 − $150 − $311 − $450 = $9,039`, then
 `− $1,500 floor − $376 held = $7,163`. Both halves balance exactly.
 
-### 2.8 Engine's month-0 remaining expenses reads $0 while bills remain (NEW — 2026-08-05, UNVERIFIED)
+### 2.8 Engine's month-0 remaining expenses reads $0 while bills remain — ✅ FIXED, verified live 2026-08-05
+
+**Root cause: the debt funding account id is read from localStorage and was never validated.**
+`tre:debt:fundingAccount` held `933cbc10-…`, a **real account's UUID from Tre's own data**, and demo
+mode reads the same key — so `persistedDebtFundingId` named an account that does not exist in the
+current data set. `useCardProjection` took it as `persistedDebtFundingId || forecastFundingAccountId`,
+i.e. the stale id always won.
+
+Every consumer then asks "is this expense paid from the funding account?" — `otherAccountRuleIds`
+and `monthlyExpenses` in `useCardProjection.ts`, `getMinSafeCash`, `getPrePaycheckNextMonthBills` —
+and an id matching nothing makes every answer *no*. So **every cash expense rule dropped out of the
+engine at once**: month-0 expenses read $0 and the cash floor collapsed to its base $1,500. The
+balance term hid it, because `debtFundingBalance` falls back to *total liquid cash* when the account
+isn't found ($4,100 instead of Chase Checking's $2,800) — the total looked plausible while its
+inputs were wrong. Note the two guard styles that made this asymmetric: code written
+`if (id && srcId !== id) return false` excludes everything on a bad id, while
+`if (!id) return false` excludes nothing. Same stale value, opposite behavior, in the same engine.
+
+**Fix.** New `src/lib/funding-account.ts` — one rule for "which account does cash come out of":
+`resolveFundingAccountId(accounts, ...candidates)` returns the first candidate that is an **active
+account of a fundable type** (`checking`/`business_checking`/`cash`), else **`null`**. `null` means
+*no exclusion*, which is the safe direction: bills get counted, never silently dropped. Used by
+`useCardProjection.ts`, `CreditCardEngine.tsx` (which had its own copy of the resolution, plus a
+`<select>` that displayed a value it wasn't using) and `CardProjectionContext.tsx`. The persisted
+localStorage value is deliberately **not** rewritten — opening the demo must not overwrite the real
+account's saved choice.
+
+`funding-account.test.ts` (13) + `useCardProjection.staleFundingId.test.ts` (5) cover it; the latter
+was confirmed RED against the old resolution (a $1,800 bill vanished, balance read $3,500 instead of
+$3,000). Live demo after the fix: `Bills still coming $645` renders, floor $1,500 → $2,402,
+`BILLS THIS MONTH` $11,025 → $5,434 (the old figure was inflated by the same asymmetry).
+
+**It did not close §1.1** — see that entry's 2026-08-05 re-measurement.
+
+### 2.9 Car-fund earmark can exceed the account it is earmarked from (NEW — 2026-08-05)
+
+Surfaced by the §2.8 fix. Demo now shows `Balance on hand $0` while Chase Checking holds **$2,800**.
+Arithmetically correct: `getCarFundEarmark` (`vehicle-loan-engine.ts:183`) earmarks the Civic's
+`current_saved` **$3,200** against `linked_account: 'd1'`, and `debtFundingBalance` clamps
+`2800 − 3200` at 0. Two things are tangled here and both need Tre's call:
+
+1. **Demo fixture defect** — the persona has "saved" $3,200 toward a car but only holds $2,800 in the
+   account it is linked to. The $3,200 is presumably meant to be sitting in Marcus HYS.
+2. **Modeling gap** — the earmark is subtracted from one account's balance with no check that the
+   saved cash is actually *in* that account, and the shortfall is silently clamped away rather than
+   surfaced. A user whose down-payment savings live somewhere other than `linked_account` gets
+   `Balance on hand $0` and no explanation.
+
+Pre-fix this was invisible: the stale funding id made the earmark match nothing, so it was $0.
+
+### 2.8 (original report, 2026-08-05, kept for the trail)
 
 Surfaced *by* the §2.6 fix, which is the point of that fix: the snapshot now shows the engine's own
 inputs instead of Dashboard-local sums, so an engine input that looks wrong is finally visible.

@@ -12,6 +12,7 @@ import { buildPayConfig, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { generateScheduledEvents, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
 import { calculateForecast, type ForecastInputs, type ForecastResult } from '@/lib/forecast-engine';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
+import { resolveFundingAccountId } from '@/lib/funding-account';
 import type { FilingStatus } from '@/lib/tax-estimator';
 
 const DEFAULT_ASSUMPTIONS = {
@@ -115,13 +116,10 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
   }, [profile]);
 
   const forecastFundingAccountId = useMemo((): string | null => {
-    const defaultId = profile?.default_deposit_account;
-    if (defaultId) {
-      const acct = (accounts ?? []).find(
-        a => a.id === defaultId && a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type as string),
-      );
-      if (acct) return acct.id as string;
-    }
+    // Same validation rule the engine applies to the persisted debt-funding id — see
+    // `src/lib/funding-account.ts` and finding §2.8.
+    const fromProfile = resolveFundingAccountId(accounts ?? [], profile?.default_deposit_account);
+    if (fromProfile) return fromProfile;
     const checking = (accounts ?? []).find(a => a.active && a.account_type === 'checking');
     return (checking?.id as string) ?? null;
   }, [accounts, profile]);
