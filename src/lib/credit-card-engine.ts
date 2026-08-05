@@ -2128,6 +2128,13 @@ export function getMonthlyDebtBreakdown(
   };
 }
 
+/**
+ * @deprecated No callers remain. Dashboard, Budget Control and Savings Goals moved to
+ * `useMonth0DebtBreakdown` (lib/month0-debt-breakdown.ts), which derives the same shape from the
+ * converged `cardProjection.month0` that Debt Payoff and Forecast read. This one-shot pass used a
+ * different cash floor, save-up reserve and income window, so it reported different payments than
+ * /debt for the same card. Do not add new callers.
+ */
 export function getCurrentMonthDebtRecommendations(
   accounts: AccountRow[],
   transactions: EnrichedTransaction[],

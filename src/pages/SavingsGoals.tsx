@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Json, Tables } from '@/integrations/supabase/types';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
-import { usePersistedState } from '@/hooks/usePersistedState';
+import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { useIsViewportBelow } from '@/hooks/use-mobile';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router';
@@ -14,7 +14,6 @@ import FormModal, { type Field } from '@/components/shared/FormModal';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-react';
-import * as DebtEngine from '@/lib/credit-card-engine';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, type GrowthGoalInput } from '@/lib/savings-growth';
@@ -316,8 +315,6 @@ export default function SavingsGoals() {
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
-  const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
-
   const liquidCash = useMemo(() =>
     accounts
       .filter(a => a.active && ['checking', 'business_checking', 'cash'].includes(a.account_type))
@@ -325,50 +322,14 @@ export default function SavingsGoals() {
     [accounts]
   );
 
-  const monthlySavingsAndCar = useMemo(() => {
-    if (pauseSavings) return 0;
-    const retireIds = new Set<string>(
-      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
-    );
-    const now = new Date();
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const activeTransferDests = new Set<string>(
-      rules.filter(r =>
-        r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
-        !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
-        !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map(r => r.deposit_account as string),
-    );
-    const savingsTotal = goals.reduce((s, g) => {
-      if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
-      if (g.linked_account && retireIds.has(g.linked_account)) return s;
-      if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
-      return s + Number(g.monthly_contribution);
-    }, 0);
-    const carTotal = carFunds.reduce((s, c) => {
-      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
-      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
-    }, 0);
-    return savingsTotal + carTotal;
-  }, [pauseSavings, goals, carFunds, accounts, rules]);
-
   // Build full transaction stream including debt payments for linked-account math
   const baseTxns = useMemo(() => mergeWithGeneratedTransactions(txns || [], rules, accounts), [txns, rules, accounts]);
-  const debtRecs = useMemo(() => {
-  try {
-    return DebtEngine.getCurrentMonthDebtRecommendations(
-      accounts,
-      baseTxns,
-      rules,
-      debts,
-      profile,
-      monthlySavingsAndCar
-    );
-  } catch (e) {
-    console.error('Debt engine failed:', e);
-    return [];
-  }
-}, [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar]);
+
+  // Card payments come from the converged month-0 projection (useCardProjection pass 3) that Debt
+  // Payoff and Forecast read, instead of this page's own legacy engine pass. Linked-account
+  // "remaining cash" now nets out the same payments /debt recommends.
+  const { recommendations: debtRecs } = useMonth0DebtBreakdown();
+
   const debtTxns = useMemo(() => {
     const fundId = profile?.default_deposit_account ||
       accounts.find(a => a.account_type === 'checking' && a.active)?.id || null;

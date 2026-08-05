@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { getDayName, countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { CATEGORIES } from '@/lib/types';
-import { generateRecommendations, getCurrentMonthDebtRecommendations } from '@/lib/credit-card-engine';
+import { generateRecommendations } from '@/lib/credit-card-engine';
+import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
 
@@ -483,40 +484,11 @@ export default function BudgetControl() {
     [txns, rules, accounts],
   );
 
-  const [pauseSavings] = usePersistedState<boolean>('tre:debtpayoff:pause-savings', false);
-
-  const monthlySavingsAndCar = useMemo(() => {
-    if (pauseSavings) return 0;
-    const retireIds = new Set<string>(
-      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
-    );
-    const now = new Date();
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const activeTransferDests = new Set<string>(
-      rules.filter(r =>
-        r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
-        !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
-        !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map(r => r.deposit_account as string),
-    );
-    const savingsTotal = (savingsGoals ?? []).reduce((s, g) => {
-      if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
-      if (g.linked_account && retireIds.has(g.linked_account)) return s;
-      if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
-      return s + Number(g.monthly_contribution);
-    }, 0);
-    const carTotal = (carFunds ?? []).reduce((s, c) => {
-      const rem = Number(c.down_payment_goal) - Number(c.current_saved);
-      return s + (rem > 0 ? Math.min(rem / 12, 500) : 0);
-    }, 0);
-    return savingsTotal + carTotal;
-  }, [pauseSavings, savingsGoals, carFunds, accounts, rules]);
-
-  // Compute debt recommendations using shared helper
-  const debtRecommendations = useMemo(() =>
-    getCurrentMonthDebtRecommendations(accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar),
-    [accounts, baseTxns, rules, debts, profile, monthlySavingsAndCar],
-  );
+  // Debt recommendations from the converged month-0 projection (useCardProjection pass 3) that
+  // Debt Payoff and Forecast read, replacing this page's own legacy engine pass. That second pass
+  // computed its own cash floor, save-up reserves and income timing, which is why Budget's
+  // "matches Debt tab Safe to Pay" label was showing a different number than the Debt tab.
+  const { recommendations: debtRecommendations, totalAvailableCash: debtSafeToPay } = useMonth0DebtBreakdown();
 
   const debtPaymentRules = useMemo(() =>
     debtRecommendations.map(r => ({
@@ -650,8 +622,11 @@ export default function BudgetControl() {
     getPrePaycheckNextMonthBills(rules, payConfig, fundingAccount?.id || null).total,
     [rules, payConfig, fundingAccount]);
   const safeMinimum = useMemo(() => Math.max(cashFloor, prePaycheckBillsTotal), [cashFloor, prePaycheckBillsTotal]);
-  // Matches Debt tab "Safe to Pay": balance + remaining income − safe minimum (no double-subtract of expenses)
-  const remainingCash = fundingAccountBalance + remainingTxIncome - safeMinimum;
+  // This tile's own label promises it matches the Debt tab's "Safe to Pay", so it now reads that
+  // number directly instead of re-deriving it. The old formula (balance + remaining income − safe
+  // minimum) used a bare cash floor and ignored save-up reserves and vehicle/insurance holdbacks,
+  // so it ran high — $6,995 against the Debt tab's $6,488 — while claiming to be the same figure.
+  const remainingCash = debtSafeToPay;
 
   const allAccountOptions = useMemo(() => [
     { value: '', label: 'None' },
@@ -791,8 +766,8 @@ export default function BudgetControl() {
       lines: [
         { label: `Funding Account Balance${fundingAccount ? ` (${fundingAccount.name})` : ''}`, value: formatCurrency(fundingAccountBalance, false) },
         { label: `Remaining Income (today → ${monthEndLabel})`, value: formatCurrency(remainingTxIncome, false), op: '+' },
-        { label: 'Safe Minimum (pre-paycheck bills + transfers + cash floor)', value: formatCurrency(safeMinimum, false), op: '−' },
-        { label: 'Remaining Cash', value: formatCurrency(remainingCash, false), op: '=' },
+        { label: 'Bills, cash floor, savings and vehicle reserves held back by the Debt Payoff engine', value: formatCurrency(Math.max(0, fundingAccountBalance + remainingTxIncome - remainingCash), false), op: '−' },
+        { label: 'Remaining Cash (Debt tab "Safe to Pay")', value: formatCurrency(remainingCash, false), op: '=' },
       ],
     });
   };
@@ -1369,7 +1344,7 @@ export default function BudgetControl() {
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Remaining Cash</h3>
             </div>
             <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-              Balance + remaining income − safe minimum · matches Debt tab Safe to Pay
+              Balance + remaining income − everything the engine holds back · the Debt tab's Safe to Pay
               {fundingAccount && <span className="font-medium"> · {fundingAccount.name}</span>}
             </p>
           </div>
