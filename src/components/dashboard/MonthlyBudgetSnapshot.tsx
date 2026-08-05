@@ -2,18 +2,17 @@ import { useMemo, useState } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
+import type { Month0Snapshot, SnapshotRow, SnapshotRowTone } from '@/lib/month0-budget-snapshot';
 
+/**
+ * Findings §2.6/§2.3: this component used to ASSEMBLE the equation from a dozen separate props,
+ * one of which (`availableToDeploy`) was an engine output the others were never derived from —
+ * so the rows did not sum to their own total. It now RENDERS a snapshot built by
+ * `buildMonth0Snapshot`, which sources every row from the engine's own month-0 cash chain and
+ * emits the leftover as a computed row. Keep it that way: no arithmetic belongs in here.
+ */
 type Props = {
-  fundingBalance: number;
-  remainingIncome: number;
-  spentSoFar: number;
-  expectedRemainingExpenses: number;
-  projectedSurplus: number;
-  cashFloor: number;
-  savingsAndReserves?: number;
-  savingsBreakdown?: { label: string; value: number }[];
-  availableToDeploy?: number;
-  saveUpNote?: { eventName: string; monthLabel: string; amount: number } | null;
+  snapshot: Month0Snapshot;
   onFloorClick?: () => void;
 };
 
@@ -26,64 +25,37 @@ const C = {
   empty:    'hsl(0, 0%, 12%)',
 };
 
-export default function MonthlyBudgetSnapshot({
-  fundingBalance,
-  remainingIncome,
-  spentSoFar,
-  expectedRemainingExpenses,
-  projectedSurplus,
-  cashFloor,
-  savingsAndReserves,
-  savingsBreakdown,
-  availableToDeploy,
-  saveUpNote,
-  onFloorClick,
-}: Props) {
+const TONE_CLASS: Record<SnapshotRowTone, string> = {
+  neutral:  'text-foreground',
+  positive: 'text-success',
+  negative: 'text-destructive',
+  muted:    'text-muted-foreground',
+  subtotal: 'text-primary',
+};
+
+function rowValueClass(row: SnapshotRow): string {
+  if (row.tone === 'subtotal') return row.value >= 0 ? 'text-primary' : 'text-destructive';
+  if (row.key === 'expenses') return 'text-orange-400';
+  return TONE_CLASS[row.tone];
+}
+
+export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
-  const shortfallAmt = projectedSurplus < 0 ? Math.abs(projectedSurplus) : 0;
-  const savingsAmt   = savingsAndReserves ?? 0;
-  // Cash floor + savings segment: locked cash that can't be deployed
-  const lockedAmt    = cashFloor + savingsAmt;
-  const floorSegAmt  = projectedSurplus > 0 ? Math.min(lockedAmt, projectedSurplus) : 0;
-  const deployAmt    = availableToDeploy != null
-    ? Math.max(0, availableToDeploy)
-    : Math.max(0, projectedSurplus - lockedAmt);
+  const { rows, pie, projectedRemaining, availableToDeploy } = snapshot;
 
   const pieData = useMemo(() => {
     const segments = [
-      spentSoFar > 0                && { name: 'Spent so far',        value: spentSoFar,                color: C.spent },
-      expectedRemainingExpenses > 0 && { name: 'Bills still coming',  value: expectedRemainingExpenses, color: C.expected },
-      floorSegAmt > 0               && { name: 'Cash floor',          value: floorSegAmt,               color: C.floor },
-      deployAmt > 0                 && { name: 'Available to deploy', value: deployAmt,                 color: C.surplus },
-      shortfallAmt > 0              && { name: 'Shortfall',           value: shortfallAmt,              color: C.shortfall },
+      pie.spentSoFar > 0       && { name: 'Spent so far',        value: pie.spentSoFar,       color: C.spent },
+      pie.billsAndReserves > 0 && { name: 'Bills & reserves',    value: pie.billsAndReserves, color: C.expected },
+      pie.locked > 0           && { name: 'Floor & held back',   value: pie.locked,           color: C.floor },
+      pie.deployable > 0       && { name: 'Available to deploy', value: pie.deployable,       color: C.surplus },
+      pie.shortfall > 0        && { name: 'Shortfall',           value: pie.shortfall,        color: C.shortfall },
     ].filter(Boolean) as { name: string; value: number; color: string }[];
 
     return segments.length > 0 ? segments : [{ name: 'No data', value: 1, color: C.empty }];
-  }, [spentSoFar, expectedRemainingExpenses, floorSegAmt, deployAmt, shortfallAmt]);
+  }, [pie]);
 
   const activeSlice = activeIdx !== null ? pieData[activeIdx] : null;
-
-  const deployedValue = availableToDeploy != null ? availableToDeploy : projectedSurplus - lockedAmt;
-
-  type Row = { label: string; value: number; sign: string; colorClass: string; onClick?: () => void; note?: string };
-  const rows: Row[] = [
-    { label: 'Balance on hand',     value: fundingBalance,            sign: ' ', colorClass: 'text-foreground' },
-    { label: 'Income still coming', value: remainingIncome,           sign: '+', colorClass: 'text-success' },
-    { label: 'Bills still coming',  value: expectedRemainingExpenses, sign: '−', colorClass: 'text-orange-400' },
-    { label: 'Projected remaining', value: projectedSurplus,          sign: '=', colorClass: projectedSurplus >= 0 ? 'text-primary' : 'text-destructive' },
-    { label: 'Cash floor',          value: cashFloor,                 sign: '−', colorClass: 'text-muted-foreground', onClick: onFloorClick },
-    ...(savingsBreakdown && savingsBreakdown.length > 0
-      ? savingsBreakdown.map(item => ({ label: item.label, value: item.value, sign: '−', colorClass: 'text-muted-foreground' } as Row))
-      : savingsAmt > 0 ? [{ label: 'Savings & reserves', value: savingsAmt, sign: '−', colorClass: 'text-muted-foreground' } as Row] : []
-    ),
-    {
-      label: 'Available to deploy',
-      value: deployedValue,
-      sign: '=',
-      colorClass: deployedValue >= 0 ? 'text-success' : 'text-destructive',
-      ...(saveUpNote ? { note: `Reserving ${formatCurrency(saveUpNote.amount, false)} for ${saveUpNote.eventName} (${saveUpNote.monthLabel})` } : {}),
-    },
-  ];
 
   return (
     <div className="card-forged p-5">
@@ -135,23 +107,23 @@ export default function MonthlyBudgetSnapshot({
                   {formatCurrency(activeSlice.value, false)}
                 </span>
               </>
-            ) : deployAmt > 0 ? (
+            ) : availableToDeploy > 0 ? (
               <>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">
                   Available
                 </span>
                 <span className="text-2xl font-display font-bold leading-tight text-success">
-                  {formatCurrency(deployAmt, false)}
+                  {formatCurrency(availableToDeploy, false)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">to deploy</span>
               </>
-            ) : projectedSurplus >= 0 ? (
+            ) : projectedRemaining >= 0 ? (
               <>
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">
                   At Floor
                 </span>
                 <span className="text-2xl font-display font-bold leading-tight text-muted-foreground">
-                  {formatCurrency(projectedSurplus, false)}
+                  {formatCurrency(projectedRemaining, false)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">reserved</span>
               </>
@@ -161,7 +133,7 @@ export default function MonthlyBudgetSnapshot({
                   Shortfall
                 </span>
                 <span className="text-2xl font-display font-bold leading-tight text-destructive">
-                  {formatCurrency(Math.abs(projectedSurplus), false)}
+                  {formatCurrency(Math.abs(projectedRemaining), false)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">projected</span>
               </>
@@ -174,8 +146,9 @@ export default function MonthlyBudgetSnapshot({
           {rows.map((row, i) => {
             const isTotal = row.sign === '=';
             const isSubRow = row.sign === '−' && i > 0 && rows[i - 1].sign === '=';
+            const onClick = row.interactive ? onFloorClick : undefined;
             return (
-              <div key={i}>
+              <div key={row.key}>
                 <div
                   className={cn(
                     'flex items-center justify-between py-2 text-xs',
@@ -191,13 +164,10 @@ export default function MonthlyBudgetSnapshot({
                     <span className="font-mono text-[10px] font-bold text-muted-foreground/50 w-3 shrink-0 text-center">
                       {row.sign}
                     </span>
-                    {row.onClick ? (
+                    {onClick ? (
                       <button
-                        onClick={row.onClick}
-                        className={cn(
-                          'text-left underline underline-offset-2 hover:text-foreground transition-colors',
-                          isTotal ? 'text-foreground font-semibold' : '',
-                        )}
+                        onClick={onClick}
+                        className="text-left underline underline-offset-2 hover:text-foreground transition-colors"
                       >
                         {row.label}
                       </button>
@@ -205,7 +175,7 @@ export default function MonthlyBudgetSnapshot({
                       <span className={isTotal ? 'text-foreground font-semibold' : ''}>{row.label}</span>
                     )}
                   </div>
-                  <span className={cn('font-display font-bold shrink-0 ml-3', row.colorClass)}>
+                  <span className={cn('font-display font-bold shrink-0 ml-3', rowValueClass(row))}>
                     {formatCurrency(Math.abs(row.value), false)}
                   </span>
                 </div>
@@ -223,10 +193,10 @@ export default function MonthlyBudgetSnapshot({
       {/* Legend */}
       <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border/30">
         {[
-          { label: 'Spent',         color: C.spent },
-          { label: 'Bills coming',  color: C.expected },
-          { label: 'Floor',         color: C.floor },
-          { label: 'Available',     color: C.surplus },
+          { label: 'Spent',           color: C.spent },
+          { label: 'Bills & reserves', color: C.expected },
+          { label: 'Floor & held',    color: C.floor },
+          { label: 'Available',       color: C.surplus },
         ].map(l => (
           <div key={l.label} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: l.color }} />

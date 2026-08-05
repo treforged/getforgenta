@@ -26,6 +26,50 @@ export interface Month0Result {
    * total invisibly. */
   vehicleInsurance: number;
   mortgagePayment: number;
+  /** The COMPLETE month-0 cash chain the engine used to derive safeToPayTotal, as integers.
+   *
+   * Findings §2.6/§2.3: Dashboard used to render `safeToPayTotal` (an engine output) as the "="
+   * of a subtraction chain assembled from its own page-local transaction sums and its own
+   * `getAugmentedMinSafeCash` call. Two independent derivations printed as one equation, so the
+   * rows did not add up to their own total ($2,632 off) and the floor row disagreed with the
+   * floor the engine actually applied. Every term below is the value the engine consumed, so a
+   * UI sourcing all of them shows one derivation instead of two.
+   *
+   * Each field is rounded individually and `cashPreDebt` is the SUM OF THE ROUNDED TERMS (not a
+   * rounding of the raw sum), so the identity holds exactly in integer arithmetic:
+   *
+   *   cashPreDebt = fundingBalance + income − expenses − goalContributions − carReserve
+   *                 − carLoanPayment − vehicleInsurance − mortgagePayment − transfers
+   *                 + oneTimeNet
+   *
+   * What remains — `cashPreDebt − m0SafeFloor − safeToPayTotal` — is a real residual (save-up
+   * holdback, or cash beyond what any revolving balance can absorb, or a negative when card
+   * minimums breach the floor). It must be DISPLAYED as a computed row, never absorbed silently.
+   */
+  chain: Month0CashChain;
+}
+
+export interface Month0CashChain {
+  /** Funding-account balance the engine started from, net of any car-fund earmark. */
+  fundingBalance: number;
+  /** Scheduled income still to land this month (forecastMonthEvents[0].income). */
+  income: number;
+  /** Scheduled non-CC expenses still to come this month (forecastMonthEvents[0].expenses). */
+  expenses: number;
+  /** Monthly savings-goal contributions the engine reserved. */
+  goalContributions: number;
+  /** Car down-payment reserve — still the user's own cash, but not deployable this month. */
+  carReserve: number;
+  /** Active car-loan payments still due after the sync cutoff. */
+  carLoanPayment: number;
+  vehicleInsurance: number;
+  mortgagePayment: number;
+  /** Transfer/investment rules plus goal lump-sum transfers leaving checking this month. */
+  transfers: number;
+  /** Net one-time DB transactions (income − expenses); may be negative. */
+  oneTimeNet: number;
+  /** Sum of the terms above. Cash on hand before any revolving-debt payment. */
+  cashPreDebt: number;
 }
 
 export interface ProjectionDataRow {
@@ -77,6 +121,13 @@ export interface CardProjectionResult {
   m0Income: number;
   m0Expenses: number;
   m0SafeFloor: number;
+  /** The funding account the engine actually resolved for debt cash
+   * (`persistedDebtFundingId || forecastFundingAccountId`). Finding §2.3: Dashboard resolved its
+   * own funding account (`profile.default_deposit_account` with no account-type check and no
+   * persisted-override), so its `getAugmentedMinSafeCash` call saw different pre-paycheck bills
+   * and displayed a cash floor the engine never used ($2,402 vs $1,650). Any surface displaying
+   * or itemizing the floor must pass THIS id, not one it resolves itself. */
+  debtFundingAccountId: string | null;
   saveUpMonths: Set<number>;
   /** Strictly-before-the-breach months only (never the event's own month) — see the
    * strictSaveUpMonths comment near its definition. Forecast.tsx uses this (not saveUpMonths)

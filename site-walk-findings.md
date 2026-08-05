@@ -73,7 +73,7 @@ Contributing causes found in the ledger:
 Budget Control → `REMAINING CASH $6,995`, labelled *"matches Debt tab Safe to Pay"*.
 Debt tab → `Safe to Pay $6,488`. It does not match. Either the number or the claim is wrong.
 
-### 2.3 The cash floor has five different values
+### 2.3 The cash floor has five different values — ✅ Dashboard row FIXED (2026-08-05), verified live
 | Surface | Value |
 |---|---|
 | Debt tab explanatory copy | $1,000 |
@@ -85,6 +85,22 @@ Debt tab → `Safe to Pay $6,488`. It does not match. Either the number or the c
 `Dashboard.tsx:621-623` comments that this floor is shared with Forecast and `useCardProjection`
 via `getAugmentedMinSafeCash` "so the floor displayed here always matches the floor actually used".
 Debt $1,650 vs Forecast $1,655 vs Dashboard $2,402 shows that guarantee does not hold.
+
+**Root cause of the Dashboard value.** Sharing the *function* was never enough — the two calls
+were given different funding accounts. Dashboard passed its own `fundingAccountId`, which takes
+`profile.default_deposit_account` with **no account-type check** and ignores the persisted
+debt-funding override; the engine resolves `persistedDebtFundingId || forecastFundingAccountId`
+(checking / business_checking / cash only). Different account ⇒ different pre-paycheck bills ⇒
+different floor.
+
+**Fix.** `CardProjectionResult` now exposes `debtFundingAccountId` (the id the engine actually
+resolved) and Dashboard's `getAugmentedMinSafeCash` call uses it. That feeds both the snapshot's
+floor row and the floor-calculator popover, so the itemization matches the number.
+Live demo 2026-08-05: Dashboard floor row now **$1,500**, was $2,402.
+
+**Still open:** the Debt tab's `$1,000` explanatory copy and its `Safe Min $1,650` vs Forecast's
+`$1,655` were not touched — re-walk those three on real data. And **Settings still exposes no
+cash-floor control at all**, which contradicts Forecast's "your floor setting" copy. Raise with Tre.
 
 ### 2.4 Monthly expenses / savings rate disagree three ways
 - Dashboard → `MONTHLY EXPENSES $5,015`, `AVG MONTHLY SPEND $2,132`, `SAVINGS RATE -10.1% / -$923`
@@ -100,7 +116,7 @@ Goals → `Est. completion: Dec 2028`. Forecast milestone → `Mar 2029: Emergen
 Three months apart; Goals appears to apply the Marcus HYS 4.5% APY and Forecast does not.
 (Vacation Fund agrees at Nov 2027 in both, consistent with the zero-APY custom goal.)
 
-### 2.6 Dashboard budget snapshot rows do not sum to their own total
+### 2.6 Dashboard budget snapshot rows do not sum to their own total — ✅ FIXED (2026-08-05), verified live
 Displayed chain: `$2,800 + $5,850 − $1,975 = $6,675`, then `− $2,402 floor − $150 − $267 = **$6,488**`.
 Actual arithmetic: $3,856. The "=" total is *larger* than projected-remaining-minus-floor.
 
@@ -109,6 +125,45 @@ Cause: `MonthlyBudgetSnapshot.tsx:66` renders `availableToDeploy` (from
 derived from. `Dashboard.tsx:429-431` shows a prior session patched one instance of this by adding
 a missing "Vehicle Insurance (est.)" row. The reconciliation gap here is $187 of unshown items —
 the structural problem was never fixed, only one line item was added.
+
+**Fix (per Tre's 2026-08-05 decision: accuracy wins, engine total stays canonical, rows derive
+from it).** The engine now publishes its month-0 cash chain term by term as
+`Month0Result.chain` (`debt-model-types.ts`), each term rounded individually with `cashPreDebt`
+defined as the **sum of the rounded terms** so the identity holds exactly in integer arithmetic.
+New pure builder `src/lib/month0-budget-snapshot.ts` turns that chain into display rows and
+**computes the leftover** (`cashPreDebt − m0SafeFloor − safeToPayTotal`) as a real labeled row,
+split into the engine's own `holdback` and the remainder. `MonthlyBudgetSnapshot.tsx` no longer
+does arithmetic — it renders rows. Dashboard's parallel derivation (`month0ImpliedSavings` plus
+the `month0SavingsBreakdown` memo that silently *replaced* it) is deleted, hand-patched
+"Vehicle Insurance (est.)" row and all.
+
+`month0-budget-snapshot.test.ts` (11 tests) folds the rows and asserts every `=` checkpoint
+equals the fold above it, across: holdback with event, holdback exceeding the residual, exact
+floor bind, floor breach by card minimums (residual negative → `+` row), every reserve term
+present, and negative projected remaining. That test is what stops it drifting back.
+
+Live demo 2026-08-05: `$4,100 + $5,850 − $150 − $311 − $450 = $9,039`, then
+`− $1,500 floor − $376 held = $7,163`. Both halves balance exactly.
+
+### 2.8 Engine's month-0 remaining expenses reads $0 while bills remain (NEW — 2026-08-05, UNVERIFIED)
+
+Surfaced *by* the §2.6 fix, which is the point of that fix: the snapshot now shows the engine's own
+inputs instead of Dashboard-local sums, so an engine input that looks wrong is finally visible.
+
+Demo, Wed 2026-08-05: the snapshot renders **no "Bills still coming" row**, i.e.
+`month0.chain.expenses` rounds to $0 — and that same `m0Expenses` is what the engine subtracts in
+`cashPreDebt`, so it is not a display artifact. But the same page shows `BILLS THIS WEEK $190 · 3
+upcoming` and `BILLS THIS MONTH $11,025 · 20 scheduled`, including **Gas · Aug 12 · Chase Checking
+$55**, which is a cash-sourced rule that `forecastMonthEvents[0].expenses` should count. (Groceries
+Aug 8 is on Chase Sapphire and is correctly excluded — `allCcRuleIds`.)
+
+Either `forecastMonthEvents[0]` is not what `useCardProjection.ts:382-383` believes it is, or the
+demo fixture feeds it differently from the tile data. **Check before assuming the display is
+wrong.** If real, this overstates deployable cash by the whole remaining-bills amount and is a
+strong candidate for the still-open **§1.1** (Dashboard vs Forecast month-end cash, −$3,300 apart).
+
+A fiber probe for the live `cardProjection` failed (`memoizedState` walk found nothing); read the
+value by other means — a temporary log in the hook, or compare against Forecast's own August row.
 
 ### 2.7 The RAV4 loan has two different outstanding balances (NEW — 2026-08-04)
 - Vehicles → `Toyota RAV4 (Owned)` · `$27,110 remaining` · `1 of 61 payments made` · 6.4% APR

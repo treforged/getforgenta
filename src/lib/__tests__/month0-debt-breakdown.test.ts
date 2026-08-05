@@ -36,6 +36,11 @@ const month0 = (
   carReserveEvent: null,
   vehicleInsurance: 0,
   mortgagePayment: 0,
+  chain: {
+    fundingBalance: 0, income: 0, expenses: 0, goalContributions: 0, carReserve: 0,
+    carLoanPayment: 0, vehicleInsurance: 0, mortgagePayment: 0, transfers: 0, oneTimeNet: 0,
+    cashPreDebt: 0,
+  },
 });
 
 // Fixed so the due-day-vs-cutoff comparisons don't drift with the calendar.

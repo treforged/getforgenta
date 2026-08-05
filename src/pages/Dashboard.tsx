@@ -53,6 +53,7 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
+import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
@@ -376,58 +377,12 @@ export default function Dashboard() {
     return savingsTotal + carTotal + carLoanTotal;
   }, [pauseSavings, goals, carFunds, accounts, rules]);
 
-  const month0SavingsBreakdown = useMemo((): { label: string; value: number }[] => {
-    if (pauseSavings) return [];
-    const retireIds = new Set<string>(
-      accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
-    );
-    const now = new Date();
-    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const activeTransferDests = new Set<string>(
-      rules.filter(r =>
-        r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.deposit_account &&
-        !(r.start_date && new Date(r.start_date + 'T00:00:00') > monthEnd) &&
-        !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
-      ).map(r => r.deposit_account as string),
-    );
-    const items: { label: string; value: number }[] = [];
-    for (const g of goals) {
-      if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) continue;
-      if (g.linked_account && retireIds.has(g.linked_account)) continue;
-      if (g.linked_account && activeTransferDests.has(g.linked_account)) continue;
-      const contrib = Number(g.monthly_contribution);
-      if (contrib > 0) items.push({ label: g.name ?? '', value: contrib });
-    }
-    for (const c of carFunds) {
-      if (c.phase === 'loan') continue;
-      const gift = Number(c.gift_contribution || 0);
-      const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - gift);
-      // Ignore linked_account when it's the funding account itself — that balance is already
-      // counted as available cash elsewhere, so treating it as "already saved" would double-count
-      // the same dollars instead of protecting them for the upcoming purchase.
-      const savedAmt = c.linked_account && c.linked_account !== fundingAccountId && accountMap[c.linked_account]
-        ? Number(accountMap[c.linked_account].balance)
-        : Number(c.current_saved);
-      const rem = Math.max(0, giftAdjDownPmt - savedAmt);
-      if (rem <= 0) continue;
-      let monthsToGoal = 12;
-      if (c.planned_purchase_date) {
-        const parts = (c.planned_purchase_date as string).split('-').map(Number);
-        const pd = new Date(parts[0], parts[1] - 1, parts[2]);
-        monthsToGoal = Math.max(1, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()) + 1);
-      }
-      const reserve = Math.min(rem / monthsToGoal, rem);
-      if (reserve > 0) items.push({ label: c.vehicle_name, value: Math.round(reserve) });
-    }
-    // These are subtracted inside cardProjection.month0's cashPreDebt (and therefore affect
-    // availableToDeploy/safeToPayTotal below) but weren't otherwise shown as visible line items,
-    // so the displayed math didn't add up to "Available to deploy".
-    const vehicleInsurance = cardProjection?.month0?.vehicleInsurance ?? 0;
-    if (vehicleInsurance > 0) items.push({ label: 'Vehicle Insurance (est.)', value: vehicleInsurance });
-    const mortgagePayment = cardProjection?.month0?.mortgagePayment ?? 0;
-    if (mortgagePayment > 0) items.push({ label: 'Mortgage Payment', value: mortgagePayment });
-    return items;
-  }, [pauseSavings, goals, carFunds, accounts, rules, accountMap, cardProjection, fundingAccountId]);
+  // NOTE (finding §2.6): a `month0SavingsBreakdown` memo used to live here, re-deriving goal and
+  // car-fund reserves from raw rows so the snapshot could itemize them — and a prior session
+  // hand-patched a "Vehicle Insurance (est.)" line into it when that item was noticed missing.
+  // That whole approach is gone. The engine now publishes its month-0 cash chain term by term
+  // (`month0.chain`), so the snapshot itemizes the values the engine actually used instead of a
+  // parallel guess at them, and nothing has to be patched in by hand when a term is added.
 
   // Mirror Forecast's syncCutoffDate: use funding account's Plaid last_synced_at so remaining
   // transactions roll over at 9am ET when accounts update, not at midnight.
@@ -599,9 +554,18 @@ export default function Dashboard() {
   // Forecast-equivalent cash floor for month 0: pre-paycheck bills + car loans + CC minimums.
   // Shared with Forecast.tsx and useCardProjection.ts via getAugmentedMinSafeCash so the floor
   // displayed here always matches the floor actually used to cap availableToDeploy below.
+  //
+  // Finding §2.3 (the floor had five different values): sharing the FUNCTION was never enough —
+  // this call passed Dashboard's own `fundingAccountId`, which takes `profile.default_deposit_account`
+  // with no account-type check and ignores the persisted debt-funding override. The engine resolves
+  // `persistedDebtFundingId || forecastFundingAccountId` (checking/business_checking/cash only), so
+  // the two calls saw different pre-paycheck bills and this one displayed a floor the engine never
+  // applied ($2,402 vs $1,650). Use the id the engine actually resolved. It also feeds the floor
+  // calculator popover below, so the itemization matches the number too.
+  const floorFundingAccountId = cardProjection?.debtFundingAccountId ?? fundingAccountId;
   const forecastFloor0 = useMemo(
     () => getAugmentedMinSafeCash(
-      rules, payConfig, cashFloor, fundingAccountId, new Date(),
+      rules, payConfig, cashFloor, floorFundingAccountId, new Date(),
       carFunds ?? [],
       cardProjection ? {
         simCards: cardProjection.simCards,
@@ -611,7 +575,7 @@ export default function Dashboard() {
       } : null,
       0, syncCutoffDate,
     ),
-    [rules, payConfig, cashFloor, fundingAccountId, carFunds, cardProjection, syncCutoffDate],
+    [rules, payConfig, cashFloor, floorFundingAccountId, carFunds, cardProjection, syncCutoffDate],
   );
 
   const fundingBalance = useMemo(() => {
@@ -625,15 +589,18 @@ export default function Dashboard() {
     [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt, planCashThisMonth],
   );
 
-  // Implicit engine holdback: everything the engine reserves beyond the stated cashFloor
-  // (savings goals, car reserves, floor differences). Derived as a residual so the
-  // snapshot equation always balances: projSurplus − cashFloor − holdback = safeToPayTotal.
-  const month0ImpliedSavings = useMemo(() => {
-    const safeToPayTotal = cardProjection?.month0?.safeToPayTotal;
-    if (safeToPayTotal == null) return 0;
-    const projSurplus = fundingBalance + remainingTxIncome - remainingTxExpenses - planCashThisMonth;
-    return Math.max(0, projSurplus - forecastFloor0.monthMinSafe - safeToPayTotal);
-  }, [cardProjection, fundingBalance, remainingTxIncome, remainingTxExpenses, planCashThisMonth, forecastFloor0]);
+  // Finding §2.6: the Monthly Budget Snapshot equation. Every row comes from the engine's own
+  // month-0 cash chain and the leftover is emitted as a computed row — see
+  // `buildMonth0Snapshot`. `spentSoFar` is the only page-local input and feeds the donut only.
+  // The previous shape (a page-local projected-surplus chain plus a `month0ImpliedSavings`
+  // residual that an itemized `savingsBreakdown` then silently replaced) is gone: it was two
+  // derivations printed as one equation, and it is what made the rows not sum to their own total.
+  const month0Snapshot = useMemo(
+    () => cardProjection?.month0
+      ? buildMonth0Snapshot(cardProjection.month0, summary.expenses + totalDebtPayments)
+      : null,
+    [cardProjection, summary.expenses, totalDebtPayments],
+  );
 
 
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
@@ -851,19 +818,13 @@ export default function Dashboard() {
   const renderWidget = (id: WidgetId) => {
     switch (id) {
       case 'monthly_snapshot':
+        // No engine month 0 (still loading, or no cards) ⇒ render nothing rather than fall back to
+        // a page-local re-derivation. A second derivation is exactly what finding §2.6 was.
+        if (!month0Snapshot) return null;
         return (
           <MonthlyBudgetSnapshot
             key="monthly_snapshot"
-            fundingBalance={fundingBalance}
-            remainingIncome={remainingTxIncome}
-            spentSoFar={summary.expenses + totalDebtPayments}
-            expectedRemainingExpenses={remainingTxExpenses + planCashThisMonth}
-            projectedSurplus={fundingBalance + remainingTxIncome - remainingTxExpenses - planCashThisMonth}
-            cashFloor={forecastFloor0.monthMinSafe}
-            savingsAndReserves={month0ImpliedSavings}
-            savingsBreakdown={month0SavingsBreakdown}
-            availableToDeploy={cardProjection?.month0?.safeToPayTotal}
-            saveUpNote={month0SaveUpNote}
+            snapshot={month0Snapshot}
             onFloorClick={openFloorCalc}
           />
         );

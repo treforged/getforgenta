@@ -26,8 +26,8 @@ import type { CarFund } from '@/lib/types';
 // Moved to a shared lib module (Stage 1, .claude/plan/unify-cycling-model.md) so pure lib code
 // can reference these shapes without importing from a hook. Re-exported here unchanged so
 // existing `from '@/hooks/useCardProjection'` imports keep working.
-import type { Month0Result, ProjectionDataRow, CardProjectionResult } from '@/lib/debt-model-types';
-export type { Month0Result, ProjectionDataRow, CardProjectionResult };
+import type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult } from '@/lib/debt-model-types';
+export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
 
 export interface UseCardProjectionParams {
   accounts: AccountRow[];
@@ -1650,6 +1650,32 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const m0OneTimeNet = (oneTimeArr[0]?.income ?? 0) - (oneTimeArr[0]?.expenses ?? 0);
       const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment
         - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet;
+
+      // Findings §2.6/§2.3: the same chain, term by term, as integers — so a UI can render the
+      // engine's own derivation instead of re-deriving it from page-local sums. monthlySavingsAndCar
+      // is split back into its three components (goalContrib + carReserve + carLoanTotal) so each
+      // gets a truthful label. cashPreDebt here is the sum of the ROUNDED terms, not a rounding of
+      // the raw cashPreDebt above: that keeps the displayed equation exact in integer arithmetic,
+      // at the cost of at most a dollar against the raw value used for the cap. See Month0CashChain.
+      const m0Chain = ((): Month0CashChain => {
+        const fundingBalance = Math.round(debtFundingBalance);
+        const income = Math.round(m0Income);
+        const expenses = Math.round(m0Expenses);
+        const goalContributions = Math.round(goalContrib);
+        const carReserveRounded = Math.round(carReserve);
+        const carLoanPayment = Math.round(carLoanTotal);
+        const vehicleInsurance = Math.round(m0VehicleInsurance);
+        const mortgagePayment = Math.round(m0MortgagePayment);
+        const transfers = Math.round(m0Transfers + lumpTransferByMonth[0]);
+        const oneTimeNet = Math.round(m0OneTimeNet);
+        return {
+          fundingBalance, income, expenses, goalContributions,
+          carReserve: carReserveRounded, carLoanPayment, vehicleInsurance, mortgagePayment,
+          transfers, oneTimeNet,
+          cashPreDebt: fundingBalance + income - expenses - goalContributions - carReserveRounded
+            - carLoanPayment - vehicleInsurance - mortgagePayment - transfers + oneTimeNet,
+        };
+      })();
       const availableForRevolving = liveRevolvingBal > 0
         ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - m0FloorAugmented - cyclingPayment))
         : 0;
@@ -1892,6 +1918,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         m0Income,
         m0Expenses,
         m0SafeFloor,
+        debtFundingAccountId: resolvedDebtFundingId ?? null,
         saveUpMonths,
         strictSaveUpMonths,
         saveUpReason,
@@ -1914,6 +1941,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           carReserveEvent: carReserveEvent ? { vehicleName: carReserveEvent.vehicle_name as string } : null,
           vehicleInsurance: Math.round(m0VehicleInsurance),
           mortgagePayment: Math.round(m0MortgagePayment),
+          chain: m0Chain,
         },
       };
       // Option B: rebuild the RETURNED base result's sim-derived fields from a month-0-pinned sim so
