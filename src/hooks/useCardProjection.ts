@@ -1205,6 +1205,33 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           : (rem > 0 && isFinite(purchaseMonthIdx) ? Math.min(rem / (purchaseMonthIdx + 1), rem) : 0);
         return s + contrib;
       }, 0);
+      // The share of carReserve still HELD at month end. The forecast engine adds reserved-but-
+      // unspent vehicle savings back to displayed Ending Cash (cumulativeCarReserveHeld,
+      // forecast-engine.ts:1080-1084) and zeroes a vehicle's reserve on its purchase month. Only
+      // month 0 matters here, so the sole exclusion is a vehicle bought this month.
+      const carReserveHeld = pauseSavings ? 0 : carFunds.reduce((s, c) => {
+        if (c.phase !== 'saving') return s;
+        const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
+          ? accountMap.get(c.linked_account) : null;
+        const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved || 0);
+        const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
+        const rem = Math.max(0, giftAdjDownPmt - effectiveSaved);
+        let purchaseMonthIdx: number;
+        if (c.planned_purchase_date) {
+          const parts = (c.planned_purchase_date as string).split('-').map(Number);
+          const pd = new Date(parts[0], parts[1] - 1, parts[2]);
+          purchaseMonthIdx = Math.max(0, (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth()));
+        } else if (rem > 0) {
+          const bootstrapContrib = Math.min(rem / 12, 500);
+          purchaseMonthIdx = bootstrapContrib > 0 ? Math.ceil(rem / bootstrapContrib) : Infinity;
+        } else {
+          purchaseMonthIdx = 0;
+        }
+        if (purchaseMonthIdx === 0) return s;
+        const contrib = (c.linked_account && c.linked_rule_id) ? 0
+          : (rem > 0 && isFinite(purchaseMonthIdx) ? Math.min(rem / (purchaseMonthIdx + 1), rem) : 0);
+        return s + contrib;
+      }, 0);
       const carReserveEvent = pauseSavings ? null : carFunds.find(c => {
         if (c.phase !== 'saving') return false;
         const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
@@ -1656,7 +1683,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // oneTimeArr[0] is force-zeroed in this hook (month-0 one-times are already in the live
       // balance); the term is kept for byte-for-byte parity with the engine's + b.oneTimeNet.
       const m0OneTimeNet = (oneTimeArr[0]?.income ?? 0) - (oneTimeArr[0]?.expenses ?? 0);
-      const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment
+      // Finding §1.1: planCashExpensesEarly[0] belongs here too. The engine folds checking-sourced
+      // payment-plan installments into baseExpenses (forecast-engine.ts:697), and this hook already
+      // adds them to the SIM's month-0 expenses (lines ~975/1045/1321) and to the floor — but not to
+      // cashPreDebt, so the cap authorized one month's installments more paydown than the Forecast
+      // row actually had, and the chain below rendered a total the Forecast page never agreed with.
+      const m0PlanExpenses = planCashExpensesEarly[0] ?? 0;
+      const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - m0PlanExpenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment
         - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet;
 
       // Findings §2.6/§2.3: the same chain, term by term, as integers — so a UI can render the
@@ -1669,6 +1702,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const fundingBalance = Math.round(debtFundingBalance);
         const income = Math.round(m0Income);
         const expenses = Math.round(m0Expenses);
+        const planExpenses = Math.round(m0PlanExpenses);
         const goalContributions = Math.round(goalContrib);
         const carReserveRounded = Math.round(carReserve);
         const carLoanPayment = Math.round(carLoanTotal);
@@ -1677,10 +1711,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const transfers = Math.round(m0Transfers + lumpTransferByMonth[0]);
         const oneTimeNet = Math.round(m0OneTimeNet);
         return {
-          fundingBalance, income, expenses, goalContributions,
+          fundingBalance, income, expenses, planExpenses, goalContributions,
           carReserve: carReserveRounded, carLoanPayment, vehicleInsurance, mortgagePayment,
           transfers, oneTimeNet,
-          cashPreDebt: fundingBalance + income - expenses - goalContributions - carReserveRounded
+          cashPreDebt: fundingBalance + income - expenses - planExpenses - goalContributions - carReserveRounded
             - carLoanPayment - vehicleInsurance - mortgagePayment - transfers + oneTimeNet,
         };
       })();
@@ -1947,6 +1981,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           m0SafeFloor: Math.round(m0FloorAugmented),
           carReserve: Math.round(carReserve),
           carReserveEvent: carReserveEvent ? { vehicleName: carReserveEvent.vehicle_name as string } : null,
+          carReserveHeld: Math.round(carReserveHeld),
+          // Finding §1.1 — the ONE definition of month-end cash. Mirrors forecast-engine.ts's
+          // `endingCash` for i=0: finalLiquid (cashPreDebt − the month-0 payment ledger total,
+          // which safeToPayTotalFinal equals by construction — see month0PaymentLedger below)
+          // plus the reserved-but-unspent vehicle savings the engine adds back for display.
+          endCash: m0Chain.cashPreDebt - safeToPayTotalFinal + Math.round(carReserveHeld),
           vehicleInsurance: Math.round(m0VehicleInsurance),
           mortgagePayment: Math.round(m0MortgagePayment),
           chain: m0Chain,

@@ -21,6 +21,23 @@ export interface Month0Result {
    * should be shown as cash on hand with this note, not subtracted as if it were a real expense. */
   carReserve: number;
   carReserveEvent: { vehicleName: string } | null;
+  /** The portion of `carReserve` still HELD at month end — i.e. excluding any vehicle whose
+   * purchase lands in month 0, where the reserve is spent by month end. Mirrors the forecast
+   * engine's `cumulativeCarReserveHeld` at i=0 (`forecast-engine.ts:1080-1084`). */
+  carReserveHeld: number;
+  /** End-of-month-0 cash, defined EXACTLY as the Forecast table's `END CASH` column:
+   *
+   *   endCash = chain.cashPreDebt − safeToPayTotal + carReserveHeld
+   *
+   * which is `forecast-engine.ts`'s `finalLiquid = cashPreDebt − monthDebtPayment` plus the
+   * reserved-but-unspent vehicle savings it adds back for display (`endingCash`, line 1282).
+   *
+   * Finding §1.1: Dashboard's "Month-End Cash" tile used to build its own answer from the
+   * transaction-merge helpers (`getRemainingTransaction*`) — the very source `m0Income`/
+   * `m0Expenses` above deliberately abandoned because it disagrees with the forecast engine —
+   * and it omitted savings, car, insurance, mortgage and transfer outflows entirely. Two pages
+   * predicted month-end cash $3,487 apart. There is one definition and it lives here. */
+  endCash: number;
   /** Subtracted from cashPreDebt above — surface these so any UI deriving "available to deploy"
    * from visible line items (Dashboard) can show them, instead of having them only affect the
    * total invisibly. */
@@ -38,9 +55,9 @@ export interface Month0Result {
    * Each field is rounded individually and `cashPreDebt` is the SUM OF THE ROUNDED TERMS (not a
    * rounding of the raw sum), so the identity holds exactly in integer arithmetic:
    *
-   *   cashPreDebt = fundingBalance + income − expenses − goalContributions − carReserve
-   *                 − carLoanPayment − vehicleInsurance − mortgagePayment − transfers
-   *                 + oneTimeNet
+   *   cashPreDebt = fundingBalance + income − expenses − planExpenses − goalContributions
+   *                 − carReserve − carLoanPayment − vehicleInsurance − mortgagePayment
+   *                 − transfers + oneTimeNet
    *
    * What remains — `cashPreDebt − m0SafeFloor − safeToPayTotal` — is a real residual (save-up
    * holdback, or cash beyond what any revolving balance can absorb, or a negative when card
@@ -56,6 +73,10 @@ export interface Month0CashChain {
   income: number;
   /** Scheduled non-CC expenses still to come this month (forecastMonthEvents[0].expenses). */
   expenses: number;
+  /** Checking-sourced payment-plan installments still due this month. The forecast engine folds
+   *  these into `baseExpenses` (`forecast-engine.ts:697`), so a chain that omits them reads high
+   *  by exactly one month's installments — finding §1.1, $150 of the Dashboard/Forecast gap. */
+  planExpenses: number;
   /** Monthly savings-goal contributions the engine reserved. */
   goalContributions: number;
   /** Car down-payment reserve — still the user's own cash, but not deployable this month. */

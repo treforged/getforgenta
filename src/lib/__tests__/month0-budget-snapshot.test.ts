@@ -15,7 +15,7 @@ import type { Month0Result, Month0CashChain } from '../debt-model-types';
 
 const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
   const base = {
-    fundingBalance: 2800, income: 5850, expenses: 1975, goalContributions: 150,
+    fundingBalance: 2800, income: 5850, expenses: 1975, planExpenses: 0, goalContributions: 150,
     carReserve: 0, carLoanPayment: 0, vehicleInsurance: 0, mortgagePayment: 0,
     transfers: 0, oneTimeNet: 0,
     ...over,
@@ -23,7 +23,7 @@ const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
   return {
     ...base,
     // Mirrors the engine: cashPreDebt is the sum of the rounded terms.
-    cashPreDebt: base.fundingBalance + base.income - base.expenses - base.goalContributions
+    cashPreDebt: base.fundingBalance + base.income - base.expenses - base.planExpenses - base.goalContributions
       - base.carReserve - base.carLoanPayment - base.vehicleInsurance - base.mortgagePayment
       - base.transfers + base.oneTimeNet,
   };
@@ -40,6 +40,8 @@ const month0 = (over: Partial<Month0Result> = {}): Month0Result => ({
   m0SafeFloor: 2402,
   carReserve: 0,
   carReserveEvent: null,
+  carReserveHeld: 0,
+  endCash: chain().cashPreDebt - 1000,
   vehicleInsurance: 0,
   mortgagePayment: 0,
   chain: chain(),
