@@ -22,16 +22,20 @@ this walk first saw was that artifact, **not** a bug. All findings below come fr
 The app tells the user to deploy $6,488 on the same screen-set where it predicts an overdraft.
 In a financial app this is the highest-severity class of defect.
 
-### 1.2 Chase Sapphire's debt payment differs by $2,673 between tabs
+### 1.2 Chase Sapphire's debt payment differs by $2,673 between tabs — ✅ FIXED (`014d5a10`), verified live 2026-08-04
 - Debt Payoff → recommended Chase Sapphire payment **$6,401** (Dashboard widget agrees)
 - Transactions → `Chase Sapphire Payment · debt payoff · 2026-08-15 · **-$3,728**`
 - Discover matches in both places ($87), so the generator is not uniformly stale.
+
+> **Verified fixed 2026-08-04 (demo, localhost:8080):** Transactions now reads
+> `Chase Sapphire Payment · debt payoff · 2026-08-15 · -$6,401`, matching the Debt tab and the
+> Dashboard widget. Discover still agrees at $87.
 
 **This reproduces Tre's reported Discover mismatch in demo data**, which means it is not merely a
 missing-Plaid-cross-reference problem — the auto-generated `debt payoff` transaction and the engine
 recommendation are computed from different state. Root-cause this before assuming Plaid fixes it.
 
-### 1.3 Net worth omits every non-credit-card liability
+### 1.3 Net worth omits every non-credit-card liability — ✅ FIXED (`9a212129`), verified live 2026-08-04
 - Accounts → `TOTAL LIABILITIES $12,700`, `NET WORTH $11,900` (assets $24,600 − CC $12,700)
 - Dashboard → `LIABILITIES BREAKDOWN`: Chase Sapphire $8,500 + Discover $4,200 +
   **Student Loan $8,000** + **Auto Loan — RAV4 $26,500** = **$47,200**
@@ -42,6 +46,15 @@ net worth is overstated by at least his auto loan.
 
 ⚠️ Related memory: `project_net_worth_snapshots` warns *not* to simplify this math to Accounts'
 live-only totals. Fix by adding loans to the rollup, not by changing what Dashboard reports.
+
+> **Verified fixed 2026-08-04 (demo, localhost:8080).** Both surfaces now agree on the figure this
+> finding predicted:
+> - Dashboard → `NET WORTH -$22,600`, `$24,600 assets`; liabilities breakdown still sums to $47,200.
+> - Accounts → `NET WORTH -$22,600`, `TOTAL ASSETS $24,600`, `TOTAL LIABILITIES $47,200`
+>   (was $11,900 / $12,700).
+>
+> `CC DEBT $12,700` remains its own correctly-scoped tile. Asset rows sum to $24,600 exactly, so the
+> tile can no longer drift from the list beneath it.
 
 ---
 
@@ -97,6 +110,18 @@ derived from. `Dashboard.tsx:429-431` shows a prior session patched one instance
 a missing "Vehicle Insurance (est.)" row. The reconciliation gap here is $187 of unshown items —
 the structural problem was never fixed, only one line item was added.
 
+### 2.7 The RAV4 loan has two different outstanding balances (NEW — 2026-08-04)
+- Vehicles → `Toyota RAV4 (Owned)` · `$27,110 remaining` · `1 of 61 payments made` · 6.4% APR
+- Dashboard `LIABILITIES BREAKDOWN` → `Auto Loan — RAV4` **$26,500**
+
+A $610 gap. The same vehicle is represented **twice**: once as an `auto_loan` row in `accounts`
+(the $26,500 that finding 1.3's fix now correctly pulls into net worth) and once as a `car_funds`
+loan that Vehicles amortizes independently from `loan_amount`/APR/start date ($27,110).
+
+**This is decision input for the open `car_funds` question.** If an active `car_funds` loan were
+*also* added to the net-worth rollup, the demo RAV4 would be double-counted (−$53,610 of liability
+for one vehicle). Any fix has to pick one source of truth per vehicle, not sum both.
+
 ---
 
 ## P3 — Logic and data-integrity bugs
@@ -150,7 +175,7 @@ Debt → `PAYOFF ETA 3 mo` (Aug + 3 = Nov 2026). Forecast milestone → `Oct 202
 
 ## P4 — Presentation bugs
 
-### 4.1 Ordinal date suffix is wrong for 21–31 (and everywhere in Forecast)
+### 4.1 Ordinal date suffix is wrong for 21–31 — ✅ FIXED (`617fe749`), verified live 2026-08-04
 Five separate implementations, four of them broken:
 
 | File | Line | Behaviour |
@@ -165,6 +190,9 @@ Five separate implementations, four of them broken:
 Observed live: `Due 22th` on Dashboard, Accounts, and Debt (×3); `due 1th` / `due 2th` on Forecast.
 
 Fix: one shared `ordinalSuffix(n)` helper handling the 11/12/13 exception, replacing all five.
+
+> **Verified fixed 2026-08-04:** Accounts reads `Due 15th` / `Due 22nd`, Dashboard's debt widget
+> reads `Due 15th` / `Due 22nd`. No `22th` remains on the walked surfaces.
 
 ### 4.2 Budget allocation percentages sum to 146%
 Fixed 30% + Variable 22% + Debt 77% + Transfers 17% + Remaining 0%. Each is a correct
@@ -190,6 +218,10 @@ Remaining is clamped to 0% instead of showing the −46% overspend.
 ## Still to do
 
 1. **Real-data pass** — same sweep against Tre's account, especially the Discover 8/1 payment.
+   Blocked: requires Tre to sign in himself; a hard reload also drops demo state, so the walk must
+   stay on client-side navigation once signed in.
 2. Mobile/Capacitor viewport pass.
-3. Settings and Vehicles pages not yet walked.
-4. Root-cause 1.2 (debt-payment transaction generator vs engine recommendation).
+3. ~~Settings and Vehicles pages not yet walked.~~ **Walked 2026-08-04.** Vehicles produced new
+   finding 2.7. Settings is thin in demo (no cash-floor control is exposed there, which is worth
+   noting against finding 2.3's "your floor setting" copy in Forecast); nothing else broken.
+4. ~~Root-cause 1.2~~ — **done**, fixed in `014d5a10` and verified live.
