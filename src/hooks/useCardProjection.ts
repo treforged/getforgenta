@@ -1797,8 +1797,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // auto-settled — recommending $0 there hid real debt the user still owes and made the
         // recommendation diverge from the sim, which kept applying the (floor-bounded) paydown.
         if (!card.autopayFullBalance) return pca;
-        const dueDateStr = `${m0MonthStr}-${String(card.dueDay).padStart(2, '0')}`;
-        return dueDateStr <= syncCutoffDate ? { ...pca, payment: 0 } : pca;
+        // §1.1 cause C sweep: recommending $0 asserts the cash is already gone, so this is an
+        // OUTFLOW gate and uses the shared `isCapturedInBalance` rule. With the settlement lag, an
+        // autopay that fired in the last few days is no longer assumed settled — the payment stays
+        // recommended rather than silently vanishing from the plan while the debit is still pending.
+        return isCapturedInBalance(dueDateInMonth(m0MonthStr, card.dueDay), syncCutoffDate)
+          ? { ...pca, payment: 0 }
+          : pca;
       }) : perCardAdjusted;
       const revolvingPaymentFinal = perCardAdjustedFinal
         .filter(pca => (activeSim.monthlyRevolvingBalances.get(pca.id)?.[0] ?? 1) > 0)

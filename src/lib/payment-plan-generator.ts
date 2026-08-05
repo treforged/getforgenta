@@ -1,4 +1,5 @@
 import type { EnrichedTransaction } from './pay-schedule';
+import { isCapturedInBalance } from './sync-cutoff';
 
 export type PaymentPlanFrequency = 'weekly' | 'biweekly' | 'monthly';
 
@@ -189,7 +190,17 @@ export function deriveUpfrontPlanFields(
     });
 
     for (const date of dates) {
-      if (date <= cutoff) continue;
+      // §1.1 cause C sweep: this is the installment CASH gate — "has this payment already left
+      // the funding account?" — so it uses the shared `isCapturedInBalance` rule and inherits the
+      // settlement lag. An installment due in the last few days may have posted without settling,
+      // and `balances.current` excludes pending debits, so it stays charged in month 0 rather than
+      // being assumed gone. Prior-month dates are still dropped by the `mi < 0` guard below.
+      //
+      // Deliberately NOT applied to `getUpfrontPlanProgress` above: that counts how many
+      // installments have been PAID, to size the remaining 0% principal on the CARD. That is a
+      // credit-card-balance question against a different basis, not a funding-cash question, so
+      // the outflow lag does not belong there.
+      if (isCapturedInBalance(date, cutoff)) continue;
       const pd = new Date(date + 'T00:00:00');
       const mi = (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth());
       if (mi < 0 || mi >= projectionMonths) continue;
