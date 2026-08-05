@@ -117,16 +117,29 @@ describe('buildMonth0Snapshot', () => {
   it('balances with every reserve term present — the case the old hand-patched row missed', () => {
     const snap = expectRowsToBalance(month0({
       chain: chain({
-        goalContributions: 150, carReserve: 267, carLoanPayment: 612,
+        planExpenses: 150, goalContributions: 150, carReserve: 267, carLoanPayment: 612,
         vehicleInsurance: 187, mortgagePayment: 1850, transfers: 25, oneTimeNet: -40,
       }),
       carReserveEvent: { vehicleName: 'Toyota RAV4' },
       safeToPayTotal: 400,
     }));
-    for (const key of ['goals', 'carReserve', 'carLoan', 'vehicleInsurance', 'mortgage', 'transfers', 'oneTime']) {
+    for (const key of ['planExpenses', 'goals', 'carReserve', 'carLoan', 'vehicleInsurance', 'mortgage', 'transfers', 'oneTime']) {
       expect(snap.rows.find(r => r.key === key), `missing row: ${key}`).toBeDefined();
     }
     expect(snap.rows.find(r => r.key === 'oneTime')?.sign).toBe('−');
+  });
+
+  it('surfaces payment-plan installments as their own row — finding §1.1 cause B', () => {
+    // The engine folds checking-sourced plan installments into `baseExpenses`, so they are part of
+    // cashPreDebt whether or not the UI prints them. Before this row existed they were invisible,
+    // and the snapshot read high by exactly one month's installments ($150 of the reported gap).
+    const snap = expectRowsToBalance(month0({ chain: chain({ planExpenses: 150 }) }));
+    const row = snap.rows.find(r => r.key === 'planExpenses');
+    expect(row?.value).toBe(150);
+    expect(row?.sign).toBe('−');
+    expect(snap.projectedRemaining).toBe(6525 - 150);
+    // And the donut counts it too, so the chart cannot disagree with the rows.
+    expect(snap.pie.locked + snap.pie.deployable).toBe(snap.projectedRemaining);
   });
 
   it('renders a negative Projected remaining as a signed checkpoint, not an absolute value', () => {

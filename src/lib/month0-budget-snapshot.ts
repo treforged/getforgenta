@@ -100,6 +100,10 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
     { key: 'balance', label: 'Balance on hand', value: c.fundingBalance, sign: ' ', tone: 'neutral' },
     term('income', 'Income still coming', c.income, '+', 'positive'),
     term('expenses', 'Bills still coming', c.expenses, '−', 'negative'),
+    // Finding §1.1 cause B: the engine folds checking-sourced payment-plan installments into
+    // `baseExpenses`, so they must appear as their own row here — otherwise they are an invisible
+    // part of the fold and the rows read high by exactly one month's installments.
+    term('planExpenses', 'Payment plans (from checking)', c.planExpenses, '−', 'negative'),
     term('goals', 'Savings goals', c.goalContributions, '−', 'muted'),
     term('carReserve', 'Car down payment', c.carReserve, '−', 'muted',
       month0.carReserveEvent ? `Reserved for ${month0.carReserveEvent.vehicleName} — still your cash, just not deployable this month` : undefined),
@@ -130,8 +134,8 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
     cashFloor,
     pie: {
       spentSoFar: Math.max(0, Math.round(spentSoFar)),
-      billsAndReserves: Math.max(0, c.expenses + c.goalContributions + c.carReserve + c.carLoanPayment
-        + c.vehicleInsurance + c.mortgagePayment + c.transfers),
+      billsAndReserves: Math.max(0, c.expenses + c.planExpenses + c.goalContributions + c.carReserve
+        + c.carLoanPayment + c.vehicleInsurance + c.mortgagePayment + c.transfers),
       locked: Math.max(0, cashFloor + heldForEvent + surplus),
       deployable: Math.max(0, availableToDeploy),
       shortfall: projectedRemaining < 0 ? -projectedRemaining : 0,

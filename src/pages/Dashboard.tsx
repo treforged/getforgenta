@@ -584,10 +584,19 @@ export default function Dashboard() {
     return accountSummary.liquidCash;
   }, [accounts, fundingAccountId, accountSummary]);
 
-  const monthEndCash = useMemo(
+  // Finding §1.1: this tile used to be built ONLY from the transaction-merge helpers below — the
+  // very source `useCardProjection.ts` deliberately abandoned — and it omitted savings goals, the
+  // car down-payment reserve, car loans, insurance, mortgage and transfers entirely. It read
+  // $3,487 above the Forecast page's END CASH for the same month. `month0.endCash` is the single
+  // canonical definition (see `Month0Result.endCash`), identical to Forecast's i=0 END CASH.
+  //
+  // The transaction-merge expression survives ONLY as the fallback for when the engine returns no
+  // projection at all — `useCardProjection.ts:86` returns null when the user has no credit cards.
+  const txMergeMonthEndCash = useMemo(
     () => fundingBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt - planCashThisMonth,
     [fundingBalance, remainingTxIncome, remainingTxExpenses, remainingTxDebt, planCashThisMonth],
   );
+  const monthEndCash = cardProjection?.month0?.endCash ?? txMergeMonthEndCash;
 
   // Finding §2.6: the Monthly Budget Snapshot equation. Every row comes from the engine's own
   // month-0 cash chain and the leftover is emitted as a computed row — see
@@ -701,13 +710,44 @@ export default function Dashboard() {
     const engineMinimums = debtBreakdown.totalMinimumsDue;
     const engineTotal = debtBreakdown.totalRecommended;
     const engineExtra = Math.max(0, engineTotal - engineMinimums);
+    // §2.6 applied to the tile: the drawer must print the SAME derivation the tile shows. When the
+    // engine has a month-0 projection, every row below is a term the engine actually consumed
+    // (`month0.chain`); the old transaction-merge chain is printed only in the null-projection
+    // fallback, where the tile itself falls back to it too.
+    const m0 = cardProjection?.month0 ?? null;
+    const money = (v: number) => formatCurrency(v, false);
+    const t = (label: string, value: number, op: string) =>
+      Math.round(value) !== 0 ? [{ label, value: money(Math.abs(value)), op: value < 0 ? (op === '−' ? '+' : '−') : op }] : [];
+
+    const chainLines = m0
+      ? [
+          { label: 'Balance on hand', value: money(m0.chain.fundingBalance) },
+          ...t('Income still coming', m0.chain.income, '+'),
+          ...t('Bills still coming', m0.chain.expenses, '−'),
+          ...t('Payment Plans (from checking)', m0.chain.planExpenses, '−'),
+          ...t('Savings goals', m0.chain.goalContributions, '−'),
+          ...t('Car down payment reserve', m0.chain.carReserve, '−'),
+          ...t('Auto loan payment', m0.chain.carLoanPayment, '−'),
+          ...t('Vehicle insurance (est.)', m0.chain.vehicleInsurance, '−'),
+          ...t('Mortgage payment', m0.chain.mortgagePayment, '−'),
+          ...t('Transfers & lump sums', m0.chain.transfers, '−'),
+          ...t('One-time transactions', m0.chain.oneTimeNet, '+'),
+          { label: 'Cash before debt payments', value: money(m0.chain.cashPreDebt), op: '=' },
+          ...t('Debt payments (available to deploy)', m0.safeToPayTotal, '−'),
+          ...t('Car reserve still held at month end', m0.carReserveHeld, '+'),
+          { label: 'Projected Month-End Cash', value: money(monthEndCash), op: '=' },
+        ]
+      : [
+          { label: 'Funding Account Balance', value: money(fundingBalance) },
+          { label: 'Remaining Income', value: money(remainingTxIncome), op: '+' },
+          { label: 'Remaining Expenses', value: money(remainingTxExpenses), op: '−' },
+          { label: 'Remaining Debt Payments', value: money(remainingTxDebt), op: '−' },
+          ...(planCashThisMonth > 0 ? [{ label: 'Payment Plans (from checking)', value: money(planCashThisMonth), op: '−' }] : []),
+          { label: 'Projected Month-End Cash', value: money(monthEndCash), op: '=' },
+        ];
+
     const lines: { label: string; value: string; op?: string }[] = [
-      { label: 'Funding Account Balance', value: formatCurrency(fundingBalance, false) },
-      { label: 'Remaining Income', value: formatCurrency(remainingTxIncome, false), op: '+' },
-      { label: 'Remaining Expenses', value: formatCurrency(remainingTxExpenses, false), op: '−' },
-      { label: 'Remaining Debt Payments', value: formatCurrency(remainingTxDebt, false), op: '−' },
-      ...(planCashThisMonth > 0 ? [{ label: 'Payment Plans (from checking)', value: formatCurrency(planCashThisMonth, false), op: '−' }] : []),
-      { label: 'Projected Month-End Cash', value: formatCurrency(monthEndCash, false), op: '=' },
+      ...chainLines,
       { label: '', value: '' },
       { label: 'Minimum Payments Due (this month)', value: formatCurrency(engineMinimums, false) },
       ...(engineExtra > 0 ? [{ label: 'Extra Debt Payoff (above minimums)', value: formatCurrency(engineExtra, false), op: '+' }] : []),
@@ -718,7 +758,10 @@ export default function Dashboard() {
       { label: 'Effective Cash Floor (used in debt payoff)', value: formatCurrency(forecastFloor0.monthMinSafe, false), op: '≥' },
       { label: '', value: '' },
       {
-        label: monthEndCash >= forecastFloor0.monthMinSafe
+        // Compared PRE-debt-payment when the engine is driving: the engine caps `safeToPayTotal`
+        // at the floor, so comparing post-payment cash would report ✅ by construction and never
+        // surface the case this line exists to warn about.
+        label: (m0 ? m0.chain.cashPreDebt : monthEndCash) >= forecastFloor0.monthMinSafe
           ? '✅ Cash is above safety threshold'
           : '⚠️ Cash is below safety threshold — debt payments may need adjustment',
         value: '',
