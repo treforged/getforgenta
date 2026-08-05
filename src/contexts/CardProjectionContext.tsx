@@ -13,6 +13,7 @@ import { generateScheduledEvents, PROJECTION_MONTHS, type ScheduledEvent } from 
 import { calculateForecast, type ForecastInputs, type ForecastResult } from '@/lib/forecast-engine';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import { resolveFundingAccountId } from '@/lib/funding-account';
+import { resolveSyncCutoffDate } from '@/lib/sync-cutoff';
 import type { FilingStatus } from '@/lib/tax-estimator';
 
 const DEFAULT_ASSUMPTIONS = {
@@ -124,15 +125,25 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     return (checking?.id as string) ?? null;
   }, [accounts, profile]);
 
+  // Finding §1.1 cause C: the rule lives in `src/lib/sync-cutoff.ts` now. This used to return the
+  // raw sync date (or today, when the account had no Plaid link at all), which treated a payment
+  // as already in the balance the day after it was due — but we store `balances.current`, which
+  // excludes pending, so it may not be there yet. `resolveSyncCutoffDate` applies the settlement
+  // lag and prefers `updated_at` over "today" for manually-maintained accounts.
   const syncCutoffDate = useMemo((): string => {
     const today = new Date();
     const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    if (!forecastFundingAccountId) return localDate;
-    const fundingAcct = (accounts ?? []).find(a => a.id === forecastFundingAccountId);
-    if (!fundingAcct?.plaid_item_id) return localDate;
-    const plaidItem = plaidItems.find(pi => pi.plaid_item_id === fundingAcct.plaid_item_id);
-    if (!plaidItem?.last_synced_at) return localDate;
-    return plaidItem.last_synced_at.split('T')[0];
+    const fundingAcct = forecastFundingAccountId
+      ? (accounts ?? []).find(a => a.id === forecastFundingAccountId)
+      : undefined;
+    const plaidItem = fundingAcct?.plaid_item_id
+      ? plaidItems.find(pi => pi.plaid_item_id === fundingAcct.plaid_item_id)
+      : undefined;
+    return resolveSyncCutoffDate({
+      lastSyncedAt: plaidItem?.last_synced_at,
+      balanceUpdatedAt: (fundingAcct as { updated_at?: string } | undefined)?.updated_at,
+      today: localDate,
+    });
   }, [forecastFundingAccountId, accounts, plaidItems]);
 
   const scheduledEvents = useMemo(

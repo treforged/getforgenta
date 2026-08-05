@@ -32,6 +32,7 @@ import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import PremiumGate from '@/components/shared/PremiumGate';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
+import { resolveSyncCutoffDate } from '@/lib/sync-cutoff';
 
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -202,14 +203,20 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const fundingBalance = fundingAccount ? Number(fundingAccount.balance) : liquidCash;
 
   // Use Plaid last_synced_at as cutoff so estimated liquid cash rolls over at 9am ET
-  // when accounts update, not at midnight. Mirrors Dashboard/Forecast syncCutoffDate logic.
+  // when accounts update, not at midnight. Shares `resolveSyncCutoffDate` with
+  // CardProjectionContext so this surface cannot drift from the engine's cutoff (finding §1.1
+  // cause C — a second inline copy of this derivation is how they diverged in the first place).
   const syncCutoffDate = useMemo((): string => {
     const today = new Date();
     const localDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    if (!fundingAccount?.plaid_item_id) return localDate;
-    const plaidItem = plaidItems.find(pi => pi.plaid_item_id === fundingAccount.plaid_item_id);
-    if (!plaidItem?.last_synced_at) return localDate;
-    return plaidItem.last_synced_at.split('T')[0];
+    const plaidItem = fundingAccount?.plaid_item_id
+      ? plaidItems.find(pi => pi.plaid_item_id === fundingAccount.plaid_item_id)
+      : undefined;
+    return resolveSyncCutoffDate({
+      lastSyncedAt: plaidItem?.last_synced_at,
+      balanceUpdatedAt: (fundingAccount as { updated_at?: string } | undefined)?.updated_at,
+      today: localDate,
+    });
   }, [fundingAccount, plaidItems]);
 
   // Persist defaultFunding to localStorage the first time accounts load so future

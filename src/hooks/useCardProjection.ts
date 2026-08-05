@@ -16,6 +16,7 @@ import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-model';
 import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
+import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
@@ -461,14 +462,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
         const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
         return vehicleForecastByMonth.reduce((s, v) => {
-          // Month 0: skip items whose due date is strictly before syncCutoffDate — Plaid balance
-          // already reflects them; counting them again understates available cash. Dues ON the
-          // cutoff day count as not-yet-captured (strict <), so a charge landing the same day
-          // Plaid last synced still shows in month 0.
+          // Month 0: skip items the stored balance already reflects; counting them again
+          // understates available cash. `isCapturedInBalance` owns the comparison (strict <, so a
+          // charge due ON the cutoff day still shows in month 0) — see `src/lib/sync-cutoff.ts`.
           const insuranceSynced = m === 0 && v.insuranceDueDay !== null
-            && `${mk}-${String(v.insuranceDueDay).padStart(2, '0')}` < m0SyncCutoff;
+            && isCapturedInBalance(dueDateInMonth(mk, v.insuranceDueDay), m0SyncCutoff);
           const paymentSynced = m === 0 && v.paymentDueDay !== null
-            && `${mk}-${String(v.paymentDueDay).padStart(2, '0')}` < m0SyncCutoff;
+            && isCapturedInBalance(dueDateInMonth(mk, v.paymentDueDay), m0SyncCutoff);
           // Insurance follows insuranceStartMonthIdx — defaults to purchaseMonthIdx unless the
           // user set a separate insurance_start_date (e.g. coverage starts a month later).
           const insurance = m >= v.insuranceStartMonthIdx && !insuranceSynced ? v.insurance : 0;
@@ -513,14 +513,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             return monthsBetween(insuranceAnchor, dStr) >= 0;
           })
           .filter(cf => {
-            // Month 0: skip if insurance due day is strictly before syncCutoffDate (Plaid captured
-            // it). Dues ON the cutoff day stay in month 0 — same strict-< rule as
-            // getVehicleExtrasForMonth's insuranceSynced/paymentSynced gates above.
+            // Month 0: skip if the stored balance already reflects the insurance charge — same
+            // shared predicate as every other month-0 gate.
             if (i !== 0) return true;
             const dueDayBasis = cf.insurance_start_date ?? cf.payment_start_date ?? cf.loan_start_date;
             if (!dueDayBasis) return true;
             const insurDay = new Date(dueDayBasis + 'T00:00:00').getDate();
-            return `${mk}-${String(insurDay).padStart(2, '0')}` >= m0SyncCutoff;
+            return !isCapturedInBalance(dueDateInMonth(mk, insurDay), m0SyncCutoff);
           })
           .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
       });
@@ -1240,13 +1239,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0) - effectiveSaved);
         return rem > 0 && !(c.linked_account && c.linked_rule_id);
       });
-      // Exclude loan payments whose current-month due date is already past syncCutoffDate —
-      // the Plaid balance already reflects those payments; counting them again understates cash.
+      // Exclude loan payments the stored balance already reflects; counting them again understates
+      // cash. Shares `isCapturedInBalance` with the forecast engine — finding §1.1 cause C, where
+      // this filter had no counterpart in `forecast-engine.ts` at all and Forecast charged $537 the
+      // Dashboard did not. This test was also `> cutoff` (dropping a payment due exactly ON the
+      // cutoff day) while `getVehicleExtrasForMonth` above used `< cutoff` and kept it.
       const m0CarFundsForLoan = (carFunds ?? []).filter(cf => {
         if (cf.phase !== 'loan' || !cf.payment_start_date) return true;
         const payDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
         const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        return `${currentMonthStr}-${String(payDay).padStart(2, '0')}` > m0SyncCutoff;
+        return !isCapturedInBalance(dueDateInMonth(currentMonthStr, payDay), m0SyncCutoff);
       });
       const carLoanTotal = getTotalCarLoanMonthly(m0CarFundsForLoan);
       const monthlySavingsAndCar = goalContrib + carReserve + carLoanTotal;

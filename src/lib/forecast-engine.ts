@@ -18,6 +18,7 @@ import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, ge
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
+import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
@@ -268,7 +269,18 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     const activeCarLoanByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
       const md = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 15);
       const mk = `${md.getFullYear()}-${String(md.getMonth() + 1).padStart(2, '0')}`;
-      const regular = getTotalCarLoanMonthly(carFunds, md);
+      // Finding §1.1 cause C — the $537. `useCardProjection.ts` has always dropped a month-0 car
+      // loan the stored balance already reflects; this had no such gate, so Forecast charged the
+      // RAV4's payment and the Dashboard did not, for the same loan in the same month. Month 0
+      // only: later months are entirely in the future, nothing about them is in any balance.
+      const eligible = i === 0 && syncCutoffDate
+        ? carFunds.filter((cf) => {
+            if (cf.phase !== 'loan' || !cf.payment_start_date) return true;
+            const payDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
+            return !isCapturedInBalance(dueDateInMonth(mk, payDay), syncCutoffDate);
+          })
+        : carFunds;
+      const regular = getTotalCarLoanMonthly(eligible, md);
       const lumpTotal = (carFunds)
         .filter((cf) => cf.phase === 'loan')
         .flatMap((cf) => (cf.lump_sum_payments ?? []).filter((ls) => ls.date.substring(0, 7) === mk))
@@ -303,10 +315,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         .filter((cf) => {
           const insuranceAnchor = cf.insurance_start_date ?? cf.loan_start_date;
           if (monthsBetween(insuranceAnchor, dStr) < 0) return false;
-          // Month 0: skip if the insurance due date already cleared through Plaid.
+          // Month 0: skip if the insurance due date is already reflected in the stored balance.
+          // Was `<=` here while `useCardProjection.ts` used `<`, so a charge due exactly on the
+          // cutoff day was dropped by Forecast and kept by the Dashboard. One shared predicate now.
           if (i === 0 && syncCutoffDate) {
             const insuranceDueDay = new Date(insuranceAnchor + 'T00:00:00').getDate();
-            if (`${mk}-${String(insuranceDueDay).padStart(2, '0')}` <= syncCutoffDate) return false;
+            if (isCapturedInBalance(dueDateInMonth(mk, insuranceDueDay), syncCutoffDate)) return false;
           }
           return true;
         })
