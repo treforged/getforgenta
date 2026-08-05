@@ -1,152 +1,133 @@
-# Handoff — 2026-08-05 — session 78 — branch `main` — four demo findings closed
+# Handoff — 2026-08-05 — session 79 — branch `main` — §2.6 + §2.3 closed
 
-Continues session 77. `site-walk-findings.md` (repo root, committed) is still the source list.
+Continues session 78. `site-walk-findings.md` (repo root, committed) is still the source list.
 **Read it before touching anything.**
 
 ## 0. GOAL
 
-Tre: "continue working all issues. and fix demo findings." Standing constraint: **do not delete his
-account.** Nothing is pushed — 13 local commits ahead of origin.
+Tre: "continue working all issues. and fix demo findings." then "sequence as u see fit."
+Standing constraint: **do not delete his account.** Nothing is pushed — **14 local commits ahead**.
 
-## 1. 🟢 DECIDED BY TRE 2026-08-05 — both answers below are final, do not re-litigate
+## 1. DONE THIS SESSION (1 commit, local, NOT pushed)
 
-### A. Plaid auto-pull + rule matching (his request, still not started)
+### ✅ `d1f6d68a` — findings §2.6 + §2.3 closed, live-verified
 
-**✅ DECIDED: a matched actual overrides the rule ONLY for the month it lands in.** It does **not**
-re-base the rule going forward. Schema follows from this: store a per-(rule, month) actual —
-an override row keyed by rule_id + year-month — and leave `recurring_rules.amount` untouched.
-Any month with no matched actual keeps using the rule estimate. Do not add "update the rule from
-the last actual" behavior; Tre considered that shape and chose against it.
+Executed §1B of session 78's handoff, per Tre's decision *accuracy wins — the engine total stays
+canonical and the rows get derived from it*.
 
-> "after we finish with this work, lets set up auto pull real transactions with plaid. and have
-> users be able to match transactions with the set up rules. plaid would use the accurate number in
-> all related calculations."
+**§2.6** — the snapshot printed `month0.safeToPayTotal` (an engine output) as the `=` of a chain
+Dashboard assembled from its own transaction sums. Two derivations rendered as one equation.
 
-Three parts, not equally sized:
-1. **Auto-pull** — a scheduled sync, not the manual/on-open path in place today.
-2. **Match a pulled transaction to a recurring rule** — new UI + a persisted link.
-3. **Engine reads the matched actual instead of the rule's estimate.** The deep one. Rule amounts
-   feed `useCardProjection` / the forecast engine everywhere; swapping in actuals moves month-0
-   expenses, the cash floor, and therefore Safe to Pay.
+- `Month0Result` gains **`chain`** (`src/lib/debt-model-types.ts`): the engine's complete month-0
+  cash chain, term by term, as integers. Each term rounded individually; **`cashPreDebt` is the
+  sum of the rounded terms**, not a rounding of the raw sum — that is what makes the displayed
+  identity exact in integer arithmetic. Populated in `useCardProjection.ts` next to `cashPreDebt`
+  (~line 1651); `monthlySavingsAndCar` is split back into goals / carReserve / carLoan so each row
+  gets a truthful label.
+- New pure lib **`src/lib/month0-budget-snapshot.ts`** — `buildMonth0Snapshot()` builds rows and
+  **computes** the residual (`cashPreDebt − m0SafeFloor − safeToPayTotal`), split into the engine's
+  own `holdback` and the remainder, or a `+` row when card minimums are paid through the floor.
+- `MonthlyBudgetSnapshot.tsx` does **no arithmetic** now — 12 assembly props collapsed to one
+  `snapshot` prop. Keep it that way.
+- Dashboard's parallel derivation is **deleted**: `month0ImpliedSavings` *and* the
+  `month0SavingsBreakdown` memo that silently replaced it, hand-patched
+  "Vehicle Insurance (est.)" row and all.
 
-**The question that must be answered before any schema work:** does a matched actual override the
-rule **only for the month it lands in**, or does it **re-base the rule going forward**? Needs
-`/multi-plan` after that answer. Ground to read first: `src/hooks/usePlaidItems.ts`, the Plaid sync
-edge function, and `mergeWithGeneratedTransactions` in `src/lib/pay-schedule.ts` — the last is what
-currently fabricates a transaction per rule, and is exactly what a real matched transaction has to
-displace. `linked_rule_ids` (§5.4 below) will collide with this — handle it here.
-
-### B. Which definition is canonical — findings §2.6 / §2.3 (§2.4 still open)
-
-**✅ DECIDED: accuracy wins — the ENGINE total stays canonical and the ROWS get derived from it.**
-Tre's words: "the goal is accuracy… based off real forecast and cc calculations."
-
-**Do NOT recompute the total from the rows.** `month0.safeToPayTotal` IS the real forecast/CC
-number — the same value Budget's `REMAINING CASH` and the Debt tab's `Safe to Pay` read after
-session 76/77's convergence. Re-deriving it from display rows would re-fork the engine, which is
-exactly the debt sessions 76–77 paid off.
-
-The defect: `MonthlyBudgetSnapshot.tsx:66` takes `availableToDeploy` as its **own prop** and prints
-it on the `=` row, while rows 70–78 above it are assembled independently by Dashboard. Two separate
-derivations rendered as one equation; the $2,632 is an **unmodeled residual**, not a math error.
-
-Agreed plan (needs `/multi-plan` — multi-file across Dashboard, the snapshot component and the
-month0 contract):
-1. **Source every row from `cardProjection.month0`**, not Dashboard-local sums — balance,
-   remaining income, remaining expenses, **`m0SafeFloor`** for the floor, `holdback` /
-   `holdbackEvent` for reserves.
-2. **Compute the residual and render it as a real labeled row** (`residual = chain −
-   safeToPayTotal`), itemized by what the engine actually held back. `Dashboard.tsx:429-431` shows
-   a prior session hand-patched ONE missing item ("Vehicle Insurance (est.)") — that is the tell
-   that the residual was never modeled, only papered over as gaps were noticed. The residual must
-   be **computed, never fudged**.
-3. **Assert the invariant in a unit test** — rows must sum to the total, or the test fails. This is
-   the part that stops it drifting back.
-
-**Step 1 likely closes §2.3 (five cash-floor values) at the same time**, because the floor row would
-then display the floor the engine actually used instead of a Dashboard-local re-derivation. Treat
-§2.6 + §2.3 as ONE piece of work. Also note **Settings exposes no cash-floor control at all**,
-which contradicts §2.3's "your floor setting" copy in Forecast — raise that with Tre when the floor
-row lands.
-
-**§2.4 (three expense definitions) is still undecided** — no answer given for it yet.
-
-## 2. DONE THIS SESSION (1 commit, local, NOT pushed)
-
-### ✅ `c205eebe` — findings §3.5, §3.7, §3.1, §3.8 all closed and live-verified
-
-All four were **display-layer** defects sitting on top of correct engine math. No engine output
-changed. Each root cause is written into `site-walk-findings.md` under its finding.
-
-- **§3.5** `plan.active` is a user-toggled DB flag and nothing writes it back when the last
-  installment date passes, so a 4/4 plan counted forever. Completion is now **derived**:
-  new `isPlanInProgress()` in `payment-plan-generator.ts`. `getPlanProgress` gained an optional
-  `asOf` param (testability). Finished plans render `(complete)`.
-- **§3.7** Dashboard's Goal Progress injected `carFunds[0]` into a card that links to `/goals` — a
-  page that deliberately lists no car funds. Now savings-goals-only (up to 3). The `car_goal`
-  widget still covers the vehicle and now links to `/vehicles`.
-- **§3.1** Utilization milestones returned the projection **index** as a month count; `months[i]`
-  is the END of month i, so "0 months" meant "by month-end", not "already below". Now `i + 1`,
-  plus a real already-below check against the live balance, plus singular/plural.
-- **§3.8** Payoff ETA printed a **1-indexed** month number as "3 mo". Forecast maps the same value
-  to Oct 2026 via `rawPayoffMonth - 1` — the math always agreed, only the label lied. The tile now
-  shows the month itself in Forecast's own label format with "in N mo" beneath.
+**§2.3** — root cause was NOT the shared function. Dashboard passed its own `fundingAccountId`
+(`profile.default_deposit_account`, no account-type check, ignores the persisted override) while
+the engine resolves `persistedDebtFundingId || forecastFundingAccountId` (checking/business_checking/
+cash only). Different account ⇒ different pre-paycheck bills ⇒ different floor.
+`CardProjectionResult` now exposes **`debtFundingAccountId`** and Dashboard uses it for the floor
+row *and* the floor-calculator popover.
 
 **Verification:** `npx tsc --noEmit` clean, `npx eslint` clean on all touched files,
-`npx vitest run` **307/307 green** (69 files, +5 new in
-`src/lib/__tests__/payment-plan-progress.test.ts`). **Live-verified in demo on localhost:8080** —
-Goal Progress lists 2 against "2 goals"; `Payment Plans · 1 active` with AirPods `(complete)`;
-`Below 75% util: already there / 50%: ~1 month / 25%: ~2 months` at 65.1%;
-`PAYOFF ETA · Oct 2026 · in 2 mo`, matching Forecast's `Oct 2026: CC Debt Free!`.
+`npx vitest run` **318/318 green** (70 files, +11 new in
+`src/lib/__tests__/month0-budget-snapshot.test.ts`). **Live-verified in demo on localhost:8080:**
+`$4,100 + $5,850 − $150 − $311 − $450 = $9,039`, then `− $1,500 floor − $376 held = $7,163`.
+Both halves balance exactly; floor row now $1,500 (was $2,402).
 
-## 3. ⚠️ ENVIRONMENT GOTCHAS
+## 2. 🔴 NEW FINDING §2.8 — START HERE, IT IS PROBABLY §1.1
 
-1. **🆕 `find` + `computer left_click` on the "Try Demo" button silently does nothing** — two
-   clicks returned success and the page never left `/auth`. What works:
-   `javascript_tool` → `[...document.querySelectorAll('button')].find(x=>/try demo/i.test(x.textContent)).click()`.
-   Same trick works for in-app nav (`querySelectorAll('a')` + text match), which also keeps demo
-   state alive. Use it; don't burn turns on the click path.
-2. The button's text is **"Try Demo"** (session 77's handoff said "See Demo" — it is not).
-3. **Demo state is in-memory.** A hard `navigate` drops it and bounces to `/auth`. An HMR reload
-   also drops it, and can land you on **Tre's real account** if the browser is signed in.
-   **Read-only there. Do not write, and do not delete his account.**
-4. `npx vitest run --reporter=basic` fails on vitest 4.1.10 (`basic` was removed). Use `npx vitest run`.
-5. **Don't put a PowerShell here-string in a compound `;`-chained command.** Write the commit
-   message to a scratchpad file and `git commit -F`. (Bash heredoc + `git commit -F` works.)
-6. Dev server on **8080 with `--strictPort`**; it was already up this session.
+The §2.6 fix immediately surfaced this, which is exactly what it was built to do.
 
-## 4. NEXT STEPS (in order)
+**The demo snapshot renders NO "Bills still coming" row** — `month0.chain.expenses` rounds to $0.
+That value IS `m0Expenses`, the same term the engine subtracts in `cashPreDebt`, so it is **not a
+display artifact**. But the same page shows `BILLS THIS WEEK $190 · 3 upcoming` and
+`BILLS THIS MONTH $11,025 · 20 scheduled`, including **Gas · Aug 12 · Chase Checking $55** — a
+cash-sourced rule `forecastMonthEvents[0].expenses` should count. (Groceries Aug 8 is on Chase
+Sapphire and is correctly excluded via `allCcRuleIds`.)
 
-1. **🟢 UNBLOCKED — both §1A and §1B now have Tre's answers. Start here.**
-   Recommended order: **§1B first** (§2.6 + §2.3 as one job — smaller, self-contained, and it
-   hardens the month0 contract that §1A's engine work will lean on), then **§1A Plaid**.
-   Both need `/multi-plan` before any file is touched.
-2. Re-verify finding **§1.1** (Dashboard month-end cash vs Forecast −$3,300). **Still the
-   highest-severity open item, and still not re-checked.** Session 77 moved demo Dashboard to $187
-   but never re-read Forecast afterwards. Do this before assuming the debt-engine migration
-   closed it — it is cheap now that the demo-nav recipe in §3.1 works.
-3. Remaining unblocked demo bugs: **§4.2** (budget allocation percentages sum to 146%, Remaining
-   clamped to 0% instead of showing the −46% overspend), **§2.5** (Emergency Fund completion date
-   Dec 2028 on Goals vs Mar 2029 in Forecast — Goals appears to apply the Marcus 4.5% APY and
-   Forecast does not), **§2.1 / §3.2 / §3.4** (income double-count, paycheck mis-categorised as
-   "Other", duplicate recurring rows — these three may be **demo-fixture** defects rather than code;
-   check the fixture before writing code).
-4. **§2.7** RAV4 double representation — decision input for the open `car_funds` question. Any fix
+If real, the engine overstates deployable cash by the whole remaining-bills amount, and this is a
+strong candidate for the **still-open §1.1** (Dashboard vs Forecast month-end cash, −$3,300 apart).
+Ground: `useCardProjection.ts:374-383` (`m0Income`/`m0Expenses` from `forecastMonthEvents[0]`) and
+the `forecastMonthEvents` construction just above it (~line 340-372).
+
+**Do not "fix" the display.** Establish the engine's real value first. A fiber probe for the live
+`cardProjection` **failed** (walking `memoizedState` found nothing — don't repeat it); use a
+temporary log in the hook, or compare against Forecast's own August row.
+
+## 3. NEXT STEPS (in order)
+
+1. **§2.8 above**, then re-check **§1.1** — they are plausibly the same bug. §1.1 is still the
+   highest-severity open item and still has never been re-verified against Forecast.
+2. **§1A Plaid auto-pull + rule matching** — Tre's request, still not started, now unblocked and
+   next in line. His decision is final: **a matched actual overrides the rule ONLY for the month it
+   lands in**; it does NOT re-base the rule. Store a per-(rule, month) override row keyed by
+   rule_id + year-month; leave `recurring_rules.amount` untouched. Months with no matched actual
+   keep the rule estimate. Do not add "update the rule from the last actual" — he considered that
+   shape and chose against it.
+   Three parts: (a) scheduled auto-pull, not today's manual/on-open path; (b) match UI + persisted
+   link; (c) **the deep one** — engine reads the matched actual instead of the estimate, which moves
+   month-0 expenses, the cash floor and therefore Safe to Pay. Ground to read first:
+   `src/hooks/usePlaidItems.ts`, the Plaid sync edge function, and `mergeWithGeneratedTransactions`
+   in `src/lib/pay-schedule.ts` — the last fabricates a transaction per rule and is exactly what a
+   real matched transaction must displace. `linked_rule_ids` (§5.4) collides here; handle it here.
+   Needs `/multi-plan` before any file is touched.
+3. Remaining unblocked demo bugs: **§4.2** (allocation percentages sum to 146%, Remaining clamped to
+   0% instead of showing the −46% overspend), **§2.5** (Emergency Fund Dec 2028 on Goals vs Mar 2029
+   in Forecast — Goals appears to apply the Marcus 4.5% APY and Forecast does not), **§2.1 / §3.2 /
+   §3.4** (income double-count, paycheck mis-categorised "Other", duplicate recurring rows — these
+   three may be **demo-fixture** defects rather than code; check the fixture before writing code).
+4. **§2.4 (three expense definitions) is the one canonical-definition question Tre has NOT answered.**
+   Ask when it next comes up.
+5. **§2.3 leftovers:** Debt tab's `$1,000` copy and `Safe Min $1,650` vs Forecast's `$1,655` were
+   not touched. Also **Settings exposes no cash-floor control at all**, contradicting Forecast's
+   "your floor setting" copy — raise with Tre.
+6. **§2.7** RAV4 double representation — decision input for the open `car_funds` question. Any fix
    must pick one source of truth per vehicle, never sum both.
-5. Full real-data walk. Budget and Debt were spot-checked on real data in session 77 and agree;
+7. Full real-data walk. Budget and Debt were spot-checked on real data in session 77 and agree;
    Forecast, Goals, Transactions never walked on real data.
-6. Mobile/Capacitor viewport pass — not started.
+8. Mobile/Capacitor viewport pass — not started.
 
-## 5. CARRIED FORWARD, UNRESOLVED (from sessions 72–77)
+## 4. ⚠️ ENVIRONMENT GOTCHAS
+
+1. **`find` + `computer left_click` on "Try Demo" silently does nothing.** What works:
+   `javascript_tool` → `[...document.querySelectorAll('button')].find(x=>/try demo/i.test(x.textContent)).click()`
+   then `await new Promise(r=>setTimeout(r,3000))`. Same trick for in-app nav (`querySelectorAll('a')`
+   + text match), which also keeps demo state alive.
+2. **🆕 `javascript_tool` returning a long `|`-joined string got `[BLOCKED: Cookie/query string data]`.**
+   Return a structured array instead (e.g. `.map(d => d.innerText.split('\n'))`) — that works fine.
+3. **🆕 Reading component props off the DOM via `__reactFiber$` + walking `.return` and checking
+   `memoizedProps` WORKS** and is the fast way to verify a rendered value. Walking `memoizedState`
+   to find a hook's return value **did not** — don't burn turns on it.
+4. **Demo state is in-memory.** A hard `navigate` drops it and bounces to `/auth`. An HMR reload also
+   drops it and can land you on **Tre's real account** if the browser is signed in.
+   **Read-only there. Do not write, and do not delete his account.**
+5. `npx vitest run --reporter=basic` fails on vitest 4.1.10 (`basic` was removed). Use `npx vitest run`.
+6. **Don't put a PowerShell here-string in a compound `;`-chained command.** Write the commit message
+   to a scratchpad file and `git commit -F`. (Bash heredoc + `git commit -F` works.)
+7. Dev server on **8080 with `--strictPort`**; already up this session.
+
+## 5. CARRIED FORWARD, UNRESOLVED (from sessions 72–78)
 
 1. **GA4 health UNKNOWN.** Session 27's "LaunchDarkly breaks GA4" is probably a DNT=1 artifact.
    Retest with Do-Not-Track OFF; confirm `VITE_GA_MEASUREMENT_ID` is set in Vercel prod.
-2. **🔴 Session replay has no consent gate — needs Tre's decision, not code.** `src/main.tsx:7`
-   calls `initMonitoring()` unconditionally; `src/lib/monitoring.ts` starts LD observability +
-   replay with `networkRecording:{enabled:true}`, honoring no consent / GPC / DNT, while `initGA()`
-   honors all three. `AuthContext.tsx:205` sends his **email** to it. `src/lib/cookie-consent.ts:10,39`
-   describes analytics as "Vercel Speed Insights" — installed but never imported. Do not silently
-   delete `@vercel/speed-insights`; that makes the disclosure *more* wrong.
+2. **🔴 Session replay has no consent gate — needs Tre's decision, not code.** `src/main.tsx:7` calls
+   `initMonitoring()` unconditionally; `src/lib/monitoring.ts` starts LD observability + replay with
+   `networkRecording:{enabled:true}`, honoring no consent / GPC / DNT, while `initGA()` honors all
+   three. `AuthContext.tsx:205` sends his **email** to it. `src/lib/cookie-consent.ts:10,39` describes
+   analytics as "Vercel Speed Insights" — installed but never imported. Do not silently delete
+   `@vercel/speed-insights`; that makes the disclosure *more* wrong.
 3. **4 dead deps, Tre hasn't approved removal:** `cmdk`, `embla-carousel-react`, `input-otp`,
    `react-resizable-panels` (dropping `cmdk` also drops `@radix-ui/react-dialog`).
 4. Stale `linked_rule_ids` on goals; the Sep–Dec 2026 + Jan 2027 interest band. Untouched.
@@ -155,9 +136,9 @@ Goal Progress lists 2 against "2 goals"; `Payment Plans · 1 active` with AirPod
    page speed.**
 6. Recorded snapshot history predates both the loan-liability rule and the vehicle rule, so the Net
    Worth History chart will step-change where the rules meet. Old rows left as recorded.
-7. `getCurrentMonthDebtRecommendations` has zero callers, marked `@deprecated` in
-   `credit-card-engine.ts`, not deleted. `getMonthlyDebtBreakdown` is **still live** behind
-   `useForecastEngineInputs.ts:141` / `Forecast.tsx` — deliberately left alone.
+7. `getCurrentMonthDebtRecommendations` has zero callers, `@deprecated` in `credit-card-engine.ts`,
+   not deleted. `getMonthlyDebtBreakdown` is **still live** behind `useForecastEngineInputs.ts:141` /
+   `Forecast.tsx` — deliberately left alone.
 
 ## 6. MEASUREMENT ARTIFACT — do not "fix"
 
@@ -168,17 +149,19 @@ runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFired: fal
 
 ## 7. FILES
 
-- **New:** `src/lib/__tests__/payment-plan-progress.test.ts`.
-- **Modified:** `src/lib/payment-plan-generator.ts`, `src/pages/Transactions.tsx`,
-  `src/pages/Dashboard.tsx`, `src/components/debt/CreditCardEngine.tsx`, `site-walk-findings.md`.
-- **Backups:** `backups/2026-08-05_000319/` (the four source files, pre-change).
-- **Not pushed.** 13 commits ahead of origin.
+- **New:** `src/lib/month0-budget-snapshot.ts`, `src/lib/__tests__/month0-budget-snapshot.test.ts`.
+- **Modified:** `src/lib/debt-model-types.ts`, `src/hooks/useCardProjection.ts`,
+  `src/components/dashboard/MonthlyBudgetSnapshot.tsx`, `src/pages/Dashboard.tsx`,
+  `src/lib/__tests__/month0-debt-breakdown.test.ts`, `site-walk-findings.md`.
+- **Backups:** `backups/2026-08-05_075202/` (five source files, pre-change).
+- **Not pushed.** 14 commits ahead of origin.
 
 ## 8. LESSON WORTH KEEPING
 
-Three of this session's four "bugs" were **correct numbers with lying labels** — a 0-based index
-printed as a count (§3.1), a 1-based count printed as a duration (§3.8), a widget linking to a page
-that cannot show what it displays (§3.7). Before changing a computation because two surfaces
-disagree, **check whether both are reading the same value under different indexing conventions.**
-§3.8 in particular would have been a real regression if "fixed" in the engine: the two surfaces
-already agreed.
+Session 78's lesson was "correct numbers with lying labels." This session's is the mirror image:
+**when a UI shows a total it did not derive, it hides whatever it failed to model.** The $2,632 gap
+was never a math error — it was every engine term Dashboard didn't know about, summed. The fix that
+holds is not adding the missing rows (a previous session tried that with one hand-patched line and
+the gap came back); it is making the leftover a *computed, labeled row* so a term that goes missing
+shows up as a number on screen instead of silently widening a gap. It worked within minutes:
+finding §2.8 above is the first thing it caught.
