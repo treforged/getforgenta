@@ -1,63 +1,84 @@
-# Handoff — 2026-08-05 — session 82 — branch `main` — §1.1 CLOSED
+# Handoff — 2026-08-05 — session 83 — branch `main` — cutoff sweep CLOSED
 
-Continues session 81. `site-walk-findings.md` (repo root, committed) is still the source list.
+Continues session 82. `site-walk-findings.md` (repo root, committed) is still the source list.
 **Read it before touching anything.**
 
 ## 0. GOAL
 
 Tre: "continue working all issues. and fix demo findings." then "sequence as u see fit."
-Standing constraint: **do not delete his account.** Nothing is pushed — **26 local commits ahead**.
+Standing constraint: **do not delete his account.** Nothing is pushed — **29 local commits ahead**.
 
-## 1. THE BIG RESULT: §1.1 IS CLOSED, LIVE-VERIFIED
+## 1. WHAT THIS SESSION DID: THE CUTOFF SWEEP IS FINISHED
 
-Dashboard MONTH-END CASH **$2,883** == Forecast Aug 2026 END CASH **$2,883**. The $3,487
-discrepancy that survived five sessions is **zero**. All three causes fixed:
+Session 82's next-step 1 is **done**. Every month-0 OUTFLOW gate now shares one rule
+(`isCapturedInBalance` in `src/lib/sync-cutoff.ts`). Three commits, each live-verified:
 
-- **Cause A** ($3,487, the visible gap) — Dashboard's tile was on a different engine. Fixed
-  `6368a3fd`: `monthEndCash = cardProjection.month0.endCash`, tx-merge expression kept only as the
-  `cardProjection == null` fallback. `openMonthEndCalc` now prints `month0.chain` term by term.
-- **Cause B** ($150, plan installments) — fixed last session `ac187a71`; this session added the
-  `planExpenses` row to `buildMonth0Snapshot` + the donut, so it is no longer invisible in the fold.
-- **Cause C** ($537, car-loan cutoff asymmetry) — fixed `6b6256c5`, see §2.
+- **`0380d56d` (1/4) — CC-minimum gate.** `m0MinDueSettled` open-coded `dueDate <= syncCutoffDate`;
+  now routes through `isCapturedInBalance`. Also collapsed the **two open-coded copies** of the same
+  predicate — `month0-debt-breakdown.ts` and `CreditCardEngine.tsx` each re-derived the inverse
+  (`dueDateStr > syncCutoffDate`), so the minimums they DISPLAYED could disagree with the minimums
+  the engine RESERVED. §1.1 cause C in miniature.
+- **`72455ec2` (2/4) — floor bill-reservation gate.** `getAugmentedMinSafeCash`'s `dueSynced` in
+  `pay-schedule.ts`.
+- **`309865d0` (3+4/4) — plan-installment cash gate + autopay-full zeroing.**
+  `deriveUpfrontPlanFields`'s `upfrontPayByMonth` loop, and `useCardProjection`'s autopay $0
+  recommendation.
 
-**Do not re-derive any of this.** It cost two full sessions.
+Each inherits two things deliberately: the **settlement lag** (a debit inside the last 3 days is no
+longer assumed settled, because `balances.current` excludes pending debits) and a **strict
+boundary** (a charge due exactly ON the cutoff day stays reserved). Both err toward reserving cash
+— reading cash LOW, the safe direction.
 
-## 2. WHAT CAUSE C ACTUALLY WAS, AND THE RULE THAT NOW OWNS IT
+### Deliberately NOT swept — documented in place, do not "finish the job"
 
-Four sites answered "is this outflow already in the stored balance?" with three different rules.
-New **`src/lib/sync-cutoff.ts`** owns it; tests in `src/lib/__tests__/sync-cutoff.test.ts`.
+Two sites ask a **credit-card-balance** question, not a funding-cash question, so the outflow lag
+does not belong there. Both now carry a comment saying so:
 
-- `resolveSyncCutoffDate` — the date the balance is accurate AS OF: Plaid `last_synced_at`, else
-  `accounts.updated_at`, else today; clamped to today. **No lag here.**
-- `isCapturedInBalance(dueDate, balanceAsOf)` — strict `<` against `balanceAsOf −
-  SETTLEMENT_LAG_DAYS (3)`. Tre's call 2026-08-05.
+- `getUpfrontPlanProgress` (`payment-plan-generator.ts`) — counts installments PAID to size the
+  remaining 0% principal on the CARD.
+- `useCardProjection`'s plan-charge loop (~line 256) — grows a card balance.
 
-Two facts behind it, both verified: `plaid-sync/index.ts:232` stores **`balances.current`**, which
-for depository accounts EXCLUDES pending (`available` is the netted one); and `plaid-sync` pulls
-balances + liabilities **only, no transactions**, so there is no settled/pending evidence to
-consult. When transaction sync lands (§1A), "captured iff a settled transaction matches it" should
-**replace** this date heuristic, not tune it.
+This is session 82's lesson applied: **a shared helper is only safe where the callers ask the same
+question.**
 
-### ⚠️ THE TRAP — read before touching the lag
+### Test changes were behavior pins, not goalpost moves
 
-The lag went into `resolveSyncCutoffDate` first. **The live check caught it and tests did not.**
-That date also gates **income**, so lagging it re-admitted a $1,463 deposit already sitting in the
-balance and pushed Forecast month-0 END CASH $2,346 → **$4,346** (a `1× +$1,463` badge appeared on
-the Aug row — that badge is the tell). Deposits settle into `current`; only debits sit pending
-outside it. **The lag is an OUTFLOW-only correction.** Never move it back onto the cutoff date.
+`cyclingFloor` is the one that moved a bound (560 → 530). Card A is due day 1 and that fixture's
+`syncCutoffDate` **is** day 1, so its month-0 minimum used to be waived on the sync day itself —
+unknowable. Correctly reserved now, which costs the save-up $200 and deepens that fixture's
+already-documented bounded dip to 539. Recovery next month unchanged; the guard against the
+~$120/$0 double-reservation bug still bites.
 
-Tre approved applying the rule to **all month-0 cutoff sites**. Routed so far: engine
-`activeCarLoanByMonth` (new gate) + `activeCarLoanInsuranceByMonth`; hook vehicle-extras,
-loan-insurance and `m0CarFundsForLoan` gates; both inline cutoff derivations
-(`CardProjectionContext`, `CreditCardEngine`). **Still NOT routed — this is next step 1:** the
-bills / CC-minimum / plan-installment month-0 gates (Q11/Q12 sites) still compare against
-`syncCutoffDate` directly with no lag. Sweeping them was deliberately deferred after the income
-regression above; do them **one at a time with a live check each**, and confirm each site is an
-outflow gate before applying the lag.
+## 2. ⚠️ NEW ENVIRONMENT GOTCHA — THIS ONE ALMOST REVERTED A CORRECT CHANGE
+
+**Reading the Dashboard or Forecast before the engine converges returns plausible-but-wrong
+numbers.** Mid-settle, step 2 appeared to move Dashboard to **$2,701**, Forecast Aug END CASH to
+**$2,873** (breaking the §1.1 invariant), income Aug $5,850 → $4,548 **and Sep $6,750 → $4,548**,
+with a `1× +$173` badge — i.e. it looked exactly like the income regression session 82 warns about.
+All of it was a partial render. With a **10–11 second** wait the same build reproduced the baseline
+byte-for-byte.
+
+Rules that follow:
+- **Wait ~10s after "See Demo" and ~10s after each in-app nav click.** The 5–7s in session 82's
+  notes is not enough now.
+- **The tell that you read too early is an impossible result** — a month-0-only gate cannot change
+  Sep income. If a change moves a month it structurally cannot reach, suspect the read, not the code.
+- **Confirm a suspected regression by stashing the change and re-reading** before believing it.
+  `git stash push <file>` → verify the served transform reverted via curl → re-read. That is what
+  proved the demo is deterministic and the reading was the problem.
 
 ## 3. NEXT STEPS (in order)
 
-1. **Finish the cutoff sweep** — the remaining outflow gates above. One at a time, live-verify each.
+1. **Forecast's stale floor copy — DIAGNOSED THIS SESSION, NOT YET FIXED. Start here; it is small.**
+   `Forecast.tsx:827` renders "Cash floor raised to {max(cashFloor, prePaycheckBillsInfo.total)}"
+   ($1,655) while the same page's popup reads Cash Floor **$2,402**. Root cause found:
+   `useForecastEngineInputs.ts:72` sets
+   `prePaycheckBillsInfo = getPrePaycheckNextMonthBills(rules, payConfig, forecastFundingAccountId)`
+   — the **raw base bills only**. The floor the engine actually uses comes from
+   `getAugmentedMinSafeCash`, which augments that base with car loans, vehicle insurance and CC
+   minimums. So the milestone text shows the **un-augmented** total. Fix is to have the copy read
+   the engine's augmented floor instead of re-deriving from the base — the same "a UI showing a
+   total it did not derive" shape as §1.1. Live-check it (see §2 for wait times).
 2. **§2.9 (needs Tre's decision, don't code it blind)** — car-fund earmark can exceed the account
    it is earmarked from. Demo shows `Balance on hand $0` while Chase Checking holds $2,800 and
    LIQUID CASH reads $9,900, because `getCarFundEarmark` (`vehicle-loan-engine.ts:183`) earmarks
@@ -75,27 +96,28 @@ outflow gate before applying the lag.
    Ground to read first: `src/hooks/usePlaidItems.ts`, the Plaid sync edge function, and
    `mergeWithGeneratedTransactions` in `src/lib/pay-schedule.ts` (it fabricates a transaction per
    rule — exactly what a real matched transaction must displace). `linked_rule_ids` (§5.4)
-   collides here. Needs `/multi-plan` before any file is touched. **This is also what retires the
-   §2 date heuristic.**
+   collides here. Needs `/multi-plan` before any file is touched. **This is what retires the whole
+   date heuristic in `sync-cutoff.ts`** — when transaction sync lands, "captured iff a settled
+   transaction matches it" should REPLACE the lag, not tune it.
 4. Remaining unblocked demo bugs: **§4.2** (allocation percentages sum to 146%, Remaining clamped
    to 0% instead of showing the −46% overspend), **§2.5** (Emergency Fund Dec 2028 on Goals vs
    Mar 2029 in Forecast — Goals appears to apply the Marcus 4.5% APY and Forecast does not),
    **§2.1 / §3.2 / §3.4** (income double-count, paycheck mis-categorised "Other", duplicate
    recurring rows — these three may be **demo-fixture** defects; check the fixture before coding).
-5. **Forecast's stale floor copy.** Milestone text still reads "Cash floor raised to **$1,655**"
-   while the same page's own popup reads Cash Floor **$2,402**. Small, self-contained, unblocked.
-6. **§2.4 (three expense definitions) is the one canonical-definition question Tre has NOT
+5. **§2.4 (three expense definitions) is the one canonical-definition question Tre has NOT
    answered.** Ask when it next comes up.
-7. **§2.3 leftovers:** Debt tab's `$1,000` copy was not touched. **Settings exposes no cash-floor
+6. **§2.3 leftovers:** Debt tab's `$1,000` copy was not touched. **Settings exposes no cash-floor
    control at all**, contradicting Forecast's "your floor setting" copy — raise with Tre.
-8. **§2.7** RAV4 double representation — decision input for the open `car_funds` question. Any fix
+7. **§2.7** RAV4 double representation — decision input for the open `car_funds` question. Any fix
    must pick one source of truth per vehicle, never sum both.
-9. Full real-data walk. Budget and Debt were spot-checked on real data in session 77 and agree;
-   Forecast, Goals, Transactions never walked on real data. **The §2 change moves real numbers for
-   any Plaid user** (3-day lag) — this walk matters more than it did.
-10. Mobile/Capacitor viewport pass — not started.
+8. Full real-data walk. Budget and Debt were spot-checked on real data in session 77 and agree;
+   Forecast, Goals, Transactions never walked on real data. **The sweep moves real numbers for any
+   Plaid user** (3-day lag, strict boundary) — this walk matters more than it did. Note the demo
+   could NOT positively exercise the CC-minimum gate: demo cards carry no `payment_due_day`, so
+   `dueDay` is null and the gate short-circuits. Unit tests are its only positive verification.
+9. Mobile/Capacitor viewport pass — not started.
 
-## 4. LATENT DEFECT FOUND, NOT FILED, NOT FIXED
+## 4. LATENT DEFECT FOUND SESSION 82, STILL NOT FILED, NOT FIXED
 
 `forecast-engine.ts:159` picks its starting `liquidBal` from `forecastFundingAccountId` with **no
 account-type check** (`active.find(a => a.id === …)` — a savings account would be accepted), while
@@ -106,7 +128,7 @@ account in the Debt tab, the engine still starts from the profile default; (b) t
 same account). Fix is to route the engine through `src/lib/funding-account.ts` too — but it moves
 real numbers, so pair it with a live check.
 
-## 5. ⚠️ ENVIRONMENT GOTCHAS
+## 5. ⚠️ ENVIRONMENT GOTCHAS (carried forward; §2 above is the new one and the most important)
 
 1. **The dev server can serve a STALE transform and silently invalidate a live check.** Always
    confirm the served module before trusting a live verification:
@@ -114,7 +136,7 @@ real numbers, so pair it with a live check.
    Fix: restart vite (`Stop-Process -Id <pid on 8080> -Force`, then `npm run dev`).
 2. Landing CTA is **"See Demo"**. `find` + `computer left_click` does nothing; what works is
    `javascript_tool` → `[...document.querySelectorAll('button,a')].find(x=>/see demo/i.test(x.textContent)).click()`
-   then `await new Promise(r=>setTimeout(r,7000))`. Same trick for in-app nav
+   then `await new Promise(r=>setTimeout(r,10000))`. Same trick for in-app nav
    (`querySelectorAll('a')` + exact text match), which keeps demo state alive.
 3. **Reading the Forecast table without opening anything:** `const L=document.body.innerText.split('\n');
    const i=L.lastIndexOf('MONTH'); L.slice(i,i+16)` gives MONTH/+INCOME/−OUT/END CASH then the rows.
@@ -139,8 +161,10 @@ real numbers, so pair it with a live check.
     `git commit -F -` works and is what I used. A `python - <<'EOF'` heredoc is the reliable way to
     do multi-point edits to a test file.
 11. Dev server on **8080 with `--strictPort`**; up and serving fresh transforms as of this session.
+12. After a browser tool errors with "Couldn't determine which page this action targets", call
+    `tabs_context_mcp` once and retry — the tab is still fine.
 
-## 6. CARRIED FORWARD, UNRESOLVED (from sessions 72–81)
+## 6. CARRIED FORWARD, UNRESOLVED (from sessions 72–82)
 
 1. **GA4 health UNKNOWN.** Session 27's "LaunchDarkly breaks GA4" is probably a DNT=1 artifact.
    Retest with Do-Not-Track OFF; confirm `VITE_GA_MEASUREMENT_ID` is set in Vercel prod.
@@ -171,25 +195,26 @@ runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFired: fal
 
 ## 8. FILES
 
-- **`6368a3fd`:** `src/pages/Dashboard.tsx`, `src/lib/month0-budget-snapshot.ts`,
-  `src/lib/__tests__/month0-budget-snapshot.test.ts`.
-- **`6b6256c5`:** `src/lib/sync-cutoff.ts` (new), `src/lib/__tests__/sync-cutoff.test.ts` (new),
-  `src/lib/forecast-engine.ts`, `src/hooks/useCardProjection.ts`,
-  `src/contexts/CardProjectionContext.tsx`, `src/components/debt/CreditCardEngine.tsx`.
-- **Backups:** `backups/2026-08-05_180704/` (all seven source files, pre-change).
-- `npx tsc --noEmit` clean, `npx vitest run` **347/347 green**.
-- **Not pushed.** 26 commits ahead of origin.
+- **`0380d56d`:** `src/lib/credit-card-engine.ts`, `src/lib/month0-debt-breakdown.ts`,
+  `src/components/debt/CreditCardEngine.tsx`, + 3 test files.
+- **`72455ec2`:** `src/lib/pay-schedule.ts`.
+- **`309865d0`:** `src/lib/payment-plan-generator.ts`, `src/hooks/useCardProjection.ts`.
+- **Backups:** `backups/2026-08-05_184157/` (all six source files, pre-change).
+- `npx tsc --noEmit` clean, `npx vitest run` **349/349 green**.
+- `python -m graphify update .` run (15622 nodes / 112903 edges).
+- **Not pushed.** 29 commits ahead of origin.
 
 ## 9. LESSONS WORTH KEEPING
 
-- Session 79: *a UI showing a total it did not derive hides whatever it failed to model.*
+- Session 79: *a UI showing a total it did not derive hides whatever it failed to model.* (Next
+  step 1 is another instance of exactly this.)
 - Session 80: *validate identifiers at the boundary; make the failure mode "no filter", not "filter
   everything".*
 - Session 81: *when two surfaces disagree, line the two derivations up term by term in one table.*
-  An absent row is the hardest discrepancy to see, and a table is what makes it obvious.
-- **This session: a shared helper is only safe if every caller is asking the same question.**
-  Collapsing four inline copies into one predicate closed §1.1 — but folding the settlement lag
-  into the shared *date* silently changed the answer for income, a caller that was asking a
-  different question ("has this happened yet?") than the outflow gates ("has this cleared yet?").
-  347 green tests did not catch it; one live read of the Forecast table did, in ten seconds.
-  **Before unifying, enumerate the callers and check they share the question — not just the shape.**
+- Session 82: *a shared helper is only safe if every caller is asking the same question.* Applied
+  this session to STOP a sweep at two sites rather than finish it uniformly.
+- **This session: when a live check reports a regression, check the measurement before the code.**
+  A mid-settle read produced a coherent, believable, entirely fake regression — right down to the
+  specific badge session 82 taught me to watch for. What exposed it was an *impossible* detail: a
+  month-0 gate cannot move September. Stash-and-re-read is the cheap confirmation, and it takes
+  under a minute.
