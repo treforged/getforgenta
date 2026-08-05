@@ -8,11 +8,15 @@ Continues session 77. `site-walk-findings.md` (repo root, committed) is still th
 Tre: "continue working all issues. and fix demo findings." Standing constraint: **do not delete his
 account.** Nothing is pushed — 13 local commits ahead of origin.
 
-## 1. 🔴 BLOCKED ON TRE — two decisions, asked at the end of this session
-
-Both were surfaced to Tre in the closing message of session 78. **Do not pick either yourself.**
+## 1. 🟢 DECIDED BY TRE 2026-08-05 — both answers below are final, do not re-litigate
 
 ### A. Plaid auto-pull + rule matching (his request, still not started)
+
+**✅ DECIDED: a matched actual overrides the rule ONLY for the month it lands in.** It does **not**
+re-base the rule going forward. Schema follows from this: store a per-(rule, month) actual —
+an override row keyed by rule_id + year-month — and leave `recurring_rules.amount` untouched.
+Any month with no matched actual keeps using the rule estimate. Do not add "update the rule from
+the last actual" behavior; Tre considered that shape and chose against it.
 
 > "after we finish with this work, lets set up auto pull real transactions with plaid. and have
 > users be able to match transactions with the set up rules. plaid would use the accurate number in
@@ -32,15 +36,40 @@ edge function, and `mergeWithGeneratedTransactions` in `src/lib/pay-schedule.ts`
 currently fabricates a transaction per rule, and is exactly what a real matched transaction has to
 displace. `linked_rule_ids` (§5.4 below) will collide with this — handle it here.
 
-### B. Which definition is canonical — findings §2.6 / §2.4 / §2.3
+### B. Which definition is canonical — findings §2.6 / §2.3 (§2.4 still open)
 
-**§2.6 is the loudest.** Dashboard's snapshot lists `2800 + 5850 − 1975 − 2402 − 150 − 267` and
-prints `= $6,488`, which is $2,632 off what the rows actually sum to. The rows are decorative; the
-total (`month0.safeToPayTotal`, an engine output) is canonical. Either the rows must become the
-real derivation of the total, or the "=" must stop claiming they are.
-§2.4 = three expense definitions. §2.3 = five cash-floor values; note **Settings exposes no
-cash-floor control at all**, which is worth raising against §2.3's "your floor setting" copy in
-Forecast.
+**✅ DECIDED: accuracy wins — the ENGINE total stays canonical and the ROWS get derived from it.**
+Tre's words: "the goal is accuracy… based off real forecast and cc calculations."
+
+**Do NOT recompute the total from the rows.** `month0.safeToPayTotal` IS the real forecast/CC
+number — the same value Budget's `REMAINING CASH` and the Debt tab's `Safe to Pay` read after
+session 76/77's convergence. Re-deriving it from display rows would re-fork the engine, which is
+exactly the debt sessions 76–77 paid off.
+
+The defect: `MonthlyBudgetSnapshot.tsx:66` takes `availableToDeploy` as its **own prop** and prints
+it on the `=` row, while rows 70–78 above it are assembled independently by Dashboard. Two separate
+derivations rendered as one equation; the $2,632 is an **unmodeled residual**, not a math error.
+
+Agreed plan (needs `/multi-plan` — multi-file across Dashboard, the snapshot component and the
+month0 contract):
+1. **Source every row from `cardProjection.month0`**, not Dashboard-local sums — balance,
+   remaining income, remaining expenses, **`m0SafeFloor`** for the floor, `holdback` /
+   `holdbackEvent` for reserves.
+2. **Compute the residual and render it as a real labeled row** (`residual = chain −
+   safeToPayTotal`), itemized by what the engine actually held back. `Dashboard.tsx:429-431` shows
+   a prior session hand-patched ONE missing item ("Vehicle Insurance (est.)") — that is the tell
+   that the residual was never modeled, only papered over as gaps were noticed. The residual must
+   be **computed, never fudged**.
+3. **Assert the invariant in a unit test** — rows must sum to the total, or the test fails. This is
+   the part that stops it drifting back.
+
+**Step 1 likely closes §2.3 (five cash-floor values) at the same time**, because the floor row would
+then display the floor the engine actually used instead of a Dashboard-local re-derivation. Treat
+§2.6 + §2.3 as ONE piece of work. Also note **Settings exposes no cash-floor control at all**,
+which contradicts §2.3's "your floor setting" copy in Forecast — raise that with Tre when the floor
+row lands.
+
+**§2.4 (three expense definitions) is still undecided** — no answer given for it yet.
 
 ## 2. DONE THIS SESSION (1 commit, local, NOT pushed)
 
@@ -88,8 +117,10 @@ Goal Progress lists 2 against "2 goals"; `Payment Plans · 1 active` with AirPod
 
 ## 4. NEXT STEPS (in order)
 
-1. **🔴 Answer-gated: §1A Plaid, §1B canonical definitions.** Both need Tre. §1B/§2.6 is the
-   loudest remaining correctness issue and is a *product decision*, not a code hunt.
+1. **🟢 UNBLOCKED — both §1A and §1B now have Tre's answers. Start here.**
+   Recommended order: **§1B first** (§2.6 + §2.3 as one job — smaller, self-contained, and it
+   hardens the month0 contract that §1A's engine work will lean on), then **§1A Plaid**.
+   Both need `/multi-plan` before any file is touched.
 2. Re-verify finding **§1.1** (Dashboard month-end cash vs Forecast −$3,300). **Still the
    highest-severity open item, and still not re-checked.** Session 77 moved demo Dashboard to $187
    but never re-read Forecast afterwards. Do this before assuming the debt-engine migration
