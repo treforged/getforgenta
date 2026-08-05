@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
-import { useAccounts, useAssets, useLiabilities, useNetWorthSnapshots } from '@/hooks/useSupabaseData';
+import { useAccounts, useAssets, useCarFunds, useLiabilities, useNetWorthSnapshots } from '@/hooks/useSupabaseData';
 import { aggregateNetWorth } from '@/lib/net-worth';
+import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { hasRecordableData, shouldRecordSnapshot } from '@/lib/net-worth-snapshot';
 
 /**
@@ -21,11 +22,14 @@ export function useNetWorthSnapshotRecorder(): void {
   const { data: accounts } = useAccounts();
   const { data: manualAssets } = useAssets();
   const { data: manualLiabilities } = useLiabilities();
+  const { data: carFunds } = useCarFunds();
   const { data: snapshots, loading: snapshotsLoading, upsert } = useNetWorthSnapshots();
 
+  const vehicleLoans = useMemo(() => getActiveCarLoanPayments(carFunds ?? []), [carFunds]);
+
   const totals = useMemo(
-    () => aggregateNetWorth(accounts, manualAssets, manualLiabilities),
-    [accounts, manualAssets, manualLiabilities],
+    () => aggregateNetWorth(accounts, manualAssets, manualLiabilities, vehicleLoans),
+    [accounts, manualAssets, manualLiabilities, vehicleLoans],
   );
 
   // One attempt per mount, mirroring the original page behaviour.

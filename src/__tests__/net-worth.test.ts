@@ -3,6 +3,7 @@ import {
   aggregateNetWorth,
   buildNetWorthBreakdown,
   isLiabilityAccountType,
+  sharesDistinctiveToken,
   totalsFromBreakdown,
   type NetWorthAccount,
 } from '@/lib/net-worth';
@@ -150,5 +151,103 @@ describe('buildNetWorthBreakdown', () => {
     expect(assets[2]).toMatchObject({ id: 'manual:m1', type: 'Other', isLive: false });
     expect(liabilities[1]).toMatchObject({ id: 'live:a4', type: 'Auto Loan', isLive: true });
     expect(liabilities[2]).toMatchObject({ id: 'manual:m2', type: 'Personal Loan', isLive: false });
+  });
+});
+
+describe('sharesDistinctiveToken', () => {
+  it('matches the account and car-fund names for the same vehicle', () => {
+    expect(sharesDistinctiveToken('Auto Loan — RAV4', 'Toyota RAV4 (Owned)')).toBe(true);
+    expect(sharesDistinctiveToken('Chevy Loan', '2026 Chevy Silverado')).toBe(true);
+  });
+
+  it('does not match two different vehicles', () => {
+    expect(sharesDistinctiveToken('Auto Loan — RAV4', '2024 Honda Civic')).toBe(false);
+  });
+
+  it('never matches on filler words alone', () => {
+    // Both reduce to no distinctive tokens but for the model names.
+    expect(sharesDistinctiveToken('Auto Loan', 'Car Loan Payment')).toBe(false);
+  });
+
+  it('never matches on a shared model year alone', () => {
+    // "2024" carries no identity — these are different cars.
+    expect(sharesDistinctiveToken('Auto Loan — 2024 Toyota', '2024 Honda Civic')).toBe(false);
+  });
+});
+
+describe('buildNetWorthBreakdown — vehicle loans', () => {
+  const vehicle = { carFundId: 'cf1', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110 };
+
+  it('counts a financed car that has no account row', () => {
+    // Tre's real case: the loan lives only in car_funds, so net worth used to
+    // omit it entirely.
+    const breakdown = buildNetWorthBreakdown(
+      [account({ id: 'a1', name: 'Checking', balance: 2000 })],
+      [],
+      [],
+      [vehicle],
+    );
+    expect(breakdown.liabilities).toEqual([
+      { id: 'vehicle:cf1', name: 'Toyota RAV4 (Owned)', type: 'Auto Loan', balance: 27110, isLive: true },
+    ]);
+    expect(totalsFromBreakdown(breakdown).netWorth).toBe(2000 - 27110);
+  });
+
+  it('lets the account row win so one vehicle is never counted twice', () => {
+    // The demo RAV4 exists as both a $26,500 auto_loan account and a $27,110
+    // amortized car fund. Summing them would report $53,610 of debt for one car.
+    const breakdown = buildNetWorthBreakdown(
+      [
+        account({ id: 'a1', name: 'Checking', balance: 2000 }),
+        account({ id: 'a2', name: 'Auto Loan — RAV4', account_type: 'auto_loan', balance: 26500 }),
+      ],
+      [],
+      [],
+      [vehicle],
+    );
+    expect(breakdown.liabilities.map(l => l.name)).toEqual(['Auto Loan — RAV4']);
+    expect(totalsFromBreakdown(breakdown).totalLiabilities).toBe(26500);
+  });
+
+  it('keeps an unrelated vehicle when a different car has an account row', () => {
+    const breakdown = buildNetWorthBreakdown(
+      [account({ id: 'a2', name: 'Auto Loan — Civic', account_type: 'auto_loan', balance: 9000 })],
+      [],
+      [],
+      [vehicle],
+    );
+    expect(breakdown.liabilities.map(l => l.name)).toEqual(['Auto Loan — Civic', 'Toyota RAV4 (Owned)']);
+    expect(totalsFromBreakdown(breakdown).totalLiabilities).toBe(9000 + 27110);
+  });
+
+  it('drops a settled loan', () => {
+    const breakdown = buildNetWorthBreakdown([], [], [], [{ ...vehicle, remainingBalance: 0 }]);
+    expect(breakdown.liabilities).toEqual([]);
+  });
+
+  it('lets a manual liability row win too, not just an account row', () => {
+    // Regression: the demo's "Auto Loan — RAV4" is a manual liability, not an
+    // auto_loan account. Scoping the dedupe to accounts double-counted the car
+    // and dropped demo net worth to -$49,710.
+    const breakdown = buildNetWorthBreakdown(
+      [account({ id: 'a1', name: 'Checking', balance: 2000 })],
+      [],
+      [{ id: 'm1', name: 'Auto Loan — RAV4', type: 'Auto Loan', balance: 26500 }],
+      [vehicle],
+    );
+    expect(breakdown.liabilities.map(l => l.id)).toEqual(['manual:m1']);
+    expect(totalsFromBreakdown(breakdown).totalLiabilities).toBe(26500);
+  });
+
+  it('stays identical to the old behaviour when there are no vehicle loans', () => {
+    const accts = [
+      account({ id: 'a1', name: 'Checking', balance: 2000 }),
+      account({ id: 'a2', name: 'Auto Loan — RAV4', account_type: 'auto_loan', balance: 26500 }),
+    ];
+    const assets = [{ id: 'm1', name: 'Coin Collection', type: 'Other', value: 300 }];
+    const liabs = [{ id: 'm2', name: 'Family Loan', type: 'Personal Loan', balance: 700 }];
+    expect(buildNetWorthBreakdown(accts, assets, liabs, [])).toEqual(
+      buildNetWorthBreakdown(accts, assets, liabs),
+    );
   });
 });

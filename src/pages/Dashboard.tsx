@@ -44,7 +44,7 @@ import {
 import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, type MonthlyDebtBreakdown } from "@/lib/credit-card-engine";
 import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { getTotalCarLoanMonthly, generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { buildNetWorthBreakdown, totalsFromBreakdown } from '@/lib/net-worth';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -472,9 +472,14 @@ export default function Dashboard() {
 
   // One rollup drives both the NET WORTH tile and the breakdown lists below it,
   // so the itemised rows always sum to the headline number. See lib/net-worth.ts.
+  // Financed vehicles live in car_funds, not accounts, and carry no stored
+  // balance — amortized here so they count as liabilities. Same call the
+  // Vehicles page uses, so the two can't disagree.
+  const vehicleLoans = useMemo(() => getActiveCarLoanPayments(carFunds ?? []), [carFunds]);
+
   const netWorthBreakdown = useMemo(
-    () => buildNetWorthBreakdown(accounts, manualAssets, manualLiabilities),
-    [accounts, manualAssets, manualLiabilities],
+    () => buildNetWorthBreakdown(accounts, manualAssets, manualLiabilities, vehicleLoans),
+    [accounts, manualAssets, manualLiabilities, vehicleLoans],
   );
 
   const accountSummary = useMemo(() => {

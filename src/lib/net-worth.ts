@@ -26,6 +26,17 @@
  * Widening the liability set is a correction, not a refactor: recorded snapshot
  * history was computed under the old credit-card-only rule, so any user with a
  * loan account will see a step change where the two rules meet.
+ *
+ * Vehicle loans live in `car_funds`, not in `accounts`, and store no outstanding
+ * balance — they are amortized. They are passed in as a fourth input (already
+ * amortized, from `getActiveCarLoanPayments`) so that a financed car stops being
+ * invisible to net worth. Because the same vehicle is frequently represented
+ * twice — once as an `auto_loan` account *or manual liability row* and once as a
+ * `car_funds` loan, with *different* balances (the demo RAV4 is $26,500 vs
+ * $27,110) — the row the user already maintains wins and the matching
+ * `car_funds` loan is dropped. See
+ * {@link sharesDistinctiveToken} for how "matching" is decided and what it
+ * trades off.
  */
 
 /** Account types that reduce net worth. Everything else is an asset. */
@@ -103,6 +114,18 @@ export interface NetWorthLiabilityRow {
   isLive: boolean;
 }
 
+/**
+ * An amortized vehicle loan. Structurally satisfied by `CarLoanPaymentInfo` from
+ * `vehicle-loan-engine`, so callers pass `getActiveCarLoanPayments(carFunds)`
+ * straight through — deliberately no adapter, so the liability shown here is the
+ * exact number the Vehicles page shows and the two can never drift.
+ */
+export interface NetWorthVehicleLoan {
+  carFundId: string;
+  vehicleName: string;
+  remainingBalance: number;
+}
+
 export interface NetWorthBreakdown {
   assets: NetWorthAssetRow[];
   liabilities: NetWorthLiabilityRow[];
@@ -118,6 +141,51 @@ const namesOf = (rows: readonly { name: string }[]): ReadonlySet<string> =>
   new Set(rows.map(r => r.name.toLowerCase()));
 
 /**
+ * Words that carry no identity for a vehicle, so they can't be used to decide
+ * that two rows describe the same car. Without this, every `auto_loan` account
+ * would match every vehicle on the word "loan".
+ */
+const VEHICLE_NAME_STOPWORDS: ReadonlySet<string> = new Set([
+  'auto', 'car', 'loan', 'vehicle', 'owned', 'financed', 'lease', 'leased',
+  'payment', 'payments', 'the', 'my', 'and', 'new', 'used',
+]);
+
+/**
+ * Identity-bearing words in a vehicle or account name: >=3 chars, not a
+ * stopword, and containing at least one letter. The letter requirement exists so
+ * a model year can't create a match on its own — "2024 Honda Civic" and
+ * "Auto Loan - 2024 Toyota" share "2024" and are obviously different cars.
+ */
+const distinctiveTokens = (name: string): ReadonlySet<string> =>
+  new Set(
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .split(' ')
+      .filter(t => t.length >= 3 && /[a-z]/.test(t) && !VEHICLE_NAME_STOPWORDS.has(t)),
+  );
+
+/**
+ * Whether two names plausibly describe the same vehicle, e.g. the account
+ * "Auto Loan - RAV4" and the car fund "Toyota RAV4 (Owned)" both reduce to
+ * "rav4".
+ *
+ * Trade-off, deliberately chosen: a false *positive* drops the car_funds loan
+ * and net worth is overstated by one vehicle; a false *negative* counts the same
+ * car twice and net worth is understated by a whole loan balance. Requiring a
+ * shared distinctive token is strict enough that unrelated vehicles don't
+ * collide, while still catching the common case where one row is named for the
+ * model and the other for the loan.
+ */
+export const sharesDistinctiveToken = (a: string, b: string): boolean => {
+  const tokensB = distinctiveTokens(b);
+  for (const token of distinctiveTokens(a)) {
+    if (tokensB.has(token)) return true;
+  }
+  return false;
+};
+
+/**
  * Every asset and liability that counts toward net worth, itemised.
  *
  * Manual rows keep their own `type` label; live accounts are grouped through
@@ -128,6 +196,7 @@ export function buildNetWorthBreakdown(
   accounts: readonly NetWorthAccount[],
   manualAssets: readonly NetWorthManualAsset[],
   manualLiabilities: readonly NetWorthManualLiability[],
+  vehicleLoans: readonly NetWorthVehicleLoan[] = [],
 ): NetWorthBreakdown {
   const active = accounts.filter(a => a.active);
   const liveAssetAccounts = active.filter(a => !isLiabilityAccountType(a.account_type));
@@ -172,9 +241,31 @@ export function buildNetWorthBreakdown(
       isLive: false,
     }));
 
+  // A row the user already maintains for this vehicle wins, whether it is an
+  // `auto_loan` account or a manual liability — the demo RAV4 is the latter, and
+  // scoping this to accounts alone silently double-counted it ($26,500 + $27,110
+  // = $53,610 of debt for one car). The amortized car_funds loan is therefore
+  // only added when the vehicle is not represented anywhere else. Settled loans
+  // (remainingBalance <= 0) are dropped outright.
+  const existingLiabilityNames = [
+    ...liveLiabilityAccounts.filter(a => a.account_type === 'auto_loan').map(a => a.name),
+    ...manualLiabilityRows.map(l => l.name),
+  ];
+
+  const vehicleLoanRows: NetWorthLiabilityRow[] = vehicleLoans
+    .filter(v => Number(v.remainingBalance) > 0)
+    .filter(v => !existingLiabilityNames.some(name => sharesDistinctiveToken(name, v.vehicleName)))
+    .map(v => ({
+      id: `vehicle:${v.carFundId}`,
+      name: v.vehicleName,
+      type: ACCOUNT_TYPE_GROUP.auto_loan,
+      balance: Number(v.remainingBalance),
+      isLive: true,
+    }));
+
   return {
     assets: [...liveAssets, ...manualAssetRows],
-    liabilities: [...liveLiabilities, ...manualLiabilityRows],
+    liabilities: [...liveLiabilities, ...vehicleLoanRows, ...manualLiabilityRows],
   };
 }
 
@@ -190,6 +281,9 @@ export function aggregateNetWorth(
   accounts: readonly NetWorthAccount[],
   manualAssets: readonly NetWorthManualAsset[],
   manualLiabilities: readonly NetWorthManualLiability[],
+  vehicleLoans: readonly NetWorthVehicleLoan[] = [],
 ): NetWorthTotals {
-  return totalsFromBreakdown(buildNetWorthBreakdown(accounts, manualAssets, manualLiabilities));
+  return totalsFromBreakdown(
+    buildNetWorthBreakdown(accounts, manualAssets, manualLiabilities, vehicleLoans),
+  );
 }

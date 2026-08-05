@@ -4,7 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
-import { useAccounts, useAssets, useDebts, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, type AccountRow } from '@/hooks/useSupabaseData';
+import { useAccounts, useAssets, useDebts, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, useCarFunds, type AccountRow } from '@/hooks/useSupabaseData';
+import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { aggregateNetWorth, LIABILITY_ACCOUNT_TYPES } from '@/lib/net-worth';
 import { useNetWorthSnapshotRecorder } from '@/hooks/useNetWorthSnapshotRecorder';
 import type { Tables } from '@/integrations/supabase/types';
@@ -135,6 +136,7 @@ export default function Accounts() {
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
   const { data: manualAssets } = useAssets();
   const { data: manualLiabilities } = useLiabilities();
+  const { data: carFunds } = useCarFunds();
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const { data: snapshots, loading: snapshotsLoading } = useNetWorthSnapshots();
@@ -264,16 +266,21 @@ export default function Accounts() {
 
   const activeAccounts = useMemo(() => accounts.filter(a => a.active), [accounts]);
 
+  // Amortized from car_funds, which stores no outstanding balance. Same call the
+  // Vehicles page uses, so the liability here matches what that page displays.
+  const vehicleLoans = useMemo(() => getActiveCarLoanPayments(carFunds ?? []), [carFunds]);
+
   const summary = useMemo(() => {
     const active = activeAccounts;
     const liquidCash = active.filter(a => LIQUID_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
     const investments = active.filter(a => INVESTMENT_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
     const retirement = active.filter(a => RETIREMENT_TYPES.includes(a.account_type)).reduce((s, a) => s + Number(a.balance), 0);
     const ccDebt = active.filter(a => a.account_type === 'credit_card').reduce((s, a) => s + Number(a.balance), 0);
-    // Same rollup as the Dashboard tile and the recorded snapshot, manual rows included.
-    const { totalAssets, totalLiabilities, netWorth } = aggregateNetWorth(active, manualAssets, manualLiabilities);
+    // Same rollup as the Dashboard tile and the recorded snapshot, manual rows
+    // and amortized vehicle loans included.
+    const { totalAssets, totalLiabilities, netWorth } = aggregateNetWorth(active, manualAssets, manualLiabilities, vehicleLoans);
     return { liquidCash, investments, retirement, ccDebt, totalLiabilities, totalAssets, netWorth };
-  }, [activeAccounts, manualAssets, manualLiabilities]);
+  }, [activeAccounts, manualAssets, manualLiabilities, vehicleLoans]);
 
   const netWorthTrend = useMemo(() => {
     if (snapshots.length === 0) {
