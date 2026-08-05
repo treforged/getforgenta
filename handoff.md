@@ -6,7 +6,7 @@ Continues session 83. `site-walk-findings.md` (repo root, committed) is still th
 ## 0. GOAL
 
 Tre: "continue working all issues. and fix demo findings." then "sequence as u see fit."
-Standing constraint: **do not delete his account.** Nothing is pushed — **32 local commits ahead**.
+Standing constraint: **do not delete his account.** Nothing is pushed — **35 local commits ahead** (measured).
 
 ## 1. WHAT THIS SESSION DID — three commits, one theme
 
@@ -203,7 +203,7 @@ runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFired: fal
   `src/pages/SavingsGoals.tsx`.
 - **Backups:** `backups/2026-08-05_185630/` (all five source files, pre-change).
 - `npx tsc --noEmit` clean, `npx eslint` clean, `npx vitest run` **358/358 green** (349 + 9 new).
-- **Not pushed.** 32 commits ahead of origin.
+- **Not pushed.** 35 commits ahead of origin (measured after the handoff commit).
 
 ## 9. LESSONS WORTH KEEPING
 
