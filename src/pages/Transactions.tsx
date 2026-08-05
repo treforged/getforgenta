@@ -19,7 +19,7 @@ import { toast } from 'sonner';
 import { Link } from 'react-router';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
-import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
+import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, isPlanInProgress, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -103,6 +103,13 @@ export default function Transactions() {
       (r.category === 'Savings' || r.category === 'Investing'),
     ).map(r => r.id),
   ), [rules]);
+
+  // "N active" counts plans that still owe an installment — plan.active alone counts finished
+  // plans forever, since nothing writes that flag back when the last payment date passes.
+  const activePlanCount = useMemo(
+    () => paymentPlans.filter(p => isPlanInProgress(p)).length,
+    [paymentPlans],
+  );
 
   // Debt payment rows come from the SAME canonical month-0 projection the Dashboard widget, the
   // Debt Payoff tab, and Forecast read (cardProjection.month0.perCardAdjusted). This page used to
@@ -571,9 +578,9 @@ export default function Transactions() {
             <div className="flex items-center gap-2">
               <CreditCard size={14} className="text-primary" />
               <span className="text-sm font-display font-semibold">Payment Plans</span>
-              {(isPremium || isDemo) && paymentPlans.filter(p => p.active).length > 0 && (
+              {(isPremium || isDemo) && activePlanCount > 0 && (
                 <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>
-                  {paymentPlans.filter(p => p.active).length} active
+                  {activePlanCount} active
                 </span>
               )}
             </div>
@@ -625,7 +632,9 @@ export default function Transactions() {
                                   {plan.provider}
                                 </span>
                               )}
-                              {!plan.active && <span className="text-[10px] text-muted-foreground">(inactive)</span>}
+                              {!plan.active
+                                ? <span className="text-[10px] text-muted-foreground">(inactive)</span>
+                                : remaining === 0 && <span className="text-[10px] text-muted-foreground">(complete)</span>}
                             </div>
                             <div className="mt-2 flex items-center gap-2">
                               <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">

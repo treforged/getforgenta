@@ -1050,13 +1050,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Keep roughly 10 x-axis ticks regardless of horizon: 5Y -> 5 (unchanged from before), 3Y -> 3, 2Y -> 2, 1Y -> 1.
   const chartTickInterval = Math.max(0, Math.ceil((parseInt(chartYears, 10) * 12) / 10) - 1);
 
+  // `month` = whole months from now until utilization first sits under the threshold.
+  // 0 means it is already there — previously this returned the projection INDEX, so a threshold
+  // cleared by the end of the current month reported "0 months", which reads as "already below"
+  // and contradicted the utilization printed right above it (e.g. "below 50%: 0 months" at 65.1%).
+  // projections[].months[i] is the END of month i, so clearing at index i takes i + 1 months.
   const utilizationMilestones = useMemo(() => {
     const limit = cards.reduce((s, c) => s + (c.creditLimit ?? 0), 0);
     if (limit === 0) return [];
+    const balanceNow = cards.reduce((s, c) => s + c.balance, 0);
     return [25, 50, 75].map(threshold => {
+      const target = limit * threshold / 100;
+      if (balanceNow <= target) return { threshold, month: 0 };
       for (let i = 0; i < PROJECTION_MONTHS; i++) {
         const bal = projections.reduce((s, p) => s + (p.months[i]?.endBalance ?? 0), 0);
-        if (bal <= limit * threshold / 100) return { threshold, month: i };
+        if (bal <= target) return { threshold, month: i + 1 };
       }
       return { threshold, month: null };
     });
@@ -1307,7 +1315,27 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     ? forecastRevolvingPayoffMonth
                     : simEta;
                 const color = eta <= 1 ? 'text-success' : 'text-primary';
-                return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>{eta > 0 ? `${eta} mo` : 'Paid'}</p>;
+                if (eta <= 0) {
+                  return <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>Paid</p>;
+                }
+                // eta is 1-INDEXED (month 1 = this month) — the same convention Forecast maps to a
+                // row via `rawPayoffMonth - 1`. Printing it as "3 mo" read as three months FROM NOW
+                // (Nov) while Forecast's milestone said Oct. Show the month itself, in Forecast's
+                // own label format, so the two surfaces are directly comparable.
+                const payoffDate = new Date();
+                payoffDate.setDate(1);
+                payoffDate.setMonth(payoffDate.getMonth() + eta - 1);
+                const monthsAway = eta - 1;
+                return (
+                  <>
+                    <p className={`text-lg sm:text-xl font-display font-bold mt-0.5 ${color}`}>
+                      {payoffDate.toLocaleString('en', { month: 'short', year: 'numeric' })}
+                    </p>
+                    <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
+                      {monthsAway === 0 ? 'this month' : `in ${monthsAway} mo`}
+                    </p>
+                  </>
+                );
               })()}
             </div>
           </div>
@@ -1627,7 +1655,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             <div className="mt-3 sm:mt-4 flex flex-wrap gap-2 sm:gap-3">
               {utilizationMilestones.map(m => (
                 <span key={m.threshold} className="text-[9px] sm:text-[10px] px-2 py-1 bg-muted/30 border border-border text-muted-foreground" style={{ borderRadius: 'var(--radius)' }}>
-                  Below {m.threshold}% util: {m.month !== null ? `~${m.month} months` : 'N/A'}
+                  Below {m.threshold}% util: {m.month === null
+                    ? 'N/A'
+                    : m.month === 0
+                      ? 'already there'
+                      : `~${m.month} month${m.month === 1 ? '' : 's'}`}
                 </span>
               ))}
             </div>

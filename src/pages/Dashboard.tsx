@@ -127,7 +127,6 @@ interface DashboardGoalEntry {
   name: string;
   current_amount: number;
   target_amount: number;
-  isCar?: boolean;
 }
 
 function CalcDrawer({
@@ -949,7 +948,7 @@ export default function Dashboard() {
       case 'car_goal':
         if (!carGoalData) return null;
         return (
-          <div key="car_goal" className="card-forged p-5 card-clickable" onClick={() => navigate('/goals')}>
+          <div key="car_goal" className="card-forged p-5 card-clickable" onClick={() => navigate(carGoalData.isCarFund ? '/vehicles' : '/goals')}>
             <div className="flex items-center gap-2 mb-4">
               <Car size={14} className="text-primary" />
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
@@ -1109,32 +1108,27 @@ export default function Dashboard() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
             <div className="grid md:grid-cols-3 gap-5">
               {(() => {
+                // Savings goals ONLY. Vehicles are deliberately not savings goals any more — the
+                // Goals page this card links to says "car funds have moved to Vehicles" and lists
+                // none, so injecting one here put a tile on the Dashboard that the linked page
+                // cannot show, and made this list longer than the "N goals" count beside it.
+                // The dedicated `car_goal` widget below covers the vehicle in full detail.
                 const retireGoal = goals.find(g => g.goal_type === 'Retirement');
                 const otherGoals = [...goals.filter(g => g.goal_type !== 'Retirement')].sort((a, b) => {
                   if (a.goal_type === 'Emergency Fund') return -1;
                   if (b.goal_type === 'Emergency Fund') return 1;
                   return 0;
                 });
-                const carEntry: DashboardGoalEntry[] = (carFunds[0] && carFunds[0].phase !== 'loan') ? (() => {
-                  const c = carFunds[0];
-                  const livebal = c.linked_account && accountMap[c.linked_account] ? Number(accountMap[c.linked_account].balance) : Number(c.current_saved);
-                  const personalGoal = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
-                  return [{ id: 'car-dash', name: c.vehicle_name, current_amount: livebal, target_amount: personalGoal, isCar: true }];
-                })() : [];
                 return [
                   ...(retireGoal ? [retireGoal] : []),
-                  ...otherGoals.slice(0, retireGoal ? 1 : 2),
-                  ...carEntry,
+                  ...otherGoals.slice(0, retireGoal ? 2 : 3),
                 ].slice(0, 3) as DashboardGoalEntry[];
               })().map(g => {
                 const pct = Number(g.target_amount) > 0 ? Math.round((Number(g.current_amount) / Number(g.target_amount)) * 100) : 0;
                 return (
                   <div key={g.id} className="space-y-3 p-4 bg-muted/30 border border-border" style={{ borderRadius: 'var(--radius)' }}>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold flex items-center gap-1.5">
-                        {g.isCar && <Car size={11} className="text-primary" />}
-                        {g.name}
-                      </span>
+                      <span className="text-xs font-semibold flex items-center gap-1.5">{g.name}</span>
                       <span className="text-xs font-bold text-primary">{pct}%</span>
                     </div>
                     <ProgressBar value={Number(g.current_amount)} max={Number(g.target_amount)} thick showLabel />
@@ -1145,7 +1139,7 @@ export default function Dashboard() {
                   </div>
                 );
               })}
-              {goals.length === 0 && (!carFunds[0] || carFunds[0].phase === 'loan') && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No savings goals yet.</p>}
+              {goals.length === 0 && <p className="text-xs text-muted-foreground col-span-3 text-center py-4">No savings goals yet.</p>}
             </div>
           </div>
         );

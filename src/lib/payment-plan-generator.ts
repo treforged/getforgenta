@@ -99,8 +99,20 @@ export function getNextPaymentDate(plan: PaymentPlan): string | null {
   return dates.find(d => d >= today) ?? null;
 }
 
-export function getPlanProgress(plan: PaymentPlan): { paid: number; remaining: number; endDate: string } {
-  const today = new Date().toISOString().split('T')[0];
+/**
+ * A plan is "active" for display purposes only while it still owes installments.
+ *
+ * `plan.active` is a stored flag the user toggles; nothing writes it back to false when the last
+ * installment date passes, so a fully-paid plan (4/4, $0 remaining) stays `active: true` forever
+ * and inflates the "N active" count. Completion is derived from the payment schedule, so derive
+ * it here rather than depending on a write-back that does not exist.
+ */
+export function isPlanInProgress(plan: PaymentPlan, asOf?: string): boolean {
+  return plan.active && getPlanProgress(plan, asOf).remaining > 0;
+}
+
+export function getPlanProgress(plan: PaymentPlan, asOf?: string): { paid: number; remaining: number; endDate: string } {
+  const today = asOf ?? new Date().toISOString().split('T')[0];
   const dates = getPaymentDates(plan.start_date, plan.frequency, plan.total_payments);
   const paid = dates.filter(d => d < today).length;
   const endDate = dates[dates.length - 1] ?? plan.start_date;
