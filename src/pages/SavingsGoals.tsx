@@ -16,7 +16,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-react';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { buildSavingsGrowthData, estimateGoalCompletionMonths, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, type GrowthGoalInput } from '@/lib/savings-growth';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
@@ -360,10 +360,7 @@ export default function SavingsGoals() {
         .filter((r): r is NonNullable<typeof r> => r != null)
         .map(r => ({ name: r.name, amount: r.amount, frequency: r.frequency, start_date: r.start_date ?? null }));
       const linkedAcct = g.linked_account ? accountMap[g.linked_account] : null;
-      const rawRate = Number(linkedAcct?.apy_rate ?? linkedAcct?.apr ?? 0);
-      const typeDefault = (['savings', 'high_yield_savings'].includes(linkedAcct?.account_type ?? '') ? 4.5
-        : ['brokerage', 'roth_ira', '401k', 'ira', 'hsa'].includes(linkedAcct?.account_type ?? '') ? 7 : 0);
-      const effective_apy = rawRate > 0 ? rawRate : typeDefault;
+      const effective_apy = getGoalEffectiveApyPercent(linkedAcct);
       const linkedMonthly = linkedRules.reduce((s, r) => s + toMonthly(r.amount, r.frequency), 0);
       const earliestStart = linkedRules
         .map(r => r.start_date)

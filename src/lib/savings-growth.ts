@@ -41,6 +41,30 @@ export type GrowthRow = { month: string } & Record<string, string | number>;
 
 export type GrowthChartData = { rows: GrowthRow[]; series: GrowthSeries[] };
 
+/** The bits of an account this model needs to price a goal's growth. */
+export type ApyAccountLike = {
+  apy_rate?: number | null;
+  apr?: number | null;
+  account_type?: string | null;
+} | null | undefined;
+
+/**
+ * The APY a goal actually earns: the linked account's own rate when it has one, otherwise a
+ * sensible default for that account type. A goal with no linked account earns nothing.
+ *
+ * Shared so the Goals page's "Est. completion" and the Forecast's "<goal> Complete!" milestone
+ * price the same goal identically — site walk §2.5 had them three months apart because Goals
+ * compounded at Marcus's 4.5% and Forecast projected a straight line.
+ */
+export function getGoalEffectiveApyPercent(account: ApyAccountLike): number {
+  const rawRate = Number(account?.apy_rate ?? account?.apr ?? 0);
+  if (rawRate > 0) return rawRate;
+  const type = account?.account_type ?? '';
+  if (['savings', 'high_yield_savings'].includes(type)) return 4.5;
+  if (['brokerage', 'roth_ira', '401k', 'ira', 'hsa'].includes(type)) return 7;
+  return 0;
+}
+
 /** Whole months from (baseYear, baseMonth) to the month containing `dateStr`. */
 function monthOffset(dateStr: string, baseYear: number, baseMonth: number): number | null {
   const d = new Date(dateStr + 'T00:00:00');

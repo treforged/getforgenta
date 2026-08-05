@@ -19,6 +19,7 @@ import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-pr
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
+import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
@@ -1039,7 +1040,40 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         current_amount: linkedAcct ? Number(linkedAcct.balance) : Number(g.current_amount),
         monthly_contribution: linkedRules.length > 0 ? linkedMonthly : Number(g.monthly_contribution),
         delayMonths,
+        // Carried out of this closure so the completion milestone below can price the goal the
+        // same way the Goals page does — both need the START DATE as resolved from linked rules
+        // (not the raw column) and the linked account's APY.
+        resolvedContributionStartDate: contributionStartDate,
+        effectiveApyPercent: getGoalEffectiveApyPercent(linkedAcct),
       };
+    });
+
+    // Month index at which each goal first reaches its target, via the SAME accrual the Goals
+    // page's "Est. completion" uses (estimateGoalCompletionMonths: monthly compounding, planned
+    // lump sums, contribution start date). This milestone used to re-derive the date as a straight
+    // line — current_amount + monthly_contribution × elapsed — which ignored both interest and
+    // lump sums, so Forecast said "Emergency Fund Complete!" in Mar 2029 while Goals said Dec 2028
+    // for the same goal earning Marcus's 4.5% (site walk §2.5). Milestones are display-only; this
+    // moves no cash.
+    const goalCompletionIdx = new Map<string, number>();
+    resolvedGoals.forEach((g, gi) => {
+      const months = estimateGoalCompletionMonths(
+        {
+          id: (g.id as string) ?? String(gi),
+          name: g.name ?? '',
+          currentAmount: Number(g.current_amount),
+          monthlyContribution: Number(g.monthly_contribution),
+          annualApyPercent: g.effectiveApyPercent,
+          contributionStartDate: g.resolvedContributionStartDate,
+          lumpSums: Array.isArray(g.lump_sum_payments)
+            ? (g.lump_sum_payments as unknown as { date: string; amount: number }[])
+                .map((ls) => ({ date: ls.date, amount: Number(ls.amount) }))
+            : [],
+        },
+        Number(g.target_amount),
+        { today: nowDate },
+      );
+      if (months != null) goalCompletionIdx.set((g.id as string) ?? String(gi), months);
     });
 
     // ═══ PASS 3: Build final projection data ═══
@@ -1324,12 +1358,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           ccMilestoneFired = true;
         }
       }
-      resolvedGoals.forEach((g) => {
-        const elapsed = Math.max(0, i - g.delayMonths);
-        const prevElapsed = Math.max(0, (i - 1) - g.delayMonths);
-        const projected = Number(g.current_amount) + Number(g.monthly_contribution) * elapsed;
-        const prevProjected = Number(g.current_amount) + Number(g.monthly_contribution) * prevElapsed;
-        if (projected >= Number(g.target_amount) && (i === 0 || prevProjected < Number(g.target_amount))) {
+      resolvedGoals.forEach((g, gi) => {
+        if (goalCompletionIdx.get((g.id as string) ?? String(gi)) === i) {
           milestones.push({ month: b.monthLabel, event: `${g.name} Complete! 🎯` });
         }
       });
