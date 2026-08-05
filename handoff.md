@@ -1,95 +1,106 @@
-# Handoff — 2026-08-04 — session 76 — branch `main` — site-walk fixes, live-verified
+# Handoff — 2026-08-04 — session 77 — branch `main` — legacy debt engine migrated
 
-Continues session 75. `site-walk-findings.md` (repo root, committed) is still the source list and is
-now annotated with what's verified fixed. **Read it before touching anything.**
+Continues session 76. `site-walk-findings.md` (repo root, committed) is still the source list.
+**Read it before touching anything.**
 
 ## 0. GOAL
 
 Tre: "continue working all issues. and fix demo findings." Standing constraint: **do not delete his
-account.** Nothing is pushed — 10 local commits ahead of origin.
+account.** Nothing is pushed — 11 local commits ahead of origin.
 
-## 1. 🔴 START HERE — Tre already answered the two blocking questions
+## 1. 🔴 NEW REQUEST FROM TRE — this is the next workstream
 
-Session 75 was blocked on two decisions. **Both are now answered — do not re-ask.**
+Sent at the end of this session, **not started, not scoped**:
 
-1. **`car_funds` loan in net worth → "Account row wins, dedupe car_funds."** ✅ **DONE**, see §2.
-2. **Migrate the legacy `getMonthlyDebtBreakdown` engine → "Migrate all three surfaces."** ❌ **NOT
-   STARTED. This is the next task.** See §4.1.
+> "after we finish with this work, lets set up auto pull real transactions with plaid. and have
+> users be able to match transactions with the set up rules. plaid would use the accurate number in
+> all related calculations."
 
-## 2. DONE THIS SESSION (2 commits, local, NOT pushed)
+Three parts, and they are not equally sized:
 
-### ✅ `fc03e09d` — findings doc updated after a live walk
+1. **Auto-pull Plaid transactions** — a scheduled sync, not the manual/on-open path in place today.
+2. **Match a pulled transaction to an existing recurring rule** — new UI + a persisted link.
+3. **Engine reads the matched actual instead of the rule's estimate.** This is the deep one. Rule
+   amounts feed `useCardProjection` / the forecast engine everywhere; swapping in actuals changes
+   month-0 expenses, the cash floor and therefore Safe to Pay. **Do not start coding this before
+   `/multi-plan`** — and ask Tre whether an actual overrides the rule only for the month it lands
+   in, or re-bases the rule going forward. That question changes the schema.
 
-Walked demo mode on `localhost:8080` and confirmed three previously-shipped fixes hold:
+Existing ground to read first: `src/hooks/usePlaidItems.ts`, the Plaid sync edge function,
+`mergeWithGeneratedTransactions` in `src/lib/pay-schedule.ts` (this is what currently fabricates a
+transaction per rule, and is exactly what a real matched transaction has to displace).
 
-- **§1.3 net worth** — Dashboard `-$22,600 / $24,600 assets` and Accounts
-  `-$22,600 / $24,600 / $47,200` now agree (were $11,900 / $12,700).
-- **§1.2 Discover/Sapphire mismatch** — Transactions now reads `Chase Sapphire Payment · -$6,401`,
-  matching the engine (was -$3,728).
-- **§4.1 ordinals** — `Due 15th` / `Due 22nd` render correctly (was `22th`).
+## 2. DONE THIS SESSION (1 commit, local, NOT pushed)
 
-Also walked **Vehicles and Settings for the first time**, closing two of the findings' four
-"still to do" items, and logged **new finding §2.7**.
+### ✅ `beb8482e` — the second debt engine is gone from all three surfaces
 
-### ✅ `f2941b1b` — financed vehicles now count toward net worth (Tre's decision #1)
+This was session 76's approved next task ("migrate all three surfaces"). Done and live-verified.
 
-`buildNetWorthBreakdown` takes a 4th input, `vehicleLoans`. Callers pass
-`getActiveCarLoanPayments(carFunds)` **straight through** — `CarLoanPaymentInfo` already satisfies
-`NetWorthVehicleLoan` structurally, so there is no adapter and the liability equals exactly what
-Vehicles displays. Wired into Dashboard, Accounts and `useNetWorthSnapshotRecorder`.
+**New:** `src/lib/month0-debt-breakdown.ts` — pure `buildMonth0DebtBreakdown()` returning the same
+`MonthlyDebtBreakdown` shape, derived entirely from `cardProjection.month0`. Extracted verbatim from
+Dashboard's old inline `dashboardDebtRecs`. Wrapped by `src/hooks/useMonth0DebtBreakdown.ts` (reads
+`CardProjectionContext`, so it only works under `DashboardLayout`'s provider — all three pages are).
 
-Dedupe rule: **whichever liability row the user already maintains wins**; the amortized `car_funds`
-loan is added only when that vehicle isn't represented anywhere else. Matching is
-`sharesDistinctiveToken` (shared identity-bearing word; a shared model year alone never matches).
+Migrated off the legacy pass:
+- **Dashboard** — the legacy `getMonthlyDebtBreakdown` fed month-end cash + savings rate while the
+  widget right next to it already used month 0. Collapsed the duplicate `debtObligationTxns` and
+  `dashboardDebtRecs` into the one hook; dropped `debtCards`/`buildCardData`.
+- **BudgetControl** — debt payment rules + injected debt transactions.
+- **SavingsGoals** — linked-account remaining-cash math; also drops a `try/catch` that was there
+  only because the legacy engine threw.
 
-⚠️ **The near-miss worth remembering:** I first scoped the dedupe to `auto_loan` **accounts** only.
-Tests passed. The live demo then showed **-$49,710** with the RAV4 listed twice, because the demo's
-`Auto Loan — RAV4` is a **manual liability row, not an account**. Manual rows now count as an
-existing representation. **Unit tests did not catch this — the live check did.** Keep checking the
-browser.
+**Also closes finding §2.2.** Budget's `REMAINING CASH` tile is labelled *"matches Debt tab Safe to
+Pay"* but re-derived it as `balance + remainingIncome − max(cashFloor, prePaycheckBills)`, ignoring
+save-up reserves and vehicle/insurance holdbacks. It now **reads `month0.safeToPayTotal` directly**,
+so the claim is true by construction. Its calc-drawer explainer and the label copy were rewritten to
+match (the old copy described the old formula).
 
-**Verification:** `npx tsc --noEmit` clean, `npx eslint` clean on touched files, `npx vitest run`
-**293/293 green** (67 files, +10 new), demo confirms `-$22,600` with one RAV4 row.
+**Numbers moved, as Tre pre-accepted:** demo Dashboard month-end cash **$1,655 → $187**, because the
+legacy pass recommended $3,728 to Chase Sapphire where the engine wanted $6,401.
 
-## 3. ⚠️ ENVIRONMENT GOTCHAS (cost me time — read these)
+`getCurrentMonthDebtRecommendations` now has **zero callers** — marked `@deprecated` in
+`credit-card-engine.ts`, not deleted. `getMonthlyDebtBreakdown` is **still live** behind the forecast
+input pipeline (`useForecastEngineInputs.ts:141`, `Forecast.tsx`) and was deliberately left alone.
 
-1. **Demo state is in-memory.** A hard `navigate` to any URL drops it and bounces to `/auth`. To
-   walk the app: click "Try Demo", then navigate **only** by clicking in-app `<a>` elements
-   (client-side routing). `location.href = …` resets everything.
-2. **Real-data pass is still blocked** — it needs Tre to sign in himself; I can't enter credentials.
-   Everything below was verified in demo only.
-3. **`npx vitest run --reporter=basic` fails** on vitest 4.1.10 (`basic` reporter was removed). Just
-   use `npx vitest run`.
-4. **Don't put a PowerShell here-string (`@'…'@`) in a compound `;`-chained command** — it gets
-   mangled and git eats the message as pathspecs. Write the commit message to a scratchpad file and
-   use `git commit -F`.
-5. Session start had **15 stale vite dev/preview processes** on ports 8080/8081/8091×3/8093/4173.
-   Killed; one server now runs on **8080 with `--strictPort`**.
+**Verification:** `npx tsc --noEmit` clean, `npx eslint` clean on all touched files, `npx vitest run`
+**302/302 green** (68 files, +9 new tests in `src/lib/__tests__/month0-debt-breakdown.test.ts`).
+**Live-verified on REAL data** (see §3.1): Budget `REMAINING CASH $4,390` = `DEBT PAYMENTS $4,390` =
+Debt tab `Safe to Pay $4,390`.
+
+## 3. ⚠️ ENVIRONMENT GOTCHAS
+
+1. **🆕 The browser session is signed in as Tre — real data, not demo.** A vite HMR reload during
+   this session dropped demo mode and landed on his live account. That is how the real-data check
+   above happened. **Read-only there. Do not write, and do not delete his account.**
+2. **Demo state is in-memory.** A hard `navigate` drops it and bounces to `/auth`. Click "See Demo"
+   (that is the button's text, not "Try Demo"), then navigate **only** by clicking in-app links.
+   An HMR reload also drops it.
+3. `npx vitest run --reporter=basic` fails on vitest 4.1.10 (`basic` was removed). Use `npx vitest run`.
+4. **Don't put a PowerShell here-string in a compound `;`-chained command.** Write the commit message
+   to a scratchpad file and `git commit -F`. (Bash heredoc + `git commit -F` worked fine this session.)
+5. Dev server on **8080 with `--strictPort`**.
 
 ## 4. NEXT STEPS (in order)
 
-1. **🔴 THE TASK: migrate the legacy debt engine — Tre approved "migrate all three surfaces."**
-   `getMonthlyDebtBreakdown` is a *second* legacy debt engine still driving
-   `Dashboard.tsx` (its ledger → month-end cash, savings rate), `BudgetControl.tsx:544`, and
-   `SavingsGoals.tsx:375`. Only the debt widget and the upcoming-bills widget read the canonical
-   `cardProjection.month0.perCardAdjusted`. This is likely the real fix for findings **§2.2**
-   (Budget's "matches Debt tab Safe to Pay" invariant: $6,995 vs $6,488) and part of **§2.4**.
-   **Numbers on Dashboard and Budget will move — Tre has already accepted that.** Backups of
-   BudgetControl.tsx and SavingsGoals.tsx are already in `backups/2026-08-04_223702/`.
+1. **🔴 Tre's Plaid request — see §1.** Needs `/multi-plan` and one product question answered first.
 2. Findings **§2.6 / §2.4 / §2.3** (budget snapshot rows don't sum; three expense definitions; five
    cash-floor values) need a **product decision** on which definition is canonical. **Ask, don't
-   pick.** Note Settings exposes no cash-floor control at all, which is worth raising against §2.3's
-   "your floor setting" copy in Forecast.
-3. Unblocked demo bugs nobody has decided against, roughly easiest first: **§3.5** (completed
-   AirPods plan still counts toward "2 active"), **§3.7** (Dashboard shows the retired
-   `2024 Honda Civic` goal; "2 goals" sits above a list of 3), **§3.1** (utilization milestones say
-   "below 50%: 0 months" at 65.1%), **§3.8** (CC payoff ETA off by one vs Forecast).
-4. Re-verify findings **§1.1** (Dashboard +$1,655 month-end cash vs Forecast −$3,300) — still open
-   and still the highest-severity item on the list. Likely entangled with step 1.
-5. Real-data walk once Tre signs in; **Budget, Debt, Forecast, Goals never visited on real data.**
-6. Mobile/Capacitor viewport pass — not started.
+   pick.** Note Settings exposes no cash-floor control at all, worth raising against §2.3's "your
+   floor setting" copy in Forecast. **§2.6 is now the loudest of these** — Dashboard's snapshot still
+   lists `2800 + 5850 − 1975 − 2402 − 150 − 267` and prints `= $6,488`, which is $2,632 off what the
+   rows actually sum to. The rows are decorative; the total is canonical. That needs to be reconciled.
+2. Re-verify finding **§1.1** (Dashboard month-end cash vs Forecast −$3,300). **Partly moved by this
+   session** — demo Dashboard is now $187, not $1,655 — but Forecast was not re-read afterwards.
+   Still the highest-severity open item. Check it before assuming the migration closed it.
+3. Unblocked demo bugs, roughly easiest first: **§3.5** (completed AirPods plan still counts toward
+   "2 active"), **§3.7** (Dashboard shows the retired `2024 Honda Civic` goal; "2 goals" sits above a
+   list of 3 — still reproduced in demo this session), **§3.1** (utilization milestones say "below
+   50%: 0 months" at 65.1%), **§3.8** (CC payoff ETA off by one vs Forecast).
+4. Full real-data walk. **Budget and Debt were spot-checked on real data this session and agree**;
+   Forecast, Goals, Transactions never walked on real data.
+5. Mobile/Capacitor viewport pass — not started.
 
-## 5. CARRIED FORWARD, UNRESOLVED (from sessions 72–75)
+## 5. CARRIED FORWARD, UNRESOLVED (from sessions 72–76)
 
 1. **GA4 health UNKNOWN.** Session 27's "LaunchDarkly breaks GA4" is probably a DNT=1 artifact.
    Retest with Do-Not-Track OFF; confirm `VITE_GA_MEASUREMENT_ID` is set in Vercel prod.
@@ -102,11 +113,12 @@ browser.
 3. **4 dead deps, Tre hasn't approved removal:** `cmdk`, `embla-carousel-react`, `input-otp`,
    `react-resizable-panels` (dropping `cmdk` also drops `@radix-ui/react-dialog`).
 4. Stale `linked_rule_ids` on goals; the Sep–Dec 2026 + Jan 2027 interest band. Untouched.
+   (`linked_rule_ids` will collide with the §1 rule-matching work — look at it then.)
 5. `vendor-motion` (123 kB) is the next first-paint win but needs a source change to
    `src/pages/Landing.tsx:3`. **Tre chose config-only in session 71 — re-offer only if he raises
    page speed.**
-6. Recorded snapshot history predates both the loan-liability rule and now the vehicle rule, so the
-   Net Worth History chart will step-change where the rules meet. Old rows left as recorded.
+6. Recorded snapshot history predates both the loan-liability rule and the vehicle rule, so the Net
+   Worth History chart will step-change where the rules meet. Old rows left as recorded.
 
 ## 6. MEASUREMENT ARTIFACT — do not "fix"
 
@@ -117,10 +129,16 @@ runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFired: fal
 
 ## 7. FILES
 
-- **Modified this session:** `src/lib/net-worth.ts` (+`NetWorthVehicleLoan`,
-  `sharesDistinctiveToken`, 4th param), `src/pages/Dashboard.tsx`, `src/pages/Accounts.tsx`
-  (gained `useCarFunds`), `src/hooks/useNetWorthSnapshotRecorder.ts`,
-  `src/__tests__/net-worth.test.ts` (+10 tests), `site-walk-findings.md`.
-- **Backups:** `backups/2026-08-04_223702/` (includes BudgetControl.tsx and SavingsGoals.tsx,
-  pre-staged for next session's step 1).
-- **Not pushed.** 10 commits ahead of origin.
+- **New:** `src/lib/month0-debt-breakdown.ts`, `src/hooks/useMonth0DebtBreakdown.ts`,
+  `src/lib/__tests__/month0-debt-breakdown.test.ts`.
+- **Modified:** `src/pages/Dashboard.tsx`, `src/pages/BudgetControl.tsx`,
+  `src/pages/SavingsGoals.tsx`, `src/lib/credit-card-engine.ts` (deprecation note only).
+- **Backups:** `backups/2026-08-04_231431/` (the three pages, pre-change).
+- **Not pushed.** 11 commits ahead of origin.
+
+## 8. LESSON WORTH KEEPING
+
+Session 76's near-miss repeated in a smaller way here: removing the legacy block from
+`SavingsGoals.tsx` also deleted `liquidCash`, which sat inside the same span but was used 300 lines
+later. `tsc` caught it, but only because it was a name reference. **When deleting a contiguous block,
+grep every identifier it defines before cutting** — the block boundary is not the usage boundary.
