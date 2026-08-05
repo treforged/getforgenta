@@ -1,77 +1,73 @@
-# Handoff — 2026-08-05 — session 79 — branch `main` — §2.6 + §2.3 closed
+# Handoff — 2026-08-05 — session 80 — branch `main` — §2.8 closed
 
-Continues session 78. `site-walk-findings.md` (repo root, committed) is still the source list.
+Continues session 79. `site-walk-findings.md` (repo root, committed) is still the source list.
 **Read it before touching anything.**
 
 ## 0. GOAL
 
 Tre: "continue working all issues. and fix demo findings." then "sequence as u see fit."
-Standing constraint: **do not delete his account.** Nothing is pushed — **18 local commits ahead** (measured with `git rev-list --count origin/main..HEAD`).
+Standing constraint: **do not delete his account.** Nothing is pushed — **20 local commits ahead**
+(`git rev-list --count origin/main..HEAD`).
 
 ## 1. DONE THIS SESSION (1 commit, local, NOT pushed)
 
-### ✅ `d1f6d68a` — findings §2.6 + §2.3 closed, live-verified
+### ✅ `a2d73f6a` — §2.8 closed, live-verified; §2.9 recorded; §1.1 re-measured
 
-Executed §1B of session 78's handoff, per Tre's decision *accuracy wins — the engine total stays
-canonical and the rows get derived from it*.
+**Root cause (this is the reusable part): the debt funding account id lives in localStorage
+(`tre:debt:fundingAccount`) and was never validated against the account list.** The key held
+`933cbc10-…`, a **real account UUID from Tre's own data**, and demo mode reads the same key — so
+`persistedDebtFundingId` named an account that does not exist in the current data set, and
+`persistedDebtFundingId || forecastFundingAccountId` let the stale id always win.
 
-**§2.6** — the snapshot printed `month0.safeToPayTotal` (an engine output) as the `=` of a chain
-Dashboard assembled from its own transaction sums. Two derivations rendered as one equation.
+Every consumer asks "is this expense paid from the funding account?", so an id matching nothing
+makes every answer *no* and **all cash expense rules dropped out of the engine at once**: month-0
+expenses read $0 with bills visibly due, and the cash floor collapsed to its base $1,500. The
+balance term hid it — `debtFundingBalance` falls back to *total liquid cash* when the account isn't
+found ($4,100 rather than Chase Checking's $2,800), so the total looked plausible while its inputs
+were wrong. Watch for the two guard styles that made this asymmetric:
+`if (id && srcId !== id) return false` excludes **everything** on a bad id, while
+`if (!id) return false` excludes **nothing** — same stale value, opposite behavior, same engine.
 
-- `Month0Result` gains **`chain`** (`src/lib/debt-model-types.ts`): the engine's complete month-0
-  cash chain, term by term, as integers. Each term rounded individually; **`cashPreDebt` is the
-  sum of the rounded terms**, not a rounding of the raw sum — that is what makes the displayed
-  identity exact in integer arithmetic. Populated in `useCardProjection.ts` next to `cashPreDebt`
-  (~line 1651); `monthlySavingsAndCar` is split back into goals / carReserve / carLoan so each row
-  gets a truthful label.
-- New pure lib **`src/lib/month0-budget-snapshot.ts`** — `buildMonth0Snapshot()` builds rows and
-  **computes** the residual (`cashPreDebt − m0SafeFloor − safeToPayTotal`), split into the engine's
-  own `holdback` and the remainder, or a `+` row when card minimums are paid through the floor.
-- `MonthlyBudgetSnapshot.tsx` does **no arithmetic** now — 12 assembly props collapsed to one
-  `snapshot` prop. Keep it that way.
-- Dashboard's parallel derivation is **deleted**: `month0ImpliedSavings` *and* the
-  `month0SavingsBreakdown` memo that silently replaced it, hand-patched
-  "Vehicle Insurance (est.)" row and all.
-
-**§2.3** — root cause was NOT the shared function. Dashboard passed its own `fundingAccountId`
-(`profile.default_deposit_account`, no account-type check, ignores the persisted override) while
-the engine resolves `persistedDebtFundingId || forecastFundingAccountId` (checking/business_checking/
-cash only). Different account ⇒ different pre-paycheck bills ⇒ different floor.
-`CardProjectionResult` now exposes **`debtFundingAccountId`** and Dashboard uses it for the floor
-row *and* the floor-calculator popover.
+- **New `src/lib/funding-account.ts`** — one rule. `resolveFundingAccountId(accounts, ...candidates)`
+  returns the first candidate that is an **active account of a fundable type**
+  (`FUNDING_ACCOUNT_TYPES` = checking/business_checking/cash), else **`null`**. `null` means *no
+  exclusion*: bills get counted, never silently dropped. Keep that direction.
+- Applied in `useCardProjection.ts` (~line 128), `CreditCardEngine.tsx` (had its own copy of the
+  resolution + a `<select>` displaying a value it wasn't using) and `CardProjectionContext.tsx`.
+- **The persisted localStorage value is deliberately NOT rewritten** — self-healing writes would let
+  opening the demo overwrite Tre's real saved choice. Validation is read-side only. Don't "improve"
+  this into a write.
 
 **Verification:** `npx tsc --noEmit` clean, `npx eslint` clean on all touched files,
-`npx vitest run` **318/318 green** (70 files, +11 new in
-`src/lib/__tests__/month0-budget-snapshot.test.ts`). **Live-verified in demo on localhost:8080:**
-`$4,100 + $5,850 − $150 − $311 − $450 = $9,039`, then `− $1,500 floor − $376 held = $7,163`.
-Both halves balance exactly; floor row now $1,500 (was $2,402).
+`npx vitest run` **336/336 green** (72 files, +18 new). The new hook test was **confirmed RED**
+against the old resolution (a $1,800 bill vanished; balance read $3,500 instead of $3,000).
+**Live in demo:** `Bills still coming $645` now renders, floor $1,500 → $2,402,
+`BILLS THIS MONTH` $11,025 → $5,434 (the old figure was inflated by the same asymmetry).
 
-## 2. 🔴 NEW FINDING §2.8 — START HERE, IT IS PROBABLY §1.1
+## 2. NEXT STEPS (in order)
 
-The §2.6 fix immediately surfaced this, which is exactly what it was built to do.
-
-**The demo snapshot renders NO "Bills still coming" row** — `month0.chain.expenses` rounds to $0.
-That value IS `m0Expenses`, the same term the engine subtracts in `cashPreDebt`, so it is **not a
-display artifact**. But the same page shows `BILLS THIS WEEK $190 · 3 upcoming` and
-`BILLS THIS MONTH $11,025 · 20 scheduled`, including **Gas · Aug 12 · Chase Checking $55** — a
-cash-sourced rule `forecastMonthEvents[0].expenses` should count. (Groceries Aug 8 is on Chase
-Sapphire and is correctly excluded via `allCcRuleIds`.)
-
-If real, the engine overstates deployable cash by the whole remaining-bills amount, and this is a
-strong candidate for the **still-open §1.1** (Dashboard vs Forecast month-end cash, −$3,300 apart).
-Ground: `useCardProjection.ts:374-383` (`m0Income`/`m0Expenses` from `forecastMonthEvents[0]`) and
-the `forecastMonthEvents` construction just above it (~line 340-372).
-
-**Do not "fix" the display.** Establish the engine's real value first. A fiber probe for the live
-`cardProjection` **failed** (walking `memoizedState` found nothing — don't repeat it); use a
-temporary log in the hook, or compare against Forecast's own August row.
-
-## 3. NEXT STEPS (in order)
-
-1. **§2.8 above**, then re-check **§1.1** — they are plausibly the same bug. §1.1 is still the
-   highest-severity open item and still has never been re-verified against Forecast.
-2. **§1A Plaid auto-pull + rule matching** — Tre's request, still not started, now unblocked and
-   next in line. His decision is final: **a matched actual overrides the rule ONLY for the month it
+1. **§1.1 — highest severity, still open, now has a concrete lead.** Re-measured live today:
+   Dashboard `MONTH-END CASH $5,833` vs Forecast `Aug 2026 END CASH $2,346` — **$3,487 apart**
+   (originally ~$3,300, so §2.8 moved both pages but did not close this).
+   **The lead:** `Dashboard.tsx:587` builds `monthEndCash` as
+   `fundingBalance + remainingTxIncome − remainingTxExpenses − remainingTxDebt − planCashThisMonth`
+   — i.e. the **transaction-merge** engine (`getRemainingTransaction*`). The comment at
+   `useCardProjection.ts:374-383` records that the engine **deliberately abandoned exactly that
+   source** in favour of `forecastMonthEvents[0]`, because the two disagree. Dashboard's month-end
+   tile is the last consumer still on the old path. Also check `Dashboard.tsx:581` — `fundingBalance`
+   uses Dashboard's own `fundingAccountId`, which may still be the §2.3 class of defect for this
+   tile specifically (§2.3 fixed the floor row and popover, not this).
+   **Second, smaller thread:** Forecast still says the floor was "raised to **$1,655**" while the
+   engine's floor row now reads **$2,402**. $747 does not explain $3,487, so expect **two causes**.
+2. **§2.9 (NEW, needs Tre's decision, don't code it blind)** — car-fund earmark can exceed the
+   account it is earmarked from. Demo now shows `Balance on hand $0` while Chase Checking holds
+   $2,800, because `getCarFundEarmark` (`vehicle-loan-engine.ts:183`) earmarks the Civic's
+   `current_saved` $3,200 against `linked_account: 'd1'` and the balance clamps at 0. Two tangled
+   things: a **demo-fixture defect** (persona "saved" $3,200 into an account holding $2,800 — it was
+   presumably meant to sit in Marcus HYS) and a **modeling gap** (no check the saved cash is
+   actually in `linked_account`; the shortfall is silently clamped instead of surfaced).
+3. **§1A Plaid auto-pull + rule matching** — Tre's request, still not started, still next in line
+   after §1.1. His decision is final: **a matched actual overrides the rule ONLY for the month it
    lands in**; it does NOT re-base the rule. Store a per-(rule, month) override row keyed by
    rule_id + year-month; leave `recurring_rules.amount` untouched. Months with no matched actual
    keep the rule estimate. Do not add "update the rule from the last actual" — he considered that
@@ -83,42 +79,49 @@ temporary log in the hook, or compare against Forecast's own August row.
    in `src/lib/pay-schedule.ts` — the last fabricates a transaction per rule and is exactly what a
    real matched transaction must displace. `linked_rule_ids` (§5.4) collides here; handle it here.
    Needs `/multi-plan` before any file is touched.
-3. Remaining unblocked demo bugs: **§4.2** (allocation percentages sum to 146%, Remaining clamped to
+4. Remaining unblocked demo bugs: **§4.2** (allocation percentages sum to 146%, Remaining clamped to
    0% instead of showing the −46% overspend), **§2.5** (Emergency Fund Dec 2028 on Goals vs Mar 2029
    in Forecast — Goals appears to apply the Marcus 4.5% APY and Forecast does not), **§2.1 / §3.2 /
    §3.4** (income double-count, paycheck mis-categorised "Other", duplicate recurring rows — these
    three may be **demo-fixture** defects rather than code; check the fixture before writing code).
-4. **§2.4 (three expense definitions) is the one canonical-definition question Tre has NOT answered.**
+5. **§2.4 (three expense definitions) is the one canonical-definition question Tre has NOT answered.**
    Ask when it next comes up.
-5. **§2.3 leftovers:** Debt tab's `$1,000` copy and `Safe Min $1,650` vs Forecast's `$1,655` were
-   not touched. Also **Settings exposes no cash-floor control at all**, contradicting Forecast's
-   "your floor setting" copy — raise with Tre.
-6. **§2.7** RAV4 double representation — decision input for the open `car_funds` question. Any fix
+6. **§2.3 leftovers:** Debt tab's `$1,000` copy was not touched. **Settings exposes no cash-floor
+   control at all**, contradicting Forecast's "your floor setting" copy — raise with Tre.
+7. **§2.7** RAV4 double representation — decision input for the open `car_funds` question. Any fix
    must pick one source of truth per vehicle, never sum both.
-7. Full real-data walk. Budget and Debt were spot-checked on real data in session 77 and agree;
+8. Full real-data walk. Budget and Debt were spot-checked on real data in session 77 and agree;
    Forecast, Goals, Transactions never walked on real data.
-8. Mobile/Capacitor viewport pass — not started.
+9. Mobile/Capacitor viewport pass — not started.
 
-## 4. ⚠️ ENVIRONMENT GOTCHAS
+## 3. ⚠️ ENVIRONMENT GOTCHAS
 
-1. **`find` + `computer left_click` on "Try Demo" silently does nothing.** What works:
-   `javascript_tool` → `[...document.querySelectorAll('button')].find(x=>/try demo/i.test(x.textContent)).click()`
-   then `await new Promise(r=>setTimeout(r,3000))`. Same trick for in-app nav (`querySelectorAll('a')`
-   + text match), which also keeps demo state alive.
-2. **🆕 `javascript_tool` returning a long `|`-joined string got `[BLOCKED: Cookie/query string data]`.**
+1. **🆕 The dev server can serve a STALE transform and silently invalidate a live check.** After the
+   fix, the demo still rendered the old numbers; `fetch('/src/hooks/useCardProjection.ts')` did not
+   contain the new symbol. **Always confirm the served module before trusting a live verification**:
+   `await fetch('/src/<path>?t='+Date.now()).then(r=>r.text())` and grep it for something you just
+   wrote. Fix is to restart vite (`Stop-Process -Id <pid on 8080> -Force`, then `npm run dev`).
+2. The landing-page CTA is **"See Demo"**, not "Try Demo" (the old handoff's string no longer
+   matches). `find` + `computer left_click` still does nothing; what works is
+   `javascript_tool` → `[...document.querySelectorAll('button,a')].find(x=>/see demo/i.test(x.textContent)).click()`
+   then `await new Promise(r=>setTimeout(r,5000))`. Same trick for in-app nav (`querySelectorAll('a')`
+   + exact text match), which also keeps demo state alive.
+3. Don't put a long sleep in the same `javascript_tool` call as a `location.href` navigation — the
+   evaluation dies with "Inspected target navigated or closed". Navigate, then act in a second call.
+4. `javascript_tool` returning a long `|`-joined string gets `[BLOCKED: Cookie/query string data]`.
    Return a structured array instead (e.g. `.map(d => d.innerText.split('\n'))`) — that works fine.
-3. **🆕 Reading component props off the DOM via `__reactFiber$` + walking `.return` and checking
-   `memoizedProps` WORKS** and is the fast way to verify a rendered value. Walking `memoizedState`
-   to find a hook's return value **did not** — don't burn turns on it.
-4. **Demo state is in-memory.** A hard `navigate` drops it and bounces to `/auth`. An HMR reload also
+5. Reading component props off the DOM via `__reactFiber$` + walking `.return` and checking
+   `memoizedProps` WORKS. Walking `memoizedState` to find a hook's return value **does not** — don't
+   burn turns on it.
+6. **Demo state is in-memory.** A hard `navigate` drops it and bounces to `/auth`. An HMR reload also
    drops it and can land you on **Tre's real account** if the browser is signed in.
    **Read-only there. Do not write, and do not delete his account.**
-5. `npx vitest run --reporter=basic` fails on vitest 4.1.10 (`basic` was removed). Use `npx vitest run`.
-6. **Don't put a PowerShell here-string in a compound `;`-chained command.** Write the commit message
+7. `npx vitest run --reporter=basic` fails on vitest 4.1.10 (`basic` was removed). Use `npx vitest run`.
+8. **Don't put a PowerShell here-string in a compound `;`-chained command.** Write the commit message
    to a scratchpad file and `git commit -F`. (Bash heredoc + `git commit -F` works.)
-7. Dev server on **8080 with `--strictPort`**; already up this session.
+9. Dev server on **8080 with `--strictPort`**; restarted this session and currently up.
 
-## 5. CARRIED FORWARD, UNRESOLVED (from sessions 72–78)
+## 4. CARRIED FORWARD, UNRESOLVED (from sessions 72–79)
 
 1. **GA4 health UNKNOWN.** Session 27's "LaunchDarkly breaks GA4" is probably a DNT=1 artifact.
    Retest with Do-Not-Track OFF; confirm `VITE_GA_MEASUREMENT_ID` is set in Vercel prod.
@@ -140,28 +143,31 @@ temporary log in the hook, or compare against Forecast's own August row.
    not deleted. `getMonthlyDebtBreakdown` is **still live** behind `useForecastEngineInputs.ts:141` /
    `Forecast.tsx` — deliberately left alone.
 
-## 6. MEASUREMENT ARTIFACT — do not "fix"
+## 5. MEASUREMENT ARTIFACT — do not "fix"
 
 The landing page looks blank in automation screenshots: the driven tab is
 `document.visibilityState === "hidden"`, so `requestAnimationFrame` never fires, framer-motion never
 runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFired: false`).
 **Use `get_page_text` / DOM reads, never screenshots, to judge this app under automation.**
 
-## 7. FILES
+## 6. FILES
 
-- **New:** `src/lib/month0-budget-snapshot.ts`, `src/lib/__tests__/month0-budget-snapshot.test.ts`.
-- **Modified:** `src/lib/debt-model-types.ts`, `src/hooks/useCardProjection.ts`,
-  `src/components/dashboard/MonthlyBudgetSnapshot.tsx`, `src/pages/Dashboard.tsx`,
-  `src/lib/__tests__/month0-debt-breakdown.test.ts`, `site-walk-findings.md`.
-- **Backups:** `backups/2026-08-05_075202/` (five source files, pre-change).
-- **Not pushed.** 18 commits ahead of origin.
+- **New:** `src/lib/funding-account.ts`, `src/lib/__tests__/funding-account.test.ts`,
+  `src/hooks/__tests__/useCardProjection.staleFundingId.test.ts`.
+- **Modified:** `src/hooks/useCardProjection.ts`, `src/components/debt/CreditCardEngine.tsx`,
+  `src/contexts/CardProjectionContext.tsx`, `site-walk-findings.md`.
+- **Backups:** `backups/2026-08-05_085526/` (three source files, pre-change).
+- **Not pushed.** 20 commits ahead of origin.
 
-## 8. LESSON WORTH KEEPING
+## 7. LESSON WORTH KEEPING
 
-Session 78's lesson was "correct numbers with lying labels." This session's is the mirror image:
-**when a UI shows a total it did not derive, it hides whatever it failed to model.** The $2,632 gap
-was never a math error — it was every engine term Dashboard didn't know about, summed. The fix that
-holds is not adding the missing rows (a previous session tried that with one hand-patched line and
-the gap came back); it is making the leftover a *computed, labeled row* so a term that goes missing
-shows up as a number on screen instead of silently widening a gap. It worked within minutes:
-finding §2.8 above is the first thing it caught.
+Session 79's lesson — *when a UI shows a total it did not derive, it hides whatever it failed to
+model* — paid out within one session: the computed-residual row is what made §2.8 visible at all.
+
+This session's is about **where the bad value came from**. An id in localStorage is not data; it
+outlives the thing it names, and it is shared across data sets the user can switch between (real ↔
+demo). The engine trusted it, and because "is this paid from the funding account?" is asked in a
+dozen places, one unvalidated string silently deleted **every expense in the model** while every
+total on screen stayed plausible. The general rule: **validate identifiers at the boundary where
+they enter the model, and make the failure mode "no filter" rather than "filter everything."** Ask
+of any persisted id — what happens when it names nothing?
