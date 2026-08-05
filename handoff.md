@@ -6,7 +6,7 @@ Continues session 81. `site-walk-findings.md` (repo root, committed) is still th
 ## 0. GOAL
 
 Tre: "continue working all issues. and fix demo findings." then "sequence as u see fit."
-Standing constraint: **do not delete his account.** Nothing is pushed — **23 local commits ahead**.
+Standing constraint: **do not delete his account.** Nothing is pushed — **26 local commits ahead**.
 
 ## 1. THE BIG RESULT: §1.1 IS CLOSED, LIVE-VERIFIED
 
@@ -178,7 +178,7 @@ runs, and every `initial={{opacity:0}}` stays invisible (verified `rafFired: fal
   `src/contexts/CardProjectionContext.tsx`, `src/components/debt/CreditCardEngine.tsx`.
 - **Backups:** `backups/2026-08-05_180704/` (all seven source files, pre-change).
 - `npx tsc --noEmit` clean, `npx vitest run` **347/347 green**.
-- **Not pushed.** 23 commits ahead of origin.
+- **Not pushed.** 26 commits ahead of origin.
 
 ## 9. LESSONS WORTH KEEPING
 
