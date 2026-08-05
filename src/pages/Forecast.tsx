@@ -14,7 +14,7 @@ import { buildCardData, getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTI
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction } from '@/lib/pay-schedule';
+import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -156,7 +156,6 @@ export default function Forecast() {
     forecastMonthEvents,
     planExpensesByMonth,
     annualFederalWithheldFromBudget,
-    prePaycheckBillsInfo,
   } = useForecastProjections();
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
@@ -242,6 +241,14 @@ export default function Forecast() {
     }
     return results;
   }, [payConfig, assumptions, annualFederalWithheldFromBudget]);
+
+  // Month-0 floor exactly as the ENGINE derived it (getAugmentedMinSafeCash: the pre-paycheck base
+  // bills PLUS car loans, vehicle insurance and credit-card minimums). The "cash floor raised to"
+  // banner below used to re-derive its own total from getPrePaycheckNextMonthBills alone, so it
+  // announced the un-augmented base while the Cash Floor popup on the same page — reading
+  // row.monthMinSafe — showed the real, higher floor. Session 79's lesson: a UI showing a total it
+  // did not derive hides whatever it failed to model. Read the engine's row instead.
+  const m0Floor = projections.data[0];
 
   const filteredData = useMemo(() => {
     if (filterYear === 'all') return projections.data;
@@ -819,16 +826,16 @@ export default function Forecast() {
       )}
 
       {/* Safe minimum override notice — shown when fixed monthly obligations exceed user cash floor */}
-      {prePaycheckBillsInfo.total > debtPayoffOptions.cashFloor && (
+      {m0Floor && m0Floor.monthMinSafe > m0Floor.settingsCashFloor && (
         <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/20 px-3 py-2.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
           <Info size={13} className="text-primary shrink-0 mt-0.5" />
           <div className="min-w-0">
             <p className="font-medium text-foreground">
-              Cash floor raised to {formatCurrency(Math.max(debtPayoffOptions.cashFloor, prePaycheckBillsInfo.total), false)} — monthly obligations exceed your {formatCurrency(debtPayoffOptions.cashFloor, false)} floor setting.
+              Cash floor raised to {formatCurrency(m0Floor.monthMinSafe, false)} — monthly obligations exceed your {formatCurrency(m0Floor.settingsCashFloor, false)} floor setting.
             </p>
-            {prePaycheckBillsInfo.items.length > 0 && (
+            {m0Floor.floorItems.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                {prePaycheckBillsInfo.items.map((item, idx) => (
+                {m0Floor.floorItems.map((item, idx) => (
                   <span key={idx}>{item.name} — {formatCurrency(item.amount, false)} (due {ordinal(item.dueDay)})</span>
                 ))}
               </div>
