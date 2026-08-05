@@ -126,7 +126,7 @@ for one vehicle). Any fix has to pick one source of truth per vehicle, not sum b
 
 ## P3 — Logic and data-integrity bugs
 
-### 3.1 Utilization milestones are internally impossible
+### 3.1 Utilization milestones are internally impossible — ✅ FIXED (`c205eebe`), verified live 2026-08-05
 Debt tab, at current utilization **65.1%**:
 ```
 Below 25% util: ~1 months
@@ -136,6 +136,14 @@ Below 75% util: ~0 months
 "Below 50%: 0 months" asserts utilization is already under 50%. It is 65.1%. Also `~1 months`
 should read `1 month`, and reaching 25% cannot take *longer* than… it does, but 50% showing 0
 while 25% shows 1 is contradictory ordering.
+
+> **Root cause:** the milestone returned the projection INDEX as a month count. `months[i]` is the
+> END of month i, so a threshold cleared by month-end reported `0`. The ordering was never actually
+> contradictory — the display was.
+>
+> **Verified fixed 2026-08-05 (demo, localhost:8080)** at the same 65.1%:
+> `Below 25% util: ~2 months` · `Below 50% util: ~1 month` · `Below 75% util: already there`.
+> "already there" now comes from a real check against the live balance, not from a 0 index.
 
 ### 3.2 Paycheck mis-categorised as "Other"
 `Weekly Paycheck · 2026-08-03 · **Other**` — every other paycheck is category *Income*.
@@ -153,9 +161,17 @@ These debits hit no account, so they cannot be reflected in any account's projec
 May be demo-fixture duplication rather than a code defect — but they inflate every
 transaction-derived total, including the $9,113 income figure in 2.1.
 
-### 3.5 A completed payment plan still counts as active
+### 3.5 A completed payment plan still counts as active — ✅ FIXED (`c205eebe`), verified live 2026-08-05
 Transactions → `Payment Plans · 2 active`, but AirPods Pro shows `4/4`, `Remaining: $0`,
 `Ends: 2026-07-13`. Completed plans are not being excluded from the active count.
+
+> **Root cause:** `plan.active` is a user-toggled DB flag and **nothing writes it back to false**
+> when the last installment date passes. Completion is derivable from the schedule, so it is now
+> derived (`isPlanInProgress` = `active && remaining > 0`) rather than depending on a write-back
+> that does not exist.
+>
+> **Verified fixed 2026-08-05 (demo):** `Payment Plans · 1 active`; AirPods Pro renders `4/4` with
+> a `(complete)` marker, MacBook Pro `3/12` still counts.
 
 ### 3.6 — RETRACTED (was: payment-plan counter off by one)
 Claimed `MacBook Pro 3/12` on the card vs `MacBook Pro (4/12)` on the transaction. **Not a bug.**
@@ -164,12 +180,28 @@ future-dated payment, `n paid` + `this is n+1` is correct. Confirmed by
 `ExtremeOnlineStore CF Aero Kit`, whose past-dated 8/01 row correctly reads `(2/6)` against a
 `2/6` card.
 
-### 3.7 Dashboard still shows a car goal the Goals page has retired
+### 3.7 Dashboard still shows a car goal the Goals page has retired — ✅ FIXED (`c205eebe`), verified live 2026-08-05
 Dashboard `GOAL PROGRESS` lists `2024 Honda Civic`; Goals says "Car funds have moved to Vehicles"
 and lists only 2. `TOTAL SAVED $6,650 · 2 goals` sits above a list of 3.
 
-### 3.8 CC payoff ETA off by one month
+> **Root cause:** Goal Progress injected `carFunds[0]` into a card that navigates to `/goals` — a
+> page that deliberately lists no car funds. The tile pointed at a page that could not show it.
+> Goal Progress is now savings goals only (up to 3, since the car slot is freed). The vehicle is
+> still fully covered by the dedicated `CAR GOAL` widget, which now links to `/vehicles`.
+>
+> **Verified fixed 2026-08-05 (demo):** `GOAL PROGRESS` lists Emergency Fund + Vacation Fund only,
+> matching `TOTAL SAVED $6,650 · 2 goals`. `CAR GOAL: 2024 Honda Civic` still shown separately.
+
+### 3.8 CC payoff ETA off by one month — ✅ FIXED (`c205eebe`), verified live 2026-08-05
 Debt → `PAYOFF ETA 3 mo` (Aug + 3 = Nov 2026). Forecast milestone → `Oct 2026: CC Debt Free!`
+
+> **Not an off-by-one in the math** — both surfaces read the same `simRevolvingPayoffMonth = 3`.
+> It is **1-indexed** (month 1 = this month); Forecast maps it to a row via `rawPayoffMonth - 1`
+> = Oct, while the Debt tile printed the raw number as "3 mo", read as three months from now.
+> The tile now shows the month itself in Forecast's own label format.
+>
+> **Verified fixed 2026-08-05 (demo):** `PAYOFF ETA · Oct 2026 · in 2 mo`, matching Forecast's
+> `Oct 2026: CC Debt Free!`.
 
 ---
 
