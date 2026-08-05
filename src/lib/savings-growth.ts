@@ -167,3 +167,17 @@ export function estimateGoalCompletionMonths(
   }
   return null;
 }
+
+/**
+ * Label for "now + `months`", built the same way the forecast engine builds a projection row's
+ * `monthLabel` — `new Date(year, month + i, 1)`.
+ *
+ * Day-1 construction is the whole point. `date.setMonth(date.getMonth() + months)` overflows when
+ * today's day-of-month does not exist in the target month: on Aug 31, +6 months lands on Mar 3,
+ * so Goals printed "Mar" for the month the Forecast milestone labels "Feb". Same month INDEX,
+ * different month NAME — §2.5's disagreement returning on the last days of a long month.
+ */
+export function goalCompletionMonthLabel(months: number, today: Date = new Date()): string {
+  const d = new Date(today.getFullYear(), today.getMonth() + months, 1);
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSavingsGrowthData, estimateGoalCompletionMonths, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
 
 const TODAY = new Date(2026, 0, 15); // Jan 2026, fixed so the suite is date-independent
 
@@ -131,5 +131,52 @@ describe('estimateGoalCompletionMonths', () => {
   it('returns null when nothing can ever fund the goal', () => {
     const stalled = goal({ monthlyContribution: 0, annualApyPercent: 0 });
     expect(estimateGoalCompletionMonths(stalled, 5000, { today: TODAY })).toBeNull();
+  });
+});
+
+// Extracted in b80b381d (site walk §2.5) so the Goals page's "Est. completion" and the Forecast
+// "<goal> Complete!" milestone price a goal identically. It was a pure extraction with no test.
+describe('getGoalEffectiveApyPercent', () => {
+  it('prefers the account\'s own rate, apy_rate before apr', () => {
+    expect(getGoalEffectiveApyPercent({ apy_rate: 4.5, account_type: 'savings' })).toBe(4.5);
+    expect(getGoalEffectiveApyPercent({ apr: 3.25, account_type: 'checking' })).toBe(3.25);
+    expect(getGoalEffectiveApyPercent({ apy_rate: 4.5, apr: 9, account_type: 'savings' })).toBe(4.5);
+  });
+
+  it('falls back to a per-type default only when the account carries no rate', () => {
+    expect(getGoalEffectiveApyPercent({ account_type: 'savings' })).toBe(4.5);
+    expect(getGoalEffectiveApyPercent({ account_type: 'high_yield_savings' })).toBe(4.5);
+    expect(getGoalEffectiveApyPercent({ account_type: 'brokerage' })).toBe(7);
+    expect(getGoalEffectiveApyPercent({ account_type: 'roth_ira' })).toBe(7);
+    expect(getGoalEffectiveApyPercent({ apy_rate: 0, account_type: 'savings' })).toBe(4.5);
+  });
+
+  it('earns nothing without a linked account, or in a non-earning account type', () => {
+    expect(getGoalEffectiveApyPercent(null)).toBe(0);
+    expect(getGoalEffectiveApyPercent(undefined)).toBe(0);
+    expect(getGoalEffectiveApyPercent({ account_type: 'checking' })).toBe(0);
+  });
+});
+
+describe('goalCompletionMonthLabel', () => {
+  it('names the same month the forecast engine labels for that index', () => {
+    // The engine builds each row as new Date(y, m + i, 1) (forecast-engine.ts). The label for a
+    // completion at month index i must match, or the two surfaces name different months for the
+    // same month — which is §2.5 all over again.
+    const engineLabel = (i: number, today: Date) =>
+      new Date(today.getFullYear(), today.getMonth() + i, 1)
+        .toLocaleString('en', { month: 'short', year: 'numeric' });
+
+    // The 31st is the case that used to break: date.setMonth(getMonth() + 6) from Aug 31 overflows
+    // February and lands in March.
+    const monthEnd = new Date(2026, 7, 31);
+    expect(goalCompletionMonthLabel(6, monthEnd)).toBe('Feb 2027');
+    expect(goalCompletionMonthLabel(6, monthEnd)).toBe(engineLabel(6, monthEnd));
+
+    for (const today of [new Date(2026, 7, 5), new Date(2026, 0, 31), new Date(2026, 11, 31)]) {
+      for (const i of [0, 1, 6, 12, 29, 40]) {
+        expect(goalCompletionMonthLabel(i, today)).toBe(engineLabel(i, today));
+      }
+    }
   });
 });

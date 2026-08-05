@@ -111,19 +111,59 @@ Live demo 2026-08-05: Dashboard floor row now **$1,500**, was $2,402.
 `$1,655` were not touched — re-walk those three on real data. And **Settings still exposes no
 cash-floor control at all**, which contradicts Forecast's "your floor setting" copy. Raise with Tre.
 
-### 2.4 Monthly expenses / savings rate disagree three ways
-- Dashboard → `MONTHLY EXPENSES $5,015`, `AVG MONTHLY SPEND $2,132`, `SAVINGS RATE -10.1% / -$923`
-- Transactions (same month) → `EXPENSES $9,727`, `NET -$614`
-- Budget → `MONTHLY SPEND $3,519`
+### 2.4 Monthly expenses / savings rate disagree three ways — ⚠️ RE-VERIFIED 2026-08-05 on REAL data, still open, needs Tre's decision
 
-Dashboard's own tiles contradict each other: income $9,113 − expenses $5,015 = **+$4,098**, yet the
-savings-rate tile directly below reads **−$923/mo**. Annual savings (−$11,071) is consistent with
-−$923 × 12, so the two tiles are wired to different definitions with no labelling to say so.
+Reproduces on Tre's real account (Aug 2026), and it is **four** definitions, not three — income
+disagrees too. Every derivation traced; each is internally correct under its own definition.
 
-### 2.5 Emergency Fund completion date
+| Surface | Reads | Derivation |
+|---|---|---|
+| Dashboard `MONTHLY INCOME` | $4,720 | current-month **transaction stream** (`allMonthTransactions`, real + rule-generated), income type, minus `Balance Adjustment` |
+| Dashboard `MONTHLY EXPENSES` | $3,196 | `categorizeExpenses(currentMonthTransactions, true)` — same stream, **excludes debt / credit-card categories** (`Dashboard.tsx:469`) |
+| Dashboard `SAVINGS RATE` | −6.3% / −$296 | `(income − expenses − totalDebtPayments) / income` (`Dashboard.tsx:479`) — **adds debt payments back in** |
+| Dashboard `AVG MONTHLY SPEND` | $705 | mean of the **5 prior** months from `baseTxns` — recorded actuals, no rule-generated rows (`Dashboard.tsx:645`) |
+| Transactions `EXPENSES` | $6,243 | **raw sum of every expense-type row** in the filter, no exclusions at all (`Transactions.tsx:234`) — debt payments, card payments, transfers and plan installments all counted |
+| Budget `MONTHLY INCOME` | $4,548 | active income **rules**, `toCurrentMonthAmount` (`BudgetControl.tsx:589`) |
+| Budget `MONTHLY SPEND` | $2,976 | `totalCharges` = fixed + variable **rules only** (`BudgetControl.tsx:595`) — excludes debt rules and transfer rules |
+
+Three independent axes of disagreement, none of them labelled on screen:
+1. **Rules vs transactions** (Budget vs Dashboard) — planned vs what the stream actually contains.
+2. **What counts as an expense** — debt payments in (Transactions), out (Dashboard tile), or out
+   of the tile but back in for the rate (Dashboard savings rate).
+3. **Which months** — current (all others) vs trailing five actuals (Avg Monthly Spend).
+
+**The one piece that is a defect regardless of the definition question:** the Dashboard
+`SAVINGS RATE` tile uses a different expense base than the `MONTHLY EXPENSES` tile immediately
+above it. On real data $4,720 − $3,196 = **+$1,524**, while the tile below reads **−$296/mo**
+(the $1,820 of debt payments). Nothing on screen says the two numbers are measuring different
+things. `ANNUAL SAVINGS −$3,553` = −$296 × 12, so the whole lower row inherits it.
+
+**Open question for Tre — the canonical definition.** Are debt payments an expense? Answer that
+once and the other two axes follow. Do not code a fix before he answers.
+
+### 2.5 Emergency Fund completion date — ✅ FIXED (`b80b381d`, 2026-08-05), verified by derivation
 Goals → `Est. completion: Dec 2028`. Forecast milestone → `Mar 2029: Emergency Fund Complete!`
-Three months apart; Goals appears to apply the Marcus HYS 4.5% APY and Forecast does not.
-(Vacation Fund agrees at Nov 2027 in both, consistent with the zero-APY custom goal.)
+Three months apart; Goals applied the Marcus HYS 4.5% APY and Forecast did not.
+(Vacation Fund agreed at Nov 2027 in both, consistent with the zero-APY custom goal.)
+
+Verified 2026-08-05 by lining the two call sites up field-for-field rather than by a screen read:
+`SavingsGoals.tsx:261 toGrowthGoal` and `forecast-engine.ts:1060` now build the **same
+`GrowthGoalInput`** (current amount from the linked account, contribution from linked rules,
+start date = earliest linked-rule start, APY via the shared `getGoalEffectiveApyPercent`, same
+lump sums) and feed the **same** `estimateGoalCompletionMonths`. They cannot disagree on the index.
+
+**A second, calendar-triggered instance of the same defect was found and fixed here.** They could
+still disagree on the month *name*: Goals labelled the date with
+`date.setMonth(date.getMonth() + months)`, which overflows when today's day-of-month does not
+exist in the target month, while the engine builds every row as `new Date(y, m + i, 1)`. From
+Aug **31**, +6 months → Goals `Mar 2027`, engine `Feb 2027`. Now both go through
+`goalCompletionMonthLabel` (savings-growth.ts). Invisible on Aug 5 — a live read on the day would
+have passed. `getGoalEffectiveApyPercent` and the label agreement are now unit-tested.
+
+**Same overflow pattern is still live in the debt/vehicle month labels** and was left alone
+(scope): `DebtPayoff.tsx:98`, `CreditCardEngine.tsx:1338` + `:1720`, `credit-card-engine.ts:319`
++ `:455`. All are display labels, so a fix is low-risk, but it touches the debt engine — do it
+deliberately, not as a drive-by.
 
 ### 2.6 Dashboard budget snapshot rows do not sum to their own total — ✅ FIXED (2026-08-05), verified live
 Displayed chain: `$2,800 + $5,850 − $1,975 = $6,675`, then `− $2,402 floor − $150 − $267 = **$6,488**`.

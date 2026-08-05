@@ -16,7 +16,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-react';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, type GrowthGoalInput } from '@/lib/savings-growth';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
@@ -480,8 +480,7 @@ export default function SavingsGoals() {
     if (months === null) {
       return Number(g.monthly_contribution) > 0 ? 'Beyond 50 yrs' : 'Set contribution';
     }
-    const date = new Date(); date.setMonth(date.getMonth() + months);
-    return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    return goalCompletionMonthLabel(months);
   }
 
   const formFields = useMemo(() => {
