@@ -49,9 +49,19 @@ export type MonthlyExpenseModel = {
    * them is a definition change, and Phase 1 is deliberately additive only.
    */
   transfers: number;
-  /** Sums to `expensesAllIn`, so the category widget and the headline tile cannot disagree. */
+  /**
+   * The EXPENSE view: sums to `expenses`, so SPENDING BY CATEGORY and the headline tile cannot
+   * disagree. Debt principal is absent by construction — an auto loan appears here as
+   * `Auto Loan Interest` only, since paying principal is not spending.
+   */
   byCategory: Record<string, number>;
-  /** Option B headline: living + interest. Wired up in Phase 2. */
+  /**
+   * The CASH view: sums to `expensesAllIn`, adding an `Auto Loan Principal` row. For surfaces that
+   * report money that left the account rather than money that was spent (the all-in PDF export,
+   * the month-0 snapshot's `spentSoFar`).
+   */
+  byCategoryAllIn: Record<string, number>;
+  /** Option B headline: living + interest. */
   expenses: number;
   /** Everything that actually left, debt principal included. The Phase 1 headline. */
   expensesAllIn: number;
@@ -87,12 +97,20 @@ export function buildMonthlyExpenseModel(input: MonthlyExpenseInput): MonthlyExp
   const year = asOf.getFullYear();
   const month = asOf.getMonth();
 
+  // Two views of the same rows. `add` writes to both (spend is also cash); `addPrincipalOnly`
+  // writes to the cash view alone, which is what keeps each map summing to its own headline.
   const byCategory: Record<string, number> = {};
-  const add = (category: string, amount: number) => {
+  const byCategoryAllIn: Record<string, number> = {};
+  const bump = (target: Record<string, number>, category: string, amount: number) => {
     if (amount <= 0) return;
     const key = category || 'Other';
-    byCategory[key] = round2((byCategory[key] ?? 0) + amount);
+    target[key] = round2((target[key] ?? 0) + amount);
   };
+  const add = (category: string, amount: number) => {
+    bump(byCategory, category, amount);
+    bump(byCategoryAllIn, category, amount);
+  };
+  const addPrincipalOnly = (category: string, amount: number) => bump(byCategoryAllIn, category, amount);
 
   let living = 0;
   let interest = 0;
@@ -128,7 +146,11 @@ export function buildMonthlyExpenseModel(input: MonthlyExpenseInput): MonthlyExp
   for (const loan of getActiveCarLoanPayments(carFunds, asOf)) {
     interest = round2(interest + loan.interest);
     principal = round2(principal + loan.principal);
-    add('Auto Loan', loan.payment);
+    // Option B split. /transactions still shows the single $422.89 row it always has — that is the
+    // cash leaving, and byCategoryAllIn reproduces it. What changes is that the EXPENSE view no
+    // longer calls the principal an expense.
+    add('Auto Loan Interest', loan.interest);
+    addPrincipalOnly('Auto Loan Principal', loan.principal);
   }
 
   // Vehicle insurance is a real recurring cost of owning the car, not debt service. Only an owned
@@ -154,6 +176,7 @@ export function buildMonthlyExpenseModel(input: MonthlyExpenseInput): MonthlyExp
     principal,
     transfers,
     byCategory,
+    byCategoryAllIn,
     expenses,
     expensesAllIn,
     debtService: round2(interest + principal),

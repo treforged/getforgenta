@@ -489,10 +489,19 @@ export default function Dashboard() {
       .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
       .reduce((s, t) => s + Number(t.amount || 0), 0);
 
-    // Phase 1 keeps the all-in figure (debt principal included) so this stays a pure
-    // completeness fix. Option B — principal out, card interest in — switches this to
-    // `expenseModel.expenses` in Phase 2.
-    const expenses = expenseModel.expensesAllIn;
+    // §2.4 Phase 2 — Option B (Tre's decision, 2026-08-06): debt PRINCIPAL is not an expense,
+    // interest is. Repaying principal moves money between two of your own columns; it is not
+    // spending, and counting it as such made "Monthly Expenses" a number you could shrink by
+    // paying off less debt. So the tile is now living + interest, and the principal is reported
+    // beside it as DEBT SERVICE rather than hidden inside a total.
+    //
+    // CRITICAL: this is a RELABEL, not a revaluation. `expenses + debtService` is exactly the
+    // old `expensesAllIn + totalDebtPayments`, so cashFlow, savingsRate and Annual Savings do not
+    // move by a cent — the same dollars, split into two truthful buckets instead of one blurred
+    // one. Any future edit that breaks that identity is changing what the user is owed, not how
+    // it is labelled.
+    const expenses = expenseModel.expenses;
+    const debtService = expenseModel.principal + totalDebtPayments;
     const totalDebt = debts.reduce((s, d) => s + Number(d.balance || 0), 0);
 
     const totalSaved = goals.reduce((s: number, g) => {
@@ -502,12 +511,12 @@ export default function Dashboard() {
       return s + Number(g.current_amount || 0);
     }, 0);
 
-    const cashFlow = income - expenses - totalDebtPayments;
+    const cashFlow = income - expenses - debtService;
     const savingsRate = income > 0 ? (cashFlow / income) * 100 : 0;
     const carSaved = carFunds[0] ? Number(carFunds[0].current_saved || 0) : 0;
     const carGoal = carFunds[0] ? Number(carFunds[0].down_payment_goal || 1) : 1;
 
-    return { income, expenses, cashFlow, totalDebt, totalSaved, savingsRate, carSaved, carGoal };
+    return { income, expenses, debtService, cashFlow, totalDebt, totalSaved, savingsRate, carSaved, carGoal };
   }, [currentMonthTransactions, expenseModel, totalDebtPayments, debts, goals, carFunds, accountMap]);
 
   const creditCardIds = useMemo(
@@ -638,9 +647,11 @@ export default function Dashboard() {
   // derivations printed as one equation, and it is what made the rows not sum to their own total.
   const month0Snapshot = useMemo(
     () => cardProjection?.month0
-      ? buildMonth0Snapshot(cardProjection.month0, summary.expenses + totalDebtPayments)
+      // ALL-IN, deliberately: `spentSoFar` drives the donut, which asks "how much of this month's
+      // money is gone", not "how much did I spend". Principal leaving the account is gone.
+      ? buildMonth0Snapshot(cardProjection.month0, expenseModel.expensesAllIn + totalDebtPayments)
       : null,
-    [cardProjection, summary.expenses, totalDebtPayments],
+    [cardProjection, expenseModel.expensesAllIn, totalDebtPayments],
   );
 
 
@@ -661,7 +672,10 @@ export default function Dashboard() {
       const monthName = d.toLocaleString('en', { month: 'short' });
 
       if (i === 0) {
-        months.push({ month: monthName, income: summary.income, expenses: summary.expenses, net: summary.cashFlow });
+        // ALL-IN: months 1-5 are recorded actuals from `categorizeExpenses`, which knows nothing
+        // of Option B. Plotting an Option B month 0 against five all-in months would make the bar
+        // drop for a reason that is purely a change of label.
+        months.push({ month: monthName, income: summary.income, expenses: expenseModel.expensesAllIn, net: summary.cashFlow });
       } else {
         const monthTxns = baseTxns.filter(t => t.date?.startsWith(monthStr));
         const inc = monthTxns.filter(t => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s, t) => s + Number(t.amount), 0);
@@ -672,7 +686,7 @@ export default function Dashboard() {
     }
 
     return months;
-  }, [summary, baseTxns]);
+  }, [summary, expenseModel.expensesAllIn, baseTxns]);
 
   const avgMonthlySpend = useMemo(() => {
     const past = cashFlowData.slice(0, 5);
@@ -681,11 +695,13 @@ export default function Dashboard() {
   }, [cashFlowData]);
 
   const emergencyRunwayMonths = useMemo(() => {
-    const burn = summary.expenses + totalDebtPayments;
+    // ALL-IN: runway asks how long the cash lasts, and every dollar of principal still has to be
+    // paid when the income stops. An Option B burn rate would flatter the runway by the principal.
+    const burn = expenseModel.cashOut + totalDebtPayments;
     if (burn <= 0) return null;
     const available = Math.max(0, accountSummary.liquidCash - cashFloor);
     return available / burn;
-  }, [accountSummary.liquidCash, cashFloor, summary.expenses, totalDebtPayments]);
+  }, [accountSummary.liquidCash, cashFloor, expenseModel.cashOut, totalDebtPayments]);
 
   const dti = useMemo(() => {
     if (summary.income <= 0) return null;
@@ -818,14 +834,26 @@ export default function Dashboard() {
     setCalcDrawer({ title: 'Monthly Income', lines });
   };
 
+  // Option B on screen: the categories sum to the tile, then the chain continues through debt
+  // service to cash flow — so income − expenses − debt = what's left is followable end to end
+  // and no figure appears that the drawer did not derive.
   const openExpenseCalc = () => {
     const lines: { label: string; value: string; op?: string }[] = [
-      { label: 'All current-month expense transactions (excluding debt):', value: '' },
+      { label: 'What you spent this month (debt principal excluded):', value: '' },
     ];
     Object.entries(expenseBreakdown)
       .sort((a, b) => b[1] - a[1])
       .forEach(([cat, val]) => lines.push({ label: `  ${cat}`, value: formatCurrency(val, false), op: '+' }));
-    lines.push({ label: 'Total Monthly Expenses', value: formatCurrency(summary.expenses, false), op: '=' });
+    lines.push({ label: 'Monthly Expenses', value: formatCurrency(summary.expenses, false), op: '=' });
+    lines.push({ label: 'Debt service (principal repaid, not spent):', value: '' });
+    if (expenseModel.principal > 0) {
+      lines.push({ label: '  Auto loan principal', value: formatCurrency(expenseModel.principal, false), op: '+' });
+    }
+    debtPaymentBreakdown.forEach(({ cardName, amount }) => {
+      lines.push({ label: `  ${cardName}`, value: formatCurrency(amount, false), op: '+' });
+    });
+    lines.push({ label: 'Total Debt Service', value: formatCurrency(summary.debtService, false), op: '=' });
+    lines.push({ label: 'Total cash out', value: formatCurrency(summary.expenses + summary.debtService, false), op: '=' });
     setCalcDrawer({ title: 'Monthly Expenses', lines });
   };
 
@@ -946,7 +974,7 @@ export default function Dashboard() {
 
       case 'financial_health':
         return (
-          <div key="financial_health" className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <div key="financial_health" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <ClickableMetric onClick={openLiquidCashCalc} tooltip="View liquid cash breakdown">
               <MetricCard label="Liquid Cash" value={formatCurrency(accountSummary.liquidCash, false)} accent="success" icon={DollarSign} />
             </ClickableMetric>
@@ -954,7 +982,12 @@ export default function Dashboard() {
               <MetricCard label="Monthly Income" value={summary.income > 0 ? formatCurrency(summary.income, false) : '—'} accent="success" icon={TrendingUp} />
             </ClickableMetric>
             <ClickableMetric onClick={openExpenseCalc} tooltip="How expenses are calculated">
-              <MetricCard label="Monthly Expenses" value={summary.expenses > 0 ? formatCurrency(summary.expenses, false) : '—'} accent="crimson" icon={CreditCard} />
+              <MetricCard label="Monthly Expenses" value={summary.expenses > 0 ? formatCurrency(summary.expenses, false) : '—'} sub="spending only" accent="crimson" icon={CreditCard} />
+            </ClickableMetric>
+            {/* Option B: principal repaid gets its own tile instead of inflating the expense one.
+                Same drawer — the two figures are halves of one chain and are read together. */}
+            <ClickableMetric onClick={openExpenseCalc} tooltip="Debt principal repaid this month — not spending">
+              <MetricCard label="Debt Service" value={summary.debtService > 0 ? formatCurrency(summary.debtService, false) : '—'} sub="principal repaid" accent="gold" icon={Landmark} />
             </ClickableMetric>
           </div>
         );
@@ -965,7 +998,7 @@ export default function Dashboard() {
             <ClickableMetric onClick={openNetWorthCalc} tooltip="How net worth is calculated">
               <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} sub={`${formatCurrency(accountSummary.totalAssets, false)} assets`} />
             </ClickableMetric>
-            <ClickableMetric to="/budget" tooltip="Savings rate = (income - expenses) / income">
+            <ClickableMetric to="/budget" tooltip="Savings rate = (income − expenses − debt service) / income">
               <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent={summary.savingsRate >= 0 ? 'gold' : 'crimson'} icon={Percent} sub={summary.income > 0 ? `${formatCurrency(summary.cashFlow, false)} net / mo` : '—'} />
             </ClickableMetric>
             <ClickableMetric to="/debt" tooltip="Credit card balances / total limits">
@@ -1376,7 +1409,9 @@ export default function Dashboard() {
                     liquidCash: accountSummary.liquidCash,
                     netWorth: accountSummary.netWorth,
                     income: summary.income,
-                    expenses: summary.expenses,
+                    // ALL-IN: the PDF has no DEBT SERVICE row, so an Option B figure here would
+                    // drop the auto-loan principal out of the document entirely.
+                    expenses: expenseModel.expensesAllIn,
                     totalDebtPayments,
                     savingsRate: summary.savingsRate,
                     totalSaved: summary.totalSaved,

@@ -199,9 +199,22 @@ describe('buildMonthlyExpenseModel', () => {
       expect(m.living).toBe(0);
     });
 
-    it('puts the whole payment in byCategory under Auto Loan, matching /transactions', () => {
+    // Phase 2 (Option B). SPENDING BY CATEGORY is an EXPENSE view, so the auto loan appears there
+    // as its interest only — the principal is a transfer of net worth, not spend, and it shows up
+    // under DEBT SERVICE instead. byCategoryAllIn keeps the whole payment for the cash view.
+    it('shows only the interest under Auto Loan Interest in the expense category view', () => {
       const m = build({ carFunds: [carFund({})] });
-      expect(m.byCategory['Auto Loan']).toBeCloseTo(422.89, 2);
+      expect(m.byCategory['Auto Loan Interest']).toBeCloseTo(140.23, 1);
+      expect(m.byCategory['Auto Loan']).toBeUndefined();
+      expect(m.byCategory['Auto Loan Principal']).toBeUndefined();
+    });
+
+    it('keeps the whole payment in byCategoryAllIn, split interest/principal', () => {
+      const m = build({ carFunds: [carFund({})] });
+      expect(m.byCategoryAllIn['Auto Loan Interest']).toBeCloseTo(140.23, 1);
+      expect(m.byCategoryAllIn['Auto Loan Principal']).toBeCloseTo(282.66, 1);
+      const both = m.byCategoryAllIn['Auto Loan Interest'] + m.byCategoryAllIn['Auto Loan Principal'];
+      expect(both).toBeCloseTo(422.89, 2);
     });
 
     it('contributes nothing for a saving-phase (not yet purchased) vehicle', () => {
@@ -275,8 +288,12 @@ describe('buildMonthlyExpenseModel', () => {
       expect(m.expensesAllIn).toBeCloseTo(m.living + m.interest + m.principal, 2);
       expect(m.debtService).toBeCloseTo(m.interest + m.principal, 2);
       expect(m.cashOut).toBeCloseTo(m.expensesAllIn + m.transfers, 2);
+      // Each category map sums to the headline it sits under, so a widget and its tile can never
+      // disagree — the §2.4 failure mode, in miniature.
       const catTotal = Object.values(m.byCategory).reduce((s, v) => s + v, 0);
-      expect(catTotal).toBeCloseTo(m.expensesAllIn, 2);
+      expect(catTotal, 'byCategory backs the Option B expenses tile').toBeCloseTo(m.expenses, 2);
+      const allInTotal = Object.values(m.byCategoryAllIn).reduce((s, v) => s + v, 0);
+      expect(allInTotal, 'byCategoryAllIn backs the all-in cash figure').toBeCloseTo(m.expensesAllIn, 2);
     });
   });
 });
