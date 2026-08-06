@@ -70,7 +70,10 @@ export default function Transactions() {
   const [editPlanId, setEditPlanId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState(emptyPlanForm);
   const [planDeleteConfirm, setPlanDeleteConfirm] = useState<string | null>(null);
-  const [showPlans, setShowPlans] = useState(true);
+  // Persisted so the section is in the same state the user left it in. UI preference, not
+  // financial data, so localStorage (per-device) rather than a profile column — same choice as
+  // `tre:debt:expanded-card` and `tre:debtpayoff:pause-savings`.
+  const [showPlans, setShowPlans] = usePersistedState<boolean>('tre:transactions:show-plans', true);
 
   // Build account lookup map
   const accountMap = useMemo(() => {
