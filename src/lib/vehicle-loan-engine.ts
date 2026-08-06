@@ -152,6 +152,12 @@ export interface CarLoanPaymentInfo {
   payoffDate: string;
   remainingBalance: number;
   isDeferredInterest: boolean;
+  /** Interest portion of THIS month's regular payment. Read straight off the amortization row
+   * rather than re-derived, so the expense model and the loan schedule cannot disagree.
+   * `interest + principal === payment`; on a deferred-interest month `interest` is 0. */
+  interest: number;
+  /** Principal portion of this month's regular payment (lump sums excluded, as with `payment`). */
+  principal: number;
 }
 
 /**
@@ -229,6 +235,13 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
       ? Math.round((currentRow.payment - currentRow.lumpSum) * 100) / 100
       : proj.effectivePayment;
 
+    // Split the same row `currentPayment` came from, so the two always reconcile. Principal is
+    // derived by subtraction (not read from currentRow.principal, which includes the lump sum
+    // that currentPayment deliberately excludes) and floored at 0 for negative-amortization
+    // months, where the payment does not even cover interest.
+    const currentInterest = currentRow ? Math.min(currentRow.interest, currentPayment) : 0;
+    const currentPrincipal = Math.round((currentPayment - currentInterest) * 100) / 100;
+
     results.push({
       carFundId: cf.id,
       vehicleName: cf.vehicle_name,
@@ -236,6 +249,8 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
       payoffDate: proj.payoffDate,
       remainingBalance: proj.remainingBalance,
       isDeferredInterest: proj.isDeferredInterest,
+      interest: currentInterest,
+      principal: currentPrincipal,
     });
   }
 

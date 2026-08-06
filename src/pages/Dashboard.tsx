@@ -43,6 +43,7 @@ import {
 } from '@/lib/pay-schedule';
 import { CC_DEFAULT_CATEGORIES } from "@/lib/credit-card-engine";
 import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/lib/payment-plan-generator';
+import { buildMonthlyExpenseModel } from '@/lib/monthly-expense-model';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
@@ -446,10 +447,32 @@ export default function Dashboard() {
     [allMonthTransactions, currentMonthStr],
   );
 
-  const expenseBreakdown = useMemo(
-    () => categorizeExpenses(currentMonthTransactions, true),
-    [currentMonthTransactions],
+  // §2.4. The transaction stream expands recurring rules ONLY, so every aggregate built straight
+  // off it silently omitted payment plans, the auto loan and vehicle insurance — $1,226/mo of real
+  // obligations on real data, which is why this page read $3,196 of expenses while /transactions
+  // read $6,243 for the same month. `buildMonthlyExpenseModel` re-derives the month from the
+  // filtered sources (never the raw generators, which over-emit) and every consumer below now
+  // reads it. Engine-derived numbers — MONTH-END CASH, Safe to Pay, the floor — were always
+  // correct and are deliberately untouched.
+  const creditCardSourceIds = useMemo(
+    () => new Set<string>(
+      accounts.filter(a => a.active && a.account_type === 'credit_card').flatMap(a => [a.id, `account:${a.id}`]),
+    ),
+    [accounts],
   );
+
+  const expenseModel = useMemo(
+    () => buildMonthlyExpenseModel({
+      monthTxns: currentMonthTransactions,
+      paymentPlans: paymentPlans ?? [],
+      carFunds: carFunds ?? [],
+      creditCardSourceIds,
+      asOf: new Date(),
+    }),
+    [currentMonthTransactions, paymentPlans, carFunds, creditCardSourceIds],
+  );
+
+  const expenseBreakdown = expenseModel.byCategory;
 
   const debtPaymentBreakdown = useMemo(
     () => getDebtPaymentsByCard(currentMonthTransactions),
@@ -466,7 +489,10 @@ export default function Dashboard() {
       .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
       .reduce((s, t) => s + Number(t.amount || 0), 0);
 
-    const expenses = Object.values(expenseBreakdown).reduce((s: number, v: number) => s + v, 0);
+    // Phase 1 keeps the all-in figure (debt principal included) so this stays a pure
+    // completeness fix. Option B — principal out, card interest in — switches this to
+    // `expenseModel.expenses` in Phase 2.
+    const expenses = expenseModel.expensesAllIn;
     const totalDebt = debts.reduce((s, d) => s + Number(d.balance || 0), 0);
 
     const totalSaved = goals.reduce((s: number, g) => {
@@ -482,7 +508,7 @@ export default function Dashboard() {
     const carGoal = carFunds[0] ? Number(carFunds[0].down_payment_goal || 1) : 1;
 
     return { income, expenses, cashFlow, totalDebt, totalSaved, savingsRate, carSaved, carGoal };
-  }, [currentMonthTransactions, expenseBreakdown, totalDebtPayments, debts, goals, carFunds, accountMap]);
+  }, [currentMonthTransactions, expenseModel, totalDebtPayments, debts, goals, carFunds, accountMap]);
 
   const creditCardIds = useMemo(
     () => new Set(accounts.filter(a => a.active && a.account_type === 'credit_card').map(a => a.id)),
@@ -521,8 +547,14 @@ export default function Dashboard() {
 
   // Remaining-this-month cash outflow from checking-sourced payment plans (CC-sourced plans hit
   // card balances, not cash, so getMonthlyPlanCashExpenses excludes them). These aren't in the
-  // transaction stream, so fold them into the month-end-cash / surplus / available-to-deploy math
-  // below. Cutoff-aware: plan payments already made this month are baked into the live balance.
+  // transaction stream, so fold them into `txMergeMonthEndCash` below.
+  //
+  // Scope note: this feeds ONLY the txMergeMonthEndCash fallback (`monthEndCash` prefers
+  // `cardProjection.month0.endCash`, which never reads the stream), so on any account with at
+  // least one credit card it is dead. The previous comment here claimed it also fed surplus and
+  // available-to-deploy; those consumers no longer exist. Cutoff-aware: plan payments already made
+  // this month are baked into the live balance. Whole-month expense totals deliberately do NOT
+  // reuse this — see buildMonthlyExpenseModel, which asks a different question.
   const planCashThisMonth = useMemo(() => {
     const now = new Date();
     const ccIds = new Set<string>(
