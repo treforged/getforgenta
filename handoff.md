@@ -60,12 +60,12 @@ they already sit inside the Prime Visa balance. Do **not** "fix" this.
 `getCarFundEarmark` is. Also **deleted `summary.carSaved` / `summary.carGoal`** — nothing read
 them and they carried the identical defect (`carFunds` left that memo's dep array with them).
 
-⚠️ **NOT live-confirmed on Tre's account — this is the one open verification.** His session
-expired mid-session and I did not sign him back in. Derived from Supabase: he has exactly **one**
-car fund, `2004 Chevorlet C5`, `phase: 'loan'`, and **no** `goal_type: 'Car Fund'` savings goal, so
-**the tile should now be absent entirely** on his Dashboard. Confirmed live in **demo** mode
-instead (demo carries both a saving Civic and a loan RAV4): tile reads `CAR GOAL: 2024 HONDA CIVIC`,
-the saving one. **Next agent: confirm the tile is gone once he is signed in again.**
+✅ **LIVE-CONFIRMED on Tre's real account** (he signed back in at the end of the session): the
+`CAR GOAL` tile is **absent**, and MONTHLY EXPENSES $3,630 / DEBT SERVICE $2,103 / MONTH-END CASH
+$2,701 are all unchanged by the removal. He has exactly one car fund (`2004 Chevorlet C5`,
+`phase: 'loan'`) and no `goal_type: 'Car Fund'` goal, so absent is correct. Demo mode still shows
+`CAR GOAL: 2024 HONDA CIVIC` (its saving-phase fund), so the positive path is intact. **Item 5a is
+CLOSED.**
 
 ## 2. THE RULE THAT DROVE EVERY CONSUMER DECISION (unchanged, still governs)
 
@@ -99,8 +99,10 @@ Otherwise cash flow double-counts and Annual Savings moves for a fake reason. Ha
 
 ## 4. NEXT STEPS (in order)
 
-1. **Confirm the Car Goal tile is gone** on Tre's real Dashboard once signed in (§1 above). Also
-   worth re-reading MONTHLY EXPENSES / DEBT SERVICE at the same time — costs nothing.
+1. **⭐ START HERE — close the $1 gap with ENGINE PRECISION. Tre decided this 2026-08-06, at the
+   very end of session 88; nothing is implemented.** See §5 for the full spec. This is the next
+   piece of work and it is scoped and unambiguous — it was handed off rather than started only
+   because the session hit the context gate.
 2. **Tre's remaining two items from session 86.** Neither is root-caused; **grep before trusting
    any line number.**
 
@@ -133,13 +135,51 @@ Otherwise cash flow double-counts and Annual Savings moves for a fake reason. Ha
 8. Month-end overflow pattern still live (display labels, deliberately left): `DebtPayoff.tsx:98`,
    `CreditCardEngine.tsx:1338` + `:1720`, `credit-card-engine.ts:319` + `:455`.
 
-## 5. DECISIONS STILL NEEDED FROM TRE (carried, none answered)
+## 5. ⭐ THE $1 GAP — TRE DECIDED: **ENGINE PRECISION**. SPEC, NOT YET IMPLEMENTED.
 
-- **The two tiles that print $1 apart** (session 87). Dashboard MONTH-END CASH $3,146 vs Forecast
-  END CASH $3,145. BY DESIGN: `useCardProjection.ts:1700-1702` sums ROUNDED terms so the drawer's
-  on-screen equation is exact in integer arithmetic, while the engine carries cents and rounds once
-  ($4,600 vs $4,599.20). The invariant test bounds it at ≤ $1. Closing it costs either the drawer's
-  exact-integer property or engine precision. **Left as-is deliberately.**
+**His words (2026-08-06): "for the $1 difference lets do engine precision. calculations should use
+the full exact values with the decimals."**
+
+So the drawer's exact-integer property is the one being spent, deliberately. `Month0CashChain`
+must carry **exact cents** and rounding happens **only at render**.
+
+### What is actually wrong today
+
+`useCardProjection.ts` (~line 1694 raw chain, ~1703-1722 `m0Chain`): each term is `Math.round`ed
+individually and `chain.cashPreDebt` is **the sum of those rounded terms**, not a rounding of the
+raw `cashPreDebt` used for the cap. On real data that is $4,600 vs $4,599.20, which is why
+Dashboard MONTH-END CASH prints $3,146 and Forecast END CASH prints $3,145.
+
+### The change
+
+1. `m0Chain` keeps every term **unrounded** (drop the `Math.round` calls), and computes
+   `cashPreDebt` from the exact terms — ideally by reusing the raw `cashPreDebt` variable already
+   computed at ~1694 so there is exactly ONE definition, not two expressions that can drift.
+2. `src/lib/debt-model-types.ts` — the `Month0CashChain` doc block (~lines 55-65) **states the
+   rounded-sum contract as a guarantee**. Rewrite it; do not leave it describing the old behavior.
+3. `src/lib/month0-budget-snapshot.ts:88` (`projectedRemaining = c.cashPreDebt`) and whatever
+   renders the MONTHLY BUDGET SNAPSHOT drawer — round **at display only**.
+4. `src/lib/__tests__/month0-budget-snapshot.test.ts:25` has a helper whose comment and values
+   mirror "cashPreDebt is the sum of the rounded terms". Update it to exact-cents.
+5. `src/lib/__tests__/monthEndCash.invariant.test.ts` — **tighten the tolerance from ≤ $1 to
+   cents** (e.g. ≤ $0.01). That tightening is the real proof the fix worked; if it will not pass at
+   cents, the gap was never only rounding and you have found something else. Do not loosen it back.
+
+### Expect this, and warn him if it appears
+
+The drawer's on-screen column may now **visually fail to add up by $1** (rounded terms summing to a
+separately-rounded total). That is the accepted cost of his decision, not a bug — but if it shows
+up on his real numbers it is worth telling him it is now visible, since that is exactly the
+property he traded away. Mitigation if he objects: render one or two decimals in the drawer.
+
+### Verify
+
+`npx vitest run` (394 today), `tsc`, `eslint`, then a **live read** confirming Dashboard MONTH-END
+CASH **equals** Forecast END CASH — that equality is the whole point. Both were $3,146/$3,145 in
+session 87; today's Dashboard reads **$2,701**, so re-derive rather than expecting the old numbers.
+
+## 5b. DECISIONS STILL NEEDED FROM TRE (carried, none answered)
+
 - **Checking-sourced plan installments classify `living`, not `principal`** — session 86's judgment
   call, not Tre's answer, still unflagged to him. The Carnival Flex Pay $120 is technically
   borrowing but sits inside no balance anywhere, so classifying it `principal` would make $120/mo
