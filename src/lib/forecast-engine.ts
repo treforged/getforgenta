@@ -1123,7 +1123,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const b = baseData[i];
       let monthDebtPayment = debtPayments[i];
-      const startingCash = Math.round(finalLiquid);
+      // Exact cents — it is the drawer's opening term and must reconcile against the prior
+      // month's Ending Cash to the cent. See the "EXACT CENTS" note on the popup fields below.
+      const startingCash = finalLiquid;
       const carContribThisMonth = getMonthCarContrib(i);
       cumulativeCarReserveHeld += carContribThisMonth;
       for (const v of vehicleProjections) {
@@ -1378,7 +1380,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         retirementBalance: Math.round(retireBal), liquidCash: Math.round(finalLiquid),
         endingCash,
         startingCash,
-        takeHome: Math.round(b.netIncome), totalExpenses: Math.round(totalMonthlyOut),
+        takeHome: b.netIncome, totalExpenses: totalMonthlyOut,
         debtPayment: Math.round(monthDebtPayment),
         displayDebtPayment: i === 0
           ? (cardProjectionData?.month0?.safeToPayTotal ?? (currentMonthRecommendedDebt?.safeToPayTotal ?? undefined))
@@ -1391,51 +1393,60 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         fullMonth401kContrib: Math.round(b.fullMonth401kContrib),
         investGrowth: Math.round(investGrowthAmt),
         retireGrowth: Math.round(retireGrowthAmt),
-        oneTimeNet: Math.round(b.oneTimeNet),
+        oneTimeNet: b.oneTimeNet,
         ccOneTime: Math.round(ccOneTimeByMonth[b.monthKey] || 0),
         monthMinSafe: Math.round(b.monthMinSafe),
         rawEndingCash: finalLiquid + cumulativeCarReserveHeld,
         rawMonthMinSafe: b.monthMinSafe,
         floorBreachedByOneTime,
         debtWasReduced,
-        // Popup breakdown fields
-        baseExpenses: Math.round(b.baseExpenses),
-        savingsContrib: Math.round(actualGoalsSavings),
+        // Popup breakdown fields.
+        //
+        // EXACT CENTS (Tre, 2026-08-06). These are the terms the Month Breakdown drawer walks on
+        // screen, and a walk that is supposed to add up must not be a sum of separately-rounded
+        // parts — that is the same defect the month-0 cash chain had when Dashboard and Forecast
+        // printed a dollar apart (`debt-model-types.ts` Month0CashChain carries the same warning).
+        // Rounding happens at RENDER only; the drawer prints two decimals so it visibly balances.
+        // Balance-style fields below (netWorth/assets/liabilities/CC balances) stay rounded on
+        // purpose: they are projections, not a reconciled cash walk, and cents there would imply
+        // precision the model does not have.
+        baseExpenses: b.baseExpenses,
+        savingsContrib: actualGoalsSavings,
         savingsGoalItems: b.savingsGoalItems,
-        carContrib: Math.round(actualCarSavings),
+        carContrib: actualCarSavings,
         carContribItems: b.carContribItems,
-        carReserveHeld: Math.round(cumulativeCarReserveHeld),
-        carLoanPayment: Math.round(carLoanThisMonth - activeCarLoanLumpSumByMonth[i]),
-        vehicleDownPayment: Math.round(effectiveDPThisMonth), // cash portion only — savings portion in nonCashTransferItems
-        vehicleSavedPortion: Math.round(Math.max(0, downPaymentThisMonth - effectiveDPThisMonth)), // from linked savings account
-        vehicleInsurance: Math.round(vehicleInsuranceThisMonth),
-        projectedCarLoan: Math.round(projLoanThisMonth - projLumpThisMonth),
-        carLoanExtraPayment: Math.round(carLoanLumpThisMonth),
+        carReserveHeld: cumulativeCarReserveHeld,
+        carLoanPayment: carLoanThisMonth - activeCarLoanLumpSumByMonth[i],
+        vehicleDownPayment: effectiveDPThisMonth, // cash portion only — savings portion in nonCashTransferItems
+        vehicleSavedPortion: Math.max(0, downPaymentThisMonth - effectiveDPThisMonth), // from linked savings account
+        vehicleInsurance: vehicleInsuranceThisMonth,
+        projectedCarLoan: projLoanThisMonth - projLumpThisMonth,
+        carLoanExtraPayment: carLoanLumpThisMonth,
         carLumpItems: carLumpItemsByMonth[i],
-        mortgagePayment: Math.round(mortgageMonthlyPayment),
-        transfersTotal: Math.round(actualTransfers),
+        mortgagePayment: mortgageMonthlyPayment,
+        transfersTotal: actualTransfers,
         transferBreakdown: b.transferBreakdown,
         nonCashTransferItems: [
           ...b.nonCashTransferItems,
           ...vehicleDPFromSavingsThisMonth.map(v => ({ name: `${v.vehicleName} Down Payment`, fromAcctName: v.fromAcctName, fromAcctId: '', amount: v.amount })),
         ],
         otherAccountExpenseItems: b.otherAccountExpenseItems,
-        lumpSumSavings: Math.round(lumpTransferByMonth[i].savings),
-        lumpSumBrokerage: Math.round(lumpTransferByMonth[i].brokerage),
-        lumpSumRothIra: Math.round(lumpTransferByMonth[i].roth_ira),
-        businessContrib: Math.round(b.monthBusinessContrib),
+        lumpSumSavings: lumpTransferByMonth[i].savings,
+        lumpSumBrokerage: lumpTransferByMonth[i].brokerage,
+        lumpSumRothIra: lumpTransferByMonth[i].roth_ira,
+        businessContrib: b.monthBusinessContrib,
         totalCCPurchases: Math.round((ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0)),
         ccDebtBalance: Math.round(b.ccDebtBalance),
         ccDisplayBalance: Math.round(adjCCLiab),
-        paycheckIncome: Math.round(b.paycheckIncome),
-        otherIncome: Math.round(b.otherIncome),
-        bonusIncome: Math.round(b.bonusIncome),
-        taxReturnIncome: Math.round(b.taxReturnIncome),
+        paycheckIncome: b.paycheckIncome,
+        otherIncome: b.otherIncome,
+        bonusIncome: b.bonusIncome,
+        taxReturnIncome: b.taxReturnIncome,
         isRaiseMonth: b.isRaiseMonth,
         promotionNewSalary: Math.round(b.promotionNewSalary),
         recommendedDebtPayment: Math.round(debtPayments[i]),
         floorItems: b.floorItems ?? [],
-        prePaycheckBillsTotal: Math.round(b.prePaycheckBillsTotal ?? 0),
+        prePaycheckBillsTotal: b.prePaycheckBillsTotal ?? 0,
         settingsCashFloor: cashFloor,
         // Per-account breakdown snapshots for popup display
         assetBreakdown: [

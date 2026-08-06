@@ -938,32 +938,32 @@ export default function Forecast() {
                 const _rowDate = new Date(new Date().getFullYear(), new Date().getMonth() + absoluteI, 1);
                 const paycheckCount = getPaychecksInMonth(payConfig, _rowDate.getFullYear(), _rowDate.getMonth()).length;
                 const perPaycheck = paycheckCount > 0
-                  ? Math.round((row.paycheckIncome ?? row.takeHome) / paycheckCount)
-                  : Math.round((row.paycheckIncome ?? row.takeHome) / (paychecksPerYear / 12));
+                  ? (row.paycheckIncome ?? row.takeHome) / paycheckCount
+                  : (row.paycheckIncome ?? row.takeHome) / (paychecksPerYear / 12);
                 const freqLabel = payConfig?.frequency === 'biweekly' ? 'biweekly' : payConfig?.frequency === 'monthly' ? 'monthly' : 'weekly';
                 setCalcDrawer({
                   title: `${row.month} Breakdown`,
                   lines: [
                     ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
-                    ...(row.isRaiseMonth ? [{ label: `⬆ Raise applied — new ${freqLabel} paycheck: ${formatCurrency(perPaycheck, false)}`, value: '' }] : []),
-                    ...((row.promotionNewSalary ?? 0) > 0 ? [{ label: `💼 Promotion applied — new annual salary: ${formatCurrency(row.promotionNewSalary, false)}`, value: '' }] : []),
-                    { label: isCurrentMonth ? 'Current Cash' : 'Starting Cash', value: formatCurrency(row.startingCash, false) },
-                    { label: 'Paycheck', value: formatCurrency(row.paycheckIncome ?? row.takeHome, false), op: '+' },
-                    ...((row.otherIncome ?? 0) > 0 ? [{ label: 'Other Income', value: formatCurrency(row.otherIncome, false), op: '+' }] : []),
-                    ...((row.bonusIncome ?? 0) > 0 ? [{ label: 'Bonus', value: formatCurrency(row.bonusIncome, false), op: '+' }] : []),
+                    ...(row.isRaiseMonth ? [{ label: `⬆ Raise applied — new ${freqLabel} paycheck: ${formatCurrency(perPaycheck, true)}`, value: '' }] : []),
+                    ...((row.promotionNewSalary ?? 0) > 0 ? [{ label: `💼 Promotion applied — new annual salary: ${formatCurrency(row.promotionNewSalary, true)}`, value: '' }] : []),
+                    { label: isCurrentMonth ? 'Current Cash' : 'Starting Cash', value: formatCurrency(row.startingCash, true) },
+                    { label: 'Paycheck', value: formatCurrency(row.paycheckIncome ?? row.takeHome, true), op: '+' },
+                    ...((row.otherIncome ?? 0) > 0 ? [{ label: 'Other Income', value: formatCurrency(row.otherIncome, true), op: '+' }] : []),
+                    ...((row.bonusIncome ?? 0) > 0 ? [{ label: 'Bonus', value: formatCurrency(row.bonusIncome, true), op: '+' }] : []),
                     ...((row.taxReturnIncome ?? 0) !== 0 ? [(row.taxReturnIncome ?? 0) > 0
-                      ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, false), op: '+' }
-                      : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), false), op: '−' }] : []),
-                    { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, false), op: '−' },
+                      ? { label: 'Tax Return', value: formatCurrency(row.taxReturnIncome, true), op: '+' }
+                      : { label: 'Tax Owed', value: formatCurrency(Math.abs(row.taxReturnIncome), true), op: '−' }] : []),
+                    { label: '  Bills & Expenses', value: formatCurrency(row.baseExpenses ?? 0, true), op: '−' },
                     // Per-card breakdown: month 0 uses engine recommendations (same source as
                     // Dashboard widget and Debt Payoff summary list). Months 1+ use simulation.
                     ...((() => {
-                      const fallback = [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, false), op: '−' as const }];
+                      const fallback = [{ label: '  Debt Payments', value: formatCurrency(row.displayDebtPayment ?? row.debtPayment, true), op: '−' as const }];
                       // Month 0: use pass-3 per-card amounts (same source as Debt Payoff tab)
                       if (absoluteI === 0 && cardProjectionData?.month0?.perCardAdjusted) {
                         const engineRecs = cardProjectionData.month0.perCardAdjusted.filter(r => r.payment > 0);
                         if (engineRecs.length > 0) {
-                          return engineRecs.map(r => ({ label: `  ${r.name}`, value: formatCurrency(r.payment, false), op: '−' as const }));
+                          return engineRecs.map(r => ({ label: `  ${r.name}`, value: formatCurrency(r.payment, true), op: '−' as const }));
                         }
                         return fallback;
                       }
@@ -982,15 +982,15 @@ export default function Forecast() {
                       const rawSum = rawAmounts.reduce((s, c) => s + c.amt, 0);
                       const scale = rawSum > 0 ? (row.debtPayment ?? rawSum) / rawSum : 1;
                       const lines = rawAmounts
-                        .map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.amt * scale, false), op: '−' as const, scaledAmt: c.amt * scale }))
+                        .map(c => ({ label: `  ${c.name}`, value: formatCurrency(c.amt * scale, true), op: '−' as const, scaledAmt: c.amt * scale }))
                         .filter(c => c.scaledAmt > 0.005)
                         .map(({ scaledAmt, ...c }) => c);
                       return lines.length > 0 ? lines : fallback;
                     })()),
                     { label: '  Adjusted to keep cash safely above your floor through upcoming bills. May be lower than the Debt Payoff tab\'s recommendation for the same month.', value: '' },
                     ...((row.savingsGoalItems?.length > 0)
-                      ? (row.savingsGoalItems as { name: string; amount: number }[]).map(g => ({ label: `  ${g.name}`, value: formatCurrency(g.amount, false), op: '−' as const }))
-                      : (row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, false), op: '−' as const }] : []
+                      ? (row.savingsGoalItems as { name: string; amount: number }[]).map(g => ({ label: `  ${g.name}`, value: formatCurrency(g.amount, true), op: '−' as const }))
+                      : (row.savingsContrib ?? 0) > 0 ? [{ label: '  Savings Goals', value: formatCurrency(row.savingsContrib, true), op: '−' as const }] : []
                     ),
                     // Still-saving months: informational only — this cash hasn't left any account
                     // yet (see cumulativeCarReserveHeld adding it back into Ending Cash). The
@@ -998,36 +998,39 @@ export default function Forecast() {
                     // line since the cumulative add-back nets to zero that month.
                     ...((row.carContribItems as { name: string; amount: number; isPurchaseMonth: boolean }[] | undefined)?.length
                       ? (row.carContribItems as { name: string; amount: number; isPurchaseMonth: boolean }[]).map(v => v.isPurchaseMonth
-                          ? { label: `  ${v.name} (down payment)`, value: formatCurrency(v.amount, false), op: '−' as const }
-                          : { label: `  Reserving for ${v.name} (still your cash)`, value: formatCurrency(v.amount, false) })
-                      : (row.carContrib ?? 0) > 0 ? [{ label: '  Reserving for car fund (still your cash)', value: formatCurrency(row.carContrib, false) }] : []
+                          ? { label: `  ${v.name} (down payment)`, value: formatCurrency(v.amount, true), op: '−' as const }
+                          : { label: `  Reserving for ${v.name} (still your cash)`, value: formatCurrency(v.amount, true) })
+                      : (row.carContrib ?? 0) > 0 ? [{ label: '  Reserving for car fund (still your cash)', value: formatCurrency(row.carContrib, true) }] : []
                     ),
-                    ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, false), op: '−' }] : []),
-                    ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, false), op: '−' }] : []),
-                    ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: '  Vehicle Down Payment (cash)', value: formatCurrency(row.vehicleDownPayment, false), op: '−' }] : []),
-                    ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, false), op: '−' }] : []),
-                    ...((row.projectedCarLoan ?? 0) > 0 ? [{ label: '  Est. Car Loan (projected)', value: formatCurrency(row.projectedCarLoan, false), op: '−' }] : []),
+                    ...((row.mortgagePayment ?? 0) > 0 ? [{ label: '  Mortgage Payment', value: formatCurrency(row.mortgagePayment, true), op: '−' }] : []),
+                    ...((row.carLoanPayment ?? 0) > 0 ? [{ label: '  Car Loan Payments', value: formatCurrency(row.carLoanPayment, true), op: '−' }] : []),
+                    ...((row.vehicleDownPayment ?? 0) > 0 ? [{ label: '  Vehicle Down Payment (cash)', value: formatCurrency(row.vehicleDownPayment, true), op: '−' }] : []),
+                    ...((row.vehicleInsurance ?? 0) > 0 ? [{ label: '  Vehicle Insurance (est.)', value: formatCurrency(row.vehicleInsurance, true), op: '−' }] : []),
+                    ...((row.projectedCarLoan ?? 0) > 0 ? [{ label: '  Est. Car Loan (projected)', value: formatCurrency(row.projectedCarLoan, true), op: '−' }] : []),
                     ...((row.carLumpItems as { name: string; amount: number }[] | undefined)?.length
-                      ? (row.carLumpItems as { name: string; amount: number }[]).map(v => ({ label: `  ${v.name} — Extra Payment`, value: formatCurrency(v.amount, false), op: '−' as const }))
-                      : (row.carLoanExtraPayment ?? 0) > 0 ? [{ label: '  Car Loan Extra Payment', value: formatCurrency(row.carLoanExtraPayment, false), op: '−' as const }] : []
+                      ? (row.carLumpItems as { name: string; amount: number }[]).map(v => ({ label: `  ${v.name} — Extra Payment`, value: formatCurrency(v.amount, true), op: '−' as const }))
+                      : (row.carLoanExtraPayment ?? 0) > 0 ? [{ label: '  Car Loan Extra Payment', value: formatCurrency(row.carLoanExtraPayment, true), op: '−' as const }] : []
                     ),
-                    ...((row.lumpSumSavings ?? 0) > 0 ? [{ label: '  Lump Sum → Savings', value: formatCurrency(row.lumpSumSavings, false), op: '−' }] : []),
-                    ...((row.lumpSumBrokerage ?? 0) > 0 ? [{ label: '  Lump Sum → Brokerage', value: formatCurrency(row.lumpSumBrokerage, false), op: '−' }] : []),
-                    ...((row.lumpSumRothIra ?? 0) > 0 ? [{ label: '  Lump Sum → Roth IRA', value: formatCurrency(row.lumpSumRothIra, false), op: '−' }] : []),
+                    ...((row.lumpSumSavings ?? 0) > 0 ? [{ label: '  Lump Sum → Savings', value: formatCurrency(row.lumpSumSavings, true), op: '−' }] : []),
+                    ...((row.lumpSumBrokerage ?? 0) > 0 ? [{ label: '  Lump Sum → Brokerage', value: formatCurrency(row.lumpSumBrokerage, true), op: '−' }] : []),
+                    ...((row.lumpSumRothIra ?? 0) > 0 ? [{ label: '  Lump Sum → Roth IRA', value: formatCurrency(row.lumpSumRothIra, true), op: '−' }] : []),
                     ...((row.transferBreakdown ?? [])
                       .filter((t: { name: string; amount: number }) => t.amount > 0)
-                      .map((t: { name: string; amount: number }) => ({ label: `  ${t.name}`, value: formatCurrency(t.amount, false), op: '−' as const }))),
+                      .map((t: { name: string; amount: number }) => ({ label: `  ${t.name}`, value: formatCurrency(t.amount, true), op: '−' as const }))),
                     ...((row.businessContrib ?? 0) > 0
-                      ? [{ label: '  Business Contributions', value: formatCurrency(row.businessContrib, false), op: '−' }]
+                      ? [{ label: '  Business Contributions', value: formatCurrency(row.businessContrib, true), op: '−' }]
                       : []),
-                    { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), false), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
-                    { label: 'Ending Cash', value: formatCurrency(row.endingCash, false), op: '=' },
+                    { label: 'One-Time Net (Cash)', value: formatCurrency(Math.abs(row.oneTimeNet || 0), true), op: (row.oneTimeNet || 0) >= 0 ? '+' : '−' },
+                    // rawEndingCash, not endingCash: the latter is the whole-dollar DISPLAY field
+                    // the month table renders. Printing it with two decimals would only ever show
+                    // ".00" — false precision — and it would not equal the terms above it.
+                    { label: 'Ending Cash', value: formatCurrency(row.rawEndingCash ?? row.endingCash, true), op: '=' },
                     ...((row.carReserveHeld ?? 0) > 0
-                      ? [{ label: `  includes ${formatCurrency(row.carReserveHeld, false)} reserved for an upcoming vehicle purchase`, value: '' }]
+                      ? [{ label: `  includes ${formatCurrency(row.carReserveHeld, true)} reserved for an upcoming vehicle purchase`, value: '' }]
                       : []),
                     {
                       label: 'Cash Floor',
-                      value: formatCurrency(row.monthMinSafe, false),
+                      value: formatCurrency(row.rawMonthMinSafe ?? row.monthMinSafe, true),
                       onClick: () => {
                         const items: { name: string; amount: number; dueDay?: number }[] = row.floorItems ?? [];
                         const preTotal = row.prePaycheckBillsTotal ?? 0;
@@ -1036,21 +1039,21 @@ export default function Forecast() {
                         setFloorCalcDrawer({
                           title: `${row.month} — Cash Floor`,
                           lines: [
-                            { label: 'Settings floor', value: formatCurrency(settingsFloor, false) },
+                            { label: 'Settings floor', value: formatCurrency(settingsFloor, true) },
                             { label: '', value: '' },
                             ...(items.length > 0
                               ? [
                                   { label: 'Fixed monthly obligations (next mo.):', value: '' },
                                   ...items.map((it) => ({
                                     label: `  ${it.name}${it.dueDay ? ` (day ${it.dueDay})` : ''}`,
-                                    value: formatCurrency(it.amount, false),
+                                    value: formatCurrency(it.amount, true),
                                     op: '+' as const,
                                   })),
-                                  { label: 'Obligations total', value: formatCurrency(preTotal, false), op: '=' },
+                                  { label: 'Obligations total', value: formatCurrency(preTotal, true), op: '=' },
                                 ]
                               : [{ label: 'No fixed obligations this month', value: '' }]),
                             { label: '', value: '' },
-                            { label: 'Cash Floor (higher of above)', value: formatCurrency(row.monthMinSafe, false), op: '=' },
+                            { label: 'Cash Floor (higher of above)', value: formatCurrency(row.rawMonthMinSafe ?? row.monthMinSafe, true), op: '=' },
                             ...(savingCarFunds.length > 0
                               ? [
                                   { label: '', value: '' },
@@ -1071,7 +1074,7 @@ export default function Forecast() {
                           { label: 'Account Transfers (no cash impact)', value: '' },
                           ...(row.nonCashTransferItems as { name: string; fromAcctName: string; amount: number }[]).map(item => ({
                             label: `  ${item.name}${item.fromAcctName ? ` — from ${item.fromAcctName}` : ''}`,
-                            value: formatCurrency(item.amount, false),
+                            value: formatCurrency(item.amount, true),
                           })),
                           { label: '', value: '' },
                         ]
@@ -1081,7 +1084,7 @@ export default function Forecast() {
                           { label: 'Other Account Expenses (no cash impact)', value: '' },
                           ...(row.otherAccountExpenseItems as { name: string; fromAcctName: string; amount: number }[]).map(item => ({
                             label: `  ${item.name}${item.fromAcctName ? ` — from ${item.fromAcctName}` : ''}`,
-                            value: formatCurrency(item.amount, false),
+                            value: formatCurrency(item.amount, true),
                           })),
                           { label: '', value: '' },
                         ]
