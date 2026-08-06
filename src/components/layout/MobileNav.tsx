@@ -11,24 +11,28 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
-// The bottom bar is a 5-column grid: 4 primary tabs plus the "More" button. When
-// the AI tab is switched off, Goals takes the free slot so the grid stays filled.
+// The bottom bar is a 5-column grid: 4 primary tabs plus the "More" button.
+// Tabs and order are Tre's spec: dashboard, transactions, debt payoff, forecast, More.
+// Labels are deliberately SHORT. Measured at the real computed font (Inter 500 13.5px):
+// five columns leave 66.8px of text width on a 390px phone (63.8px at 375, 52.8px at 320),
+// and "Transactions" renders 83.3px — it would truncate to "Transacti…" on EVERY phone.
+// "Activity" is 49.1px and fits even a 320px SE; it is also the label Apple Card, Venmo
+// and Robinhood use for the same surface. The full name is kept on the desktop rail and
+// in the More panel, so the app's vocabulary is still discoverable.
 const PRIMARY = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
-  { to: '/budget', icon: Sliders, label: 'Budget' },
+  { to: '/transactions', icon: ArrowLeftRight, label: 'Activity' },
   { to: '/debt', icon: Landmark, label: 'Debt', highlight: true },
-  AI_ADVISOR_ENABLED
-    ? { to: '/ai', icon: Sparkles, label: 'AI' }
-    : { to: '/goals', icon: PiggyBank, label: 'Goals' },
+  { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
 ];
 
 const SECONDARY = [
-  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
+  { to: '/budget', icon: Sliders, label: 'Budget Control' },
   { to: '/accounts', icon: Building2, label: 'Accounts' },
   { to: '/vehicles', icon: Car, label: 'Vehicles' },
   { to: '/builds', icon: Wrench, label: 'Builds' },
-  ...(AI_ADVISOR_ENABLED ? [{ to: '/goals', icon: PiggyBank, label: 'Goals' }] : []),
-  { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
+  ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
+  { to: '/goals', icon: PiggyBank, label: 'Goals' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
