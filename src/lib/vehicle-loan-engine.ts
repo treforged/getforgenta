@@ -300,6 +300,11 @@ export function generateCarLoanTransactions(carFunds: CarFund[]): CarLoanTransac
     proj.schedule.forEach((row, i) => {
       const regular = Math.round((row.payment - row.lumpSum) * 100) / 100;
       if (regular > 0) {
+        // `row.principal` is the whole month's principal INCLUDING the lump sum (it is derived as
+        // payment − interest, and `payment` is regular + lumpSum), so the regular row's own share
+        // is what is left after the lump-sum row takes its 100%. Clamped because a negative-
+        // amortization month has a negative principal, and a display sub-line must not go below 0.
+        const regularPrincipal = Math.max(0, Math.round((row.principal - row.lumpSum) * 100) / 100);
         results.push({
           id: `carloan:${cf.id}:${i}`,
           date: row.date,
@@ -311,6 +316,7 @@ export function generateCarLoanTransactions(carFunds: CarFund[]): CarLoanTransac
           account: '',
           isGenerated: true,
           isCarLoanPayment: true,
+          principalPortion: regularPrincipal,
           carFundId: cf.id,
         });
       }
@@ -326,6 +332,8 @@ export function generateCarLoanTransactions(carFunds: CarFund[]): CarLoanTransac
           account: '',
           isGenerated: true,
           isCarLoanPayment: true,
+          // A lump sum is extra principal by definition — no interest attaches to it.
+          principalPortion: row.lumpSum,
           carFundId: cf.id,
         });
       }

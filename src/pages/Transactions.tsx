@@ -229,10 +229,26 @@ export default function Transactions() {
     });
   }, []);
 
+  // `expense` here is every dollar that left, debt principal included — the honest CASH figure, and
+  // deliberately NOT the Dashboard's Option B MONTHLY EXPENSES (§2.4). The two tiles legitimately
+  // differ; `debtService` is the bridge between them, so it must be defined exactly as the
+  // Dashboard's DEBT SERVICE tile is: card payments in full, plus the PRINCIPAL half of a car-loan
+  // payment. The interest half is spending and stays inside the expense view on both pages.
+  // `net` is unchanged by any of this — income minus all cash out is right either way.
   const totals = useMemo(() => {
-    const income = filtered.filter(t => t.type === 'income' && t.category !== 'Balance Adjustment').reduce((s, t) => s + Number(t.amount), 0);
-    const expense = filtered.filter(t => t.type === 'expense' && t.category !== 'Balance Adjustment').reduce((s, t) => s + Number(t.amount), 0);
-    return { income, expense, net: income - expense };
+    const realized = filtered.filter(t => t.category !== 'Balance Adjustment');
+    const income = realized.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
+    const expenses = realized.filter(t => t.type === 'expense');
+    const expense = expenses.reduce((s, t) => s + Number(t.amount), 0);
+    const debtService = expenses.reduce((s, t) => {
+      if (t.isDebtPayment) return s + Number(t.amount);
+      // Only a row that carries an explicit split contributes principal. A car-loan row predating
+      // the split has no `principalPortion`, and counting its whole payment would overstate debt
+      // service by the interest — better to under-report a bridge line than to misstate it.
+      if (t.isCarLoanPayment && typeof t.principalPortion === 'number') return s + t.principalPortion;
+      return s;
+    }, 0);
+    return { income, expense, debtService, net: income - expense };
   }, [filtered]);
 
   const spendBySource = useMemo(() => {
@@ -695,7 +711,13 @@ export default function Transactions() {
 
       <div className="grid grid-cols-3 gap-3">
         <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Income</p><p className="text-sm font-display font-bold text-success">{formatCurrency(totals.income, false)}</p></div>
-        <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Expenses</p><p className="text-sm font-display font-bold text-destructive">{formatCurrency(totals.expense, false)}</p></div>
+        <div className="card-forged p-3 text-center">
+          <p className="text-xs text-muted-foreground uppercase">Total Cash Out</p>
+          <p className="text-sm font-display font-bold text-destructive">{formatCurrency(totals.expense, false)}</p>
+          {totals.debtService > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.debtService, false)} debt service</p>
+          )}
+        </div>
         <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(totals.net, false)}</p></div>
       </div>
 

@@ -30,6 +30,13 @@ export type EnrichedTransaction = {
   isGenerated?: boolean;
   isDebtPayment?: boolean;
   isCarLoanPayment?: boolean;
+  /**
+   * How much of `amount` retires principal rather than paying interest. Present on car-loan payment
+   * rows only. Option B (§2.4) calls principal debt service and interest an expense, so a surface
+   * summing the stream needs the split — the row's `amount` is the combined cash payment and cannot
+   * be decomposed after the fact. Absent means "not applicable / unknown", never zero.
+   */
+  principalPortion?: number;
   isPlanPayment?: boolean;
   isReconciliation?: boolean;
   reconciliationDelta?: number;

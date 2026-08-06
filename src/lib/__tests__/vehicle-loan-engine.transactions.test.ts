@@ -109,4 +109,60 @@ describe('generateCarLoanTransactions', () => {
     const rows = generateCarLoanTransactions([cf]);
     expect(rows).toEqual([]);
   });
+
+  // §2.4 Option B. /transactions bridges its all-in TOTAL CASH OUT to the Dashboard's DEBT SERVICE
+  // tile by summing the principal half of each car-loan row. The row's `amount` is the combined
+  // cash payment, so the split has to travel with the row — it cannot be recovered downstream.
+  describe('principalPortion (Option B debt-service split)', () => {
+    it('carries a principal portion strictly less than the payment on an interest-bearing month', () => {
+      const rows = generateCarLoanTransactions([makeCarFund({})]);
+      const first = rows.find(r => r.id.startsWith('carloan:'))!;
+      expect(first.principalPortion).toBeGreaterThan(0);
+      // 6% APR on 12000 => the first month has real interest, so principal < payment.
+      expect(first.principalPortion!).toBeLessThan(first.amount);
+    });
+
+    it('sums principal across the schedule to the loan principal, so nothing is lost or invented', () => {
+      const rows = generateCarLoanTransactions([makeCarFund({})]);
+      const totalPrincipal = rows
+        .filter(r => r.isCarLoanPayment && r.category === 'Auto Loan')
+        .reduce((s, r) => s + (r.principalPortion ?? 0), 0);
+      expect(totalPrincipal).toBeCloseTo(12000, 0);
+    });
+
+    it('treats a lump sum as 100% principal and does not double-count it in the regular row', () => {
+      const cf = makeCarFund({ lump_sum_payments: [{ id: 'ls1', date: '2026-02-01', amount: 500 }] });
+      const rows = generateCarLoanTransactions([cf]);
+      const lump = rows.find(r => r.id.startsWith('carloanlump:'))!;
+      expect(lump.principalPortion).toBeCloseTo(500, 2);
+
+      // The regular row that month must report only its OWN principal. row.principal from the
+      // amortization schedule includes the lump sum, so failing to subtract it would report more
+      // principal than cash actually left.
+      const regularFeb = rows.find(r => r.id.startsWith('carloan:') && r.date.substring(0, 7) === '2026-02')!;
+      expect(regularFeb.principalPortion!).toBeLessThan(regularFeb.amount);
+      // Against the no-lump month: February's own principal moves only by the small interest
+      // saving from January's paydown, nowhere near the $500 the lump row already claims.
+      const regularJan = rows.find(r => r.id.startsWith('carloan:') && r.date.substring(0, 7) === '2026-01')!;
+      expect(regularFeb.principalPortion!).toBeCloseTo(regularJan.principalPortion!, -1);
+      expect(regularFeb.principalPortion!).toBeLessThan(regularJan.principalPortion! + 50);
+    });
+
+    it('never reports negative principal on a negative-amortization month', () => {
+      // A payment far below the interest accrual makes row.principal negative. A display sub-line
+      // must clamp rather than subtract from the debt-service total.
+      const cf = makeCarFund({ expected_apr: 99, actual_monthly_payment: 5, loan_term_months: 360 });
+      const rows = generateCarLoanTransactions([cf]);
+      const carRows = rows.filter(r => r.id.startsWith('carloan:'));
+      expect(carRows.length).toBeGreaterThan(0);
+      for (const r of carRows) expect(r.principalPortion!).toBeGreaterThanOrEqual(0);
+    });
+
+    it('does not put a principal portion on insurance rows — insurance is not debt service', () => {
+      const rows = generateCarLoanTransactions([makeCarFund({ monthly_insurance: 150 })]);
+      const insurance = rows.filter(r => r.id.startsWith('carloanins:'));
+      expect(insurance.length).toBeGreaterThan(0);
+      for (const r of insurance) expect(r.principalPortion).toBeUndefined();
+    });
+  });
 });

@@ -807,11 +807,11 @@ export default function BudgetControl() {
 
   const openMonthlySpendCalc = () => {
     setCalcDrawer({
-      title: 'Monthly Spend Breakdown',
+      title: 'Monthly Spend Breakdown (planned)',
       lines: [
         { label: 'Fixed Expenses', value: formatCurrency(totalFixedExpenses, false) },
         { label: 'Variable Expenses', value: formatCurrency(totalVariableExpenses, false), op: '+' },
-        { label: 'Total Monthly Spend', value: formatCurrency(totalCharges, false), op: '=' },
+        { label: 'Total planned monthly spend', value: formatCurrency(totalCharges, false), op: '=' },
       ],
     });
   };
@@ -1328,7 +1328,10 @@ export default function BudgetControl() {
       {/* Monthly & Annual Spend Totals */}
       <div className="grid grid-cols-2 gap-3">
         <div className="cursor-pointer" onClick={openMonthlySpendCalc}>
-          <MetricCard label="Monthly Spend" value={formatCurrency(totalCharges, false)} accent="crimson" icon={TrendingDown} clickHint />
+          {/* "planned" is load-bearing (§2.4 step 10): totalCharges is the sum of the budget RULES,
+              not of anything that happened. Unlabelled it reads as an actual and gets compared to
+              the Dashboard's MONTHLY EXPENSES, which is a different question entirely. */}
+          <MetricCard label="Monthly Spend" sub="planned (from rules)" value={formatCurrency(totalCharges, false)} accent="crimson" icon={TrendingDown} clickHint />
         </div>
         <div className="cursor-pointer" onClick={openAnnualSpendCalc}>
           <MetricCard label="Annual Spend" value={formatCurrency(totalCharges * 12, false)} accent="crimson" icon={TrendingDown} clickHint />
