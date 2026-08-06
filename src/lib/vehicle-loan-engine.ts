@@ -195,6 +195,20 @@ export function getCarFundEarmark(carFunds: CarFund[], fundingAccountId: string 
   }, 0);
 }
 
+/**
+ * The car fund a "Car Goal" surface should render, or null if there is none.
+ *
+ * A down-payment goal only exists while the buyer is still saving. Once the fund activates into a
+ * loan the car has been bought, so a saving progress bar is describing something that already
+ * happened — the vehicle is represented by its payment rows and the Vehicles page instead. Callers
+ * previously took `carFunds[0]`, which kept the goal on screen after activation and picked an
+ * arbitrary fund when a user had several. Same phase gate as getCarFundEarmark, for the same
+ * reason: activation releases the saving construct on its own, with no separate teardown step.
+ */
+export function getSavingPhaseCarFund(carFunds: CarFund[] | null | undefined): CarFund | null {
+  return carFunds?.find(cf => cf.phase === 'saving') ?? null;
+}
+
 export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarLoanPaymentInfo[] {
   const today = asOf ?? new Date();
   const results: CarLoanPaymentInfo[] = [];

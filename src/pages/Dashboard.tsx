@@ -46,7 +46,7 @@ import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/l
 import { buildMonthlyExpenseModel } from '@/lib/monthly-expense-model';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
-import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund } from '@/lib/vehicle-loan-engine';
 import { buildNetWorthBreakdown, totalsFromBreakdown } from '@/lib/net-worth';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
@@ -513,11 +513,12 @@ export default function Dashboard() {
 
     const cashFlow = income - expenses - debtService;
     const savingsRate = income > 0 ? (cashFlow / income) * 100 : 0;
-    const carSaved = carFunds[0] ? Number(carFunds[0].current_saved || 0) : 0;
-    const carGoal = carFunds[0] ? Number(carFunds[0].down_payment_goal || 1) : 1;
 
-    return { income, expenses, debtService, cashFlow, totalDebt, totalSaved, savingsRate, carSaved, carGoal };
-  }, [currentMonthTransactions, expenseModel, totalDebtPayments, debts, goals, carFunds, accountMap]);
+    // carSaved/carGoal used to be derived here from carFunds[0]. Nothing ever read them — the car
+    // tile renders from carGoalData — and they carried the same unfiltered-carFunds[0] defect it
+    // did, so they were a live trap for whoever wired them up next. Removed rather than fixed.
+    return { income, expenses, debtService, cashFlow, totalDebt, totalSaved, savingsRate };
+  }, [currentMonthTransactions, expenseModel, totalDebtPayments, debts, goals, accountMap]);
 
   const creditCardIds = useMemo(
     () => new Set(accounts.filter(a => a.active && a.account_type === 'credit_card').map(a => a.id)),
@@ -720,9 +721,17 @@ export default function Dashboard() {
       .slice(0, 6);
   }, [allMonthTransactions]);
 
+  // Only a car still being SAVED for has a down-payment goal to show. This used to read
+  // carFunds[0] unconditionally, which meant the tile kept showing "Car Goal" — with a saving
+  // progress bar — after the loan was active and the car already bought, and picked an arbitrary
+  // fund when there was more than one. Phase-gating matches getCarFundEarmark
+  // (vehicle-loan-engine.ts): activating a loan makes the saving construct disappear on its own,
+  // with no separate release step. A loan-phase vehicle is represented by its payment rows and
+  // the Vehicles page, not by a goal.
   const carGoalData = useMemo(() => {
-    if (carFunds && carFunds.length > 0) {
-      const c = carFunds[0];
+    const savingFund = getSavingPhaseCarFund(carFunds);
+    if (savingFund) {
+      const c = savingFund;
       const linkedAcctBal = c.linked_account && accountMap[c.linked_account]
         ? Number(accountMap[c.linked_account].balance)
         : null;
