@@ -772,9 +772,12 @@ export default function Dashboard() {
     // (`month0.chain`); the old transaction-merge chain is printed only in the null-projection
     // fallback, where the tile itself falls back to it too.
     const m0 = cardProjection?.month0 ?? null;
-    const money = (v: number) => formatCurrency(v, false);
+    // Two decimals throughout (Tre, 2026-08-06). `month0.chain` now carries exact cents, so the
+    // chain below balances to the cent — printing it rounded would show a column that does not add
+    // up to its own total, which is the defect this drawer exists to prevent.
+    const money = (v: number) => formatCurrency(v, true);
     const t = (label: string, value: number, op: string) =>
-      Math.round(value) !== 0 ? [{ label, value: money(Math.abs(value)), op: value < 0 ? (op === '−' ? '+' : '−') : op }] : [];
+      Math.abs(value) >= 0.005 ? [{ label, value: money(Math.abs(value)), op: value < 0 ? (op === '−' ? '+' : '−') : op }] : [];
 
     const chainLines = m0
       ? [
@@ -806,13 +809,13 @@ export default function Dashboard() {
     const lines: { label: string; value: string; op?: string }[] = [
       ...chainLines,
       { label: '', value: '' },
-      { label: 'Minimum Payments Due (this month)', value: formatCurrency(engineMinimums, false) },
-      ...(engineExtra > 0 ? [{ label: 'Extra Debt Payoff (above minimums)', value: formatCurrency(engineExtra, false), op: '+' }] : []),
-      { label: 'Total Recommended Debt Payment', value: formatCurrency(engineTotal, false), op: '=' },
+      { label: 'Minimum Payments Due (this month)', value: formatCurrency(engineMinimums, true) },
+      ...(engineExtra > 0 ? [{ label: 'Extra Debt Payoff (above minimums)', value: formatCurrency(engineExtra, true), op: '+' }] : []),
+      { label: 'Total Recommended Debt Payment', value: formatCurrency(engineTotal, true), op: '=' },
       { label: '', value: '' },
-      { label: 'Your Cash Floor Setting', value: formatCurrency(cashFloor, false) },
-      { label: `Pre-paycheck bills (${prePaycheckBills.items.length} items)`, value: formatCurrency(prePaycheckBills.total, false) },
-      { label: 'Effective Cash Floor (used in debt payoff)', value: formatCurrency(forecastFloor0.monthMinSafe, false), op: '≥' },
+      { label: 'Your Cash Floor Setting', value: formatCurrency(cashFloor, true) },
+      { label: `Pre-paycheck bills (${prePaycheckBills.items.length} items)`, value: formatCurrency(prePaycheckBills.total, true) },
+      { label: 'Effective Cash Floor (used in debt payoff)', value: formatCurrency(forecastFloor0.monthMinSafe, true), op: '≥' },
       { label: '', value: '' },
       {
         // Compared PRE-debt-payment when the engine is driving: the engine caps `safeToPayTotal`

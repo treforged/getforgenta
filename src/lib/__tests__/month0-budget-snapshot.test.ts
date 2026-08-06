@@ -22,7 +22,8 @@ const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
   };
   return {
     ...base,
-    // Mirrors the engine: cashPreDebt is the sum of the rounded terms.
+    // Mirrors the engine: every term is exact cents and cashPreDebt is their exact sum
+    // (Tre, 2026-08-06 — the terms used to be rounded individually and summed rounded).
     cashPreDebt: base.fundingBalance + base.income - base.expenses - base.planExpenses - base.goalContributions
       - base.carReserve - base.carLoanPayment - base.vehicleInsurance - base.mortgagePayment
       - base.transfers + base.oneTimeNet,
@@ -53,9 +54,10 @@ const expectRowsToBalance = (m0: Month0Result) => {
   const snap = buildMonth0Snapshot(m0);
   const { checkpoints } = foldSnapshotRows(snap.rows);
   expect(checkpoints.length).toBe(2);
-  for (const cp of checkpoints) expect(cp.actual).toBe(cp.expected);
+  // Cents, not dollars: the rows carry exact values, so the fold must balance to the cent.
+  for (const cp of checkpoints) expect(cp.actual).toBeCloseTo(cp.expected, 2);
   // And the final checkpoint is the engine's canonical number, unmodified.
-  expect(checkpoints[1].expected).toBe(Math.round(m0.safeToPayTotal));
+  expect(checkpoints[1].expected).toBeCloseTo(m0.safeToPayTotal, 2);
   return snap;
 };
 
@@ -139,7 +141,7 @@ describe('buildMonth0Snapshot', () => {
     expect(row?.sign).toBe('−');
     expect(snap.projectedRemaining).toBe(6525 - 150);
     // And the donut counts it too, so the chart cannot disagree with the rows.
-    expect(snap.pie.locked + snap.pie.deployable).toBe(snap.projectedRemaining);
+    expect(snap.pie.locked + snap.pie.deployable).toBeCloseTo(snap.projectedRemaining, 2);
   });
 
   it('renders a negative Projected remaining as a signed checkpoint, not an absolute value', () => {
@@ -150,6 +152,29 @@ describe('buildMonth0Snapshot', () => {
     }));
     expect(snap.projectedRemaining).toBe(-600);
     expect(snap.rows.find(r => r.key === 'projectedRemaining')?.value).toBe(-600);
+  });
+
+  it('carries cents through the equation instead of rounding each term — 2026-08-06', () => {
+    // THE POINT: with per-term rounding, these terms summed to a `cashPreDebt` up to a dollar off
+    // the engine's own figure, which is why Dashboard MONTH-END CASH and Forecast END CASH could
+    // print $1 apart. Exact cents in, exact cents out, and the column still folds to its total.
+    const snap = expectRowsToBalance(month0({
+      chain: chain({ fundingBalance: 2800.37, income: 5850.49, expenses: 1975.66, goalContributions: 150.25 }),
+      safeToPayTotal: 1000.5,
+      m0SafeFloor: 2402.75,
+    }));
+    expect(snap.projectedRemaining).toBeCloseTo(2800.37 + 5850.49 - 1975.66 - 150.25, 2);
+    expect(snap.rows.find(r => r.key === 'expenses')?.value).toBeCloseTo(1975.66, 2);
+    expect(snap.availableToDeploy).toBe(1000.5);
+  });
+
+  it('keeps a sub-dollar term as a row — it is renderable at two decimals', () => {
+    // Under the old integer rows anything rounding to $0 vanished from the equation, silently
+    // shifting cents into the residual. Only a term below half a cent is unrenderable.
+    const shown = buildMonth0Snapshot(month0({ chain: chain({ transfers: 0.4 }) }));
+    expect(shown.rows.find(r => r.key === 'transfers')?.value).toBeCloseTo(0.4, 2);
+    const hidden = buildMonth0Snapshot(month0({ chain: chain({ transfers: 0.001 }) }));
+    expect(hidden.rows.find(r => r.key === 'transfers')).toBeUndefined();
   });
 
   it('omits zero terms so the chain stays readable', () => {
@@ -171,7 +196,7 @@ describe('buildMonth0Snapshot', () => {
       holdbackEvent: { eventName: 'Car Down Payment', monthLabel: 'Dec 2026' },
     }), 1500);
     // locked + deployable is exactly what is left after bills and reserves.
-    expect(snap.pie.locked + snap.pie.deployable).toBe(snap.projectedRemaining);
+    expect(snap.pie.locked + snap.pie.deployable).toBeCloseTo(snap.projectedRemaining, 2);
     expect(snap.pie.shortfall).toBe(0);
   });
 });

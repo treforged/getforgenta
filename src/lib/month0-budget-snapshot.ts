@@ -12,6 +12,12 @@
 // fudged, never absorbed into another line, and never closed by hand-patching a missing item
 // (which is what `Dashboard.tsx`'s one-off "Vehicle Insurance (est.)" row used to do).
 //
+// Tre's decision (2026-08-06): every value here is EXACT CENTS, and the renderer prints two
+// decimals. The chain it reads used to be rounded per-term so this column added up in integer
+// arithmetic; that cost up to $1 against the engine's own cash figure and made MONTH-END CASH
+// disagree with Forecast END CASH. Cents keep both properties — the column adds up AND it equals
+// what the engine computed. Do not reintroduce rounding below; round in the renderer if ever.
+//
 // The invariant — rows fold to their own subtotals — is asserted in
 // `__tests__/month0-budget-snapshot.test.ts`. That test is what stops this drifting back.
 
@@ -65,13 +71,16 @@ export function foldSnapshotRows(rows: readonly SnapshotRow[]): { running: numbe
   return { running, checkpoints };
 }
 
+/** Below half a cent a term cannot be rendered at all, so it is not a row. */
+const CENT = 0.005;
+
 function term(
   key: string, label: string, value: number, sign: '+' | '−', tone: SnapshotRowTone, note?: string,
 ): SnapshotRow | null {
-  if (Math.round(value) === 0) return null;
+  if (Math.abs(value) < CENT) return null;
   // A negative term flips direction rather than printing a negative number behind a '−'.
   const flipped: '+' | '−' = value < 0 ? (sign === '−' ? '+' : '−') : sign;
-  return { key, label, value: Math.abs(Math.round(value)), sign: flipped, tone, ...(note ? { note } : {}) };
+  return { key, label, value: Math.abs(value), sign: flipped, tone, ...(note ? { note } : {}) };
 }
 
 /**
@@ -83,15 +92,19 @@ function term(
  */
 export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month0Snapshot {
   const c = month0.chain;
-  const cashFloor = Math.round(month0.m0SafeFloor);
-  const availableToDeploy = Math.round(month0.safeToPayTotal);
+  // Every value below is EXACT CENTS. The chain carries cents (Tre, 2026-08-06) and the renderer
+  // prints two decimals, so nothing is rounded here — rounding a row would put the equation back
+  // in the position of not adding up to its own total. `m0SafeFloor` / `safeToPayTotal` arrive
+  // already whole from the engine; they are passed through, not re-rounded.
+  const cashFloor = month0.m0SafeFloor;
+  const availableToDeploy = month0.safeToPayTotal;
   const projectedRemaining = c.cashPreDebt;
   const residual = projectedRemaining - cashFloor - availableToDeploy;
 
   // Split the residual by what the engine actually held back. `holdback` is the save-up reserve;
   // anything past it is cash no revolving balance can absorb. Both parts are derived from the
   // residual itself, so their sum is exact no matter how the engine arrived at either number.
-  const heldForEvent = residual > 0 ? Math.min(residual, Math.round(month0.holdback)) : 0;
+  const heldForEvent = residual > 0 ? Math.min(residual, month0.holdback) : 0;
   const surplus = residual > 0 ? residual - heldForEvent : 0;
   const belowFloor = residual < 0 ? -residual : 0;
   const event = month0.holdbackEvent;
@@ -133,7 +146,7 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
     residual,
     cashFloor,
     pie: {
-      spentSoFar: Math.max(0, Math.round(spentSoFar)),
+      spentSoFar: Math.max(0, spentSoFar),
       billsAndReserves: Math.max(0, c.expenses + c.planExpenses + c.goalContributions + c.carReserve
         + c.carLoanPayment + c.vehicleInsurance + c.mortgagePayment + c.transfers),
       locked: Math.max(0, cashFloor + heldForEvent + surplus),

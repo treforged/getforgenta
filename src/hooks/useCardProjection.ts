@@ -1694,32 +1694,33 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const cashPreDebt = debtFundingBalance + m0Income - m0Expenses - m0PlanExpenses - monthlySavingsAndCar - m0VehicleInsurance - m0MortgagePayment
         - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet;
 
-      // Findings §2.6/§2.3: the same chain, term by term, as integers — so a UI can render the
-      // engine's own derivation instead of re-deriving it from page-local sums. monthlySavingsAndCar
-      // is split back into its three components (goalContrib + carReserve + carLoanTotal) so each
-      // gets a truthful label. cashPreDebt here is the sum of the ROUNDED terms, not a rounding of
-      // the raw cashPreDebt above: that keeps the displayed equation exact in integer arithmetic,
-      // at the cost of at most a dollar against the raw value used for the cap. See Month0CashChain.
-      const m0Chain = ((): Month0CashChain => {
-        const fundingBalance = Math.round(debtFundingBalance);
-        const income = Math.round(m0Income);
-        const expenses = Math.round(m0Expenses);
-        const planExpenses = Math.round(m0PlanExpenses);
-        const goalContributions = Math.round(goalContrib);
-        const carReserveRounded = Math.round(carReserve);
-        const carLoanPayment = Math.round(carLoanTotal);
-        const vehicleInsurance = Math.round(m0VehicleInsurance);
-        const mortgagePayment = Math.round(m0MortgagePayment);
-        const transfers = Math.round(m0Transfers + lumpTransferByMonth[0]);
-        const oneTimeNet = Math.round(m0OneTimeNet);
-        return {
-          fundingBalance, income, expenses, planExpenses, goalContributions,
-          carReserve: carReserveRounded, carLoanPayment, vehicleInsurance, mortgagePayment,
-          transfers, oneTimeNet,
-          cashPreDebt: fundingBalance + income - expenses - planExpenses - goalContributions - carReserveRounded
-            - carLoanPayment - vehicleInsurance - mortgagePayment - transfers + oneTimeNet,
-        };
-      })();
+      // Findings §2.6/§2.3: the same chain, term by term — so a UI can render the engine's own
+      // derivation instead of re-deriving it from page-local sums. monthlySavingsAndCar is split
+      // back into its three components (goalContrib + carReserve + carLoanTotal) so each gets a
+      // truthful label.
+      //
+      // Tre's decision (2026-08-06): EXACT CENTS. Every term is the unrounded value the engine
+      // consumed, and `cashPreDebt` is literally the `cashPreDebt` variable above — ONE definition,
+      // not a second expression that can drift from it. The chain used to round each term and sum
+      // the rounded terms, which kept the drawer's on-screen equation exact in integer arithmetic
+      // but left the total up to a dollar off the raw value driving the cap: that is precisely why
+      // Dashboard MONTH-END CASH and Forecast END CASH could print $1 apart. Rounding now happens
+      // ONLY at render, and the drawers render two decimals so the equation still visibly adds up.
+      // See Month0CashChain, and `monthEndCash.invariant.test.ts` which pins the gap at cents.
+      const m0Chain: Month0CashChain = {
+        fundingBalance: debtFundingBalance,
+        income: m0Income,
+        expenses: m0Expenses,
+        planExpenses: m0PlanExpenses,
+        goalContributions: goalContrib,
+        carReserve,
+        carLoanPayment: carLoanTotal,
+        vehicleInsurance: m0VehicleInsurance,
+        mortgagePayment: m0MortgagePayment,
+        transfers: m0Transfers + lumpTransferByMonth[0],
+        oneTimeNet: m0OneTimeNet,
+        cashPreDebt,
+      };
       const availableForRevolving = liveRevolvingBal > 0
         ? Math.max(ccMinForMonth, Math.max(0, cashPreDebt - m0FloorAugmented - cyclingPayment))
         : 0;

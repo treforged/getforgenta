@@ -17,20 +17,18 @@
 // convergence run is what makes them agree; a future change that re-derives either side, or that
 // publishes an unconverged projection next to a converged sim, breaks this test.
 //
-// WHY A DOLLAR OF TOLERANCE — measured, not assumed. On the golden fixture the two surfaces land
-// on $3,146 and $3,145: one dollar apart, both whole, so this is not a cents artifact. It traces
-// to a deliberate decision documented at `useCardProjection.ts:1700-1702` — the sim's
-// `m0Chain.cashPreDebt` is the sum of the ROUNDED terms (so the drawer's on-screen equation adds
-// up exactly in integer arithmetic) while the engine carries cents and rounds once at the end
-// (`endingCash = Math.round(finalLiquid + cumulativeCarReserveHeld)`). Here: chain $4,600 vs raw
-// $4,599.20. That comment already priced the cost as "at most a dollar against the raw value";
-// this test is where that price becomes visible and bounded.
+// WHY CENTS OF TOLERANCE — this test's tolerance is the fix. It used to allow $1, because the
+// sim's `m0Chain.cashPreDebt` was the sum of the ROUNDED terms (so the drawer's on-screen equation
+// added up in integer arithmetic) while the engine carried cents and rounded once at the end
+// (`endingCash = Math.round(finalLiquid + cumulativeCarReserveHeld)`). On the golden fixture that
+// printed $3,146 on the Dashboard next to $3,145 on Forecast: two surfaces, one fact, one dollar
+// apart on a user's real screen.
 //
-// ⚠️ So the two tiles CAN print $1 apart on real data, by design. That is a real (if small)
-// user-visible disagreement and it is Tre's call whether to spend the drawer's exact-integer
-// property to close it — NOT something to change silently under a test. Flagged in handoff.md.
-// What the test guarantees is that the gap stays a rounding artifact: ≤ $1 is the known cost,
-// anything more is a genuine divergence in the cash chain, which is the §1.1 failure mode.
+// Tre chose ENGINE PRECISION (2026-08-06): "calculations should use the full exact values with the
+// decimals", and the drawers now render two decimals so they still visibly balance. So the chain
+// carries exact cents and the two surfaces must agree to the CENT against the engine's own
+// unrounded figure. DO NOT LOOSEN THIS BACK. If it fails, the gap was never only rounding — a cash
+// chain has genuinely diverged, which is the §1.1 failure mode.
 //
 // Self-skips when the gitignored real fixture is absent (same pattern as
 // forecast-engine.goldenTierA.test.ts and forecast-engine.simAgreement.test.ts).
@@ -69,19 +67,23 @@ describe('month-end cash — Dashboard tile == Forecast month-0 row', () => {
     const dashboard = month0!.endCash;
     const forecast = forecastRow.endingCash;
 
+    // `forecast` is the engine's DISPLAY field (rounded to whole dollars), so the user-visible
+    // equality is that the Dashboard figure rounds to the same dollar. Sub-dollar agreement is
+    // asserted against `rawEndingCash` below.
     expect(
-      Math.abs(dashboard - forecast),
+      Math.round(dashboard),
       `Dashboard Month-End Cash $${dashboard.toFixed(2)} vs Forecast End Cash $${forecast.toFixed(2)} — `
-      + 'more than the integer-chain rounding can account for, so the two cash chains have genuinely diverged',
-    ).toBeLessThanOrEqual(1);
+      + 'the two tiles print different dollars for the same fact, so the cash chains have diverged',
+    ).toBe(forecast);
 
     // The engine's own unrounded figure is the tiebreak: whatever the display rounding does, the
     // sim must be modelling the same underlying cash. `rawEndingCash` exists precisely because the
     // rounded field hides sub-dollar misses (forecast-engine.ts:78-82).
     expect(
       Math.abs(dashboard - forecastRow.rawEndingCash),
-      `sim endCash $${dashboard.toFixed(2)} vs engine rawEndingCash $${forecastRow.rawEndingCash.toFixed(2)}`,
-    ).toBeLessThanOrEqual(1);
+      `sim endCash $${dashboard.toFixed(2)} vs engine rawEndingCash $${forecastRow.rawEndingCash.toFixed(2)} — `
+      + 'the chain carries exact cents now, so anything above a cent is a real divergence',
+    ).toBeLessThanOrEqual(0.01);
   });
 
   maybeIt('keeps the sim-side definition intact: endCash = cashPreDebt − safeToPay + carReserveHeld', () => {

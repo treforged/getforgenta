@@ -52,12 +52,22 @@ export interface Month0Result {
    * floor the engine actually applied. Every term below is the value the engine consumed, so a
    * UI sourcing all of them shows one derivation instead of two.
    *
-   * Each field is rounded individually and `cashPreDebt` is the SUM OF THE ROUNDED TERMS (not a
-   * rounding of the raw sum), so the identity holds exactly in integer arithmetic:
+   * Every field carries EXACT CENTS — the unrounded value the engine consumed — and `cashPreDebt`
+   * is the very variable the cap was computed from, not a re-derivation of it. Rounding happens
+   * ONLY at render (Tre's decision, 2026-08-06: "calculations should use the full exact values
+   * with the decimals"). The identity holds in exact arithmetic:
    *
    *   cashPreDebt = fundingBalance + income − expenses − planExpenses − goalContributions
    *                 − carReserve − carLoanPayment − vehicleInsurance − mortgagePayment
    *                 − transfers + oneTimeNet
+   *
+   * ⚠️ Do NOT go back to rounding the terms here. These fields used to be integers with
+   * `cashPreDebt` defined as the SUM OF THE ROUNDED TERMS, which made the drawer's on-screen
+   * column add up exactly in integer arithmetic but left the total up to a dollar away from the
+   * raw value driving the cap — the cause of Dashboard MONTH-END CASH and Forecast END CASH
+   * printing $1 apart. Consumers that render this chain (`month0-budget-snapshot.ts`,
+   * `Dashboard.tsx`'s month-end calc drawer) print two decimals so the equation still visibly
+   * balances. `monthEndCash.invariant.test.ts` pins the cross-surface gap at cents.
    *
    * What remains — `cashPreDebt − m0SafeFloor − safeToPayTotal` — is a real residual (save-up
    * holdback, or cash beyond what any revolving balance can absorb, or a negative when card

@@ -104,7 +104,7 @@ export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props)
                   {activeSlice.name}
                 </span>
                 <span className="text-xl font-display font-bold leading-tight" style={{ color: activeSlice.color }}>
-                  {formatCurrency(activeSlice.value, false)}
+                  {formatCurrency(activeSlice.value, true)}
                 </span>
               </>
             ) : availableToDeploy > 0 ? (
@@ -113,7 +113,7 @@ export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props)
                   Available
                 </span>
                 <span className="text-2xl font-display font-bold leading-tight text-success">
-                  {formatCurrency(availableToDeploy, false)}
+                  {formatCurrency(availableToDeploy, true)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">to deploy</span>
               </>
@@ -123,7 +123,7 @@ export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props)
                   At Floor
                 </span>
                 <span className="text-2xl font-display font-bold leading-tight text-muted-foreground">
-                  {formatCurrency(projectedRemaining, false)}
+                  {formatCurrency(projectedRemaining, true)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">reserved</span>
               </>
@@ -133,7 +133,7 @@ export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props)
                   Shortfall
                 </span>
                 <span className="text-2xl font-display font-bold leading-tight text-destructive">
-                  {formatCurrency(Math.abs(projectedRemaining), false)}
+                  {formatCurrency(Math.abs(projectedRemaining), true)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">projected</span>
               </>
@@ -176,7 +176,7 @@ export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props)
                     )}
                   </div>
                   <span className={cn('font-display font-bold shrink-0 ml-3', rowValueClass(row))}>
-                    {formatCurrency(Math.abs(row.value), false)}
+                    {formatCurrency(Math.abs(row.value), true)}
                   </span>
                 </div>
                 {row.note && (
