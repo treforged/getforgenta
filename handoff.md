@@ -7,7 +7,8 @@ is the plan. Plan step 5 is now DONE. Steps 8 is done, **9–11 are not**.
 
 Resume-from-handoff session. Did plan step 5 (the never-written invariant test), then plan step 8
 (Option B on the Dashboard). Stopped at the 150k CONTEXT GATE mid-Phase-2, having finished the
-atomic action in flight and committed it. **Nothing pushed — 42 local commits ahead** (measured).
+atomic action in flight and committed it. **Nothing pushed — 45 local commits ahead**
+(`git rev-list --count origin/main..main`, measured after the handoff commit).
 
 **Next agent: LIVE-VERIFY Phase 2 in the browser FIRST (see §4.1), then plan steps 9–10.**
 
