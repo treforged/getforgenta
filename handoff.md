@@ -7,8 +7,8 @@ deferred card-interest work (§3 below).
 ## 0. GOAL
 
 **Session 89 (this one):** closed the $1 Dashboard/Forecast gap with engine precision (§5,
-`d1f0c16c`), live-verified it — and in verifying it found a **$173** gap between the same two
-surfaces that pre-dates the change and is unfixed (§5b, now the top next step).
+`d1f0c16c`), live-verified it — and in verifying it found and root-caused a **$172.50** gap between the
+same two surfaces that pre-dates the change and is unfixed (§5b, now the top next step).
 
 **Session 88 (below):** live-verified Phase 2 (step 8), plan steps 9–10, Tre's item 5a.
 
@@ -104,9 +104,10 @@ Otherwise cash flow double-counts and Annual Savings moves for a fake reason. Ha
 
 ## 4. NEXT STEPS (in order)
 
-1. **⭐ START HERE — the $173 Dashboard/Forecast divergence found 2026-08-06 (session 89). See §5b.**
-   Not root-caused past the structural cause; needs a decision from Tre about which side is right.
-   It is the same §1.1 failure mode, an order of magnitude bigger than the $1 gap just closed.
+1. **⭐ START HERE — implement the §5b fix: the sim drops month-0 one-time transactions dated after
+   the sync cutoff, so Dashboard reads $172.50 below Forecast.** Fully root-caused this session,
+   fix shape decided, nothing written. It moves the debt cap, so pair it with a live read of
+   MONTH-END CASH + SAFE TO PAY + Forecast END CASH together.
 2. **Tre's remaining two items from session 86.** Neither is root-caused; **grep before trusting
    any line number.**
 
@@ -163,40 +164,68 @@ the cent, and $1,820.00 is SAFE TO PAY. MONTH-END CASH moved **$2,701 → $2,700
 read a dollar high, exactly as diagnosed). MONTHLY EXPENSES $3,630 / DEBT SERVICE $2,103 unchanged.
 396/396 tests, `tsc` clean, `eslint` clean, graphify updated (15,763 nodes).
 
-## 5b. ⭐ NEW — DASHBOARD vs FORECAST ARE **$173** APART. FOUND, NOT FIXED. NEEDS TRE.
+## 5b. ⭐ NEW — DASHBOARD vs FORECAST **$172.50** APART. **ROOT-CAUSED. FIX NOT WRITTEN.**
 
-Verifying the above turned up a **much larger** cross-surface gap that the $1 work had been masking
-in the record: nobody had re-read Forecast since session 87.
+Verifying the $1 fix turned up a much larger gap that nobody had seen because Forecast had not been
+re-read since session 87.
 
 | Surface | Aug 2026 month-end cash |
 |---|---|
-| Dashboard MONTH-END CASH | **$2,700** |
-| Forecast Aug 2026 END CASH | **$2,873** |
+| Dashboard MONTH-END CASH | **$2,700** (exact $2,700.24) |
+| Forecast Aug 2026 END CASH | **$2,873** (= 2,700.24 + 172.50 = 2,872.74) |
 
-**$173 apart**, and the Forecast Aug row carries a badge reading **`1× +$173`**.
+**Measured: this PRE-DATES the precision change.** I stashed `d1f0c16c` and re-read — baseline was
+$2,701 vs $2,873. The precision fix moves $1; it did not cause this.
 
-**Measured, not assumed: this PRE-DATES the precision change.** I stashed the commit and re-read:
-baseline Dashboard $2,701 vs Forecast $2,873. The precision fix moved $1; it did not cause this.
+### Root cause (confirmed against Supabase + both code paths)
 
-**Structural cause (high confidence, not yet proven end-to-end).** The two surfaces disagree about
-whether a **month-0 one-time transaction is already inside the live balance**:
-- The hook **zeroes** month 0: `useCardProjection.ts:271` seeds `oneTimeArr[0] = {income:0,
-  expenses:0}`, so `m0OneTimeNet` (line ~1687) is **0**. The comment at ~1685 states the reasoning:
-  *month-0 one-times are already in the live balance.* The term is kept only for parity.
-- The engine **adds** it for every month including i=0: `forecast-engine.ts:863` computes
-  `oneTimeNet` and `:1158` folds `+ b.oneTimeNet` into `cashPreDebt`.
+**The sim zeroes ALL of month 0's one-time transactions. The engine correctly counts the ones dated
+after the sync cutoff. The engine is RIGHT and the sim is WRONG.**
 
-So the engine's month-0 cash sits ~$173 above the sim's. ⚠️ **Do not just make one match the other.**
-Which side is right is a DATA question — is that $173 one-time already reflected in the funding
-account balance or not? Note $173.23 is also exactly the vehicle-insurance amount, so **check
-whether the one-time and the insurance line are the same real-world event double-represented**
-(compare with §2.7's RAV4 double-representation, same smell). Answer that from Supabase before
-touching either file, and pair the fix with a live before/after read of both pages.
+- `useCardProjection.ts:271` seeds `oneTimeArr[0] = {income:0, expenses:0}` and the fill loop
+  **starts at `oi = 1`**, so month 0 is never populated. `m0OneTimeNet` (line ~1687) is therefore
+  always 0. The comment at ~1685 justifies it: *"month-0 one-times are already in the live
+  balance."*
+- That justification is **only true up to the sync cutoff.** The engine's builder,
+  `useForecastEngineInputs.ts:254-273` (`oneTimeByMonth`), encodes exactly that:
+  `if (monthKey === currentMonthKey && t.date <= syncCutoffDate) continue;` — it skips only the
+  ones already reflected in the balance, and keeps the future-dated ones.
 
-**Why the test suite did not catch it:** the golden fixture (recaptured 07-20) has no month-0
-one-time, so `monthEndCash.invariant.test.ts` never exercises this path — it passes at **cents**
-while the live app is **$173** apart. Whatever the fix, add a fixture or a synthetic case with a
-non-zero month-0 one-time, or the guard stays blind to its own failure mode.
+**The actual $172.50** (`transactions`, Tre, Aug 2026 — two rows, both cruise-related):
+
+| date | type | note | amount | payment_source |
+|---|---|---|---|---|
+| 2026-08-23 | income | GF half of cruise excursions | **172.50** | `account:933cbc10…` = **TOTAL CHECKING** |
+| 2026-08-18 | expense | Cruise Exursions | 145.00 | `account:34c9574b…` = a **CREDIT CARD** |
+
+Only the income moves the gap: the $145 is CC-sourced, so the engine's builder routes it to
+`ccOneTimeByMonth` and its `oneTime.expense` for August is 0. Engine month-0 `oneTimeNet` =
+**+172.50**, sim's = 0. That is the entire discrepancy, to the cent.
+
+Dated **Aug 23 — in the future**, so it is NOT in the $763.80 TOTAL CHECKING balance the sim starts
+from. It is real money arriving this month, and the Dashboard is not counting it.
+
+**Cross-check that pins it:** Forecast `−OUT $2,611` = the sim's own outflows
+(120 + 422.89 + 173.23 + 75 = 791.12) + SAFE TO PAY 1,820 = 2,611.12. Every other term already
+agrees; the one-time is the only difference.
+
+### The fix (shape decided, NOT implemented)
+
+Populate `oneTimeArr[0]` in `useCardProjection.ts` from month-0 transactions dated **after
+`syncCutoffDate`**, mirroring `useForecastEngineInputs.ts:268` exactly — same CC-source exclusion,
+same `isGenerated` / `Balance Adjustment` / `Debt Payments` filters the `oi ≥ 1` branch already
+applies. Do NOT hand-patch the Dashboard tile; the sim's month-0 cash is what is wrong.
+
+⚠️ **This is not cosmetic — it moves the debt cap.** `cashPreDebt` rises by $172.50, so
+`availableForRevolving` rises and **SAFE TO PAY may change** ($1,820 today). Expect MONTH-END CASH
+$2,700 → **$2,873** and re-read SAFE TO PAY, the snapshot drawer and Forecast together.
+Lines 1273 and 1430 (`m === 0 ? 0 : …`) zero month 0 in the two sim passes as well — decide
+deliberately whether those are the same bug or a separate deliberate choice **before** changing
+them; they feed convergence, not display.
+
+**Add a test with a non-zero month-0 one-time.** The golden fixture has none, which is why
+`monthEndCash.invariant.test.ts` passes at CENTS while the live app is $172.50 apart. Green is
+currently a statement about the fixture, not about the app.
 
 ## 5c. DECISIONS STILL NEEDED FROM TRE (carried, none answered)
 
@@ -284,7 +313,7 @@ non-zero month-0 one-time, or the guard stays blind to its own failure mode.
 - **This session (b): when a fix touches a value, check whether anything reads it at all.**
   `summary.carSaved`/`carGoal` had the same bug as the visible tile and zero consumers. Deleting
   beat fixing — a "fixed" dead field is just a slower trap.
-- **Session 89: verifying a $1 fix is what exposed a $173 one.** The verify step demanded reading
+- **Session 89: verifying a $1 fix is what exposed a $172.50 one.** The verify step demanded reading
   BOTH surfaces; had I only re-read the one I changed, the tile would have looked right and the
   real divergence would have stayed invisible for another session. Read both sides of an
   agreement, every time — and stash-and-re-read before blaming your own diff.
