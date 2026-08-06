@@ -1,174 +1,181 @@
-# Handoff — 2026-08-06 — session 87 — branch `main` — invariant test WRITTEN, §2.4 Phase 2 half-shipped
+# Handoff — 2026-08-06 — session 88 — branch `main` — §2.4 Phase 2 COMPLETE + live-verified
 
-Continues session 86. `site-walk-findings.md` is still the source list; `.claude/plan/dashboard-expense-truth.md`
-is the plan. Plan step 5 is now DONE. Steps 8 is done, **9–11 are not**.
+Continues session 87. `site-walk-findings.md` is still the source list; `.claude/plan/dashboard-expense-truth.md`
+is the plan. **Plan steps 1–11 are now all DONE.** The §2.4 plan is finished except the deliberately
+deferred card-interest work (§3 below).
 
 ## 0. GOAL
 
-Resume-from-handoff session. Did plan step 5 (the never-written invariant test), then plan step 8
-(Option B on the Dashboard). Stopped at the 150k CONTEXT GATE mid-Phase-2, having finished the
-atomic action in flight and committed it. **Nothing pushed — 45 local commits ahead**
-(`git rev-list --count origin/main..main`, measured after the handoff commit).
-
-**Next agent: LIVE-VERIFY Phase 2 in the browser FIRST (see §4.1), then plan steps 9–10.**
+Resume-from-handoff session. Live-verified Phase 2 (step 8, shipped blind last session), then did
+plan steps 9–10, then Tre's item 5a. **Nothing pushed — 48 local commits ahead.**
 
 ## 1. WHAT SHIPPED
 
-### `d5a649a0` — the month-end cash invariant test (plan step 5)
+### Live verification of `0239c604` (step 8) — PASSED, no action needed
 
-`src/lib/__tests__/monthEndCash.invariant.test.ts`. Runs the exact
-`runDebtCashConvergence` call `CardProjectionContext.tsx:230` makes on the golden fixture, then
-compares `month0.endCash` (Dashboard tile) against `projections.data[0].endingCash` (Forecast row 0).
-Second case pins the sim-side identity `endCash = cashPreDebt − safeToPay + carReserveHeld`.
+Read on Tre's real account. All four checks passed; the relabel did **not** leak into a revaluation.
 
-⚠️ **MEASURED FINDING — the two surfaces are $1 apart on real data, and it is BY DESIGN.**
-$3,146 vs $3,145, both whole dollars, so not a cents artifact. Root cause is the documented
-tradeoff at **`useCardProjection.ts:1700-1702`**: `m0Chain.cashPreDebt` is the sum of the ROUNDED
-terms (so the drawer's on-screen equation is exact in integer arithmetic) while the engine carries
-cents and rounds once — $4,600 vs $4,599.20. That comment already priced this as "at most a dollar";
-the test now bounds it at ≤ $1 and anything above is a genuine cash-chain divergence (the §1.1
-failure mode).
-
-**Decision needed from Tre (do not fix unilaterally):** two tiles can print $1 apart. Closing it
-means spending the drawer's exact-integer property, or rounding the engine to match. I left it and
-documented it rather than silently changing which property wins.
-
-### `0239c604` — Option B on the Dashboard (plan step 8)
-
-`MONTHLY EXPENSES` = `expenseModel.expenses` (living + interest); new **`DEBT SERVICE`** tile =
-`expenseModel.principal + totalDebtPayments`. Grid went `lg:grid-cols-3` → `lg:grid-cols-4`.
-Drawer walks categories → expenses → debt service → total cash out.
-
-**It is a RELABEL, not a revaluation.** `expenses + debtService` is exactly the old
-`expensesAllIn + totalDebtPayments`, so **cashFlow, savingsRate and Annual Savings do not move by a
-cent**. Verified by the internal-consistency test. Expected on real data:
-
-| Surface | Before (Phase 1) | After (Phase 2) |
+| Surface | Predicted | Measured |
 |---|---|---|
-| MONTHLY EXPENSES | $3,912 | **~$3,629** (= 3,912 − 283 auto principal) |
-| DEBT SERVICE | (did not exist) | **~$283 + card payments** |
-| SAVINGS RATE / ANNUAL SAVINGS / cash flow | — | **unchanged, to the cent** |
-| SPENDING BY CATEGORY | `Auto Loan $423` | **`Auto Loan Interest ~$140`** |
+| MONTHLY EXPENSES | ~$3,629 | **$3,630** "spending only" |
+| DEBT SERVICE (new) | ~$283 + card pmts | **$2,103** = 282.66 + 1,820 |
+| SAVINGS RATE / ANNUAL SAVINGS | unchanged | **−21.4% / −$12,146** = 12 × −$1,012 |
+| SPENDING BY CATEGORY | `Auto Loan Interest ~$140` | **`Auto Loan Interest $140`**, total $3,630 |
 
-`monthly-expense-model.ts` gained **`byCategoryAllIn`**. `byCategory` is now the EXPENSE view
-(sums to `expenses`); `byCategoryAllIn` is the CASH view (sums to `expensesAllIn`, adds an
-`Auto Loan Principal` row). Each map backs exactly one headline.
+$1,820 is exactly SAFE TO PAY, which is the cross-check that the debt-service term is the same
+figure the engine recommends.
 
-## 2. THE RULE THAT DROVE EVERY CONSUMER DECISION
+### `1daf2fd6` — Transactions + Budget labels (plan steps 9–10)
+
+**/transactions:** `EXPENSES` → **`TOTAL CASH OUT`**, value unchanged ($6,243), plus an
+`of which $X debt service` sub-line. `NET −$1,523` untouched.
+
+**/budget:** `MONTHLY SPEND` gains sub-label **"planned (from rules)"**; drawer retitled
+"Monthly Spend Breakdown (planned)". No number moves.
+
+⚠️ **The non-obvious part.** For the sub-line to bridge anything it must define debt service
+*exactly* as the Dashboard tile does — card payments in full **plus the PRINCIPAL half only** of a
+car-loan payment. A stream row carries only the combined cash amount, so the split now travels with
+the row: `generateCarLoanTransactions` sets **`principalPortion`** (new optional field on
+`EnrichedTransaction`, `pay-schedule.ts`). Two traps handled:
+- `row.principal` from the amortization schedule **includes the lump sum** (it is `payment −
+  interest`, and `payment` is regular + lumpSum). The regular row must subtract it or it
+  double-counts. A test pins this.
+- Negative amortization makes `row.principal` negative; clamped at 0.
+- A row **without** `principalPortion` contributes **nothing**, not its full amount — under-report
+  a bridge line rather than misstate it.
+
+**Live-verified:** `TOTAL CASH OUT $6,243` / `of which $2,103 debt service` / `NET −$1,523`, and
+$2,103 equals the Dashboard tile **to the dollar**. MONTHLY SPEND $2,976 unchanged.
+
+**The residual $510 between the two pages is CORRECT and expected** — $6,243 − $2,103 = $4,140 vs
+the Dashboard's $3,630. The gap is the two **CC-sourced plan installments** (Car Amazon Starter Pack
+$347 + ExtremeOnlineStore Aero Kit $163 = $510) that the expense model excludes by design, since
+they already sit inside the Prime Visa balance. Do **not** "fix" this.
+
+### `b79708d7` — Car Goal only for a saving-phase fund (Tre's item 5a)
+
+`carGoalData` read `carFunds[0]` with no phase filter. Selection now goes through new
+**`getSavingPhaseCarFund`** (`vehicle-loan-engine.ts`), phase-gated to `'saving'` exactly as
+`getCarFundEarmark` is. Also **deleted `summary.carSaved` / `summary.carGoal`** — nothing read
+them and they carried the identical defect (`carFunds` left that memo's dep array with them).
+
+⚠️ **NOT live-confirmed on Tre's account — this is the one open verification.** His session
+expired mid-session and I did not sign him back in. Derived from Supabase: he has exactly **one**
+car fund, `2004 Chevorlet C5`, `phase: 'loan'`, and **no** `goal_type: 'Car Fund'` savings goal, so
+**the tile should now be absent entirely** on his Dashboard. Confirmed live in **demo** mode
+instead (demo carries both a saving Civic and a loan RAV4): tile reads `CAR GOAL: 2024 HONDA CIVIC`,
+the saving one. **Next agent: confirm the tile is gone once he is signed in again.**
+
+## 2. THE RULE THAT DROVE EVERY CONSUMER DECISION (unchanged, still governs)
 
 **Option B changes only what is LABELLED an expense. Every cash-derived number keeps its cash
-meaning.** Four consumers therefore deliberately still read `expensesAllIn` / `cashOut`, each with
-the reason inline in the code — do not "consistency-fix" them to `expenses`:
+meaning.** Four consumers deliberately still read `expensesAllIn` / `cashOut` — do not
+"consistency-fix" them: `month0Snapshot.spentSoFar` (donut asks what is *gone*), emergency-runway
+burn (principal is still owed when income stops), Cash Flow Overview month 0 (months 1–5 are all-in
+actuals), PDF export (no DEBT SERVICE row, so Option B would silently drop principal).
 
-1. `month0Snapshot` `spentSoFar` — the donut asks what is *gone*, not what was spent.
-2. Emergency runway burn — principal still has to be paid when income stops.
-3. Cash Flow Overview month 0 — months 1–5 are all-in actuals from `categorizeExpenses`, which
-   knows nothing of Option B; an Option B bar would drop for a purely cosmetic reason.
-4. PDF export — it has no DEBT SERVICE row, so Option B there would silently drop the principal.
+/transactions joined that list this session: it means **CASH**, so its headline kept its value.
 
-## 3. ⚠️ CARD INTEREST — READ BEFORE IMPLEMENTING IT
+## 3. ⚠️ CARD INTEREST — STILL DEFERRED, READ BEFORE IMPLEMENTING
 
-Session 86's handoff says card interest "still needs adding to `model.interest`". **It is not a
-simple add, and I deliberately did not do it.** Under Option B a card payment splits into interest
-(expense) + principal (not an expense). So adding card interest to `expenses` **requires netting it
-out of the debt-service side in the same commit**:
+Under Option B a card payment splits into interest (expense) + principal (not an expense). Adding
+card interest to `expenses` **requires netting it out of debt service in the same commit**:
 
 ```
 expenses    = living + autoInterest + cardInterest
 debtService = autoPrincipal + (totalDebtPayments − cardInterest)   // clamp at 0
 ```
 
-Otherwise cash flow double-counts it and Annual Savings moves for a fake reason. Hazards:
+Otherwise cash flow double-counts and Annual Savings moves for a fake reason. Hazards:
 - Source is `cardProjection.monthlyInterest` (`Map<cardId, number[]>`, index 0) **plus**
   `monthlyCyclingInterest` — cycling cards push 0 into `monthlyInterest` and track interest
   separately (`credit-card-engine.ts:1261`). Miss that and cycling cards report no interest.
-- It mixes an **engine-derived** figure into a **stream-derived** one (`totalDebtPayments` comes
-  from `getDebtPaymentsByCard`). Early in a month the stream may hold no card payment at all, so
-  the subtraction can go negative. Clamp, and test that case explicitly.
+- Mixes an **engine-derived** figure into a **stream-derived** one. Early in a month the stream may
+  hold no card payment at all, so the subtraction can go negative. Clamp, and test that case.
+- **New this session:** /transactions' `of which debt service` sub-line reads the same concept from
+  the stream. If card interest becomes an expense, that sub-line must net it out too or the two
+  pages stop agreeing — and their agreeing to the dollar is the only reason the line exists.
 
 ## 4. NEXT STEPS (in order)
 
-1. **LIVE-VERIFY Phase 2 first.** It has NOT been seen in a browser — only tsc/eslint/384 tests.
-   Confirm on Tre's real account: MONTHLY EXPENSES $3,912 → ~$3,629, DEBT SERVICE tile appears,
-   **SAVINGS RATE and ANNUAL SAVINGS unchanged** (that is the real pass/fail — if they moved, the
-   relabel leaked into a revaluation), and SPENDING BY CATEGORY shows `Auto Loan Interest`.
-   Re-derive the expected number before reading the screen (session 86's lesson).
-2. **Plan steps 9–10, still untouched.** §9 Transactions: keep `EXPENSES $6,243` but relabel
-   **`TOTAL CASH OUT`** + an `of which debt service` sub-line; **`NET −$1,523` is correct, do not
-   touch it.** §10 BudgetControl `MONTHLY SPEND` → label "planned (from rules)"; numbers unchanged.
-   Both files are backed up already (`backups/2026-08-06_024005/`).
-3. Card interest — only with §3 above applied.
-4. **§2.9** car-fund earmark (needs Tre).
-5. **Tre's three items from session 86, still unstarted. Do these BEFORE the Plaid work.**
-   Pointers are from reading code; **grep before trusting a line number**; none is root-caused yet.
+1. **Confirm the Car Goal tile is gone** on Tre's real Dashboard once signed in (§1 above). Also
+   worth re-reading MONTHLY EXPENSES / DEBT SERVICE at the same time — costs nothing.
+2. **Tre's remaining two items from session 86.** Neither is root-caused; **grep before trusting
+   any line number.**
 
-   a. **Car goal still shows on the Dashboard after the loan is active.** `Dashboard.tsx` `summary`
-      derives `carSaved`/`carGoal` from **`carFunds[0]`** with **no phase filter** (I saw it again
-      this session at the `summary` memo — still there, I did not touch it), so it also picks the
-      wrong fund when there are several. Contrast `getCarFundEarmark`
-      (`vehicle-loan-engine.ts:183`), correctly phase-gated to `'saving'`. His RAV4 is
-      `phase: 'loan'`, so it reproduces today.
-
-   b. **A not-yet-owned card's limit must not count toward utilization.** ⚠️ **Open design question
+   a. **A not-yet-owned card's limit must not count toward utilization.** ⚠️ **Open design question
       — ask Tre before coding:** does `accounts.active` already mean this, or is a separate
-      "planned / not-yet-opened" flag needed? They are different concepts and overloading `active`
-      collides with existing `a.active` filters. `accountSummary.ccLimit` already filters on
-      `a.active`, so Dashboard and Debt Payoff may already disagree — check both. Suspect
-      **Venture X**. Utilization is a headline metric: pair with a live before/after read.
-
-   c. **Goal transfer plans should auto-stop at 100%.** `recurring_rules(rule_type:'transfer')` ↔
-      `savings_goals` via `linked_rule_ids`, which is **already known to go stale** (open since
-      session 72) — fix the linkage before building on it. Decide explicitly whether "stopped"
-      means deactivating the rule row (destructive, needs undo) or the forecast engine simply
-      ceasing to schedule it past the completion month (non-destructive, consistent with
+      "planned / not-yet-opened" flag needed? Different concepts; overloading `active` collides
+      with existing `a.active` filters. `accountSummary.ccLimit` already filters on `a.active`, so
+      Dashboard and Debt Payoff may already disagree — check both. Suspect **Venture X**.
+      Utilization is a headline metric (live now: **38.0%, $17,230 / $45,400**) — pair with a live
+      before/after read.
+   b. **Goal transfer plans should auto-stop at 100%.** `recurring_rules(rule_type:'transfer')` ↔
+      `savings_goals` via `linked_rule_ids`, **already known to go stale** (open since session 72)
+      — fix the linkage before building on it. Decide explicitly whether "stopped" means
+      deactivating the rule row (destructive, needs undo) or the forecast engine simply ceasing to
+      schedule it past the completion month (non-destructive, consistent with
       `estimateGoalCompletionMonths`). Must hold in **both** projection and actual transfer, or
       Goals and Forecast disagree — the §2.4/§2.5 failure mode again.
-
-6. **§1A** Plaid auto-pull + rule matching (a matched actual overrides the rule ONLY for its month,
+3. **§2.9** car-fund earmark (needs Tre).
+4. Card interest — only with §3 above applied.
+5. **§1A** Plaid auto-pull + rule matching (a matched actual overrides the rule ONLY for its month,
    never re-bases it).
-7. Rest of session 84's list: **§2.1 / §3.2 / §3.4** (may be demo-fixture defects — re-observe
+6. Rest of session 84's list: **§2.1 / §3.2 / §3.4** (may be demo-fixture defects — re-observe
    first); §2.3 leftovers (Debt tab `$1,000` copy; **Settings exposes no cash-floor control**
    despite Forecast's "your floor setting" copy — raise with Tre); §2.7 RAV4 double representation;
    full real-data walk; mobile/Capacitor pass.
-8. **§4 of session 84 still unfiled** — `forecast-engine.ts` picks `liquidBal` from
+7. **§4 of session 84 still unfiled** — `forecast-engine.ts` picks `liquidBal` from
    `forecastFundingAccountId` with no account-type check while `useCardProjection.ts` uses
    `resolveFundingAccountId`. Route the engine through `src/lib/funding-account.ts`. Moves real
    numbers; pair with a live check. **Grep the line number.**
-9. Month-end overflow pattern still live (display labels, deliberately left): `DebtPayoff.tsx:98`,
+8. Month-end overflow pattern still live (display labels, deliberately left): `DebtPayoff.tsx:98`,
    `CreditCardEngine.tsx:1338` + `:1720`, `credit-card-engine.ts:319` + `:455`.
 
-## 5. STILL OPEN FROM SESSION 86 (unanswered, carry forward)
+## 5. DECISIONS STILL NEEDED FROM TRE (carried, none answered)
 
+- **The two tiles that print $1 apart** (session 87). Dashboard MONTH-END CASH $3,146 vs Forecast
+  END CASH $3,145. BY DESIGN: `useCardProjection.ts:1700-1702` sums ROUNDED terms so the drawer's
+  on-screen equation is exact in integer arithmetic, while the engine carries cents and rounds once
+  ($4,600 vs $4,599.20). The invariant test bounds it at ≤ $1. Closing it costs either the drawer's
+  exact-integer property or engine precision. **Left as-is deliberately.**
 - **Checking-sourced plan installments classify `living`, not `principal`** — session 86's judgment
-  call, NOT Tre's answer. Still unflagged to him. The Carnival Flex Pay $120 is technically
+  call, not Tre's answer, still unflagged to him. The Carnival Flex Pay $120 is technically
   borrowing but sits inside no balance anywhere, so classifying it `principal` would make $120/mo
   of real cash appear in no figure at all. One line to flip if he disagrees.
 - **`transfers` is structurally always 0** — `EnrichedTransaction` does not carry `rule_type`.
   His HYS $400 is absent from the tile while Owners Contribution $50 and a $25 investment ARE
   counted. Pre-existing inconsistency, untouched.
 - **Insurance anchors on `insurance_start_date ?? payment_start_date`** while
-  `generateCarLoanTransactions:335` anchors on `payment_start_date` only. Same answer for August;
-  they differ for a car insured before its first payment. Not reconciled.
+  `generateCarLoanTransactions` anchors on `payment_start_date` only. Same answer for August; they
+  differ for a car insured before its first payment. Not reconciled.
 
-## 6. ⚠️ ENVIRONMENT GOTCHAS (unchanged, all still true)
+## 6. ⚠️ ENVIRONMENT GOTCHAS
 
-1. **Tre is signed in; you land on his REAL account — read-only there.** Check with
-   `/demo/i.test(document.body.innerText.slice(0,600))` (false = real). **Do not sign him out.**
-2. **Wait ~11s after each nav** before reading. Mid-settle reads return plausible-but-wrong numbers.
-3. **Dev server is on `localhost:8080`**, serves fresh transforms immediately after edits.
-4. Read tiles as a **structured array**: `document.body.innerText.split('\n').map(s=>s.trim())
-   .filter(Boolean)`, then index off the label. A long `|`-joined string or a `$`-heavy slice trips
+1. **Tre's session EXPIRED mid-session and the app is now on `/auth`.** He must sign himself back
+   in — **never sign him in, and never sign him out.** `Try Demo` needs no password and is the
+   fallback for verifying anything not tied to his real numbers.
+2. Check which account you are on with `/demo/i.test(document.body.innerText.slice(0,600))`
+   (false = real). **On the landing page `/` this returns TRUE even when signed in** — the marketing
+   copy contains the word. Navigate to `/dashboard` before trusting it.
+3. **Wait ~11–13s after each nav** before reading. Mid-settle reads return plausible-but-wrong numbers.
+4. **Dev server is on `localhost:8080`**, serves fresh transforms immediately after edits.
+5. **Budget Control's route is `/budget`, NOT `/budget-control`** (that 404s). Cost me a round-trip.
+6. Read tiles as a **structured array**: `document.body.innerText.split('\n').map(s=>s.trim())
+   .filter(Boolean)`, then index off the label — `findIndex` on the label and slice around it is
+   cheaper than dumping. A long `|`-joined string or a `$`-heavy slice trips
    `[BLOCKED: Cookie/query string data]`. Output truncates ~95 items — use `.slice(n)` for the tail.
-5. **In-app nav by link text is unreliable** — use `location.href='/transactions'` in its own call.
+7. **In-app nav by link text is unreliable** — use `location.href='/transactions'` in its own call.
    Don't put a long sleep in the same call as the navigation.
-6. **Use DOM reads, never screenshots** — the tab is `visibilityState: hidden`, so rAF never fires
+8. **Use DOM reads, never screenshots** — the tab is `visibilityState: hidden`, so rAF never fires
    and framer-motion never runs; pages look blank in automation screenshots.
-7. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
-8. **Vitest suppresses `console.log`** — `--silent=false` did not restore it either. To get values
-   out of a test, `writeFileSync` them to a scratch file and `cat` it. (Cost me two round-trips.)
-9. **Don't put a PowerShell here-string in a compound `;`-chained command.** Bash heredoc +
-   `git commit -F -` works.
-10. **`/multi-plan`'s external models are both unauthenticated** — `codex` 401, `gemini` exit 41.
+9. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
+10. **Vitest suppresses `console.log`** — `--silent=false` does not restore it. To get values out of
+    a test, `writeFileSync` to a scratch file and `cat` it.
+11. **Don't put a PowerShell here-string in a compound `;`-chained command.** Bash heredoc +
+    `git commit -F -` works.
+12. **`/multi-plan`'s external models are both unauthenticated** — `codex` 401, `gemini` exit 41.
     Don't re-probe, ~90s each.
 
 ## 7. SUPABASE — his real IDs
@@ -180,16 +187,21 @@ Otherwise cash flow double-counts it and Annual Savings moves for a fake reason.
   (Prime Visa, CC), Carnival Ultimate $120 (TOTAL CHECKING).
 - Auto loan: 2004 Chevrolet C5, $16,530 @ 10.18%, 48mo, payment $422.89 from 2026-08-07,
   insurance $173.23 from 2026-06-25. Month-0 split ≈ $140.23 interest / $282.66 principal.
+- **Car funds: exactly one**, `2004 Chevorlet C5`, `phase: 'loan'`. **Savings goals: four**, none
+  with `goal_type: 'Car Fund'` (401K Roth, Brokerage, Savings, Roth IRA).
 
 ## 8. FILES
 
-- **`d5a649a0`:** `src/lib/__tests__/monthEndCash.invariant.test.ts` (new).
-- **`0239c604`:** `src/lib/monthly-expense-model.ts`, its test, `src/pages/Dashboard.tsx`.
-- **Backups:** `backups/2026-08-06_024005/` (monthly-expense-model.ts + test, Dashboard.tsx,
-  Transactions.tsx, BudgetControl.tsx — the last two pre-emptively, for steps 9–10).
-- `npx tsc --noEmit` clean, `npx eslint` clean, `npx vitest run` **384/384 green**.
-- `python -m graphify update .` **still NOT run** — carried from session 86, do it.
-- **Not pushed.**
+- **`1daf2fd6`:** `src/lib/pay-schedule.ts` (+`principalPortion`), `src/lib/vehicle-loan-engine.ts`,
+  `src/pages/Transactions.tsx`, `src/pages/BudgetControl.tsx`, and its test.
+- **`b79708d7`:** `src/lib/vehicle-loan-engine.ts` (+`getSavingPhaseCarFund`),
+  `src/pages/Dashboard.tsx`, `src/lib/__tests__/vehicle-loan-engine.savingPhaseFund.test.ts` (new).
+- **Backups:** `backups/2026-08-06_093203/` (pay-schedule, vehicle-loan-engine, Transactions,
+  BudgetControl), `backups/2026-08-06_094500/` (Dashboard.tsx).
+- `npx tsc --noEmit` clean, `npx eslint` clean, `npx vitest run` **394/394 green** (was 384; +5 for
+  the principal split, +5 for the phase gate).
+- `python -m graphify update .` **run this session** (15,734 nodes) — carried debt cleared.
+- **Not pushed. 48 commits ahead.**
 
 ## 9. LESSONS WORTH KEEPING
 
@@ -197,12 +209,17 @@ Otherwise cash flow double-counts it and Annual Savings moves for a fake reason.
 - Session 85: *before "make surface A match surface B", find out which one is complete.*
 - Session 86: *a plan's predicted number is a measurement too, and it can be stale.*
 - Session 86: *answer a question from data before putting it to the user.*
-- **This session (a): a test that fails on first run is doing its job — diagnose before you loosen
-  it.** The invariant failed at $1. The tempting move was to widen the tolerance and move on; the
-  right one was to find the terms ($4,600 vs $4,599.20), which turned a "flaky threshold" into a
-  documented design tradeoff and a real question for Tre.
-- **This session (b): when a relabel touches a shared figure, the invariant to protect is that
-  nothing else moves.** Splitting expenses into expenses + debt service was safe *only* because
-  their sum was held constant; every consumer was then classified by whether it means SPEND or
-  CASH, and the four CASH ones were deliberately left alone. That question — "does this consumer
-  mean spend or cash?" — is the one to ask on every remaining Option B surface (steps 9–10).
+- Session 87 (a): *a test that fails on first run is doing its job — diagnose before you loosen it.*
+- Session 87 (b): *when a relabel touches a shared figure, the invariant to protect is that nothing
+  else moves.*
+- **This session (a): a bridge line is only worth adding if it is defined identically on both
+  sides.** "of which debt service" was nearly implemented as card payments + the *whole* auto
+  payment, which reads fine in isolation but would have printed $2,243 next to a Dashboard tile
+  saying $2,103 — two adjacent surfaces contradicting each other under the same word. Making them
+  agree cost a new field on the row; that cost is the point of the feature, not overhead.
+- **This session (b): when a fix touches a value, check whether anything reads it at all.**
+  `summary.carSaved`/`carGoal` had the same bug as the visible tile and zero consumers. Deleting
+  beat fixing — a "fixed" dead field is just a slower trap.
+- **This session (c): a failing assertion is not automatically a failing implementation.** The
+  lump-sum test failed at `977.66 < 500`; the code was right and my assertion was meaningless.
+  Re-derive what the invariant actually *is* before touching either side.
