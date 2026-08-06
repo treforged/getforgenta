@@ -7,7 +7,8 @@ three open questions are ANSWERED (below) and its $4,422 target number is WRONG 
 ## 0. GOAL
 
 Tre: "continue from handoff" → "i am logged into the browser" → "do a check with claude in chrome".
-Standing constraint: **do not delete his account.** Nothing is pushed — **37 local commits ahead**.
+Standing constraint: **do not delete his account.** Nothing is pushed — **40 local commits ahead** (measured via
+`git rev-list --count origin/main..main`, not estimated).
 
 **Next agent: write the MONTH-END CASH invariant test (plan step 5, skipped), then Phase 2.**
 
