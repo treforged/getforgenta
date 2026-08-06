@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import PlaidLinkButton from '@/components/shared/PlaidLinkButton';
+import AkoyaFallbackPrompt from '@/components/shared/AkoyaFallbackPrompt';
+import { findAkoyaInstitution, type AkoyaInstitution } from '@/config/akoya-institutions';
 import ModalShell from '@/components/shared/ModalShell';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 import {
@@ -205,6 +207,9 @@ function BankConnectStep({
   onLinked: () => void;
   onSkip: () => void;
 }) {
+  // Set when Plaid reports it can't reach an institution Akoya can serve.
+  const [akoyaFallback, setAkoyaFallback] = useState<AkoyaInstitution | null>(null);
+
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
@@ -224,7 +229,16 @@ function BankConnectStep({
           <Check size={12} /> Bank connected — continuing…
         </div>
       ) : (
-        <PlaidLinkButton onSuccess={onLinked} />
+        <div className="space-y-2">
+          <PlaidLinkButton
+            onSuccess={onLinked}
+            onInstitutionUnavailable={name => setAkoyaFallback(findAkoyaInstitution(name))}
+          />
+          <AkoyaFallbackPrompt
+            institution={akoyaFallback}
+            onDismiss={() => setAkoyaFallback(null)}
+          />
+        </div>
       )}
 
       <button

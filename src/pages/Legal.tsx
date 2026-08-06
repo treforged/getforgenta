@@ -120,9 +120,10 @@ function PrivacyContent() {
           account balances, savings goals, debt entries, and net worth entries you enter into the app. This data
           is stored solely in your account and is not shared with any third party.</p>
           <p><span className="text-foreground font-medium">Connected account data:</span> If you connect a bank
-          account via Plaid, we store your Plaid access token (encrypted at rest), institution name, account
-          names, masked account numbers (last 4 digits), balances, and transaction data returned by Plaid.
-          Connecting a bank account is entirely optional. See Section 6 for full details.</p>
+          account via Plaid or Akoya, we store the access credentials that provider issues us (encrypted at rest),
+          institution name, account names, masked account numbers (last 4 digits), balances, and any transaction
+          data the provider returns. Connecting a bank account is entirely optional. See Section 6 for full
+          details.</p>
           <p><span className="text-foreground font-medium">Usage data:</span> Basic interaction logs (page
           navigation, feature usage) used to improve the service. We do not use third-party analytics trackers.</p>
           <p><span className="text-foreground font-medium">Payment data:</span> On web, billing is processed by
@@ -203,34 +204,40 @@ function PrivacyContent() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="font-display font-semibold text-base">6. Bank Account Connections — Plaid</h2>
+        <h2 className="font-display font-semibold text-base">6. Bank Account Connections — Plaid and Akoya</h2>
         <p className="text-muted-foreground leading-relaxed">
-          Forgenta optionally integrates with Plaid, Inc. to let you connect bank accounts and automatically
-          import balances and transactions. Connecting an account is entirely optional — you can use Forgenta
-          without linking any external accounts.
+          Forgenta optionally integrates with account aggregation providers to let you connect bank accounts and
+          automatically import balances and transactions. Connecting an account is entirely optional — you can
+          use Forgenta without linking any external accounts.
         </p>
         <div className="space-y-2 text-muted-foreground leading-relaxed">
-          <p><span className="text-foreground font-medium">What Plaid accesses:</span> When you connect an
-          account, Plaid authenticates with your financial institution on your behalf and retrieves account
-          names, masked account numbers (last 4 digits), current balances, and recent transaction history.
-          Plaid does not share your full account number, routing number, or bank login credentials with
-          TRE Forgenta LLC.</p>
-          <p><span className="text-foreground font-medium">What we store:</span> We store your Plaid access
-          token (encrypted at rest), institution name, account names, masked account numbers, balances, and
-          transaction data (merchant name, amount, date, category). We do not store your bank login
-          credentials.</p>
-          <p><span className="text-foreground font-medium">How the data is used:</span> Plaid data is used
-          solely to display your account balances and transactions within Forgenta. It is not sold, shared,
-          or used for advertising.</p>
-          <p><span className="text-foreground font-medium">Revoking access:</span> You can disconnect any
-          linked account at any time from the Accounts page. Disconnecting removes the Plaid access token and
-          stops future syncs. You can also revoke access directly through your bank's linked-apps or connected
-          accounts settings.</p>
+          <p><span className="text-foreground font-medium">Which provider is used:</span> Plaid, Inc. is our
+          primary provider. For a small number of institutions — currently Fidelity — we also support Akoya LLC
+          as an alternative, and will offer it when Plaid is unable to reach your institution. You choose whether
+          to use the alternative; we never switch providers without your action.</p>
+          <p><span className="text-foreground font-medium">What the provider accesses:</span> When you connect an
+          account, the provider authenticates with your financial institution on your behalf and retrieves account
+          names, masked account numbers (last 4 digits), current balances, and — where you have permitted it —
+          transaction history. Neither provider shares your full account number, routing number, or bank login
+          credentials with TRE Forged LLC.</p>
+          <p><span className="text-foreground font-medium">What we store:</span> We store the access credentials
+          the provider issues us (encrypted at rest), institution name, account names, masked account numbers,
+          balances, and any transaction data returned (merchant name, amount, date, category). We do not store
+          your bank login credentials.</p>
+          <p><span className="text-foreground font-medium">How the data is used:</span> Connected account data is
+          used solely to display your balances and transactions within Forgenta. It is not sold, shared, or used
+          for advertising, and it is not used to train any machine learning model.</p>
+          <p><span className="text-foreground font-medium">Revoking access:</span> You can disconnect any linked
+          account at any time from the Accounts page, regardless of which provider supplied it. Disconnecting
+          revokes our access with that provider and stops future syncs. You can also revoke access directly
+          through your bank's linked-apps or connected accounts settings.</p>
         </div>
         <p className="text-muted-foreground leading-relaxed">
           For Plaid's data practices, see{' '}
           <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer"
-            className="text-primary hover:underline">plaid.com/legal</a>.
+            className="text-primary hover:underline">plaid.com/legal</a>. For Akoya's, see{' '}
+          <a href="https://akoya.com/privacy" target="_blank" rel="noopener noreferrer"
+            className="text-primary hover:underline">akoya.com/privacy</a>.
         </p>
       </section>
 

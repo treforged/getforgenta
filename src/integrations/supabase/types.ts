@@ -70,9 +70,11 @@ export type Database = {
           apy_rate: number | null
           balance: number
           card_start_date: string | null
+          connection_id: string | null
           created_at: string
           credit_limit: number | null
           id: string
+          provider: string
           installment_balance: number | null
           installment_monthly_payment: number | null
           institution: string
@@ -100,9 +102,11 @@ export type Database = {
           apy_rate?: number | null
           balance?: number
           card_start_date?: string | null
+          connection_id?: string | null
           created_at?: string
           credit_limit?: number | null
           id?: string
+          provider?: string
           installment_balance?: number | null
           installment_monthly_payment?: number | null
           institution?: string
@@ -130,9 +134,11 @@ export type Database = {
           apy_rate?: number | null
           balance?: number
           card_start_date?: string | null
+          connection_id?: string | null
           created_at?: string
           credit_limit?: number | null
           id?: string
+          provider?: string
           installment_balance?: number | null
           installment_monthly_payment?: number | null
           institution?: string
@@ -149,6 +155,63 @@ export type Database = {
           statement_balance?: number | null
           statement_balance_phase?: boolean
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      financial_connections: {
+        Row: {
+          access_token: string | null
+          connection_status: string
+          created_at: string | null
+          id: string
+          id_token_encrypted: string | null
+          institution_id: string | null
+          institution_name: string | null
+          last_synced_at: string | null
+          provider: string
+          provider_item_id: string
+          refresh_token_encrypted: string | null
+          sync_cursor: string | null
+          sync_locked_until: string | null
+          token_expires_at: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connection_status?: string
+          created_at?: string | null
+          id?: string
+          id_token_encrypted?: string | null
+          institution_id?: string | null
+          institution_name?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          provider_item_id: string
+          refresh_token_encrypted?: string | null
+          sync_cursor?: string | null
+          sync_locked_until?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connection_status?: string
+          created_at?: string | null
+          id?: string
+          id_token_encrypted?: string | null
+          institution_id?: string | null
+          institution_name?: string | null
+          last_synced_at?: string | null
+          provider?: string
+          provider_item_id?: string
+          refresh_token_encrypted?: string | null
+          sync_cursor?: string | null
+          sync_locked_until?: string | null
+          token_expires_at?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []

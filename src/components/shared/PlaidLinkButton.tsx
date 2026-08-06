@@ -14,6 +14,7 @@ import { Capacitor } from '@capacitor/core';
 import { Link2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { classifyPlaidExit } from '@/lib/providers/connection-errors';
 
 const PLAID_SCRIPT_SRC = 'https://cdn.plaid.com/link/v2/stable/link-initialize.js';
 const FN_BASE = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
@@ -68,9 +69,15 @@ interface PlaidLinkButtonProps {
   relinkItemId?: string;
   /** Label override for re-link mode */
   label?: string;
+  /**
+   * Fired when Plaid exits because it could not reach the institution, so the
+   * caller can offer a fallback aggregator. Receives the institution name Plaid
+   * reported, which may be null if the user never got that far.
+   */
+  onInstitutionUnavailable?: (institutionName: string | null) => void;
 }
 
-export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, relinkItemId, label }: PlaidLinkButtonProps) {
+export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, relinkItemId, label, onInstitutionUnavailable }: PlaidLinkButtonProps) {
   const [loading, setLoading] = useState(false);
 
   const handleClick = useCallback(async () => {
@@ -142,10 +149,16 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
             onProcessing?.(false);
           }
         },
-        onExit: (err) => {
+        onExit: (err, metadata) => {
           localStorage.removeItem(LINK_TOKEN_KEY);
           if (err) console.warn('Plaid Link exited with error:', err);
           setLoading(false);
+
+          // Connectivity failures are the whole reason the Akoya fallback
+          // exists. Hand the institution up so the caller can offer it.
+          if (classifyPlaidExit(err) === 'institution_unavailable') {
+            onInstitutionUnavailable?.(metadata?.institution?.name ?? null);
+          }
         },
         onEvent: () => {},
       });
@@ -156,7 +169,7 @@ export default function PlaidLinkButton({ onSuccess, onProcessing, disabled, rel
       setLoading(false);
       toast.error(err instanceof Error ? err.message : 'Failed to open bank link');
     }
-  }, [onSuccess, onProcessing, relinkItemId]);
+  }, [onSuccess, onProcessing, relinkItemId, onInstitutionUnavailable]);
 
   const defaultLabel = relinkItemId ? 'Re-link Account' : 'Link Bank Account';
 

@@ -7,7 +7,9 @@
           { "/": "/auth-callback", "comment": "Email confirmation lands here and verifies the token_hash" },
           { "/": "/auth-callback/*" },
           { "/": "/auth" },
-          { "/": "/auth/*" }
+          { "/": "/auth/*" },
+          { "/": "/akoya-oauth", "comment": "Akoya returns the consent code here; App Link bounces it back into the app if consent ran in Safari" },
+          { "/": "/akoya-oauth/*" }
         ]
       }
     ]

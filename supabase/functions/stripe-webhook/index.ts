@@ -1,57 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@22.1.1";
 import { createTracer } from "../_shared/tracer.ts";
-
-// ── Phase 4.2: Remove all Plaid items for a user ─────────────────────────────
-// Called on customer.subscription.deleted and invoice.payment_failed to ensure
-// Plaid API resources are released and no further sync can occur.
-async function removePlaidItemsForUser(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-): Promise<void> {
-  const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID");
-  const PLAID_SECRET    = Deno.env.get("PLAID_SECRET");
-  const plaidEnv        = Deno.env.get("PLAID_ENV") || "sandbox";
-  const plaidBase       = `https://${plaidEnv}.plaid.com`;
-
-  if (!PLAID_CLIENT_ID || !PLAID_SECRET) return; // Plaid not configured — skip silently
-
-  const { data: items } = await supabase
-    .from("plaid_items")
-    .select("access_token, plaid_item_id")
-    .eq("user_id", userId);
-
-  if (!items || items.length === 0) return;
-
-  // Call Plaid /item/remove for each linked item (best-effort; errors are logged not thrown)
-  await Promise.all(
-    items.map(async (item: { access_token: string; plaid_item_id: string }) => {
-      try {
-        const res = await fetch(`${plaidBase}/item/remove`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            client_id:    PLAID_CLIENT_ID,
-            secret:       PLAID_SECRET,
-            access_token: item.access_token,
-          }),
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          console.error(`Plaid item/remove failed for ${item.plaid_item_id}:`, JSON.stringify(body));
-        }
-      } catch (e) {
-        console.error(`Plaid item/remove error for ${item.plaid_item_id}:`, e);
-      }
-    }),
-  );
-
-  // Delete plaid_items rows and deactivate linked accounts
-  await supabase.from("plaid_items").delete().eq("user_id", userId);
-  await supabase.from("accounts").update({ active: false })
-    .eq("user_id", userId)
-    .not("plaid_account_id", "is", null);
-}
+import { unlinkAllConnections } from "../_shared/revoke-connections.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -274,9 +224,9 @@ Deno.serve(async (req) => {
         }
         dbUpdateSpan.end("OK");
 
-        // Phase 4.2 — remove Plaid items on hard cancellation
+        // Phase 4.2 — revoke every aggregator connection on hard cancellation
         if (event.type === "customer.subscription.deleted") {
-          await removePlaidItemsForUser(supabase, userSub.user_id);
+          await unlinkAllConnections(supabase, userSub.user_id);
         }
       }
     }

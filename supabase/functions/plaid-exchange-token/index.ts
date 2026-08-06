@@ -73,9 +73,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Defense-in-depth max-3 check
+    // Defense-in-depth cap. Counts connections across every provider so an
+    // Akoya fallback also occupies a slot.
     const { count } = await supabase
-      .from("plaid_items")
+      .from("financial_connections")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     if ((count ?? 0) >= MAX_LINKED) {
@@ -139,18 +140,20 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Persist to plaid_items (service role bypasses RLS).
-    // Reset last_synced_at so the next plaid-sync call always hits Plaid fresh,
-    // even if the item was synced recently (covers the reconnect case).
-    const { error: insertErr } = await supabase.from("plaid_items").upsert({
+    // Persist to financial_connections (service role bypasses RLS).
+    // Reset last_synced_at so the next sync always hits Plaid fresh, even if the
+    // item was synced recently (covers the reconnect case).
+    const { error: insertErr } = await supabase.from("financial_connections").upsert({
       user_id: userId,
-      plaid_item_id: item_id,
+      provider: "plaid",
+      provider_item_id: item_id,
       access_token,
       institution_id,
       institution_name,
+      connection_status: "active",
       last_synced_at: null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,plaid_item_id" });
+    }, { onConflict: "user_id,provider,provider_item_id" });
 
     if (insertErr) {
       console.error("plaid_items insert error:", insertErr.message);

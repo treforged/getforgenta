@@ -78,9 +78,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 4.3 — Enforce max 10 linked institutions
+    // 4.3 — Enforce max 10 linked institutions.
+    // Counts every provider, not just Plaid, so an Akoya fallback connection
+    // still occupies a slot.
     const { count } = await supabase
-      .from("plaid_items")
+      .from("financial_connections")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
 
@@ -108,14 +110,17 @@ Deno.serve(async (req) => {
 
     if (relinkItemId) {
       // Update mode — re-link existing item to add liabilities product
+      // Read the base table, not the plaid_items view — the view deliberately
+      // omits access_token so it can never leak through PostgREST.
       const { data: plaidItem } = await supabase
-        .from("plaid_items")
+        .from("financial_connections")
         .select("access_token")
         .eq("user_id", userId)
-        .eq("plaid_item_id", relinkItemId)
+        .eq("provider", "plaid")
+        .eq("provider_item_id", relinkItemId)
         .maybeSingle();
 
-      if (!plaidItem) {
+      if (!plaidItem?.access_token) {
         return new Response(JSON.stringify({ error: "Plaid item not found" }), {
           status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

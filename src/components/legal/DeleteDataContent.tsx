@@ -91,8 +91,9 @@ export default function DeleteDataContent() {
           Deletion covers everything tied to your account, including: your profile and login credentials; all
           accounts, balances, transactions, budgets, bills, and categories; debt, vehicle, build, and savings-goal
           records; forecasts, simulations, and saved plans; AI Advisor conversation history; uploaded images; and
-          your cookie and consent preferences. Bank connections are revoked with Plaid so no further transaction
-          data is retrieved, and any active subscription is cancelled as part of the same operation.
+          your cookie and consent preferences. Bank connections are revoked with the provider that supplied them
+          — Plaid or Akoya — so no further transaction data is retrieved, and any active subscription is cancelled
+          as part of the same operation.
         </p>
       </section>
 
@@ -130,8 +131,8 @@ export default function DeleteDataContent() {
         <h2 className="font-display font-semibold text-base">7. Service Providers</h2>
         <p className="text-muted-foreground leading-relaxed">
           When we delete your data, we direct our service providers to do the same, subject to their own legal
-          retention obligations. These include Supabase (database, authentication, and file storage), Plaid (bank
-          connections, which are revoked), Stripe and RevenueCat (subscription and entitlement records, subject to
+          retention obligations. These include Supabase (database, authentication, and file storage), Plaid and
+          Akoya (bank connections, which are revoked), Stripe and RevenueCat (subscription and entitlement records, subject to
           the tax retention above), and Anthropic (AI Advisor processing, which does not train on your data and
           retains it only transiently). We do not sell or share your personal information, so there is no
           downstream recipient to notify.

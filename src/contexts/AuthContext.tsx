@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .update({ founder_note_seen: false, onboarding_completed: false })
       .eq('user_id', userId);
     await supabase
-      .from('plaid_items')
+      .from('financial_connections')
       .update({ last_synced_at: new Date().toISOString() })
       .eq('user_id', userId);
 

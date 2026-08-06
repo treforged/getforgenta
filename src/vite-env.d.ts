@@ -15,7 +15,12 @@ interface PlaidLinkConfig {
   token: string;
   receivedRedirectUri?: string;
   onSuccess: (public_token: string, metadata: PlaidLinkMetadata) => void;
-  onExit?: (err: { error_code?: string; error_message?: string } | null) => void;
+  // Plaid passes metadata as the second argument. It carries the institution the
+  // user selected, which is what tells us whether an Akoya fallback exists.
+  onExit?: (
+    err: { error_code?: string; error_type?: string; error_message?: string } | null,
+    metadata?: PlaidLinkMetadata,
+  ) => void;
   onEvent?: (eventName: string) => void;
 }
 

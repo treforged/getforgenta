@@ -8,6 +8,7 @@ import {
 } from "../_shared/rate-limit.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createTracer, hashId } from "../_shared/tracer.ts";
+import { revokeAllConnections } from "../_shared/revoke-connections.ts";
 
 // Strict rate limit — account deletion is irreversible
 const RATE_LIMIT: RateLimitConfig = { windowMs: 3_600_000, max: 3 };
@@ -31,7 +32,7 @@ const USER_TABLES = [
   // so deleting the auth user does NOT cascade here — it must be listed
   // explicitly or the rows survive as orphaned personal data.
   "subscriptions",
-  "plaid_items",
+  "financial_connections",
   "accounts",
   "profiles",
 ] as const;
@@ -70,46 +71,6 @@ async function listUserObjects(
   return paths;
 }
 
-async function callPlaidRemoveForUser(
-  supabase: ReturnType<typeof createClient>,
-  userId: string,
-): Promise<void> {
-  const PLAID_CLIENT_ID = Deno.env.get("PLAID_CLIENT_ID");
-  const PLAID_SECRET    = Deno.env.get("PLAID_SECRET");
-  const plaidEnv        = Deno.env.get("PLAID_ENV") || "sandbox";
-  const plaidBase       = `https://${plaidEnv}.plaid.com`;
-
-  if (!PLAID_CLIENT_ID || !PLAID_SECRET) return;
-
-  const { data: items } = await supabase
-    .from("plaid_items")
-    .select("access_token, plaid_item_id")
-    .eq("user_id", userId);
-
-  if (!items || items.length === 0) return;
-
-  await Promise.all(
-    items.map(async (item: { access_token: string; plaid_item_id: string }) => {
-      try {
-        const res = await fetch(`${plaidBase}/item/remove`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            client_id:    PLAID_CLIENT_ID,
-            secret:       PLAID_SECRET,
-            access_token: item.access_token,
-          }),
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          console.error(`delete-account: Plaid item/remove failed for ${item.plaid_item_id}:`, JSON.stringify(body));
-        }
-      } catch (e) {
-        console.error(`delete-account: Plaid item/remove error for ${item.plaid_item_id}:`, e);
-      }
-    }),
-  );
-}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -176,10 +137,10 @@ Deno.serve(async (req) => {
       .eq("user_id", userId)
       .maybeSingle();
 
-    // ── 2. Notify Plaid to remove all linked items ────────────────────────
-    // Must happen before row deletion so access_tokens are still readable.
+    // ── 2. Revoke every aggregator connection ─────────────────────────────
+    // Must happen before row deletion so the credentials are still readable.
     // Best-effort — errors are logged but do not block account deletion.
-    await callPlaidRemoveForUser(supabase, userId);
+    await revokeAllConnections(supabase, userId, "delete-account: ");
 
     // ── 3. Cancel active Stripe subscription immediately ──────────────────
     if (userSub?.stripe_subscription_id && STRIPE_SECRET_KEY) {

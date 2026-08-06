@@ -16,6 +16,9 @@ import { Link } from 'react-router';
 import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
 import PlaidLinkButton, { PlaidSyncedAccount } from '@/components/shared/PlaidLinkButton';
+import AkoyaFallbackPrompt from '@/components/shared/AkoyaFallbackPrompt';
+import AkoyaConnectButton from '@/components/shared/AkoyaConnectButton';
+import { AKOYA_INSTITUTIONS, findAkoyaInstitution, type AkoyaInstitution } from '@/config/akoya-institutions';
 import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
@@ -157,6 +160,12 @@ export default function Accounts() {
   const [delinkConfirm, setDelinkConfirm] = useState<string | null>(null);
   const [delinking, setDelinking] = useState(false);
   const [plaidSyncResult, setPlaidSyncResult] = useState<{ institutionName: string; accounts: PlaidSyncedAccount[] } | null>(null);
+  // Set when Plaid reports it can't reach an institution Akoya can serve.
+  const [akoyaFallback, setAkoyaFallback] = useState<AkoyaInstitution | null>(null);
+
+  const handleInstitutionUnavailable = useCallback((institutionName: string | null) => {
+    setAkoyaFallback(findAkoyaInstitution(institutionName));
+  }, []);
 
   const handlePlaidSuccess = useCallback((syncedAccounts: PlaidSyncedAccount[], institutionName?: string) => {
   invalidatePlaid();
@@ -817,7 +826,7 @@ export default function Accounts() {
         })}
       </div>
 
-      {/* ── Linked Banks (Plaid) ─────────────────────────────────────────── */}
+      {/* ── Linked Banks (Plaid, with Akoya as a fallback) ───────────────── */}
       {!isDemo && (
         <div className="card-forged p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between gap-2">
@@ -830,10 +839,18 @@ export default function Accounts() {
                 <PlaidLinkButton
                   onSuccess={handlePlaidSuccess}
                   onProcessing={setPlaidSyncing}
+                  onInstitutionUnavailable={handleInstitutionUnavailable}
                 />
               )}
             </div>
           </div>
+
+          {isPremium && (
+            <AkoyaFallbackPrompt
+              institution={akoyaFallback}
+              onDismiss={() => setAkoyaFallback(null)}
+            />
+          )}
 
           {isPremium && plaidItems.length > 0 && (() => {
             const mostRecent = plaidItems
@@ -854,11 +871,41 @@ export default function Accounts() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             Bank connections are powered by{' '}
             <a href="https://plaid.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid</a>
-            , a trusted financial data platform used by thousands of apps. We never see your bank login credentials — Plaid handles authentication securely.{' '}
-            <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>
+            , a trusted financial data platform used by thousands of apps. For a few institutions we also support{' '}
+            <a href="https://akoya.com" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya</a>
+            {' '}as an alternative. We never see your bank login credentials — authentication happens with your bank.{' '}
+            <a href="https://plaid.com/legal/#end-user-privacy-policy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid Privacy Policy</a>
             {' · '}
-            <a href="https://plaid.com/legal/#end-user-services-agreement" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms</a>
+            <a href="https://plaid.com/legal/#end-user-services-agreement" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Plaid Terms</a>
+            {' · '}
+            <a href="https://akoya.com/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Akoya Privacy Policy</a>
           </p>
+
+          {/* Manual escape hatch. Plaid only reports a connectivity error code
+              when it recognises the failure — a user who gives up on a stalled
+              login exits cleanly, and would otherwise never be offered Akoya. */}
+          {isPremium && !akoyaFallback && plaidItems.length < 10 && (
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer hover:text-foreground select-none">
+                Trouble connecting {AKOYA_INSTITUTIONS.map(i => i.displayName).join(' or ')}?
+              </summary>
+              <div className="mt-2 space-y-2 pl-1">
+                <p className="leading-relaxed">
+                  Some institutions can be connected through Akoya instead, an alternative
+                  data network. Your balances behave exactly the same either way.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {AKOYA_INSTITUTIONS.map(inst => (
+                    <AkoyaConnectButton
+                      key={inst.key}
+                      institution={inst}
+                      label={`Connect ${inst.displayName} via Akoya`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </details>
+          )}
 
           {!isPremium ? (
             <PremiumGate
@@ -884,7 +931,11 @@ export default function Accounts() {
                 const neverSynced = item.last_synced_at === null;
                 const noAccounts = item.last_synced_at !== null && linkedAccounts.length === 0;
                 const missingLiabilities = linkedCreditCards.length > 0 && linkedCreditCards.some(a => !a.liability_synced_at);
-                const needsRelink = neverSynced || noAccounts || missingLiabilities;
+                // Re-link opens Plaid in update mode, so it only applies to
+                // Plaid connections. Akoya has no equivalent: a broken Akoya
+                // grant is fixed by connecting again from scratch.
+                const needsRelink = item.provider === 'plaid'
+                  && (neverSynced || noAccounts || missingLiabilities);
                 return (
                   <div key={item.id} className="space-y-2 border-b border-border/30 last:border-0 pb-2 last:pb-0">
                     <div className="flex items-center justify-between py-2 gap-2 min-w-0">
@@ -908,26 +959,26 @@ export default function Accounts() {
                       <button
                         disabled={delinking}
                         onClick={async () => {
-                          if (delinkConfirm !== item.plaid_item_id) {
-                            setDelinkConfirm(item.plaid_item_id);
+                          if (delinkConfirm !== item.id) {
+                            setDelinkConfirm(item.id);
                             return;
                           }
                           setDelinking(true);
                           setDelinkConfirm(null);
-                          await removePlaidItem(item.plaid_item_id);
+                          await removePlaidItem(item.id);
                           setDelinking(false);
                         }}
                         onBlur={() => setDelinkConfirm(null)}
                         className={`text-xs font-medium px-2 py-1 rounded border transition-colors shrink-0 ${
-                          delinkConfirm === item.plaid_item_id
+                          delinkConfirm === item.id
                             ? 'text-destructive border-destructive/40 bg-destructive/10'
                             : 'text-muted-foreground border-transparent hover:text-destructive'
                         }`}
-                        title={delinkConfirm === item.plaid_item_id ? 'Click again to confirm' : 'Remove bank connection'}
+                        title={delinkConfirm === item.id ? 'Click again to confirm' : 'Remove bank connection'}
                       >
                         {delinking && delinkConfirm === null ? (
                           <Loader2 size={12} className="animate-spin" />
-                        ) : delinkConfirm === item.plaid_item_id ? (
+                        ) : delinkConfirm === item.id ? (
                           'Confirm remove?'
                         ) : (
                           <Unlink size={13} />

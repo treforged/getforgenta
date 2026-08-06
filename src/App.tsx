@@ -40,6 +40,7 @@ const AiAdvisor = lazy(() => import("@/pages/AiAdvisor"));
 const Vehicles = lazy(() => import("@/pages/Vehicles"));
 const Builds = lazy(() => import("@/pages/Builds"));
 const PlaidOAuth = lazy(() => import("@/pages/PlaidOAuth"));
+const AkoyaOAuth = lazy(() => import("@/pages/AkoyaOAuth"));
 const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
 const BuildShare = lazy(() => import("@/pages/BuildShare"));
 
@@ -144,6 +145,13 @@ function AppRoutes() {
       <Route path="/oauth" element={
         <ProtectedRoute skipOnboardingCheck>
           <Suspense fallback={<PageLoader />}><PlaidOAuth /></Suspense>
+        </ProtectedRoute>
+      } />
+      {/* Akoya redirects here after consent. Must match AKOYA_REDIRECT_URI
+          exactly and be registered in the Data Recipient Hub. */}
+      <Route path="/akoya-oauth" element={
+        <ProtectedRoute skipOnboardingCheck>
+          <Suspense fallback={<PageLoader />}><AkoyaOAuth /></Suspense>
         </ProtectedRoute>
       } />
       <Route path="/auth-callback" element={<Suspense fallback={<PageLoader />}><AuthCallback /></Suspense>} />
