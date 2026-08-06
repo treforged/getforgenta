@@ -101,4 +101,82 @@ describe('month-end cash — Dashboard tile == Forecast month-0 row', () => {
     const fromTerms = m0!.chain.cashPreDebt - m0!.safeToPayTotal + m0!.carReserveHeld;
     expect(Math.abs(m0!.endCash - fromTerms)).toBeLessThan(0.01);
   });
+
+  // ── Month-0 one-time transactions ────────────────────────────────────────────────────────
+  // WHY THIS CASE EXISTS. The two tests above passed at CENTS on the golden fixture while the
+  // LIVE app was $172.50 apart, because the fixture happens to contain no month-0 one-time
+  // transaction. The sim zeroed all of month 0 ("already in the live balance"), which is only
+  // true up to the sync cutoff; the engine keeps the future-dated ones. With a fixture that
+  // never exercises the term, green was a statement about the fixture, not about the app.
+  //
+  // So inject one. $172.50 of income, dated after the cutoff, is the exact real-world case
+  // (Tre's "GF half of cruise excursions", 2026-08-23, deposited to checking). It goes into
+  // BOTH sides the way the app builds them: `transactions` (which the sim's own builder reads)
+  // and `oneTimeByMonth` (which useForecastEngineInputs precomputes for the engine).
+  maybeIt('counts a post-cutoff month-0 one-time on both surfaces, and still agrees to the cent', () => {
+    const { capturedAt, inputs } = reviveForecastCapture(readFileSync(FIXTURE, 'utf8'));
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(capturedAt));
+
+    const fx = inputs as unknown as Record<string, unknown>;
+    const now = new Date(capturedAt);
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // Last day of the capture month — inside month 0 and as late as the month allows.
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const injectedDate = `${monthKey}-${String(lastDay.getDate()).padStart(2, '0')}`;
+    const cutoff = String(fx.syncCutoffDate ?? '');
+    expect(
+      injectedDate > cutoff,
+      `the injected date ${injectedDate} must fall after the sync cutoff ${cutoff}, or this test `
+      + 'asserts nothing — the term is supposed to be skipped for anything already in the balance',
+    ).toBe(true);
+
+    const AMOUNT = 172.5;
+    const withOneTime = {
+      ...inputs,
+      transactions: [
+        ...(fx.transactions as unknown[]),
+        {
+          id: 'test-m0-one-time-income',
+          date: injectedDate,
+          type: 'income',
+          amount: AMOUNT,
+          category: 'Other Income',
+          description: 'post-cutoff month-0 one-time',
+          payment_source: null,
+          isGenerated: false,
+        },
+      ],
+      oneTimeByMonth: {
+        ...(fx.oneTimeByMonth as Record<string, { income: number; expense: number }>),
+        [monthKey]: {
+          income: ((fx.oneTimeByMonth as Record<string, { income: number; expense: number }>)?.[monthKey]?.income ?? 0) + AMOUNT,
+          expense: (fx.oneTimeByMonth as Record<string, { income: number; expense: number }>)?.[monthKey]?.expense ?? 0,
+        },
+      },
+    } as typeof inputs;
+
+    const baseline = runDebtCashConvergence(renderProjectionFromFixture(inputs), inputs);
+    const out = runDebtCashConvergence(renderProjectionFromFixture(withOneTime), withOneTime);
+
+    const m0 = out.cardProjection?.month0;
+    expect(m0).toBeTruthy();
+
+    // 1. The sim must actually SEE it. This is the assertion the old code failed: `oneTimeArr[0]`
+    //    was hard-zeroed, so this delta was 0 no matter how much real money was arriving.
+    const baseOneTime = baseline.cardProjection?.month0?.chain.oneTimeNet ?? 0;
+    expect(
+      m0!.chain.oneTimeNet - baseOneTime,
+      'the month-0 cash chain dropped a post-cutoff one-time — this is the $172.50 Dashboard/Forecast gap',
+    ).toBeCloseTo(AMOUNT, 2);
+
+    // 2. And the engine must see the same thing, so the surfaces still agree. Agreement alone is
+    //    not enough (0 == 0 agrees too); it only means something alongside assertion 1.
+    expect(
+      Math.abs(m0!.endCash - out.projections.data[0].rawEndingCash),
+      `sim endCash $${m0!.endCash.toFixed(2)} vs engine rawEndingCash `
+      + `$${out.projections.data[0].rawEndingCash.toFixed(2)} with a month-0 one-time in play`,
+    ).toBeLessThanOrEqual(0.01);
+    expect(Math.round(m0!.endCash)).toBe(out.projections.data[0].endingCash);
+  });
 });

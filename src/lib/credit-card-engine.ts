@@ -730,7 +730,10 @@ export function simulateVariablePayoff(
    * Optional one-time (non-recurring) income and expense totals per month.
    * Applied in Step 7 AFTER debt allocation so they do not reduce availableCash
    * in prior months (prevents look-ahead cash hoarding for future large purchases).
-   * oneTimeByMonth[0] is unused (month 0 is handled by month0Remaining*).
+   * Month 0 is asymmetric on purpose: index 0 is skipped by the Step 5 availableCash term
+   * (month-0 debt capacity is handled by month0Remaining*), but Step 7 DOES advance cash by
+   * it. Callers must therefore pass only month-0 one-times not yet in the starting balance
+   * (useCardProjection filters index 0 to dates after the sync cutoff).
    */
   oneTimeByMonth?: { income: number; expenses: number }[],
   /**

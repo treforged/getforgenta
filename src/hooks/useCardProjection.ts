@@ -266,14 +266,24 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
       }
 
-      // ── One-time DB transactions per future month ─────────────────────────────
+      // ── One-time DB transactions per month ────────────────────────────────────
+      // Month 0 is NOT zero. It carries only the one-times dated AFTER the sync cutoff —
+      // the ones already reflected in the live funding balance are skipped, everything
+      // still to come this month is real cash that has not landed yet. This mirrors the
+      // engine's own builder (useForecastEngineInputs.ts `oneTimeByMonth`,
+      // `if (monthKey === currentMonthKey && t.date <= syncCutoffDate) continue`) exactly.
+      // Zeroing all of month 0 here — on the reasoning that month-0 one-times are "already
+      // in the balance", which only holds up to the cutoff — is what made Dashboard
+      // MONTH-END CASH read $172.50 below Forecast END CASH on real data.
       const ccSourceIds = new Set(cards.flatMap(c => [c.id, `account:${c.id}`]));
-      const oneTimeArr: { income: number; expenses: number }[] = [{ income: 0, expenses: 0 }];
-      for (let oi = 1; oi < PROJECTION_MONTHS; oi++) {
+      const m0OneTimeCutoff = syncCutoffDate ?? todayStr;
+      const oneTimeArr: { income: number; expenses: number }[] = [];
+      for (let oi = 0; oi < PROJECTION_MONTHS; oi++) {
         const od = new Date(now.getFullYear(), now.getMonth() + oi, 1);
         const omk = `${od.getFullYear()}-${String(od.getMonth() + 1).padStart(2, '0')}`;
         const txns = transactions.filter(t =>
-          t.date && t.date.startsWith(omk) && !t.isGenerated,
+          t.date && t.date.startsWith(omk) && !t.isGenerated &&
+          (oi > 0 || t.date > m0OneTimeCutoff),
         );
         const inc = txns
           .filter(t => t.type === 'income' && t.category !== 'Balance Adjustment')
@@ -286,7 +296,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             return true;
           })
           .reduce((s, t) => s + Number(t.amount), 0);
-        oneTimeArr.push({ income: inc, expenses: exp });
+        oneTimeArr[oi] = { income: inc, expenses: exp };
       }
 
       // ── Month 0 floor ──────────────────────────────────────────────────────────
@@ -858,8 +868,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           expenseByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
             comprehensiveMExp(m, cyclingPaymentByMonth) + installmentCostByMonth[m]
           ),
+          // Month 0 included: oneTimeArr[0] now holds only post-cutoff one-times, which are
+          // NOT in startingBalance. The engine's equivalent (forecast-engine.ts's
+          // `oneTimeNetByMonth: baseData.map(b => b.oneTimeNet)`) counts month 0 the same way.
           oneTimeNetByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
-            if (m === 0) return 0;
             const ot = oneTimeArr[m] ?? { income: 0, expenses: 0 };
             return ot.income - ot.expenses;
           }),
@@ -1270,7 +1282,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       for (let m = 0; m < PROJECTION_MONTHS; m++) {
         const mInc   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
-        const mOneTimeNet = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
+        // Month 0 included — oneTimeArr[0] is post-cutoff only (see its builder), and
+        // forecast-engine's PASS-3 cashPreDebt adds b.oneTimeNet for month 0 too.
+        const mOneTimeNet = (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
         // m===0: simulationMonthEvents[0] is the unmodified forecastMonthEvents entry (no car-fund
         // terms folded in), so the vehicle/insurance/lump-sum figures still need adding here. For
         // m>0, simulationMonthEvents[m].expenses already includes them — adding again would
@@ -1427,7 +1441,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         let prevCcRevBal2 = p3RevBal0_2;
         for (let m = 0; m < PROJECTION_MONTHS; m++) {
           const mInc2   = m === 0 ? m0Income    : (simulationMonthEvents[m]?.income   ?? monthlyTakeHome);
-          const mOneTimeNet2 = m === 0 ? 0 : (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
+          const mOneTimeNet2 = (oneTimeArr[m]?.expenses ?? 0) - (oneTimeArr[m]?.income ?? 0);
           // m===0 still needs getVehicleExtrasForMonth(0) added explicitly (see the identical note
           // on mExp above) — m>0 already has it via simulationMonthEvents[m].expenses.
           const mExp2   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0)
@@ -1682,8 +1696,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Discover paydown than the floor allowed and the current-month row landed below the augmented
       // floor. Do NOT add all of m0ExtraOutflow (line ~797): its savings/car/vehicle/mortgage terms
       // are already covered by monthlySavingsAndCar + m0VehicleInsurance + m0MortgagePayment above.
-      // oneTimeArr[0] is force-zeroed in this hook (month-0 one-times are already in the live
-      // balance); the term is kept for byte-for-byte parity with the engine's + b.oneTimeNet.
+      // oneTimeArr[0] holds the month-0 one-times dated AFTER the sync cutoff (it used to be
+      // force-zeroed, which cost $172.50 against Forecast on real data — see its builder). This
+      // term is the byte-for-byte counterpart of the engine's + b.oneTimeNet.
       const m0OneTimeNet = (oneTimeArr[0]?.income ?? 0) - (oneTimeArr[0]?.expenses ?? 0);
       // Finding §1.1: planCashExpensesEarly[0] belongs here too. The engine folds checking-sourced
       // payment-plan installments into baseExpenses (forecast-engine.ts:697), and this hook already
