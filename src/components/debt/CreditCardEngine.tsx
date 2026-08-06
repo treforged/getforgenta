@@ -1509,7 +1509,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <p className="font-semibold mb-2">Est. Liquid Cash ({windowLabel})</p>
                       <div className="flex justify-between gap-3 mb-2">
                         <span className="text-muted-foreground">{fundingAccount?.name ?? 'Funding'} balance now</span>
-                        <span className="font-bold">{formatCurrency(fundingBalance, false)}</span>
+                        <span className="font-bold">{formatCurrency(fundingBalance, true)}</span>
                       </div>
                       {cashBreakdownItems.incomeItems.length > 0 && (
                         <div className="mb-2">
@@ -1517,7 +1517,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           {cashBreakdownItems.incomeItems.map((item: TransactionLineItem, i: number) => (
                             <div key={i} className="flex justify-between gap-3">
                               <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
-                              <span className="text-success shrink-0">+{formatCurrency(item.amount, false)}</span>
+                              <span className="text-success shrink-0">+{formatCurrency(item.amount, true)}</span>
                             </div>
                           ))}
                         </div>
@@ -1531,7 +1531,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           {cashBreakdownItems.expenseItems.slice(0, 6).map((item: TransactionLineItem, i: number) => (
                             <div key={i} className="flex justify-between gap-3">
                               <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
-                              <span className="text-destructive/80 shrink-0">−{formatCurrency(item.amount, false)}</span>
+                              <span className="text-destructive/80 shrink-0">−{formatCurrency(item.amount, true)}</span>
                             </div>
                           ))}
                           {cashBreakdownItems.expenseItems.length > 6 && (
@@ -1542,7 +1542,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <hr className="my-1 border-border/50" />
                       <div className="flex justify-between gap-3 font-bold mb-2">
                         <span>= Est. Liquid Cash (net)</span>
-                        <span>{formatCurrency(estLiquidCash, false)}</span>
+                        <span>{formatCurrency(estLiquidCash, true)}</span>
                       </div>
                       {(() => {
                         const activeCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
@@ -1554,7 +1554,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                               {activeCards.map(c => (
                                 <div key={c.id} className="flex justify-between gap-2">
                                   <span className="text-muted-foreground">{c.name} (due {ordinal(c.dueDay || 31)})</span>
-                                  <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, false)}</span>
+                                  <span className="font-bold">{formatCurrency(cardEstimatedCash[c.id] || 0, true)}</span>
                                 </div>
                               ))}
                             </div>
@@ -1581,6 +1581,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
                 </div>
               </TooltipTrigger>
+              {/* Deliberately WHOLE DOLLARS, unlike the Est. Liquid Cash walk above. Every line here
+                  is an integer by construction: useCardProjection rounds each month-0 per-card payment
+                  and pins those integers into the sim (`m0FloorPins`) and the ledger the engine reads,
+                  and `safeToPayTotal` is `Math.round(cycling + revolving)`. Showing cents would print
+                  ".00" (false precision) and, because the total is rounded independently of its parts,
+                  could make the walk visibly fail to add up. Unrounding the source is NOT a display
+                  change — it would alter engine inputs. Leave it. */}
               <TooltipContent side="bottom" className="max-w-[340px] text-xs">
                 <p className="font-semibold mb-1">Safe to Pay — how it's calculated:</p>
                 <div className="space-y-0.5">
