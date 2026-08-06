@@ -1,4 +1,4 @@
-# Handoff — 2026-08-06 — session 88 — branch `main` — §2.4 Phase 2 COMPLETE + live-verified
+# Handoff — 2026-08-06 — session 89 — branch `main` — $1 gap CLOSED, $173 gap FOUND
 
 Continues session 87. `site-walk-findings.md` is still the source list; `.claude/plan/dashboard-expense-truth.md`
 is the plan. **Plan steps 1–11 are now all DONE.** The §2.4 plan is finished except the deliberately
@@ -6,8 +6,13 @@ deferred card-interest work (§3 below).
 
 ## 0. GOAL
 
-Resume-from-handoff session. Live-verified Phase 2 (step 8, shipped blind last session), then did
-plan steps 9–10, then Tre's item 5a. **Nothing pushed — 48 local commits ahead.**
+**Session 89 (this one):** closed the $1 Dashboard/Forecast gap with engine precision (§5,
+`d1f0c16c`), live-verified it — and in verifying it found a **$173** gap between the same two
+surfaces that pre-dates the change and is unfixed (§5b, now the top next step).
+
+**Session 88 (below):** live-verified Phase 2 (step 8), plan steps 9–10, Tre's item 5a.
+
+**Nothing pushed — 51 local commits ahead.**
 
 ## 1. WHAT SHIPPED
 
@@ -99,10 +104,9 @@ Otherwise cash flow double-counts and Annual Savings moves for a fake reason. Ha
 
 ## 4. NEXT STEPS (in order)
 
-1. **⭐ START HERE — close the $1 gap with ENGINE PRECISION. Tre decided this 2026-08-06, at the
-   very end of session 88; nothing is implemented.** See §5 for the full spec. This is the next
-   piece of work and it is scoped and unambiguous — it was handed off rather than started only
-   because the session hit the context gate.
+1. **⭐ START HERE — the $173 Dashboard/Forecast divergence found 2026-08-06 (session 89). See §5b.**
+   Not root-caused past the structural cause; needs a decision from Tre about which side is right.
+   It is the same §1.1 failure mode, an order of magnitude bigger than the $1 gap just closed.
 2. **Tre's remaining two items from session 86.** Neither is root-caused; **grep before trusting
    any line number.**
 
@@ -135,50 +139,66 @@ Otherwise cash flow double-counts and Annual Savings moves for a fake reason. Ha
 8. Month-end overflow pattern still live (display labels, deliberately left): `DebtPayoff.tsx:98`,
    `CreditCardEngine.tsx:1338` + `:1720`, `credit-card-engine.ts:319` + `:455`.
 
-## 5. ⭐ THE $1 GAP — TRE DECIDED: **ENGINE PRECISION**. SPEC, NOT YET IMPLEMENTED.
+## 5. ✅ THE $1 GAP — CLOSED 2026-08-06 (session 89), commit `d1f0c16c`
 
-**His words (2026-08-06): "for the $1 difference lets do engine precision. calculations should use
-the full exact values with the decimals."**
+Tre chose **engine precision**, then on seeing the tradeoff added: *"we can show decimals 2 spots.
+for accuracy"* — so the drawer's exact-integer property was **not** spent after all. Cents in the
+model, two decimals on screen, and the column still balances.
 
-So the drawer's exact-integer property is the one being spent, deliberately. `Month0CashChain`
-must carry **exact cents** and rounding happens **only at render**.
+`Month0CashChain` now carries **exact cents** on every term, and `cashPreDebt` **is** the variable
+the debt cap was computed from (one definition, not two expressions that can drift). Rounding
+happens only at render. `month0-budget-snapshot.ts` does no rounding at all; a term is dropped only
+below **half a cent** (sub-dollar terms used to vanish and silently shift cents into the residual).
+Both chain renderers print two decimals: `MonthlyBudgetSnapshot.tsx` and `Dashboard.tsx`'s
+month-end calc drawer.
 
-### What is actually wrong today
+`monthEndCash.invariant.test.ts` tolerance **tightened from ≤ $1 to ≤ $0.01** against the engine's
+`rawEndingCash`, plus exact whole-dollar equality against the displayed END CASH. It passes on the
+real fixture. **Do not loosen it back** — the doc block in `debt-model-types.ts` carries the same
+warning.
 
-`useCardProjection.ts` (~line 1694 raw chain, ~1703-1722 `m0Chain`): each term is `Math.round`ed
-individually and `chain.cashPreDebt` is **the sum of those rounded terms**, not a rounding of the
-raw `cashPreDebt` used for the cap. On real data that is $4,600 vs $4,599.20, which is why
-Dashboard MONTH-END CASH prints $3,146 and Forecast END CASH prints $3,145.
+**Live-verified on Tre's real account:** the drawer reads `763.80 + 4,547.56 − 120.00 − 422.89
+− 173.23 − 75.00 = 4,520.24`, then `− 2,700.00 (floor) − 0.24 (surplus) = 1,820.00`. Balanced to
+the cent, and $1,820.00 is SAFE TO PAY. MONTH-END CASH moved **$2,701 → $2,700** (the rounded chain
+read a dollar high, exactly as diagnosed). MONTHLY EXPENSES $3,630 / DEBT SERVICE $2,103 unchanged.
+396/396 tests, `tsc` clean, `eslint` clean, graphify updated (15,763 nodes).
 
-### The change
+## 5b. ⭐ NEW — DASHBOARD vs FORECAST ARE **$173** APART. FOUND, NOT FIXED. NEEDS TRE.
 
-1. `m0Chain` keeps every term **unrounded** (drop the `Math.round` calls), and computes
-   `cashPreDebt` from the exact terms — ideally by reusing the raw `cashPreDebt` variable already
-   computed at ~1694 so there is exactly ONE definition, not two expressions that can drift.
-2. `src/lib/debt-model-types.ts` — the `Month0CashChain` doc block (~lines 55-65) **states the
-   rounded-sum contract as a guarantee**. Rewrite it; do not leave it describing the old behavior.
-3. `src/lib/month0-budget-snapshot.ts:88` (`projectedRemaining = c.cashPreDebt`) and whatever
-   renders the MONTHLY BUDGET SNAPSHOT drawer — round **at display only**.
-4. `src/lib/__tests__/month0-budget-snapshot.test.ts:25` has a helper whose comment and values
-   mirror "cashPreDebt is the sum of the rounded terms". Update it to exact-cents.
-5. `src/lib/__tests__/monthEndCash.invariant.test.ts` — **tighten the tolerance from ≤ $1 to
-   cents** (e.g. ≤ $0.01). That tightening is the real proof the fix worked; if it will not pass at
-   cents, the gap was never only rounding and you have found something else. Do not loosen it back.
+Verifying the above turned up a **much larger** cross-surface gap that the $1 work had been masking
+in the record: nobody had re-read Forecast since session 87.
 
-### Expect this, and warn him if it appears
+| Surface | Aug 2026 month-end cash |
+|---|---|
+| Dashboard MONTH-END CASH | **$2,700** |
+| Forecast Aug 2026 END CASH | **$2,873** |
 
-The drawer's on-screen column may now **visually fail to add up by $1** (rounded terms summing to a
-separately-rounded total). That is the accepted cost of his decision, not a bug — but if it shows
-up on his real numbers it is worth telling him it is now visible, since that is exactly the
-property he traded away. Mitigation if he objects: render one or two decimals in the drawer.
+**$173 apart**, and the Forecast Aug row carries a badge reading **`1× +$173`**.
 
-### Verify
+**Measured, not assumed: this PRE-DATES the precision change.** I stashed the commit and re-read:
+baseline Dashboard $2,701 vs Forecast $2,873. The precision fix moved $1; it did not cause this.
 
-`npx vitest run` (394 today), `tsc`, `eslint`, then a **live read** confirming Dashboard MONTH-END
-CASH **equals** Forecast END CASH — that equality is the whole point. Both were $3,146/$3,145 in
-session 87; today's Dashboard reads **$2,701**, so re-derive rather than expecting the old numbers.
+**Structural cause (high confidence, not yet proven end-to-end).** The two surfaces disagree about
+whether a **month-0 one-time transaction is already inside the live balance**:
+- The hook **zeroes** month 0: `useCardProjection.ts:271` seeds `oneTimeArr[0] = {income:0,
+  expenses:0}`, so `m0OneTimeNet` (line ~1687) is **0**. The comment at ~1685 states the reasoning:
+  *month-0 one-times are already in the live balance.* The term is kept only for parity.
+- The engine **adds** it for every month including i=0: `forecast-engine.ts:863` computes
+  `oneTimeNet` and `:1158` folds `+ b.oneTimeNet` into `cashPreDebt`.
 
-## 5b. DECISIONS STILL NEEDED FROM TRE (carried, none answered)
+So the engine's month-0 cash sits ~$173 above the sim's. ⚠️ **Do not just make one match the other.**
+Which side is right is a DATA question — is that $173 one-time already reflected in the funding
+account balance or not? Note $173.23 is also exactly the vehicle-insurance amount, so **check
+whether the one-time and the insurance line are the same real-world event double-represented**
+(compare with §2.7's RAV4 double-representation, same smell). Answer that from Supabase before
+touching either file, and pair the fix with a live before/after read of both pages.
+
+**Why the test suite did not catch it:** the golden fixture (recaptured 07-20) has no month-0
+one-time, so `monthEndCash.invariant.test.ts` never exercises this path — it passes at **cents**
+while the live app is **$173** apart. Whatever the fix, add a fixture or a synthetic case with a
+non-zero month-0 one-time, or the guard stays blind to its own failure mode.
+
+## 5c. DECISIONS STILL NEEDED FROM TRE (carried, none answered)
 
 - **Checking-sourced plan installments classify `living`, not `principal`** — session 86's judgment
   call, not Tre's answer, still unflagged to him. The Carnival Flex Pay $120 is technically
@@ -241,7 +261,11 @@ session 87; today's Dashboard reads **$2,701**, so re-derive rather than expecti
 - `npx tsc --noEmit` clean, `npx eslint` clean, `npx vitest run` **394/394 green** (was 384; +5 for
   the principal split, +5 for the phase gate).
 - `python -m graphify update .` **run this session** (15,734 nodes) — carried debt cleared.
-- **Not pushed. 48 commits ahead.**
+- **`d1f0c16c` (session 89):** `src/hooks/useCardProjection.ts`, `src/lib/debt-model-types.ts`,
+  `src/lib/month0-budget-snapshot.ts`, `src/components/dashboard/MonthlyBudgetSnapshot.tsx`,
+  `src/pages/Dashboard.tsx`, + both tests. Backup `backups/2026-08-06_101254/`.
+  396/396 green, tsc + eslint clean, graphify updated (15,763 nodes).
+- **Not pushed. 51 commits ahead.**
 
 ## 9. LESSONS WORTH KEEPING
 
@@ -260,6 +284,13 @@ session 87; today's Dashboard reads **$2,701**, so re-derive rather than expecti
 - **This session (b): when a fix touches a value, check whether anything reads it at all.**
   `summary.carSaved`/`carGoal` had the same bug as the visible tile and zero consumers. Deleting
   beat fixing — a "fixed" dead field is just a slower trap.
+- **Session 89: verifying a $1 fix is what exposed a $173 one.** The verify step demanded reading
+  BOTH surfaces; had I only re-read the one I changed, the tile would have looked right and the
+  real divergence would have stayed invisible for another session. Read both sides of an
+  agreement, every time — and stash-and-re-read before blaming your own diff.
+- **Session 89: a passing invariant test is only as good as its fixture.**
+  `monthEndCash.invariant.test.ts` passes at CENTS while the live app is $173 apart, because the
+  golden fixture has no month-0 one-time. Green is a statement about the fixture, not the app.
 - **This session (c): a failing assertion is not automatically a failing implementation.** The
   lump-sum test failed at `977.66 < 500`; the code was right and my assertion was meaningless.
   Re-derive what the invariant actually *is* before touching either side.
