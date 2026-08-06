@@ -81,17 +81,54 @@ that `payment` excludes). Purely additive.
    SPEND` → labelled "planned (from rules)". Card interest still needs adding to `model.interest`
    from the projection's month-0 interest term — the field exists and is wired, but only the auto
    loan feeds it today.
-3. Then session 84's list, unchanged: **§2.9** car-fund earmark (needs Tre); **§1A** Plaid
-   auto-pull + rule matching (his rule: a matched actual overrides the rule ONLY for its month,
-   never re-bases it); **§2.1 / §3.2 / §3.4** (may be demo-fixture defects — re-observe first);
+3. **§2.9** car-fund earmark (needs Tre).
+4. **NEW — added by Tre 2026-08-06, session 86. Do these BEFORE the Plaid sync work (5).**
+   Pointers below are from reading the code this session; **grep before trusting a line number**,
+   and none of the three has been root-caused yet — treat them as symptoms, not diagnoses.
+
+   a. **Car goal still shows on the Dashboard after the loan is active.** Once a `car_fund` flips
+      `phase: 'saving' → 'loan'` the down-payment goal is met and should stop rendering as a goal.
+      Likely cause: `Dashboard.tsx` `summary` derives `carSaved` / `carGoal` from
+      **`carFunds[0]`** with **no phase filter** — so it also picks the wrong fund outright when a
+      user has more than one. Contrast `getCarFundEarmark` (`vehicle-loan-engine.ts:183`), which
+      is correctly phase-gated to `'saving'` and self-releases on activation. Check every other
+      `carFunds[0]` / unfiltered car-goal read on the page, not just this one. His RAV4 is
+      `phase: 'loan'` as of 2026-06-21, so this reproduces on his real account today.
+
+   b. **A not-yet-owned card's credit limit must not count toward total limit / utilization.**
+      Tre adds cards he is *planning* to get so he can model future spend on them; their limits
+      are inflating the denominator on the Debt Payoff tab. ⚠️ **Open design question — ask him
+      before coding:** does `accounts.active` already mean this, or is a separate
+      "planned / not-yet-opened" flag needed? They are not the same concept (an active card he
+      has closed vs a card he has not opened), and overloading `active` will collide with the
+      existing `a.active` filters. Note `Dashboard.tsx`'s `accountSummary.ccLimit` already
+      filters on `a.active`, so the Dashboard and Debt Payoff may already disagree — check both.
+      Suspected real-data instance: **Venture X** (balance $0, appears in Safe to Pay at $0) is
+      on his "eventual" card list per memory, so it is probably a planned card marked active.
+      Utilization is a headline metric — pair the fix with a live before/after read.
+
+   c. **Goal transfer plans should auto-stop once the goal is reached.** A recurring `transfer`
+      rule funding a savings goal keeps transferring past 100%. Wants an automatic stop, not a
+      manual toggle. Touches `recurring_rules` (`rule_type: 'transfer'`) ↔ `savings_goals`, and
+      the link is `linked_rule_ids` — **already known to go stale** (carried unresolved since
+      session 72, §7 below), so fix the linkage before building on it. Decide explicitly whether
+      "stopped" means deactivating the rule row (destructive, user-visible, needs undo) or the
+      forecast engine simply ceasing to schedule it past the completion month (non-destructive,
+      and consistent with how `estimateGoalCompletionMonths` already derives completion). Whatever
+      is chosen must hold in **both** the forecast projection and the actual transfer, or Goals
+      and Forecast will disagree — the §2.4/§2.5 failure mode all over again.
+
+5. **§1A** Plaid auto-pull + rule matching (his rule: a matched actual overrides the rule ONLY
+   for its month, never re-bases it).
+6. Rest of session 84's list, unchanged: **§2.1 / §3.2 / §3.4** (may be demo-fixture defects — re-observe first);
    §2.3 leftovers (Debt tab `$1,000` copy; **Settings exposes no cash-floor control** despite
    Forecast's "your floor setting" copy — raise with Tre); §2.7 RAV4 double representation; full
    real-data walk; mobile/Capacitor pass.
-4. **§4 of session 84 still unfiled** — `forecast-engine.ts` picks `liquidBal` from
+7. **§4 of session 84 still unfiled** — `forecast-engine.ts` picks `liquidBal` from
    `forecastFundingAccountId` with no account-type check while `useCardProjection.ts` uses
    `resolveFundingAccountId`. Route the engine through `src/lib/funding-account.ts`. Moves real
    numbers; pair with a live check. **Grep the line number, don't trust it.**
-5. Month-end overflow pattern still live (display labels, deliberately left): `DebtPayoff.tsx:98`,
+8. Month-end overflow pattern still live (display labels, deliberately left): `DebtPayoff.tsx:98`,
    `CreditCardEngine.tsx:1338` + `:1720`, `credit-card-engine.ts:319` + `:455`.
 
 ## 5. ⚠️ ENVIRONMENT GOTCHAS (all re-confirmed this session)
