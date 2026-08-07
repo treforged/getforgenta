@@ -145,11 +145,20 @@ A → B → C, in that order, each independently shippable. A is invisible to us
 lands with unit tests before anything consumes it. C is the only stage that changes a projected
 number, so it ships alone and gets live-verified against the $1,463 case on its own.
 
-## Open scope question
+## Scope decision (Tre, 2026-08-07)
 
-Should synced transactions ever be **visible** (a Transactions view / an "auto-matched" badge on
-budget rules), or stay purely engine evidence?
+Synced transactions stay **server-owned and unbrowsable** — no Transactions view in v1 — but
+Stage B additionally surfaces an **auto-matched badge** on `/budget` rules that matched a real
+settled transaction in the current month.
 
-**Recommendation: engine evidence only for v1.** It is the whole fix for 97.4, needs no UX design,
-and adds no surface where Plaid rows can be mistaken for the manual ledger. A visible transaction
-feed is a real feature with real design work and belongs in its own roadmap item.
+Consequences for Stage B:
+
+- The badge is the matcher's only user-visible output, so it must be **conservative**: show it
+  only on a confident match, and show nothing (not a "no match" state) otherwise. An absent badge
+  must read as "no information", never as "this bill wasn't paid" — the matcher will have gaps
+  while backfill lands, and a false negative that looks like an accusation is worse than silence.
+- It exposes matching confidence to a user before the matcher is tuned against real data. Ship
+  the badge **after** Stage B's unit tests pass and after eyeballing real matches for Tre's 431
+  rules, not simultaneously with the matcher.
+- Still no `matched_rule_id` column: the badge derives from the same read-time match as the engine,
+  so both surfaces cannot disagree.

@@ -34,6 +34,7 @@ import {
   type ProviderSyncResult,
   ReauthRequiredError,
   type RotatedCredentials,
+  type TransactionPage,
 } from "./types.ts";
 
 /** Akoya's expired-id_token error. Docs: "Any data request with an expired token". */
@@ -271,6 +272,22 @@ export const akoyaProvider: FinancialProvider = {
       accounts: normalizeAkoyaAccounts(await res.json()),
       rotatedCredentials: rotated,
     };
+  },
+
+  /**
+   * Not implemented — Akoya is built but SHELVED ($2,000/mo minimum) and is not deployed.
+   *
+   * Returns an empty page rather than throwing, so a hypothetical Akoya connection degrades to the
+   * date heuristic in `sync-cutoff.ts` instead of failing its whole sync. Akoya does expose
+   * transactions; wiring them up is a real task for whenever the provider is un-shelved, not a
+   * limitation of the API.
+   */
+  // deno-lint-ignore require-await
+  async fetchTransactions(
+    _connection: FinancialConnection,
+    cursor: string | null,
+  ): Promise<TransactionPage> {
+    return { added: [], modified: [], removed: [], nextCursor: cursor ?? "", hasMore: false };
   },
 
   async disconnect(connection: FinancialConnection): Promise<void> {

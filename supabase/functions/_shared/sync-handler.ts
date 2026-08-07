@@ -29,10 +29,19 @@ import {
   type NormalizedAccount,
   type ProviderContext,
   ReauthRequiredError,
+  TransactionsNotReadyError,
 } from "./providers/index.ts";
 
 const SYNC_COOLDOWN_MS = 23.5 * 60 * 60 * 1000;
 const LOCK_TTL_MINUTES = 5;
+
+/**
+ * Cap on transaction pages per connection per run. At Plaid's 500-per-page maximum this is 10,000
+ * transactions — comfortably more than a 24-month backfill across one item, while bounding the
+ * function's wall clock so a pathological item cannot hold the mutex until the platform kills it.
+ * A connection that genuinely needs more simply continues from its cursor on the next run.
+ */
+const MAX_TRANSACTION_PAGES = 20;
 
 export const CONNECTION_COLUMNS =
   "id, user_id, provider, provider_item_id, institution_id, institution_name, " +
@@ -164,6 +173,105 @@ async function persistAccount(
  * implementation of the rules. Returns the provider account ids it touched.
  * Never throws — a failing connection is recorded on the row and skipped.
  */
+/**
+ * §1A — pull transaction deltas into public.synced_transactions.
+ *
+ * Page-at-a-time, and the cursor is persisted ONLY after each page's rows commit. That ordering is
+ * the whole correctness argument: Plaid never re-offers a page once the cursor moves past it, so
+ * advancing first would drop transactions permanently on any write failure. Advancing last makes
+ * the pipeline at-least-once, and the unique (connection_id, provider_transaction_id) index makes
+ * the replay a no-op.
+ *
+ * NEVER THROWS. Transactions are evidence that improves the forecast, not a prerequisite for it —
+ * a failure here must not undo an account/balance sync that already succeeded, and must not mark
+ * the connection `error` and take the user out of the app.
+ */
+async function syncTransactions(
+  db: SupabaseClient,
+  connection: FinancialConnection,
+): Promise<number> {
+  // provider account id → our accounts.id. Resolved once; the accounts pass has just run, so
+  // every account on this connection exists.
+  const { data: accountRows } = await db
+    .from("accounts")
+    .select("id, plaid_account_id")
+    .eq("user_id", connection.user_id)
+    .eq("connection_id", connection.id);
+
+  const accountIdByProviderId = new Map<string, string>();
+  for (const row of accountRows ?? []) {
+    if (row.plaid_account_id) accountIdByProviderId.set(row.plaid_account_id as string, row.id as string);
+  }
+
+  let cursor = connection.sync_cursor;
+  let written = 0;
+
+  try {
+    for (let page = 0; page < MAX_TRANSACTION_PAGES; page++) {
+      const delta = await getProvider(connection.provider).fetchTransactions(connection, cursor);
+
+      const upserts = [...delta.added, ...delta.modified].map((t) => ({
+        user_id: connection.user_id,
+        connection_id: connection.id,
+        // null when the transaction belongs to an account we do not track (Plaid returns every
+        // account on the item). The row is still kept — the account may be added later.
+        account_id: accountIdByProviderId.get(t.providerAccountId) ?? null,
+        provider_transaction_id: t.providerTransactionId,
+        pending_transaction_id: t.pendingTransactionId,
+        amount: t.amount,
+        date: t.date,
+        pending: t.pending,
+        name: t.name,
+        merchant_name: t.merchantName,
+        category: t.category,
+        updated_at: new Date().toISOString(),
+      }));
+
+      if (upserts.length > 0) {
+        const { error } = await db
+          .from("synced_transactions")
+          .upsert(upserts, { onConflict: "connection_id,provider_transaction_id" });
+        // Bail WITHOUT advancing the cursor: the same page is re-offered next run.
+        if (error) throw new Error(`upsert failed: ${error.message}`);
+        written += upserts.length;
+      }
+
+      // Retire superseded pending rows. Must run AFTER the upsert — the posted row is what carries
+      // the pointer back to the pending one. Skipping this double-counts the same charge, which is
+      // the exact error SETTLEMENT_LAG_DAYS exists to avoid.
+      const supersededIds = [...delta.added, ...delta.modified]
+        .map((t) => t.pendingTransactionId)
+        .filter((id): id is string => !!id);
+
+      const deletions = [...supersededIds, ...delta.removed];
+      if (deletions.length > 0) {
+        await db
+          .from("synced_transactions")
+          .delete()
+          .eq("connection_id", connection.id)
+          .in("provider_transaction_id", deletions);
+      }
+
+      cursor = delta.nextCursor;
+      await db
+        .from("financial_connections")
+        .update({ sync_cursor: cursor })
+        .eq("id", connection.id);
+
+      if (!delta.hasMore) break;
+    }
+  } catch (err) {
+    if (err instanceof TransactionsNotReadyError) {
+      // Expected on a freshly linked connection. Cursor untouched; retried next sync.
+      console.log(`Transactions not ready yet for connection ${connection.id}`);
+      return written;
+    }
+    console.error(`Transaction sync failed for connection ${connection.id}:`, err);
+  }
+
+  return written;
+}
+
 export async function syncConnection(
   db: SupabaseClient,
   connection: FinancialConnection,
@@ -235,6 +343,10 @@ export async function syncConnection(
       await persistAccount(db, userId, connection, account, now);
       touched.push(account.providerAccountId);
     }
+
+    // After accounts, so the provider-account-id → accounts.id map is complete. Self-contained and
+    // non-throwing: a transaction failure must not roll back balances that already landed.
+    await syncTransactions(db, connection);
 
     await db
       .from("financial_connections")
