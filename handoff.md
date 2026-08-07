@@ -157,6 +157,18 @@ Verified after: authenticated read returns 6 RLS-filtered rows, `access_token` s
    navigating to a route. It is toggled through an in-app path that the marketing
    `capture_demo.mjs` script drives. Don't re-investigate this; ask Tre to sign the MCP browser
    profile in, then do items 1-2 under "Still open" in one pass.
+   **Sign-in is currently BLOCKED: Google OAuth popup hangs on localhost.** Diagnosed 2026-08-07,
+   not yet resolved. `Auth.tsx:191-193` sets `redirectTo = ${window.location.origin}/auth` and
+   `Auth.tsx:310` opens a popup; the popup is expected to close ITSELF via `Auth.tsx:131-137`,
+   which only fires once it lands back on `/auth` carrying `?code=` or `#access_token`. The
+   parent merely polls `popup.closed`, so if the popup never returns to that URL it hangs
+   forever with no error. Prime suspect: `http://localhost:8080/auth` is not in the Supabase
+   Auth **Redirect URLs** allow-list, so Supabase falls back to the Site URL and the popup lands
+   on production instead. Fix is Tre's to make (auth settings; the Supabase MCP does not expose
+   auth config): Dashboard → Authentication → URL Configuration → Redirect URLs → add
+   `http://localhost:8080/**`. Ask him what URL the stuck popup showed before assuming — if it
+   sat on `accounts.google.com` the cause is different, and if it reached `/auth?code=...` then
+   the handler itself is broken.
 
 ## Tre's standing instruction added this session
 
