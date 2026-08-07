@@ -77,6 +77,48 @@ describe('isCapturedInBalance', () => {
   });
 });
 
+describe('isCapturedInBalance — §1A Stage C evidence', () => {
+  // Stage C DEMOTES the date heuristic from the rule to the fallback. When settled transactions
+  // cover the due date, they answer the question directly and the lag is not consulted at all.
+
+  it('trusts a matched settled transaction over the date heuristic', () => {
+    // Due yesterday, well inside the lag window, so the heuristic alone says "not captured".
+    // A settled transaction matching it says otherwise, and it is evidence, not a guess.
+    expect(isCapturedInBalance('2026-08-04', '2026-08-05')).toBe(false);
+    expect(isCapturedInBalance('2026-08-04', '2026-08-05', { hasTxnCoverage: true, matched: true }))
+      .toBe(true);
+  });
+
+  it('treats covered-but-unmatched as genuinely NOT captured', () => {
+    // Old-enough due date the heuristic would have assumed settled. With full coverage of its
+    // window and no matching transaction, the charge demonstrably has not hit — keep charging it.
+    expect(isCapturedInBalance('2026-07-01', '2026-08-05')).toBe(true);
+    expect(isCapturedInBalance('2026-07-01', '2026-08-05', { hasTxnCoverage: true, matched: false }))
+      .toBe(false);
+  });
+
+  it('falls back to the date heuristic when there is no coverage', () => {
+    // Non-negotiable branch: manual accounts, brand-new connections and un-backfilled
+    // institutions have no evidence at all, and deleting the heuristic would regress every one.
+    const noEvidence = { hasTxnCoverage: false, matched: false };
+    expect(isCapturedInBalance('2026-08-01', '2026-08-05', noEvidence)).toBe(true);
+    expect(isCapturedInBalance('2026-08-04', '2026-08-05', noEvidence)).toBe(false);
+  });
+
+  it('honours a match even where coverage was not claimed', () => {
+    // Coverage requires the WHOLE match window to have been observed, so a match can land just
+    // outside it. A real settled transaction outranks a conservatism about window completeness.
+    expect(isCapturedInBalance('2026-08-04', '2026-08-05', { hasTxnCoverage: false, matched: true }))
+      .toBe(true);
+  });
+
+  it('is unchanged for every caller that passes no evidence', () => {
+    // The parameter is optional so Stage C can be wired one call site at a time.
+    expect(isCapturedInBalance('2026-08-01', '2026-08-05', undefined)).toBe(true);
+    expect(isCapturedInBalance('2026-08-04', '2026-08-05', undefined)).toBe(false);
+  });
+});
+
 describe('dueDateInMonth', () => {
   it('zero-pads the day so string comparison is date comparison', () => {
     expect(dueDateInMonth('2026-08', 1)).toBe('2026-08-01');
