@@ -125,7 +125,12 @@ look sparse until the other five connections sync. That is correct behavior.
 
 ## Push status
 
-`main` is **16 commits ahead of origin**. Standing rule is never auto-push. **Nothing pushed.**
+`main` is well ahead of `origin/main`. Standing rule is never auto-push. **Nothing pushed.**
+
+Check the count with `git rev-list --count origin/main..main` rather than trusting a number
+written here. Session 99 spent a commit correcting a hard-coded count, and this session spent
+another one — the number counts the very commits that record it, so it is stale the moment it
+is written. Don't pin it again.
 
 ## Supabase — real IDs (carried)
 
