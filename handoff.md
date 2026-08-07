@@ -12,10 +12,14 @@ bottom tab bar (`5cb969f8`).
 
 **Nothing pushed — 56 local commits ahead.**
 
-## 1. ⚠️⚠️ READ FIRST — SOMEONE ELSE'S UNCOMMITTED WORK IS IN THE TREE
+## 1. ⚠️⚠️ READ FIRST — TRE IS WORKING ON AKOYA IN A PARALLEL SESSION
 
-The repo was **clean at session start**. Partway through this session `git status` showed a large
-**Akoya / `financial_connections` feature** appear, uncommitted and **not written by this session**:
+**Confirmed by Tre 2026-08-06:** *"i am working on ayoka in a parallel session."* The uncommitted
+Akoya work in the tree is **his, in flight, in another Claude session on the same branch**. It is
+expected — do not treat it as a mystery, do not revert/stash/commit it, and do not "fix" its errors.
+
+The repo was clean at session start; partway through, `git status` showed a large
+**Akoya / `financial_connections` feature** appear:
 
 ```
  M src/App.tsx, src/vite-env.d.ts, src/pages/Accounts.tsx
@@ -37,10 +41,14 @@ The repo was **clean at session start**. Partway through this session `git statu
    — that filter returned **empty** for all three of this session's commits.
 2. **NEVER `git add -A` or `git commit -a`.** All three commits this session used an explicit single
    file path. Confirm with `git show --stat` before/after.
-3. **Item 5 (Plaid mobile safe-area) is BLOCKED.** That work modifies `PlaidLinkButton.tsx`,
-   `usePlaidItems.ts` and all four Plaid edge functions — the exact surface item 5 touches. Fixing the
-   safe-area inset now would collide. **Ask Tre what this work is and whether it lands first.**
-4. Ask Tre before assuming it's abandoned — do not revert, stash or commit any of it.
+3. **Item 5 (Plaid mobile safe-area) is BLOCKED until the Akoya work lands.** It modifies
+   `PlaidLinkButton.tsx`, `usePlaidItems.ts` and all four Plaid edge functions — the exact surface
+   item 5 touches. Editing them now means two sessions writing the same files. Ask Tre whether Akoya
+   has landed before starting it.
+4. **Two sessions share this working tree and this branch.** Assume files can change under you: re-read
+   before editing anything outside your own scope, and re-check `git status` immediately before each
+   commit. `handoff.md` is also contended — if it has content you didn't write, merge rather than
+   overwrite.
 
 ## 2. ✅ SESSION 90's COMMITS — LIVE-VERIFIED, ALL PREDICTIONS HELD
 
