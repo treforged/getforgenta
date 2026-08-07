@@ -166,9 +166,17 @@ Verified after: authenticated read returns 6 RLS-filtered rows, `access_token` s
    Auth **Redirect URLs** allow-list, so Supabase falls back to the Site URL and the popup lands
    on production instead. Fix is Tre's to make (auth settings; the Supabase MCP does not expose
    auth config): Dashboard → Authentication → URL Configuration → Redirect URLs → add
-   `http://localhost:8080/**`. Ask him what URL the stuck popup showed before assuming — if it
-   sat on `accounts.google.com` the cause is different, and if it reached `/auth?code=...` then
-   the handler itself is broken.
+   `http://localhost:8080/**`.
+   **CONFIRMED 2026-08-07.** Tre reported the stuck popup was showing
+   `https://getforgenta.com/?code=<uuid>` — production host, at the bare `/` path. That is the
+   Site URL fallback, which is exactly what Supabase serves when `redirectTo` is not
+   allow-listed. The app code is NOT at fault; `Auth.tsx`'s handler never ran because the
+   callback never reached the localhost origin. The allow-list entry above is the whole fix.
+   Do NOT try to fix this with `supabase config push` — `config.toml` has no `[auth]` section,
+   so pushing would overwrite the remote auth config with defaults. Dashboard only.
+   Separately, worth a small hardening ticket (NOT part of the §1 window): the popup gives no
+   error on this failure because the parent only polls `popup.closed` (`Auth.tsx:317-326`). A
+   timeout with a toast would have made this self-diagnosing.
 
 ## Tre's standing instruction added this session
 
