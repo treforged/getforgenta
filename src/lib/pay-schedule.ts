@@ -807,6 +807,14 @@ export function getAugmentedMinSafeCash(
   // so a bill due within the last few days (or exactly on the cutoff) stays reserved in the floor
   // instead of being assumed cleared. That raises the floor slightly, which reads cash LOW — the
   // safe direction for a floor whose whole job is to stop the user overcommitting.
+  //
+  // §1A Stage C part 2 does NOT wire transaction evidence in here. Read the two call sites below
+  // before assuming otherwise: `dueSynced` is only ever applied to CREDIT-CARD minimums (the car
+  // loops opt out explicitly, for the next-month reason noted on each). A card minimum is exactly
+  // the charge the matcher cannot find — the user pays an amount they choose, and the debit is a
+  // card payment on the funding account rather than a discrete bill, so evidence would report
+  // `covered + unmatched` and re-reserve a minimum already paid. Same reasoning as
+  // `m0MinDueSettled` in credit-card-engine.ts; it needs transfer-linking §1A does not have.
   const m0MonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const dueSynced = (dueDay: number) =>
     monthIdx === 0 && !!syncCutoffDate &&

@@ -190,6 +190,13 @@ export function revolvingMinDue(card: CardData, revOwed: number): number {
  * cutoff day stays reserved instead of vanishing. Both err toward reserving cash, the safe
  * direction: the failure mode is reading cash low, not recommending a payment the user cannot make.
  * This is an OUTFLOW gate — the lag belongs here. See `src/lib/sync-cutoff.ts`.
+ *
+ * §1A Stage C part 2 deliberately does NOT pass evidence here, and a future session must not add
+ * it. The user pays whatever they choose, not the minimum, so `matchCharge` against the minimum
+ * amount will almost always miss. On a card that DOES have transaction coverage that miss reads as
+ * `covered + unmatched` ⇒ "not captured" ⇒ the minimum is forced again in month 0 even though it
+ * was paid — reinstating the exact Q11 double-count this function exists to remove. Matching a card
+ * payment needs transfer-linking between the funding account and the card, which §1A does not have.
  */
 export function m0MinDueSettled(
   dueDay: number | null | undefined,

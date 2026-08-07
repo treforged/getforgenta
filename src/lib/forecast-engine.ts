@@ -19,6 +19,8 @@ import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-pr
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
+import { carChargeEvidence } from '@/lib/capture-evidence';
+import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
 import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
@@ -124,6 +126,10 @@ export interface ForecastInputs {
    * (useCardProjection) needs — without them a replayed sim walks $X/month richer than the
    * engine and ISB-pinned months can't correct the drift (the Q12 Aug-2026 phantom breach). */
   paymentPlans?: PaymentPlan[];
+  /** §1A Stage C: settled synced transactions overlapping month 0, for the capture gates below.
+   * Optional so the captured fixture (`forecast-inputs.real.json`) replays identically and so an
+   * omitting caller gets exactly the pre-Stage-C date heuristic. */
+  syncedTransactions?: readonly MatchableTransaction[];
 }
 
 export interface ForecastResult {
@@ -143,6 +149,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions,
     currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor,
     pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget,
+    syncedTransactions,
   } = inputs;
 
     const _profTr = profile?.tax_rate;
@@ -288,7 +295,16 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         ? carFunds.filter((cf) => {
             if (cf.phase !== 'loan' || !cf.payment_start_date) return true;
             const payDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
-            return !isCapturedInBalance(dueDateInMonth(mk, payDay), syncCutoffDate);
+            const dueDate = dueDateInMonth(mk, payDay);
+            // §1A Stage C part 2: a settled transaction, where one covers this due date, outranks
+            // the settlement-lag guess. `getTotalCarLoanMonthly([cf], md)` is the very amount this
+            // gate is deciding whether to charge, so the matcher looks for exactly what the engine
+            // would otherwise add — including a final-month true-up, which is smaller than the
+            // scheduled payment and would miss if the nominal amount were used instead.
+            const evidence = carChargeEvidence(
+              cf, getTotalCarLoanMonthly([cf], md), dueDate, forecastFundingAccountId, syncedTransactions,
+            );
+            return !isCapturedInBalance(dueDate, syncCutoffDate, evidence);
           })
         : carFunds;
       const regular = getTotalCarLoanMonthly(eligible, md);
@@ -331,7 +347,13 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           // cutoff day was dropped by Forecast and kept by the Dashboard. One shared predicate now.
           if (i === 0 && syncCutoffDate) {
             const insuranceDueDay = new Date(insuranceAnchor + 'T00:00:00').getDate();
-            if (isCapturedInBalance(dueDateInMonth(mk, insuranceDueDay), syncCutoffDate)) return false;
+            const dueDate = dueDateInMonth(mk, insuranceDueDay);
+            // §1A Stage C part 2 — same evidence rule as the loan payment above, with the premium
+            // as the amount. Insurance is usually debited from the same account as the payment.
+            const evidence = carChargeEvidence(
+              cf, Number(cf.monthly_insurance || 0), dueDate, forecastFundingAccountId, syncedTransactions,
+            );
+            if (isCapturedInBalance(dueDate, syncCutoffDate, evidence)) return false;
           }
           return true;
         })
