@@ -1,9 +1,45 @@
-# Handoff — 2026-08-06 — session 96 — branch `main` — 4b: sites 1,2,3,6 DONE + committed; 4-5 next
+# Handoff — 2026-08-07 — session 96 — branch `main` — ✅ 4b COMPLETE: all 6 sites done + LIVE-VERIFIED
 
 ## ▶▶ START HERE — SESSION 96 (supersedes session 95's "START HERE" below)
 
-Committed sites 3 and 6, and **unblocked sites 4-5 by answering the live-data question that was
-gating them**. Tree CLEAN, nothing half-finished.
+**Item 4b (goal transfer plans auto-stop at 100%) is DONE and live-verified on Tre's real
+account.** All 6 wiring sites shipped, 445/445 green, tsc + eslint clean, tree CLEAN.
+Only the deliberately-deferred debt-engine sites remain (a separate decision, see below).
+
+### ✅ LIVE VERIFICATION — PASSED, decisive, on the real account (`demo:false`, 2026-08-07)
+
+The fix is observable in the **tail** of Forecast, exactly as predicted. `/forecast` monthly
+breakdown, **−OUT** column, real data:
+
+| Month | −OUT | |
+|---|---|---|
+| Jul 2030 | $3,675 | baseline |
+| Aug 2030 | $3,675 | baseline |
+| **Sep 2030** | $3,878 | milestone row reads **"Sep 2030: Savings Complete! 🎯"** — still counted, correct |
+| **Oct 2030** | **$3,175** | **−$500/mo — the `HYS` transfer stops** |
+| Nov 2030 | $3,175 | stays down |
+| Dec 2030 | $3,175 | stays down |
+
+Two things this proves at once:
+1. **Magnitude is exactly right** — $3,675 → $3,175 is precisely the $500/mo `HYS` rule.
+2. **The off-by-one boundary is right** — the drop lands in Oct, the month AFTER the completion
+   milestone, matching `goal-linkage.ts`'s `completionIdx === k → cutoff k+1` semantics ("months
+   0..k still count"). A drop in Sep would have been a bug.
+
+**Month 0 unchanged, as required** — Dashboard month-0 tile reads Available **$866.00**; no goal
+of Tre's is complete today, so the `ownCutoff <= 0` gate cannot fire at month 0 (proven by the
+SQL table below, not just by eyeballing). `/debt` renders clean too (site 3, no crash, chart and
+tiles intact).
+
+### 🆕 Unrelated defect spotted during verification — NOT fixed, belongs to item 4a
+
+`/debt`'s **TOTAL LIMIT** tile reads **$45,400**, i.e. it still includes the two unopened cards.
+Session 93's `3c71b3c2` fixed exactly this bug but wired `isCardOpenAsOf()` into only **three**
+read surfaces — Dashboard utilization, AiAdvisor, and the engine's utilization milestones. The
+Debt Payoff page's own limit tile was missed, so Dashboard and Debt Payoff now **disagree**
+($25,400 vs $45,400). Small, self-contained follow-up: route that tile through
+`src/lib/card-start-date.ts` the same way. Grep for the tile in `src/pages/DebtPayoff.tsx` /
+`CreditCardEngine.tsx`.
 
 ### Commits
 
@@ -45,7 +81,7 @@ Incidental, NOT fixed (outside 4b, flag to Tre): the **Savings** goal's `linked_
 two ids but `9f2c0934-5963-4cef-a7ce-9a2476870711` **does not exist in `recurring_rules`** — an
 orphaned link. Harmless today (all consumers filter unresolved rules out), worth cleaning up.
 
-### Sites 4-5 — RESOLVED, just implement
+### Sites 4-5 — ✅ DONE, committed as `ce0c4876`. Reasoning preserved below (don't undo it)
 
 `Dashboard.tsx` `monthlySavingsAndCar` (:345-380) and its clone
 `useForecastEngineInputs.ts` `currentMonthRecommendedDebt` (:101-140). Re-grep line numbers.
@@ -71,20 +107,30 @@ const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
 if (ownCutoff != null && ownCutoff <= 0) return s;
 ```
 
-Confirm `accounts` is in scope in each memo (it is in Dashboard's; verify the hook) and add to the
-dep array if newly referenced. Then `npx tsc --noEmit`, `npx eslint <file>`, `npx vitest run`
-(expect **445/445** unchanged). Commit as `(sites 4-5/6)`. Backups exist:
-`backups/2026-08-06_222234/`.
+Both memos already had `goals`/`rules`/`accounts` in their dep arrays, so no dep change was
+needed. `tsc`, `eslint`, and 445/445 all clean afterward.
 
-### Then, to close out 4b
+### ⏭ NEXT STEPS — 4b is closed, these are what's left
 
-1. Live-verify per the table: month-0 UNCHANGED, Forecast tail ~52-59 up ~$500/mo (§6 gotchas).
-2. Separately, NOT same commit: decide whether the deferred debt-engine sites
-   (`credit-card-engine.ts:2087-2100`, `debt-transaction-generator.ts:12-34`) are worth the
-   convergence risk.
-3. `npx eslint` repo-wide, `python -m graphify update .` (carried debt since session 90).
+1. **Decide (needs Tre): are the deferred debt-engine sites worth it?**
+   `credit-card-engine.ts:2087-2100` and `debt-transaction-generator.ts:12-34` still count a
+   completed goal's transfer as a cash outflow inside the **convergence engine**. Effect: the
+   debt engine slightly UNDER-recommends payments in the window after a goal completes — for Tre
+   that means from **Oct 2030 onward**, ~$500/mo, i.e. real but far out and small. Cost: threading
+   a cutoff map through `generateDebtPaymentTransactions`/`getDebtPaymentsByMonth`/
+   `getDebtBalancesByMonth` into a 60-month loop in the engine with ~12 rounds of hard-won
+   convergence fixes (`project_cycling_debt_engine`). **Recommendation: skip for now** — the
+   dollar effect is four years out and the regression risk is the highest-risk surface in the
+   codebase. Revisit if a user ever has a goal completing inside ~12 months. NOT a separate
+   commit — nothing to commit unless Tre says do it.
+2. **Small follow-up, self-contained:** `/debt`'s TOTAL LIMIT tile still includes unopened cards
+   ($45,400 vs Dashboard's $25,400) — see the "🆕 Unrelated defect" section above. This finishes
+   item 4a properly.
+3. `python -m graphify update .` (carried debt since session 90).
+4. Then back to §2's list: §1's migration + edge-function deploy (needs Tre + a quiet window),
+   Plaid Hosted Link device verification, §2.9 car-fund earmark.
 
-### State: tree CLEAN, 445/445, tsc + eslint clean. Not pushed — 72 commits ahead.
+### State: tree CLEAN, 445/445, tsc + eslint clean. Not pushed — 75 commits ahead.
 
 ### Lesson (session 96)
 
@@ -93,6 +139,11 @@ whether the real data can even show the difference.** Two sessions deferred 4-5 
 observation one Supabase query proved impossible. Answer the data question first, then resolve the
 design from the code. Also: before making a derived field authoritative for display, grep who
 WRITES it back — `SavingsGoals.tsx` would have persisted a display-only zero into the database.
+
+**Corollary, proven the same session:** a fix can be decisively verified WITHOUT a before/after
+baseline if you predict a signed, sized, *located* effect first. "Surplus steps up by exactly $500
+in the month AFTER the completion milestone" is falsifiable in a single reading — no checking out
+the pre-fix commit, no need to have recorded the old numbers. Predict the number before you look.
 
 ---
 
