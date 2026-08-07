@@ -208,6 +208,44 @@ Implementation sketch:
   session 96 hit exactly this trap. Make sure the new flag round-trips and that a DUPLICATED goal
   does not inherit a stamped end date pointing at the original's rule.
 
+### 97.4 — ⚠️ REPORTED LIVE BY TRE 2026-08-07: pending transactions are throwing off his numbers
+
+**Symptom, his words:** several pending transactions on checking, **income AND expenses**, and the
+projections are off today.
+
+**This is a KNOWN GAP, not a regression — do not go hunting for a new bug.** The grace period he
+asked about was decided 2026-08-05 and is live in `src/lib/sync-cutoff.ts`:
+`SETTLEMENT_LAG_DAYS = 3` calendar days (his call, calendar over business days deliberately),
+applied in `isCapturedInBalance` — **outflows only**. `resolveSyncCutoffDate` gets NO lag, because
+`plaid-sync` stores `balances.current`, which for depository accounts does not net out pending
+(`available` does), so pending DEBITS sit outside the balance while deposits were assumed to
+settle straight into it. That asymmetry was verified live, not assumed: lagging the income side
+re-admitted a $1,463 deposit already in the balance and moved Forecast month-0 END CASH
+$2,346 → $4,346, inflating cash — the unsafe direction.
+
+**So pending INCOME is the case the model explicitly assumes away**, and that is exactly what he
+is hitting. A pending deposit not yet in `current` is treated as already received and never
+re-added → understates cash. Mirror image of the $1,463 case.
+
+**DO NOT "fix" this by tuning SETTLEMENT_LAG_DAYS or by adding a lag to the income side.** The
+file says it outright: this is a date heuristic standing in for evidence it does not have
+(`plaid-sync` pulls balances and liabilities only, no transactions). The correct rule once
+transaction sync exists is "captured iff a settled transaction matches it", and the heuristic
+should then be **retired, not tuned**. Tuning it trades one wrong direction for the other and
+would re-break the live-verified $1,463 case.
+
+**The real fix is §1A (Plaid transaction sync + rule matching), which is blocked behind §1** (the
+`financial_connections` migration + seven-edge-function deploy that must ship together in a quiet
+window, with Tre). **§1 now gates two things he cares about — Hosted Link verification AND this —
+so it has moved up the priority list.** Raise it with him rather than working around it.
+
+Interim option worth OFFERING him (do not implement unilaterally, it changes real numbers): for
+Plaid-linked depository accounts, prefer `balances.available` over `balances.current` when
+present, since `available` already nets pending. That is a smaller change than §1A and attacks the
+root (the wrong balance field) rather than the symptom — but it moves every cash-derived number,
+needs the golden/real-data fixtures re-checked, and `available` is null for some institutions, so
+it needs a documented fallback. Cheap to prototype, must be live-verified before it ships.
+
 ### ⏭ THEN — the older backlog
 
 1. **Decide (needs Tre): are the deferred debt-engine sites worth it?**
