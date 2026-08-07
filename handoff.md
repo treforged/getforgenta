@@ -1,3 +1,103 @@
+# Handoff — 2026-08-06 — session 96 — branch `main` — 4b: sites 1,2,3,6 DONE + committed; 4-5 next
+
+## ▶▶ START HERE — SESSION 96 (supersedes session 95's "START HERE" below)
+
+Committed sites 3 and 6, and **unblocked sites 4-5 by answering the live-data question that was
+gating them**. Tree CLEAN, nothing half-finished.
+
+### Commits
+
+- `517fcbd7` **site 3/6 — `src/components/debt/CreditCardEngine.tsx`.** Session 95's line numbers
+  were all still accurate. Three gates: the `simTransferRules` loop and the `monthSavings` reduce
+  inside `variableSim`'s `extraExpensesByMonth` (both keyed on `m`), plus the month-0
+  `savingsTotal` reduce in the separate `monthlySavingsAndCar` useMemo (`ownCutoff <= 0` form,
+  own cutoff-map build since it's a different closure). 445/445, tsc + eslint clean.
+- `c126f02b` **site 6/6 — `src/pages/SavingsGoals.tsx`.** Uses shared
+  `buildGoalOwnCompletionCutoffs` to add a derived `is_complete` to `EnrichedGoal`; completed
+  goal cards read "Target reached · contributions no longer counted".
+  ⚠️ **Deliberate deviation — do not revert it.** The design said set `monthly_contribution: 0`.
+  That is **destructive**: `openEdit` (:412) and `handleDuplicate` (:427) read
+  `EnrichedGoal.monthly_contribution` and write it back to `savings_goals` on save, so zeroing it
+  turns 4b's read-path exclusion into a DB write. Field keeps its live value; only display
+  branches. No new tests — cutoff logic is covered by `goal-linkage.test.ts`, and there is **no
+  page-component test harness** in this repo (`src/pages/__tests__` doesn't exist).
+
+### 🔑 Live-data answer that unblocks sites 4-5
+
+Sites 4-5 were deferred until 1-3 were "live-verified so you can observe double-counting."
+**That gate is MOOT — live observation cannot discriminate.** Both are month-0-only, and no goal
+is near complete today:
+
+| Goal | Balance / target | Funding | Completes? |
+|---|---|---|---|
+| 401K Roth | $6,348 / $50,000 | **unlinked**, own $236.82/mo | ~month 184 — no |
+| Brokerage | $1,452 / $10,000 | `Robinhood Contributions` $25/mo from 2027-07-05 | ~month 342 — no |
+| Savings | $106 / $20,000 | `HYS` $500/mo from 2027-08-21 | **~month 52 — YES, in window** |
+| Roth IRA | $991 / $7,000 | `Roth IRA` $25/mo from 2026-07-15 | ~month 240 — no |
+
+1. Sites 1-3 ARE observable, but only in the **TAIL**: months ~52-59 of Forecast / Debt Payoff
+   should show **~$500/mo more surplus** than before `f605f79a` (HYS stops once Savings hits
+   $20,000). **Month-0 tiles must be unchanged — a moved month-0 number is a BUG.**
+2. Sites 4-5 are no-ops for Tre's data today; reason from the code, don't wait for an
+   observation that cannot happen.
+
+Incidental, NOT fixed (outside 4b, flag to Tre): the **Savings** goal's `linked_rule_ids` holds
+two ids but `9f2c0934-5963-4cef-a7ce-9a2476870711` **does not exist in `recurring_rules`** — an
+orphaned link. Harmless today (all consumers filter unresolved rules out), worth cleaning up.
+
+### Sites 4-5 — RESOLVED, just implement
+
+`Dashboard.tsx` `monthlySavingsAndCar` (:345-380) and its clone
+`useForecastEngineInputs.ts` `currentMonthRecommendedDebt` (:101-140). Re-grep line numbers.
+
+- **(a) Double-add risk? NO — because you must NOT gate `activeTransferDests`.** It's built from
+  `rules` with only start/end-date checks; leave it as is. The rule stays in the set, so a linked
+  goal's own contribution stays suppressed. Gating that set would BE the bug: the goal falls out
+  of the guard and its raw contribution gets added back. **Don't touch `activeTransferDests` /
+  `activeTransferDests0`.**
+- **(b) Does `savingsTotal` need its own gate? YES.** For an **unlinked** goal (Tre's 401K Roth
+  exactly — $236.82/mo, `linked_rule_ids: []`) the engine now stops counting it at completion
+  (site 1) while these month-0 memos keep adding it. This memo is the structural twin of
+  `CreditCardEngine.tsx`'s `monthlySavingsAndCar`, already gated in `517fcbd7`.
+
+Both sites, one map build + one gate line, identical to `517fcbd7`'s month-0 half:
+
+```ts
+import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
+// inside the memo, after `now` / `activeTransferDests`:
+const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, now);
+// inside the savingsTotal reduce, AFTER the retire/transfer-dest checks:
+const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
+if (ownCutoff != null && ownCutoff <= 0) return s;
+```
+
+Confirm `accounts` is in scope in each memo (it is in Dashboard's; verify the hook) and add to the
+dep array if newly referenced. Then `npx tsc --noEmit`, `npx eslint <file>`, `npx vitest run`
+(expect **445/445** unchanged). Commit as `(sites 4-5/6)`. Backups exist:
+`backups/2026-08-06_222234/`.
+
+### Then, to close out 4b
+
+1. Live-verify per the table: month-0 UNCHANGED, Forecast tail ~52-59 up ~$500/mo (§6 gotchas).
+2. Separately, NOT same commit: decide whether the deferred debt-engine sites
+   (`credit-card-engine.ts:2087-2100`, `debt-transaction-generator.ts:12-34`) are worth the
+   convergence risk.
+3. `npx eslint` repo-wide, `python -m graphify update .` (carried debt since session 90).
+
+### State: tree CLEAN, 445/445, tsc + eslint clean. Not pushed — 72 commits ahead.
+
+### Lesson (session 96)
+
+**"Verify against real data before doing the risky site" can itself be a stale instruction — check
+whether the real data can even show the difference.** Two sessions deferred 4-5 waiting on an
+observation one Supabase query proved impossible. Answer the data question first, then resolve the
+design from the code. Also: before making a derived field authoritative for display, grep who
+WRITES it back — `SavingsGoals.tsx` would have persisted a display-only zero into the database.
+
+---
+
+# (session 95's handoff follows, unchanged)
+
 # Handoff — 2026-08-06 — session 95 — branch `main` — 4b: sites 1-2 DONE + verified, site 3 next
 
 > 🚨 **BEFORE YOU DEPLOY ANY EDGE FUNCTION, READ §1 (below the fold).** `main` is currently not
