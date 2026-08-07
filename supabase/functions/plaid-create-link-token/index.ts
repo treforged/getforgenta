@@ -18,6 +18,15 @@ import { checkRateLimit, getClientIp, rateLimitedResponse } from "../_shared/rat
 const MAX_LINKED = 10;
 const RATE_LIMIT = { windowMs: 60_000, max: 10 };
 
+/**
+ * Where Plaid sends the user once Hosted Link finishes. Pinned here rather than
+ * accepted from the client: it is a redirect target, and taking one from request
+ * input would let a caller point the end of a Plaid session anywhere. Matches
+ * CFBundleURLSchemes in ios/App/App/Info.plist and the appUrlOpen handler in
+ * src/App.tsx. Custom scheme by Plaid's requirement — https is rejected.
+ */
+const HOSTED_COMPLETION_URI = "com.treforged.forged://plaid-complete";
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -92,11 +101,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Accept optional redirect_uri and plaid_item_id from client
+    // Accept optional redirect_uri, plaid_item_id and hosted-link opt-in from client
     let bodyJson: Record<string, unknown> = {};
     try { bodyJson = await req.clone().json(); } catch { /* no body */ }
     const redirectUri   = typeof bodyJson.redirect_uri   === "string" ? bodyJson.redirect_uri   : undefined;
     const relinkItemId  = typeof bodyJson.plaid_item_id  === "string" ? bodyJson.plaid_item_id  : undefined;
+    // Native clients ask for Hosted Link: Plaid hosts the whole flow on its own
+    // page, which we open in an SFSafariViewController / Custom Tab instead of
+    // rendering Plaid's iframe inside our webview. See the client for why.
+    const hosted        = bodyJson.hosted === true;
 
     const linkTokenBody: Record<string, unknown> = {
       client_id:    PLAID_CLIENT_ID,
@@ -106,7 +119,16 @@ Deno.serve(async (req) => {
       language:     "en",
       user: { client_user_id: userId },
     };
-    if (redirectUri) linkTokenBody.redirect_uri = redirectUri;
+    if (hosted) {
+      // Hosted Link runs Plaid's own OAuth hand-off on Plaid's domain, so the
+      // app's redirect_uri does not apply and passing both is rejected.
+      linkTokenBody.hosted_link = {
+        is_mobile_app: true,
+        completion_redirect_uri: HOSTED_COMPLETION_URI,
+      };
+    } else if (redirectUri) {
+      linkTokenBody.redirect_uri = redirectUri;
+    }
 
     if (relinkItemId) {
       // Update mode — re-link existing item to add liabilities product
@@ -147,9 +169,44 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ link_token: body.link_token }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    if (hosted && !body.hosted_link_url) {
+      // Hosted Link is a dashboard-enabled feature. Failing loudly here beats
+      // handing the client a token it has no way to open.
+      console.error("Plaid returned no hosted_link_url; is Hosted Link enabled for this client?");
+      return new Response(JSON.stringify({ error: "Hosted Link is not enabled for this Plaid client" }), {
+        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (hosted) {
+      // Bind the link_token to this user. plaid-hosted-link-result trades a
+      // link_token for a public_token, so without this row anyone holding a
+      // leaked hosted_link_url could attach someone else's bank to their own
+      // account. Same single-use, service-role-only store Akoya uses; the TTL is
+      // widened to 30 minutes because a real person picking a bank and doing MFA
+      // routinely takes longer than the table's 10-minute default.
+      const { error: stateErr } = await supabase.from("oauth_states").insert({
+        state:        body.link_token,
+        user_id:      userId,
+        provider:     "plaid",
+        redirect_uri: HOSTED_COMPLETION_URI,
+        expires_at:   new Date(Date.now() + 30 * 60_000).toISOString(),
+      });
+      if (stateErr) {
+        console.error("Failed to persist plaid hosted link state:", stateErr.message);
+        return new Response(JSON.stringify({ error: "Could not start the connection" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        link_token: body.link_token,
+        ...(hosted ? { hosted_link_url: body.hosted_link_url } : {}),
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (err) {
     console.error("plaid-create-link-token:", err);
     return new Response(JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }), {
