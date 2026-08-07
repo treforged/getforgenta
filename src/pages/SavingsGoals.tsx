@@ -18,6 +18,7 @@ import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDeb
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, type GrowthGoalInput } from '@/lib/savings-growth';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
+import { planAutoEndWrites, type StampedMap } from '@/lib/goal-auto-end';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
@@ -45,6 +46,26 @@ type EnrichedGoal = Partial<Tables<'savings_goals'>> & {
 };
 
 type GoalLumpSum = { id: string; date: string; amount: number };
+
+/** `savings_goals.auto_end_stamped_rules` (jsonb) narrowed to the ruleId -> end_date map. */
+function toStampedMap(value: unknown): StampedMap {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === 'string')
+  );
+}
+
+/**
+ * "Oct 2026" for the last month any of this goal's rules is stamped to stop, or null when
+ * nothing is stamped (toggle on but the goal does not complete within the horizon).
+ */
+function autoEndLabel(value: unknown): string | null {
+  const dates = Object.values(toStampedMap(value)).sort();
+  if (dates.length === 0) return null;
+  const d = new Date(dates[dates.length - 1] + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
 
 function GoalLumpSumModal({
   mode, initialDate, initialAmount, projectedBalanceAt, liquidCash, onSave, onClose,
@@ -313,7 +334,7 @@ export default function SavingsGoals() {
   const { data: goals, add, update, remove } = useSavingsGoals();
   const { data: carFunds } = useCarFunds();
   const { data: accounts, loading: accountsLoading } = useAccounts();
-  const { data: rules } = useRecurringRules();
+  const { data: rules, update: updateRule } = useRecurringRules();
   const { data: profile } = useProfile();
   const { data: txns } = useTransactions();
   const { data: debts } = useDebts();
@@ -323,6 +344,11 @@ export default function SavingsGoals() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
+  // 97.3 — the auto-end toggle plus the stamp map (ruleId -> end_date THIS feature wrote) for
+  // the goal being edited. The map is provenance: without it we cannot tell our own end_date
+  // from one the user typed, and toggling off would clear dates we never set.
+  const [autoEnd, setAutoEnd] = useState(false);
+  const [stampedRules, setStampedRules] = useState<StampedMap>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const cashFloor = profile?.cash_floor != null ? Number(profile.cash_floor) : 1000;
   const liquidCash = useMemo(() =>
@@ -420,6 +446,7 @@ export default function SavingsGoals() {
   const openAdd = (goalType = 'Custom') => {
     setForm({ ...emptyForm, goal_type: goalType });
     setSelectedRuleIds([]);
+    setAutoEnd(false); setStampedRules({});
     setEditId(null); setShowForm(true);
   };
 
@@ -435,6 +462,8 @@ export default function SavingsGoals() {
       ? (g.linked_rule_ids ?? [])
       : g.linked_rule_id ? [g.linked_rule_id] : [];
     setSelectedRuleIds(ids);
+    setAutoEnd(!!g.auto_end_contributions);
+    setStampedRules(toStampedMap(g.auto_end_stamped_rules));
     setEditId(g.id ?? null); setShowForm(true);
   };
 
@@ -449,6 +478,9 @@ export default function SavingsGoals() {
       ? (g.linked_rule_ids ?? [])
       : g.linked_rule_id ? [g.linked_rule_id] : [];
     setSelectedRuleIds(ids);
+    // A copy does not own the original's stamps: the original's rules still carry ITS end
+    // dates, and inheriting the map would let the copy clear dates it never wrote.
+    setAutoEnd(false); setStampedRules({});
     setEditId(null); setShowForm(true);
     toast.info('Goal duplicated — edit and save');
   };
@@ -469,7 +501,29 @@ export default function SavingsGoals() {
       contribution_start_date: form.contribution_start_date || null,
       linked_rule_ids: selectedRuleIds,
       linked_rule_id: selectedRuleIds.length === 1 ? selectedRuleIds[0] : null,
+      auto_end_contributions: autoEnd,
     };
+
+    // 97.3 — the ONLY place auto-end writes are issued: an explicit save, never a render path.
+    // The engines on this page re-run on nearly every input change, so a write from a useMemo
+    // would hammer Supabase. Planned against the payload (the goal AS SAVED), so a rule the
+    // user just unlinked in this same save still gets its stale stamp cleared.
+    const existing = editId ? goals.find(g => g.id === editId) : null;
+    const plan = planAutoEndWrites({
+      enabled: autoEnd,
+      goal: { ...payload, id: editId ?? undefined, lump_sum_payments: existing?.lump_sum_payments },
+      previousStamped: stampedRules,
+      rules,
+      accounts,
+    });
+    payload.auto_end_stamped_rules = plan.stamped as unknown as Json;
+    // Demo mode has no DB: every mutation throws 'Demo mode', so don't queue rule writes there.
+    if (!isDemo) for (const w of plan.ruleWrites) updateRule.mutate({ id: w.id, end_date: w.end_date });
+    if (plan.conflicts.length > 0) {
+      const names = plan.conflicts.map(c => rules.find(r => r.id === c.ruleId)?.name ?? 'rule').join(', ');
+      toast.warning(`${names} already has an end date you set — left unchanged.`);
+    }
+
     if (editId) {
       update.mutate({ id: editId, ...payload });
     } else {
@@ -625,6 +679,12 @@ export default function SavingsGoals() {
                       <span className="ml-1 text-muted-foreground">· Available after bills: {formatCurrency(g.available_after_outflows, false)}</span>
                     )}
                   </p>
+                  {/* Never let the end_date this feature wrote onto a rule be invisible here. */}
+                  {g.auto_end_contributions && autoEndLabel(g.auto_end_stamped_rules) && (
+                    <p className="text-[10px] text-primary/80 mt-0.5">
+                      Auto-ends contributions {autoEndLabel(g.auto_end_stamped_rules)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-1 shrink-0 self-end sm:self-auto">
                   <button onClick={() => handleDuplicate(g)} className="icon-btn text-muted-foreground hover:text-primary" title="Duplicate"><Copy size={13} /></button>
@@ -706,6 +766,30 @@ export default function SavingsGoals() {
                   false
                 )}/mo · Monthly contribution and start date auto-synced from rules
               </p>
+            )}
+            {selectedRuleIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setAutoEnd(v => !v)}
+                className="w-full flex items-start gap-2.5 text-left p-2.5 bg-secondary/30 border border-border/50 hover:border-primary/30 transition-colors"
+                style={{ borderRadius: 'var(--radius)' }}
+                aria-pressed={autoEnd}
+              >
+                <span
+                  className={`shrink-0 mt-0.5 w-4 h-4 border flex items-center justify-center ${autoEnd ? 'bg-primary border-primary text-primary-foreground' : 'border-border'}`}
+                  style={{ borderRadius: 'calc(var(--radius) / 2)' }}
+                >
+                  {autoEnd && <Check size={11} />}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-xs text-foreground">Stop contributions when this goal is reached</span>
+                  <span className="block text-[10px] text-muted-foreground mt-0.5">
+                    Sets an end date on {selectedRuleIds.length === 1 ? 'the rule above' : 'the rules above'} at the projected
+                    completion month, visible in Budget Control. Revised whenever you save this goal; an end date you set
+                    yourself is never changed.
+                  </span>
+                </span>
+              </button>
             )}
           </div>
         </FormModal>

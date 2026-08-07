@@ -1077,6 +1077,8 @@ export type Database = {
       }
       savings_goals: {
         Row: {
+          auto_end_contributions: boolean
+          auto_end_stamped_rules: Json
           contribution_start_date: string | null
           created_at: string
           current_amount: number
@@ -1094,6 +1096,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          auto_end_contributions?: boolean
+          auto_end_stamped_rules?: Json
           contribution_start_date?: string | null
           created_at?: string
           current_amount?: number
@@ -1111,6 +1115,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          auto_end_contributions?: boolean
+          auto_end_stamped_rules?: Json
           contribution_start_date?: string | null
           created_at?: string
           current_amount?: number
