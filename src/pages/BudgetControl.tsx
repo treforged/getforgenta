@@ -25,7 +25,8 @@ import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
-import { useTransactions } from '@/hooks/useSupabaseData';
+import { useTransactions, useSyncedTransactions } from '@/hooks/useSupabaseData';
+import { matchOccurrence } from '@/lib/transaction-matching';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
@@ -523,6 +524,36 @@ export default function BudgetControl() {
     [baseTxns, debtPaymentTxns],
   );
 
+  // §1A Stage B — "auto-matched" badge.
+  //
+  // A rule lands here only when exactly one settled synced transaction confidently corresponds to
+  // its occurrence THIS month. Absence means "no information" and is rendered as nothing at all:
+  // most rules will be absent until every connection has backfilled, and a "not paid" state would
+  // turn that gap into an accusation.
+  //
+  // Built from `rules` (real recurring_rules rows) rather than the merged view, so the synthetic
+  // subscription and debt-sync entries can never pick up a badge — they have no payment_source to
+  // attribute and their ids do not refer to rules at all.
+  const currentMonthKey = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+  const { data: syncedTxns } = useSyncedTransactions(currentMonthKey);
+  const autoMatchedRuleIds = useMemo(() => {
+    if (!syncedTxns?.length) return new Set<string>();
+    const matched = new Set<string>();
+    for (const r of rules) {
+      if (typeof r.due_day !== 'number') continue;
+      const m = matchOccurrence(
+        { ...r, due_day: r.due_day, payment_source: r.payment_source ?? null },
+        currentMonthKey,
+        syncedTxns,
+      );
+      if (m) matched.add(r.id);
+    }
+    return matched;
+  }, [rules, syncedTxns, currentMonthKey]);
+
   // Rules by category
   const incomeRules = useMemo(() => rules.filter(r => r.rule_type === 'income'), [rules]);
   // cost_type override takes priority over category-based classification.
@@ -878,6 +909,18 @@ export default function BudgetControl() {
           style={{ borderRadius: 'var(--radius)' }}
         >
           from payoff
+        </span>
+      )}
+      {autoMatchedRuleIds.has(r.id) && (
+        // Present tense and factual: a transaction matching this rule has settled this month. It
+        // deliberately does NOT say "paid" — the matcher found a corresponding charge, which is
+        // evidence, not an accounting assertion. There is no negative counterpart chip by design.
+        <span
+          className="text-[9px] px-1 py-0.5 bg-success/20 text-success border border-success/30 shrink-0"
+          style={{ borderRadius: 'var(--radius)' }}
+          title="A settled transaction on the linked account matches this rule's amount and due date this month."
+        >
+          auto-matched
         </span>
       )}
     </div>

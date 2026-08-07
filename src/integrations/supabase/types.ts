@@ -5,8 +5,13 @@
 // account_reconciliations, accounts, ai_advisor_history, ai_usage_events, assets, budget_items,
 // car_build_items, car_build_phases, car_builds, car_funds, debts, liabilities, lump_sum_transfers,
 // net_worth_snapshots, payment_plans, plaid_items, profiles, rate_limits, recurring_rules,
-// reddit_scout_seen_posts, savings_goals, subscription_tiers, subscriptions, transactions,
-// user_subscriptions
+// reddit_scout_seen_posts, savings_goals, subscription_tiers, subscriptions, synced_transactions,
+// transactions, user_subscriptions
+//
+// NOTE: this file is overdue a full regen — it predates §1 (financial_connections) and §1A. The
+// `synced_transactions` block below was added by hand for Stage B rather than regenerating,
+// because a regen replaces the whole file and would sweep in unrelated schema drift in the same
+// diff. Regenerate deliberately, on its own, not as a side effect of a feature.
 
 export type Json =
   | string
@@ -1199,6 +1204,61 @@ export type Database = {
           id?: string
           name?: string
           renewal_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      // §1A Stage A. Aggregator-owned and NOT the same thing as `transactions` below, which is
+      // the user's hand-entered ledger. Service-role writes only: RLS grants the user `select`
+      // and nothing else, so Insert/Update exist for the type to be well-formed, not because a
+      // client may use them.
+      synced_transactions: {
+        Row: {
+          account_id: string | null
+          amount: number
+          category: string | null
+          connection_id: string
+          created_at: string
+          date: string
+          id: string
+          merchant_name: string | null
+          name: string | null
+          pending: boolean
+          pending_transaction_id: string | null
+          provider_transaction_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id?: string | null
+          amount: number
+          category?: string | null
+          connection_id: string
+          created_at?: string
+          date: string
+          id?: string
+          merchant_name?: string | null
+          name?: string | null
+          pending?: boolean
+          pending_transaction_id?: string | null
+          provider_transaction_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          category?: string | null
+          connection_id?: string
+          created_at?: string
+          date?: string
+          id?: string
+          merchant_name?: string | null
+          name?: string | null
+          pending?: boolean
+          pending_transaction_id?: string | null
+          provider_transaction_id?: string
           updated_at?: string
           user_id?: string
         }
