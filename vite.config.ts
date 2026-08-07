@@ -10,6 +10,10 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    // Fail loudly instead of drifting to 8081. Supabase session state is stored
+    // per-origin, so a fallback port silently serves a SIGNED-OUT app and makes
+    // live verification look broken. See scripts/dev-session.mjs.
+    strictPort: true,
     hmr: {
       overlay: false,
     },
