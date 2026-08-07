@@ -1,5 +1,10 @@
 # Handoff — 2026-08-06 — session 93 — branch `main` — web Plaid regression CLEAR, utilization fixed
 
+> 🚨 **BEFORE YOU DEPLOY ANY EDGE FUNCTION, READ §1.** `main` is currently not deployable: seven edge
+> functions read `financial_connections`, and that table does not exist yet. The migration and the
+> function deploy must ship together. This blocks §4a Hosted Link, which touches
+> `plaid-create-link-token`.
+
 ## 0aa. SESSION 93 — both queued items DONE
 
 **A. Web Plaid regression test after `bc16b4fc` — PASSED, no regression.** On `localhost:8080/accounts`,
@@ -124,43 +129,89 @@ bottom tab bar (`5cb969f8`).
 
 **Nothing pushed — 56 local commits ahead.**
 
-## 1. ⚠️⚠️ READ FIRST — TRE IS WORKING ON AKOYA IN A PARALLEL SESSION
+## 1. 🚨🚨 DO NOT DEPLOY EDGE FUNCTIONS — `main` IS NOT DEPLOYABLE
 
-**Confirmed by Tre 2026-08-06:** *"i am working on ayoka in a parallel session."* The uncommitted
-Akoya work in the tree is **his, in flight, in another Claude session on the same branch**. It is
-expected — do not treat it as a mystery, do not revert/stash/commit it, and do not "fix" its errors.
+*Section rewritten 2026-08-06 by the Akoya session. Supersedes the earlier "Tre is working on Akoya
+in a parallel session" text — that work has landed and the situation changed.*
 
-The repo was clean at session start; partway through, `git status` showed a large
-**Akoya / `financial_connections` feature** appear:
+### The hazard, in one paragraph
+
+Commit **`aabdcdbd`** changed **seven edge functions** to read a table named **`financial_connections`**.
+**That table does not exist in the database** — `supabase/migrations/20260806_financial_connections.sql`
+was written but **deliberately never applied**. So **any `supabase functions deploy` right now breaks
+Plaid sync in production.** The affected functions:
 
 ```
- M src/App.tsx, src/vite-env.d.ts, src/pages/Accounts.tsx
- M src/components/onboarding/OnboardingWizard.tsx
- M src/components/shared/PlaidLinkButton.tsx, src/hooks/usePlaidItems.ts
- M supabase/functions/plaid-{create-link-token,exchange-token,sync-all,sync}/index.ts
- ?? src/hooks/useFinancialConnections.ts, src/config/, src/lib/providers/
- ?? src/components/shared/Akoya{ConnectButton,FallbackPrompt}.tsx, src/pages/AkoyaOAuth.tsx
- ?? supabase/functions/_shared/{providers/,sync-handler.ts,token-crypto.ts}
- ?? supabase/functions/{akoya-auth-url,akoya-exchange-token,financial-sync}/
- ?? supabase/migrations/20260806_financial_connections.sql
+plaid-sync            plaid-sync-all        plaid-exchange-token    plaid-create-link-token
+delete-account        stripe-webhook        revenuecat-webhook
 ```
 
-**Consequences — do not trip on these:**
-1. **`npx tsc --noEmit` is NO LONGER CLEAN.** All errors are in `useFinancialConnections.ts` and are
-   theirs: the `financial_connections` table isn't in the generated Supabase types yet, so the query
-   builder resolves to `never`. **Verify your own work with**
-   `npx tsc --noEmit 2>&1 | grep -v "useFinancialConnections\|financial_connections\|SelectQueryError\|Overload\|is not comparable\|missing the following properties"`
-   — that filter returned **empty** for all three of this session's commits.
-2. **NEVER `git add -A` or `git commit -a`.** All three commits this session used an explicit single
-   file path. Confirm with `git show --stat` before/after.
-3. **Item 5 (Plaid mobile safe-area) is BLOCKED until the Akoya work lands.** It modifies
-   `PlaidLinkButton.tsx`, `usePlaidItems.ts` and all four Plaid edge functions — the exact surface
-   item 5 touches. Editing them now means two sessions writing the same files. Ask Tre whether Akoya
-   has landed before starting it.
-4. **Two sessions share this working tree and this branch.** Assume files can change under you: re-read
-   before editing anything outside your own scope, and re-check `git status` immediately before each
-   commit. `handoff.md` is also contended — if it has content you didn't write, merge rather than
-   overwrite.
+**This is coupled in BOTH directions:**
+- Deploy without the migration → new code queries a table that doesn't exist.
+- Apply the migration without deploying → the currently-live functions break, because the migration
+  turns `plaid_items` into a **view that deliberately omits `access_token`**, and the deployed code
+  still reads that column.
+
+**The migration and the function deploy must ship TOGETHER, migration first.** In a quiet window.
+This matters most for **§4a Hosted Link**, which touches `plaid-create-link-token` — deploying that
+one function ships the Akoya changes with it.
+
+The migration itself is safe on its own terms: it **renames `plaid_items` in place**, drops nothing,
+copies nothing, and live Plaid access tokens stay exactly where they are. A compatibility view keeps
+`plaid_items` readable. It also closes a real hole — the old RLS policy was `FOR ALL TO public`, which
+let an authenticated user `SELECT` their own `access_token` straight through PostgREST.
+
+### Status: Akoya is BUILT but SHELVED
+
+Tre's decision 2026-08-06: **Akoya requires a $2,000/month minimum.** Not justifiable for a fallback
+covering one institution at current scale. **Revisit when subscriber count supports it.**
+
+The code is committed and dormant. `AKOYA_CONNECTOR_FIDELITY` is intentionally unset, so the Fidelity
+fallback returns a clean 503 rather than guessing. Reactivating later = two env vars + a redeploy.
+
+### Corrections to the previous version of this section
+
+1. **`npx tsc --noEmit` IS CLEAN — the old grep filter is obsolete, stop using it.** The
+   `financial_connections` types were hand-added to `src/integrations/supabase/types.ts`. Verified at
+   `aabdcdbd`: **tsc 0, eslint 0, build 0, 423 tests passing** (was 397; +26 Akoya tests).
+2. **Akoya has landed — item 5 / §4a is NO LONGER BLOCKED by it.** `PlaidLinkButton.tsx`,
+   `usePlaidItems.ts` and the Plaid edge functions are free to edit. (Session 92/93 already did.)
+3. **"NEVER `git add -A`" no longer applies for that reason** — the tree is clean and the Akoya work is
+   committed. Still good hygiene while two sessions share a branch, but it is no longer guarding
+   against uncommitted Akoya files.
+
+### Two known defects in the shelved Akoya code
+
+Neither is urgent while the path is disabled. **Both must be fixed before Akoya ever goes live.**
+
+- **`src/config/akoya-institutions.ts` matches `/\bfidelity\b/i`**, which also matches **Fidelity Bank**,
+  **Fidelity Bank and Trust**, **Fidelity Bank Iowa**, **Fidelity Bank (PA)** and others — unrelated
+  community banks with their own Akoya connectors. As written, a Fidelity Bank customer hitting a Plaid
+  outage gets routed to authenticate at Fidelity *Investments*. Tighten to
+  `[/^fidelity$/i, /\bfidelity\s+(investments|netbenefits)\b/i]` plus a negative guard, and add a test
+  asserting `findAkoyaInstitution('Fidelity Bank')` returns null.
+- **Nothing in the UI reads `connection_status === 'reauth_required'`.** The field is stored and exposed
+  through `useFinancialConnections`, but never rendered — a dead connection fails silently and the
+  balance just goes stale. Would also cover Plaid's `ITEM_LOGIN_REQUIRED`, which maps to the same status.
+
+### Cosmetic issue if a deploy happens before Akoya is reactivated
+
+The **"Trouble connecting Fidelity?"** disclosure in `src/pages/Accounts.tsx` renders for every premium
+user. With no connector configured it dead-ends in a 503 + error toast. Gate it (or drop it) before any
+deploy that includes the frontend. Same entry point exists in `OnboardingWizard.tsx`.
+
+### Still true — two sessions share this working tree and branch
+
+Assume files can change under you: re-read before editing anything outside your own scope, and re-check
+`git status` immediately before each commit. `handoff.md` is contended — if it has content you didn't
+write, **merge rather than overwrite**.
+
+### Provider specifics are NOT in this repo
+
+Akoya's Data Recipient Hub content is Confidential Information under §7 of the evaluation license, and
+**this repo is public**. Fidelity's token lifetime, transaction limits and connector id live in
+`C:\Users\tvonh\Desktop\claudecontext\akoya-provider-notes-PRIVATE.md`. Keep code comments generic —
+"expiration varies by provider, see the Data Recipient Hub". **Do not paste Hub specifics into the repo.**
 
 ## 2. ✅ SESSION 90's COMMITS — LIVE-VERIFIED, ALL PREDICTIONS HELD
 
@@ -224,7 +275,14 @@ stays filled either way.
 
 ## 4. ⭐ NEXT STEPS (in order)
 
-1. ~~Ask Tre about the Akoya work in §1~~ **DONE — it landed as `aabdcdbd`, tree clean.**
+0. 🚨 **Apply the migration + deploy the edge functions together — see §1.** Not for Akoya's sake;
+   `main` is un-deployable until this happens, and **§4a Hosted Link cannot ship without it** because
+   it deploys `plaid-create-link-token`. Needs Tre and a quiet window. Migration first, functions
+   immediately after. **Verify Plaid sync on his real account afterwards** — this touches the balance
+   path for every existing user.
+1. ~~Ask Tre about the Akoya work in §1~~ **DONE — it landed as `aabdcdbd`, tree clean.** Akoya itself
+   is now **SHELVED** ($2,000/mo minimum, not justifiable yet) — but its DB migration is still pending
+   and still blocking, see item 0.
 2. ~~Eyeball the new bottom tab bar at a true mobile viewport~~ **DONE — verified, see §0a.**
 3. ~~Plaid in-app popup ignores device boundaries~~ **SHIPPED `bc16b4fc`, UNVERIFIED — do the 4 steps in §0a first.** Original report: Tre: *"on mobile the in app popup
    for plaid is not respecting the device boundries like the rest of the app. the close and back button
