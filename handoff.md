@@ -22,8 +22,31 @@ viewport bottom, and the **More sheet holds Budget Control, Accounts, Vehicles, 
 ⚠️ `paddingBottom` reads `0px` in desktop Chrome because `env(safe-area-inset-bottom)` is 0 there — the
 inset is in the source and only resolves on device. Not a defect.
 
-**Next-step 3 (Plaid safe-area) was re-diagnosed and it is NOT the fix session 91 assumed.** See §4a.
-**Blocked on a scope decision from Tre — no code written.**
+**Next-step 3 (Plaid safe-area) was re-diagnosed — it is NOT the fix session 91 assumed — then SHIPPED
+as `bc16b4fc`.** Diagnosis in §4a. Tre picked **Hosted Link via Capacitor Browser**, native iOS surface.
+
+### ⚠️ `bc16b4fc` IS NOT VERIFIED. Before it can be trusted, in this order:
+
+1. **Enable Hosted Link on the Plaid client** (Dashboard). Without it Plaid returns no
+   `hosted_link_url` and the function deliberately 502s with
+   *"Hosted Link is not enabled for this Plaid client"* rather than handing back an unopenable token.
+2. **Deploy both edge functions** — `plaid-create-link-token` (modified) and
+   `plaid-hosted-link-result` (**new**). Neither is deployed. `verify_jwt` stays at the default
+   `true`; both send `Authorization`, so do **not** add them to `supabase/config.toml`.
+3. **Test on a real device** — this is native-only code and cannot be exercised in the browser
+   (`Capacitor.isNativePlatform()` is false on web, so the whole hosted path is skipped). Check:
+   the sheet's own chrome is inset correctly, the redirect back to
+   `com.treforged.forged://plaid-complete` closes the sheet, accounts land, and **dismissing the
+   sheet by hand does not leave the button spinning**.
+4. **No automated tests were added** — the new code is browser-sheet + edge-function glue with no
+   pure logic to isolate, so unit tests would only assert the mock. `npx vitest run` is **423/423**
+   green (up from 397; Akoya added tests), `npx tsc --noEmit` is **fully clean** now that Akoya's
+   generated types landed — the §1 grep filter is no longer needed — and `npx eslint` is clean.
+
+**Re-link/update mode never yields a `public_token`**, so the hosted path treats "session finished"
+as the result and force-syncs directly instead of polling. Worth a look on device too.
+
+**Web is deliberately untouched** and still uses the inline widget — do not "unify" the two paths.
 
 ## 0. GOAL (session 91)
 
@@ -136,7 +159,7 @@ stays filled either way.
 
 1. ~~Ask Tre about the Akoya work in §1~~ **DONE — it landed as `aabdcdbd`, tree clean.**
 2. ~~Eyeball the new bottom tab bar at a true mobile viewport~~ **DONE — verified, see §0a.**
-3. **Plaid in-app popup ignores device boundaries — NEEDS A SCOPE DECISION FROM TRE, see §4a.** Tre: *"on mobile the in app popup
+3. ~~Plaid in-app popup ignores device boundaries~~ **SHIPPED `bc16b4fc`, UNVERIFIED — do the 4 steps in §0a first.** Original report: Tre: *"on mobile the in app popup
    for plaid is not respecting the device boundries like the rest of the app. the close and back button
    are unusable at the top."* 📸 Screenshot (iOS 1179×2556) pins it: Plaid's own header (back chevron
    left, PLAID wordmark centre, `X` right) is drawn at **y = 0**, colliding with the iOS status bar —
