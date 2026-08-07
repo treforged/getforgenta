@@ -148,10 +148,15 @@ Verified after: authenticated read returns 6 RLS-filtered rows, `access_token` s
    "RLS enabled, no policy" at INFO — that is **intentional** ("service role only"), matching
    `rate_limits` / `email_nudges`. `pg_net`-in-public and leaked-password are the known
    accepted risks.
-5. **Browser DOM check — NOT DONE.** The MCP-controlled Chrome profile has no session and
-   redirects to `/auth`; Tre must never be signed in or out, so this was verified at the
-   RLS/PostgREST layer instead (item 3), which is the same substance. A human-eyes pass on
+5. **Browser DOM check — NOT DONE, needs Tre to sign in.** The MCP-controlled Chrome profile has
+   no session and redirects to `/auth`; Tre must never be signed in or out, so this was verified
+   at the RLS/PostgREST layer instead (item 3), which is the same substance. A human-eyes pass on
    `/accounts` is still worth doing.
+   **Demo mode is NOT a workaround** — checked 2026-08-07: `src/contexts/DemoContext.tsx` starts
+   `isDemo: false` with no URL-param or localStorage activation, so it cannot be entered by
+   navigating to a route. It is toggled through an in-app path that the marketing
+   `capture_demo.mjs` script drives. Don't re-investigate this; ask Tre to sign the MCP browser
+   profile in, then do items 1-2 under "Still open" in one pass.
 
 ## Tre's standing instruction added this session
 
