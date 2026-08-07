@@ -49,6 +49,7 @@ import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund } from '@/lib/vehicle-loan-engine';
 import { buildNetWorthBreakdown, totalsFromBreakdown } from '@/lib/net-worth';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
+import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
   Line, CartesianGrid, ComposedChart,
@@ -356,10 +357,17 @@ export default function Dashboard() {
         !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
       ).map(r => r.deposit_account as string),
     );
+    // Handoff item 4b — month-0 gate, structural twin of CreditCardEngine.tsx's
+    // monthlySavingsAndCar. Only the goal-keyed cutoff belongs here: `activeTransferDests` above
+    // is a double-count GUARD, not a dollar sum, so gating it would drop a completed linked goal
+    // out of the guard and add its raw contribution back. Leave that set alone.
+    const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, now);
     const savingsTotal = goals.reduce((s, g) => {
       if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
       if (g.linked_account && retireIds.has(g.linked_account)) return s;
       if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
+      const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
+      if (ownCutoff != null && ownCutoff <= 0) return s;
       return s + Number(g.monthly_contribution);
     }, 0);
     const carTotal = carFunds.reduce((s, c) => {
