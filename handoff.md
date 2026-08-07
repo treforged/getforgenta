@@ -1,36 +1,36 @@
-# Handoff — 2026-08-07 — session 102 — §1A STAGE C PART 2 WIRED; TESTS ARE THE NEXT STEP
+# Handoff — 2026-08-07 — session 102 — §1A STAGE C PART 2 SHIPPED + TESTED
 
-> The car-loan month-0 capture gates now take transaction evidence (`5fe4891b`). tsc clean,
-> **505/505** — but that count is unchanged because **no test covers the new wiring yet**. That is
-> the next step, and it is the only thing between Stage C and done. Nothing pushed.
+> The car-loan month-0 capture gates take transaction evidence (`5fe4891b`) and are covered on both
+> surfaces (`495db0fa`). tsc clean, **528/528** (+23). Mutation-checked. Stage C is code-complete;
+> what remains is the live "nothing changed" check. Nothing pushed.
 
 ## ▶ START HERE
 
-**Write the tests for the part-2 wiring.** The code shipped at a context gate before its tests
-did. Two files to add:
+**Live-verify part 2 as "nothing changed"** — capture Forecast month-0 END CASH, confirm it is
+unchanged. No checking account has synced transactions, so every wired gate falls back to the date
+heuristic; a moved number here would be a BUG, not a success. Do not manufacture a match to make it
+look verified.
 
-1. `src/lib/__tests__/capture-evidence.test.ts` — pure, cheap, do this first:
-   - no txns / empty array → `undefined` (the "identical to pre-Stage-C" guarantee)
-   - `loan_payment_account` null → falls back to the funding account id
-   - `loan_payment_account` set → wins over the funding account
-   - both null → `undefined`
-   - a real matching row → `{ hasTxnCoverage, matched: true }`
-2. `src/hooks/__tests__/useCardProjection.captureEvidence.test.ts` — copy the harness from
-   `useCardProjection.activeLoanInsurance.test.ts` (same directory; `renderWithCarFund` is exactly
-   the shape needed, just add `syncedTransactions` to the params object). The observable is
-   `result.current.month0.vehicleInsurance` and `result.current.month0.carLoanPayment`
-   (both on `Month0Result`, `src/lib/debt-model-types.ts:44,95`). Three cases per gate:
-   - **no rows** → identical to today (the regression guard that matters most)
-   - **covered + unmatched** → charge STAYS in month 0 even though the due date is old enough that
-     the heuristic would have dropped it. *This is the only case that moves a number.*
-   - **matched** → charge is dropped
+Then pick up the carried items below (97.3 and 97.1 live verification are both unblocked).
 
-   Build "covered" carefully: `hasCoverage` needs settled rows spanning the WHOLE
-   `± DATE_WINDOW_DAYS (5)` window on both sides of the due date, so seed rows at
-   `dueDate − 6` and `dueDate + 6` on the same `account_id`.
+## Tests (`495db0fa`) — what they pin, so they are not weakened later
 
-Consider an engine-side twin (`forecast-engine`) only if the hook test is cheap to mirror; the two
-gates call the identical shared helper, so the hook test already covers the logic.
+- `src/lib/__tests__/capture-evidence.test.ts` (13) — asserts the VALUE `undefined` for the no-rows
+  case, not merely its effect. `undefined` and `{hasTxnCoverage:false,matched:false}` take the same
+  branch of `isCapturedInBalance` today, so an effect-only test would pass either way; the value is
+  what makes number-neutrality provable at the type level. **Do not relax this to a behaviour check.**
+- `useCardProjection.captureEvidence.test.ts` (9) + `forecast-engine.captureEvidence.test.ts` (1,
+  self-skips without the gitignored fixture) — the same contract on BOTH surfaces, because §1.1
+  cause C was exactly these two disagreeing about one car loan in one month.
+- Loan payment and premium are asserted **separately, never summed** — same due date, same account,
+  differing only in amount, so a total would let one gate's regression hide inside the other's.
+- Each file opens with a baseline assertion that the heuristic ALONE drops both charges. Without it
+  the evidence assertions could pass for the wrong reason.
+- Dates anchor to a cutoff on the 28th with the charge due on the 1st, **not** to "today", so the
+  baseline does not depend on the day the suite runs.
+- Observable for the loan payment is `month0.chain.carLoanPayment` (`Month0CashChain`), NOT
+  `month0.carLoanPayment` — that does not exist. `vehicleInsurance` is on both.
+- Mutation-checked: making both gates ignore evidence fails 6 of the 10.
 
 ## What shipped this session (`5fe4891b`)
 
@@ -104,7 +104,7 @@ evidence case the moment Alliant's cursor appears.
 
 ## Still open (carried)
 
-1. **Tests for the part-2 wiring** — see START HERE. Highest priority.
+1. **Live-verify part 2 as "nothing changed"** — see START HERE.
 2. **97.3 not live-verified** — `/goals` → edit a goal with a linked rule → checkbox → save → rule
    shows end date in `/budget` + card shows "Auto-ends contributions". Sign-in fixed, unblocked.
 3. **97.1 `/debt` TOTAL LIMIT tile** — should read **$25,400**. Unblocked.
