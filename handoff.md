@@ -1,9 +1,31 @@
-# Handoff — 2026-08-06 — session 91 — branch `main` — session 90's two commits LIVE-VERIFIED, 3 new commits
+# Handoff — 2026-08-06 — session 92 — branch `main` — tab bar VERIFIED, Plaid safe-area re-diagnosed
 
-Continues session 90. `site-walk-findings.md` is still the source list;
+Continues session 91. `site-walk-findings.md` is still the source list;
 `.claude/plan/dashboard-expense-truth.md` is the plan (steps 1–11 all DONE).
 
-## 0. GOAL
+## 0a. SESSION 92 — what changed
+
+**§1's blocker is GONE.** Tre's Akoya work landed as `aabdcdbd`; the tree is clean. Item 5 / next-step 3
+(Plaid) is no longer blocked on a parallel session. Keep §1's *habits* (targeted `git add`, `git status`
+before each commit) — the tree is shared whenever Tre has a second session open.
+
+**Next-step 2 is DONE — the mobile tab bar is live-verified at a real mobile viewport.** No code change.
+Method worth reusing (it defeats §8.12): `resize_window` can't change the tab's viewport, but an
+**injected same-origin iframe can**. From `localhost:8080/dashboard`, append
+`<iframe src="/dashboard" style="width:390px;height:844px;position:fixed">`, click *Try Demo* inside it,
+then read `iframe.contentDocument` — `innerWidth` really is 386, so `lg:hidden` resolves and widths are
+real. Results at 386px **and** 316px (SE class): all five tabs render, `scrollWidth === clientWidth` on
+every label, **zero truncation**. `Activity` measured **49.1px** — the exact number session 91 predicted
+from a canvas measurement, so that technique is now validated too. Tightest cell is `Forecast` at 56px
+in 59.6px. `href`s correct (`/dashboard`, `/transactions`, `/debt`, `/forecast`), bar flush at the
+viewport bottom, and the **More sheet holds Budget Control, Accounts, Vehicles, Builds, Goals, Settings**.
+⚠️ `paddingBottom` reads `0px` in desktop Chrome because `env(safe-area-inset-bottom)` is 0 there — the
+inset is in the source and only resolves on device. Not a defect.
+
+**Next-step 3 (Plaid safe-area) was re-diagnosed and it is NOT the fix session 91 assumed.** See §4a.
+**Blocked on a scope decision from Tre — no code written.**
+
+## 0. GOAL (session 91)
 
 **Session 91 (this one):** the Chrome classifier came back, so session 90's two unverified commits were
 **live-verified on Tre's real account** — every prediction held. Then shipped three of Tre's items:
@@ -112,10 +134,9 @@ stays filled either way.
 
 ## 4. ⭐ NEXT STEPS (in order)
 
-1. **Ask Tre about the Akoya work in §1** before touching Plaid anything.
-2. **Eyeball the new bottom tab bar at a true mobile viewport** (§3, `5cb969f8`) — the only unverified
-   part of this session. Confirm no label truncation and that the More panel still holds Budget/Goals.
-3. **Plaid in-app popup ignores device boundaries — BLOCKED by §1.** Tre: *"on mobile the in app popup
+1. ~~Ask Tre about the Akoya work in §1~~ **DONE — it landed as `aabdcdbd`, tree clean.**
+2. ~~Eyeball the new bottom tab bar at a true mobile viewport~~ **DONE — verified, see §0a.**
+3. **Plaid in-app popup ignores device boundaries — NEEDS A SCOPE DECISION FROM TRE, see §4a.** Tre: *"on mobile the in app popup
    for plaid is not respecting the device boundries like the rest of the app. the close and back button
    are unusable at the top."* 📸 Screenshot (iOS 1179×2556) pins it: Plaid's own header (back chevron
    left, PLAID wordmark centre, `X` right) is drawn at **y = 0**, colliding with the iOS status bar —
@@ -153,6 +174,53 @@ stays filled either way.
 10. Month-end overflow pattern still live (display labels, deliberately left): `DebtPayoff.tsx:98`,
     `CreditCardEngine.tsx:1338` + `:1720`, `credit-card-engine.ts:319` + `:455`. **Line numbers shifted
     by `3770915c` — re-grep.**
+
+## 4a. PLAID SAFE-AREA — RE-DIAGNOSED (session 92). A CSS INSET CANNOT WIN CLEANLY.
+
+Session 91 guessed "look at the Capacitor side / StatusBar overlay config". That is **not** where this
+lives. What is actually true, read from the code and from Plaid's shipped bundle:
+
+1. **There is no native Plaid SDK here.** `capacitor.config.ts` sets `server.url = https://getforgenta.com`,
+   so the iOS app is the *web app* in a WKWebView, and `PlaidLinkButton.tsx` loads Plaid's **web** SDK
+   from `https://cdn.plaid.com/link/v2/stable/link-initialize.js` and calls `window.Plaid.create().open()`.
+   Link is therefore an `<iframe>` **in our own document**, not a native sheet. Native and mobile-web are
+   the *same container* after all — one fix would cover both. (§3's "different bugs" note is wrong.)
+2. **`viewport-fit=cover` is set** (`index.html:12`) and the app insets *everything* itself — 30+
+   `env(safe-area-inset-*)` sites across `MobileNav`, `FormModal`, `Auth`, `DemoBanner`, etc.
+   **Plaid's iframe is the one full-screen surface nobody styled** — `grep -rn plaid src/index.css`
+   returns nothing. That is the root cause: not a missing native config, a missing rule for *their* node.
+3. **But we cannot simply add that rule.** Plaid injects its own stylesheet (`plaid-link-stylesheet`)
+   whose selector is `html` + **eight repetitions of `#plaid-link-temporary-id`** `> body >
+   .plaid-link-iframe`, declaring `top: 0 !important; bottom: 0 !important; height: 100% !important;
+   border: 0 !important; z-index: 9999999999 !important`. Eight ID selectors, all `!important`. An author
+   rule of ours — `iframe[id^="plaid-link-iframe"] { … !important }` — **loses on specificity**, and the
+   `border-top: env(safe-area-inset-top)` trick is dead on arrival because they pin `border: 0`.
+   The bundle also carries **two older creators** that set the same geometry as *inline* styles instead,
+   so any override has to beat both shapes.
+4. **And the script is unversioned.** `.../link/v2/**stable**/link-initialize.js` updates under us with no
+   deploy on our side, and Plaid chooses which of the three creators runs. A specificity hack pinned to
+   `#plaid-link-temporary-id` and `.plaid-link-iframe` is a hack pinned to two undocumented internals on a
+   CDN path that mutates without notice.
+
+**RECOMMENDATION (customer-first): migrate the native surface to Plaid Hosted Link, opened through
+`@capacitor/browser` (already a dependency, `package.json:20`).** Hosted Link runs in an
+SFSafariViewController / Custom Tab, which iOS insets correctly by construction — the safe-area problem
+stops existing rather than being fought. This is the highest-stakes screen in the product (it is the
+moment a user hands over bank credentials), so an unusable close button there costs trust and
+conversion, and it is not a screen to leave resting on a selector that Plaid can silently break.
+**It is also already a tracked backlog item** (`project_plaid_hosted_link`), so this is pulling planned
+work forward, not inventing scope. Keep the current in-webview flow for desktop web, where it is fine.
+
+**The tactical alternative, honestly stated:** ~6 lines in `src/index.css` — one rule at
+`html#plaid-link-temporary-id`×9 for the stylesheet path, one `iframe[id^="plaid-link-iframe"]` rule with
+`!important` for the inline path, both applying `transform: translateY(env(safe-area-inset-top))` (the one
+property Plaid does **not** pin). Fixes the visible bug this week with no risk to other surfaces, but it
+pushes the bottom ~47px of Link off-screen — which may clip the CTA — and it breaks silently on any Plaid
+CDN change. **Only worth doing if Tre wants the header usable before Hosted Link can land.**
+
+⚠️ Whoever picks this up: **do not start coding either option before Tre picks one.** Also re-confirm
+with him which surface he actually hit — the screenshot is native iOS (1179×2556), and there is a known
+separate minor OAuth tab-switch UX issue on mobile Safari.
 
 ## 5. ⚠️ CARD INTEREST — STILL DEFERRED, READ BEFORE IMPLEMENTING
 
@@ -290,6 +358,14 @@ excludes by design, since they already sit inside the Prime Visa balance. Do **n
 - **Session 91 (c): `git status` before every commit, not just at session start.** A whole Akoya
   feature appeared in the tree mid-session from outside this session. Targeted `git add <path>` is what
   kept three commits clean; `git add -A` would have swallowed someone else's unfinished migration.
+- **Session 92 (a): if a fix means styling someone else's node, read their shipped CSS first.** Three
+  sessions of notes assumed Plaid's overlay was a Capacitor presentation problem. Ten minutes of
+  `curl`ing `link-initialize.js` and grepping it showed an 8-ID `!important` stylesheet that makes the
+  obvious fix impossible — and reframed the whole task from "add a CSS rule" to "stop rendering Link
+  in our webview." *The vendor bundle is readable; read it before designing against a guess.*
+- **Session 92 (b): a viewport you cannot resize, you can still nest.** `resize_window` never moved the
+  tab's `innerWidth` (§8.12), which left session 91's tab bar unverifiable. A same-origin iframe **is** a
+  real viewport, media queries and all. Cheap, no device needed.
 - **Session 91 (d) — Tre's standing instruction:** before asking him a product/UX question, first ask
   *"what would be best for my customers?"* and **lead with a recommendation**. Never hand him an
   unweighted menu. Saved to memory as `feedback_customer_first_recommendations`.
