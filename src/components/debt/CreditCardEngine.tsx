@@ -33,6 +33,7 @@ import { runDebtCashConvergence } from '@/lib/forecast-convergence';
 import PremiumGate from '@/components/shared/PremiumGate';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { resolveSyncCutoffDate } from '@/lib/sync-cutoff';
+import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 
 import type { Tables } from '@/integrations/supabase/types';
 
@@ -645,6 +646,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'),
     );
 
+    // Handoff item 4b — mirrors forecast-engine.ts / useCardProjection.ts exactly (same inputs,
+    // same functions, built separately per call tree). Once a goal reaches its target, its linked
+    // transfer rule stops being counted, and an unlinked goal's own contribution stops too.
+    const goalTransferCutoffs = buildGoalTransferCutoffs(goals, rules, accounts, now);
+    const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, now);
+
     const extraExpensesByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
       if (m === 0) return 0; // month 0 handled by month0Expenses
       const d = new Date(now.getFullYear(), now.getMonth() + m, 1);
@@ -655,6 +662,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       for (const tr of simTransferRules) {
         if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > simMonthEnd) continue;
         if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
+        const goalCutoff = tr.id ? goalTransferCutoffs.get(tr.id) : undefined;
+        if (goalCutoff != null && m >= goalCutoff) continue;
         if (tr.deposit_account) activeTransferDests.add(tr.deposit_account);
         const amt = Number(tr.amount);
         monthTransfers += amt * countRuleOccurrencesInMonth(tr, d.getFullYear(), d.getMonth(), now);
@@ -664,6 +673,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
+        const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
+        if (ownCutoff != null && m >= ownCutoff) return s;
         return s + Number(g.monthly_contribution);
       }, 0);
 
@@ -844,10 +855,15 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         !(r.end_date && new Date(r.end_date + 'T00:00:00') < now),
       ).map(r => r.deposit_account as string),
     );
+    // Handoff item 4b — month-0 gate, mirrors useCardProjection.ts's goalContrib block. Separate
+    // memo from variableSim, so it builds its own cutoff map (different closure).
+    const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, now);
     const savingsTotal = goals.reduce((s, g) => {
       if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > now) return s;
       if (g.linked_account && retireIds.has(g.linked_account)) return s;
       if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
+      const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
+      if (ownCutoff != null && ownCutoff <= 0) return s;
       return s + Number(g.monthly_contribution);
     }, 0);
     const carTotal = carFunds.reduce((s, c) => {
