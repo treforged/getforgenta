@@ -1,4 +1,9 @@
-# Handoff — 2026-08-07 — session 96 — branch `main` — ✅ 4b COMPLETE: all 6 sites done + LIVE-VERIFIED
+# Handoff — 2026-08-07 — session 96 — ✅ 4b COMPLETE + live-verified — 3 NEW TASKS QUEUED (§97)
+
+> **Next agent: jump to "🔴 SESSION 97" below.** Three tasks Tre gave at the end of session 96,
+> fully specified, all design decisions already made. He asked for maximum independence —
+> implement straight through without stopping to confirm. Everything above §97 is finished work.
+
 
 ## ▶▶ START HERE — SESSION 96 (supersedes session 95's "START HERE" below)
 
@@ -110,7 +115,100 @@ if (ownCutoff != null && ownCutoff <= 0) return s;
 Both memos already had `goals`/`rules`/`accounts` in their dep arrays, so no dep change was
 needed. `tsc`, `eslint`, and 445/445 all clean afterward.
 
-### ⏭ NEXT STEPS — 4b is closed, these are what's left
+## 🔴 SESSION 97 — DO THESE THREE, IN THIS ORDER. All decisions are made; do not re-ask Tre.
+
+Tre gave these at the end of session 96, after 4b closed. Session 96 hit the context gate before
+starting them, so **nothing below is coded yet**. He explicitly asked for maximum independence —
+implement straight through, don't stop to confirm design.
+
+### 97.1 — Fix `/debt`'s TOTAL LIMIT tile (small, self-contained, do first)
+
+`/debt` shows **TOTAL LIMIT $45,400**; Dashboard shows **$25,400** for the same thing. The two
+pages disagree because session 93's `3c71b3c2` wired `isCardOpenAsOf()` into only three read
+surfaces (Dashboard utilization, AiAdvisor, engine utilization milestones) and missed this tile.
+Tre's Venture X (`card_start_date 2026-12-20`) and Apple Card (`2028-02-28`) each donate a
+phantom $10,000.
+
+- The helper already exists: `isCardOpenAsOf()` in `src/lib/card-start-date.ts`. Import and use
+  it; do NOT re-derive the date logic, and do NOT use `accounts.active` (session 93's lesson:
+  `active` means "exclude from ALL calculations" and would silently delete Venture X's live
+  $300/mo Groceries rule and Bucket Seats plan from the forecast).
+- Grep for the tile — it renders the literal label `TOTAL LIMIT` near `TOTAL CC BALANCE`, in
+  `src/pages/DebtPayoff.tsx` or `src/components/debt/CreditCardEngine.tsx`. Fix **both sides of
+  any ratio** it feeds (same rule session 93 followed) so the tile and any utilization sub-line
+  stay consistent.
+- Expect the tile to read **$25,400** after. TDD if the sum lives in a lib function; if it's a
+  one-line JSX reduce, an inline fix is fine (this repo has no page-component test harness).
+
+### 97.2 — Clean up the orphaned goal→rule link (tiny, data-only)
+
+Tre's **Savings** goal's `linked_rule_ids` holds two ids, but
+`9f2c0934-5963-4cef-a7ce-9a2476870711` **does not exist in `recurring_rules`**. Only
+`73a5c998-…` (`HYS`, $500/mo) resolves. Harmless today — `goal-linkage.ts` and every consumer
+`.filter()` unresolved rules out — but it will confuse the 97.3 UI, which counts linked rules.
+
+- Fix the DATA (one Supabase update, filtered to `user_id = a72f416e-433a-4055-9ab0-9feae4e60edf`)
+  **and** decide whether to prevent recurrence: the likely cause is deleting a `recurring_rules`
+  row without scrubbing the id out of `savings_goals.linked_rule_ids`. Check the rule-delete path
+  (`BudgetControl.tsx` / wherever rules are deleted); if it doesn't clean up, add that — it is the
+  root cause, and 97.3 makes stale links worse because they'd carry a stale end_date too.
+
+### 97.3 — NEW FEATURE: per-goal "auto-end contributions when goal is hit"
+
+**What Tre asked for, verbatim in intent:** a user-facing option on a savings goal saying "stop
+contributions once the goal is hit", which then **writes an `end_date` onto the linked Budget
+Control rule** so it shows up there like any other end-dated rule.
+
+**DECISION ALREADY MADE — do not re-litigate.** Tre was offered three trigger models and chose:
+**stamp the PROJECTED completion date onto the rule immediately when the toggle is turned on**,
+and let it be revised as the projection moves. He was told the downside (the app rewrites his
+rule's end date whenever balances/APY/contributions shift, and an optimistic projection can stop
+a transfer early) and chose it anyway for the visibility. Build that.
+
+Design constraints — these are mine, inside his decision, and they matter:
+
+1. **Recompute on explicit save events only, never on every render.** Rewrite the stamped
+   `end_date` when the user saves the goal, saves/edits a linked rule, or a balance sync lands —
+   NOT inside a `useMemo` that runs on every projection recalculation. A write in a render path
+   in this codebase would fire constantly (the engines re-run on nearly every input change) and
+   would hammer Supabase. This is the single biggest implementation hazard in 97.3.
+2. **Only ever touch a rule the goal actually owns**, i.e. ids in that goal's `linked_rule_ids`,
+   and only when the toggle is ON. Never clear or overwrite an `end_date` the user set by hand —
+   if the rule already has an `end_date` that did not come from this feature, leave it alone and
+   surface that in the UI rather than silently winning.
+3. **Turning the toggle OFF must clear the end_date this feature wrote** (and only that one), or
+   the user is left with a stealth end date they can't explain.
+4. **Do not remove 4b's computed cutoff.** `goal-linkage.ts` stays exactly as is. 97.3 is a
+   persistence/visibility layer on top; 4b is the correctness layer, is live-verified, and must
+   keep working for users who never turn the toggle on. The two agree by construction because
+   both derive from `estimateGoalCompletionMonths`.
+
+Implementation sketch:
+
+- **Migration:** add `savings_goals.auto_end_contributions boolean not null default false`.
+  ⚠️ Write it as its OWN migration file. Do NOT bundle or co-apply it with
+  `supabase/migrations/20260806_financial_connections.sql`, which is deliberately unapplied —
+  see §1. This column is independent of that hazard and safe to apply alone; the edge-function
+  coupling in §1 does not apply to it.
+- **Types:** regenerate or hand-add to `src/integrations/supabase/types.ts` (Akoya types were
+  hand-added before, same pattern).
+- **Projected date:** reuse `estimateGoalCompletionMonths` + `getGoalEffectiveApyPercent` exactly
+  as `goal-linkage.ts:computeGoalCutoffIdx` does — same inputs (linked rules' combined monthly
+  and earliest start date, linked account balance as current amount, lump sums). Do NOT hand-roll
+  a second projection; if you need it in a reusable shape, export a helper from `goal-linkage.ts`
+  so 4b and 97.3 can never drift.
+- **UI:** the toggle belongs on the goal form in `src/pages/SavingsGoals.tsx` (near the linked-rule
+  picker at **:396-401**). The card already shows `is_complete` ("Target reached · contributions
+  no longer counted") from session 96 — when the toggle is on and an end date is stamped, say so
+  on the card too, naming the date, so the write is never invisible.
+- **Tests:** TDD the pure part (projected-date derivation, the "don't clobber a manual end_date"
+  rule, toggle-off clearing) in `src/lib/__tests__/`. Prove RED first — session 90's lesson.
+- ⚠️ **Read `src/pages/SavingsGoals.tsx`'s `openEdit` (:412) / `handleDuplicate` (:427) before
+  writing any save code.** They copy `EnrichedGoal` fields straight back into `savings_goals`;
+  session 96 hit exactly this trap. Make sure the new flag round-trips and that a DUPLICATED goal
+  does not inherit a stamped end date pointing at the original's rule.
+
+### ⏭ THEN — the older backlog
 
 1. **Decide (needs Tre): are the deferred debt-engine sites worth it?**
    `credit-card-engine.ts:2087-2100` and `debt-transaction-generator.ts:12-34` still count a
