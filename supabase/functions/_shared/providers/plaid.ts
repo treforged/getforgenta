@@ -11,12 +11,15 @@
  * equally to every provider.
  */
 
-import type {
-  AccountType,
-  FinancialConnection,
-  FinancialProvider,
-  NormalizedAccount,
-  ProviderSyncResult,
+import {
+  type AccountType,
+  type FinancialConnection,
+  type FinancialProvider,
+  type NormalizedAccount,
+  type NormalizedTransaction,
+  type ProviderSyncResult,
+  type TransactionPage,
+  TransactionsNotReadyError,
 } from "./types.ts";
 
 function plaidBaseUrl(): string {
@@ -67,6 +70,35 @@ export function mapPlaidType(type: string, subtype: string | null): AccountType 
 function parseAprFromName(name: string): number | null {
   const m = name.match(/(\d+(?:\.\d+)?)\s*%\s*APR/i);
   return m ? parseFloat(m[1]) : null;
+}
+
+/**
+ * One raw Plaid transaction → the app's shape.
+ *
+ * On sign: Plaid is already "positive = money out of THIS account, negative = money in", and that
+ * holds for credit accounts too (a purchase is positive, a payment to the card is negative). It
+ * therefore matches NormalizedTransaction's contract exactly and is passed through UNCHANGED.
+ * Flipping it "to be safe" would invert every outflow — noted here because the absence of a
+ * conversion looks like an oversight otherwise.
+ */
+function normalizeTransaction(t: Record<string, unknown>): NormalizedTransaction {
+  const pfc = (t.personal_finance_category ?? null) as Record<string, unknown> | null;
+  const legacyCategory = (t.category ?? null) as string[] | null;
+
+  return {
+    providerTransactionId: t.transaction_id as string,
+    pendingTransactionId: (t.pending_transaction_id as string | null) ?? null,
+    providerAccountId: t.account_id as string,
+    amount: Number(t.amount ?? 0),
+    // authorized_date is when the money was committed; `date` is when it posted. "Has this bill
+    // been paid" is a question about commitment, and authorized_date is also stable across the
+    // pending→posted transition while `date` can move.
+    date: ((t.authorized_date as string | null) || (t.date as string)),
+    pending: Boolean(t.pending),
+    name: (t.name as string | null) ?? null,
+    merchantName: (t.merchant_name as string | null) ?? null,
+    category: (pfc?.primary as string | undefined) ?? legacyCategory?.[0] ?? null,
+  };
 }
 
 export const plaidProvider: FinancialProvider = {
@@ -173,6 +205,55 @@ export const plaidProvider: FinancialProvider = {
     }
 
     return { accounts };
+  },
+
+  async fetchTransactions(
+    connection: FinancialConnection,
+    cursor: string | null,
+  ): Promise<TransactionPage> {
+    const { client_id, secret } = credentials();
+    const access_token = connection.access_token;
+    if (!access_token) throw new Error("Plaid connection is missing its access token");
+
+    const res = await fetch(`${plaidBaseUrl()}/transactions/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id,
+        secret,
+        access_token,
+        // Plaid's own maximum. Fewer, larger pages means fewer round trips inside the edge
+        // function's wall-clock budget during the first backfill.
+        count: 500,
+        // `cursor` must be OMITTED for a first sync — sending null is an error, not "from the
+        // beginning". This is the single easiest way to get a confusing 400 here.
+        ...(cursor ? { cursor } : {}),
+      }),
+    });
+
+    const body = await res.json();
+
+    if (!res.ok) {
+      // The item is linked and consented, Plaid just has not finished its initial pull yet. Normal
+      // on a fresh connection; the caller treats it as a skip and retries on the next sync.
+      if (body?.error_code === "PRODUCT_NOT_READY") {
+        throw new TransactionsNotReadyError("plaid", body?.error_message ?? "transactions not ready");
+      }
+      console.error(
+        `Plaid transactions/sync failed for item ${connection.provider_item_id}:`,
+        JSON.stringify(body),
+      );
+      throw new Error(body?.error_message ?? "Plaid transaction sync failed");
+    }
+
+    return {
+      added: (body.added ?? []).map(normalizeTransaction),
+      modified: (body.modified ?? []).map(normalizeTransaction),
+      // `removed` arrives as objects, not bare ids.
+      removed: (body.removed ?? []).map((r: Record<string, unknown>) => r.transaction_id as string),
+      nextCursor: body.next_cursor as string,
+      hasMore: Boolean(body.has_more),
+    };
   },
 
   async disconnect(connection: FinancialConnection): Promise<void> {

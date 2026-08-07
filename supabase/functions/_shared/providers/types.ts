@@ -84,6 +84,59 @@ export interface ProviderSyncResult {
   status?: ConnectionStatus;
 }
 
+/**
+ * One transaction, in the app's vocabulary.
+ *
+ * `amount` is normalised so POSITIVE ALWAYS MEANS MONEY LEAVING THE USER, whatever sign
+ * convention the provider uses and whatever the account type. Doing this once at the provider
+ * boundary is the only way every reader downstream gets to stop thinking about it.
+ */
+export interface NormalizedTransaction {
+  providerTransactionId: string;
+  /** The pending row this posted transaction supersedes, if any. Drives pending retirement. */
+  pendingTransactionId: string | null;
+  providerAccountId: string;
+  amount: number;
+  /** `YYYY-MM-DD`. Authorisation date when the provider has one — that is when money commits. */
+  date: string;
+  pending: boolean;
+  name: string | null;
+  merchantName: string | null;
+  category: string | null;
+}
+
+/**
+ * ONE PAGE of a transaction delta.
+ *
+ * Deliberately a page rather than the whole history: a first sync can span 24 months across every
+ * account on an item, and accumulating that in memory before writing risks the function dying with
+ * nothing persisted and the cursor unmoved. The caller loops, writing and advancing per page, so
+ * progress survives a mid-backfill failure.
+ */
+export interface TransactionPage {
+  added: NormalizedTransaction[];
+  modified: NormalizedTransaction[];
+  /** Provider transaction ids the provider says no longer exist. */
+  removed: string[];
+  /** Pass back on the next call. Persist ONLY after the page's rows are committed. */
+  nextCursor: string;
+  hasMore: boolean;
+}
+
+/**
+ * Raised when the provider has not finished its initial transaction pull for this item.
+ *
+ * A soft, expected condition on a freshly linked connection — NOT a sync failure. The pipeline
+ * skips transactions for this connection, leaves the cursor untouched, and lets the account/balance
+ * half of the sync succeed normally.
+ */
+export class TransactionsNotReadyError extends Error {
+  constructor(public readonly provider: ProviderId, message: string) {
+    super(message);
+    this.name = "TransactionsNotReadyError";
+  }
+}
+
 /** Ambient config a provider needs, resolved once per request. */
 export interface ProviderContext {
   /** ISO8601 UTC. Akoya requires it; Plaid ignores it. */
@@ -107,11 +160,23 @@ export class ReauthRequiredError extends Error {
 export interface FinancialProvider {
   readonly id: ProviderId;
 
-  /** Pull current account state. The only call the sync pipeline makes. */
+  /** Pull current account state. */
   fetchAccounts(
     connection: FinancialConnection,
     ctx: ProviderContext,
   ): Promise<ProviderSyncResult>;
+
+  /**
+   * Pull one page of the transaction delta since `cursor` (null = full history).
+   *
+   * Required rather than optional so a new provider cannot silently ship without transactions and
+   * leave the forecast falling back to the date heuristic with no signal that it is doing so. A
+   * provider that genuinely cannot supply them returns an empty page with `hasMore: false`.
+   */
+  fetchTransactions(
+    connection: FinancialConnection,
+    cursor: string | null,
+  ): Promise<TransactionPage>;
 
   /**
    * Revoke access at the provider. Best-effort by contract: local cleanup runs
