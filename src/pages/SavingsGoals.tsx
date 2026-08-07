@@ -17,6 +17,7 @@ import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-r
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
@@ -33,6 +34,14 @@ type EnrichedGoal = Partial<Tables<'savings_goals'>> & {
   effective_apy: number;
   linked_rules: LinkedRuleInfo[];
   available_after_outflows: number | null;
+  /**
+   * Handoff item 4b — the goal has already reached its target as of today, so the engines
+   * (forecast-engine.ts, useCardProjection.ts, CreditCardEngine.tsx) have stopped counting its
+   * contribution. Display-only: `monthly_contribution` is deliberately left at its live value
+   * because openEdit/handleDuplicate write that field straight back to savings_goals, and
+   * zeroing it here would turn a read-path exclusion into a destructive DB write.
+   */
+  is_complete: boolean;
 };
 
 type GoalLumpSum = { id: string; date: string; amount: number };
@@ -350,6 +359,9 @@ export default function SavingsGoals() {
   }, [accountMap, allTxns, cashFloor]);
 
   const allGoals: EnrichedGoal[] = useMemo(() => {
+    // Handoff item 4b — same shared primitive the engines use, rather than a 4th local
+    // re-derivation of "has this goal hit its target". cutoff <= 0 means already at target now.
+    const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, new Date());
     return goals.map(g => {
       // Support multiple linked rules; fall back to legacy single linked_rule_id
       const ruleIds: string[] = (g.linked_rule_ids ?? []).length > 0
@@ -381,9 +393,13 @@ export default function SavingsGoals() {
         contribution_start_date: earliestStart ?? g.contribution_start_date ?? null,
         linked_rules: linkedRules,
         effective_apy,
+        is_complete: (() => {
+          const cutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
+          return cutoff != null && cutoff <= 0;
+        })(),
       };
     });
-  }, [goals, accountMap, rules, getLinkedAmount]);
+  }, [goals, accountMap, rules, accounts, getLinkedAmount]);
 
   const totalSaved = allGoals.reduce((s, g) => s + Number(g.current_amount), 0);
   const totalTarget = allGoals.reduce((s, g) => s + Number(g.target_amount), 0);
@@ -597,7 +613,9 @@ export default function SavingsGoals() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground wrap-break-word leading-relaxed">
-                    {g.linked_rules && g.linked_rules.length > 0
+                    {g.is_complete
+                      ? <span className="text-success">Target reached · contributions no longer counted{g.linked_rules && g.linked_rules.length > 0 ? ` (${g.linked_rules.map(r => r.name).join(', ')} still active)` : ''}</span>
+                      : g.linked_rules && g.linked_rules.length > 0
                       ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution), false)}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
                       : `${formatCurrency(Number(g.monthly_contribution), false)}/mo contribution`
                     }
