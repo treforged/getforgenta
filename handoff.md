@@ -1,109 +1,81 @@
-# Handoff — 2026-08-07 — session 103 — §1A STAGE C PART 2 LIVE-VERIFIED (number-neutral)
+# Handoff — 2026-08-07 — session 104 — keep-signed-in helper SHIPPED; types.ts regen DONE
 
-> Stage C part 2 is **verified number-neutral against real data** and confirmed live on both
-> surfaces. §1A Stage C is DONE. 97.1 also closed. Nothing pushed. No code changed this session —
-> verification only, so the only commit is this handoff.
+> Tre's ask (the keep-signed-in helper) is built, tested, and committed. The overdue `types.ts`
+> regen is also done and green. Nothing pushed. **97.3 is blocked on ONE manual sign-in by Tre.**
 
 ## ▶ START HERE
 
-**Tre's request (2026-08-07, while away): a keep-signed-in helper for localhost dev sessions.**
-He wants the local app to stay signed in so verification sessions don't stall on a login wall, and
-asked for "a script we can trigger to keep me signed in" that later sessions can auto-engage after
-the first manual sign-in.
+**Blocked on Tre, and it is a 30-second job:** the Claude-controlled Chrome has **no Supabase
+session** at `http://localhost:8080` (probe returned `SIGNED OUT: no supabase auth key`; the app
+redirects to `/auth`). Tre signed this profile in during session 103, but the profile no longer has
+it. Sign-in cannot be automated — see Non-goals in the new skill — so ask him once, then continue
+straight to 97.3 below.
 
-What is already known, so the next session does not re-derive it:
-- The Claude-controlled Chrome is a **separate profile** from Tre's browser. It had no session at
-  the start of this session; Tre signed it in manually mid-session, which unblocked everything.
-- Supabase's JS client **auto-refreshes** the access token while a tab has the app open, so the
-  practical failure mode is a CLOSED tab / new origin, not an expiring token.
-- **Session state is per-origin.** This is why a second dev server on port 8081 is NOT signed in
-  even though 8080 is — it sank the live before/after plan below. Any helper must keep the SAME
-  origin (`http://localhost:8080`).
-- Do NOT script credential entry. Passwords are off-limits. The workable shape is: keep a tab
-  parked on the app, and/or persist the refresh token in the Claude Chrome profile so the first
-  manual sign-in carries forward.
+Once he is signed in, run the `dev-signin` skill and proceed to carried item 2.
 
-Then the carried items below.
+## Shipped this session
 
-## What was verified this session, and how (so it is not redone or weakened)
+### 1. Keep-signed-in helper — `644cc4b6`
 
-The claim: with no synced transactions on the car-loan funding account, Stage C part 2 changes no
-number. Verified three ways, on REAL data.
+The real root cause was **not** an expiring token. Supabase stores the session in `localStorage`,
+which is scoped **per origin**, so a dev server falling back to 8081 serves a *signed-out* app even
+when the profile is signed in on 8080. That is what sank session 103's live before/after plan.
 
-**Method — two throwaway git worktrees**, one at `5fe4891b^` (pre-Stage-C) and one at HEAD, each
-with `node_modules` junctioned from the main tree and the gitignored
-`forecast-inputs.real.json` copied in. A temp vitest file dumped the ENTIRE `calculateForecast`
-result to JSON for byte comparison — not just END CASH, so nothing downstream can move unnoticed.
-**Tre's working tree was never checked out to an old commit** (a parallel session is live in it).
+- `vite.config.ts` — `strictPort: true`. Vite now fails loudly instead of drifting to a different,
+  signed-out origin. **Live-verified:** spawning a second vite errored `Port 8080 is already in
+  use` rather than silently taking 8081.
+- `scripts/dev-session.mjs` — `check` / `up` against the canonical origin only. Credential-free.
+- `.claude/skills/dev-signin/SKILL.md` — the procedure later sessions auto-engage after the first
+  manual sign-in: probe `localStorage`, park the tab, never script credentials.
+  (`.claude/skills/` is gitignored — it needed `git add -f`.)
 
-| Run | Result |
-|---|---|
-| pre-Stage-C vs HEAD, fixture as-is (no `syncedTransactions`) | **byte-identical** |
-| pre-Stage-C vs HEAD + rows on DISCOVER (today's production shape) | **byte-identical** |
-| pre-Stage-C vs HEAD + rows on the CHASE funding account (positive control) | **differs** — month-0 insurance 173.23 → 0 |
+**Trap found by testing, worth remembering:** `spawn('npm.cmd', …)` fails with **EINVAL** on modern
+Node/Windows (the CVE-2024-27980 mitigation) unless `shell: true`. The script launches
+`node node_modules/vite/bin/vite.js` directly instead. Had I not tested the spawn path in
+isolation, `up` would have been shipped broken — `check` passing proves nothing about `up`.
 
-The positive control is what makes the other two mean anything. Without it the harness could have
-been silently unwired and every comparison would have "passed".
+### 2. `types.ts` full regen — `9c64c8b4` (carried item 9, now CLOSED)
 
-**Live, both surfaces, real data (Aug 2026 = month 0):**
-- Forecast month-0 END CASH = **$2,700**
-- Dashboard MONTH-END CASH = **$2,700** — the two surfaces agree
-- Dashboard month-0 snapshot charges **Auto loan payment $422.89** and **Vehicle insurance
-  $173.23**. Both present ⇒ the date heuristic is running and evidence is `undefined`, exactly as
-  designed. Nothing was dropped.
+Regenerated from the live schema via Supabase MCP. The substantive correction: after the §1 rename,
+**`plaid_items` is a compatibility VIEW over `financial_connections`, not a table.** The
+hand-written file still typed it as a table, which would have let a write against a non-updatable
+view type-check. It now sits under `Views` with nullable columns and no `Insert`/`Update`.
 
-**Live premise re-confirmed by SQL:** only Discover has a `sync_cursor` (143 rows). The car-loan
-funding account `933cbc10…` is **Chase TOTAL CHECKING with 0 synced transactions**. Alliant, Amex,
-Chase, Empower, Robinhood all `sync_cursor IS NULL`. Re-check this next session — the moment a
-checking-account cursor appears, this stops being a no-op and the gates go live for real.
-
-## ⚠ Two traps that cost time — do not repeat
-
-1. **A "positive control" that injects a MATCHING amount proves nothing here.** `matchCharge`
-   returning `matched:true` and the date heuristic can reach the SAME verdict, so the numbers do
-   not move and the harness looks vacuous. The only input whose verdict differs from the heuristic
-   is **coverage on the funding account with the charge due BEFORE the cutoff** — or, as used here,
-   an unambiguous match on a charge the heuristic would otherwise have charged.
-2. **`matchCharge` requires exactly ONE candidate.** The first harness wrote a matching row on
-   every day of a 90-day span, so ~11 identical amounts landed inside `DATE_WINDOW_DAYS` and the
-   matcher correctly refused to guess (`best.length === 1` fails ⇒ `null`). That read as "matching
-   is broken" for a while. It is not broken; the harness was ambiguous. Inject **one** premium-sized
-   row plus non-confusable coverage rows.
-
-Also: the fixture's month-0 car-loan payment gate is **inherently** number-neutral —
-`payment_start_date` is `2026-08-07`, so no July payment exists to drop either way. Insurance
-(anchor `2026-06-25`, due `2026-07-25`) is the only observable car gate in that fixture.
-
-## Closed this session
-
-- **97.1 `/debt` TOTAL LIMIT tile** — reads **$25,400**. Verified live. CLOSED.
-- **§1A Stage C part 2 live verification** — CLOSED (above).
+Verified by **diffing tsc error sets, not just reading the final one**: `tsc --noEmit` was 0 errors
+before AND after, so no code still writes to it, and none of the 574 inserted lines broke anything.
+528/528 tests pass. Baseline-then-compare is the way to type-check here — a parallel session can
+leave the tree red, and then a red `tsc` after your change tells you nothing.
 
 ## Still open (carried)
 
-1. **Keep-signed-in helper** — see START HERE.
-2. **97.3 not live-verified** — `/goals` → edit a goal with a linked rule → checkbox → save → rule
-   shows end date in `/budget` + card shows "Auto-ends contributions". Sign-in works now.
-3. 97.3 re-stamping happens on GOAL save only; decide with Tre whether to widen.
-4. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
+1. **97.3 not live-verified** — `/goals` → edit a goal with a linked rule → checkbox → save → rule
+   shows end date in `/budget` + card shows "Auto-ends contributions". **Needs the sign-in above.**
+2. 97.3 re-stamping happens on GOAL save only; decide with Tre whether to widen.
+3. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
    `debt-transaction-generator.ts:12-34`. **Recommendation: skip.**
-5. §2.9 car-fund earmark.
-6. `backup.plaid_items_20260807` / `backup.accounts_20260807` — safe to drop; §1 is settled now.
-7. Native Plaid Hosted Link device verification (needs a physical device).
-8. Stage A's pending→posted retirement path still **not exercised against real data**.
-9. `types.ts` still **overdue a full regen** (predates §1/§1A, hand-written `synced_transactions`
-   block). Do it on its own commit; a regen rewrites the whole file.
+4. §2.9 car-fund earmark.
+5. `backup.plaid_items_20260807` / `backup.accounts_20260807` — safe to drop; §1 is settled.
+6. Native Plaid Hosted Link device verification (needs a physical device).
+7. Stage A's pending→posted retirement path still **not exercised against real data**.
+
+## Closed previously (do not reopen)
+
+§1A Stage C (all parts, live-verified number-neutral, session 103), 97.1 `/debt` TOTAL LIMIT tile
+($25,400), and now carried item 9 (`types.ts`).
+
+**Re-check each session:** only Discover has a `sync_cursor` (143 rows). The car-loan funding
+account `933cbc10…` is Chase TOTAL CHECKING with 0 synced transactions. The moment a
+checking-account cursor appears, §1A Stage C stops being a no-op and the gates go live for real.
 
 ## Live drift worth knowing (not a bug, do not chase)
 
-The live app now shows **CC Debt Free Sep 2028**; the fixture golden pins **Jul 2027**. The fixture
-is from 2026-07-20 and the live balances have moved since (Discover $9,726, Prime $7,527). The
-golden test asserts against the fixture, not against live, so both are correct. Do not "fix" the
-golden to match live.
+Live shows **CC Debt Free Sep 2028**; the fixture golden pins **Jul 2027**. The fixture is from
+2026-07-20 and live balances have moved (Discover $9,726, Prime $7,527). The golden asserts against
+the fixture, not live. Do not "fix" the golden to match live.
 
 ## Push status
 
-`main` is **24 commits ahead** of `origin/main` before this handoff commit. Standing rule is never
+`main` is **27 commits ahead** of `origin/main` before this handoff commit. Standing rule is never
 auto-push. **Nothing pushed.** Verify with `git rev-list --count origin/main..main`.
 
 ## Supabase — real IDs (carried)
@@ -119,8 +91,9 @@ auto-push. **Nothing pushed.** Verify with `git rev-list --count origin/main..ma
 ## Environment gotchas (carried)
 
 1. Tre is signed in on his real account in HIS browser. Never sign him in or out.
-2. The Claude-controlled Chrome is a **separate profile**; check, don't assume.
-3. Dev server `localhost:8080`. `/budget`, `/debt`, `/forecast`, `/dashboard`.
+2. The Claude-controlled Chrome is a **separate profile**; check, don't assume. It is currently
+   **signed out** — use the `dev-signin` skill.
+3. Dev server `localhost:8080`, now `strictPort`. `/budget`, `/debt`, `/forecast`, `/dashboard`.
 4. `/budget` rules split across tabs; `cost_type` overrides category ("Dog food" is **Variable**).
 5. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
 6. No PowerShell here-string in a `;`-chained command — use a Bash heredoc.
@@ -130,8 +103,10 @@ auto-push. **Nothing pushed.** Verify with `git rev-list --count origin/main..ma
 10. `config.toml` is the source of truth for `verify_jwt`.
 11. **No `deno` binary locally** — edge function type errors only surface at deploy.
 12. `tre-forged-conductor/` is untracked and belongs to a PARALLEL session. Never `git add -A`.
+13. Supabase MCP `generate_typescript_types` returns a JSON envelope too large to paste; read the
+    persisted tool-result file and extract `.types` with node.
 
-## Worktree recipe (reusable — this is how to prove "nothing changed" against real data)
+## Worktree recipe (reusable — how to prove "nothing changed" against real data)
 
 ```
 git worktree add --detach <scratch>/wt-before <commit>^
@@ -141,21 +116,18 @@ git worktree add --detach <scratch>/wt-before <commit>^
 # or the recursive delete can follow the junction into the REAL node_modules.
 ```
 
-## Lessons (session 103)
+## Lessons (session 104)
 
-**A neutrality proof is worthless without a positive control.** "The numbers did not change" is the
-expected result of a correct change AND of a completely unwired one. Two of the three comparisons
-here were byte-identical before the harness was even reaching the gate. Always include an input
-that MUST move the number, and treat the whole verification as unproven until it does.
+**Test the path you did not take.** `check` passed on the first try and looked like proof the script
+worked; the `up` path would have crashed with EINVAL. A helper's happy path is the one that only
+runs when something is already broken, which is the worst time to discover it is broken too. Exercise
+the risky call in isolation when you cannot trigger it for real.
 
-**Same-verdict inputs cannot serve as a control.** The first control fed a matching transaction —
-but "matched" and the date heuristic agree in that case by design, so the numbers correctly did not
-move. Pick the control from where the two rules DISAGREE, not from where the new code merely runs.
+**Baseline before you change, so the verdict is attributable.** A shared tree with a parallel session
+means a red `tsc` may not be yours. Capturing the error set before and comparing after turns an
+ambiguous signal into a clean one, and it is nearly free.
 
-**Session state is per-origin, which quietly rules out the obvious live A/B.** Running the old
-commit on port 8081 to compare live numbers cannot work: it is a different origin and therefore a
-signed-out app. The offline replay of real inputs is the stronger evidence anyway — it compares
-every number in the forecast, not one rendered tile.
+**"Signed out" is usually the wrong origin, not an expired token.** Check the origin first.
 
-Prior sessions' lessons (1-102) are in git history under `docs: handoff` commits —
+Prior sessions' lessons (1-103) are in git history under `docs: handoff` commits —
 `git log --all --oneline | grep handoff`.
