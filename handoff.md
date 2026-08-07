@@ -126,7 +126,7 @@ deleted. No transaction coverage (manual accounts, fresh connections, un-backfil
 
 ## Push status
 
-`main` is **10 commits ahead of origin**. Standing rule is never auto-push. **Nothing pushed.**
+`main` is **12 commits ahead of origin**. Standing rule is never auto-push. **Nothing pushed.**
 
 ## Supabase — real IDs (carried)
 
