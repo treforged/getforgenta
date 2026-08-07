@@ -25,6 +25,33 @@ inset is in the source and only resolves on device. Not a defect.
 **Next-step 3 (Plaid safe-area) was re-diagnosed — it is NOT the fix session 91 assumed — then SHIPPED
 as `bc16b4fc`.** Diagnosis in §4a. Tre picked **Hosted Link via Capacitor Browser**, native iOS surface.
 
+### ▶ START HERE — Tre is SIGNED BACK IN on his real account (2026-08-06, end of session 92)
+
+His words: *"test then continue work. i logged back into my account."* Session 92 hit the context gate
+before it could run this. **Do it first, it is short:**
+
+**A. Regression-test the WEB Plaid path** — `bc16b4fc` refactored `PlaidLinkButton` (extracted
+`completeLink()` shared by both surfaces). Web behavior should be *identical*, and that is the claim to
+check, because the web path is the one in production.
+- The modified edge functions are **NOT deployed**, so web still calls the OLD
+  `plaid-create-link-token` — which is fine, web never sends `hosted: true`. Deploying is **not**
+  needed for this test.
+- On `localhost:8080` → `/accounts`, click **Link Bank Account**, confirm Plaid's widget opens
+  (the `iframe[id^="plaid-link-iframe"]` appears), then **close it**. Closing runs `onExit`, which only
+  clears `localStorage`. Non-destructive.
+- ⚠️ **Do NOT complete a link and NEVER enter bank credentials** — prohibited, and it would attach a
+  real Item to his real account. Opening and closing is the entire test.
+- Watch the console for React errors — the risk in that commit is a stale-closure/deps regression in
+  the extracted `useCallback`, not the network calls.
+
+**B. Then continue with next-step 4** (below): the not-yet-owned card's limit vs utilization. He is
+signed in, so the live before/after that item needs is finally possible — **Venture X is the suspect**,
+and the last reading was **38.0%, $17,230 / $45,400**. Item 4a carries an open design question; per
+`feedback_customer_first_recommendations`, answer it from the data first and **lead with a
+recommendation** rather than handing him a menu.
+
+⚠️ §8.2 still applies: **never sign him in or out.** §8.3: check `/demo/i` on `/dashboard`, not `/`.
+
 ### ⚠️ `bc16b4fc` IS NOT VERIFIED. Before it can be trusted, in this order:
 
 1. **Enable Hosted Link on the Plaid client** (Dashboard). Without it Plaid returns no
