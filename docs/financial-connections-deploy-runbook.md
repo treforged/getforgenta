@@ -1,7 +1,23 @@
 # §1 deploy runbook — `financial_connections` migration + edge functions
 
-**Status: NOT YET RUN.** Prepared 2026-08-07 (session 97). Run this with Tre present, in a
-quiet window. Until it runs, `main` is not deployable.
+**Status: NOT YET RUN. Step 0 pre-flight WAS completed 2026-08-07 15:00 UTC — see below.**
+Prepared 2026-08-07 (session 97). Tre has AUTHORIZED the window ("after the backup go ahead");
+it was deferred only because that session hit its context limit. Until it runs, `main` is not
+deployable.
+
+### Pre-flight results captured 2026-08-07 15:00 UTC (session 97)
+
+- `plaid_items`: **7 rows, 7 with `access_token`** — both counts must be identical after step 1.
+- `accounts`: 31 rows, 10 with a non-null `plaid_item_id`.
+- `financial_connections` and `oauth_states`: did not exist → migration definitely unapplied.
+- `plaid_items` relkind `r` (real table); RLS policy named exactly `Users own plaid items`;
+  `accounts.provider` / `connection_id` absent. All match the migration's assumptions.
+- Tree clean, on `main`, migration byte-identical to `aabdcdbd`.
+- Cron `plaid-daily-sync` is `0 13 * * 1,3,5,6` (UTC). Start the window right after a run.
+- Tre was taking a manual backup / PITR checkpoint. **Confirm that exists before step 1.**
+
+Re-run the pre-flight SQL anyway if any real time has passed — treat the numbers above as the
+expected answer, not as a substitute for checking.
 
 ## Why this is one atomic window
 
@@ -81,6 +97,31 @@ function list 2026-08-07) — deploy them in the same window:
 |---|---|
 | `financial-sync` | the provider-agnostic sync entrypoint; never deployed |
 | `plaid-hosted-link-result` | **shipped in `bc16b4fc` but never deployed — this is why native Hosted Link is still unverified.** Verify its `verify_jwt` setting explicitly on deploy; the MCP deploy path ignores `config.toml` (see the Reddit Scout lesson). |
+
+### ⚠️ `verify_jwt` — the landmine in this step
+
+The MCP `deploy_edge_function` tool **defaults `verify_jwt` to `true`** and ignores
+`config.toml`. Four of the seven live functions run with it **false** today. Redeploying any of
+them without passing `verify_jwt: false` explicitly would start rejecting Stripe/RevenueCat
+webhooks and the pg_cron sync call, which cannot mint a JWT.
+
+`config.toml` is NOT the source of truth here — it declares only two of them. These values were
+read off the LIVE function list on 2026-08-07:
+
+| Function | `verify_jwt` to pass |
+|---|---|
+| `plaid-create-link-token` | **false** |
+| `plaid-sync-all` | **false** |
+| `revenuecat-webhook` | **false** |
+| `stripe-webhook` | **false** |
+| `plaid-sync` | true |
+| `plaid-exchange-token` | true |
+| `delete-account` | true |
+| `financial-sync` | not yet deployed — called by cron/server, decide before deploying (likely false) |
+| `plaid-hosted-link-result` | not yet deployed — Plaid redirect target, decide before deploying |
+
+Re-read the live list at deploy time and match it; do not trust this table blindly if time has
+passed.
 
 **Do NOT deploy** `akoya-auth-url` / `akoya-exchange-token`. Akoya is built but shelved
 ($2,000/mo minimum). They are not deployed today; leaving them undeployed keeps an unused
