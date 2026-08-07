@@ -1,4 +1,44 @@
-# Handoff — 2026-08-06 — session 92 — branch `main` — tab bar VERIFIED, Plaid safe-area re-diagnosed
+# Handoff — 2026-08-06 — session 93 — branch `main` — web Plaid regression CLEAR, utilization fixed
+
+## 0aa. SESSION 93 — both queued items DONE
+
+**A. Web Plaid regression test after `bc16b4fc` — PASSED, no regression.** On `localhost:8080/accounts`,
+real account (`demo:false`). Clicking **Link Bank Account** loads the CDN script, creates the token,
+and opens `iframe#plaid-link-iframe-1` showing Plaid's consent screen ("Forgenta uses Plaid to connect
+your account") with correct Forgenta branding. Closed it via the X → Plaid's "Are you sure?" → **Yes,
+exit**: `onExit` ran, the stored link token was cleared, the iframe went `display:none`, the button
+returned to idle (not disabled, no spinner), no error toasts, **zero console errors or warnings**, and
+the Accounts page stayed intact. No credentials entered, no link completed, nothing written.
+⚠️ Two traps for whoever repeats this: the X needs **two clicks** (first lands during the modal's
+open animation), and Plaid interposes an exit-confirmation screen — the widget is not closed until
+"Yes, exit". Coordinates came from `computer` `zoom`; the Plaid iframe screenshots fine even though
+§8.9 says our own React pages do not.
+
+**B. Next-step 4a (unopened card's limit vs utilization) — ROOT-CAUSED AND SHIPPED as `3c71b3c2`.
+Live-verified.** The tile read **38.0% ($17,230 / $45,400)**; it now reads **67.8% ($17,230 /
+$25,400)** on Tre's real account. **The handoff's open design question dissolved — the answer was
+neither `active` nor a new flag.** `accounts.card_start_date` already means "not opened yet", already
+gates the simulation (`cardStartMonths`) and the transaction form, and **Tre had already set it on
+both cards**: Venture X `2026-12-20`, Apple Card `2028-02-28`. Each was donating a phantom $10,000.
+So it was **two** cards, not just the suspected Venture X.
+- **`active` would have been actively harmful** and this is worth remembering: it means "exclude from
+  ALL calculations", and Venture X carries a live **$300/mo Groceries rule starting 2027-03-03** plus a
+  **Bucket Seats** payment plan. Deactivating it silently deletes planned spend from the forecast.
+- Fixed at the right layer: `src/lib/card-start-date.ts` gained `isCardOpenAsOf()` +
+  `cardStartMonthOffset()` (the engine's own inline month arithmetic, now shared and deduplicated).
+  Three read surfaces were wired to it: **Dashboard** utilization (both sides of the ratio, so the
+  `$debt / $limit` sub-line stays consistent), **AiAdvisor** (was handing the model $20k of credit that
+  does not exist), and the **engine's utilization milestones** (now measure against the limit open in
+  each projected month, via new exported `openCreditLimitAtMonth`).
+- **436/436 tests green** (+13 new, TDD — both suites proven RED first), `tsc --noEmit` clean,
+  `eslint` clean. Backups `backups/2026-08-06_213726/`. **Not pushed — 58 commits ahead.**
+
+⚠️ **Next agent, next step is 4b** (goal transfer plans auto-stopping at 100%) — see §4. Everything
+above it in that list is now closed. `bc16b4fc`'s four native verification steps in §0a are still
+open and still need Tre + a real device.
+
+---
+
 
 Continues session 91. `site-walk-findings.md` is still the source list;
 `.claude/plan/dashboard-expense-truth.md` is the plan (steps 1–11 all DONE).
@@ -196,13 +236,11 @@ stays filled either way.
    overlay config + the Link presentation), not the web modal CSS. ⚠️ Native and web are **different
    bugs** — separate containers, and there's a known minor OAuth tab-switch UX issue on mobile Safari.
    Confirm which surface Tre hit. **`MobileNav.tsx` is the reference for how the app does insets.**
-4. **Tre's remaining two items from session 86.** Neither root-caused; **grep before trusting a line number.**
-   a. **A not-yet-owned card's limit must not count toward utilization.** ⚠️ **Open design question —
-      ask Tre:** does `accounts.active` already mean this, or is a separate "planned / not-yet-opened"
-      flag needed? Overloading `active` collides with existing `a.active` filters.
-      `accountSummary.ccLimit` already filters on `a.active`, so Dashboard and Debt Payoff may already
-      disagree — check both. Suspect **Venture X**. Live now: **38.0%, $17,230 / $45,400** (read this
-      session) — pair with a live before/after.
+4. **Tre's remaining two items from session 86.** 4a is DONE; 4b is the next thing to pick up.
+   **Grep before trusting a line number.**
+   a. ~~A not-yet-owned card's limit must not count toward utilization.~~ **DONE `3c71b3c2`,
+      live-verified 38.0% → 67.8%. See §0aa.B.** The design question is settled: the flag is
+      `card_start_date`, never `active`.
    b. **Goal transfer plans should auto-stop at 100%.** `recurring_rules(rule_type:'transfer')` ↔
       `savings_goals` via `linked_rule_ids`, **already known to go stale** (open since session 72) —
       fix the linkage first. Decide explicitly whether "stopped" means deactivating the rule row
