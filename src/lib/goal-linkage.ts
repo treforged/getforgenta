@@ -11,7 +11,7 @@
 
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent, type ApyAccountLike } from './savings-growth';
 
-type GoalLike = {
+export type GoalLike = {
   id?: string | null;
   target_amount?: number | null;
   current_amount?: number | null;
@@ -23,14 +23,14 @@ type GoalLike = {
   lump_sum_payments?: unknown;
 };
 
-type RuleLike = {
+export type RuleLike = {
   id?: string | null;
   amount?: number | null;
   frequency?: string | null;
   start_date?: string | null;
 };
 
-type AccountLike = ApyAccountLike & { id?: string | null; balance?: number | null };
+export type AccountLike = ApyAccountLike & { id?: string | null; balance?: number | null };
 
 const toMonthly = (amount: number, freq: string | null | undefined): number =>
   freq === 'weekly' ? amount * 52 / 12
@@ -38,7 +38,7 @@ const toMonthly = (amount: number, freq: string | null | undefined): number =>
   : freq === 'yearly' ? amount / 12
   : amount;
 
-function resolveLinkedRuleIds(goal: GoalLike): string[] {
+export function resolveLinkedRuleIds(goal: GoalLike): string[] {
   return (goal.linked_rule_ids ?? []).length > 0
     ? (goal.linked_rule_ids as string[])
     : goal.linked_rule_id ? [goal.linked_rule_id] : [];
@@ -46,17 +46,19 @@ function resolveLinkedRuleIds(goal: GoalLike): string[] {
 
 /**
  * The month index (0 = the current month, same base as forecast-engine's `i` and
- * useCardProjection's `idx`) at which `goal` first reaches its target, or null if it never
- * does within the horizon. 0 means "already at/above target with zero contributions
- * simulated" — stop immediately, including month 0. k>0 means month k's contribution was the
- * one that tipped it over, so months 0..k still count and only k+1 onward is excluded.
+ * useCardProjection's `idx`) whose contribution first carries `goal` to its target, or null if
+ * it never gets there within the horizon. 0 means "already at/above target before any
+ * contribution is simulated".
  *
  * When the goal has linked rules, their combined monthly amount and earliest start date are
  * used (matching what actually funds the goal); otherwise falls back to the goal's own
  * `monthly_contribution`/`contribution_start_date` fields, so a goal with no linked rule at
  * all is still covered.
+ *
+ * Exported so 97.3's `goal-auto-end.ts` stamps its `end_date` off the SAME projection 4b's
+ * cutoffs read — a second hand-rolled projection is how the two would silently drift.
  */
-function computeGoalCutoffIdx(
+export function computeGoalCompletionIdx(
   goal: GoalLike,
   rules: RuleLike[],
   accounts: AccountLike[],
@@ -96,6 +98,22 @@ function computeGoalCutoffIdx(
     Number(goal.target_amount),
     { today },
   );
+  return completionIdx;
+}
+
+/**
+ * The first month index at which `goal`'s contributions should STOP being counted. 0 means
+ * "stop immediately, including month 0". k>0 means month k's contribution was the one that
+ * tipped it over, so months 0..k still count and only k+1 onward is excluded. null = never
+ * completes within the horizon.
+ */
+function computeGoalCutoffIdx(
+  goal: GoalLike,
+  rules: RuleLike[],
+  accounts: AccountLike[],
+  today: Date,
+): number | null {
+  const completionIdx = computeGoalCompletionIdx(goal, rules, accounts, today);
   if (completionIdx == null) return null; // never completes within the horizon
   return completionIdx === 0 ? 0 : completionIdx + 1;
 }
