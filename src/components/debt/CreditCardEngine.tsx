@@ -3,7 +3,9 @@ import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
   buildCardData, projectCard, projectCardVariable, m0MinDueSettled,
   simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS,
+  openCreditLimitAtMonth,
 } from '@/lib/credit-card-engine';
+import { cardStartMonthOffset } from '@/lib/card-start-date';
 import {
   buildPayConfig, getNormalizedMonthNetIncome, getPrePaycheckNextMonthBills, getMinSafeCash,
   getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
@@ -1083,15 +1085,24 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // and contradicted the utilization printed right above it (e.g. "below 50%: 0 months" at 65.1%).
   // projections[].months[i] is the END of month i, so clearing at index i takes i + 1 months.
   const utilizationMilestones = useMemo(() => {
-    const limit = cards.reduce((s, c) => s + (c.creditLimit ?? 0), 0);
-    if (limit === 0) return [];
+    // Denominator = the limit actually OPEN in each projected month (a future
+    // card_start_date card's limit is not credit yet) — same rule as the engine's
+    // own utilization milestones (openCreditLimitAtMonth, session 93).
+    const now = new Date();
+    const limitCards = cards.map(c => ({
+      creditLimit: c.creditLimit ?? 0,
+      startMonth: cardStartMonthOffset(c.startDate, now),
+    }));
+    if (limitCards.reduce((s, c) => s + c.creditLimit, 0) === 0) return [];
     const balanceNow = cards.reduce((s, c) => s + c.balance, 0);
     return [25, 50, 75].map(threshold => {
-      const target = limit * threshold / 100;
-      if (balanceNow <= target) return { threshold, month: 0 };
+      const limitNow = openCreditLimitAtMonth(limitCards, 0);
+      if (limitNow > 0 && balanceNow <= limitNow * threshold / 100) return { threshold, month: 0 };
       for (let i = 0; i < PROJECTION_MONTHS; i++) {
+        const limit = openCreditLimitAtMonth(limitCards, i);
+        if (limit === 0) continue;
         const bal = projections.reduce((s, p) => s + (p.months[i]?.endBalance ?? 0), 0);
-        if (bal <= target) return { threshold, month: i + 1 };
+        if (bal <= limit * threshold / 100) return { threshold, month: i + 1 };
       }
       return { threshold, month: null };
     });
@@ -1107,8 +1118,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     return Math.max(0, minInterest - recommendedInterest);
   }, [cards, projections]);
 
-  const totalBalance = cards.reduce((s, c) => s + c.balance, 0);
-  const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
+  // A card with a future card_start_date is not open yet — its limit is not available
+  // credit (session 93's rule, same filter Dashboard's utilization tile uses). Both sides
+  // of the ratio use the same filter so Balance / Limit / Utilization stay consistent.
+  const openCardsNow = cards.filter(c => cardStartMonthOffset(c.startDate, new Date()) === 0);
+  const totalBalance = openCardsNow.reduce((s, c) => s + c.balance, 0);
+  const totalLimit = openCardsNow.reduce((s, c) => s + c.creditLimit, 0);
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
 
   const syncDebtAndAccount = (card: CardData, updates: { min_payment?: number; target_payment?: number }) => {
