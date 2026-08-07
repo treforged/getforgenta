@@ -20,6 +20,7 @@ import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent } from '@/lib/savings-growth';
+import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import type { CarFund } from '@/lib/types';
@@ -260,6 +261,15 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     let savingsBal: number;
 
     const nowDate = new Date();
+
+    // Handoff item 4b: a goal-linked transfer/investment rule (or an unlinked goal's own
+    // monthly_contribution) stops being counted once its goal has already hit target_amount.
+    // Built here, ahead of the PASS-1 loop below that consumes it, and kept separate from the
+    // later `resolvedGoals`/`goalCompletionIdx` block (PASS 3) — that block computes a
+    // different thing (display-resolution for the "goal complete" milestone), even though both
+    // call estimateGoalCompletionMonths.
+    const goalTransferCutoffs = buildGoalTransferCutoffs(goals, rules, accounts, nowDate);
+    const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, nowDate);
 
     const monthlyCarContrib = pauseSavings ? 0 : carFunds.reduce((s, c) => {
       if (c.phase === 'loan') return s;
@@ -751,6 +761,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       for (const tr of transferRulesAll) {
         if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > monthEnd) continue;
         if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
+        const goalCutoff = tr.id ? goalTransferCutoffs.get(tr.id) : undefined;
+        if (goalCutoff != null && i >= goalCutoff) continue;
         if (tr.deposit_account) activeTransferDestIds.add(tr.deposit_account);
         const amt = Number(tr.amount);
         let monthAmt = amt;
@@ -891,6 +903,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
         if (g.linked_account && retireAccountIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDestIds.has(g.linked_account)) return s;
+        const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
+        if (ownCutoff != null && i >= ownCutoff) return s;
         const contrib = Number(g.monthly_contribution);
         if (contrib > 0) savingsGoalItems.push({ name: g.name ?? 'Goal', amount: contrib, goalId: g.id as string, linkedAccount: g.linked_account as string | undefined });
         return s + contrib;

@@ -20,6 +20,7 @@ import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
+import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import type { Tables } from '@/integrations/supabase/types';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
@@ -88,6 +89,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
 
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
+
+      // Handoff item 4b — mirrors forecast-engine.ts exactly (same inputs, same function, built
+      // separately per file since these are separate call trees; "byte-identical" means the
+      // numbers agree, not that a JS object is shared across files).
+      const goalTransferCutoffs = buildGoalTransferCutoffs(goals, rules, accounts, now);
+      const goalOwnCutoffs = buildGoalOwnCompletionCutoffs(goals, rules, accounts, now);
 
       // ── Plan-derived installment fields (upfront plans override manual Accounts tab fields) ──
       // Shared derivation (deriveUpfrontPlanFields) — the SAME function CreditCardEngine.tsx's
@@ -596,6 +603,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         for (const tr of simTransferRules) {
           if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > simMonthEnd) continue;
           if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < d) continue;
+          const goalCutoff = tr.id ? goalTransferCutoffs.get(tr.id) : undefined;
+          if (goalCutoff != null && idx >= goalCutoff) continue;
           if (tr.deposit_account) simActiveTransferDests.add(tr.deposit_account);
           const amt = Number(tr.amount);
           monthTransfers += amt * countRuleOccurrencesInMonth(tr, d.getFullYear(), d.getMonth(), now);
@@ -604,6 +613,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > d) return s;
           if (g.linked_account && simRetireIds.has(g.linked_account)) return s;
           if (g.linked_account && simActiveTransferDests.has(g.linked_account)) return s;
+          const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
+          if (ownCutoff != null && idx >= ownCutoff) return s;
           return s + Number(g.monthly_contribution);
         }, 0);
         const carLoanThisMonth = getTotalCarLoanMonthly(carFunds ?? [], d);
@@ -1182,6 +1193,8 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (startDate && new Date(startDate + 'T00:00:00') > now) return s;
         if (g.linked_account && retireIds.has(g.linked_account)) return s;
         if (g.linked_account && activeTransferDests.has(g.linked_account)) return s;
+        const ownCutoff = g.id ? goalOwnCutoffs.get(g.id) : undefined;
+        if (ownCutoff != null && ownCutoff <= 0) return s;
         const ruleMonthly = (amt: number, freq: string) =>
           freq === 'weekly' ? amt * 52 / 12 : freq === 'biweekly' ? amt * 26 / 12 : amt;
         const monthly = linkedRules.length > 0
