@@ -16,6 +16,15 @@ import ForgentaLogo from '@/components/shared/ForgentaLogo';
 
 const TRUSTED_DEVICE_KEY = 'forgenta:trusted_device_id';
 
+/**
+ * How long the OAuth popup may stay open before we tell the user it has stalled.
+ *
+ * Generous on purpose — it must clear a slow bank-grade consent screen plus 2FA, so this is a
+ * "something is misconfigured" backstop, not a UX timer. It never closes the popup or cancels the
+ * sign-in; a user who is simply slow can still finish and the normal close path takes over.
+ */
+const OAUTH_POPUP_TIMEOUT_MS = 90_000;
+
 interface TrustedDevice {
   device_id: string;
   name: string;
@@ -314,6 +323,17 @@ export default function Auth() {
           return;
         }
 
+        // The popup is expected to close ITSELF (see the onAuthStateChange handler above), which
+        // only happens once it lands back on THIS origin carrying ?code= or #access_token. If the
+        // callback lands anywhere else the handler never runs, the popup never closes, and this
+        // poll waits forever with no error on screen.
+        //
+        // That is not hypothetical: 2026-08-07 the popup sat on
+        // `https://getforgenta.com/?code=…` — Supabase's Site URL fallback, served when redirectTo
+        // is not in the project's Redirect URLs allow-list — and cost two sessions to diagnose
+        // precisely because the failure was silent. The timeout below makes it say so.
+        const startedAt = Date.now();
+
         const poll = setInterval(() => {
           if (!popup || popup.closed) {
             clearInterval(poll);
@@ -321,6 +341,20 @@ export default function Auth() {
             supabase.auth.getSession().then(({ data: s }) => {
               if (s.session) navigate('/dashboard', { replace: true });
             });
+            return;
+          }
+
+          if (Date.now() - startedAt > OAUTH_POPUP_TIMEOUT_MS) {
+            clearInterval(poll);
+            setLoading(false);
+            // Deliberately NOT closed for the user: the popup's URL is the single most useful
+            // diagnostic here (it shows which origin the callback actually reached), and closing
+            // it destroys that evidence.
+            toast.error(
+              'Sign-in did not complete. Check the popup window — if it is on a different site ' +
+              `than ${window.location.origin}, that origin needs adding to Supabase's Redirect URLs.`,
+              { duration: 12000 },
+            );
           }
         }, 600);
       }
