@@ -1,122 +1,121 @@
-# Handoff — 2026-08-07 — session 99 — §1A STAGE A SHIPPED AND LIVE-VERIFIED
+# Handoff — 2026-08-07 — session 100 — §1A STAGE B SHIPPED AND LIVE-VERIFIED
 
-> §1 closed last session. This session planned §1A, built Stage A (transaction ingestion),
-> deployed it, and verified it end-to-end against real Plaid data. **143 real transactions are in
-> the database.** Stage B (rule matching + auto-matched badge) is next. Nothing is pushed.
+> Stage A closed last session. This session built Stage B end to end: the pure matcher, the
+> `/budget` auto-matched badge, and a live DOM verification of both. **Google sign-in is fixed
+> and proven.** Stage C is next. Nothing is pushed.
 
 ## ▶ START HERE
 
-**Next work is §1A Stage B** — `src/lib/transaction-matching.ts`, a pure matcher, unit-tested
-before anything consumes it. The full design is in `docs/1A-transaction-sync-plan.md`; read it
-first, it carries Tre's scope decision and the constraints that came with it.
+**Next work is §1A Stage C** — retire `SETTLEMENT_LAG_DAYS` from rule to fallback in
+`src/lib/sync-cutoff.ts`. The design is in `docs/1A-transaction-sync-plan.md` under "Stage C".
+It is the only stage that moves a projected number, so per the plan it ships **alone** and gets
+live-verified against the $1,463 deposit case on its own.
 
-**Sign-in is unblocked** — see below. The three carried DOM verifications can finally be done.
+The evidence source it needs now exists and is proven: `matchOccurrence` in
+`src/lib/transaction-matching.ts`.
 
-## Sign-in: use email + password, not Google
+## Sign-in: FIXED and verified
 
-Verified in `auth.identities`: Tre's account has **`apple,email,google`**, `encrypted_password`
-set, email confirmed. So `localhost:8080/auth` with **email + password** works and never touches
-the OAuth redirect allow-list. That unblocks the DOM checks that have been carried four sessions.
+Tre added `http://localhost:8080/**` to Supabase → Authentication → URL Configuration →
+**Redirect URLs** this session. **Verified working**, no session touched:
 
-The Google popup issue is NOT fixed and is still Tre's dashboard action (Authentication → URL
-Configuration → **Redirect URLs** → `http://localhost:8080/**`). Two format traps: the scheme is
-required (`localhost:8080/**` alone silently fails), and it must be Redirect URLs, not Site URL.
+```
+# capture a real state from /authorize, then hit the callback with a bogus code
+LOC=$(curl -s -o /dev/null -w '%{redirect_url}' \
+  "https://<ref>.supabase.co/auth/v1/authorize?provider=google&redirect_to=http%3A%2F%2Flocalhost%3A8080%2F")
+STATE=$(echo "$LOC" | sed -n 's/.*[?&]state=\([^&]*\).*/\1/p')
+curl -sD - -o /dev/null "https://<ref>.supabase.co/auth/v1/callback?code=bogus&state=$STATE"
+```
 
-**Do not try to verify the allow-list over HTTP — it cannot be done.** `/auth/v1/authorize`
-echoes *any* `redirect_to` straight back; probed with a deliberately bogus domain this session and
-it passed through identically. Validation happens at the callback. The Management API would show
-`uri_allow_list`, but the CLI's token lives in the Windows credential manager, not on disk, so
-there is no token to use. Dashboard only.
+`Location: http://localhost:8080/?error=...Unable+to+exchange+external+code` = **allow-list
+accepted**. A rejected redirect bounces to the Site URL (`getforgenta.com`) instead.
 
-Shipped instead (`7693f900`): `Auth.tsx` now raises a toast after 90s naming the likely cause,
-instead of polling `popup.closed` forever in silence. It deliberately does **not** close the
-popup — the popup's URL is the diagnostic, and closing it destroys the evidence. This is the
-hardening the last two sessions kept flagging.
+**This is the probe that works.** Sessions 96-99 concluded the allow-list was unverifiable over
+HTTP; that was half right. `/authorize` does echo any `redirect_to`, and the callback WITHOUT a
+valid state fails at `bad_oauth_state` before redirect resolution. The redirect lives in the
+state, so you must carry a real state through. Don't re-litigate this — the recipe above works.
 
-## §1A Stage A — what shipped
+## §1A Stage B — what shipped
 
-Commits: `cf4d8fec` (plan), `595cab2d` (Stage A), migration **applied**, functions **deployed**.
+Commits: `e421add4` (matcher), `7959d29d` (badge). Working tree clean, tsc clean, **489/489**.
 
-- **`public.synced_transactions`** — new table, service-role write, user read **only**. No
-  insert/update/delete policy and no DML grant at all. Verified as `authenticated`: read works,
-  insert is rejected.
-  **Kept deliberately separate from `public.transactions`**, which is Tre's hand-entered ledger
-  (full CRUD + "Transaction added" toasts in `useSupabaseData.ts:495-538`). Writing aggregator
-  rows there would read as the app inventing transactions he never entered. Never merge these.
-- **`FinancialProvider.fetchTransactions()`** — Plaid via `/transactions/sync`; Akoya an explicit
-  no-op while shelved. Required, not optional, so a new provider cannot silently ship without
-  transactions and leave the forecast on the date heuristic with no signal.
-- **`sync-handler.syncTransactions()`** — pages the delta, retires pending rows superseded by
-  their posted successor, and advances `sync_cursor` **only after each page commits**.
+### `src/lib/transaction-matching.ts` — `matchOccurrence(rule, monthKey, txns)`
 
-### Two invariants that must not be "simplified" later
+Pure, no I/O. One definition of "matched", read at render time by BOTH the badge and (Stage C)
+the forecast, so the two surfaces cannot disagree. Not persisted — no `matched_rule_id`.
 
-1. **Cursor advances LAST.** Plaid never re-offers a page once the cursor moves past it, so
-   advancing before the write would drop transactions permanently on any failure. Advancing after
-   makes it at-least-once; the unique `(connection_id, provider_transaction_id)` makes replay a
-   no-op. **Proven this session** (see below), not just asserted.
-2. **`syncTransactions` never throws.** Transactions improve the forecast; they are not a
-   prerequisite for it. A failure must not roll back balances that already landed or mark the
-   connection `error` and push the user into a re-link.
+**Design bias: silence over guesses.** Every ambiguity returns `null`, including "two candidates
+are equally good". 32 tests pin this; they exist to make a hit-rate "improvement" fail loudly.
 
-### Live verification (real Plaid, not sandbox)
+### Three plan-doc facts that were WRONG, corrected against live data
 
-Method: aged ONE connection (Discover — 1 account, smallest blast radius) past the 23.5h cooldown
-and fired the real cron. The other five stayed inside cooldown, which returns *before*
-`syncTransactions`, so the blast radius was genuinely one connection.
+1. **`payment_source` is a BARE `accounts.id` uuid** on all 28 non-null rules — not
+   `accounts.name` as the plan sketched. The account test is id equality against
+   `synced_transactions.account_id`. The legacy `account:` prefix is still stripped for demo
+   fixtures.
+2. **Tre has 31 rules, not 431.** The 431 in the old handoff and plan doc is the all-users row
+   count. Any capacity reasoning built on 431 is wrong.
+3. **weekly/biweekly `due_day` is a day of WEEK** (`scheduling.ts:215`), not of month. Those
+   frequencies are REFUSED, along with `semi_monthly` (one due_day cannot describe two
+   occurrences). Monthly + yearly still covers 29 of 31 rules. Do not "add support" for the
+   other two without solving the occurrence-date problem first.
 
-| Check | Result |
-|---|---|
-| Rows ingested | **143**, all Discover |
-| Date range | 2026-01-30 → 2026-08-05 (~6 months) |
-| `account_id` unmapped | **0** — the `plaid_account_id` → `accounts.id` join works |
-| Sign split | 125 outflows / 18 inflows (plausible for a card: purchases + payments) |
-| `category` null | 0 |
-| `sync_cursor` set | yes, and on **exactly 1 of 6** connections — cooldown gating confirmed |
-| Edge logs | 200, v39, no errors |
+### Tolerance calibration (a real decision, not a default)
 
-**Idempotency proven, not assumed.** Re-aged and re-fired: `last_synced_at` moved (so it really
-re-ran — not a cooldown skip) while rows stayed at **143 / 143 distinct**. The second run took
-3.5s vs the first at 9s, exactly what an incremental delta vs a full backfill looks like.
+Amount band is **proportional: 1%, with a $0.05 floor**. An absolute ~$1 floor was written
+first, and a test caught that it let a $10 rule accept a $10.75 coffee. Cards are mostly small
+discretionary charges, so an absolute floor is most dangerous exactly where the data is densest.
 
-Note `pending_txns = 0` — Discover had no pending rows in this window, so the
-pending→posted retirement path is **written and reviewed but not yet exercised against real
-data.** Watch for it when the other five connections first sync.
+`DATE_WINDOW_DAYS = 5`. Note the knob points backwards from intuition: **widening it produces
+FEWER matches**, because more candidates means more ambiguity and ambiguity resolves to null.
 
-## §1A Stage B — next, with Tre's decision baked in
+### The badge (`7959d29d`)
 
-Tre chose **auto-matched badge** over engine-evidence-only. Constraints that came with it
-(also in the plan doc):
+- `useSyncedTransactions(monthKey)` in `useSupabaseData.ts` — read-only, no add/update/remove,
+  mirroring RLS. Sits directly above `useTransactions` with a comment on each: the failure mode
+  that matters is someone mistaking the aggregator table for the user's hand-entered ledger.
+  Fetches the month ±7 days, not the whole history.
+- Chip on `/budget`, next to the existing `sub` / `from payoff` chips.
+- **No negative counterpart chip, by design.** Absence renders as nothing. Most rules stay
+  unbadged until every connection backfills, and a "not paid" state would turn that gap into an
+  accusation.
+- Says **"auto-matched", not "paid"** — evidence of a settled charge, not an accounting claim.
+- Computed from real `recurring_rules` rows, so synthetic subscription/debt-sync entries can
+  never pick up a badge.
 
-- The badge must be **conservative**: show on a confident match, show **nothing** otherwise. An
-  absent badge must read as "no information", never "this bill wasn't paid" — the matcher will
-  have gaps while backfill lands, and a false negative that looks like an accusation is worse
-  than silence.
-- Ship the badge **after** the matcher's unit tests pass and after eyeballing real matches across
-  Tre's 431 rules. Not simultaneously.
-- No `matched_rule_id` column — badge and engine derive from the same read-time match, so the two
-  surfaces cannot disagree.
+### Live verification (real data, both layers)
 
-Then **Stage C** retires `SETTLEMENT_LAG_DAYS`. Critical: it becomes the **fallback branch**, not
-deleted. No transaction coverage (manual accounts, fresh connections, un-backfilled institutions)
-→ today's date heuristic, unchanged. That is what "retired, not tuned" means in code.
+**Matcher, via SQL replicating its logic** over the 143 real Discover rows × 6 months × all
+monthly expense rules: **exactly one match, and it is correct** —
+"Dog food" ($45, due 17th) → `CHEWY INC $44.87 @ 2026-07-16`. **Zero false positives.**
+"Eating Out" ($75/mo, a spending budget, same card) matched in **no** month.
+
+**Badge, in the DOM** — `/budget` → Variable tab, month temporarily pointed at `2026-07`:
+chip renders on the "Dog food" row with its tooltip, and "Eating Out" on the same card has
+**no** chip. The conservatism is visible in the UI. Temp override reverted; tree verified clean.
+
+**Why the temp override was needed:** August has no match (Discover data ends Aug 5, the
+matching rule is due the 17th), so the badge is invisible in the current month. Expect it to
+look sparse until the other five connections sync. That is correct behavior.
 
 ## Facts worth carrying
 
-- **Every link token has had `products: ["transactions"]` as its PRIMARY product all along**
-  (`plaid-create-link-token/index.ts:155`). §1A needed **no re-link and no new consent**. This was
-  the one thing that could have killed the feature.
-- `financial_connections.sync_cursor` already existed and was unused — it is now live.
-- `plaid-sync-all` has **no `force` option**. To force a sync, age `last_synced_at` and fire the
-  cron (job 16) via `net.http_post` with the vault `CRON_SECRET`.
-- pg_net's 5s timeout is **pre-existing** (session 98 proved it on pre-migration request 858).
-  Transaction sync makes runs slower, so expect more timeout rows. Do not "fix" it.
+- Only **Discover** has synced transactions so far (143 rows, one connection). The other five
+  are still inside cooldown from Stage A. Badge coverage will jump when they first sync.
+- `types.ts` gained a hand-written `synced_transactions` block. The file is **overdue a full
+  regen** — it predates §1 (`financial_connections`) and §1A. Regenerate deliberately, on its
+  own; a regen replaces the whole file and would drag unrelated drift into a feature diff.
+- `BudgetRule.due_day` is optional/nullable in `BudgetControl.tsx`; the badge memo guards on
+  `typeof r.due_day !== 'number'`.
+- Stage A's pending→posted retirement path is still **not exercised against real data**
+  (Discover had no pending rows). Watch for it when the other five sync.
 
 ## Still open (carried)
 
 1. **97.3 not live-verified** — `/goals` → edit a goal with a linked rule → checkbox → save →
-   rule shows end date in `/budget` + card shows "Auto-ends contributions". **Now unblocked.**
-2. **97.1 `/debt` TOTAL LIMIT tile** — should read **$25,400**. **Now unblocked.**
+   rule shows end date in `/budget` + card shows "Auto-ends contributions". Sign-in is now
+   fixed, and the Claude-controlled Chrome tab is signed in, so this is fully unblocked.
+2. **97.1 `/debt` TOTAL LIMIT tile** — should read **$25,400**. Same, unblocked.
 3. 97.3 re-stamping happens on GOAL save only; decide with Tre whether to widen.
 4. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
    `debt-transaction-generator.ts:12-34`. **Recommendation: skip.**
@@ -126,12 +125,13 @@ deleted. No transaction coverage (manual accounts, fresh connections, un-backfil
 
 ## Push status
 
-`main` is **12 commits ahead of origin**. Standing rule is never auto-push. **Nothing pushed.**
+`main` is **15 commits ahead of origin**. Standing rule is never auto-push. **Nothing pushed.**
 
 ## Supabase — real IDs (carried)
 
 - Tre `user_id` = `a72f416e-433a-4055-9ab0-9feae4e60edf`. Always filter by it.
-- Discover connection = `881f3807-2974-411b-a406-ac6007a6e7d2` (the 1-account test connection).
+- Discover connection = `881f3807-2974-411b-a406-ac6007a6e7d2`; Discover account =
+  `34c9574b-3557-4729-a812-f0b1b508b882` (the only account with synced transactions).
 - `accounts.account_type` (not `type`); `recurring_rules.rule_type`; `accounts.plaid_account_id`
   is the provider account id.
 - `plaid_items` is a VIEW over `financial_connections`; `plaid_item_id` → `provider_item_id`.
@@ -139,28 +139,40 @@ deleted. No transaction coverage (manual accounts, fresh connections, un-backfil
 ## Environment gotchas (carried + new)
 
 1. Tre is signed in on his real account in HIS browser. Never sign him in or out.
-2. Dev server `localhost:8080`. Budget Control is `/budget`, Debt Payoff is `/debt`.
-3. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
-4. No PowerShell here-string in a `;`-chained command — use a Bash heredoc.
-5. Vitest suppresses `console.log` — write to a scratch file.
-6. `npx supabase` CLI is authenticated and linked — prefer it over MCP for deploys.
-7. A `for` loop over deploys trips the permission classifier; pass all names to one invocation.
-8. **`config.toml` is the source of truth for `verify_jwt`** — the CLI flips any undeclared
-   function to `true`. All ten are declared. Verified post-deploy this session: `plaid-sync-all`
-   held `false` (the cron depends on it), webhooks untouched.
-9. **No `deno` binary locally** — edge function type errors only surface at deploy.
+2. **The Claude-controlled Chrome tab is a SEPARATE profile** and was signed in by Tre this
+   session. Don't assume it shares his session; check, and ask him to sign in rather than
+   typing a password.
+3. Dev server `localhost:8080`. Budget Control is `/budget`, Debt Payoff is `/debt`.
+4. `/budget` rules are split across tabs (Income/Fixed/Subs/Variable/Debt/Transfers). A rule
+   "missing" from the DOM is usually on another tab — "Dog food" is **Variable**, not Fixed,
+   despite category `Bills`, because `cost_type` overrides category.
+5. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
+6. No PowerShell here-string in a `;`-chained command — use a Bash heredoc.
+7. Vitest suppresses `console.log` — write to a scratch file.
+8. `npx supabase` CLI is authenticated and linked. **It has no config READ path** — only
+   `config push`, which overwrites the entire remote auth config from local `config.toml`
+   (which has no `[auth]` block). Never use it to fix a redirect URL.
+9. `config.toml` is the source of truth for `verify_jwt` — the CLI flips any undeclared function
+   to `true`. All ten are declared.
+10. **No `deno` binary locally** — edge function type errors only surface at deploy.
 
-## Lessons (session 99)
+## Lessons (session 100)
 
-**Verify the side effect, then verify it twice.** Session 98's lesson was that a 200 proves
-nothing. The sharper version: a row count proves ingestion but not *correctness*. What proved the
-cursor works was re-running and watching `last_synced_at` move while the row count stayed flat —
-one number moving and another deliberately not.
+**A blocked probe is not a proven negative.** Four sessions concluded the redirect allow-list
+could not be checked over HTTP. It could — the check just needed a real OAuth `state` carried
+from `/authorize` to the callback, because that is where the redirect is stored. "I tried and it
+didn't work" had hardened into "it cannot be done." When inheriting an impossibility, re-derive
+WHY it failed before accepting it.
 
-**Check whether the blocker is the only door.** Google OAuth was treated as the way in for four
-sessions. One query against `auth.identities` showed an email/password identity had been there
-the whole time. When a path is blocked and someone else owns the fix, look for a second path
-before waiting.
+**Let a test kill your first constant.** The $1 amount floor looked obviously reasonable and was
+wrong at the small end, where the data is densest. It surfaced because a test asserted a
+behavior the implementation didn't have — and the right response was to fix the *constant*, not
+the test. Check which one encodes the intent before making them agree.
 
-Prior sessions' lessons (1-98) are in git history under `docs: handoff` commits —
+**Verify the layer, not the file.** `tsc` clean + 489 green said nothing about whether the chip
+rendered on the right row. It took a temporary month override and a real DOM read to learn that
+"Dog food" lives on the Variable tab. Revert such overrides immediately — Tre runs parallel
+sessions on this tree.
+
+Prior sessions' lessons (1-99) are in git history under `docs: handoff` commits —
 `git log --all --oneline | grep handoff`.
