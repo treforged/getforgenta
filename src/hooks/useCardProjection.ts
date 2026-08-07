@@ -17,6 +17,8 @@ import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-m
 import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
+import { carChargeEvidence } from '@/lib/capture-evidence';
+import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
 import { firstRevolvingPayoffMonth, REVOLVING_DUST_DOLLARS } from '@/lib/revolving-payoff';
@@ -50,6 +52,10 @@ export interface UseCardProjectionParams {
   debtStrategy: 'avalanche' | 'snowball';
   persistedDebtFundingId: string | null;
   paymentPlans?: PaymentPlan[];
+  /** §1A Stage C: settled synced transactions overlapping month 0. Must be the SAME array the
+   * engine gets (CardProjectionContext passes one to both) or §1.1 cause C returns in a new form:
+   * two surfaces disagreeing about whether the same car payment already left the account. */
+  syncedTransactions?: readonly MatchableTransaction[];
   assumptions: {
     incomeGrowthEnabled: boolean;
     incomeGrowth: number;
@@ -79,7 +85,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
-    syncCutoffDate, paymentPlans,
+    syncCutoffDate, paymentPlans, syncedTransactions,
   } = params;
 
   return useMemo(() => {
@@ -482,6 +488,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           // Month 0: skip items the stored balance already reflects; counting them again
           // understates available cash. `isCapturedInBalance` owns the comparison (strict <, so a
           // charge due ON the cutoff day still shows in month 0) — see `src/lib/sync-cutoff.ts`.
+          //
+          // No §1A Stage C evidence here, unlike the loan-phase gates below. vehicleForecastByMonth
+          // is SAVING-phase only: these are a projected purchase's hypothetical payment and
+          // premium, for a loan that does not exist yet. There is no real charge to match, and a
+          // coincidental amount hit on the funding account would assert that a car payment left the
+          // account when no such loan is open. Evidence becomes meaningful at the phase flip, where
+          // the loan-phase gates already take it.
           const insuranceSynced = m === 0 && v.insuranceDueDay !== null
             && isCapturedInBalance(dueDateInMonth(mk, v.insuranceDueDay), m0SyncCutoff);
           const paymentSynced = m === 0 && v.paymentDueDay !== null
@@ -536,7 +549,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             const dueDayBasis = cf.insurance_start_date ?? cf.payment_start_date ?? cf.loan_start_date;
             if (!dueDayBasis) return true;
             const insurDay = new Date(dueDayBasis + 'T00:00:00').getDate();
-            return !isCapturedInBalance(dueDateInMonth(mk, insurDay), m0SyncCutoff);
+            const dueDate = dueDateInMonth(mk, insurDay);
+            // §1A Stage C part 2 — evidence via the shared `carChargeEvidence`, the same call the
+            // engine's activeCarLoanInsuranceByMonth makes with the same rows.
+            const evidence = carChargeEvidence(
+              cf, Number(cf.monthly_insurance || 0), dueDate, forecastFundingAccountId, syncedTransactions,
+            );
+            return !isCapturedInBalance(dueDate, m0SyncCutoff, evidence);
           })
           .reduce((s, cf) => s + Number(cf.monthly_insurance || 0), 0);
       });
@@ -1273,7 +1292,14 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         if (cf.phase !== 'loan' || !cf.payment_start_date) return true;
         const payDay = new Date(cf.payment_start_date + 'T00:00:00').getDate();
         const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-        return !isCapturedInBalance(dueDateInMonth(currentMonthStr, payDay), m0SyncCutoff);
+        const dueDate = dueDateInMonth(currentMonthStr, payDay);
+        // §1A Stage C part 2 — evidence via the shared `carChargeEvidence`, matching the engine's
+        // activeCarLoanByMonth gate. `getTotalCarLoanMonthly([cf])` is the amount this very filter
+        // decides whether to charge (carLoanTotal below), so the matcher looks for exactly that.
+        const evidence = carChargeEvidence(
+          cf, getTotalCarLoanMonthly([cf]), dueDate, forecastFundingAccountId, syncedTransactions,
+        );
+        return !isCapturedInBalance(dueDate, m0SyncCutoff, evidence);
       });
       const carLoanTotal = getTotalCarLoanMonthly(m0CarFundsForLoan);
       const monthlySavingsAndCar = goalContrib + carReserve + carLoanTotal;
@@ -1830,6 +1856,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // OUTFLOW gate and uses the shared `isCapturedInBalance` rule. With the settlement lag, an
         // autopay that fired in the last few days is no longer assumed settled — the payment stays
         // recommended rather than silently vanishing from the plan while the debit is still pending.
+        //
+        // No §1A Stage C evidence: this is a CARD statement clearing, so the matcher would be
+        // hunting a statement-sized card payment on the funding account it cannot identify — the
+        // same transfer-linking gap documented on `m0MinDueSettled` in credit-card-engine.ts.
         return isCapturedInBalance(dueDateInMonth(m0MonthStr, card.dueDay), syncCutoffDate)
           ? { ...pca, payment: 0 }
           : pca;

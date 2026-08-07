@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useMemo, useCallback, useEffect, u
 import type { ReactNode } from 'react';
 import {
   useAccounts, useTransactions, useRecurringRules, useDebts,
-  useSavingsGoals, useCarFunds, useProfile, usePaymentPlans,
+  useSavingsGoals, useCarFunds, useProfile, usePaymentPlans, useSyncedTransactions,
 } from '@/hooks/useSupabaseData';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -146,6 +146,24 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     });
   }, [forecastFundingAccountId, accounts, plaidItems]);
 
+  // §1A Stage C part 2 — the settled transactions the month-0 capture gates consult.
+  //
+  // CURRENT month only: Stage C gates month 0 and nothing else, since every later month is
+  // entirely in the future and no balance reflects it. `useSyncedTransactions` fetches the month
+  // ± SYNCED_TXN_FETCH_SLACK_DAYS (7), comfortably wider than the matcher's DATE_WINDOW_DAYS (5),
+  // so a month-0 due date's whole match window is always inside the fetch. Truncation at the
+  // fetch edges can only raise the observed earliest and lower the observed latest, i.e. only ever
+  // REDUCE claimed coverage — which falls back to the date heuristic, the safe direction.
+  //
+  // Fetched HERE, once, and handed to both `useCardProjection` and `useForecastEngineInputs`
+  // below. Two independent fetches would be two array identities and, at the margins of a refetch,
+  // two different answers for the same car payment — the precise shape of finding §1.1 cause C.
+  const currentMonthKey = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+  const { data: syncedTransactions } = useSyncedTransactions(currentMonthKey);
+
   const scheduledEvents = useMemo(
     () => generateScheduledEvents(rules ?? [], accounts ?? [], PROJECTION_MONTHS),
     [rules, accounts],
@@ -201,6 +219,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     assumptions: projectionAssumptions,
     syncCutoffDate,
     paymentPlans: paymentPlans ?? [],
+    syncedTransactions,
   });
 
   const forecastInputsBundle = useForecastEngineInputs({
@@ -211,6 +230,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     cashFloor,
     forecastFundingAccountId,
     syncCutoffDate,
+    syncedTransactions,
     scheduledEvents,
     debtPayoffOptions,
   });

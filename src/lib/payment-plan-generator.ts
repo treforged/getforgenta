@@ -200,6 +200,13 @@ export function deriveUpfrontPlanFields(
       // installments have been PAID, to size the remaining 0% principal on the CARD. That is a
       // credit-card-balance question against a different basis, not a funding-cash question, so
       // the outflow lag does not belong there.
+      //
+      // §1A Stage C part 2 does NOT give this gate transaction evidence, despite
+      // `plan.payment_amount` being an exact figure. An 'upfront' plan is charged to a CARD (see
+      // sourceToCardId above — only card ids resolve), so the installment leaves the funding
+      // account folded into one card payment covering the whole statement; no debit for
+      // `payment_amount` alone ever posts. Evidence would therefore read `covered + unmatched` and
+      // charge an installment already paid. Same transfer-linking gap as the card minimums.
       if (isCapturedInBalance(date, cutoff)) continue;
       const pd = new Date(date + 'T00:00:00');
       const mi = (pd.getFullYear() - now.getFullYear()) * 12 + (pd.getMonth() - now.getMonth());

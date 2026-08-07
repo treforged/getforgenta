@@ -10,6 +10,7 @@ import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-trans
 import { getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, type EnrichedTransaction, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import type { ForecastInputs } from '@/lib/forecast-engine';
+import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { computeAnnualFederalWithheld } from '@/lib/income-model';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 
@@ -31,6 +32,9 @@ export interface ForecastEngineInputsParams {
   cashFloor: number;
   forecastFundingAccountId: string | null;
   syncCutoffDate: string;
+  /** §1A Stage C — passed straight through to ForecastInputs. See CardProjectionContext: the SAME
+   * array must reach `useCardProjection`, or the two surfaces can gate a car payment differently. */
+  syncedTransactions?: readonly MatchableTransaction[];
   scheduledEvents: ScheduledEvent[];
   debtPayoffOptions: {
     strategy: 'avalanche' | 'snowball';
@@ -48,6 +52,7 @@ export function useForecastEngineInputs({
   cashFloor,
   forecastFundingAccountId,
   syncCutoffDate,
+  syncedTransactions,
   scheduledEvents,
   debtPayoffOptions,
 }: ForecastEngineInputsParams) {
@@ -341,7 +346,8 @@ export function useForecastEngineInputs({
     currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor,
     pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget,
     paymentPlans: paymentPlans ?? [],
-  }), [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget, paymentPlans]);
+    syncedTransactions,
+  }), [debts, goals, carFunds, accounts, budgetItems, profile, assumptions, rules, monthlyAggregates, debtPaymentsByMonth, debtBalancesByMonth, cardProjectionData, payConfig, oneTimeByMonth, ccOneTimeByMonth, ccScheduledByMonth, transactions, currentMonthRecommendedDebt, forecastMonthEvents, forecastFundingAccountId, cashFloor, pauseSavings, syncCutoffDate, planExpensesByMonth, annualFederalWithheldFromBudget, paymentPlans, syncedTransactions]);
 
   return {
     engineInputs,
