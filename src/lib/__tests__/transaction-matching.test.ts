@@ -20,6 +20,8 @@ import { describe, it, expect } from 'vitest';
 import {
   matchOccurrence,
   normalizePaymentSource,
+  hasCoverage,
+  buildCaptureEvidence,
   DATE_WINDOW_DAYS,
   type MatchableRule,
   type MatchableTransaction,
@@ -282,5 +284,102 @@ describe('matchOccurrence — input shapes', () => {
     const snapshot = JSON.parse(JSON.stringify(txns));
     matchOccurrence(rule(), '2026-08', txns);
     expect(txns).toEqual(snapshot);
+  });
+});
+
+// §1A Stage C — the evidence a month-0 capture gate consults.
+//
+// Stage B answered "did this rule's occurrence happen?". Stage C additionally needs "do we even
+// KNOW?", because `isCapturedInBalance` only dares conclude anything from an ABSENT match when
+// the window it would have matched in has actually been observed. Coverage is the whole safety
+// story of Stage C: get it wrong in the optimistic direction and an un-backfilled account starts
+// asserting that real bills never happened.
+describe('hasCoverage', () => {
+  const spread = [
+    txn({ id: 'lo', date: '2026-07-01', amount: 5 }),
+    txn({ id: 'hi', date: '2026-08-31', amount: 7 }),
+  ];
+
+  it('claims coverage only when settled rows span the whole match window', () => {
+    expect(hasCoverage(ACCT, '2026-08-15', spread)).toBe(true);
+  });
+
+  it('refuses coverage past the newest synced transaction', () => {
+    // The live case: Discover's data ends 2026-08-05 while the matching rule is due the 17th.
+    // Nothing has been observed there yet, so the date heuristic must keep the gate.
+    const upToAug5 = [txn({ id: 'lo', date: '2026-06-01' }), txn({ id: 'hi', date: '2026-08-05' })];
+    expect(hasCoverage(ACCT, '2026-08-17', upToAug5)).toBe(false);
+    // The boundary: a due date whose window ends exactly on the newest row IS covered; one day
+    // later is not. Coverage needs the WHOLE window observed, not just the due date itself.
+    expect(hasCoverage(ACCT, '2026-07-31', upToAug5)).toBe(true);
+    expect(hasCoverage(ACCT, '2026-08-01', upToAug5)).toBe(false);
+  });
+
+  it('refuses coverage before the oldest synced transaction', () => {
+    // A connection that has only backfilled recent history knows nothing about older months.
+    expect(hasCoverage(ACCT, '2026-06-15', spread)).toBe(false);
+  });
+
+  it('refuses coverage for an account with no settled rows at all', () => {
+    // Manual accounts and brand-new connections. This is the branch that keeps the heuristic.
+    expect(hasCoverage(OTHER_ACCT, '2026-08-15', spread)).toBe(false);
+    expect(hasCoverage(ACCT, '2026-08-15', [])).toBe(false);
+    expect(hasCoverage(null, '2026-08-15', spread)).toBe(false);
+  });
+
+  it('ignores pending rows when measuring coverage', () => {
+    // A pending row is not settled evidence, so it must not extend the observed range and let an
+    // unmatched charge be declared "definitely has not hit".
+    const pendingEdge = [...spread, txn({ id: 'p', date: '2026-09-30', pending: true })];
+    expect(hasCoverage(ACCT, '2026-09-10', pendingEdge)).toBe(false);
+  });
+});
+
+describe('buildCaptureEvidence', () => {
+  const charge = { accountId: ACCT, amount: 120, dueDate: '2026-08-15' };
+  const covering = [
+    txn({ id: 'lo', date: '2026-07-01', amount: 5 }),
+    txn({ id: 'hi', date: '2026-08-31', amount: 7 }),
+  ];
+
+  it('reports a match when a settled transaction corresponds to the charge', () => {
+    expect(buildCaptureEvidence(charge, [...covering, txn({ id: 'm', date: '2026-08-14' })]))
+      .toEqual({ hasTxnCoverage: true, matched: true });
+  });
+
+  it('reports covered-and-unmatched, the branch that changes a projected number', () => {
+    expect(buildCaptureEvidence(charge, covering)).toEqual({ hasTxnCoverage: true, matched: false });
+  });
+
+  it('reports no coverage rather than a bare "unmatched" when nothing was observed', () => {
+    // Same absent match as above, but it means nothing here — and isCapturedInBalance must be able
+    // to tell those two apart, which is the entire reason evidence carries two booleans.
+    expect(buildCaptureEvidence(charge, [])).toEqual({ hasTxnCoverage: false, matched: false });
+  });
+
+  it('inherits the matcher ambiguity refusal', () => {
+    // Two equally good candidates is a coin flip. Unmatched-but-covered would then CHARGE the
+    // bill again, which reads cash low — the safe way for a coin flip to fail.
+    const twins = [
+      ...covering,
+      txn({ id: 'a', date: '2026-08-14' }),
+      txn({ id: 'b', date: '2026-08-16' }),
+    ];
+    expect(buildCaptureEvidence(charge, twins)).toEqual({ hasTxnCoverage: true, matched: false });
+  });
+
+  it('matches an inflow only against an inflow', () => {
+    // Direction is a hard gate: a -$1,463 deposit must never satisfy a $1,463 outflow charge.
+    const deposit = txn({ id: 'd', date: '2026-08-15', amount: -1463 });
+    const window = [txn({ id: 'lo', date: '2026-07-01', amount: 5 }), txn({ id: 'hi', date: '2026-08-31', amount: 7 })];
+    const c = { accountId: ACCT, amount: 1463, dueDate: '2026-08-15' };
+    expect(buildCaptureEvidence(c, [...window, deposit]).matched).toBe(false);
+    expect(buildCaptureEvidence({ ...c, isInflow: true }, [...window, deposit]).matched).toBe(true);
+  });
+
+  it('refuses everything for a charge with no account attribution', () => {
+    // An unattributed charge cannot be matched or covered — it falls to the heuristic.
+    expect(buildCaptureEvidence({ ...charge, accountId: null }, covering))
+      .toEqual({ hasTxnCoverage: false, matched: false });
   });
 });

@@ -27,7 +27,7 @@
 // name similarity is unpredictable, locale-sensitive, and hard to test, and it would mostly serve
 // to rescue the ambiguous cases this file deliberately refuses.
 
-import { dueDateInMonth } from './sync-cutoff';
+import { dueDateInMonth, type CaptureEvidence } from './sync-cutoff';
 
 /** A match this tight is to-the-penny; anything looser is `strong`. */
 export const AMOUNT_EXACT_TOLERANCE = 0.01;
@@ -168,15 +168,52 @@ export function matchOccurrence(
     if (month !== (rule.due_month ?? 1)) return null;
   }
 
-  const accountId = normalizePaymentSource(rule.payment_source);
+  return matchCharge({
+    accountId: normalizePaymentSource(rule.payment_source),
+    amount: rule.amount,
+    dueDate: occurrenceDate(monthKey, rule.due_day),
+    isInflow: rule.rule_type === 'income',
+  }, txns);
+}
+
+/**
+ * One dated money movement to look for. §1A Stage C.
+ *
+ * Deliberately NOT a `recurring_rules` row. Stage C's capture gates ask this question about things
+ * that are not rules at all — a car loan payment from a `car_funds` row, a card's minimum, an
+ * upfront-plan installment — and forcing those through a rule-shaped API would mean inventing fake
+ * rules at each call site. `matchOccurrence` is now the rule-shaped wrapper over this.
+ */
+export interface ChargeToMatch {
+  /** An `accounts.id`, already normalized. Null means unattributed and can never match. */
+  accountId: string | null;
+  /** Always positive; direction comes from `isInflow`. */
+  amount: number | string;
+  /** `YYYY-MM-DD`. */
+  dueDate: string;
+  /** Default false — outflow, which is what every capture gate asks about. */
+  isInflow?: boolean;
+}
+
+/**
+ * The settled transaction corresponding to `charge`, or null.
+ *
+ * Tests: account, then direction, then amount, then date; a candidate must pass all four, and
+ * there must be exactly one best candidate. `txns` may be every transaction the user has; it is
+ * filtered here and never mutated.
+ */
+export function matchCharge(
+  charge: ChargeToMatch,
+  txns: readonly MatchableTransaction[],
+): OccurrenceMatch | null {
+  const { accountId } = charge;
   if (!accountId) return null;
 
-  const ruleAmount = Math.abs(Number(rule.amount));
-  if (!Number.isFinite(ruleAmount) || ruleAmount === 0) return null;
+  const target = Math.abs(Number(charge.amount));
+  if (!Number.isFinite(target) || target === 0) return null;
 
-  const due = occurrenceDate(monthKey, rule.due_day);
-  const wantsInflow = rule.rule_type === 'income';
-  const tolerance = strongTolerance(ruleAmount);
+  const wantsInflow = charge.isInflow === true;
+  const tolerance = strongTolerance(target);
 
   const candidates: OccurrenceMatch[] = [];
   for (const txn of txns) {
@@ -190,10 +227,10 @@ export function matchOccurrence(
     // payment must never satisfy a $1,000 expense.
     if (wantsInflow !== signed < 0) continue;
 
-    const delta = Math.abs(Math.abs(signed) - ruleAmount);
+    const delta = Math.abs(Math.abs(signed) - target);
     if (delta > tolerance) continue;
 
-    if (Math.abs(daysBetween(due, txn.date)) > DATE_WINDOW_DAYS) continue;
+    if (Math.abs(daysBetween(charge.dueDate, txn.date)) > DATE_WINDOW_DAYS) continue;
 
     candidates.push({ txn, confidence: delta <= AMOUNT_EXACT_TOLERANCE ? 'exact' : 'strong' });
   }
@@ -204,4 +241,62 @@ export function matchOccurrence(
   const exact = candidates.filter(c => c.confidence === 'exact');
   const best = exact.length > 0 ? exact : candidates;
   return best.length === 1 ? best[0] : null;
+}
+
+/**
+ * Have settled transactions actually been observed across `dueDate`'s whole match window?
+ *
+ * This is the question that licenses concluding anything from an ABSENT match. Without it, an
+ * account whose backfill has not arrived would report "no match" for every real bill it has, and
+ * Stage C would read that as "none of these bills were paid" — confidently wrong in the direction
+ * that overstates obligations across every surface at once.
+ *
+ * INFERRED FROM THE ROWS, not from a stored range: `synced_transactions` records no coverage
+ * window and Plaid's cursor is opaque, so the observed min/max settled date per account is the
+ * only honest signal available. It UNDER-claims — a sparse account with one transaction covers
+ * almost nothing — and under-claiming just falls back to the date heuristic, which is the
+ * pre-Stage-C behaviour. Do not "improve" this by dropping the lower bound or by counting a
+ * single row as a range; both trade a safe fallback for a confident assertion.
+ *
+ * The whole window (`± DATE_WINDOW_DAYS`) must be observed, not merely the due date, because a
+ * bill due the 3rd can settle on the 6th and the sync may simply not have reached it yet.
+ */
+export function hasCoverage(
+  accountId: string | null,
+  dueDate: string,
+  txns: readonly MatchableTransaction[],
+): boolean {
+  if (!accountId) return false;
+
+  let earliest: string | null = null;
+  let latest: string | null = null;
+  for (const txn of txns) {
+    // Pending rows are not settled evidence, so they must not stretch the observed range and let
+    // an unmatched charge be declared "definitely has not hit".
+    if (txn.pending) continue;
+    if (txn.account_id !== accountId) continue;
+    if (earliest === null || txn.date < earliest) earliest = txn.date;
+    if (latest === null || txn.date > latest) latest = txn.date;
+  }
+  if (earliest === null || latest === null) return false;
+
+  return daysBetween(earliest, dueDate) >= DATE_WINDOW_DAYS
+    && daysBetween(dueDate, latest) >= DATE_WINDOW_DAYS;
+}
+
+/**
+ * What settled transactions say about one charge, in the shape `isCapturedInBalance` consumes.
+ *
+ * The two booleans are not redundant. "No match" alone is ambiguous between "this did not happen"
+ * and "we have not looked yet", and those demand opposite behaviour from a capture gate — which is
+ * precisely the distinction the pre-§1A date heuristic could never make.
+ */
+export function buildCaptureEvidence(
+  charge: ChargeToMatch,
+  txns: readonly MatchableTransaction[],
+): CaptureEvidence {
+  return {
+    hasTxnCoverage: hasCoverage(charge.accountId, charge.dueDate, txns),
+    matched: matchCharge(charge, txns) !== null,
+  };
 }
