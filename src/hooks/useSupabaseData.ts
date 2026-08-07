@@ -491,7 +491,57 @@ export function useLumpSumTransfers() {
   return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
 }
 
-// ─── Transactions ─────────────────────────────────────────
+// ─── Synced transactions (§1A, aggregator-owned, READ ONLY) ───────────────
+//
+// NOT the user's ledger. `synced_transactions` is written by the sync edge functions under the
+// service role; RLS grants the client `select` and nothing else, and there is deliberately no
+// add/update/remove here to match. The user's hand-entered transactions are `useTransactions`
+// below — the two must never be merged, or the app appears to invent transactions nobody entered.
+export type SyncedTransactionRow = Pick<
+  Tables<'synced_transactions'>,
+  'id' | 'account_id' | 'amount' | 'date' | 'pending' | 'name' | 'merchant_name'
+>;
+
+/** Slack either side of the month, ≥ the matcher's DATE_WINDOW_DAYS so no candidate is cut off. */
+const SYNCED_TXN_FETCH_SLACK_DAYS = 7;
+
+/**
+ * Settled synced transactions overlapping `monthKey` (`YYYY-MM`), for rule matching.
+ *
+ * Scoped to the month plus a few days of slack either side, because a bill due on the 1st can post
+ * in the prior month and the matcher looks ±DATE_WINDOW_DAYS around the due date. Fetching a
+ * user's whole history would be thousands of rows to badge one screen.
+ *
+ * Demo mode returns nothing: there is no aggregator behind demo data, and inventing matches there
+ * would put a "confirmed by your bank" badge on fixtures.
+ */
+export function useSyncedTransactions(monthKey: string) {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+  return useQuery({
+    queryKey: ['synced_transactions', isDemo ? 'demo' : user?.id, monthKey],
+    enabled: isDemo || !!user,
+    queryFn: async (): Promise<SyncedTransactionRow[]> => {
+      if (isDemo || !user) return [];
+      const [year, month] = monthKey.split('-').map(Number);
+      const pad = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const from = pad(new Date(year, month - 1, 1 - SYNCED_TXN_FETCH_SLACK_DAYS));
+      const to = pad(new Date(year, month, SYNCED_TXN_FETCH_SLACK_DAYS));
+      const { data, error } = await supabase
+        .from('synced_transactions')
+        .select('id, account_id, amount, date, pending, name, merchant_name')
+        .eq('user_id', user.id)
+        .eq('pending', false)
+        .gte('date', from)
+        .lte('date', to);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+// ─── Transactions (the USER'S manual ledger — full CRUD) ──────────────────
 export type TransactionRow = Partial<Tables<'transactions'>> & {
   id: string; user_id: string; date: string; type: string; amount: number; category: string;
 };
