@@ -156,8 +156,29 @@ export function useRecurringRules() {
       if (isDemo || !user) throw new Error('Demo mode');
       const { error } = await supabase.from('recurring_rules').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
+      // Deleting a rule must also scrub its id from savings_goals.linked_rule_ids /
+      // linked_rule_id — the array column has no FK, so without this the goal keeps an
+      // orphaned link that every consumer silently filters out (found live: a stale id
+      // in Tre's Savings goal). car_funds is covered by a real FK; goals are not.
+      const { data: linkedGoals, error: goalErr } = await supabase
+        .from('savings_goals')
+        .select('id, linked_rule_id, linked_rule_ids')
+        .eq('user_id', user.id)
+        .or(`linked_rule_id.eq.${id},linked_rule_ids.cs.{${id}}`);
+      if (goalErr) throw goalErr;
+      for (const g of linkedGoals ?? []) {
+        const { error: updErr } = await supabase.from('savings_goals').update({
+          linked_rule_id: g.linked_rule_id === id ? null : g.linked_rule_id,
+          linked_rule_ids: (g.linked_rule_ids ?? []).filter((rid: string) => rid !== id),
+        }).eq('id', g.id).eq('user_id', user.id);
+        if (updErr) throw updErr;
+      }
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['recurring_rules'] }); toast.success('Recurring rule deleted'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['recurring_rules'] });
+      qc.invalidateQueries({ queryKey: ['savings_goals'] });
+      toast.success('Recurring rule deleted');
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
