@@ -48,6 +48,7 @@ import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund } from '@/lib/vehicle-loan-engine';
 import { buildNetWorthBreakdown, totalsFromBreakdown } from '@/lib/net-worth';
+import { isCardOpenAsOf } from '@/lib/card-start-date';
 import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip,
   Line, CartesianGrid, ComposedChart,
@@ -430,8 +431,12 @@ export default function Dashboard() {
     const liquidTypes = ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'];
 
     const liquidCash = active.filter(a => liquidTypes.includes(a.account_type)).reduce((s, a) => s + Number(a.balance || 0), 0);
-    const ccDebt = active.filter(a => a.account_type === 'credit_card').reduce((s, a) => s + Number(a.balance || 0), 0);
-    const ccLimit = active.filter(a => a.account_type === 'credit_card' && a.credit_limit).reduce((s, a) => s + Number(a.credit_limit || 0), 0);
+    // A card with a future card_start_date has not been opened yet, so its limit is
+    // not available credit and must not dilute utilization. Both sides of the ratio
+    // use the same filter so the tile's "$debt / $limit" sub-line stays consistent.
+    const openCards = active.filter(a => a.account_type === 'credit_card' && isCardOpenAsOf(a, new Date()));
+    const ccDebt = openCards.reduce((s, a) => s + Number(a.balance || 0), 0);
+    const ccLimit = openCards.filter(a => a.credit_limit).reduce((s, a) => s + Number(a.credit_limit || 0), 0);
 
     return { liquidCash, ...totalsFromBreakdown(netWorthBreakdown), ccDebt, ccLimit };
   }, [accounts, netWorthBreakdown]);

@@ -11,6 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { tracedInvoke } from '@/lib/tracer';
 import { formatCurrency } from '@/lib/calculations';
 import { categorizeExpenses } from '@/lib/expense-filtering';
+import { isCardOpenAsOf } from '@/lib/card-start-date';
 import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Loader2,
@@ -652,9 +653,11 @@ export default function AiAdvisor() {
 
     const activeAccounts = accounts.filter(a => a.active !== false);
 
-    // Credit cards from accounts table
+    // Credit cards from accounts table. Cards with a future card_start_date are not
+    // open yet — handing the advisor their limits would have it reason about credit
+    // the user does not have.
     const creditCards = activeAccounts
-      .filter(a => a.account_type === 'credit_card')
+      .filter(a => a.account_type === 'credit_card' && isCardOpenAsOf(a, new Date()))
       .map(a => ({
         name: String(a.name ?? 'Credit Card'),
         balance: Number(a.balance ?? 0),

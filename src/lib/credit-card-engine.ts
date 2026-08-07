@@ -8,6 +8,7 @@ import {
 import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
 import { FLOOR_CUSHION_DOLLARS } from './floor-protection';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
+import { cardStartMonthOffset } from './card-start-date';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
@@ -125,6 +126,18 @@ export const BANK_DEFAULT_CATEGORIES = new Set([
 
 export function getCardColor(index: number): string {
   return CARD_COLORS[index % CARD_COLORS.length];
+}
+
+/**
+ * Total credit limit actually open at month `m` of a projection. A card joins
+ * the denominator from its start month, never before — an unopened card's limit
+ * is not credit the user can draw on.
+ */
+export function openCreditLimitAtMonth(
+  cards: { creditLimit: number; startMonth: number }[],
+  m: number,
+): number {
+  return cards.reduce((s, c) => (c.startMonth <= m ? s + c.creditLimit : s), 0);
 }
 
 export function calcMinPayment(balance: number, apr: number): number {
@@ -871,12 +884,9 @@ export function simulateVariablePayoff(
 
   // Month index (0 = current month) at which each card becomes active.
   // Cards with a future startDate are excluded from the simulation until their start month.
-  const cardStartMonths = new Map<string, number>(cards.map(c => {
-    if (!c.startDate) return [c.id, 0];
-    const startD = new Date(c.startDate + 'T00:00:00');
-    const diff = (startD.getFullYear() - now.getFullYear()) * 12 + (startD.getMonth() - now.getMonth());
-    return [c.id, Math.max(0, diff)];
-  }));
+  const cardStartMonths = new Map<string, number>(
+    cards.map(c => [c.id, cardStartMonthOffset(c.startDate, now)]),
+  );
 
   // Tracks cards that have reached $0 — one-way transition, never re-enters debt mode.
   const paidOffCards = new Set<string>();
@@ -1978,12 +1988,21 @@ export function generateRecommendations(
     cards, liquidCash, cashFloor, strategy, monthlyTakeHome, monthlyExpenses, 120,
   );
 
-  const totalLimit = cards.reduce((s, c) => s + c.creditLimit, 0);
+  // A card with a future card_start_date is not open yet, so its limit is not
+  // available credit. simulateVariablePayoff already holds such cards out until
+  // their start month (cardStartMonths); the milestones must use the same rule or
+  // they measure against credit the user does not have.
+  const milestoneNow = new Date();
+  const milestoneCards = cards.map(c => ({
+    creditLimit: c.creditLimit,
+    startMonth: cardStartMonthOffset(c.startDate, milestoneNow),
+  }));
   const thresholds = [30, 10];
   const milestones = thresholds.map(t => {
     let simB = cards.map(c => c.autopayFullBalance ? 0 : c.balance);
     for (let m = 0; m < 120; m++) {
       const totalBal = simB.reduce((s, b) => s + Math.max(0, b), 0);
+      const totalLimit = openCreditLimitAtMonth(milestoneCards, m);
       const util = totalLimit > 0 ? (totalBal / totalLimit) * 100 : 0;
       if (util <= t) return { threshold: t, month: m };
       simB = simB.map((bal, i) => {
