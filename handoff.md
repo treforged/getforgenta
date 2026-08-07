@@ -1,120 +1,142 @@
-# Handoff — 2026-08-07 — session 100 — §1A STAGE B SHIPPED AND LIVE-VERIFIED
+# Handoff — 2026-08-07 — session 101 — §1A STAGE C PART 1 SHIPPED (the rule); PART 2 = WIRING
 
-> Stage A closed last session. This session built Stage B end to end: the pure matcher, the
-> `/budget` auto-matched badge, and a live DOM verification of both. **Google sign-in is fixed
-> and proven.** Stage C is next. Nothing is pushed.
+> `isCapturedInBalance` now takes evidence, and `SETTLEMENT_LAG_DAYS` is officially the FALLBACK
+> rather than the rule. That is committed, tested, and moves **no** number. The remaining work is
+> wiring evidence into the month-0 capture gates — and this session established that **none of
+> those gates can move a number yet**, because the only account with synced transactions is a
+> credit card and every gate is on the funding checking account. Nothing pushed.
 
 ## ▶ START HERE
 
-**Next work is §1A Stage C** — retire `SETTLEMENT_LAG_DAYS` from rule to fallback in
-`src/lib/sync-cutoff.ts`. The design is in `docs/1A-transaction-sync-plan.md` under "Stage C".
-It is the only stage that moves a projected number, so per the plan it ships **alone** and gets
-live-verified against the $1,463 deposit case on its own.
+**Next work is §1A Stage C part 2** — wire `buildCaptureEvidence` into the month-0 capture gates.
+The reference gate (car loan payment, forecast-engine) was started and deliberately reverted at
+the context gate, so the tree is clean. The full recipe is in "Stage C part 2" below; follow it
+rather than re-deriving.
 
-The evidence source it needs now exists and is proven: `matchOccurrence` in
-`src/lib/transaction-matching.ts`.
+Read **before** touching a gate: "Which gates may take evidence" — one of them (the CC minimum)
+must NOT, and wiring it would be a live double-count regression.
 
-## Sign-in: FIXED and verified
+## Stage C part 1 — what shipped (`cc05e234`)
 
-Tre added `http://localhost:8080/**` to Supabase → Authentication → URL Configuration →
-**Redirect URLs** this session. **Verified working**, no session touched:
+Working tree clean, tsc clean, **505/505** (was 489; +26 tests).
 
-```
-# capture a real state from /authorize, then hit the callback with a bogus code
-LOC=$(curl -s -o /dev/null -w '%{redirect_url}' \
-  "https://<ref>.supabase.co/auth/v1/authorize?provider=google&redirect_to=http%3A%2F%2Flocalhost%3A8080%2F")
-STATE=$(echo "$LOC" | sed -n 's/.*[?&]state=\([^&]*\).*/\1/p')
-curl -sD - -o /dev/null "https://<ref>.supabase.co/auth/v1/callback?code=bogus&state=$STATE"
+### `src/lib/sync-cutoff.ts` — the demotion
+
+```ts
+isCapturedInBalance(dueDate, balanceAsOf, evidence?: CaptureEvidence)
 ```
 
-`Location: http://localhost:8080/?error=...Unable+to+exchange+external+code` = **allow-list
-accepted**. A rejected redirect bounces to the Site URL (`getforgenta.com`) instead.
+- `matched` → captured. Honoured even when `hasTxnCoverage` is false: coverage requires the whole
+  match window observed, so a real match can land just outside it, and a transaction that exists
+  outranks a conservatism about window completeness.
+- covered, unmatched → **NOT** captured. This is the only branch that will move a number.
+- no coverage → the date heuristic, byte-identical to before.
 
-**This is the probe that works.** Sessions 96-99 concluded the allow-list was unverifiable over
-HTTP; that was half right. `/authorize` does echo any `redirect_to`, and the callback WITHOUT a
-valid state fails at `bad_oauth_state` before redirect resolution. The redirect lives in the
-state, so you must carry a real state through. Don't re-litigate this — the recipe above works.
+The parameter is **optional**, so every existing call site is unchanged and part 2 can proceed one
+gate at a time. The file header comment that used to say "this heuristic should be retired, not
+tuned" was rewritten to describe what actually happened: demoted, not deleted.
 
-## §1A Stage B — what shipped
+### `src/lib/transaction-matching.ts` — evidence primitives
 
-Commits: `e421add4` (matcher), `7959d29d` (badge). Working tree clean, tsc clean, **489/489**.
+- `matchCharge(charge: ChargeToMatch, txns)` — Stage B's matcher generalised off the rule shape.
+  Stage C's gates ask about things that are **not** recurring rules (a `car_funds` loan payment, an
+  upfront-plan installment), and inventing fake rules per call site would be worse.
+  `matchOccurrence` is now a thin rule-shaped wrapper over it, so Stage B's badge and Stage C's
+  gates still share one definition of "matched". All 32 Stage B tests still pass unchanged.
+- `hasCoverage(accountId, dueDate, txns)` — requires the WHOLE `± DATE_WINDOW_DAYS` window
+  observed in settled rows, **both ends**. Inferred from row min/max because
+  `synced_transactions` stores no coverage range and Plaid's cursor is opaque. It deliberately
+  under-claims; under-claiming just falls back to the heuristic. Do not "improve" it by dropping
+  the lower bound or counting a single row as a range.
+- `buildCaptureEvidence(charge, txns)` — the two booleans together. They are not redundant: "no
+  match" alone is ambiguous between "this did not happen" and "we have not looked yet", and those
+  demand opposite behaviour from a capture gate. That is precisely what the date heuristic could
+  never distinguish.
 
-### `src/lib/transaction-matching.ts` — `matchOccurrence(rule, monthKey, txns)`
+## Stage C part 2 — the wiring recipe
 
-Pure, no I/O. One definition of "matched", read at render time by BOTH the badge and (Stage C)
-the forecast, so the two surfaces cannot disagree. Not persisted — no `matched_rule_id`.
+### Which gates may take evidence (READ THIS FIRST)
 
-**Design bias: silence over guesses.** Every ambiguity returns `null`, including "two candidates
-are equally good". 32 tests pin this; they exist to make a hit-rate "improvement" fail loudly.
+`matchCharge` needs a **deterministic amount**. Gate by gate:
 
-### Three plan-doc facts that were WRONG, corrected against live data
+| Gate | File | Evidence? |
+|---|---|---|
+| Car loan payment, month 0 | `forecast-engine.ts:287` + `useCardProjection.ts:1276` | **YES** — fixed amount, fixed day, `car_funds.loan_payment_account` |
+| Car insurance, month 0 | `forecast-engine.ts:334` + `useCardProjection.ts:486,539` | **YES** — same shape |
+| Upfront-plan installments | `payment-plan-generator.ts:203` | **YES** — `plan.payment_amount` is exact |
+| Pre-paycheck bill floor | `pay-schedule.ts:813` | **YES** — real rules, so use `matchOccurrence` |
+| **CC minimum settled** | `credit-card-engine.ts:201` (`m0MinDueSettled`) | **NO — DO NOT WIRE** |
 
-1. **`payment_source` is a BARE `accounts.id` uuid** on all 28 non-null rules — not
-   `accounts.name` as the plan sketched. The account test is id equality against
-   `synced_transactions.account_id`. The legacy `account:` prefix is still stripped for demo
-   fixtures.
-2. **Tre has 31 rules, not 431.** The 431 in the old handoff and plan doc is the all-users row
-   count. Any capacity reasoning built on 431 is wrong.
-3. **weekly/biweekly `due_day` is a day of WEEK** (`scheduling.ts:215`), not of month. Those
-   frequencies are REFUSED, along with `semi_monthly` (one due_day cannot describe two
-   occurrences). Monthly + yearly still covers 29 of 31 rules. Do not "add support" for the
-   other two without solving the occurrence-date problem first.
+**Why the CC minimum must not take evidence.** The user pays whatever they choose, not the
+minimum, so `matchCharge` against the minimum amount will almost always miss. On a card that DOES
+have coverage (Discover, today) that miss becomes `covered + unmatched` → "not captured" → the
+minimum gets reserved again in month 0 even though it was paid. That is the exact double-count
+`m0MinDueSettled` was built to remove (Q11, `437d9161`). Matching a card payment needs
+transfer-linking between two accounts, which §1A does not have. Leave a comment saying so.
 
-### Tolerance calibration (a real decision, not a default)
+### Plumbing (do this once, then each gate is a few lines)
 
-Amount band is **proportional: 1%, with a $0.05 floor**. An absolute ~$1 floor was written
-first, and a test caught that it let a $10 rule accept a $10.75 coffee. Cards are mostly small
-discretionary charges, so an absolute floor is most dangerous exactly where the data is densest.
+1. `useSyncedTransactions(monthKey)` already exists in `useSupabaseData.ts:518` — read-only,
+   `pending=false`, month ±`SYNCED_TXN_FETCH_SLACK_DAYS` (7). 7 > `DATE_WINDOW_DAYS` (5), so a
+   month-0 due date's whole match window is always inside the fetch. Truncation can only raise the
+   observed earliest and lower the observed latest, i.e. only ever REDUCE claimed coverage — the
+   safe direction. Call it with the **current** month key; Stage C is month-0 only.
+2. `CardProjectionContext.tsx` — fetch there (next to `syncCutoffDate`, ~line 133) and pass the
+   rows into BOTH `useCardProjection(...)` (~line 190) and `useForecastEngineInputs(...)`
+   (~line 205). Both surfaces must get the same array or §1.1 cause C returns in a new form.
+3. `forecast-engine.ts` — add `syncedTransactions?: readonly MatchableTransaction[]` to
+   `ForecastInputs` (after `paymentPlans`, ~line 128) and destructure it. Optional, so the
+   captured fixture (`forecast-inputs.real.json`, gitignored) replays identically.
+4. `useCardProjection.ts` — same optional field on its options (~line 48).
 
-`DATE_WINDOW_DAYS = 5`. Note the knob points backwards from intuition: **widening it produces
-FEWER matches**, because more candidates means more ambiguity and ambiguity resolves to null.
+Then at each YES gate, replace `isCapturedInBalance(due, cutoff)` with a third argument built from
+`buildCaptureEvidence({ accountId, amount, dueDate }, syncedTransactions ?? [])`. `accountId` for
+the car gates is `cf.loan_payment_account` (uuid column, confirmed present), falling back to
+`forecastFundingAccountId`. Remember `normalizePaymentSource` for anything holding an
+`account:`-prefixed source.
 
-### The badge (`7959d29d`)
+### It will not move a number yet — verified, not assumed
 
-- `useSyncedTransactions(monthKey)` in `useSupabaseData.ts` — read-only, no add/update/remove,
-  mirroring RLS. Sits directly above `useTransactions` with a comment on each: the failure mode
-  that matters is someone mistaking the aggregator table for the user's hand-entered ledger.
-  Fetches the month ±7 days, not the whole history.
-- Chip on `/budget`, next to the existing `sub` / `from payoff` chips.
-- **No negative counterpart chip, by design.** Absence renders as nothing. Most rules stay
-  unbadged until every connection backfills, and a "not paid" state would turn that gap into an
-  accusation.
-- Says **"auto-matched", not "paid"** — evidence of a settled charge, not an accounting claim.
-- Computed from real `recurring_rules` rows, so synthetic subscription/debt-sync entries can
-  never pick up a badge.
+Live SQL this session:
 
-### Live verification (real data, both layers)
+- Only **Discover it Card** has synced transactions: **143 settled, 2026-01-30 → 2026-08-05**.
+- All six connections synced at 13:00 today, but **only Discover has a `sync_cursor`**. The other
+  five (Alliant Checking + Savings, Amex General Operations, Chase TOTAL CHECKING + Prime Visa,
+  Empower, Robinhood) have `sync_cursor IS NULL` — consistent with `TransactionsNotReadyError`
+  (Plaid's initial transactions pull after the product was added), which `sync-handler.ts:260`
+  swallows on purpose and retries next sync. Expected and transient; do not "fix" it.
+- **Every Stage C gate is on a checking account**, and no checking account has a single synced
+  transaction. So `hasCoverage` is false everywhere → heuristic → identical numbers.
 
-**Matcher, via SQL replicating its logic** over the 143 real Discover rows × 6 months × all
-monthly expense rules: **exactly one match, and it is correct** —
-"Dog food" ($45, due 17th) → `CHEWY INC $44.87 @ 2026-07-16`. **Zero false positives.**
-"Eating Out" ($75/mo, a spending budget, same card) matched in **no** month.
+**Therefore the live verification for part 2 is "nothing changed"**, not a moved number. Capture
+Forecast month-0 END CASH before and after and assert equality. The $1,463 deposit case in the
+plan doc **cannot** be exercised until a depository connection's transactions land. Do not
+manufacture a match to make it look verified.
 
-**Badge, in the DOM** — `/budget` → Variable tab, month temporarily pointed at `2026-07`:
-chip renders on the "Dog food" row with its tooltip, and "Eating Out" on the same card has
-**no** chip. The conservatism is visible in the UI. Temp override reverted; tree verified clean.
-
-**Why the temp override was needed:** August has no match (Discover data ends Aug 5, the
-matching rule is due the 17th), so the badge is invisible in the current month. Expect it to
-look sparse until the other five connections sync. That is correct behavior.
+The good news: the reference case is ready and waiting. Tre's one `car_funds` row —
+2004 Chevrolet C5, `phase='loan'`, **$422.89/mo** from `loan_payment_account`
+`933cbc10-bceb-4c20-8227-4a02e6db728a`, `payment_start_date` 2026-08-07, insurance **$173.23**
+anchored 2026-06-25 — becomes a real evidence case the moment Alliant's cursor appears. **Re-check
+`sync_cursor` on the other five at the start of the next session**; if any depository one has
+filled in, part 2 becomes genuinely live-verifiable.
 
 ## Facts worth carrying
 
-- Only **Discover** has synced transactions so far (143 rows, one connection). The other five
-  are still inside cooldown from Stage A. Badge coverage will jump when they first sync.
-- `types.ts` gained a hand-written `synced_transactions` block. The file is **overdue a full
-  regen** — it predates §1 (`financial_connections`) and §1A. Regenerate deliberately, on its
-  own; a regen replaces the whole file and would drag unrelated drift into a feature diff.
-- `BudgetRule.due_day` is optional/nullable in `BudgetControl.tsx`; the badge memo guards on
-  `typeof r.due_day !== 'number'`.
-- Stage A's pending→posted retirement path is still **not exercised against real data**
-  (Discover had no pending rows). Watch for it when the other five sync.
+- `car_funds.loan_payment_account` (uuid) exists and is populated — the car gates do not need to
+  fall back to the global funding account for Tre.
+- `financial_connections` has **no `status` column** (it is `connection_status`), and
+  `plaid_items` is a VIEW over it.
+- The Supabase MCP `get_logs` edge-function view returns request lines only, not `console.log`
+  output, so it cannot confirm `TransactionsNotReadyError` directly. The `sync_cursor IS NULL`
+  pattern is the usable signal.
+- `types.ts` is still **overdue a full regen** (predates §1 and §1A, has a hand-written
+  `synced_transactions` block). Regenerate on its own commit; a regen rewrites the whole file.
 
 ## Still open (carried)
 
 1. **97.3 not live-verified** — `/goals` → edit a goal with a linked rule → checkbox → save →
-   rule shows end date in `/budget` + card shows "Auto-ends contributions". Sign-in is now
-   fixed, and the Claude-controlled Chrome tab is signed in, so this is fully unblocked.
+   rule shows end date in `/budget` + card shows "Auto-ends contributions". Sign-in is fixed and
+   the Claude-controlled Chrome tab is signed in, so this is unblocked.
 2. **97.1 `/debt` TOTAL LIMIT tile** — should read **$25,400**. Same, unblocked.
 3. 97.3 re-stamping happens on GOAL save only; decide with Tre whether to widen.
 4. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
@@ -122,62 +144,60 @@ look sparse until the other five connections sync. That is correct behavior.
 5. §2.9 car-fund earmark.
 6. `backup.plaid_items_20260807` / `backup.accounts_20260807` — safe to drop once §1 is settled.
 7. Native Plaid Hosted Link device verification (needs a physical device).
+8. Stage A's pending→posted retirement path is still **not exercised against real data**.
+
+## Sign-in probe (carried — works, do not re-litigate)
+
+Tre added `http://localhost:8080/**` to Supabase → Authentication → URL Configuration → Redirect
+URLs. Verify without touching a session by carrying a REAL OAuth `state` from `/authorize` to the
+callback with a bogus code; `Location: http://localhost:8080/?error=...Unable+to+exchange+external+code`
+means the allow-list accepted it (a rejected redirect bounces to `getforgenta.com` instead). The
+redirect lives in the state, which is why a stateless probe always failed.
 
 ## Push status
 
 `main` is well ahead of `origin/main`. Standing rule is never auto-push. **Nothing pushed.**
-
-Check the count with `git rev-list --count origin/main..main` rather than trusting a number
-written here. Session 99 spent a commit correcting a hard-coded count, and this session spent
-another one — the number counts the very commits that record it, so it is stale the moment it
-is written. Don't pin it again.
+Check the count with `git rev-list --count origin/main..main` rather than trusting a number here.
 
 ## Supabase — real IDs (carried)
 
 - Tre `user_id` = `a72f416e-433a-4055-9ab0-9feae4e60edf`. Always filter by it.
 - Discover connection = `881f3807-2974-411b-a406-ac6007a6e7d2`; Discover account =
-  `34c9574b-3557-4729-a812-f0b1b508b882` (the only account with synced transactions).
+  `34c9574b-3557-4729-a812-f0b1b508b882` (still the ONLY account with synced transactions).
+- Car loan payment account = `933cbc10-bceb-4c20-8227-4a02e6db728a`.
 - `accounts.account_type` (not `type`); `recurring_rules.rule_type`; `accounts.plaid_account_id`
   is the provider account id.
-- `plaid_items` is a VIEW over `financial_connections`; `plaid_item_id` → `provider_item_id`.
 
-## Environment gotchas (carried + new)
+## Environment gotchas (carried)
 
 1. Tre is signed in on his real account in HIS browser. Never sign him in or out.
-2. **The Claude-controlled Chrome tab is a SEPARATE profile** and was signed in by Tre this
-   session. Don't assume it shares his session; check, and ask him to sign in rather than
-   typing a password.
-3. Dev server `localhost:8080`. Budget Control is `/budget`, Debt Payoff is `/debt`.
-4. `/budget` rules are split across tabs (Income/Fixed/Subs/Variable/Debt/Transfers). A rule
-   "missing" from the DOM is usually on another tab — "Dog food" is **Variable**, not Fixed,
-   despite category `Bills`, because `cost_type` overrides category.
+2. The Claude-controlled Chrome tab is a **separate profile**; check, don't assume.
+3. Dev server `localhost:8080`. Budget Control `/budget`, Debt Payoff `/debt`.
+4. `/budget` rules split across tabs; `cost_type` overrides category ("Dog food" is **Variable**).
 5. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
 6. No PowerShell here-string in a `;`-chained command — use a Bash heredoc.
 7. Vitest suppresses `console.log` — write to a scratch file.
-8. `npx supabase` CLI is authenticated and linked. **It has no config READ path** — only
-   `config push`, which overwrites the entire remote auth config from local `config.toml`
-   (which has no `[auth]` block). Never use it to fix a redirect URL.
-9. `config.toml` is the source of truth for `verify_jwt` — the CLI flips any undeclared function
-   to `true`. All ten are declared.
+8. `npx supabase` CLI has **no config READ path**; never use it to fix a redirect URL.
+9. `config.toml` is the source of truth for `verify_jwt`.
 10. **No `deno` binary locally** — edge function type errors only surface at deploy.
 
-## Lessons (session 100)
+## Lessons (session 101)
 
-**A blocked probe is not a proven negative.** Four sessions concluded the redirect allow-list
-could not be checked over HTTP. It could — the check just needed a real OAuth `state` carried
-from `/authorize` to the callback, because that is where the redirect is stored. "I tried and it
-didn't work" had hardened into "it cannot be done." When inheriting an impossibility, re-derive
-WHY it failed before accepting it.
+**Check whether the evidence exists before building the thing that consumes it.** Stage C's design
+is sound and its primitives are now shipped, but one SQL query — which accounts actually have
+synced rows — showed that every gate it targets is on an account with zero coverage. That query
+should have come before the wiring, not after the first gate was half-edited. The plan doc's
+"live-verify against the $1,463 deposit" was written when nobody had checked which accounts would
+have transactions, and a plan's verification step can be stale in exactly the way its design is not.
 
-**Let a test kill your first constant.** The $1 amount floor looked obviously reasonable and was
-wrong at the small end, where the data is densest. It surfaced because a test asserted a
-behavior the implementation didn't have — and the right response was to fix the *constant*, not
-the test. Check which one encodes the intent before making them agree.
+**An optional parameter is how a risky change ships safely.** Making `evidence` optional meant part
+1 could land complete, tested and provably number-neutral, with the behaviour change deferred to
+the call sites — instead of one large diff where "the rule changed" and "eight gates changed" fail
+together and cannot be bisected apart.
 
-**Verify the layer, not the file.** `tsc` clean + 489 green said nothing about whether the chip
-rendered on the right row. It took a temporary month override and a real DOM read to learn that
-"Dog food" lives on the Variable tab. Revert such overrides immediately — Tre runs parallel
-sessions on this tree.
+**A gate is not a gate.** Four of the five capture gates take evidence happily; the CC-minimum one
+would regress into the exact double-count it was built to fix, because the user pays an amount the
+matcher cannot predict. "Update all callers" was the plan's phrasing and it is wrong.
 
-Prior sessions' lessons (1-99) are in git history under `docs: handoff` commits —
+Prior sessions' lessons (1-100) are in git history under `docs: handoff` commits —
 `git log --all --oneline | grep handoff`.
