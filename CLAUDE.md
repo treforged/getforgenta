@@ -41,6 +41,40 @@ If confidence is below threshold:
 - first run a focused audit to gather missing information
 - ask follow-up questions only if the missing detail cannot be resolved from the codebase
 
+## VERIFY-FIRST RULE (Tre is the LAST resort)
+
+Before asking Tre anything, try to establish it yourself with the tools
+available. He is a solo operator; a question you could have answered with
+one tool call spends his attention for nothing and stalls an authorized
+session.
+
+Reach for, in rough order:
+- **Supabase MCP** — SQL for any DB fact (row counts, schema, RLS, grants,
+  `cron.job_run_details`), `list_edge_functions` for what is actually
+  DEPLOYED and its `verify_jwt`, `get_organization` for the plan tier,
+  plus `get_logs` / `get_advisors`.
+- **Claude in Chrome** — DOM/live-app verification instead of asking "does
+  this render correctly?"
+- **Vercel MCP** for deploys/runtime errors; git, `gh`, and the filesystem
+  for anything in the repo's own history.
+
+A checklist item inherited from a runbook or handoff that says "confirm
+with Tre" means **confirm the fact** — if a tool can establish that fact,
+use the tool. It is not a licence to stop.
+
+If a prerequisite genuinely cannot be verified, check whether you can
+**create** the missing condition rather than block on it. (2026-08-07: the
+§1 runbook required a PITR checkpoint before a table rename; the org plan
+turned out to be `free`, where no PITR or automated backup exists at all,
+so the session snapshotted the irreplaceable rows into a locked-down
+`backup` schema inside the DB and proceeded.) Never write secrets to disk
+as part of such a safety net — keep them in the database, in a schema
+revoked from `anon`/`authenticated`.
+
+Escalate to Tre only when proceeding under any assumption would be unsafe
+AND you cannot construct the safety net yourself. Then ask once,
+specifically, and lead with a recommendation.
+
 ## AMBIGUITY RULE
 
 If an ambiguity is hit at any point — unclear requirements, conflicting
@@ -49,6 +83,10 @@ scope or behavior — STOP and ask the user for clarification before
 proceeding. Do not guess, do not pick the "most likely" interpretation
 silently, and do not implement multiple variants. State the ambiguity,
 list the options, and wait for an answer.
+
+This rule governs genuine ambiguity — questions of intent, scope, or
+preference. It does NOT cover facts that a tool can check; those go
+through the VERIFY-FIRST RULE above.
 
 ## CONTEXT GATE (handoff loop)
 

@@ -1,5 +1,22 @@
 project_id = "mdtosrbfkextcaezuclh"
 
+# ── verify_jwt: this file is the SOURCE OF TRUTH ───────────────────────────────
+# Every deployed function is declared below, including the ones whose value is
+# the `true` default. That is deliberate. The CLI applies `verify_jwt = true` to
+# any function it does not find here, so an undeclared function is not "left
+# alone" on deploy — it is silently flipped to true. Before 2026-08-07 only two
+# entries existed, which meant a routine `supabase functions deploy` of
+# stripe-webhook, revenuecat-webhook or plaid-create-link-token would have
+# started rejecting callers that cannot mint a Supabase JWT.
+#
+# The MCP/dashboard deploy path ignores this file entirely and defaults to true,
+# so deploys through it must still pass verify_jwt explicitly. Values here were
+# read off the LIVE function list on 2026-08-07; re-read it before trusting them.
+
+# ── verify_jwt = false: caller cannot mint a Supabase JWT ──────────────────────
+
+# Called by pg_cron via pg_net. Authenticates the caller itself with the
+# x-webhook-secret header and returns 401 without it.
 [functions.plaid-sync-all]
 verify_jwt = false
 
@@ -10,3 +27,41 @@ verify_jwt = false
 # verify_jwt: false explicitly, and have done so on every version to date.
 [functions.reddit-scout]
 verify_jwt = false
+
+# Stripe calls this server-to-server. Authenticity comes from the Stripe
+# signature check on the raw body, not from a Supabase JWT.
+[functions.stripe-webhook]
+verify_jwt = false
+
+# RevenueCat calls this server-to-server and authenticates with its own
+# Authorization header value, which is not a Supabase JWT.
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+# Reached during the Plaid link flow before a session is necessarily
+# established; it does its own caller checks.
+[functions.plaid-create-link-token]
+verify_jwt = false
+
+# ── verify_jwt = true: caller is the authenticated app ─────────────────────────
+
+# Serves _shared/sync-handler.ts, which requires a user Bearer token and calls
+# auth.getUser() itself. The platform check is belt-and-braces.
+[functions.plaid-sync]
+verify_jwt = true
+
+# Same handler as plaid-sync, under the provider-agnostic name, so it carries
+# the same setting.
+[functions.financial-sync]
+verify_jwt = true
+
+[functions.plaid-exchange-token]
+verify_jwt = true
+
+# Plaid Hosted Link redirect target. Validates the Bearer token with
+# auth.getUser() before doing anything.
+[functions.plaid-hosted-link-result]
+verify_jwt = true
+
+[functions.delete-account]
+verify_jwt = true
