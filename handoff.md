@@ -1,10 +1,38 @@
-# Handoff — 2026-08-08 — session 110 — item 5 CLOSED against real data; Stage C trigger has FIRED
+# Handoff — 2026-08-08 — session 111 — item 6 checked (not yet fired); work queue EXHAUSTED
 
-> Session 110 wrote **no code**. It closed carried item 5 (pending→posted retirement) with live
-> evidence, and found that the handoff's standing "re-check each session" condition **has now
-> happened**: every connection has a cursor and the checking accounts carry transactions.
-> Tree clean, **578/578 green**, tsc 0. **NOT pushed** — `main` is 8 ahead of `origin/main`
-> (`origin/main` = `09622e53`).
+> Session 111 wrote **no code**. It ran item 6's watch (the predicted first Stage C number move):
+> the $422.89 car payment is **still pending, unchanged** — no flip yet, re-check next session.
+> It also corrected a real error in the session-110 connection table (see below).
+> Tree clean, **583/583 green**. **`main` is now 0 ahead of `origin/main`** — the 8 commits session
+> 110 listed as unpushed have since been pushed (parallel session or Tre; not this session).
+>
+> ⚠️ **All non-blocked handoff items are now closed.** Items 4 and 6 are waits, not tasks. There is
+> no §2.11 and no queued plan item — picking the next workstream is Tre's call. See "Next" below.
+
+## Item 6 — first live Stage C flip: checked 2026-08-08 ~16:35 UTC, HAS NOT FIRED
+
+Nothing to do; the bank has not settled the charge. Re-run the two queries next session.
+
+- The $422.89 row on `933cbc10…` is **still `pending: true`**, dated 2026-08-07, `created_at`
+  2026-08-08 13:00 UTC — i.e. unchanged since session 110 saw it.
+- The account still holds **138 rows / 4 pending**, latest **settled** still **2026-08-05**.
+- Sync is **fresh, not stale**: all of Tre's connections synced 2026-08-08 13:00 UTC (~3.5h before
+  the check). Discover last synced 08-07 15:50. So this is bank settlement lag, not a sync failure.
+
+Both Stage C conditions therefore still evaluate exactly as traced in session 110 (`matched: false`
+via the pending skip, `hasTxnCoverage: false` since 08-05 < 08-12). **Still number-neutral, still
+for the verified reason.** The prediction in the section below stands unchanged.
+
+## ⚠️ Correction to session 110's connection table — one row was NOT Tre's
+
+The session-110 table listed **7 connections as if all were Tre's**. Filtering
+`financial_connections` by `user_id = a72f416e…` returns **6**. The second Chase connection,
+**`eaddb4e3-4d07-4554-b207-d2cacbdda106` (128 rows, 5 pending)**, belongs to a **different user**
+(`25e2e6bf-4c62-4313-8a26-99c44d8dfce6`) — another account on the app, not Tre's.
+
+Not a bug, and it changes no Stage C conclusion (the car fund's account `933cbc10…` is on Tre's
+`de492512…` Chase connection). But **any live tracing must filter by Tre's `user_id`**, or it will
+silently read a stranger's rows. `synced_transactions` totals in the old table were cross-user.
 
 ## ✅ Item 5 CLOSED — pending→posted retirement verified against real data
 
@@ -166,8 +194,19 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
 4. Native Plaid Hosted Link device verification (needs a physical device).
 5. ~~Stage A's pending→posted retirement path not exercised against real data~~ — **CLOSED session
    110**, verified clean at 699 rows / 270 pointers. See above. Do not re-verify.
-6. **NEW — watch the first live Stage C flip** (see prediction above). Not a task; a check to run
-   next session: has the $422.89 settled, and did the August car payment drop from month 0?
+6. **Watch the first live Stage C flip** (see prediction above). Not a task; a check to run each
+   session: has the $422.89 settled, and did the August car payment drop from month 0?
+   **Checked session 111 — still pending, has not fired.** See the item 6 section at the top.
+
+## Next — nothing is queued; needs Tre's pick
+
+Items 4 and 6 are **waits** (physical device / bank settlement), not work. Everything else on this
+handoff is closed. There is no §2.11 — the §2.x series ended at §2.10 — and `docs/` holds no
+unstarted plan item. Forecast-engine **Stages 4-5 remain deliberately on hold**, and Stage 6 (wire
+Goals + AI Advisor to the engine) has never been scoped.
+
+Candidates, if a future session needs a starting point: forecast-engine Stage 6, or the roadmap's
+FB.6-13 UX items. **Do not start either without Tre choosing** — both change scope.
 
 ## Closed previously (do not reopen)
 
@@ -189,10 +228,12 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-**`main` is 8 ahead of `origin/main`** (session-107/108/109/110 handoffs + `cab6efda` §2.9 + `80f72c2d` §2.10).
-`origin/main` = `09622e53`. Standing rule: **never auto-push** — session 107's push was a one-off
-explicit authorization and does NOT carry forward. Verify with
-`git rev-list --count origin/main..main`.
+**`main` is 0 ahead of `origin/main` as of session 111** — the 8 commits session 110 recorded as
+unpushed (through `875ea2a7`) are now on the remote. **Session 111 did not push them**; a parallel
+session or Tre did. Standing rule is unchanged: **never auto-push** — session 107's push was a
+one-off explicit authorization and does NOT carry forward. Always re-verify with
+`git rev-list --count origin/main..main` rather than trusting this line; it went stale within one
+session last time.
 
 ## Supabase — real IDs (carried)
 
@@ -261,6 +302,17 @@ For a recharts line, read exact rows off the **React fiber** (walk up from `.rec
 `computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
 
 ## Lessons
+
+**Session 111 — a multi-tenant table does not owe you a single tenant.** Session 110 grouped
+`synced_transactions` by `connection_id` with no `user_id` filter, got 7 connections, and wrote them
+up as Tre's. One of them is another user's. Every count in that table was cross-user. The app has
+real users now, so **the unfiltered query is the wrong query by default** — the standing "always
+filter by Tre's `user_id`" rule exists for reads, not just writes, and grouping by a foreign key is
+exactly where it gets forgotten.
+
+**Session 111 — a stale push-status line is worse than none.** The handoff asserted "8 ahead" as
+fact; it was 0 by the time it was read, because another session pushed. Anything about mutable
+external state should be written as a command to run, not a value to trust.
 
 **Session 110 — if a deferral rests on a property of the DATA, encode it as a test, not a note.**
 Tre's call, and the right one: item 1's skip was justified by "no goal completes inside 60 months",
