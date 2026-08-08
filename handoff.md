@@ -1,6 +1,10 @@
-# Handoff — 2026-08-08 — session 111 — item 6 checked (not yet fired); work queue EXHAUSTED
+# Handoff — 2026-08-08 — session 111 — Stage 6 SHIPPED (deploy pending); item 6 not yet fired
 
-> Session 111 wrote **no code**. It ran item 6's watch (the predicted first Stage C number move):
+> Session 111 checked item 6, then Tre picked **Stage 6**, which shipped as `0b66da3c`
+> (**593/593 green, tsc 0**). **The `ai-advisor` edge function still needs deploying** — see the
+> Stage 6 section. Nothing pushed, nothing deployed.
+>
+> It ran item 6's watch (the predicted first Stage C number move):
 > the $422.89 car payment is **still pending, unchanged** — no flip yet, re-check next session.
 > It also corrected a real error in the session-110 connection table (see below).
 > Tree clean, **583/583 green**. **`main` is now 0 ahead of `origin/main`** — the 8 commits session
@@ -198,15 +202,73 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
    session: has the $422.89 settled, and did the August car payment drop from month 0?
    **Checked session 111 — still pending, has not fired.** See the item 6 section at the top.
 
-## Next — nothing is queued; needs Tre's pick
+## 🔴 Stage 6 — SHIPPED `0b66da3c`, but the EDGE FUNCTION IS NOT DEPLOYED
 
-Items 4 and 6 are **waits** (physical device / bank settlement), not work. Everything else on this
-handoff is closed. There is no §2.11 — the §2.x series ended at §2.10 — and `docs/` holds no
-unstarted plan item. Forecast-engine **Stages 4-5 remain deliberately on hold**, and Stage 6 (wire
-Goals + AI Advisor to the engine) has never been scoped.
+**Tre picked Stage 6 (session 111).** Code is committed locally, **593/593 green, tsc 0, eslint
+clean**. Backup `backups/2026-08-08_124500/`. **Not pushed, not deployed.**
 
-Candidates, if a future session needs a starting point: forecast-engine Stage 6, or the roadmap's
-FB.6-13 UX items. **Do not start either without Tre choosing** — both change scope.
+### The audit corrected the plan's premise — carry this forward
+
+- **The "Goals" half of Stage 6 is already done and should NOT be built.** SavingsGoals has no
+  ad-hoc projection; it was extracted into `src/lib/savings-growth.ts` (pure, shares
+  `PROJECTION_MONTHS`) and its contribution-stop rule already matches the Forecast/Dashboard/debt
+  engine. Pointing it at `calculateForecast()` would be churn — goal APY growth is not something
+  that engine models. **Do not re-propose it.**
+- **The AI Advisor was the whole of the real work.** `AiAdvisor.tsx:736-744` ran its own
+  closed-form amortization (`-ln(1 - rB/P)/ln(1+r)`) per `debts` row.
+- **Root cause is the `debts` table: it has NO `account_id`.** It is a standalone user-entered
+  tracker, which is why line 700 already excludes it from `totalDebt` as a double-count. Matching
+  to engine cards is by case-insensitive name — the convention the loans block at :680 already used.
+
+### Live defect this fixed (measured, not hypothetical)
+
+| Debt | Advisor told the LLM | Reality |
+|---|---|---|
+| Prime Visa $5,037.73 @ 27.49%, target $500 | payoff in **12 months** | full APR applied, 0% promo installment ignored |
+| Discover $3,734.71 @ 19.49%, target **$52** | **never pays off** (null) | $52 < $60.65/mo interest, so the guard fell through — while the app shows a real payoff date |
+
+An advisor that contradicts the page it is embedded in is worse than one that stays quiet.
+
+### Design (Tre delegated: "do what you believe is best for my customers")
+
+`src/lib/advisor-debt-context.ts` (**new, pure, 10 tests**) is the single source:
+- Engine-modelled cards are authoritative, payoff from `firstRevolvingPayoffMonth` — **the same
+  helper Debt Payoff uses**, so it cannot drift. Covers Venture X / Apple, which `debts` never had.
+- `debts` rows with **no** engine match are preserved (nothing typed is lost) but carry
+  `payoffMonthsFromNow: null` + `source: 'user_entered'`, and the prompt explicitly tells the model
+  not to estimate their payoff. A failed name match degrades to "listed once, no claim" rather than
+  "payoff silently dropped".
+- Adds `creditCardDebtFreeMonthsFromNow` to the prompt as the authoritative figure.
+
+⚠️ **Off-by-one trap, pinned by test:** `firstRevolvingPayoffMonth` returns a **1-indexed** month
+where index 0 is the CURRENT month, so months-from-now is `payoffMonth - 1`. `DebtPayoff.tsx:96`'s
+`debtFreeDate()` takes a **duration** (`now + months`) — different semantics, do NOT reuse it
+directly. That is why the conversion lives in `payoffMonthsFromNow()` with its own tests.
+
+### 🔴 NEXT ACTION — deploy `ai-advisor` (needs Tre's OK; outward-facing)
+
+The **field was renamed** `projectedPayoffMonths` → `payoffMonthsFromNow`, and
+`supabase/functions/ai-advisor/index.ts` was updated to match. **Live is still version 50** (ACTIVE,
+`verify_jwt: true`) and expects the OLD name.
+
+**Intermediate state is safe, not broken** — if the client ships first, v50 reads `undefined`, its
+`!== null && !== undefined` guard fails, and the payoff line is simply omitted. The advisor loses
+payoff detail but never states a wrong number, which is still better than today. So there is no
+rush, but **the feature is not actually delivered until the function is deployed.**
+
+- ⚠️ **No `deno` locally (gotcha #13)** — the edge-function edits are UNVERIFIED by any compiler.
+  Reviewed by hand: `debtFreeLine` is declared at :147 and used at :279, both inside `buildPrompt`.
+- Deploy needs `verify_jwt: true` passed explicitly (MCP ignores `config.toml` — see Reddit Scout).
+- Also fixed in passing: `body.debtDetails.sort()` mutated the request body; now `[...].sort()`.
+
+## Next — after Stage 6 deploys
+
+Items 4 and 6 are **waits** (physical device / bank settlement), not work. Everything else is
+closed. There is no §2.11 — the §2.x series ended at §2.10. Forecast-engine **Stages 4-5 remain
+deliberately on hold**.
+
+Once the `ai-advisor` deploy lands, the only queued candidate is the roadmap's **FB.6-13** UX
+items. **Do not start without Tre choosing** — it changes scope.
 
 ## Closed previously (do not reopen)
 
@@ -302,6 +364,18 @@ For a recharts line, read exact rows off the **React fiber** (walk up from `.rec
 `computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
 
 ## Lessons
+
+**Session 111 — a surface that TALKS about the numbers is a surface that computes them.** Stage 6
+was filed as "wire Goals + AI Advisor to the engine", which reads like plumbing. The actual find was
+an LLM being fed a fabricated payoff timeline that contradicted the app's own screen. When auditing
+for duplicate math, **include the surfaces that only narrate** — a chat answer is as much a number
+the customer acts on as a tile is, and it is the one place a wrong number arrives phrased
+persuasively.
+
+**Session 111 — check the OTHER side of the wire before renaming a field.** Renaming
+`projectedPayoffMonths` in the client would have silently broken the deployed edge function that
+formats it into the prompt: no crash, no error, the payoff line just vanishes. `grep` for the field
+name across `supabase/functions/` is the whole check, and it costs one call.
 
 **Session 111 — a multi-tenant table does not owe you a single tenant.** Session 110 grouped
 `synced_transactions` by `connection_id` with no `user_id` filter, got 7 connections, and wrote them
