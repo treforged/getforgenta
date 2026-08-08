@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildSavingsGrowthData, contributionCutoffIdx, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
 
 const TODAY = new Date(2026, 0, 15); // Jan 2026, fixed so the suite is date-independent
 
@@ -165,6 +165,22 @@ describe('buildSavingsGrowthData — contributions stop once the target is reach
       { months: 6, today: TODAY },
     );
     expect(rows.map(r => r[series[0].key])).toEqual([1000, 1100, 1200, 1300, 1400, 1500]);
+  });
+});
+
+// The +1 / 0 rule is the single definition `goal-linkage.ts` derives the Forecast's and the debt
+// engines' transfer cutoffs from, so it is pinned on its own rather than only through the chart.
+describe('contributionCutoffIdx', () => {
+  it('returns 0 when the goal is already at target — never contribute, not even month 0', () => {
+    expect(contributionCutoffIdx(0)).toBe(0);
+  });
+
+  it('returns k+1 so the month that tips the goal over still contributes', () => {
+    expect(contributionCutoffIdx(7)).toBe(8);
+  });
+
+  it('returns null when the goal never completes', () => {
+    expect(contributionCutoffIdx(null)).toBeNull();
   });
 });
 
