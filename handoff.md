@@ -145,7 +145,17 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
    carry the analysis in place so it is not re-derived a fourth time.
 
    **REOPEN WHEN:** a goal's linked contributions complete it inside 60 months while its rule
-   carries no `end_date`. Re-measure that trigger; do not assume it still fails.
+   carries no `end_date`. **This is now AUTOMATED** (`347d051f`, Tre's call — "you should just test
+   for that"): `src/lib/__tests__/goal-contribution-overrun.test.ts` fails the moment that becomes
+   true, so nobody has to remember to re-measure it. The real-data half reads the gitignored
+   fixture and skips where it is absent (CI); the synthetic half always runs.
+
+   ⚠️ **`computeGoalCompletionIdx` is NOT bounded by `PROJECTION_MONTHS`.** It returns indices
+   9-14 years out on Tre's real goals. The first version of this guard treated "returns a date" as
+   "completes in-horizon" and flagged all three linked goals; it must bound the index against
+   `PROJECTION_MONTHS` explicitly. It also has its OWN much-longer internal cap (a $100k goal at
+   $25/mo returns null), so a test case meant to sit "past 60" needs to land in the gap — ~100
+   months works. Both traps are now pinned by tests.
 2. ~~§2.10 UI live-verification~~ — **DONE session 109**, see above. §2.10 fully closed.
 3. ~~`backup.plaid_items_20260807` / `backup.accounts_20260807`~~ — **CLOSED AS KEEP. Tre decided
    2026-08-08: "don't drop them — close the item as keep." Do NOT re-propose dropping these.**
@@ -251,6 +261,13 @@ For a recharts line, read exact rows off the **React fiber** (walk up from `.rec
 `computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
 
 ## Lessons
+
+**Session 110 — if a deferral rests on a property of the DATA, encode it as a test, not a note.**
+Tre's call, and the right one: item 1's skip was justified by "no goal completes inside 60 months",
+which can stop being true with no code change and no one noticing. A note asks a future session to
+re-measure; a test just fails. Writing it also caught a real error in my own reasoning
+(`computeGoalCompletionIdx` is not horizon-bounded), which the prose version would have preserved
+indefinitely — **a claim you can execute gets checked; a claim you can only read does not.**
 
 **Session 110 — price a deferral before re-carrying it.** Item 1 rode four handoffs as
 "Recommendation: skip" with the reasoning compressed out of it. Reading the original entry showed it
