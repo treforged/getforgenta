@@ -1,10 +1,68 @@
-# Handoff — 2026-08-08 — session 109 — §2.10 SHIPPED + LIVE-VERIFIED. Closed.
+# Handoff — 2026-08-08 — session 110 — item 5 CLOSED against real data; Stage C trigger has FIRED
 
-> Session 109 built §2.10, commit **`80f72c2d`**, on top of session 108's `cab6efda`, and
-> live-verified the UI in demo + a real DB round-trip. **§2.10 is closed.**
-> **NOT pushed.** `main` is 6 ahead of `origin/main` (`origin/main` = `09622e53`).
-> Tre's answer to the scope question was *"do what you believe is best and would be most accurate
-> and consistent"* — so the shrunk one-mode design below was chosen and built.
+> Session 110 wrote **no code**. It closed carried item 5 (pending→posted retirement) with live
+> evidence, and found that the handoff's standing "re-check each session" condition **has now
+> happened**: every connection has a cursor and the checking accounts carry transactions.
+> Tree clean, **578/578 green**, tsc 0. **NOT pushed** — `main` is 8 ahead of `origin/main`
+> (`origin/main` = `09622e53`).
+
+## ✅ Item 5 CLOSED — pending→posted retirement verified against real data
+
+`synced_transactions` is now **699 rows across 6 connections** (was 143, Discover only). That is
+enough real traffic to test the retirement path directly, and it is clean:
+
+- **270** posted rows carry a `pending_transaction_id`, and **0** of those pointers resolve to a
+  still-live row. Every superseded pending row was retired. (Self-join on
+  `connection_id + provider_transaction_id`.)
+- **0** pointer-less duplicates — no (same account, same amount, one pending + one posted, within
+  6 days) pair exists anywhere, so the path is not missing charges where Plaid omits the pointer.
+- The **10** surviving pending rows are all **1-2 days old** (dated 08-06/08-07). Legitimately
+  in-flight, not stranded.
+
+The double-count `SETTLEMENT_LAG_DAYS` exists to prevent is not occurring in live data.
+
+## ⚠️ The standing re-check FIRED — Stage C is no longer a structural no-op
+
+Previous handoffs said "only Discover has a `sync_cursor`… the moment a checking-account cursor
+appears, §1A Stage C stops being a no-op." **That moment has arrived.** All 7 connections now have
+cursors; 6 synced 2026-08-08 13:00 UTC:
+
+| Institution | conn | rows | pending |
+|---|---|---|---|
+| Chase | `de492512…` | 376 | 4 |
+| Discover | `881f3807…` | 143 | 0 |
+| Chase | `eaddb4e3…` | 128 | 5 |
+| American Express | `6e1f30db…` | 34 | 1 |
+| Alliant | `12dd917f…` | 18 | 0 |
+| Robinhood / Empower | — | 0 | 0 |
+
+The car-loan funding account `933cbc10…` (**Chase TOTAL CHECKING**) went **0 → 138 rows**, settled
+range **2026-01-17 → 2026-08-05**, `account_id` resolved on every row (0 untracked).
+
+### Stage C is still number-neutral today — and now for a VERIFIED reason
+
+Traced by hand for the live car fund (`0f75dec9…`, 2004 Chevorlet C5, `loan_payment_account` =
+`933cbc10…`, `actual_monthly_payment` **$422.89**, `payment_start_date` **2026-08-07**):
+
+- **The real payment is sitting PENDING.** `$422.89` on **2026-08-07**, TOTAL CHECKING,
+  `ORIG CO NAME:USAA FSB … ICPAYMENT`. There is **no settled** row near $422.89 on that account.
+- `matchCharge` skips pending rows → `matched: false`.
+- `hasCoverage` needs latest **settled** ≥ dueDate+5 = **2026-08-12**; latest settled is
+  **2026-08-05** → `hasTxnCoverage: false`.
+- Both false → `isCapturedInBalance` falls through to the date heuristic, byte-identical to
+  pre-Stage-C. **No projected number moves.**
+
+This is the design working, not a gap: pending is not settled evidence, and the gate declines to
+conclude anything rather than guess.
+
+### 🔜 Predicted FIRST real Stage C number move — worth watching
+
+`matched` is honoured **without** coverage (`sync-cutoff.ts:102-105`), so the moment that $422.89
+settles, the August car payment flips to **captured** and drops out of month 0. Under the heuristic
+alone that drop would not occur until `balanceAsOf ≥ 2026-08-11` (dueDate 08-07 `<` basis−3). So
+Stage C should retire the charge **~2 days earlier than the old rule**, which is the entire point
+of §1A. If the payment settles and the August car payment does **not** drop, that is a real bug —
+check that the settled row kept a date within ±5 days of 08-07.
 
 ## ✅ §2.10 SHIPPED — `80f72c2d` — percent-of-linked-account saved source
 
@@ -77,7 +135,10 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
    exactly (31/31, 7/7) and the `backup` schema has **no grants to anon/authenticated/public**, so
    it is not an exposure. 38 rows is not worth an irreversible drop.
 4. Native Plaid Hosted Link device verification (needs a physical device).
-5. Stage A's pending→posted retirement path still **not exercised against real data**.
+5. ~~Stage A's pending→posted retirement path not exercised against real data~~ — **CLOSED session
+   110**, verified clean at 699 rows / 270 pointers. See above. Do not re-verify.
+6. **NEW — watch the first live Stage C flip** (see prediction above). Not a task; a check to run
+   next session: has the $422.89 settled, and did the August car payment drop from month 0?
 
 ## Closed previously (do not reopen)
 
@@ -86,9 +147,10 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
 `C:\Users\tvonh\Desktop\remote-access\`; **this repo is PUBLIC**), **97.3** (all parts, incl. the
 goal chart earning interest after contributions stop, live-verified session 107), **§2.9**, and now **§2.10**.
 
-**Re-check each session:** only Discover has a `sync_cursor` (143 rows). The car-loan funding
-account `933cbc10…` is Chase TOTAL CHECKING with 0 synced transactions. The moment a
-checking-account cursor appears, §1A Stage C stops being a no-op and the gates go live for real.
+**~~Re-check each session~~ — RESOLVED session 110.** This said "only Discover has a `sync_cursor`
+(143 rows); the car-loan funding account `933cbc10…` has 0 synced transactions." **All of that is
+now stale** — every connection has a cursor, TOTAL CHECKING has 138 rows, and Stage C's evidence
+path is live. See the Stage C section above. Do not carry the old wording forward.
 
 ## Live drift worth knowing (not a bug, do not chase)
 
@@ -98,7 +160,7 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-**`main` is 6 ahead of `origin/main`** (session-107/108/109 handoffs + `cab6efda` §2.9 + `80f72c2d` §2.10).
+**`main` is 8 ahead of `origin/main`** (session-107/108/109/110 handoffs + `cab6efda` §2.9 + `80f72c2d` §2.10).
 `origin/main` = `09622e53`. Standing rule: **never auto-push** — session 107's push was a one-off
 explicit authorization and does NOT carry forward. Verify with
 `git rev-list --count origin/main..main`.
@@ -165,6 +227,18 @@ For a recharts line, read exact rows off the **React fiber** (walk up from `.rec
 `computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
 
 ## Lessons
+
+**Session 110 — a "blocked on real data" item can unblock itself while you aren't looking.** Item 5
+sat carried for sessions as un-exercisable because only Discover had synced rows. One `count(*)`
+showed the table had grown 143 → 699 and the checking accounts had backfilled; the item was
+verifiable in three queries and closed the same session. **Re-measure a blocking condition before
+re-carrying it** — the handoff records what was true when it was written, not what is true now.
+
+**Session 110 — "number-neutral" from an untested path and from a traced one are different facts.**
+Stage C shipped number-neutral because no checking account had transactions; it is *still*
+number-neutral, but now because the real payment is pending, `matched` is false, and coverage ends
+2026-08-05. Same observable, completely different confidence. When the precondition for a
+no-op changes, re-derive the no-op instead of assuming it held.
 
 **Session 109 — audit the premise before building the spec.** The handoff said car funds "never got"
 the derive-from-account treatment savings goals have. One grep showed they had it at nine sites, and
