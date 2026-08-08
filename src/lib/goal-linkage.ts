@@ -9,7 +9,7 @@
 // rule's dollars from, mirroring how `end_date` already works everywhere else — a computed
 // exclusion in the read path, not a stored one. Reversible the moment the goal's target rises.
 
-import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent, type ApyAccountLike } from './savings-growth';
+import { goalContributionCutoffIdx, getGoalEffectiveApyPercent, type ApyAccountLike } from './savings-growth';
 
 type GoalLike = {
   id?: string | null;
@@ -83,7 +83,9 @@ function computeGoalCutoffIdx(
     ? (goal.lump_sum_payments as { date: string; amount: number }[]).map((ls) => ({ date: ls.date, amount: Number(ls.amount) }))
     : [];
 
-  const completionIdx = estimateGoalCompletionMonths(
+  // Shared with the Goals-page chart via goalContributionCutoffIdx, so the two can never disagree
+  // about which month the transfer stops.
+  return goalContributionCutoffIdx(
     {
       id: goal.id ?? '',
       name: '',
@@ -96,8 +98,6 @@ function computeGoalCutoffIdx(
     Number(goal.target_amount),
     { today },
   );
-  if (completionIdx == null) return null; // never completes within the horizon
-  return completionIdx === 0 ? 0 : completionIdx + 1;
 }
 
 /**

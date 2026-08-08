@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, goalContributionCutoffIdx, GROWTH_MONTHS, type GrowthGoalInput } from '@/lib/savings-growth';
 
 const TODAY = new Date(2026, 0, 15); // Jan 2026, fixed so the suite is date-independent
 
@@ -98,6 +98,76 @@ describe('buildSavingsGrowthData', () => {
     );
     const k = series[0].key;
     expect(rows[2][k]).toBe(7000);
+  });
+});
+
+// Once a goal hits its target the linked transfer stops (handoff item 4b), so the chart must stop
+// adding the contribution too — but the money already saved keeps earning. Before this, the chart
+// contributed forever, so it disagreed with both the Forecast (which stops the transfer and keeps
+// compounding) and the goal card's own "contributions no longer counted" copy.
+describe('buildSavingsGrowthData — contributions stop at the target, interest does not', () => {
+  it('stops contributing after the month that reaches the target, and keeps the balance flat with no APY', () => {
+    // 1000 + 100/mo, no interest, target 1300 -> month 3 tips it over, month 4 onward is dry.
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ targetAmount: 1300 })],
+      { months: 7, today: TODAY },
+    );
+    const k = series[0].key;
+    expect(rows.map(r => r[k])).toEqual([1000, 1100, 1200, 1300, 1300, 1300, 1300]);
+  });
+
+  it('keeps compounding interest after contributions stop — the reported bug', () => {
+    // Already at target, so contributions never apply, but a 12% APY account still earns 1%/mo.
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 5000, monthlyContribution: 1000, annualApyPercent: 12, targetAmount: 5000 })],
+      { months: 3, today: TODAY },
+    );
+    const k = series[0].key;
+    expect(rows.map(r => r[k])).toEqual([5000, 5050, 5100.5]);
+  });
+
+  it('still contributes when the goal never reaches its target in the horizon', () => {
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ targetAmount: 999999 })],
+      { months: 4, today: TODAY },
+    );
+    const k = series[0].key;
+    expect(rows.map(r => r[k])).toEqual([1000, 1100, 1200, 1300]);
+  });
+
+  it('leaves a goal with no target amount contributing forever', () => {
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 5000, monthlyContribution: 1000 })],
+      { months: 3, today: TODAY },
+    );
+    const k = series[0].key;
+    expect(rows.map(r => r[k])).toEqual([5000, 6000, 7000]);
+  });
+
+  it('still lands a planned lump sum dated after the target is reached', () => {
+    // Lump sums are separate planned deposits, not the recurring transfer 4b stops.
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ targetAmount: 1300, lumpSums: [{ date: '2026-06-01', amount: 500 }] })],
+      { months: 7, today: TODAY },
+    );
+    const k = series[0].key;
+    expect(rows.map(r => r[k])).toEqual([1000, 1100, 1200, 1300, 1300, 1800, 1800]);
+  });
+});
+
+describe('goalContributionCutoffIdx', () => {
+  it('returns 0 when the goal is already at target — never contribute, not even month 0', () => {
+    expect(goalContributionCutoffIdx(goal({ currentAmount: 5000 }), 5000, { today: TODAY })).toBe(0);
+  });
+
+  it('returns k+1 so the month that tips the goal over still contributes', () => {
+    // estimateGoalCompletionMonths says 10; months 0..10 fund it, 11 onward does not.
+    expect(goalContributionCutoffIdx(goal(), 2000, { today: TODAY })).toBe(11);
+  });
+
+  it('returns null when the goal never completes', () => {
+    const stalled = goal({ monthlyContribution: 0, annualApyPercent: 0 });
+    expect(goalContributionCutoffIdx(stalled, 5000, { today: TODAY })).toBeNull();
   });
 });
 

@@ -9,6 +9,9 @@
 //                                 + monthly contribution (once contributions have started)
 //                                 + any planned lump sums dated in that month
 //   - interest accrues in EVERY month, including months before contributions begin
+//   - contributions STOP once the goal reaches its `targetAmount` (handoff item 4b: the
+//     linked transfer really does stop), but interest and planned lump sums keep going,
+//     so a funded goal shows an interest-only tail instead of a straight line
 //   - balances are NOT capped at the target, so a goal that overshoots keeps
 //     showing its real trajectory instead of flat-lining at the target
 
@@ -32,6 +35,12 @@ export type GrowthGoalInput = {
   /** ISO date (YYYY-MM-DD) contributions begin, or null for "already running". */
   contributionStartDate: string | null;
   lumpSums: GrowthLumpSum[];
+  /**
+   * What the goal is saving toward. Optional: omit it (or pass 0) and contributions run for the
+   * whole horizon, which is what `estimateGoalCompletionMonths` needs when it is searching for
+   * the completion month itself and must not gate the very contributions it is measuring.
+   */
+  targetAmount?: number | null;
 };
 
 /** One line on the chart. `key` is the recharts dataKey, `name` the label. */
@@ -102,12 +111,39 @@ function initState(g: GrowthGoalInput, baseYear: number, baseMonth: number, mont
   };
 }
 
-/** Advance one calendar month. Month 0 is the starting balance and is never stepped. */
-function stepMonth(s: GoalState, monthIndex: number): number {
+/**
+ * Advance one calendar month. Month 0 is the starting balance and is never stepped.
+ *
+ * `contribCutoff` is the first month index at which the contribution stops (null = never stops).
+ * Only the contribution is gated: interest still compounds on the balance and planned lump sums
+ * still land, because 4b stops the recurring transfer, not the account.
+ */
+function stepMonth(s: GoalState, monthIndex: number, contribCutoff: number | null = null): number {
+  const contributing = monthIndex >= s.startOffset
+    && (contribCutoff == null || monthIndex < contribCutoff);
   s.balance = s.balance * (1 + s.rate)
-    + (monthIndex >= s.startOffset ? s.pmt : 0)
+    + (contributing ? s.pmt : 0)
     + (s.lumpsByMonth.get(monthIndex) ?? 0);
   return s.balance;
+}
+
+/**
+ * The first month index at which a goal's contributions should STOP because the target has been
+ * reached: 0 = already at target, never contribute at all; k+1 when month k's contribution is the
+ * one that tipped it over (so months 0..k still fund it); null when it never completes.
+ *
+ * Shared on purpose. `goal-linkage.ts` derives the Forecast's and the debt engines' transfer
+ * cutoffs from this exact arithmetic, so the chart and the engines cannot drift into disagreeing
+ * about which month a goal stops being funded.
+ */
+export function goalContributionCutoffIdx(
+  goal: GrowthGoalInput,
+  targetAmount: number,
+  opts: { today?: Date; maxMonths?: number } = {},
+): number | null {
+  const completionIdx = estimateGoalCompletionMonths(goal, targetAmount, opts);
+  if (completionIdx == null) return null; // never completes within the horizon
+  return completionIdx === 0 ? 0 : completionIdx + 1;
 }
 
 export function buildSavingsGrowthData(
@@ -128,13 +164,20 @@ export function buildSavingsGrowthData(
 
   const state = goals.map(g => initState(g, baseYear, baseMonth, months));
 
+  // A goal with a target stops being funded once it gets there, exactly as the linked transfer
+  // does in the Forecast. A goal with no target keeps contributing for the whole horizon.
+  const contribCutoffs = goals.map(g => {
+    const target = Number(g.targetAmount) || 0;
+    return target > 0 ? goalContributionCutoffIdx(g, target, { today }) : null;
+  });
+
   const rows: GrowthRow[] = [];
   for (let i = 0; i < months; i++) {
     const row: GrowthRow = {
       month: new Date(baseYear, baseMonth + i).toLocaleString('en', { month: 'short', year: '2-digit' }),
     };
     state.forEach((s, gi) => {
-      if (i > 0) stepMonth(s, i);
+      if (i > 0) stepMonth(s, i, contribCutoffs[gi]);
       row[series[gi].key] = Math.round(s.balance * 100) / 100;
     });
     rows.push(row);
