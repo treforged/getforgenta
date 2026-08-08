@@ -101,6 +101,73 @@ describe('buildSavingsGrowthData', () => {
   });
 });
 
+// The chart is the last read path that kept contributing forever after a goal was already
+// funded, while the Forecast, Dashboard and Debt engine had all stopped at the same month
+// (goal-linkage.ts / handoff 4b). These pin the two halves of the fix: contributions STOP,
+// interest KEEPS ACCRUING.
+describe('buildSavingsGrowthData — contributions stop once the target is reached', () => {
+  it('stops the monthly contribution after the month that reaches the target', () => {
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 1000, monthlyContribution: 100, targetAmount: 1300 })],
+      { months: 6, today: TODAY },
+    );
+    const k = series[0].key;
+    // Month 3's contribution is the one that tips it over, so 0..3 contribute and 4+ do not.
+    expect(rows.map(r => r[k])).toEqual([1000, 1100, 1200, 1300, 1300, 1300]);
+  });
+
+  it('keeps compounding interest after contributions stop', () => {
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 1000, monthlyContribution: 100, annualApyPercent: 12, targetAmount: 1300 })],
+      { months: 6, today: TODAY },
+    );
+    const k = series[0].key;
+    // 1% a month: 1110, 1221.10, 1333.31 (target hit at month 3), then interest only.
+    expect(rows[3][k]).toBeCloseTo(1333.31, 2);
+    expect(rows[4][k]).toBeCloseTo(1346.64, 2); // 1333.311 × 1.01, NOT + another 100
+    expect(rows[5][k]).toBeCloseTo(1360.11, 2);
+    expect(Number(rows[5][k])).toBeGreaterThan(Number(rows[4][k])); // the account still gains
+  });
+
+  it('contributes nothing at all when the goal is already at target', () => {
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 1500, monthlyContribution: 100, targetAmount: 1300 })],
+      { months: 4, today: TODAY },
+    );
+    expect(rows.map(r => r[series[0].key])).toEqual([1500, 1500, 1500, 1500]);
+  });
+
+  it('preserves the overshoot in the completion month rather than clamping to target', () => {
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 5000, monthlyContribution: 1000, targetAmount: 5500 })],
+      { months: 3, today: TODAY },
+    );
+    expect(rows.map(r => r[series[0].key])).toEqual([5000, 6000, 6000]);
+  });
+
+  it('still lands planned lump sums after completion, matching the forecast', () => {
+    // forecast-engine's lumpTransferByMonth is not gated on goal completion, so the chart
+    // must not gate it either — a dated one-off transfer is explicit user intent.
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({
+        currentAmount: 1000, monthlyContribution: 100, targetAmount: 1300,
+        lumpSums: [{ date: '2026-06-10', amount: 500 }],
+      })],
+      { months: 7, today: TODAY },
+    );
+    const k = series[0].key;
+    expect(rows.map(r => r[k])).toEqual([1000, 1100, 1200, 1300, 1300, 1800, 1800]);
+  });
+
+  it('is unchanged when the goal carries no target', () => {
+    const { rows, series } = buildSavingsGrowthData(
+      [goal({ currentAmount: 1000, monthlyContribution: 100 })],
+      { months: 6, today: TODAY },
+    );
+    expect(rows.map(r => r[series[0].key])).toEqual([1000, 1100, 1200, 1300, 1400, 1500]);
+  });
+});
+
 describe('estimateGoalCompletionMonths', () => {
   it('returns 0 when the goal is already funded', () => {
     expect(estimateGoalCompletionMonths(goal({ currentAmount: 5000 }), 5000, { today: TODAY })).toBe(0);
