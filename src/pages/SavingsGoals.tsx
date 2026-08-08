@@ -18,7 +18,7 @@ import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDeb
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, projectGoalBalanceAt, type GrowthGoalInput } from '@/lib/savings-growth';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
-import { planAutoEndWrites, type StampedMap } from '@/lib/goal-auto-end';
+import { planAutoEndWrites, toStampedMap, type StampedMap } from '@/lib/goal-auto-end';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 
@@ -46,14 +46,6 @@ type EnrichedGoal = Partial<Tables<'savings_goals'>> & {
 };
 
 type GoalLumpSum = { id: string; date: string; amount: number };
-
-/** `savings_goals.auto_end_stamped_rules` (jsonb) narrowed to the ruleId -> end_date map. */
-function toStampedMap(value: unknown): StampedMap {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === 'string')
-  );
-}
 
 /**
  * "Oct 2026" for the last month any of this goal's rules is stamped to stop, or null when

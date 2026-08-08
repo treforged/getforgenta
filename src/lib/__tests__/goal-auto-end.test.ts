@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { projectedAutoEndDate, planAutoEndWrites } from '../goal-auto-end';
+import {
+  projectedAutoEndDate,
+  planAutoEndWrites,
+  planAutoEndReconcile,
+  toStampedMap,
+  type AutoEndGoalRow,
+} from '../goal-auto-end';
 
 /**
  * 97.3 — per-goal "auto-end contributions when the goal is hit".
@@ -122,5 +128,90 @@ describe('planAutoEndWrites — toggle OFF', () => {
     expect(plan.ruleWrites).toEqual([]);
     expect(plan.stamped).toEqual({});
     expect(plan.conflicts).toEqual([]);
+  });
+});
+
+describe('toStampedMap', () => {
+  it('narrows a jsonb value to the ruleId -> date map, dropping non-string entries', () => {
+    expect(toStampedMap({ r1: '2026-10-31', r2: 7, r3: null })).toEqual({ r1: '2026-10-31' });
+  });
+
+  it('returns an empty map for null, arrays and scalars', () => {
+    expect(toStampedMap(null)).toEqual({});
+    expect(toStampedMap(['2026-10-31'])).toEqual({});
+    expect(toStampedMap('2026-10-31')).toEqual({});
+  });
+});
+
+/**
+ * 97.3 (widened) — re-stamping used to fire on GOAL save only, so any input that moves the
+ * projection WITHOUT a goal save left the stamp stale. The dangerous direction is stale-EARLY:
+ * the stamp is a real `recurring_rules.end_date` and forecast-engine.ts:785 hard-skips a
+ * transfer past it, while goal-linkage.ts (4b) can only ever stop a rule EARLIER, never resume
+ * one. So a stamp that is too early starves the goal in the forecast and nothing rescues it.
+ *
+ * `planAutoEndReconcile` is the shared re-plan the two new trigger sites call: a linked rule
+ * being saved in Budget Control, and freshly synced balances landing.
+ */
+describe('planAutoEndReconcile', () => {
+  const stamped = { ...rule, end_date: '2026-10-31' };
+  const enabledGoal = {
+    ...goal,
+    auto_end_contributions: true,
+    auto_end_stamped_rules: { r1: '2026-10-31' },
+  };
+  const reconcile = (
+    rules: typeof stamped[],
+    accounts: typeof account[],
+    goals: AutoEndGoalRow[] = [enabledGoal],
+  ) => planAutoEndReconcile({ goals, rules, accounts, today });
+
+  it('issues nothing at steady state — the guard that keeps the effect from looping', () => {
+    const plan = reconcile([stamped], [account]);
+    expect(plan.ruleWrites).toEqual([]);
+    expect(plan.goalWrites).toEqual([]);
+    expect(plan.conflicts).toEqual([]);
+  });
+
+  it('pushes a stale-EARLY stamp later when the linked rule amount was cut', () => {
+    // $250/mo needs 4 contributions to cover the $1,000 gap, not 2.
+    const cut = { ...stamped, amount: 250 };
+    const plan = reconcile([cut], [account]);
+    expect(plan.ruleWrites).toEqual([{ id: 'r1', end_date: '2026-12-31' }]);
+    expect(plan.goalWrites).toEqual([{ id: 'g1', auto_end_stamped_rules: { r1: '2026-12-31' } }]);
+  });
+
+  it('pulls the stamp earlier when the linked rule amount was raised', () => {
+    const raised = { ...stamped, amount: 1000 };
+    const plan = reconcile([raised], [account]);
+    expect(plan.ruleWrites).toEqual([{ id: 'r1', end_date: '2026-09-30' }]);
+    expect(plan.goalWrites).toEqual([{ id: 'g1', auto_end_stamped_rules: { r1: '2026-09-30' } }]);
+  });
+
+  it('re-stamps when a synced balance lands below the projection', () => {
+    // The balance-sync trigger: $18,000 leaves a $2,000 gap -> 4 months, not 2.
+    const plan = reconcile([stamped], [{ ...account, balance: 18000 }]);
+    expect(plan.ruleWrites).toEqual([{ id: 'r1', end_date: '2026-12-31' }]);
+  });
+
+  it('leaves goals with the toggle OFF completely alone — reconcile never clears', () => {
+    const off = { ...enabledGoal, auto_end_contributions: false };
+    const plan = reconcile([stamped], [account], [off]);
+    expect(plan.ruleWrites).toEqual([]);
+    expect(plan.goalWrites).toEqual([]);
+  });
+
+  it('reports a hand-set end_date as a conflict instead of overwriting it', () => {
+    const manual = { ...rule, end_date: '2027-06-30' };
+    const plan = reconcile([manual], [account]);
+    expect(plan.ruleWrites).toEqual([]);
+    expect(plan.conflicts).toEqual([{ goalId: 'g1', ruleId: 'r1', end_date: '2027-06-30' }]);
+  });
+
+  it('skips goals with no id — a goal write needs one to target', () => {
+    const noId = { ...enabledGoal, id: undefined };
+    const plan = reconcile([{ ...stamped, amount: 250 }], [account], [noId]);
+    expect(plan.ruleWrites).toEqual([]);
+    expect(plan.goalWrites).toEqual([]);
   });
 });

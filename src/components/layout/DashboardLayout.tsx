@@ -4,9 +4,12 @@ import MobileNav from './MobileNav';
 import DemoBanner from '@/components/shared/DemoBanner';
 import { useDemo } from '@/contexts/DemoContext';
 import { CardProjectionProvider } from '@/contexts/CardProjectionContext';
+import { useAutoEndSyncReconcile } from '@/hooks/useAutoEndReconcile';
 
 export default function DashboardLayout() {
   const { isDemo } = useDemo();
+  // 97.3 — balance-sync landing: refresh stale goal auto-end stamps once per app session.
+  useAutoEndSyncReconcile();
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
