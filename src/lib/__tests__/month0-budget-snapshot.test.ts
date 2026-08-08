@@ -16,6 +16,7 @@ import type { Month0Result, Month0CashChain } from '../debt-model-types';
 const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
   const base = {
     fundingBalance: 2800, income: 5850, expenses: 1975, planExpenses: 0, goalContributions: 150,
+    carSavedEarmark: 0, carSavedShortfall: 0,
     carReserve: 0, carLoanPayment: 0, vehicleInsurance: 0, mortgagePayment: 0,
     transfers: 0, oneTimeNet: 0,
     ...over,
@@ -24,7 +25,10 @@ const chain = (over: Partial<Month0CashChain> = {}): Month0CashChain => {
     ...base,
     // Mirrors the engine: every term is exact cents and cashPreDebt is their exact sum
     // (Tre, 2026-08-06 — the terms used to be rounded individually and summed rounded).
+    // `carSavedShortfall` is deliberately absent: it is not cash leaving the account, it is the part
+    // of the earmark the account could not cover. Folding it would double-count (finding §2.9).
     cashPreDebt: base.fundingBalance + base.income - base.expenses - base.planExpenses - base.goalContributions
+      - base.carSavedEarmark
       - base.carReserve - base.carLoanPayment - base.vehicleInsurance - base.mortgagePayment
       - base.transfers + base.oneTimeNet,
   };
@@ -142,6 +146,64 @@ describe('buildMonth0Snapshot', () => {
     expect(snap.projectedRemaining).toBe(6525 - 150);
     // And the donut counts it too, so the chart cannot disagree with the rows.
     expect(snap.pie.locked + snap.pie.deployable).toBeCloseTo(snap.projectedRemaining, 2);
+  });
+
+  // ── Finding §2.9: the car-fund earmark is a visible term, not a pre-netted balance ──────────
+  //
+  // `chain.fundingBalance` used to arrive ALREADY net of the earmark, so a demo holding $2,800 in
+  // checking with $3,200 "saved" toward a car rendered "Balance on hand $0" and the snapshot had no
+  // way to say why. Tre's decision (2026-08-08): show the gross balance and the earmark as its own
+  // labeled row, and name the shortfall in a note.
+
+  it('shows the car-fund earmark as its own row and still folds exactly', () => {
+    const snap = expectRowsToBalance(month0({ chain: chain({ carSavedEarmark: 1200 }) }));
+    const row = snap.rows.find(r => r.key === 'carSavedEarmark');
+    expect(row?.value).toBe(1200);
+    expect(row?.sign).toBe('−');
+    // Gross balance is still on screen — that is the whole point of the row.
+    expect(snap.rows.find(r => r.key === 'balance')?.value).toBe(2800);
+    expect(snap.projectedRemaining).toBe(6525 - 1200);
+  });
+
+  it('explains the shortfall in the note when the earmark exceeds the account', () => {
+    // The §2.9 demo case: $3,200 claimed, $2,800 available, $400 unaccounted for.
+    const snap = expectRowsToBalance(month0({
+      chain: chain({ carSavedEarmark: 2800, carSavedShortfall: 400 }),
+      m0SafeFloor: 0,
+      safeToPayTotal: 1000,
+    }));
+    const row = snap.rows.find(r => r.key === 'carSavedEarmark');
+    expect(row?.value).toBe(2800);
+    expect(row?.note).toContain('400');
+    expect(row?.note).toMatch(/isn't in this account|not in this account/i);
+  });
+
+  it('keeps the note free of shortfall language when the account covers the earmark', () => {
+    const snap = buildMonth0Snapshot(month0({ chain: chain({ carSavedEarmark: 1200 }) }));
+    expect(snap.rows.find(r => r.key === 'carSavedEarmark')?.note).not.toMatch(/isn't in this account/i);
+  });
+
+  it('counts the earmark in the donut so the chart total does not grow with the gross balance', () => {
+    // fundingBalance is now gross, so the earmark must land in a segment or the donut over-reports
+    // by exactly the earmark.
+    const withEarmark = buildMonth0Snapshot(month0({ chain: chain({ carSavedEarmark: 1200 }) }));
+    const without = buildMonth0Snapshot(month0());
+    const total = (s: typeof withEarmark) =>
+      s.pie.billsAndReserves + s.pie.locked + s.pie.deployable;
+    expect(total(withEarmark)).toBeCloseTo(total(without), 2);
+    expect(withEarmark.pie.locked + withEarmark.pie.deployable).toBeCloseTo(withEarmark.projectedRemaining, 2);
+  });
+
+  it('omits the earmark row entirely when there is no car fund earmarking anything', () => {
+    expect(buildMonth0Snapshot(month0()).rows.find(r => r.key === 'carSavedEarmark')).toBeUndefined();
+  });
+
+  it('still surfaces the shortfall when the account is empty and nothing could be applied', () => {
+    // applied = 0 means there is no cash term to print, but the user is exactly the one who needs
+    // the explanation — a zero-value row would be unrenderable, so the note rides the balance row.
+    const snap = expectRowsToBalance(month0({ chain: chain({ carSavedEarmark: 0, carSavedShortfall: 3200 }) }));
+    expect(snap.rows.find(r => r.key === 'carSavedEarmark')).toBeUndefined();
+    expect(snap.rows.find(r => r.key === 'balance')?.note).toContain('3,200');
   });
 
   it('renders a negative Projected remaining as a signed checkpoint, not an absolute value', () => {

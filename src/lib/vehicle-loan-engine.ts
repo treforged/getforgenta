@@ -195,6 +195,39 @@ export function getCarFundEarmark(carFunds: CarFund[], fundingAccountId: string 
   }, 0);
 }
 
+export interface CarFundEarmarkResolution {
+  /** What the car funds claim — the raw `getCarFundEarmark` figure. */
+  requested: number;
+  /** What the account can actually cover. Subtract THIS from the balance. */
+  applied: number;
+  /** `requested − applied`: saved cash the linked account demonstrably does not hold. */
+  shortfall: number;
+}
+
+/**
+ * Reconcile the earmark against the balance it is earmarked FROM — finding §2.9.
+ *
+ * `current_saved` is a number the user types; the account balance is a number the bank reports.
+ * Nothing keeps the two consistent, so a user whose down-payment savings actually sit somewhere
+ * other than `linked_account` claims more than the account holds. Every caller used to absorb that
+ * with its own `Math.max(0, balance - earmark)`, which is arithmetically right (cash cannot go
+ * negative) but destroyed the interesting part: the user saw "Balance on hand $0" and had no way
+ * to learn that $400 of their "saved" money was never in that account.
+ *
+ * This keeps the clamp in ONE place and returns the discarded remainder, so a UI can name it.
+ * Tre's decision (2026-08-08): surface the shortfall, never silently absorb it. The resulting
+ * spendable balance is `Math.max(0, balance) - applied`, which equals the old inline expression for
+ * every balance — pinned by `vehicle-loan-engine.carFundEarmarkResolution.test.ts` so this refactor
+ * cannot move a cash figure the whole debt engine is built on.
+ */
+export function resolveCarFundEarmark(
+  carFunds: CarFund[], fundingAccountId: string | null, accountBalance: number,
+): CarFundEarmarkResolution {
+  const requested = getCarFundEarmark(carFunds, fundingAccountId);
+  const applied = Math.min(requested, Math.max(0, accountBalance));
+  return { requested, applied, shortfall: requested - applied };
+}
+
 /**
  * The car fund a "Car Goal" surface should render, or null if there is none.
  *

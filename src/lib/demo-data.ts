@@ -193,7 +193,12 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     target_price: 28000,
     tax_fees: 2000,
     down_payment_goal: 5600,
-    current_saved: 3200,
+    // Finding §2.9 (Tre, 2026-08-08): this was $3,200 earmarked against `linked_account: 'd1'` —
+    // Chase Checking, which holds $2,800 — so the demo rendered "Balance on hand $0" with no
+    // explanation. $1,200 of the $2,800 checking balance being car money is coherent AND still
+    // exercises the earmark path, so the demo shows the feature working rather than a clamped zero.
+    // If d1's balance ever changes, keep this below it.
+    current_saved: 1200,
     monthly_insurance: 180,
     expected_apr: 5.9,
     loan_term_months: 60,

@@ -22,6 +22,7 @@
 // `__tests__/month0-budget-snapshot.test.ts`. That test is what stops this drifting back.
 
 import type { Month0Result } from './debt-model-types';
+import { formatCurrency as money } from './calculations';
 
 /** ' ' opens the chain, '+'/'−' are terms, '=' is a checkpoint the running fold must equal. */
 export type SnapshotRowSign = ' ' | '+' | '−' | '=';
@@ -109,8 +110,21 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
   const belowFloor = residual < 0 ? -residual : 0;
   const event = month0.holdbackEvent;
 
+  // Finding §2.9. `fundingBalance` is now GROSS and the car-fund earmark is its own term, so the
+  // chain can say why the balance dropped instead of arriving pre-netted and unexplainable.
+  // `carSavedShortfall` is saved cash the linked account does not hold — not a cash term (folding it
+  // would double-count against money that was never there), so it rides as copy. When some of the
+  // earmark applied it explains that row; when NONE could apply there is no row to hang it on, so
+  // it falls back to the balance row, which is exactly the user seeing an unexplained figure.
+  const shortfallNote = c.carSavedShortfall >= CENT
+    ? `${money(c.carSavedShortfall)} of your saved down payment isn't in this account — link the car fund to the account actually holding it.`
+    : undefined;
+
   const rows: SnapshotRow[] = [
-    { key: 'balance', label: 'Balance on hand', value: c.fundingBalance, sign: ' ', tone: 'neutral' },
+    {
+      key: 'balance', label: 'Balance on hand', value: c.fundingBalance, sign: ' ', tone: 'neutral',
+      ...(shortfallNote && c.carSavedEarmark < CENT ? { note: shortfallNote } : {}),
+    },
     term('income', 'Income still coming', c.income, '+', 'positive'),
     term('expenses', 'Bills still coming', c.expenses, '−', 'negative'),
     // Finding §1.1 cause B: the engine folds checking-sourced payment-plan installments into
@@ -118,6 +132,9 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
     // part of the fold and the rows read high by exactly one month's installments.
     term('planExpenses', 'Payment plans (from checking)', c.planExpenses, '−', 'negative'),
     term('goals', 'Savings goals', c.goalContributions, '−', 'muted'),
+    term('carSavedEarmark', 'Already saved toward a car', c.carSavedEarmark, '−', 'muted',
+      shortfallNote
+        ?? 'Down-payment cash already sitting in this account — still yours, just already spoken for'),
     term('carReserve', 'Car down payment', c.carReserve, '−', 'muted',
       month0.carReserveEvent ? `Reserved for ${month0.carReserveEvent.vehicleName} — still your cash, just not deployable this month` : undefined),
     term('carLoan', 'Auto loan payment', c.carLoanPayment, '−', 'muted'),
@@ -147,8 +164,10 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0): Month
     cashFloor,
     pie: {
       spentSoFar: Math.max(0, spentSoFar),
-      billsAndReserves: Math.max(0, c.expenses + c.planExpenses + c.goalContributions + c.carReserve
-        + c.carLoanPayment + c.vehicleInsurance + c.mortgagePayment + c.transfers),
+      // §2.9: `fundingBalance` is gross now, so the earmark must land in a segment or the donut
+      // over-reports the whole pie by exactly the earmark.
+      billsAndReserves: Math.max(0, c.expenses + c.planExpenses + c.goalContributions + c.carSavedEarmark
+        + c.carReserve + c.carLoanPayment + c.vehicleInsurance + c.mortgagePayment + c.transfers),
       locked: Math.max(0, cashFloor + heldForEvent + surplus),
       deployable: Math.max(0, availableToDeploy),
       shortfall: projectedRemaining < 0 ? -projectedRemaining : 0,

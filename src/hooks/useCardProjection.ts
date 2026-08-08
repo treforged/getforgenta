@@ -15,7 +15,7 @@ import {
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-model';
 import type { FilingStatus } from '@/lib/tax-estimator';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, resolveCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -152,8 +152,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Already-saved/gifted down-payment money sitting in this same account is still "available
       // cash" by default — earmark it out so it isn't offered up for CC paydown while it's spoken
       // for. Disappears on its own once a car fund's phase flips to 'loan' (see getCarFundEarmark).
-      const debtFundingBalance = Math.max(0, (debtFundingAccount ? Number(debtFundingAccount.balance) : liquidCash)
-        - getCarFundEarmark(carFunds, resolvedDebtFundingId));
+      //
+      // Finding §2.9: the earmark is reconciled against the balance it comes OUT of rather than
+      // clamped inline, and both halves travel into the chain — the gross balance and the applied
+      // deduction — so the snapshot can show why the balance dropped. `debtFundingBalance` is the
+      // same number the inline clamp produced for every balance (pinned by
+      // `vehicle-loan-engine.carFundEarmarkResolution.test.ts`); nothing downstream moves.
+      const debtFundingBalanceGross = Math.max(0, debtFundingAccount ? Number(debtFundingAccount.balance) : liquidCash);
+      const carSaved = resolveCarFundEarmark(carFunds, resolvedDebtFundingId, debtFundingBalanceGross);
+      const debtFundingBalance = debtFundingBalanceGross - carSaved.applied;
 
       // ── Scalar fallbacks ──────────────────────────────────────────────────────
       const monthlyTakeHome = getNormalizedMonthNetIncome(payConfig);
@@ -1762,11 +1769,16 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // ONLY at render, and the drawers render two decimals so the equation still visibly adds up.
       // See Month0CashChain, and `monthEndCash.invariant.test.ts` which pins the gap at cents.
       const m0Chain: Month0CashChain = {
-        fundingBalance: debtFundingBalance,
+        // Finding §2.9: GROSS balance plus the earmark as its own term. `cashPreDebt` below is still
+        // the very variable the cap was computed from, so the identity holds to the cent:
+        // debtFundingBalanceGross − carSaved.applied === debtFundingBalance.
+        fundingBalance: debtFundingBalanceGross,
         income: m0Income,
         expenses: m0Expenses,
         planExpenses: m0PlanExpenses,
         goalContributions: goalContrib,
+        carSavedEarmark: carSaved.applied,
+        carSavedShortfall: carSaved.shortfall,
         carReserve,
         carLoanPayment: carLoanTotal,
         vehicleInsurance: m0VehicleInsurance,

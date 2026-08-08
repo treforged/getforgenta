@@ -58,8 +58,10 @@ export interface Month0Result {
    * with the decimals"). The identity holds in exact arithmetic:
    *
    *   cashPreDebt = fundingBalance + income − expenses − planExpenses − goalContributions
-   *                 − carReserve − carLoanPayment − vehicleInsurance − mortgagePayment
-   *                 − transfers + oneTimeNet
+   *                 − carSavedEarmark − carReserve − carLoanPayment − vehicleInsurance
+   *                 − mortgagePayment − transfers + oneTimeNet
+   *
+   * `carSavedShortfall` is NOT in that identity by design — see its own doc comment.
    *
    * ⚠️ Do NOT go back to rounding the terms here. These fields used to be integers with
    * `cashPreDebt` defined as the SUM OF THE ROUNDED TERMS, which made the drawer's on-screen
@@ -77,7 +79,13 @@ export interface Month0Result {
 }
 
 export interface Month0CashChain {
-  /** Funding-account balance the engine started from, net of any car-fund earmark. */
+  /** Funding-account balance the engine started from, GROSS of any car-fund earmark.
+   *
+   *  Finding §2.9: this used to arrive already net of the earmark, which made the earmark
+   *  unnameable — a demo holding $2,800 in checking with $3,200 "saved" toward a car rendered
+   *  "Balance on hand $0" and no surface could explain why. The earmark is now its own term
+   *  (`carSavedEarmark`), so the chain shows the deduction instead of hiding it. `cashPreDebt` is
+   *  unchanged to the cent: the term subtracts exactly what the balance used to arrive short by. */
   fundingBalance: number;
   /** Scheduled income still to land this month (forecastMonthEvents[0].income). */
   income: number;
@@ -89,6 +97,15 @@ export interface Month0CashChain {
   planExpenses: number;
   /** Monthly savings-goal contributions the engine reserved. */
   goalContributions: number;
+  /** Down-payment money ALREADY saved that is sitting in the funding account — still the user's
+   *  cash, but spoken for, so it is not offered up for card paydown. Capped at the account balance
+   *  (`resolveCarFundEarmark`), which is what makes it a legitimate chain term. */
+  carSavedEarmark: number;
+  /** The part of that earmark the account could not cover — saved cash that is NOT in the linked
+   *  account. Deliberately NOT part of `cashPreDebt`: it is a data-consistency signal, not money
+   *  leaving the account, and folding it would double-count against a balance that never held it.
+   *  Renderers surface it as explanatory copy (finding §2.9). */
+  carSavedShortfall: number;
   /** Car down-payment reserve — still the user's own cash, but not deployable this month. */
   carReserve: number;
   /** Active car-loan payments still due after the sync cutoff. */

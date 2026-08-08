@@ -17,7 +17,7 @@ import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-trans
 import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { computeBonusAndTax } from '@/lib/income-model';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, getCarFundEarmark } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -175,7 +175,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // Already-saved/gifted down-payment money sitting in this same account is still "available
     // cash" by default — earmark it out so it isn't offered up for CC paydown while it's spoken
     // for. Disappears on its own once a car fund's phase flips to 'loan' (see getCarFundEarmark).
-    liquidBal = Math.max(0, liquidBal - getCarFundEarmark(carFunds, forecastFundingAccountId));
+    // Finding §2.9: same clamp as before, but expressed through the ONE helper that owns it, so the
+    // forecast and the debt hook cannot drift on how an over-claimed earmark is absorbed.
+    liquidBal = Math.max(0, liquidBal)
+      - resolveCarFundEarmark(carFunds, forecastFundingAccountId, liquidBal).applied;
     // Re-derived from the card projection + loan schedules on every month of the loop below
     // (see step 3), so it needs no account-derived seed — nothing reads it before that.
     let totalLiabilityBal: number;

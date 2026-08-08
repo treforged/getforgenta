@@ -39,7 +39,8 @@ const month0 = (
   vehicleInsurance: 0,
   mortgagePayment: 0,
   chain: {
-    fundingBalance: 0, income: 0, expenses: 0, planExpenses: 0, goalContributions: 0, carReserve: 0,
+    fundingBalance: 0, income: 0, expenses: 0, planExpenses: 0, goalContributions: 0,
+    carSavedEarmark: 0, carSavedShortfall: 0, carReserve: 0,
     carLoanPayment: 0, vehicleInsurance: 0, mortgagePayment: 0, transfers: 0, oneTimeNet: 0,
     cashPreDebt: 0,
   },

@@ -799,6 +799,9 @@ export default function Dashboard() {
           ...t('Bills still coming', m0.chain.expenses, '−'),
           ...t('Payment Plans (from checking)', m0.chain.planExpenses, '−'),
           ...t('Savings goals', m0.chain.goalContributions, '−'),
+          // §2.9: 'Balance on hand' is the GROSS balance now, so this row is what keeps the drawer's
+          // column adding up to `cashPreDebt`. Omit it and the equation is short by the earmark.
+          ...t('Already saved toward a car', m0.chain.carSavedEarmark, '−'),
           ...t('Car down payment reserve', m0.chain.carReserve, '−'),
           ...t('Auto loan payment', m0.chain.carLoanPayment, '−'),
           ...t('Vehicle insurance (est.)', m0.chain.vehicleInsurance, '−'),
