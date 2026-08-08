@@ -1,53 +1,45 @@
-# Handoff — 2026-08-08 — session 106 — 97.3 re-stamping widened; PUSH IS THE OPEN TASK
+# Handoff — 2026-08-08 — session 107 — PUSHED. 97.3 shipped to origin/main
 
-## ▶ START HERE — finish the push (rebase onto origin/main, then fast-forward push)
+## ✅ PUSH DONE — nothing carried on this front
 
-Tre is ready to push. I hit the context gate after the diagnosis but before the resolution, so
-the analysis below is done and verified — **do not redo it, just execute step 4 onward.**
+Session 107 executed the rebase and pushed. `origin/main` is now **`7af203e0`**, `main` is
+**0 ahead / 0 behind**, tree clean. The push was a **plain fast-forward** (`6efc8489..7af203e0`,
+no `+`), so no force was needed and the stop signal never fired.
 
-**Verified state** (re-verify cheaply, don't trust blindly):
-`main 619c83b6`, `origin/main 6efc8489`, **39 ahead / 1 behind**, tree clean, `git fetch` done.
-Safety ref already created: **`backup/pre-push-20260808-023848`** → `619c83b6`.
+Safety ref if anything downstream looks wrong: **`backup/pre-push-20260808-session107`** →
+`3d444c3e` (the pre-rebase tip).
 
-**Two corrections to what I was told, both verified:**
-1. "Every SHA above `dd43e586` changed" is **not** accurate for the last three commits. The
-   history scrub landed at `main@{02:12:34}`; commits `e16ea721`, `e9201867`, `619c83b6` were
-   authored AFTER it (02:31-02:32) and kept their SHAs. What did change: `9592611b → f8d9e247`,
-   `15ced5dc → 5ef31f2d`, `04e1d575 → 706601c1`, `50546ed5 → b02c3faa`, `d071cf0c → 7ae30b80`.
-   The pre-rewrite SHAs are still in `git reflog show main` if you need to compare.
-2. The scrub is genuinely clean — `<PC-TAILNET-IP>` / `<PHONE-TAILNET-IP>` placeholders are in
-   `b02c3faa`, `5df841df`, `3921ffba`. A grep for `100.x.x.x` in handoff.md history hits only
-   **`100.64.0.0/10`**, which is the Tailscale CGNAT *range* in a firewall scope, not a device
-   address. **Not a leak — do not "scrub" it.**
+**How the conflicts resolved** — worth reading before touching `savings-growth.ts` again,
+because the divergence was real, not cosmetic:
 
-**The conflict is much smaller than predicted.** I probed it on a throwaway branch
-(`git rebase origin/main`, capture, `git rebase --abort`) rather than guessing:
+Upstream PR #60 (`6efc8489`) and local `f8d9e247` are the SAME feature implemented twice with
+different shapes. PR #60 is the squashed version of the local work, so it carried
+`goalContributionCutoffIdx(goalInput, targetAmount, opts)` — a full-signature helper that
+computes completion internally and applies `+1 / 0`. Local instead landed
+`contributionCutoffIdx(completionIdx)` — a pure transform — plus `projectGoalBalanceAt`, and
+moved the cutoff onto `GoalState.cutoffOffset` instead of threading it as a `stepMonth` param.
 
-- It stops at **`be101646`** (97.3 step 1 — the FIRST goals commit), not at `f8d9e247`.
-- Exactly **ONE** file conflicts: **`src/lib/goal-linkage.ts`**. The other three named in the
-  brief (`savings-growth.ts`, `SavingsGoals.tsx`, `src/__tests__/savings-growth.test.ts`) did
-  **not** conflict on that stop. More stops may follow after `--continue`; expect them, and note
-  the test file upstream is `src/__tests__/savings-growth.test.ts` (there is **no**
-  `src/lib/__tests__/savings-growth.test.ts` — the brief's path was wrong).
+Local is the strict functional superset, so local won on every conflicted hunk. **The only
+upstream-only symbol lost was `goalContributionCutoffIdx`, deliberately** — it is superseded and
+nothing references it (grepped repo-wide after the rebase).
 
-**Steps remaining:**
-4. `git rebase origin/main`; resolve `src/lib/goal-linkage.ts`. PR #60 (`6efc8489`) touched
-   `goal-linkage.ts` by only 8 lines — diff `git show 6efc8489 -- src/lib/goal-linkage.ts`
-   against local and keep the union. Local is the superset (it has `contributionCutoffIdx`
-   extraction + the 97.3 work on top), but **verify line by line** that nothing unique to the
-   squashed PR is dropped. Continue until the rebase completes.
-5. Re-verify: `npx vitest run` (NOT `--reporter=basic`, it fails on vitest 4.1.10),
-   `npx tsc --noEmit`, `npx eslint` on changed files. Baseline was **543/543, tsc 0, eslint 0**
-   before the rebase — anything less is a resolution error, not a pre-existing red.
-6. Push. Must be a plain fast-forward. **If git demands `--force`/`--force-with-lease`, STOP and
-   report why** — Tre set that as an explicit stop signal.
+Two stops, four files, all resolved to local:
+- `be101646` — `src/lib/goal-linkage.ts`. PR #60's only change here was swapping the import to
+  fold `+1 / 0` inline; local's `computeGoalCutoffIdx` still does exactly that, so nothing
+  unique was dropped.
+- `f8d9e247` — `savings-growth.ts`, `SavingsGoals.tsx`, `src/__tests__/savings-growth.test.ts`.
 
-Recovery if it goes wrong: `git rebase --abort`, then
-`git reset --hard backup/pre-push-20260808-023848`.
+**One thing DID need re-adding** (`7af203e0`): PR #60 had three boundary unit tests for
+`goalContributionCutoffIdx` (0 / k+1 / null) with no local equivalent — the behaviour survived
+the resolution but the direct coverage did not. They are back, aimed at `contributionCutoffIdx`.
+Taking local's file wholesale would have silently lost them; that is the class of thing to check
+on any future "local is the superset" resolution.
+
+**Final gate: 546/546 tests (543 baseline + 3 re-added), tsc 0, eslint 0.**
 
 ---
 
-> The 97.3 work below is done and committed. Nothing pushed yet.
+> The 97.3 work below is done, committed, and now PUSHED.
 > **The 97.3 sign-in blocker that stalled sessions 103-104 is gone** — the Claude-controlled
 > Chrome is signed in on `http://localhost:8080` and the tab is parked. Do not sign it out.
 
@@ -163,8 +155,9 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-`main` is **38 commits ahead** of `origin/main` including this handoff. Standing rule is never
-auto-push. **Nothing pushed.** Verify with `git rev-list --count origin/main..main`.
+**Pushed 2026-08-08 (session 107).** `origin/main` = `7af203e0`, 0 ahead / 0 behind. The
+standing rule is still never auto-push — this one was explicitly authorized by Tre in the
+session-106 handoff. Verify with `git rev-list --count origin/main..main`.
 
 ## Supabase — real IDs (carried)
 
