@@ -32,9 +32,6 @@ forged.jks
 dist/
 .vercel
 
-# Marketing tool — local-only, not project source
-tre-forged-marketing/
-
 # Security/compliance docs — untracked from the public repo 2026-06-21,
 # authoritative versioned copies now live in Google Drive (see
 # reference_compliance_docs_drive memory)
@@ -67,3 +64,4 @@ __pycache__/
 # accounts) captured from the running app. This repo is PUBLIC, so the fixture is kept LOCAL
 # ONLY; the Tier-A test self-skips when it is absent (see forecast-engine.goldenTierA.test.ts).
 src/lib/__tests__/fixtures/forecast-inputs.real*.json
+
