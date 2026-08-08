@@ -24,11 +24,20 @@ Tried and FAILED: `Restart-Service TermService -Force` → "stop failed". Note t
 cycle anyway (PID 48924 → 63212) and the listener still did not appear, so a service restart is
 NOT the fix. `CanStop` is `True`, so it is not a protection block.
 
-**NEXT STEP: reboot the PC, then run `.\check-remote-access.ps1`.** Expect all `[ OK ]`. If the
-listener is STILL absent after a reboot, that is a genuinely unusual state — investigate
-`Get-WinEvent -LogName 'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational'`
-before changing anything else. Do not start disabling NLA or widening firewall rules to "make it
-work"; that trades away the whole security design for a symptom.
+**2026-08-08 update — REBOOT IS THE ANSWER, and it has still not been done** (uptime 11 days;
+RDP was enabled by registry edit the evening AFTER that boot, so TermService came up in
+"RDP denied" mode and never re-read it). Two in-place repairs were tried and both failed:
+`Restart-Service TermService -Force` ("stop failed", though the PID cycled anyway) and the new
+`fix-rdp-listener.ps1`, which drives the WMI `SetAllowTSConnections` 0→1 the Settings UI uses —
+both calls returned success and produced no listener. Also ruled out: winstation key intact,
+`termsrv.dll` signature Valid, no dependent service, no policy key, no events in any
+TerminalServices log. Full write-up in the remote-access `README.md`, which is where this
+belongs — do not expand machine-access detail in this PUBLIC repo.
+
+**NEXT STEP: reboot, then `.\check-remote-access.ps1`.** Do not disable NLA or widen firewall
+rules to "make it work"; neither relates to a missing listener and both trade away the whole
+security design for a symptom. Meanwhile `http://<PC-TAILNET-IP>:8080` IS reachable from the phone
+(verified 08-08) — the browser path works today, only RDP is blocked.
 
 Then from the phone: Windows App → `<PC-TAILNET-IP>` → Windows **account password** (a Hello PIN will
 NOT work over RDP). Browser → `http://<PC-TAILNET-IP>:8080`.
