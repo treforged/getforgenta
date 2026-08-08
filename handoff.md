@@ -126,8 +126,26 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
 
 ## Still open (carried, renumbered)
 
-1. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
-   `debt-transaction-generator.ts:12-34`. **Recommendation: skip.**
+1. ~~Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
+   `debt-transaction-generator.ts:12-34`~~ — **CLOSED session 110 as SKIP, now measured rather than
+   assumed.** The item is 4b's goal auto-stop: both sites count a transfer/investment rule as a cash
+   outflow after its savings goal is fully funded, because `goals` are not in scope on either call
+   chain, so the debt engine slightly UNDER-recommends payments in that window.
+
+   **Live effect is $0, and structurally so.** Two things close it: (a) both sites already honour
+   `recurring_rules.end_date`, and 97.3's auto-end toggle WRITES that date on a goal's linked rules,
+   so every toggle-on goal is correct by construction; (b) the gap only bites if a goal completes
+   inside `PROJECTION_MONTHS` (60). Measured 2026-08-08 — **none of the four goals does**:
+   Brokerage ~month 335, Roth IRA ~month 280, 401K Roth has no linked rule at all, and Savings
+   (the nearest) lands ~**month 62**, just past the horizon — and its HYS rule already carries a
+   user-set `end_date` of 2031-06-30 (~month 58) that both sites honour anyway.
+
+   Fixing it means threading a completion cutoff into the 60-month convergence loop — the engine
+   with ~12 rounds of hard-won fixes — for zero dollars. Not a trade worth making. Both sites now
+   carry the analysis in place so it is not re-derived a fourth time.
+
+   **REOPEN WHEN:** a goal's linked contributions complete it inside 60 months while its rule
+   carries no `end_date`. Re-measure that trigger; do not assume it still fails.
 2. ~~§2.10 UI live-verification~~ — **DONE session 109**, see above. §2.10 fully closed.
 3. ~~`backup.plaid_items_20260807` / `backup.accounts_20260807`~~ — **CLOSED AS KEEP. Tre decided
    2026-08-08: "don't drop them — close the item as keep." Do NOT re-propose dropping these.**
@@ -233,6 +251,13 @@ For a recharts line, read exact rows off the **React fiber** (walk up from `.rec
 `computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
 
 ## Lessons
+
+**Session 110 — price a deferral before re-carrying it.** Item 1 rode four handoffs as
+"Recommendation: skip" with the reasoning compressed out of it. Reading the original entry showed it
+was 4b's goal auto-stop, and four SQL queries showed the effect is $0 because no goal completes
+inside the projection horizon and 97.3's `end_date` writes already cover the toggle-on case. A
+deferral with its reasoning stripped is indistinguishable from an unexamined one — either restate
+the cost or close it.
 
 **Session 110 — a "blocked on real data" item can unblock itself while you aren't looking.** Item 5
 sat carried for sessions as un-exercisable because only Discover had synced rows. One `count(*)`

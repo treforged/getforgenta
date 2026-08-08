@@ -2092,6 +2092,11 @@ function buildCurrentMonthRecommendationSummary(
   const pc = buildPayConfig(profile);
   const monthlyTakeHome = getMonthNetIncome(pc, new Date().getFullYear(), new Date().getMonth());
   const now0 = new Date();
+  // Same 4b goal auto-stop gap as `calcCashOnlyMonthlyExpenses` (see the long note there): a
+  // transfer/investment rule funding a completed goal keeps counting as an outflow, because
+  // `goals` are not in scope here either. Far less exposed than the 60-month loop, though — this
+  // is a CURRENT-MONTH sum, so it can only be wrong once a goal is ALREADY complete today, and
+  // `end_date` (which 97.3's auto-end writes) is honoured below. Verified $0 live 2026-08-08.
   const monthlyExpenses = rules.filter(r => {
     if (!r.active) return false;
     if (r.rule_type === 'transfer' || r.rule_type === 'investment') {

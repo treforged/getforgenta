@@ -8,7 +8,26 @@ import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 
 /** Cash-only expense total for a specific month — excludes CC-tagged rules to avoid double-counting.
- *  Includes transfer/investment rules since those are real liquid-cash outflows that reduce debt surplus. */
+ *  Includes transfer/investment rules since those are real liquid-cash outflows that reduce debt surplus.
+ *
+ *  KNOWN GAP, deliberately not fixed (4b goal auto-stop). A transfer/investment rule funding a
+ *  savings goal keeps counting here after the goal is fully funded, because `goals` are not in
+ *  scope on this call chain. The engine therefore slightly UNDER-recommends debt payments for any
+ *  window between a goal completing and its rule ending. Threading a completion cutoff into this
+ *  60-month loop means touching the convergence engine for that, which is not a trade worth making
+ *  blind — see `project_cycling_debt_engine` for what re-tuning this loop has cost historically.
+ *
+ *  Two things already close it in practice, which is why it stays deferred:
+ *   1. `end_date` IS honoured below, and 97.3's auto-end toggle writes a real
+ *      `recurring_rules.end_date` on the goal's linked rules — so goals with the toggle on are
+ *      correct here by construction.
+ *   2. The gap only bites if a goal actually completes inside the 60-month horizon.
+ *
+ *  Measured against live data 2026-08-08: none of the four goals completes within 60 months (the
+ *  nearest, "Savings", lands ~month 62). Live effect is $0.
+ *
+ *  REOPEN WHEN: a goal's linked contributions complete it inside `PROJECTION_MONTHS` while its rule
+ *  carries no `end_date`. That is the trigger — re-measure before assuming it still does not hold. */
 function calcCashOnlyMonthlyExpenses(
   rules: RuleRow[], cards: CardData[], year?: number, month?: number, today: Date = new Date(),
 ): number {
