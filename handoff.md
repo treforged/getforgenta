@@ -3,53 +3,34 @@
 > Tre's ask (the keep-signed-in helper) is built, tested, and committed. The overdue `types.ts`
 > regen is also done and green. Nothing pushed. **97.3 is blocked on ONE manual sign-in by Tre.**
 
-## ▶ START HERE — REMOTE ACCESS (new thread, 2026-08-07 evening)
+## REMOTE ACCESS — ✅ CLOSED 2026-08-08 (end-to-end verified from the phone)
 
-Tre asked for secure phone → PC access. Built in **`C:\Users\tvonh\Desktop\remote-access\`**
-(deliberately OUTSIDE this repo — the repo is PUBLIC and this describes how to reach his machine).
-Tailscale VPN + Windows RDP, firewall scoped to `100.64.0.0/10`. Files: `setup-remote-access.ps1`
-(idempotent, `-Revert`), `check-remote-access.ps1` (read-only), `README.md`.
+Secure phone → PC access works. Tailscale VPN + Windows RDP, firewall scoped to `100.64.0.0/10`,
+NLA required, no broad RDP rules. Tre confirmed a successful desktop connection from the phone.
+Tailscale key expiry disabled and IdP 2FA enabled (Google), both done by Tre.
 
-**Working:** both devices on the tailnet — `challhq` = **<PC-TAILNET-IP>** (PC), `iphone-15-pro` =
-<PHONE-TAILNET-IP>. Firewall rules for 3389 AND 8080 present and correctly scoped. Exposure clean
-(no broad built-in RDP rules). NLA required. Tre signed into Tailscale; phone connected;
-Windows App downloaded.
+Everything lives in **`C:\Users\tvonh\Desktop\remote-access\`**, deliberately OUTSIDE this repo —
+**this repo is PUBLIC.** Do not move machine-access detail into it. Scripts: `setup-remote-access.ps1`
+(idempotent, `-Revert`), `check-remote-access.ps1` (read-only), `fix-rdp-listener.ps1`,
+`diag-rdp-auth.ps1`. Both 2026-08-08 failure modes are written up in that folder's `README.md`.
 
-**THE ONE BLOCKER: RDP has no listener on 3389.** Registry is correct
-(`fDenyTSConnections=0`, `PortNumber=3389`, `fEnableWinStation=1`), edition is Win 11 **Pro**,
-TermService is Running, no Terminal Services policy key exists — but `qwinsta` shows only
-`services` and `console`, with **no `rdp-tcp` entry**, and nothing is bound to 3389.
+Two blockers were cleared; the shape of each is worth carrying forward:
 
-Tried and FAILED: `Restart-Service TermService -Force` → "stop failed". Note the service **did**
-cycle anyway (PID 48924 → 63212) and the listener still did not appear, so a service restart is
-NOT the fix. `CanStop` is `True`, so it is not a protection block.
+1. **No listener on 3389** despite every config item green. RDP had been enabled by registry edit
+   *after* the last boot, so TermService came up in "RDP denied" mode and never re-read it.
+   `Restart-Service TermService -Force` failed twice, and the WMI `SetAllowTSConnections` 0→1
+   toggle returned success while still producing no listener. **A reboot was the fix.**
+2. **"Credentials did not work."** The Security log gave the answer in one read: SubStatus
+   `0xC000006A` = bad password, not `0xC0000064` = unknown user — so the username format was never
+   the problem. The account is a **Microsoft account**; Windows caches its password hash and only
+   refreshes on an actual typed password, so a Hello-PIN user's cache was 20 months stale. One
+   lock-screen password sign-in re-synced it.
 
-**2026-08-08 update — REBOOT IS THE ANSWER, and it has still not been done** (uptime 11 days;
-RDP was enabled by registry edit the evening AFTER that boot, so TermService came up in
-"RDP denied" mode and never re-read it). Two in-place repairs were tried and both failed:
-`Restart-Service TermService -Force` ("stop failed", though the PID cycled anyway) and the new
-`fix-rdp-listener.ps1`, which drives the WMI `SetAllowTSConnections` 0→1 the Settings UI uses —
-both calls returned success and produced no listener. Also ruled out: winstation key intact,
-`termsrv.dll` signature Valid, no dependent service, no policy key, no events in any
-TerminalServices log. Full write-up in the remote-access `README.md`, which is where this
-belongs — do not expand machine-access detail in this PUBLIC repo.
-
-**NEXT STEP: reboot, then `.\check-remote-access.ps1`.** Do not disable NLA or widen firewall
-rules to "make it work"; neither relates to a missing listener and both trade away the whole
-security design for a symptom. Meanwhile `http://<PC-TAILNET-IP>:8080` IS reachable from the phone
-(verified 08-08) — the browser path works today, only RDP is blocked.
-
-Then from the phone: Windows App → `<PC-TAILNET-IP>` → Windows **account password** (a Hello PIN will
-NOT work over RDP). Browser → `http://<PC-TAILNET-IP>:8080`.
-
-**Still owed by Tre:** disable **key expiry** on `challhq` in the Tailscale admin console, or the PC
-drops off the tailnet in ~180 days and cannot be re-authed remotely. Also enable 2FA on the identity
-provider he used for Tailscale (auth is delegated to the IdP, not held by Tailscale).
-
-**Lesson worth keeping:** `fDenyTSConnections=0` is a *claim*; a bound socket is *evidence*. The
-checker originally reported RDP "enabled" and all-green while nothing was listening. It now tests
-the socket, and the setup script restarts TermService and verifies. Same failure shape as the
-sign-in work earlier today — config state is not behavior.
+**Lessons:** `fDenyTSConnections=0` is a *claim*; a bound socket is *evidence* — the checker
+originally reported all-green while nothing was listening, and it now tests the socket. And when a
+credential is rejected, read the SubStatus before theorising: it separates "wrong username format"
+from "wrong password", which have nothing to do with each other. Do not disable NLA or widen
+firewall rules to make a symptom go away.
 
 ## ▶ START HERE — 97.3 (carried, unchanged)
 
