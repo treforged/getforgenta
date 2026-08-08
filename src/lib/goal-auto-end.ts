@@ -17,6 +17,10 @@
 // save/edit, balance sync landing) — never inside a `useMemo`/render path. The engines in this
 // codebase re-run on nearly every input change, so a write from a render path would hammer
 // Supabase.
+//
+// All three of those sites are now wired. Goal save calls `planAutoEndWrites` directly (it owns
+// the toggle, so it is the only site allowed to CLEAR stamps); the other two go through
+// `planAutoEndReconcile` below, which re-plans every enabled goal and never clears anything.
 
 import {
   computeGoalCompletionIdx,
@@ -31,6 +35,19 @@ export type AutoEndRuleLike = RuleLike & { end_date?: string | null };
 
 /** ruleId -> the `end_date` (YYYY-MM-DD) this feature last wrote onto that rule. */
 export type StampedMap = Record<string, string>;
+
+/**
+ * `savings_goals.auto_end_stamped_rules` (jsonb, so `unknown` at the type level) narrowed to the
+ * ruleId -> end_date map. Lives here rather than on a page because all three trigger sites read
+ * the same column and a second narrowing would be a place for them to disagree.
+ */
+export function toStampedMap(value: unknown): StampedMap {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter((e): e is [string, string] => typeof e[1] === 'string'),
+  );
+}
 
 export type AutoEndPlan = {
   /** The `recurring_rules` updates to issue. `null` end_date clears a stamp we own. */
@@ -137,4 +154,80 @@ export function planAutoEndWrites({
   }
 
   return { ruleWrites, stamped, conflicts };
+}
+
+/** A `savings_goals` row as the reconcile layer sees it. */
+export type AutoEndGoalRow = GoalLike & {
+  auto_end_contributions?: boolean | null;
+  /** Raw jsonb; narrowed with `toStampedMap`. */
+  auto_end_stamped_rules?: unknown;
+};
+
+export type AutoEndReconcilePlan = {
+  /** `recurring_rules` updates to issue. Never contains a clear — reconcile only re-stamps. */
+  ruleWrites: { id: string; end_date: string }[];
+  /** `savings_goals` stamp-map updates, emitted only for goals whose map actually moved. */
+  goalWrites: { id: string; auto_end_stamped_rules: StampedMap }[];
+  conflicts: { goalId: string; ruleId: string; end_date: string }[];
+};
+
+const sameMap = (a: StampedMap, b: StampedMap): boolean => {
+  const ka = Object.keys(a);
+  return ka.length === Object.keys(b).length && ka.every((k) => a[k] === b[k]);
+};
+
+/**
+ * Re-plan the stamps for every goal with the toggle ON, for the two trigger sites that are not
+ * the goal form: a linked rule being saved in Budget Control, and freshly synced balances
+ * landing. Pure — the caller issues the writes.
+ *
+ * Deliberately narrower than `planAutoEndWrites`:
+ *  - a goal with the toggle OFF is skipped entirely, never cleared. Clearing is the goal form's
+ *    job, because only the form knows the user just turned the toggle off; a rule save or a
+ *    balance sync must never be able to strip an end_date.
+ *  - `goalWrites` is emitted only when the map genuinely changed. Together with
+ *    `planAutoEndWrites`'s own idempotence this makes a steady-state reconcile issue ZERO
+ *    writes, which is what lets the sync-landing caller run from an effect without looping.
+ */
+export function planAutoEndReconcile({
+  goals,
+  rules,
+  accounts,
+  today = new Date(),
+}: {
+  goals: AutoEndGoalRow[];
+  rules: AutoEndRuleLike[];
+  accounts: AccountLike[];
+  today?: Date;
+}): AutoEndReconcilePlan {
+  const plan: AutoEndReconcilePlan = { ruleWrites: [], goalWrites: [], conflicts: [] };
+
+  for (const goal of goals) {
+    if (!goal.auto_end_contributions || !goal.id) continue;
+
+    const previousStamped = toStampedMap(goal.auto_end_stamped_rules);
+    const goalPlan = planAutoEndWrites({
+      enabled: true,
+      goal,
+      previousStamped,
+      rules,
+      accounts,
+      today,
+    });
+
+    for (const w of goalPlan.ruleWrites) {
+      // enabled:true only ever clears an ORPHANED stamp (a rule the goal no longer links). A
+      // rule save or balance sync is not evidence of unlinking, so drop clears defensively and
+      // leave them to the goal form.
+      if (w.end_date != null) plan.ruleWrites.push({ id: w.id, end_date: w.end_date });
+    }
+    for (const c of goalPlan.conflicts) {
+      plan.conflicts.push({ goalId: goal.id, ruleId: c.ruleId, end_date: c.end_date });
+    }
+    if (!sameMap(goalPlan.stamped, previousStamped)) {
+      plan.goalWrites.push({ id: goal.id, auto_end_stamped_rules: goalPlan.stamped });
+    }
+  }
+
+  return plan;
 }

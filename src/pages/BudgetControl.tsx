@@ -27,6 +27,7 @@ import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation'
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions, useSyncedTransactions } from '@/hooks/useSupabaseData';
 import { matchOccurrence } from '@/lib/transaction-matching';
+import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
@@ -160,6 +161,8 @@ export default function BudgetControl() {
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules, add: addRule, update: updateRule, remove: removeRule, loading: rulesLoading } = useRecurringRules();
   const { data: savingsGoals, update: updateGoal } = useSavingsGoals();
+  // 97.3 — re-stamp goal auto-end dates when a rule that funds a goal is edited here.
+  const { reconcile: reconcileAutoEnd } = useAutoEndReconcile();
   const { data: carFunds } = useCarFunds();
   const { data: subs } = useSubscriptions();
   const { data: debts } = useDebts();
@@ -714,7 +717,21 @@ export default function BudgetControl() {
       tax_rate: form.rule_type === 'income' && form.tax_rate.trim() !== '' && !isNaN(parsedTaxRate) ? parsedTaxRate : null,
     };
     if (editId) {
-      updateRule.mutate({ id: editId, ...payload });
+      // 97.3 — editing a rule moves the projection of every goal it funds, and the stamped
+      // end_date is a REAL write the forecast honors (forecast-engine.ts:785). Cutting this
+      // rule's amount without re-stamping would leave a stop date EARLIER than the new
+      // completion month, hard-stopping contributions before the goal is funded — the one
+      // direction goal-linkage.ts (4b) cannot rescue, since it only ever stops a rule earlier.
+      //
+      // Sequenced, not fired alongside: both writes can target this rule's end_date, and if the
+      // reconcile landed first the save would overwrite it while the goal's stamp map still
+      // claimed the new date — which the next reconcile would read as a user-set conflict and
+      // then refuse to touch forever. Planned against the rule AS SAVED.
+      const savedRules = rules.map(r => (r.id === editId ? { ...r, ...payload } : r));
+      void updateRule
+        .mutateAsync({ id: editId, ...payload })
+        .then(() => reconcileAutoEnd(savedRules))
+        .catch(() => { /* the mutation's own onError already surfaced this */ });
     } else {
       addRule.mutate(payload);
       requestReviewAfterAction();
