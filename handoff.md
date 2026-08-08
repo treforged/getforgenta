@@ -5,13 +5,21 @@
 
 ## ▶ START HERE
 
-**Blocked on Tre, and it is a 30-second job:** the Claude-controlled Chrome has **no Supabase
-session** at `http://localhost:8080` (probe returned `SIGNED OUT: no supabase auth key`; the app
-redirects to `/auth`). Tre signed this profile in during session 103, but the profile no longer has
-it. Sign-in cannot be automated — see Non-goals in the new skill — so ask him once, then continue
-straight to 97.3 below.
+**Still blocked on Tre — but the cause is now diagnosed, so do not just re-ask blindly.**
 
-Once he is signed in, run the `dev-signin` skill and proceed to carried item 2.
+Tre reported signing in at ~16:45. The probe still returns `SIGNED OUT: no supabase auth key`.
+Ruled out at 20:15 by direct check, not assumption:
+
+- `list_connected_browsers` returns **exactly one** browser (`71343ae8…`, "Browser 1"). So the
+  profile Claude drives is not the one he used — he signed into **his own Chrome**.
+- `127.0.0.1:8080` is *also* signed out (`allKeys` had no `sb-*` entry), so it is not a
+  sibling-origin mixup either.
+
+The automated tab is parked on `http://localhost:8080/auth` and was screenshotted for him, so he
+can match the window on screen. **He must sign in inside that window.** Nothing else is blocking;
+97.3 verification is otherwise ready to run end to end.
+
+Once the probe reports SIGNED IN, go straight to carried item 1.
 
 ## Shipped this session
 
