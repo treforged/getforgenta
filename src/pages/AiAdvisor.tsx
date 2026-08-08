@@ -12,6 +12,8 @@ import { tracedInvoke } from '@/lib/tracer';
 import { formatCurrency } from '@/lib/calculations';
 import { categorizeExpenses } from '@/lib/expense-filtering';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
+import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
+import { buildAdvisorDebtContext } from '@/lib/advisor-debt-context';
 import PremiumGate from '@/components/shared/PremiumGate';
 import {
   Sparkles, TrendingUp, AlertTriangle, CheckCircle2, Loader2,
@@ -593,6 +595,11 @@ export default function AiAdvisor() {
   const { data: goals = [] }    = useSavingsGoals();
   const { data: accounts = [] } = useAccounts();
   const { data: carFunds = [] } = useCarFunds();
+  // Stage 6: the advisor reads the SAME converged projection Dashboard, Forecast and Debt
+  // Payoff render. Before this it computed its own closed-form amortization per debts row,
+  // which could not see the payoff cascade, promos or engine floors — so it could tell the
+  // user a payoff timeline the rest of the app contradicted.
+  const { cardProjection } = useCardProjectionContext();
 
   const allTxns = useMemo(
     () => mergeWithGeneratedTransactions(rawTxns, rules, accounts),
@@ -731,26 +738,11 @@ export default function AiAdvisor() {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 6);
 
-    const debtDetails = debts.map(d => {
-      const balance = Number(d.balance ?? 0);
-      const apr = Number(d.apr ?? 0);
-      const targetPayment = Number(d.target_payment ?? 0);
-      const monthlyRate = apr / 100 / 12;
-      let projectedPayoffMonths: number | null = null;
-      if (balance > 0 && targetPayment > balance * monthlyRate) {
-        const n = monthlyRate === 0
-          ? balance / targetPayment
-          : -Math.log(1 - (monthlyRate * balance) / targetPayment) / Math.log(1 + monthlyRate);
-        projectedPayoffMonths = isFinite(n) && n > 0 ? Math.ceil(n) : null;
-      }
-      return {
-        name: String(d.name ?? 'Unknown'),
-        balance,
-        apr,
-        minPayment: Number(d.min_payment ?? 0),
-        targetPayment,
-        projectedPayoffMonths,
-      };
+    // Debt picture comes from the converged engine, never from a local estimate.
+    const { debtDetails, creditCardDebtFreeMonthsFromNow } = buildAdvisorDebtContext({
+      cardProjection,
+      accounts: activeAccounts,
+      debts,
     });
 
     const savingsGoals = goals.map(g => ({
@@ -789,11 +781,12 @@ export default function AiAdvisor() {
       savingsBalance, cashOnHand, netWorth, savingsRate,
       emergencyRunwayMonths,
       topCategories, debtDetails, savingsGoals,
+      creditCardDebtFreeMonthsFromNow,
       creditCards, loans, investments,
       carFunds: carFundDetails,
       recurringObligations,
     };
-  }, [allTxns, debts, goals, accounts, carFunds, rules]);
+  }, [allTxns, debts, goals, accounts, carFunds, rules, cardProjection]);
 
   // Make this page fill the layout's content area exactly so only the
   // chat thread scrolls — not the outer main element.

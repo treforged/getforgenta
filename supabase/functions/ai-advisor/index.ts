@@ -33,7 +33,10 @@ interface DebtDetail {
   apr: number;
   minPayment: number;
   targetPayment: number;
-  projectedPayoffMonths: number | null;
+  /** Months from today, from the app's converged debt engine. Null means the engine does
+   *  not model this debt (user-entered only) — say nothing about when it is paid off. */
+  payoffMonthsFromNow: number | null;
+  source?: 'engine' | 'user_entered';
 }
 
 interface SavingsGoalDetail {
@@ -97,6 +100,9 @@ interface FinancialSnapshot {
   monthlyExpenses: number;
   monthlyDebtPayments?: number;
   totalDebt: number;
+  /** Months from today until credit cards are paid off, per the app's converged engine.
+   *  Null when the engine has no projection (e.g. no revolving balance). */
+  creditCardDebtFreeMonthsFromNow?: number | null;
   savingsBalance: number;
   cashOnHand: number;
   netWorth: number;
@@ -134,19 +140,32 @@ function buildPrompt(body: FinancialSnapshot): string {
     ? 'Consistent fixed payments each month'
     : 'Variable — payments adjust dynamically based on available cash each month';
 
+  // The app's own credit-card debt-free month, from the same converged engine the Dashboard
+  // and Debt Payoff pages render. Quote this rather than deriving a timeline: an independent
+  // estimate here would contradict what the user is looking at on screen.
+  const ccDebtFree = body.creditCardDebtFreeMonthsFromNow;
+  let debtFreeLine = '';
+  if (ccDebtFree !== null && ccDebtFree !== undefined) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + ccDebtFree);
+    debtFreeLine = `\nThe app projects credit cards paid off in ~${ccDebtFree} months (${d.toLocaleString('en', { month: 'short', year: 'numeric' })}). This is the authoritative figure shown in the app — use it and do not compute your own.`;
+  }
+
   const debtSection = hasDebts
-    ? body.debtDetails
+    ? [...body.debtDetails]
         .sort((a, b) => b.balance - a.balance)
         .map(d => {
           let line = `  - ${sanitizeName(d.name)}: $${d.balance.toFixed(0)} balance`;
           if (d.apr > 0) line += `, ${d.apr.toFixed(1)}% APR`;
           if (d.minPayment > 0) line += `, $${d.minPayment.toFixed(0)}/mo minimum`;
           if (d.targetPayment > d.minPayment) line += `, $${d.targetPayment.toFixed(0)}/mo targeted`;
-          if (d.projectedPayoffMonths !== null && d.projectedPayoffMonths !== undefined) {
-            const months = d.projectedPayoffMonths;
+          if (d.payoffMonthsFromNow !== null && d.payoffMonthsFromNow !== undefined) {
+            const months = d.payoffMonthsFromNow;
             const payoffDate = new Date();
             payoffDate.setMonth(payoffDate.getMonth() + months);
             line += ` → payoff in ~${months} months (${payoffDate.toLocaleString('en', { month: 'short', year: 'numeric' })})`;
+          } else if (d.source === 'user_entered') {
+            line += ` (manually tracked — the payoff engine does not model this debt, so do NOT estimate its payoff date)`;
           }
           return line;
         })
@@ -257,7 +276,7 @@ Debt Payoff Settings
 - Strategy: ${strategyLabel}
 - Payment mode: ${modeLabel}
 
-Debts (total owed: $${body.totalDebt.toFixed(0)})
+Debts (total owed: $${body.totalDebt.toFixed(0)})${debtFreeLine}
 ${debtSection}
 
 Savings Goals
