@@ -17,7 +17,7 @@ import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-trans
 import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, getPrePaycheckNextMonthBills, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction, type PayScheduleConfig } from '@/lib/pay-schedule';
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { computeBonusAndTax } from '@/lib/income-model';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -406,9 +406,13 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // Ignore linked_account when it's the funding account itself — that balance is already
         // counted as available cash elsewhere, so treating it as "already saved" would double-
         // count the same dollars instead of protecting them for the upcoming purchase.
-        const linkedAcct = c.linked_account && c.linked_account !== forecastFundingAccountId
-          ? accountMap.get(c.linked_account) : null;
-        const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved);
+        // §2.10: the two rules (percent-of-account, and separate-account-derives-live) now live in
+        // getCarFundSaved. A missing account stays null so it falls through to current_saved rather
+        // than being read as a $0 balance.
+        const linkedAcct = c.linked_account ? accountMap.get(c.linked_account) : null;
+        const effectiveSaved = getCarFundSaved(
+          c, forecastFundingAccountId, linkedAcct ? Number(linkedAcct.balance) : null,
+        );
         const rem = Math.max(0, Number(c.down_payment_goal) - effectiveSaved - Number(c.gift_contribution || 0));
         // Determine purchase month first — needed for timeline-aware contribution calculation.
         let purchaseMonthIdx: number;
@@ -549,7 +553,12 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           purchaseMonthIdx = Math.max(0, (pd.getFullYear() - nowDate.getFullYear()) * 12 + (pd.getMonth() - nowDate.getMonth()));
         } else {
           const linkedAcctLoan = cf.linked_account ? accountMap.get(cf.linked_account) : null;
-          const effectiveSavedLoan = linkedAcctLoan ? Number(linkedAcctLoan.balance) : Number(cf.current_saved);
+          // Funding id passed as null deliberately: unlike the cash-pool math above, this fallback
+          // purchase-date estimator has always derived from ANY linked account, funding one
+          // included. Routing it through the helper adds percent mode without changing that.
+          const effectiveSavedLoan = getCarFundSaved(
+            cf, null, linkedAcctLoan ? Number(linkedAcctLoan.balance) : null,
+          );
           const rem = Math.max(0, Number(cf.down_payment_goal) - effectiveSavedLoan - Number(cf.gift_contribution || 0));
           const mc = rem > 0 ? Math.min(rem / 12, 500) : 0;
           purchaseMonthIdx = mc > 0 ? Math.ceil(rem / mc) : 999;

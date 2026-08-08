@@ -186,13 +186,51 @@ export function getLoanPrincipal(cf: CarFund): number {
  * stops matching this filter and the earmark disappears on its own — no separate release step,
  * which is what keeps loan activation from creating a second, unrelated cash discontinuity.
  */
-export function getCarFundEarmark(carFunds: CarFund[], fundingAccountId: string | null): number {
+export function getCarFundEarmark(
+  carFunds: CarFund[], fundingAccountId: string | null, fundingAccountBalance: number | null = null,
+): number {
   return carFunds.reduce((s, cf) => {
     if (cf.phase !== 'saving') return s;
     if (cf.linked_account && cf.linked_account !== fundingAccountId) return s;
     const ownCashNeeded = Math.max(0, Number(cf.down_payment_goal || 0) - Number(cf.gift_contribution || 0));
-    return s + Math.min(Number(cf.current_saved || 0), ownCashNeeded);
+    // Only same-account / unlinked funds reach here, so the linked balance IS the funding balance.
+    // The separate-account branch of getCarFundSaved is unreachable from this filter by construction.
+    return s + Math.min(getCarFundSaved(cf, fundingAccountId, fundingAccountBalance), ownCashNeeded);
   }, 0);
+}
+
+/**
+ * THE single source for "how much has this car fund already saved" — finding §2.10.
+ *
+ * Two independent rules used to live inline at ten call sites, and one of them (the earmark) was
+ * missing the other, which is how §2.9's shortfall got in. Both now live here:
+ *
+ *  1. `saved_source === 'account_percent'` — the user declared that N% of the linked account is car
+ *     money. Self-limiting: a percentage of a balance can never exceed that balance, so this mode
+ *     cannot produce a §2.9 shortfall at all. Takes priority because it is an explicit user choice.
+ *  2. Otherwise, a link to a *separate* account means the money demonstrably sits there, so the live
+ *     balance is the honest figure — the pre-existing behavior at nine call sites. The
+ *     `!== fundingAccountId` guard is load-bearing: when the linked account IS the funding account,
+ *     its balance is already offered as available cash, and calling it "saved" too would count the
+ *     same dollars twice. That case falls through to the typed figure and is earmarked instead.
+ *  3. Otherwise, the typed `current_saved` — today's behavior and every pre-§2.10 row.
+ *
+ * `linkedAccountBalance` is the balance of `cf.linked_account`, or null when the caller has not
+ * resolved it; a null balance always falls through to `current_saved` rather than inventing a zero.
+ * Under `'fixed'` (every existing row) this returns exactly what each call site computed inline
+ * before, pinned by `vehicle-loan-engine.savedSource.test.ts`, so §2.10 moves no existing figure.
+ */
+export function getCarFundSaved(
+  cf: CarFund, fundingAccountId: string | null, linkedAccountBalance: number | null,
+): number {
+  if (cf.saved_source === 'account_percent' && cf.linked_account && linkedAccountBalance != null) {
+    const pct = Math.min(100, Math.max(0, Number(cf.saved_percent || 0)));
+    return Math.max(0, Number(linkedAccountBalance)) * (pct / 100);
+  }
+  if (cf.linked_account && cf.linked_account !== fundingAccountId && linkedAccountBalance != null) {
+    return Number(linkedAccountBalance);
+  }
+  return Number(cf.current_saved || 0);
 }
 
 export interface CarFundEarmarkResolution {
@@ -223,7 +261,7 @@ export interface CarFundEarmarkResolution {
 export function resolveCarFundEarmark(
   carFunds: CarFund[], fundingAccountId: string | null, accountBalance: number,
 ): CarFundEarmarkResolution {
-  const requested = getCarFundEarmark(carFunds, fundingAccountId);
+  const requested = getCarFundEarmark(carFunds, fundingAccountId, accountBalance);
   const applied = Math.min(requested, Math.max(0, accountBalance));
   return { requested, applied, shortfall: requested - applied };
 }

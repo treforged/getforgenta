@@ -38,6 +38,12 @@ export type SavingsGoal = {
 
 export type CarFundPhase = 'saving' | 'loan';
 
+/** Finding §2.10. There is deliberately no `'account_balance'` mode: where a car fund links to a
+ * SEPARATE account the app already derives the saved figure from that balance live, and where it
+ * links to the funding account itself, claiming the whole balance would double-count the same
+ * dollars that are already offered as available cash. */
+export type CarFundSavedSource = 'fixed' | 'account_percent';
+
 export type CarFund = {
   id: string;
   user_id: string;
@@ -46,6 +52,14 @@ export type CarFund = {
   tax_fees: number;
   down_payment_goal: number;
   current_saved: number;
+  /** How the "already saved" figure is determined — finding §2.10. `'fixed'` (the default, and
+   * every pre-§2.10 row) means the typed `current_saved`; `'account_percent'` means
+   * `saved_percent`% of `linked_account`'s live balance, which can never exceed that balance and
+   * so cannot produce §2.9's shortfall. Read it through `getCarFundSaved`, never directly. */
+  saved_source: CarFundSavedSource;
+  /** Percent (0-100) of `linked_account`'s balance treated as car savings under
+   * `saved_source === 'account_percent'`. Ignored in `'fixed'` mode. */
+  saved_percent: number;
   monthly_insurance: number;
   expected_apr: number;
   loan_term_months: number;

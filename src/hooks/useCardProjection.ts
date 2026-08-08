@@ -15,7 +15,7 @@ import {
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { computeBonusAndTax, computeAnnualFederalWithheld } from '@/lib/income-model';
 import type { FilingStatus } from '@/lib/tax-estimator';
-import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, resolveCarFundEarmark } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -712,9 +712,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const carDownPaymentByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, i) => {
         return carFunds.reduce((s, c) => {
           if (c.phase !== 'saving') return s;
-          const liveSaved = c.linked_account
-            ? Number(accountMap.get(c.linked_account)?.balance ?? c.current_saved ?? 0)
-            : Number(c.current_saved || 0);
+          // Funding id null deliberately: this lump-sum path has always derived from ANY linked
+          // account (see the `contrib` comment below, which pairs with it). §2.10 routes it through
+          // the helper for percent mode without changing which account it reads.
+          const linkedAcctLive = c.linked_account ? accountMap.get(c.linked_account) : null;
+          const liveSaved = getCarFundSaved(
+            c, null, linkedAcctLive ? Number(linkedAcctLive.balance) : null,
+          );
           const rem = Math.max(0, Number(c.down_payment_goal || 0) - liveSaved - Number(c.gift_contribution || 0));
           if (rem <= 0) return s;
           let purchaseMonthIdx: number;
@@ -1235,9 +1239,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // double-count the same dollars instead of protecting them for the upcoming purchase.
       const carReserve = pauseSavings ? 0 : carFunds.reduce((s, c) => {
         if (c.phase !== 'saving') return s;
-        const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
-          ? accountMap.get(c.linked_account) : null;
-        const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved || 0);
+        const linkedAcct = c.linked_account ? accountMap.get(c.linked_account) : null;
+        const effectiveSaved = getCarFundSaved(
+          c, resolvedDebtFundingId, linkedAcct ? Number(linkedAcct.balance) : null,
+        );
         const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
         const rem = Math.max(0, giftAdjDownPmt - effectiveSaved);
         let purchaseMonthIdx: number;
@@ -1261,9 +1266,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // month 0 matters here, so the sole exclusion is a vehicle bought this month.
       const carReserveHeld = pauseSavings ? 0 : carFunds.reduce((s, c) => {
         if (c.phase !== 'saving') return s;
-        const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
-          ? accountMap.get(c.linked_account) : null;
-        const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved || 0);
+        const linkedAcct = c.linked_account ? accountMap.get(c.linked_account) : null;
+        const effectiveSaved = getCarFundSaved(
+          c, resolvedDebtFundingId, linkedAcct ? Number(linkedAcct.balance) : null,
+        );
         const giftAdjDownPmt = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0));
         const rem = Math.max(0, giftAdjDownPmt - effectiveSaved);
         let purchaseMonthIdx: number;
@@ -1284,9 +1290,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       }, 0);
       const carReserveEvent = pauseSavings ? null : carFunds.find(c => {
         if (c.phase !== 'saving') return false;
-        const linkedAcct = c.linked_account && c.linked_account !== resolvedDebtFundingId
-          ? accountMap.get(c.linked_account) : null;
-        const effectiveSaved = linkedAcct ? Number(linkedAcct.balance) : Number(c.current_saved || 0);
+        const linkedAcct = c.linked_account ? accountMap.get(c.linked_account) : null;
+        const effectiveSaved = getCarFundSaved(
+          c, resolvedDebtFundingId, linkedAcct ? Number(linkedAcct.balance) : null,
+        );
         const rem = Math.max(0, Number(c.down_payment_goal) - Number(c.gift_contribution || 0) - effectiveSaved);
         return rem > 0 && !(c.linked_account && c.linked_rule_id);
       });

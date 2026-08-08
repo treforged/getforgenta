@@ -486,6 +486,8 @@ export type Database = {
           payment_start_date: string | null
           phase: string
           planned_purchase_date: string | null
+          saved_percent: number
+          saved_source: string
           target_price: number
           tax_fees: number
           updated_at: string
@@ -513,6 +515,8 @@ export type Database = {
           payment_start_date?: string | null
           phase?: string
           planned_purchase_date?: string | null
+          saved_percent?: number
+          saved_source?: string
           target_price?: number
           tax_fees?: number
           updated_at?: string
@@ -540,6 +544,8 @@ export type Database = {
           payment_start_date?: string | null
           phase?: string
           planned_purchase_date?: string | null
+          saved_percent?: number
+          saved_source?: string
           target_price?: number
           tax_fees?: number
           updated_at?: string

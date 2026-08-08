@@ -7,7 +7,7 @@ import InstructionsModal from '@/components/shared/InstructionsModal';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
-import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
+import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, getCarFundSaved, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
 import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useDemo } from '@/contexts/DemoContext';
@@ -16,7 +16,7 @@ import { Plus, Edit2, Trash2, Car, TrendingDown, AlertTriangle, Link2, Undo2, Ca
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import type { CarFund } from '@/lib/types';
+import type { CarFund, CarFundSavedSource } from '@/lib/types';
 import type { Json } from '@/integrations/supabase/types';
 
 const toMonthly = (amount: number, freq: string) =>
@@ -28,6 +28,7 @@ const toMonthly = (amount: number, freq: string) =>
 const emptySavingForm = {
   vehicle_name: '', target_price: '', tax_fees: '', down_payment_goal: '', gift_contribution: '',
   current_saved: '', monthly_insurance: '', expected_apr: '', loan_term_months: '60',
+  saved_source: 'fixed', saved_percent: '',
   linked_account: '', linked_rule_id: '', planned_purchase_date: '',
   payment_start_date: '', insurance_start_date: '',
 };
@@ -915,7 +916,27 @@ export default function Vehicles() {
       { key: 'linked_account', label: 'Linked Account (auto-pull balance)', type: 'select', options: accountOptions },
       { key: 'linked_rule_id', label: 'Transfer Rule (auto-sync contribution)', type: 'select', options: transferRuleOptions },
     ];
-    if (!savingForm.linked_account) {
+    // §2.10: with an account linked, say WHICH part of that balance is car money. The whole balance
+    // is the default and matches the pre-§2.10 behavior exactly; a percentage is the honest model
+    // for a commingled account, and it can never claim more than the account actually holds.
+    if (savingForm.linked_account) {
+      fields.push({
+        key: 'saved_source', label: 'Amount Saved', type: 'select',
+        options: [
+          { value: 'fixed', label: "The account's full balance" },
+          { value: 'account_percent', label: 'A percentage of the balance' },
+        ],
+        hint: savingForm.saved_source === 'account_percent'
+          ? 'Tracks the balance, so it can never claim more than the account holds.'
+          : 'Pulls the full balance. Use a percentage if this account also holds other savings.',
+      });
+      if (savingForm.saved_source === 'account_percent') {
+        fields.push({
+          key: 'saved_percent', label: 'Percent of Balance Saved for This Vehicle',
+          type: 'number', placeholder: '40', step: '0.01',
+        });
+      }
+    } else {
       fields.push({ key: 'current_saved', label: 'Current Saved', type: 'number', placeholder: '0', step: '0.01' });
     }
     fields.push(
@@ -925,7 +946,7 @@ export default function Vehicles() {
       { key: 'loan_term_months', label: 'Loan Term (months)', type: 'number', placeholder: '60' },
     );
     return fields;
-  }, [savingForm.linked_account, accountOptions, transferRuleOptions]);
+  }, [savingForm.linked_account, savingForm.saved_source, accountOptions, transferRuleOptions]);
 
   const openAddSaving = () => { setSavingForm(emptySavingForm); setEditId(null); setShowSavingForm(true); };
   const openAddLoan = () => { setLoanForm(emptyLoanForm); setEditId(null); setShowLoanForm(true); };
@@ -938,6 +959,8 @@ export default function Vehicles() {
       down_payment_goal: String(cf.down_payment_goal),
       gift_contribution: cf.gift_contribution ? String(cf.gift_contribution) : '',
       current_saved: String(cf.current_saved),
+      saved_source: cf.saved_source ?? 'fixed',
+      saved_percent: cf.saved_percent ? String(cf.saved_percent) : '',
       monthly_insurance: String(cf.monthly_insurance),
       expected_apr: String(cf.expected_apr),
       loan_term_months: String(cf.loan_term_months),
@@ -979,9 +1002,25 @@ export default function Vehicles() {
     const linkedRule = savingForm.linked_rule_id
       ? rules.find(r => r.id === savingForm.linked_rule_id)
       : null;
-    const effectiveSaved = linkedAccount && accountMap[linkedAccount]
-      ? Number(accountMap[linkedAccount].balance)
-      : parseFloat(savingForm.current_saved) || 0;
+    // §2.10: percent mode is only meaningful against a linked account (the DB enforces this too),
+    // so an unlinked fund always falls back to 'fixed'.
+    const savedSource: CarFundSavedSource = linkedAccount && savingForm.saved_source === 'account_percent'
+      ? 'account_percent'
+      : 'fixed';
+    const savedPercent = savedSource === 'account_percent'
+      ? Math.min(100, Math.max(0, parseFloat(savingForm.saved_percent) || 0))
+      : 0;
+    if (savedSource === 'account_percent' && savedPercent <= 0) {
+      toast.error('Enter the percent of that account’s balance saved for this vehicle.');
+      return;
+    }
+    // `current_saved` stays the 'fixed' value. Under percent mode the figure is derived live by
+    // getCarFundSaved, so this column is only a last-known snapshot for that row.
+    const effectiveSaved = savedSource === 'account_percent'
+      ? Math.max(0, Number(accountMap[linkedAccount!]?.balance ?? 0)) * (savedPercent / 100)
+      : linkedAccount && accountMap[linkedAccount]
+        ? Number(accountMap[linkedAccount].balance)
+        : parseFloat(savingForm.current_saved) || 0;
     const payload = {
       vehicle_name: cleanVehicleName,
       target_price: parseFloat(savingForm.target_price) || 0,
@@ -989,6 +1028,8 @@ export default function Vehicles() {
       down_payment_goal: parseFloat(savingForm.down_payment_goal) || 0,
       gift_contribution: parseFloat(savingForm.gift_contribution) || 0,
       current_saved: effectiveSaved,
+      saved_source: savedSource,
+      saved_percent: savedPercent,
       monthly_insurance: parseFloat(savingForm.monthly_insurance) || 0,
       expected_apr: parseFloat(savingForm.expected_apr) || 0,
       loan_term_months: parseInt(savingForm.loan_term_months) || 60,
@@ -1221,9 +1262,14 @@ export default function Vehicles() {
             const linkedRule = cf.linked_rule_id
               ? rules.find(r => r.id === cf.linked_rule_id)
               : null;
-            const displayCf: CarFund = linkedAccount
-              ? { ...cf, current_saved: Number(linkedAccount.balance) }
-              : cf;
+            // §2.10: resolve the saved figure ONCE here and hand downstream a plain 'fixed' fund, so
+            // nothing re-derives a percentage from an already-resolved number.
+            const resolvedSaved = getCarFundSaved(
+              cf, null, linkedAccount ? Number(linkedAccount.balance) : null,
+            );
+            const displayCf: CarFund = resolvedSaved === Number(cf.current_saved) && cf.saved_source === 'fixed'
+              ? cf
+              : { ...cf, current_saved: resolvedSaved, saved_source: 'fixed' };
             const monthlyContrib = linkedRule
               ? toMonthly(Number(linkedRule.amount), linkedRule.frequency)
               : 0;
@@ -1232,8 +1278,7 @@ export default function Vehicles() {
               if (monthlyContrib > 0) return 0; // rule handles it
               const gift = Number(cf.gift_contribution) || 0;
               const personalGoal = Math.max(0, cf.down_payment_goal - gift);
-              const effectiveSaved = linkedAccount ? Number(linkedAccount.balance) : Number(cf.current_saved);
-              const rem = Math.max(0, personalGoal - effectiveSaved);
+              const rem = Math.max(0, personalGoal - resolvedSaved);
               if (rem <= 0) return 0;
               const now = new Date();
               let savingMonths = 13; // default: this month + 12 future

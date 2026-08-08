@@ -11,7 +11,7 @@ import type { CarFund } from '../types';
 function makeCarFund(overrides: Partial<CarFund>): CarFund {
   return {
     id: 'car-1', user_id: 'u1', vehicle_name: 'Test Car', target_price: 0, tax_fees: 0,
-    down_payment_goal: 0, current_saved: 0, monthly_insurance: 0, expected_apr: 6,
+    down_payment_goal: 0, current_saved: 0, saved_source: 'fixed', saved_percent: 0, monthly_insurance: 0, expected_apr: 6,
     loan_term_months: 60, phase: 'saving', loan_amount: 0,
     loan_start_date: null, payment_start_date: null, interest_start_date: null,
     actual_monthly_payment: 0, linked_account: null, linked_rule_id: null, loan_payment_account: null,

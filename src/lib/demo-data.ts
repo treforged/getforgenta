@@ -199,6 +199,11 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     // exercises the earmark path, so the demo shows the feature working rather than a clamped zero.
     // If d1's balance ever changes, keep this below it.
     current_saved: 1200,
+    // §2.10: deliberately left on 'fixed'. The only percent that reproduces §2.9's live-verified
+    // $1,200 against d1's $2,800 is 42.857…%, which would put float noise into a money figure on
+    // the demo dashboard. Percent mode is exercised by its unit tests instead.
+    saved_source: 'fixed',
+    saved_percent: 0,
     monthly_insurance: 180,
     expected_apr: 5.9,
     loan_term_months: 60,
@@ -222,6 +227,8 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     tax_fees: 2500,
     down_payment_goal: 6800,
     current_saved: 6800,
+    saved_source: 'fixed',
+    saved_percent: 0,
     monthly_insurance: 210,
     expected_apr: 6.4,
     loan_term_months: 60,

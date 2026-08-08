@@ -46,7 +46,7 @@ function carFund(over: Partial<CarFund>): CarFund {
     target_price: 20000,
     tax_fees: 0,
     down_payment_goal: 3000,
-    current_saved: 0,
+    current_saved: 0, saved_source: 'fixed', saved_percent: 0,
     monthly_insurance: 0,
     expected_apr: 10.18,
     loan_term_months: 48,

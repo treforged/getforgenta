@@ -46,7 +46,7 @@ import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/l
 import { buildMonthlyExpenseModel } from '@/lib/monthly-expense-model';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
-import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund } from '@/lib/vehicle-loan-engine';
+import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { buildNetWorthBreakdown, totalsFromBreakdown } from '@/lib/net-worth';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
@@ -748,7 +748,9 @@ export default function Dashboard() {
       const linkedAcctBal = c.linked_account && accountMap[c.linked_account]
         ? Number(accountMap[c.linked_account].balance)
         : null;
-      const saved = linkedAcctBal ?? Number(c.current_saved);
+      // §2.10: funding id null — this tile has always shown the linked balance whichever account it
+      // is. The helper adds percent mode and leaves 'fixed' funds reading exactly as before.
+      const saved = getCarFundSaved(c, null, linkedAcctBal);
       const gift = Number(c.gift_contribution) || 0;
       const personalTarget = Math.max(0, Number(c.down_payment_goal) - gift);
       const rem = Math.max(0, personalTarget - saved);
