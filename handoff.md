@@ -44,8 +44,9 @@ range **2026-01-17 → 2026-08-05**, `account_id` resolved on every row (0 untra
 Traced by hand for the live car fund (`0f75dec9…`, 2004 Chevorlet C5, `loan_payment_account` =
 `933cbc10…`, `actual_monthly_payment` **$422.89**, `payment_start_date` **2026-08-07**):
 
-- **The real payment is sitting PENDING.** `$422.89` on **2026-08-07**, TOTAL CHECKING,
-  `ORIG CO NAME:USAA FSB … ICPAYMENT`. There is **no settled** row near $422.89 on that account.
+- **The real payment is sitting PENDING** — matching amount and date, on the loan payment account.
+  There is **no settled** row near that amount on that account. (Descriptor deliberately not quoted:
+  this repo is PUBLIC. Re-read it from `synced_transactions` if a future session needs it.)
 - `matchCharge` skips pending rows → `matched: false`.
 - `hasCoverage` needs latest **settled** ≥ dueDate+5 = **2026-08-12**; latest settled is
   **2026-08-05** → `hasTxnCoverage: false`.
@@ -200,6 +201,11 @@ explicit authorization and does NOT carry forward. Verify with
 14. `tre-forged-conductor/` belongs to a PARALLEL session. Never `git add -A`; list files explicitly.
 15. Supabase MCP `generate_typescript_types` returns a JSON envelope too large to paste; read the
     persisted tool-result file and extract `.types` with node.
+16. ⚠️ **`handoff.md` is committed to a PUBLIC repo.** It is a working note, but it ships to GitHub.
+    Amounts, account UUIDs and `user_id` are the established (accepted) level of detail. Do NOT add
+    raw bank transaction descriptors, merchant/counterparty names, or anything pulled verbatim out
+    of `synced_transactions` — cite the amount and date and let the next session re-query the row.
+    Session 110 pasted one descriptor and had to scrub it after pushing.
 
 ## Browser-verification recipes (reusable)
 
