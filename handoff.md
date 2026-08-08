@@ -1,93 +1,59 @@
-# Handoff — 2026-08-08 — session 108 — §2.9 SHIPPED + live-verified. Next task is decided but NOT started.
+# Handoff — 2026-08-08 — session 109 — §2.10 SHIPPED (code+DB). Live UI check is the one gap.
 
-> Session 108 closed carried item 2 (§2.9 car-fund earmark), commit **`cab6efda`**, live-verified in
-> demo mode. **NOT pushed** (standing rule). `main` is 2 ahead of `origin/main`.
->
-> **The next task is already chosen and specced** — see "§2.10 NEXT UP" below. Tre asked for it
-> mid-session; it has a recommendation but no code. Start there.
+> Session 109 built §2.10, commit **`80f72c2d`**, on top of session 108's `cab6efda`.
+> **NOT pushed.** `main` is 4 ahead of `origin/main` (`origin/main` = `09622e53`).
+> Tre's answer to the scope question was *"do what you believe is best and would be most accurate
+> and consistent"* — so the shrunk one-mode design below was chosen and built.
 
-## ✅ §2.9 SHIPPED — `cab6efda` — earmark shortfall is surfaced, not clamped away
+## ✅ §2.10 SHIPPED — `80f72c2d` — percent-of-linked-account saved source
 
-**Root cause:** `getCarFundEarmark` subtracted a user-typed `current_saved` from the funding
-account's balance with no check the saved cash was actually IN that account, and BOTH callers
-absorbed the difference with their own `Math.max(0, balance - earmark)`. Demo rendered
-`Balance on hand $0` against a $2,800 checking balance with no explanation.
+**The audit corrected the spec, and this is the part worth carrying forward.** Car funds ALREADY
+derive from the linked account at nine read sites — but only when that account is *separate* from
+the funding account. That guard is load-bearing (`forecast-engine.ts:406-408`): when the linked
+account IS the funding account, its balance is already offered as available cash, so calling it
+"saved" too double-counts. Therefore the originally specced **`account_balance` mode was dropped** —
+it already exists where it is valid and would be actively wrong in the exact case §2.9's drift lives
+in. **Do not re-propose it.**
 
-Tre's two decisions (2026-08-08), both implemented — **do not re-litigate**:
+`getCarFundSaved(cf, fundingAccountId, linkedAccountBalance)` in `vehicle-loan-engine.ts` is now THE
+single source; both rules (percent, and separate-account-derives-live) live in it, and all ten call
+sites route through it including `getCarFundEarmark`. Under `'fixed'` it returns exactly what each
+site computed inline before — pinned across all six link/funding/balance shapes, so §2.10 **moves no
+existing cash figure**.
 
-1. **Earmark is its own chain row.** `chain.fundingBalance` is now **GROSS**; new
-   `chain.carSavedEarmark` carries the deduction. `cashPreDebt` unchanged to the cent.
-2. **Shortfall is named, not absorbed.** New `chain.carSavedShortfall` is **deliberately NOT in the
-   cashPreDebt identity** — it is a data-consistency signal, not money leaving the account, and
-   folding it would double-count against a balance that never held it. It rides as copy: on the
-   earmark row when some applied, on the **balance row** when none could (that user is exactly the
-   one who needs the explanation and there is no row to hang it on).
+DB (migration `car_funds_saved_source`, applied live): `saved_source` (`'fixed'|'account_percent'`,
+default `'fixed'`) + `saved_percent`, with three CHECKs (enum, 0-100, percent requires a linked
+account). **All existing rows are `'fixed'`** — verified, zero behavior change.
 
-`resolveCarFundEarmark(carFunds, fundingAccountId, accountBalance) -> {requested, applied, shortfall}`
-in `vehicle-loan-engine.ts` now **owns the clamp**, so `forecast-engine.ts` and `useCardProjection.ts`
-cannot drift on how an over-claim is absorbed. A test pins
-`max(0, balance) - applied === max(0, balance - requested)` across the sign boundaries
-(-500, -0.01, 0, 0.01, … 99999), so the refactor **provably moves no cash figure**.
+Gate: **578/578 tests (18 new), tsc 0**, eslint unchanged (the 1 `useCardProjection` exhaustive-deps
+warning is PRE-EXISTING — verified by stashing).
 
-Files: `vehicle-loan-engine.ts`, `debt-model-types.ts`, `useCardProjection.ts`, `forecast-engine.ts`,
-`month0-budget-snapshot.ts`, `Dashboard.tsx`, `demo-data.ts` + 3 test files.
+Deliberate calls, do not re-litigate:
+- **Demo stays on `'fixed'`.** The only percent reproducing §2.9's live-verified $1,200 against d1's
+  $2,800 is 42.857…%, which puts float noise into an on-screen money figure. Percent mode is
+  covered by unit tests instead.
+- **Two divergences preserved, not unified**: the fallback purchase-date estimator
+  (`forecast-engine.ts`) and the lump-sum path (`useCardProjection.ts`) have always derived from ANY
+  linked account, funding one included. They pass a **null funding id** so percent mode is added
+  without changing which account they read. Unifying them is a separate, behavior-changing decision.
 
-**Demo fixture** (Tre's call): Civic `current_saved` **3200 → 1200** against d1's $2,800. Coherent,
-and it still **exercises** the earmark path instead of showing a clamped zero. Keep it below d1's
-balance if that balance ever changes.
+Files: `vehicle-loan-engine.ts`, `types.ts`, `forecast-engine.ts`, `useCardProjection.ts`,
+`Dashboard.tsx`, `Vehicles.tsx`, `demo-data.ts`, `integrations/supabase/types.ts` + 7 test files.
+Backups: `backups/2026-08-08_105248/`.
 
-**Live-verified in demo, on screen:** `Balance on hand $2,800.00`, `Already saved toward a car
-−$1,200.00`, and the rendered column folds to **$4,103.69 = the engine's Projected remaining**.
-**Do not re-verify this.** Final gate: **560/560 tests (14 new), tsc 0, eslint 0.**
-
-Backups: `backups/2026-08-08_102744/`.
-
-## 🔜 §2.10 NEXT UP — how "amount saved" is marked against a linked account (Tre asked, 2026-08-08)
-
-Tre's question, verbatim: *"whats the best way to mark the amount saved for a linked account? could
-the user also be allowed to set it as a percentage of their linked account or set a value?"*
-
-**Answered with a recommendation but NO code written and NO decision confirmed.** This is the open
-item — get Tre's yes/no on the shape below, then build it.
-
-**Why it matters:** §2.9 treated the symptom. The root cause is that `car_funds.current_saved` is a
-number the user TYPES while the account balance is a number the BANK reports, with nothing keeping
-them consistent. §2.9 makes the drift visible; this makes it structurally impossible.
-
-**The precedent already in this repo:** savings goals ALREADY derive from the account when linked —
-see `demo-data.ts:183` *"Emergency Fund linked to Marcus HYS (d3) so balance auto-pulls from the
-account."* Car funds never got that treatment. Same class of drift as
-`getGoalEffectiveApyPercent` (§2.5) and `contributionCutoffIdx` (§97.3).
-
-**Recommendation: a `saved_source` mode with three options, defaulting to derived.**
-
-| mode | meaning | §2.9 shortfall possible? |
-|---|---|---|
-| `account_balance` (**default when an account is linked**) | saved = the linked account's whole balance | **No** — structurally impossible |
-| `account_percent` | saved = N% of the linked account's balance | **No** — self-limiting |
-| `fixed` (today's behavior) | saved = typed `current_saved` | Yes — §2.9's warning is the guard |
-
-- **Percentage earns its place**: it is the honest model for a commingled HYS holding both the
-  emergency fund and car money, and it can never exceed the balance.
-- **`fixed` must stay**: every existing car fund uses it, and it is the only sane model when the
-  money is commingled in checking and the user wants an exact figure.
-- Shape: `saved_source text` + `saved_percent numeric` columns; keep `current_saved` as the `fixed`
-  value. Route ALL reads through ONE helper `getCarFundSaved(cf, accountBalance)` — same
-  single-source pattern as above. `resolveCarFundEarmark` then consumes that helper.
-
-**Two caveats to raise with Tre before building:**
-1. Derived modes make the saved figure **move with the balance** — a payday makes "car savings" jump
-   and the projected purchase date shift. Surprising for something users read as a goal. Needs the
-   progress bar understood as "current", not "committed".
-2. A percentage against an account that ALSO backs a savings goal can **double-count** (100% car +
-   the emergency fund's own claim on the same HYS). Worth validating that claims against one account
-   sum to ≤ 100%.
+### ⚠️ The one gap — §2.10's UI is NOT live-verified
+The Vehicles saving-form now shows an **"Amount Saved"** select (full balance / percentage) plus a
+percent field, and `handleSaveSaving` writes `saved_source`/`saved_percent`. **Nobody has rendered
+or saved that form.** Demo mode cannot verify it (demo does not write to the DB) and Tre's only real
+car fund is `phase='loan'`, so the saving form is not reachable from his data either. Verifying it
+needs either a throwaway saving-phase fund on Tre's account (mutates his data — **ask first**) or a
+signed-in scratch account. Everything below the UI is pinned by tests.
 
 ## Still open (carried, renumbered)
 
 1. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
    `debt-transaction-generator.ts:12-34`. **Recommendation: skip.**
-2. **§2.10 above** (was: §2.9 car-fund earmark, now shipped).
+2. **§2.10 UI live-verification** (see the gap box above) — the only open part of §2.10.
 3. `backup.plaid_items_20260807` / `backup.accounts_20260807` — safe to drop; §1 is settled.
    **Needs Tre's go-ahead** (irreversible), which is why session 108 did not do it.
 4. Native Plaid Hosted Link device verification (needs a physical device).
@@ -95,7 +61,7 @@ account."* Car funds never got that treatment. Same class of drift as
 
 ## Closed previously (do not reopen)
 
-§1A Stage C (all parts, session 103), 97.1 `/debt` TOTAL LIMIT tile ($25,400), `types.ts` regen
+§2.10 (session 109, code+DB; UI unverified), §1A Stage C (all parts, session 103), 97.1 `/debt` TOTAL LIMIT tile ($25,400), `types.ts` regen
 (session 104), remote access (Tailscale+RDP, sessions 104/107 — lives OUTSIDE this repo in
 `C:\Users\tvonh\Desktop\remote-access\`; **this repo is PUBLIC**), **97.3** (all parts, incl. the
 goal chart earning interest after contributions stop, live-verified session 107), and now **§2.9**.
@@ -112,7 +78,7 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-**`main` is 2 ahead of `origin/main`** (`35a02172` session-107 handoff + `cab6efda` §2.9).
+**`main` is 4 ahead of `origin/main`** (session-107/108 handoffs + `cab6efda` §2.9 + `80f72c2d` §2.10).
 `origin/main` = `09622e53`. Standing rule: **never auto-push** — session 107's push was a one-off
 explicit authorization and does NOT carry forward. Verify with
 `git rev-list --count origin/main..main`.
@@ -179,6 +145,17 @@ For a recharts line, read exact rows off the **React fiber** (walk up from `.rec
 `computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
 
 ## Lessons
+
+**Session 109 — audit the premise before building the spec.** The handoff said car funds "never got"
+the derive-from-account treatment savings goals have. One grep showed they had it at nine sites, and
+that the guard those sites share made one of the three proposed modes actively wrong. Three modes
+became one, and the feature got smaller and more correct. A spec inherited from a previous session
+is a hypothesis, not a requirement — cheapest possible check, run it first.
+
+**Session 109 — a guard repeated at every call site is a rule with no home.** `!== fundingAccountId`
+appeared at nine sites and was missing from the tenth, which is exactly where §2.9's bug was. Same
+shape as session 108's clamp: when you see the same condition copied everywhere, the one place it
+was forgotten is where the bug lives.
 
 **Session 108 — a clamp is not a model.** `Math.max(0, …)` at two call sites looked like defensive
 arithmetic; it was actually the app deciding, silently, that a data inconsistency didn't exist. When
