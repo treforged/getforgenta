@@ -1,184 +1,104 @@
-# Handoff — 2026-08-08 — session 107 — PUSHED + live-verified. Nothing open in this repo.
+# Handoff — 2026-08-08 — session 108 — §2.9 SHIPPED + live-verified. Next task is decided but NOT started.
 
-> **Session 107 finished its work.** 97.3 is pushed and live-verified, and the remote-access
-> docs are closed out. There is no in-flight task — start the next thing fresh. The carried
-> backlog near the bottom ("Still open") is the only work remaining.
+> Session 108 closed carried item 2 (§2.9 car-fund earmark), commit **`cab6efda`**, live-verified in
+> demo mode. **NOT pushed** (standing rule). `main` is 2 ahead of `origin/main`.
+>
+> **The next task is already chosen and specced** — see "§2.10 NEXT UP" below. Tre asked for it
+> mid-session; it has a recommendation but no code. Start there.
 
-## ✅ PUSH DONE — nothing carried on this front
+## ✅ §2.9 SHIPPED — `cab6efda` — earmark shortfall is surfaced, not clamped away
 
-Session 107 executed the rebase and pushed. `origin/main` is now **`09622e53`** (`7af203e0`
-was the code; `09622e53` is this handoff), `main` **0 ahead / 0 behind**, tree clean. Both
-pushes were **plain fast-forwards** — no force was needed and the stop signal never fired.
+**Root cause:** `getCarFundEarmark` subtracted a user-typed `current_saved` from the funding
+account's balance with no check the saved cash was actually IN that account, and BOTH callers
+absorbed the difference with their own `Math.max(0, balance - earmark)`. Demo rendered
+`Balance on hand $0` against a $2,800 checking balance with no explanation.
 
-## ✅ Goal chart live-verified against real data (session 107)
+Tre's two decisions (2026-08-08), both implemented — **do not re-litigate**:
 
-Read the chart's exact rows off the **React fiber** rather than parsing SVG geometry — strictly
-better than the pixel recipe further down, and it yields real dollars:
+1. **Earmark is its own chain row.** `chain.fundingBalance` is now **GROSS**; new
+   `chain.carSavedEarmark` carries the deduction. `cashPreDebt` unchanged to the cent.
+2. **Shortfall is named, not absorbed.** New `chain.carSavedShortfall` is **deliberately NOT in the
+   cashPreDebt identity** — it is a data-consistency signal, not money leaving the account, and
+   folding it would double-count against a balance that never held it. It rides as copy: on the
+   earmark row when some applied, on the **balance row** when none could (that user is exactly the
+   one who needs the explanation and there is no row to hang it on).
 
-```js
-// walk up from .recharts-surface via __reactFiber$ until memoizedProps.data has 'month'
-```
+`resolveCarFundEarmark(carFunds, fundingAccountId, accountBalance) -> {requested, applied, shortfall}`
+in `vehicle-loan-engine.ts` now **owns the clamp**, so `forecast-engine.ts` and `useCardProjection.ts`
+cannot drift on how an over-claim is absorbed. A test pins
+`max(0, balance) - applied === max(0, balance - requested)` across the sign boundaries
+(-500, -0.01, 0, 0.01, … 99999), so the refactor **provably moves no cash figure**.
 
-Savings goal (target $20,000): **Sep 2030 = $20,105.19 (+$552.95)** → **Oct 2030 = $20,159.64
-(+$54.45)**, still rising ten months later at **Jul 2031 = $20,656.39 (+$55.79)**. Slope drops
-90.2% at exactly the completion month and stays positive and compounding. The `+1` rule is
-correct: the month that tips the goal over still contributes, the next one does not. Card copy
-agrees ("Auto-ends contributions Sep 2030"). **Do not re-verify this.**
+Files: `vehicle-loan-engine.ts`, `debt-model-types.ts`, `useCardProjection.ts`, `forecast-engine.ts`,
+`month0-budget-snapshot.ts`, `Dashboard.tsx`, `demo-data.ts` + 3 test files.
 
-## ✅ Remote access — BOTH 08-08 failures fixed, end-to-end CONFIRMED
+**Demo fixture** (Tre's call): Civic `current_saved` **3200 → 1200** against d1's $2,800. Coherent,
+and it still **exercises** the earmark path instead of showing a clamped zero. Keep it below d1's
+balance if that balance ever changes.
 
-Lives in `C:\Users\tvonh\Desktop\remote-access\` (**outside this PUBLIC repo**, not a git repo;
-backups go in `remote-access/backups/`, never in `getforgenta/backups/`).
+**Live-verified in demo, on screen:** `Balance on hand $2,800.00`, `Already saved toward a car
+−$1,200.00`, and the rendered column folds to **$4,103.69 = the engine's Projected remaining**.
+**Do not re-verify this.** Final gate: **560/560 tests (14 new), tsc 0, eslint 0.**
 
-- **No listener on 3389** → fixed by the 01:04 reboot; `rdp-tcp` in `Listen`.
-- **"Credentials did not work"** → fixed; `PasswordLastSet` moved `10/16/2024` → `8/8/2026 01:48`.
-- **Tre connected from the phone successfully.** Fully closed.
-- Fixed a factual error in the README: the setup script *does* create the tailnet-scoped
-  `Tailscale-Only-DevServer-8080` rule (`setup-remote-access.ps1:194-209`); the doc claimed it did not.
+Backups: `backups/2026-08-08_102744/`.
 
-**Mistake worth not repeating (now written into that README):** reading the Windows **Security
-log requires elevation**, and `Get-WinEvent -ErrorAction SilentlyContinue` swallows the
-access-denied error and returns an empty set that looks exactly like "no such events". I twice
-reported an unelevated empty result as evidence ("zero failures since", "never connected"). The
-tell: **zero 4624 of any type over hours is impossible on a running machine.** Use
-`diag-rdp-auth.ps1`, which aborts unless elevated, instead of ad-hoc queries.
+## 🔜 §2.10 NEXT UP — how "amount saved" is marked against a linked account (Tre asked, 2026-08-08)
 
-Safety ref if anything downstream looks wrong: **`backup/pre-push-20260808-session107`** →
-`3d444c3e` (the pre-rebase tip).
+Tre's question, verbatim: *"whats the best way to mark the amount saved for a linked account? could
+the user also be allowed to set it as a percentage of their linked account or set a value?"*
 
-**How the conflicts resolved** — worth reading before touching `savings-growth.ts` again,
-because the divergence was real, not cosmetic:
+**Answered with a recommendation but NO code written and NO decision confirmed.** This is the open
+item — get Tre's yes/no on the shape below, then build it.
 
-Upstream PR #60 (`6efc8489`) and local `f8d9e247` are the SAME feature implemented twice with
-different shapes. PR #60 is the squashed version of the local work, so it carried
-`goalContributionCutoffIdx(goalInput, targetAmount, opts)` — a full-signature helper that
-computes completion internally and applies `+1 / 0`. Local instead landed
-`contributionCutoffIdx(completionIdx)` — a pure transform — plus `projectGoalBalanceAt`, and
-moved the cutoff onto `GoalState.cutoffOffset` instead of threading it as a `stepMonth` param.
+**Why it matters:** §2.9 treated the symptom. The root cause is that `car_funds.current_saved` is a
+number the user TYPES while the account balance is a number the BANK reports, with nothing keeping
+them consistent. §2.9 makes the drift visible; this makes it structurally impossible.
 
-Local is the strict functional superset, so local won on every conflicted hunk. **The only
-upstream-only symbol lost was `goalContributionCutoffIdx`, deliberately** — it is superseded and
-nothing references it (grepped repo-wide after the rebase).
+**The precedent already in this repo:** savings goals ALREADY derive from the account when linked —
+see `demo-data.ts:183` *"Emergency Fund linked to Marcus HYS (d3) so balance auto-pulls from the
+account."* Car funds never got that treatment. Same class of drift as
+`getGoalEffectiveApyPercent` (§2.5) and `contributionCutoffIdx` (§97.3).
 
-Two stops, four files, all resolved to local:
-- `be101646` — `src/lib/goal-linkage.ts`. PR #60's only change here was swapping the import to
-  fold `+1 / 0` inline; local's `computeGoalCutoffIdx` still does exactly that, so nothing
-  unique was dropped.
-- `f8d9e247` — `savings-growth.ts`, `SavingsGoals.tsx`, `src/__tests__/savings-growth.test.ts`.
+**Recommendation: a `saved_source` mode with three options, defaulting to derived.**
 
-**One thing DID need re-adding** (`7af203e0`): PR #60 had three boundary unit tests for
-`goalContributionCutoffIdx` (0 / k+1 / null) with no local equivalent — the behaviour survived
-the resolution but the direct coverage did not. They are back, aimed at `contributionCutoffIdx`.
-Taking local's file wholesale would have silently lost them; that is the class of thing to check
-on any future "local is the superset" resolution.
+| mode | meaning | §2.9 shortfall possible? |
+|---|---|---|
+| `account_balance` (**default when an account is linked**) | saved = the linked account's whole balance | **No** — structurally impossible |
+| `account_percent` | saved = N% of the linked account's balance | **No** — self-limiting |
+| `fixed` (today's behavior) | saved = typed `current_saved` | Yes — §2.9's warning is the guard |
 
-**Final gate: 546/546 tests (543 baseline + 3 re-added), tsc 0, eslint 0.**
+- **Percentage earns its place**: it is the honest model for a commingled HYS holding both the
+  emergency fund and car money, and it can never exceed the balance.
+- **`fixed` must stay**: every existing car fund uses it, and it is the only sane model when the
+  money is commingled in checking and the user wants an exact figure.
+- Shape: `saved_source text` + `saved_percent numeric` columns; keep `current_saved` as the `fixed`
+  value. Route ALL reads through ONE helper `getCarFundSaved(cf, accountBalance)` — same
+  single-source pattern as above. `resolveCarFundEarmark` then consumes that helper.
 
----
-
-> The 97.3 work below is done, committed, and now PUSHED.
-> **The 97.3 sign-in blocker that stalled sessions 103-104 is gone** — the Claude-controlled
-> Chrome is signed in on `http://localhost:8080` and the tab is parked. Do not sign it out.
-
-## ✅ 97.3 — CLOSED, live-verified end to end
-
-Carried item 1 is done. Four independent surfaces agree on the SAME month, which is the whole
-point of the feature:
-
-| surface | evidence |
-|---|---|
-| DB — `savings_goals` | `auto_end_contributions=true`, `auto_end_stamped_rules={"73a5c998…":"2030-09-30"}` |
-| DB — `recurring_rules` | HYS rule `end_date = 2030-09-30` (a real write, not a computed exclusion) |
-| `/budget` → Transfers | `HYS · Monthly · Day 28 · Starts 2027-08-21 · **Ends 2030-09-30**` |
-| `/goals` card | `Auto-ends contributions Sep 2030` + `Est. completion: Sep 2030` |
-| `/forecast` | milestone `Sep 2030: Savings Complete! 🎯` |
-
-Do not re-verify this. The widening of re-stamping beyond GOAL save is now ALSO done — see the
-`e16ea721` section below.
-
-## ✅ Shipped — goal chart keeps earning after contributions stop — `f8d9e247` (was `9592611b` pre-rewrite)
-
-Tre's ask: "although i set contributions to stop once goal is met, account should gain their
-interest. the saving goal chart should update. forecast should update."
-
-**Root cause:** the Savings Growth Projection chart was the LAST read path still contributing
-forever after a goal hit target. Forecast, Dashboard and the Debt engine all stopped at the
-completion month via `goal-linkage.ts` (handoff 4b); `buildSavingsGrowthData` never got the
-cutoff. So the chart drew a straight $500/mo climb to $25,000 in a month the rest of the app
-had already flagged complete. The Forecast was already correct on both counts — it cuts the
-contribution (`forecast-engine.ts:928-929`) and applies savings interest unconditionally
-(`:1355`) — so only the chart needed fixing.
-
-- `src/lib/savings-growth.ts` — `GrowthGoalInput` gains optional `targetAmount`; when set,
-  `buildSavingsGrowthData` stops the monthly contribution at the cutoff. Omitted = today's
-  behavior byte for byte, so no other caller moves. New `projectGoalBalanceAt` replaces the
-  lump-sum modal's own closed-form annuity.
-- The `+1 / 0` cutoff rule now lives in ONE place: `contributionCutoffIdx` in savings-growth,
-  called by `goal-linkage.ts`'s `computeGoalCutoffIdx`. That is the drift guard.
-- `src/pages/SavingsGoals.tsx` — `toGrowthGoal` passes `targetAmount`; chart subtitle says so.
-
-**Decision, pinned by a test so it stays a decision:** planned lump sums STILL land after
-completion. `forecast-engine.ts`'s `lumpTransferByMonth` is not gated on completion either, and
-a dated one-off transfer is explicit user intent. Do not "fix" this without Tre.
-
-**Live-verified against real data** (not just unit tests): the Savings line hits $20,000 at
-Sep 2030 and is **$20,548** ten months later, not the $25,000 the old projection drew. Slope
-drops ~90% at exactly the completion month and stays positive and compounding.
-
-534/534 tests (6 new), tsc clean **against a captured 0-error baseline**, eslint clean.
-
-## ✅ Shipped — 97.3 re-stamping widened to all three trigger sites — `e16ea721`
-
-Carried item 1 is done. Tre chose the WIDER option (rule save **and** balance-sync landing)
-after being shown the trade-off; do not re-litigate it.
-
-**The defect that mattered** (worth keeping in mind, it is not symmetric): the stamp is a real
-`recurring_rules.end_date` and `forecast-engine.ts:785` hard-skips a transfer past it, while
-`goal-linkage.ts` (4b) can only ever stop a rule EARLIER, never resume one. So:
-- stamp too **late** (contribution raised) → harmless, 4b clips it
-- stamp too **early** (contribution cut, start pushed out, balance fell) → the rule hard-stops
-  before the goal is funded and **nothing rescues it**
-
-- `planAutoEndReconcile` in `goal-auto-end.ts` — re-plans every toggle-ON goal, idempotent at
-  steady state. **Never clears a stamp** (only the goal form knows the toggle went off).
-  `toStampedMap` moved here from `SavingsGoals.tsx`; all three sites share one narrowing.
-- `src/hooks/useAutoEndReconcile.ts` — `reconcile()` for the rule save,
-  `useAutoEndSyncReconcile()` mounted in `DashboardLayout` for the sync landing.
-- BudgetControl sequences the reconcile behind `updateRule.mutateAsync`. **Do not make this
-  fire-and-forget again** — both writes target the same `end_date`, and if the reconcile landed
-  first the save would overwrite it while the goal's stamp map still claimed the new date, which
-  the next reconcile reads as a user-set conflict and then refuses to touch forever.
-
-**Why the sync landing is client-side, not in the edge function:** balances land server-side via
-cron job 16 `plaid-daily-sync` with no client present, but nothing server-side READS the stamp —
-only the forecast engine and the rule list do, both client-side. So a stamp refreshed on next app
-open is indistinguishable from one refreshed at cron time, and it avoids porting
-`savings-growth` + `goal-linkage` into Deno as a second copy of the projection (gotcha #11: no
-local `deno`, so such a port could not even be type-checked before deploy).
-
-**Verified against Tre's real rows**, not just fixtures: reconcile is a **no-op today** (so
-nothing gets written on next app load and no toast fires), but a $500 → $300 cut on the live HYS
-rule correctly pushes the stamp `2030-09-30 → 2032-09-30`, and a balance jump to $12,000 pulls it
-in to `2028-10-31`. 543/543 tests (9 new), tsc clean, eslint clean.
-
-**Not verified in the live browser** — the reconcile is a no-op against current data, so there is
-nothing to observe without perturbing real rows. If a session wants live proof, edit the HYS rule
-amount in `/budget` and watch the Ends date move, then set it back.
+**Two caveats to raise with Tre before building:**
+1. Derived modes make the saved figure **move with the balance** — a payday makes "car savings" jump
+   and the projected purchase date shift. Surprising for something users read as a goal. Needs the
+   progress bar understood as "current", not "committed".
+2. A percentage against an account that ALSO backs a savings goal can **double-count** (100% car +
+   the emergency fund's own claim on the same HYS). Worth validating that claims against one account
+   sum to ≤ 100%.
 
 ## Still open (carried, renumbered)
 
 1. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
    `debt-transaction-generator.ts:12-34`. **Recommendation: skip.**
-2. §2.9 car-fund earmark.
+2. **§2.10 above** (was: §2.9 car-fund earmark, now shipped).
 3. `backup.plaid_items_20260807` / `backup.accounts_20260807` — safe to drop; §1 is settled.
+   **Needs Tre's go-ahead** (irreversible), which is why session 108 did not do it.
 4. Native Plaid Hosted Link device verification (needs a physical device).
 5. Stage A's pending→posted retirement path still **not exercised against real data**.
 
 ## Closed previously (do not reopen)
 
 §1A Stage C (all parts, session 103), 97.1 `/debt` TOTAL LIMIT tile ($25,400), `types.ts` regen
-(session 104), remote access (Tailscale+RDP, session 104 — lives OUTSIDE this repo in
-`C:\Users\tvonh\Desktop\remote-access\`; **this repo is PUBLIC**), and now **97.3**.
+(session 104), remote access (Tailscale+RDP, sessions 104/107 — lives OUTSIDE this repo in
+`C:\Users\tvonh\Desktop\remote-access\`; **this repo is PUBLIC**), **97.3** (all parts, incl. the
+goal chart earning interest after contributions stop, live-verified session 107), and now **§2.9**.
 
 **Re-check each session:** only Discover has a `sync_cursor` (143 rows). The car-loan funding
 account `933cbc10…` is Chase TOTAL CHECKING with 0 synced transactions. The moment a
@@ -192,9 +112,10 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-**Pushed 2026-08-08 (session 107).** `origin/main` = `7af203e0`, 0 ahead / 0 behind. The
-standing rule is still never auto-push — this one was explicitly authorized by Tre in the
-session-106 handoff. Verify with `git rev-list --count origin/main..main`.
+**`main` is 2 ahead of `origin/main`** (`35a02172` session-107 handoff + `cab6efda` §2.9).
+`origin/main` = `09622e53`. Standing rule: **never auto-push** — session 107's push was a one-off
+explicit authorization and does NOT carry forward. Verify with
+`git rev-list --count origin/main..main`.
 
 ## Supabase — real IDs (carried)
 
@@ -210,24 +131,32 @@ session-106 handoff. Verify with `git rev-list --count origin/main..main`.
 ## Environment gotchas (carried)
 
 1. Tre is signed in on his real account in HIS browser. Never sign him in or out.
-2. The Claude-controlled Chrome is a **separate profile** and is **currently SIGNED IN** on
-   `http://localhost:8080`. Probe `localStorage` for an `sb-*` key before assuming either way.
-3. Dev server `localhost:8080`, `strictPort`. Start with `node scripts/dev-session.mjs up`.
-4. `/budget` rules split across tabs; `cost_type` overrides category ("Dog food" is **Variable**).
-5. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
-6. No PowerShell here-string in a `;`-chained command — use a Bash heredoc.
-7. Vitest suppresses `console.log` — write to a scratch file.
-8. `.env.local` (not `.env`) holds the VITE_ keys — all publishable/client-side.
-9. `npx supabase` CLI has **no config READ path**; never use it to fix a redirect URL.
-10. `config.toml` is the source of truth for `verify_jwt`.
-11. **No `deno` binary locally** — edge function type errors only surface at deploy.
-12. `tre-forged-conductor/` is untracked and belongs to a PARALLEL session. Never `git add -A`.
-13. Supabase MCP `generate_typescript_types` returns a JSON envelope too large to paste; read the
+2. ⚠️ **CHANGED 2026-08-08:** the Claude-controlled Chrome is now **SIGNED OUT** — session 107's
+   parked signed-in tab is gone. `localStorage` had **no `sb-*` key**. Probe before assuming.
+3. **Demo mode is in-memory React state, NOT a URL or a flag.** There is no `/demo` route and no
+   localStorage toggle. Go to `/auth` and dispatch the full pointer sequence on the **"Try Demo"**
+   button; it navigates to `/dashboard`. `useSupabaseData` then serves `demoAccounts`
+   (`useSupabaseData.ts:19-29`, Chase Checking `d1` = **$2,800**) + `demo-data.ts`.
+4. ⚠️ **`javascript_tool` returns `[BLOCKED: Cookie/query string data]`** when the result is a large
+   array of page strings. It is not a page error. Fix: return a **small structured object of just
+   the values you need** (label → amount map), not a dump of every text leaf. Cost me 2 calls.
+5. Dev server `localhost:8080`, `strictPort`. Start with `node scripts/dev-session.mjs up`.
+6. `/budget` rules split across tabs; `cost_type` overrides category ("Dog food" is **Variable**).
+7. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
+8. No PowerShell here-string in a `;`-chained command — use a Bash heredoc.
+9. Vitest suppresses `console.log` — write to a scratch file.
+10. `.env.local` (not `.env`) holds the VITE_ keys — all publishable/client-side.
+11. `npx supabase` CLI has **no config READ path**; never use it to fix a redirect URL.
+12. `config.toml` is the source of truth for `verify_jwt`.
+13. **No `deno` binary locally** — edge function type errors only surface at deploy.
+14. `tre-forged-conductor/` belongs to a PARALLEL session. Never `git add -A`; list files explicitly.
+15. Supabase MCP `generate_typescript_types` returns a JSON envelope too large to paste; read the
     persisted tool-result file and extract `.types` with node.
 
-## Browser-verification recipe (session 105, reusable)
+## Browser-verification recipes (reusable)
 
-Radix tabs do **not** switch on `element.click()`. Dispatch the full pointer sequence:
+Radix tabs do **not** switch on `element.click()`. Dispatch the full pointer sequence — this is also
+how you enter demo mode (gotcha #3):
 
 ```js
 for (const t of ['pointerdown','mousedown','pointerup','mouseup','click'])
@@ -235,22 +164,36 @@ for (const t of ['pointerdown','mousedown','pointerup','mouseup','click'])
     t, {bubbles:true, cancelable:true, button:0, pointerId:1}));
 ```
 
-And to check a recharts line's SHAPE without a working tooltip, parse the `d` of
-`.recharts-line-curve` and diff consecutive y's. A ~90% slope drop at one index that stays
-positive afterwards is exactly "contributions stopped, interest continues" — but the y values
-are SVG units, so anchor them to two known dollar figures before quoting any dollar amount.
-`computer{action:'hover'}` did not populate the recharts tooltip; do not burn calls on it.
+**Verifying a snapshot/chain equation on screen** (session 108, better than parsing SVG): pair each
+known row label with the next money-shaped text leaf, then fold it yourself and compare to the
+rendered total. Proves the column adds up in the units Tre sees:
 
-## Lessons (session 105)
+```js
+const leaves=[...document.querySelectorAll('*')].filter(e=>!e.children.length).map(e=>e.textContent.trim());
+const i=leaves.indexOf('Balance on hand');
+const amt=leaves.slice(i+1,i+4).find(t=>/^[−+-]?\$[\d,]/.test(t));
+```
 
-**When one surface disagrees with three others, fix the outlier by making it CALL them.** The
-chart had its own accrual loop and no cutoff. The fix was not to re-implement the cutoff in the
-chart but to move the `+1 / 0` rule into a single exported function both sides call — the same
-class of drift `getGoalEffectiveApyPercent` was created to kill in §2.5.
+For a recharts line, read exact rows off the **React fiber** (walk up from `.recharts-surface` via
+`__reactFiber$` until `memoizedProps.data` has `month`) rather than parsing `d` geometry.
+`computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
 
-**Prove the fix in the units the user sees.** "The slope drops" is a shape claim; "$20,548 not
-$25,000" is the claim Tre can check. Anchor pixel geometry to two known dollar values before
-reporting a number, or don't report a number.
+## Lessons
 
-Prior sessions' lessons (1-104) are in git history under `docs: handoff` commits —
+**Session 108 — a clamp is not a model.** `Math.max(0, …)` at two call sites looked like defensive
+arithmetic; it was actually the app deciding, silently, that a data inconsistency didn't exist. When
+you find the same clamp duplicated at every caller, the thing being clamped away is usually
+information someone needs. Move the clamp into one helper and **return what it discarded**.
+
+**Session 108 — prove a refactor moves nothing.** The risky part of §2.9 was re-expressing a cash
+figure the entire debt engine is built on. A test asserting the old and new expressions agree across
+the sign boundaries turns "should be equivalent" into a pinned fact, and it costs six lines.
+
+**Session 105 — when one surface disagrees with three others, fix the outlier by making it CALL
+them.** Not by re-implementing the rule in the outlier.
+
+**Session 105 — prove the fix in the units the user sees.** "The slope drops" is a shape claim;
+"$20,548 not $25,000" is the claim Tre can check.
+
+Prior sessions' lessons (1-107) are in git history under `docs: handoff` commits —
 `git log --all --oneline | grep handoff`.
