@@ -277,6 +277,7 @@ const toGrowthGoal = (g: EnrichedGoal, index: number): GrowthGoalInput => ({
   lumpSums: Array.isArray(g.lump_sum_payments)
     ? (g.lump_sum_payments as unknown as GoalLumpSum[]).map(ls => ({ date: ls.date, amount: Number(ls.amount) }))
     : [],
+  targetAmount: Number(g.target_amount) || 0,
 });
 
 function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
@@ -293,7 +294,7 @@ function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
   return (
     <div className="card-forged p-4 sm:p-5 overflow-hidden w-full">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Savings Growth Projection</h3>
-      <p className="text-[10px] text-muted-foreground mb-3 sm:mb-5">Next 5 years — includes interest, planned contributions, and future start dates</p>
+      <p className="text-[10px] text-muted-foreground mb-3 sm:mb-5">Next 5 years — includes interest, planned contributions, and future start dates. Contributions stop once a goal hits its target; interest keeps compounding.</p>
       <ResponsiveContainer width="100%" height={isMobile ? 200 : 260}>
         <LineChart data={chartData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
