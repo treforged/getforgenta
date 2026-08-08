@@ -79,9 +79,25 @@ what keeps the token refreshing. Do not close it during cleanup.
 | Symptom | Cause | Fix |
 |---|---|---|
 | Login screen on a page that worked last session | wrong origin (8081, 127.0.0.1, a preview URL) | go to `http://localhost:8080` |
+| **Tre says "signed in" but the probe still says SIGNED OUT** | he signed in in **his own** Chrome; the extension drives a different profile | ask him to sign in *in the window Claude has open* — see below |
 | Login screen on 8080 | Chrome profile has no session yet | Tre signs in once, manually |
 | Page never loads | dev server down | `node scripts/dev-session.mjs up` |
 | Server refuses to start | port 8080 held by another process | free 8080; do NOT use another port |
+
+### The wrong-browser case (hit for real on 2026-08-07)
+
+This is the most likely reason a confirmed sign-in does not take. Before going
+back to Tre a second time, rule out the cheap causes yourself:
+
+1. `list_connected_browsers` — if there is exactly one, that IS the automated
+   profile, and his everyday Chrome is not it.
+2. Probe `127.0.0.1:8080` as well as `localhost:8080`. They are separate
+   origins with separate storage.
+
+Only after both come back empty is it genuinely his turn. Make it unambiguous
+which window he needs: navigate the automated tab to `/auth` and **screenshot
+it**, so he can match the window on screen rather than guess. Signing in on the
+wrong one costs another round trip.
 
 ## Non-goals
 
