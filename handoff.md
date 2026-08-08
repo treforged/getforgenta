@@ -1,6 +1,53 @@
-# Handoff — 2026-08-08 — session 106 — 97.3 re-stamping widened (rule save + sync landing)
+# Handoff — 2026-08-08 — session 106 — 97.3 re-stamping widened; PUSH IS THE OPEN TASK
 
-> Both of Tre's asks this session are done and committed. Nothing pushed.
+## ▶ START HERE — finish the push (rebase onto origin/main, then fast-forward push)
+
+Tre is ready to push. I hit the context gate after the diagnosis but before the resolution, so
+the analysis below is done and verified — **do not redo it, just execute step 4 onward.**
+
+**Verified state** (re-verify cheaply, don't trust blindly):
+`main 619c83b6`, `origin/main 6efc8489`, **39 ahead / 1 behind**, tree clean, `git fetch` done.
+Safety ref already created: **`backup/pre-push-20260808-023848`** → `619c83b6`.
+
+**Two corrections to what I was told, both verified:**
+1. "Every SHA above `dd43e586` changed" is **not** accurate for the last three commits. The
+   history scrub landed at `main@{02:12:34}`; commits `e16ea721`, `e9201867`, `619c83b6` were
+   authored AFTER it (02:31-02:32) and kept their SHAs. What did change: `9592611b → f8d9e247`,
+   `15ced5dc → 5ef31f2d`, `04e1d575 → 706601c1`, `50546ed5 → b02c3faa`, `d071cf0c → 7ae30b80`.
+   The pre-rewrite SHAs are still in `git reflog show main` if you need to compare.
+2. The scrub is genuinely clean — `<PC-TAILNET-IP>` / `<PHONE-TAILNET-IP>` placeholders are in
+   `b02c3faa`, `5df841df`, `3921ffba`. A grep for `100.x.x.x` in handoff.md history hits only
+   **`100.64.0.0/10`**, which is the Tailscale CGNAT *range* in a firewall scope, not a device
+   address. **Not a leak — do not "scrub" it.**
+
+**The conflict is much smaller than predicted.** I probed it on a throwaway branch
+(`git rebase origin/main`, capture, `git rebase --abort`) rather than guessing:
+
+- It stops at **`be101646`** (97.3 step 1 — the FIRST goals commit), not at `f8d9e247`.
+- Exactly **ONE** file conflicts: **`src/lib/goal-linkage.ts`**. The other three named in the
+  brief (`savings-growth.ts`, `SavingsGoals.tsx`, `src/__tests__/savings-growth.test.ts`) did
+  **not** conflict on that stop. More stops may follow after `--continue`; expect them, and note
+  the test file upstream is `src/__tests__/savings-growth.test.ts` (there is **no**
+  `src/lib/__tests__/savings-growth.test.ts` — the brief's path was wrong).
+
+**Steps remaining:**
+4. `git rebase origin/main`; resolve `src/lib/goal-linkage.ts`. PR #60 (`6efc8489`) touched
+   `goal-linkage.ts` by only 8 lines — diff `git show 6efc8489 -- src/lib/goal-linkage.ts`
+   against local and keep the union. Local is the superset (it has `contributionCutoffIdx`
+   extraction + the 97.3 work on top), but **verify line by line** that nothing unique to the
+   squashed PR is dropped. Continue until the rebase completes.
+5. Re-verify: `npx vitest run` (NOT `--reporter=basic`, it fails on vitest 4.1.10),
+   `npx tsc --noEmit`, `npx eslint` on changed files. Baseline was **543/543, tsc 0, eslint 0**
+   before the rebase — anything less is a resolution error, not a pre-existing red.
+6. Push. Must be a plain fast-forward. **If git demands `--force`/`--force-with-lease`, STOP and
+   report why** — Tre set that as an explicit stop signal.
+
+Recovery if it goes wrong: `git rebase --abort`, then
+`git reset --hard backup/pre-push-20260808-023848`.
+
+---
+
+> The 97.3 work below is done and committed. Nothing pushed yet.
 > **The 97.3 sign-in blocker that stalled sessions 103-104 is gone** — the Claude-controlled
 > Chrome is signed in on `http://localhost:8080` and the tab is parked. Do not sign it out.
 
@@ -20,7 +67,7 @@ point of the feature:
 Do not re-verify this. The widening of re-stamping beyond GOAL save is now ALSO done — see the
 `e16ea721` section below.
 
-## ✅ Shipped — goal chart keeps earning after contributions stop — `9592611b`
+## ✅ Shipped — goal chart keeps earning after contributions stop — `f8d9e247` (was `9592611b` pre-rewrite)
 
 Tre's ask: "although i set contributions to stop once goal is met, account should gain their
 interest. the saving goal chart should update. forecast should update."
