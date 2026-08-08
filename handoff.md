@@ -1,27 +1,47 @@
-# Handoff — 2026-08-08 — session 111 — Stage 6 SHIPPED (deploy pending); item 6 not yet fired
+# Handoff — 2026-08-08 — session 112 — Stage 6 FULLY DELIVERED (deployed v51); item 6 not yet fired
 
-> Session 111 checked item 6, then Tre picked **Stage 6**, which shipped as `0b66da3c`
-> (**593/593 green, tsc 0**). **The `ai-advisor` edge function still needs deploying** — see the
-> Stage 6 section. Nothing pushed, nothing deployed.
+> Session 112 **deployed the `ai-advisor` edge function** (Tre approved; v50 → **v51**, ACTIVE,
+> `verify_jwt: true`) and smoke-tested it live. **Stage 6 is now closed end to end.**
 >
-> It ran item 6's watch (the predicted first Stage C number move):
-> the $422.89 car payment is **still pending, unchanged** — no flip yet, re-check next session.
-> It also corrected a real error in the session-110 connection table (see below).
-> Tree clean, **583/583 green**. **`main` is now 0 ahead of `origin/main`** — the 8 commits session
-> 110 listed as unpushed have since been pushed (parallel session or Tre; not this session).
+> It re-ran item 6's watch: the $422.89 car payment is **still pending, unchanged** — no flip yet.
 >
-> ⚠️ **All non-blocked handoff items are now closed.** Items 4 and 6 are waits, not tasks. There is
-> no §2.11 and no queued plan item — picking the next workstream is Tre's call. See "Next" below.
+> ⚠️ **The work queue is now empty.** Items 4 and 6 are waits, not tasks. There is no §2.11 and no
+> queued plan item — picking the next workstream is Tre's call. See "Next" below.
+>
+> Push status: run `git rev-list --count origin/main..main` — do not trust a number written here.
 
-## Item 6 — first live Stage C flip: checked 2026-08-08 ~16:35 UTC, HAS NOT FIRED
+## ✅ Stage 6 CLOSED — `ai-advisor` deployed v51 and verified booting
+
+Deployed 2026-08-08 via Supabase MCP with the 3-file set (`ai-advisor/index.ts` +
+`_shared/cors.ts` + `_shared/rate-limit.ts`; every other import is a remote esm.sh URL Deno
+fetches itself). `verify_jwt: true` passed explicitly, since MCP ignores `config.toml` — and
+`config.toml` has **no `ai-advisor` entry at all**, so the explicit flag is the only thing
+preserving the live setting.
+
+**Boot verified, not assumed.** POSTing `{}` with the **anon key as the Bearer token** passes the
+gateway (the anon key is itself a valid JWT), so the request reaches the function body, which
+returns its own `{"error":"not_authenticated"}` / 401. That single call proves the module graph
+loaded, both `_shared` imports resolved, the `rate_limit_check` RPC path works, and
+`GEMINI_API_KEY` is set — a missing key returns 503 *before* the auth check. **Reuse this trick for
+any `verify_jwt: true` function**: it is a free, no-side-effect boot test that reaches real code.
+
+The client and edge function now agree on `payoffMonthsFromNow`; the renamed-field intermediate
+state is over.
+
+## Item 6 — first live Stage C flip: re-checked 2026-08-08, HAS NOT FIRED
 
 Nothing to do; the bank has not settled the charge. Re-run the two queries next session.
 
-- The $422.89 row on `933cbc10…` is **still `pending: true`**, dated 2026-08-07, `created_at`
-  2026-08-08 13:00 UTC — i.e. unchanged since session 110 saw it.
+- The $422.89 row on `933cbc10…` is **still `pending: true`**, dated 2026-08-07, with `updated_at`
+  still **2026-08-08 13:00 UTC** — no sync has touched the row since session 111 looked at it.
 - The account still holds **138 rows / 4 pending**, latest **settled** still **2026-08-05**.
-- Sync is **fresh, not stale**: all of Tre's connections synced 2026-08-08 13:00 UTC (~3.5h before
-  the check). Discover last synced 08-07 15:50. So this is bank settlement lag, not a sync failure.
+- Because `updated_at` has not moved, this is bank settlement lag, not a sync failure.
+
+⚠️ **Column name trap:** `synced_transactions` has **`date`**, not `transaction_date`. Full column
+list: `id, user_id, connection_id, account_id, provider_transaction_id, pending_transaction_id,
+amount, date, pending, name, merchant_name, category, created_at, updated_at`. Also watch
+`updated_at` alongside `pending` — it is what distinguishes "bank hasn't settled" from "sync is
+stale", in one query.
 
 Both Stage C conditions therefore still evaluate exactly as traced in session 110 (`matched: false`
 via the pending skip, `hasTxnCoverage: false` since 08-05 < 08-12). **Still number-neutral, still
@@ -200,12 +220,13 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
    110**, verified clean at 699 rows / 270 pointers. See above. Do not re-verify.
 6. **Watch the first live Stage C flip** (see prediction above). Not a task; a check to run each
    session: has the $422.89 settled, and did the August car payment drop from month 0?
-   **Checked session 111 — still pending, has not fired.** See the item 6 section at the top.
+   **Re-checked session 112 — still pending, has not fired.** See the item 6 section at the top.
 
-## 🔴 Stage 6 — SHIPPED `0b66da3c`, but the EDGE FUNCTION IS NOT DEPLOYED
+## ✅ Stage 6 — shipped `0b66da3c`, DEPLOYED session 112 (see the top section)
 
-**Tre picked Stage 6 (session 111).** Code is committed locally, **593/593 green, tsc 0, eslint
-clean**. Backup `backups/2026-08-08_124500/`. **Not pushed, not deployed.**
+**Tre picked Stage 6 (session 111).** Code committed locally, **593/593 green, tsc 0, eslint
+clean**. Backup `backups/2026-08-08_124500/`. Edge function **deployed session 112 (v51)**.
+The design notes below are kept because they record decisions, not pending work.
 
 ### The audit corrected the plan's premise — carry this forward
 
@@ -245,30 +266,20 @@ where index 0 is the CURRENT month, so months-from-now is `payoffMonth - 1`. `De
 `debtFreeDate()` takes a **duration** (`now + months`) — different semantics, do NOT reuse it
 directly. That is why the conversion lives in `payoffMonthsFromNow()` with its own tests.
 
-### 🔴 NEXT ACTION — deploy `ai-advisor` (needs Tre's OK; outward-facing)
+### ✅ Deploy DONE (session 112)
 
-The **field was renamed** `projectedPayoffMonths` → `payoffMonthsFromNow`, and
-`supabase/functions/ai-advisor/index.ts` was updated to match. **Live is still version 50** (ACTIVE,
-`verify_jwt: true`) and expects the OLD name.
+The field rename `projectedPayoffMonths` → `payoffMonthsFromNow` is now live on both sides.
+Also fixed in passing: `body.debtDetails.sort()` mutated the request body; now `[...].sort()`.
 
-**Intermediate state is safe, not broken** — if the client ships first, v50 reads `undefined`, its
-`!== null && !== undefined` guard fails, and the payoff line is simply omitted. The advisor loses
-payoff detail but never states a wrong number, which is still better than today. So there is no
-rush, but **the feature is not actually delivered until the function is deployed.**
-
-- ⚠️ **No `deno` locally (gotcha #13)** — the edge-function edits are UNVERIFIED by any compiler.
-  Reviewed by hand: `debtFreeLine` is declared at :147 and used at :279, both inside `buildPrompt`.
-- Deploy needs `verify_jwt: true` passed explicitly (MCP ignores `config.toml` — see Reddit Scout).
-- Also fixed in passing: `body.debtDetails.sort()` mutated the request body; now `[...].sort()`.
-
-## Next — after Stage 6 deploys
+## Next
 
 Items 4 and 6 are **waits** (physical device / bank settlement), not work. Everything else is
 closed. There is no §2.11 — the §2.x series ended at §2.10. Forecast-engine **Stages 4-5 remain
 deliberately on hold**.
 
-Once the `ai-advisor` deploy lands, the only queued candidate is the roadmap's **FB.6-13** UX
-items. **Do not start without Tre choosing** — it changes scope.
+**The queue is empty.** The only queued candidate is the roadmap's **FB.6-13** UX items. **Do not
+start without Tre choosing** — it changes scope. A fresh session should run item 6's two queries,
+report, and then ask Tre what to pick up.
 
 ## Closed previously (do not reopen)
 
@@ -290,12 +301,12 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-**`main` is 0 ahead of `origin/main` as of session 111** — the 8 commits session 110 recorded as
-unpushed (through `875ea2a7`) are now on the remote. **Session 111 did not push them**; a parallel
-session or Tre did. Standing rule is unchanged: **never auto-push** — session 107's push was a
-one-off explicit authorization and does NOT carry forward. Always re-verify with
-`git rev-list --count origin/main..main` rather than trusting this line; it went stale within one
-session last time.
+**Run `git rev-list --count origin/main..main`.** Do not trust a number written here — this line
+has gone stale within a single session before, because parallel sessions push. Session 112 found 3
+unpushed and added its own commits on top; it did **not** push.
+
+Standing rule unchanged: **never auto-push** — session 107's push was a one-off explicit
+authorization and does NOT carry forward.
 
 ## Supabase — real IDs (carried)
 
@@ -328,7 +339,21 @@ session last time.
 10. `.env.local` (not `.env`) holds the VITE_ keys — all publishable/client-side.
 11. `npx supabase` CLI has **no config READ path**; never use it to fix a redirect URL.
 12. `config.toml` is the source of truth for `verify_jwt`.
-13. **No `deno` binary locally** — edge function type errors only surface at deploy.
+13. **No `deno` binary locally** — but edge functions are **NOT unverifiable**. Type-check one with
+    the TypeScript compiler API using `noResolve` (which skips the unresolvable remote imports)
+    and a `lib` of `es2022 + dom`. Everything then resolves except `Deno` itself, which the
+    runtime provides — so **4 × TS2304 `Cannot find name 'Deno'` is the clean result**:
+    ```js
+    const ts=require('typescript');
+    const prog=ts.createProgram(['supabase/functions/<fn>/index.ts'],{noResolve:true,
+      skipLibCheck:true,target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,
+      moduleResolution:ts.ModuleResolutionKind.Bundler,
+      lib:['lib.es2022.d.ts','lib.dom.d.ts'],noEmit:true});
+    // ignore 2307/2688/2792 (module resolution); anything else is real
+    ```
+    This catches exactly the class of bug hand-review misses (undeclared names, wrong field
+    types). ⚠️ **There is no `esbuild` in this repo** — Vite 8/rolldown replaced it; `typescript`
+    is present.
 14. `tre-forged-conductor/` belongs to a PARALLEL session. Never `git add -A`; list files explicitly.
 15. Supabase MCP `generate_typescript_types` returns a JSON envelope too large to paste; read the
     persisted tool-result file and extract `.types` with node.
@@ -364,6 +389,20 @@ For a recharts line, read exact rows off the **React fiber** (walk up from `.rec
 `computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
 
 ## Lessons
+
+**Session 112 — "no local toolchain" is usually "no local toolchain I reached for."** Four handoffs
+carried gotcha #13 as "edge function type errors only surface at deploy", and Stage 6 shipped its
+edge-function edit reviewed *by hand* on that basis. But `typescript` is a dependency of this repo,
+and its compiler API type-checks a Deno file fine once `noResolve` takes the remote imports out of
+play. The blocker was never the missing binary; it was accepting the missing binary as the end of
+the question. **Before recording something as unverifiable, name the specific tool you tried.**
+
+**Session 112 — a deploy that succeeds is not a deploy that runs.** The MCP call returning
+`version: 51, ACTIVE` only says the upload was accepted; a bad import path or a missing env var
+still fails at first invocation, in front of a customer. On a `verify_jwt: true` function the anon
+key is itself a valid JWT, so POSTing with it as the Bearer token clears the gateway and lands in
+the function body, which rejects it as not-a-user. **One free call with no side effects proves the
+module graph loaded and the env is populated.** Always spend it.
 
 **Session 111 — a surface that TALKS about the numbers is a surface that computes them.** Stage 6
 was filed as "wire Goals + AI Advisor to the engine", which reads like plumbing. The actual find was
