@@ -1,10 +1,47 @@
-# Handoff — 2026-08-08 — session 107 — PUSHED. 97.3 shipped to origin/main
+# Handoff — 2026-08-08 — session 107 — PUSHED + live-verified. Nothing open in this repo.
+
+> **Session 107 finished its work.** 97.3 is pushed and live-verified, and the remote-access
+> docs are closed out. There is no in-flight task — start the next thing fresh. The carried
+> backlog near the bottom ("Still open") is the only work remaining.
 
 ## ✅ PUSH DONE — nothing carried on this front
 
-Session 107 executed the rebase and pushed. `origin/main` is now **`7af203e0`**, `main` is
-**0 ahead / 0 behind**, tree clean. The push was a **plain fast-forward** (`6efc8489..7af203e0`,
-no `+`), so no force was needed and the stop signal never fired.
+Session 107 executed the rebase and pushed. `origin/main` is now **`09622e53`** (`7af203e0`
+was the code; `09622e53` is this handoff), `main` **0 ahead / 0 behind**, tree clean. Both
+pushes were **plain fast-forwards** — no force was needed and the stop signal never fired.
+
+## ✅ Goal chart live-verified against real data (session 107)
+
+Read the chart's exact rows off the **React fiber** rather than parsing SVG geometry — strictly
+better than the pixel recipe further down, and it yields real dollars:
+
+```js
+// walk up from .recharts-surface via __reactFiber$ until memoizedProps.data has 'month'
+```
+
+Savings goal (target $20,000): **Sep 2030 = $20,105.19 (+$552.95)** → **Oct 2030 = $20,159.64
+(+$54.45)**, still rising ten months later at **Jul 2031 = $20,656.39 (+$55.79)**. Slope drops
+90.2% at exactly the completion month and stays positive and compounding. The `+1` rule is
+correct: the month that tips the goal over still contributes, the next one does not. Card copy
+agrees ("Auto-ends contributions Sep 2030"). **Do not re-verify this.**
+
+## ✅ Remote access — BOTH 08-08 failures fixed, end-to-end CONFIRMED
+
+Lives in `C:\Users\tvonh\Desktop\remote-access\` (**outside this PUBLIC repo**, not a git repo;
+backups go in `remote-access/backups/`, never in `getforgenta/backups/`).
+
+- **No listener on 3389** → fixed by the 01:04 reboot; `rdp-tcp` in `Listen`.
+- **"Credentials did not work"** → fixed; `PasswordLastSet` moved `10/16/2024` → `8/8/2026 01:48`.
+- **Tre connected from the phone successfully.** Fully closed.
+- Fixed a factual error in the README: the setup script *does* create the tailnet-scoped
+  `Tailscale-Only-DevServer-8080` rule (`setup-remote-access.ps1:194-209`); the doc claimed it did not.
+
+**Mistake worth not repeating (now written into that README):** reading the Windows **Security
+log requires elevation**, and `Get-WinEvent -ErrorAction SilentlyContinue` swallows the
+access-denied error and returns an empty set that looks exactly like "no such events". I twice
+reported an unelevated empty result as evidence ("zero failures since", "never connected"). The
+tell: **zero 4624 of any type over hours is impossible on a running machine.** Use
+`diag-rdp-auth.ps1`, which aborts unless elevated, instead of ad-hoc queries.
 
 Safety ref if anything downstream looks wrong: **`backup/pre-push-20260808-session107`** →
 `3d444c3e` (the pre-rebase tip).
