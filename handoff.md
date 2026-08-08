@@ -1,4 +1,4 @@
-# Handoff — 2026-08-08 — session 105 — 97.3 CLOSED (live-verified); goal chart fix SHIPPED
+# Handoff — 2026-08-08 — session 106 — 97.3 re-stamping widened (rule save + sync landing)
 
 > Both of Tre's asks this session are done and committed. Nothing pushed.
 > **The 97.3 sign-in blocker that stalled sessions 103-104 is gone** — the Claude-controlled
@@ -51,16 +51,52 @@ drops ~90% at exactly the completion month and stays positive and compounding.
 
 534/534 tests (6 new), tsc clean **against a captured 0-error baseline**, eslint clean.
 
+## ✅ Shipped — 97.3 re-stamping widened to all three trigger sites — `e16ea721`
+
+Carried item 1 is done. Tre chose the WIDER option (rule save **and** balance-sync landing)
+after being shown the trade-off; do not re-litigate it.
+
+**The defect that mattered** (worth keeping in mind, it is not symmetric): the stamp is a real
+`recurring_rules.end_date` and `forecast-engine.ts:785` hard-skips a transfer past it, while
+`goal-linkage.ts` (4b) can only ever stop a rule EARLIER, never resume one. So:
+- stamp too **late** (contribution raised) → harmless, 4b clips it
+- stamp too **early** (contribution cut, start pushed out, balance fell) → the rule hard-stops
+  before the goal is funded and **nothing rescues it**
+
+- `planAutoEndReconcile` in `goal-auto-end.ts` — re-plans every toggle-ON goal, idempotent at
+  steady state. **Never clears a stamp** (only the goal form knows the toggle went off).
+  `toStampedMap` moved here from `SavingsGoals.tsx`; all three sites share one narrowing.
+- `src/hooks/useAutoEndReconcile.ts` — `reconcile()` for the rule save,
+  `useAutoEndSyncReconcile()` mounted in `DashboardLayout` for the sync landing.
+- BudgetControl sequences the reconcile behind `updateRule.mutateAsync`. **Do not make this
+  fire-and-forget again** — both writes target the same `end_date`, and if the reconcile landed
+  first the save would overwrite it while the goal's stamp map still claimed the new date, which
+  the next reconcile reads as a user-set conflict and then refuses to touch forever.
+
+**Why the sync landing is client-side, not in the edge function:** balances land server-side via
+cron job 16 `plaid-daily-sync` with no client present, but nothing server-side READS the stamp —
+only the forecast engine and the rule list do, both client-side. So a stamp refreshed on next app
+open is indistinguishable from one refreshed at cron time, and it avoids porting
+`savings-growth` + `goal-linkage` into Deno as a second copy of the projection (gotcha #11: no
+local `deno`, so such a port could not even be type-checked before deploy).
+
+**Verified against Tre's real rows**, not just fixtures: reconcile is a **no-op today** (so
+nothing gets written on next app load and no toast fires), but a $500 → $300 cut on the live HYS
+rule correctly pushes the stamp `2030-09-30 → 2032-09-30`, and a balance jump to $12,000 pulls it
+in to `2028-10-31`. 543/543 tests (9 new), tsc clean, eslint clean.
+
+**Not verified in the live browser** — the reconcile is a no-op against current data, so there is
+nothing to observe without perturbing real rows. If a session wants live proof, edit the HYS rule
+amount in `/budget` and watch the Ends date move, then set it back.
+
 ## Still open (carried, renumbered)
 
-1. 97.3 re-stamping happens on GOAL save only; decide with Tre whether to widen to rule
-   save/edit and balance-sync landing. (`goal-auto-end.ts`'s header lists the intended sites.)
-2. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
+1. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
    `debt-transaction-generator.ts:12-34`. **Recommendation: skip.**
-3. §2.9 car-fund earmark.
-4. `backup.plaid_items_20260807` / `backup.accounts_20260807` — safe to drop; §1 is settled.
-5. Native Plaid Hosted Link device verification (needs a physical device).
-6. Stage A's pending→posted retirement path still **not exercised against real data**.
+2. §2.9 car-fund earmark.
+3. `backup.plaid_items_20260807` / `backup.accounts_20260807` — safe to drop; §1 is settled.
+4. Native Plaid Hosted Link device verification (needs a physical device).
+5. Stage A's pending→posted retirement path still **not exercised against real data**.
 
 ## Closed previously (do not reopen)
 
@@ -80,7 +116,7 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-`main` is **35 commits ahead** of `origin/main` including this handoff. Standing rule is never
+`main` is **37 commits ahead** of `origin/main` including this handoff. Standing rule is never
 auto-push. **Nothing pushed.** Verify with `git rev-list --count origin/main..main`.
 
 ## Supabase — real IDs (carried)
