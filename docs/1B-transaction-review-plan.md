@@ -138,13 +138,25 @@ Each row shows: date · merchant · amount · account · suggested category (edi
 
 Per §1A's design bias, an absent suggestion renders as *no information*, never as "unpaid".
 
-**Volume is the real product risk.** 571 rows across 7 months, against a 22-row ledger. An inbox
-that demands 571 decisions is an inbox nobody finishes. Mitigations, in the v1 scope:
-- default filter = **current month, settled, unreviewed**
+**Volume is the real product risk — resolved by separating availability from obligation.**
+571 rows across 7 months, against a 22-row ledger.
+
+Tre's call (2026-08-08): **all accounts, all history.** The reasoning that settled it is his:
+history is what makes rule discovery possible at onboarding (§1C below), so it is an *input*, not
+just an archive. This plan's first draft recommended restricting the inbox; that conflated
+*browsing* with *a queue demanding decisions*. Browsing everything is free. So:
+
+- every account, every settled row, **fully browsable and filterable**, all the way back
+- filter **defaults** to the current month, switchable to any month or All
+- **"unreviewed" is never surfaced as a nagging count or badge.** There is no "24 items need
+  review". A row you never touch is simply history. This is what makes all-history safe.
 - **pending rows are excluded entirely** — they are not facts yet, and §1A's whole point is that
   pending is not evidence
 - bulk `Ignore` on a selection, and `Ignore all from this merchant`
-- a per-account opt-in (see Open question 1)
+
+⚠️ **Nothing anywhere may read "unreviewed" as "did not happen".** With all history in scope the
+vast majority of rows are permanently unreviewed *by design*, so that inference would be wrong at
+scale, not merely occasionally.
 
 ---
 
@@ -189,22 +201,26 @@ Stages 1 and 2 are safe to ship together. **3 and 4 must not be.**
 
 ---
 
-## Open questions for Tre — recommendations first
+## ✅ Decisions (Tre, 2026-08-08) — settled, do not re-ask
 
-**1. Which accounts take part in review?**
-*Recommendation: all accounts, but default the filter to the current month.* Card spend is where the
-571 rows come from, and excluding cards would drop most of the value; a tight default window plus
-bulk-ignore handles the volume without hiding anything permanently.
+1. **Scope: all accounts, all history**, with the availability/obligation split above. Tre's
+   reasoning — history is the input to §1C's rule discovery — overrode this plan's first draft.
+2. **Stage 4 ships: a confirmed link marks the charge captured.** Otherwise confirming is busywork
+   the app ignores, and an explicit user confirmation would count for *less* than an automatic
+   guess, which is backwards.
+3. **Imported rows are fully editable, stamped `origin='synced'`**, with re-import prevented by the
+   review row's unique constraint.
+4. **Stages 1+2 build first**, alone. 3 and 4 each move numbers and ship separately.
 
-**2. Does confirming a link mark the bill paid in the projections (Stage 4)?**
-*Recommendation: yes.* Otherwise confirming is busywork the app ignores, and the user's explicit
-confirmation would be weaker evidence than the automatic matcher — which is backwards. It ships
-separately and gets live-verified separately.
+---
 
-**3. Should imported rows be editable/deletable like manual ones?**
-*Recommendation: yes, fully editable, but stamped `origin='synced'`* so the UI can show where they
-came from and re-import is prevented by the review row's unique constraint.
+## 🆕 §1C — derive recurring rules from transaction history (NOT started)
 
-**4. Anything to do about the 549 rows older than this month?**
-*Recommendation: leave them unreviewed and out of the default view.* Backfilled history has no
-decision worth making — the ledger is a forward-looking planning tool, not an accounting record.
+Tre's onboarding idea, filed here so it is not lost: with months of `synced_transactions` available,
+the app can *propose* recurring rules to a new user rather than making them hand-enter 30 of them.
+
+It is a **different consumer of the same data** — a pattern detector (repeated merchant, similar
+amount, ~monthly spacing), not an inbox — so it is deliberately out of §1B's scope. It is also the
+reason all-history is in scope here: detecting a recurring pattern needs many months.
+
+Do not build without Tre choosing it.

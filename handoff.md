@@ -1,3 +1,135 @@
+# Handoff — 2026-08-08 — session 113 — §1B PLANNED + APPROVED; build Stages 1+2 next
+
+> **START HERE.** Session 113 planned §1B, got Tre's approval on all four open questions, and
+> **began building Stages 1+2**. Read `docs/1B-transaction-review-plan.md` in full first — it
+> carries the ground-state audit, the double-count hazard, the schema, and the staging.
+>
+> Session 113 was cut by the context gate partway through the build. **Nothing is half-applied:**
+> what shipped is additive and inert (a pure module + an empty table). See "Build progress" below.
+
+## 🔨 Build progress — §1B Stages 1+2 (IN PROGRESS)
+
+### ✅ DONE and committed
+
+1. **`src/lib/plaid-category-map.ts`** (new, pure) + `src/lib/__tests__/plaid-category-map.test.ts`
+   — **15/15 green**. `suggestCategory()` / `hasCategorySuggestion()` / `isValidCategory()`.
+   ⚠️ **Non-obvious find that shaped it:** `synced_transactions.category` is the Plaid PFC
+   **primary**, but `providers/plaid.ts:100` falls back to the **legacy title-case `category[0]`**
+   (`"Food and Drink"`) on older items. So the map is keyed on a NORMALISED form (upper, non-alnum
+   → `_`) and both vocabularies collapse onto one key. Legacy keys (`SHOPS`, `PAYMENT`,
+   `HEALTHCARE`, …) are in the map too.
+   Deliberate calls pinned by test, do not "fix": **`TRANSPORTATION` → `'Car'`, NOT `'Gas'`**
+   (Plaid's TRANSPORTATION spans gas/parking/tolls/transit/ride-share; `Gas` is wrong 5 times in
+   6). `FOOD_AND_DRINK` → `Dining` and `RENT_AND_UTILITIES` → `Utilities` each pick the more
+   frequent of two inseparable members. Transfers → `Other` on purpose.
+2. **`supabase/migrations/20260808_synced_transaction_reviews.sql`** — written **AND APPLIED LIVE**
+   (`apply_migration` → success). Empty table, RLS on, full owner CRUD. Inert until the UI reads it.
+
+### ⚠️ The FK trap this schema is built around — read before touching it
+
+`ON DELETE SET NULL` fires an **UPDATE** on the referencing row, and Postgres **evaluates CHECK
+constraints on UPDATE**. So a CHECK of the form "status='linked_rule' implies rule_id is not null"
+would make *deleting a rule* fail with a constraint violation. Hence the deliberate asymmetry:
+
+- `rule_id` → **SET NULL**, and that CHECK is **intentionally absent**. The degraded state
+  (`linked_rule`, `rule_id` null) is legitimate and means *"handled, but the rule is gone"*. **The
+  UI must render it as handled and must not assume `rule_id` is present.** Creation-time presence
+  is the hook's job + a test.
+- `transaction_id` → **CASCADE** (not set null), so deleting the imported ledger row deletes the
+  review and returns the synced txn to unreviewed — re-importable. That is also what makes the
+  `txn_present` CHECK safe to enforce.
+
+### ⬜ NOT DONE — next session picks up here
+
+3. **Regenerate `src/integrations/supabase/types.ts`** — it has no `synced_transaction_reviews`
+   yet, so the hooks below will not typecheck. (Gotcha #15: `generate_typescript_types` returns an
+   envelope too large to paste; read the persisted tool-result file and extract `.types` with node.)
+4. **`useSupabaseData.ts`** — add two hooks next to the existing §1A block (line ~494):
+   - a filterable/all-history synced-transaction hook. **`useSyncedTransactions(monthKey)` at :518
+     must be left ALONE** — it is month-scoped on purpose for the `/budget` badge and Stage C;
+     add a SEPARATE hook rather than widening it.
+   - `useSyncedTransactionReviews()` with full CRUD (this table *is* user-writable).
+5. **`src/components/transactions/BankActivity.tsx`** (NEW FILE — do not grow `Transactions.tsx`,
+   already **998 lines** against the 800 max in the coding rules).
+6. **`src/pages/Transactions.tsx`** — a tab switch mounting it. The page is currently one flat
+   render with **no tab pattern at all** (`return (` at :451); `usePersistedState` is already
+   imported and is how the repo persists that kind of toggle (see :76).
+
+### UI rules that are decisions, not polish
+
+- Bank activity gets its **own tab**, never interleaved: `/transactions` is a *planning* stream (22
+  manual rows merged with generated debt/plan/car-loan rows); bank activity is what happened.
+- Filter **defaults to current month**, switchable to any month or All. **Pending rows excluded.**
+- **"unreviewed" is NEVER a nagging count or badge**, and nothing may read it as "did not happen".
+- An absent match suggestion renders as **no information**, never "unpaid" (§1A design bias).
+- `hasCategorySuggestion()` false → say **"uncategorised"**, not "Other" — do not assert.
+
+## §1B — surface synced Plaid transactions in `/transactions` (review / link / categorize / import)
+
+Tre's ask, verbatim: *"i want to pull transactions in and have them also auto connect to user
+created rule and transaction. otherwise it adds a transaction if the user says it doesnt match
+anything… it should go into the transactions tab and integrate with calculations and rules. users
+should be able to categorize if the auto cat is wrong"*
+
+**Plaid ingestion was already fully live** — §1A Stages A/B/C all shipped, cron `plaid-daily-sync`
+(jobid 16) runs Mon/Wed/Fri/Sat 13:00 UTC, 571 rows for Tre. The missing piece was only the UI, which
+the 2026-08-07 scope call had deliberately excluded. **§1B reverses that call — Tre's decision.**
+
+### ⚠️ The hazard the whole design hangs on
+
+`public.transactions` is read by **12 surfaces**, incl. `useForecastEngineInputs.ts:66` and
+`CardProjectionContext.tsx:63` — every row written there moves projected numbers app-wide, while
+`recurring_rules` already projects the same bills. So:
+
+**Import is offered ONLY on rows that matched nothing. A linked row is an annotation and creates no
+money.** If a future session relaxes that, the double-count returns. Tre's phrasing ("otherwise it
+adds a transaction") is load-bearing, not UX.
+
+### Tre's decisions (2026-08-08) — do not re-ask
+
+1. **Inbox scope: ALL accounts, ALL history.** His reasoning, better than my initial
+   recommendation: history is the *input* to discovering recurring rules at onboarding. I had
+   conflated *browsing* with *a queue demanding decisions*. Resolution: everything browsable +
+   filterable, filter **defaults to current month**, and **"unreviewed" is NEVER a nagging count or
+   badge** — no "24 items need review". Most rows stay permanently unreviewed by design, so
+   **nothing anywhere may read "unreviewed" as "did not happen".**
+2. **Stage 4 = YES.** A confirmed link feeds `buildCaptureEvidence` as `matched: true`, overriding
+   the auto-matcher. Rationale: otherwise an explicit user confirmation counts for less than an
+   automatic guess, which is backwards.
+3. **Imported rows: fully editable, stamped `origin='synced'`** on `public.transactions`. Re-import
+   blocked by the review row's unique constraint.
+4. **Build now: Stages 1+2 only** (zero effect on any projected number). 3 and 4 ship separately and
+   get live-verified separately.
+
+### 🆕 §1C (new, NOT started, do not build without Tre)
+
+Tre's onboarding idea: **derive recurring rules from transaction history.** A pattern detector over
+`synced_transactions`, a different consumer from the review inbox. Filed as §1C so it isn't lost.
+This is the reason all-history is in scope.
+
+### Facts verified session 113 (don't re-query)
+
+- `synced_transactions` (Tre): **571 rows**, 2026-01-17 → 2026-08-07, 5 pending; 24 settled this month.
+- `public.transactions` (Tre): **22 rows**. Active `recurring_rules`: **30**.
+- ⚠️ **The two tables disagree on a convention.** `recurring_rules.payment_source` = **bare uuid**;
+  `transactions.payment_source` = **`account:`-prefixed** (22/22 rows, 0 bare). Reuse
+  `normalizePaymentSource()` (`transaction-matching.ts:113`) — it accepts both. Do NOT write a second parser.
+- ⚠️ `transactions.account` is a **dead legacy free-text label** — reads `"Checking"` on all 22 rows
+  *including* ones whose `payment_source` points at the Discover card. Import must set it from the
+  real `accounts.name`, never by copying an existing row.
+- Plaid categories present: 18 PFC primaries. **`GENERAL_MERCHANDISE` is 183/571 (32%)** and only
+  means "a store" — mapping it to `Shopping` is a guess that will often be wrong. That is precisely
+  why the override exists. **Do not add merchant-name heuristics to paper over it** — §1A rejected
+  fuzzy name scoring for reasons that apply here too.
+
+### Item 6 re-checked (session 113) — STILL HAS NOT FIRED
+
+$422.89 on `933cbc10…` still `pending: true`, dated 2026-08-07, `updated_at` unmoved at
+**2026-08-08 13:00:08 UTC**. Latest settled on that account still **2026-08-05**. Bank settlement
+lag, not a sync failure. Same conclusion as sessions 111/112.
+
+---
+
 # Handoff — 2026-08-08 — session 112 — Stage 6 FULLY DELIVERED (deployed v51); item 6 not yet fired
 
 > Session 112 **deployed the `ai-advisor` edge function** (Tre approved; v50 → **v51**, ACTIVE,
