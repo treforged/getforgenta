@@ -70,12 +70,12 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
 1. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
    `debt-transaction-generator.ts:12-34`. **Recommendation: skip.**
 2. ~~§2.10 UI live-verification~~ — **DONE session 109**, see above. §2.10 fully closed.
-3. `backup.plaid_items_20260807` (7 rows) / `backup.accounts_20260807` (31 rows) — the 2026-08-07
-   §1 snapshot, taken because the free-tier org has **no PITR and no automated backup**. Live counts
-   match exactly (31/31, 7/7) and the `backup` schema has **no grants to anon/authenticated/public**.
-   **Session 109 recommendation: KEEP them, close this item.** Dropping is irreversible, saves 38
-   rows, and removes the only snapshot of pre-§1 state on a plan with no other recovery path. Tre
-   asked what this item was about on 2026-08-08 and has not said to drop.
+3. ~~`backup.plaid_items_20260807` / `backup.accounts_20260807`~~ — **CLOSED AS KEEP. Tre decided
+   2026-08-08: "don't drop them — close the item as keep." Do NOT re-propose dropping these.**
+   They are the 2026-08-07 §1 snapshot (7 + 31 rows), kept because the org is on the **free plan —
+   no PITR, no automated backup**, so this is the only copy of pre-§1 state. Live counts match
+   exactly (31/31, 7/7) and the `backup` schema has **no grants to anon/authenticated/public**, so
+   it is not an exposure. 38 rows is not worth an irreversible drop.
 4. Native Plaid Hosted Link device verification (needs a physical device).
 5. Stage A's pending→posted retirement path still **not exercised against real data**.
 
