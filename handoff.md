@@ -2,7 +2,7 @@
 
 > Session 109 built §2.10, commit **`80f72c2d`**, on top of session 108's `cab6efda`, and
 > live-verified the UI in demo + a real DB round-trip. **§2.10 is closed.**
-> **NOT pushed.** `main` is 4 ahead of `origin/main` (`origin/main` = `09622e53`).
+> **NOT pushed.** `main` is 6 ahead of `origin/main` (`origin/main` = `09622e53`).
 > Tre's answer to the scope question was *"do what you believe is best and would be most accurate
 > and consistent"* — so the shrunk one-mode design below was chosen and built.
 
@@ -81,10 +81,10 @@ is plain code and the DB constraints are verified; this is not worth a real-acco
 
 ## Closed previously (do not reopen)
 
-§2.10 (session 109, code+DB; UI unverified), §1A Stage C (all parts, session 103), 97.1 `/debt` TOTAL LIMIT tile ($25,400), `types.ts` regen
+§2.10 (session 109, code+DB+UI, fully live-verified), §1A Stage C (all parts, session 103), 97.1 `/debt` TOTAL LIMIT tile ($25,400), `types.ts` regen
 (session 104), remote access (Tailscale+RDP, sessions 104/107 — lives OUTSIDE this repo in
 `C:\Users\tvonh\Desktop\remote-access\`; **this repo is PUBLIC**), **97.3** (all parts, incl. the
-goal chart earning interest after contributions stop, live-verified session 107), and now **§2.9**.
+goal chart earning interest after contributions stop, live-verified session 107), **§2.9**, and now **§2.10**.
 
 **Re-check each session:** only Discover has a `sync_cursor` (143 rows). The car-loan funding
 account `933cbc10…` is Chase TOTAL CHECKING with 0 synced transactions. The moment a
@@ -98,7 +98,7 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-**`main` is 4 ahead of `origin/main`** (session-107/108 handoffs + `cab6efda` §2.9 + `80f72c2d` §2.10).
+**`main` is 6 ahead of `origin/main`** (session-107/108/109 handoffs + `cab6efda` §2.9 + `80f72c2d` §2.10).
 `origin/main` = `09622e53`. Standing rule: **never auto-push** — session 107's push was a one-off
 explicit authorization and does NOT carry forward. Verify with
 `git rev-list --count origin/main..main`.
