@@ -17,8 +17,8 @@ point of the feature:
 | `/goals` card | `Auto-ends contributions Sep 2030` + `Est. completion: Sep 2030` |
 | `/forecast` | milestone `Sep 2030: Savings Complete! 🎯` |
 
-Do not re-verify this. Carried item 2 (widen re-stamping beyond GOAL save) is still open and
-still needs Tre's call.
+Do not re-verify this. The widening of re-stamping beyond GOAL save is now ALSO done — see the
+`e16ea721` section below.
 
 ## ✅ Shipped — goal chart keeps earning after contributions stop — `9592611b`
 
@@ -116,7 +116,7 @@ Do not "fix" the golden to match live.
 
 ## Push status
 
-`main` is **37 commits ahead** of `origin/main` including this handoff. Standing rule is never
+`main` is **38 commits ahead** of `origin/main` including this handoff. Standing rule is never
 auto-push. **Nothing pushed.** Verify with `git rev-list --count origin/main..main`.
 
 ## Supabase — real IDs (carried)
