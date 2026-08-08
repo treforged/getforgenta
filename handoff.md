@@ -1,6 +1,7 @@
-# Handoff — 2026-08-08 — session 109 — §2.10 SHIPPED (code+DB). Live UI check is the one gap.
+# Handoff — 2026-08-08 — session 109 — §2.10 SHIPPED + LIVE-VERIFIED. Closed.
 
-> Session 109 built §2.10, commit **`80f72c2d`**, on top of session 108's `cab6efda`.
+> Session 109 built §2.10, commit **`80f72c2d`**, on top of session 108's `cab6efda`, and
+> live-verified the UI in demo + a real DB round-trip. **§2.10 is closed.**
 > **NOT pushed.** `main` is 4 ahead of `origin/main` (`origin/main` = `09622e53`).
 > Tre's answer to the scope question was *"do what you believe is best and would be most accurate
 > and consistent"* — so the shrunk one-mode design below was chosen and built.
@@ -41,21 +42,40 @@ Files: `vehicle-loan-engine.ts`, `types.ts`, `forecast-engine.ts`, `useCardProje
 `Dashboard.tsx`, `Vehicles.tsx`, `demo-data.ts`, `integrations/supabase/types.ts` + 7 test files.
 Backups: `backups/2026-08-08_105248/`.
 
-### ⚠️ The one gap — §2.10's UI is NOT live-verified
-The Vehicles saving-form now shows an **"Amount Saved"** select (full balance / percentage) plus a
-percent field, and `handleSaveSaving` writes `saved_source`/`saved_percent`. **Nobody has rendered
-or saved that form.** Demo mode cannot verify it (demo does not write to the DB) and Tre's only real
-car fund is `phase='loan'`, so the saving form is not reachable from his data either. Verifying it
-needs either a throwaway saving-phase fund on Tre's account (mutates his data — **ask first**) or a
-signed-in scratch account. Everything below the UI is pinned by tests.
+### ✅ §2.10 UI — LIVE-VERIFIED (session 109, demo mode + DB round-trip). Do not re-verify.
+
+On screen in demo, Vehicles → Saving for Down Payment → edit the Civic:
+- Form labels include **"Amount Saved"**; **"Current Saved" is correctly absent** (d1 is linked).
+- Its select carries exactly `['fixed','account_percent']`, defaulting to `fixed`.
+- Switching to `account_percent` reveals **"Percent of Balance Saved for This Vehicle"** and swaps the
+  hint to *"Tracks the balance, so it can never claim more than the account holds."*
+- The Civic card reads **$2,800 / $5,600 (50%)** — the linked-balance derivation, unchanged by §2.10
+  (stored `current_saved` is $1,200; the card correctly shows d1's live $2,800).
+
+DB round-trip verified against the real project: a throwaway `account_percent` row inserted and
+**deleted** (only Tre's `2004 Chevorlet C5` remains, untouched — confirmed by SELECT), and the
+`car_funds_saved_percent_requires_account_check` constraint correctly **rejected** percent mode with
+a null linked account.
+
+⚠️ **CTE gotcha, cost a cleanup call:** `WITH ins AS (INSERT…), del AS (DELETE … WHERE id IN (SELECT
+id FROM ins))` reports `rows_deleted: 0` and **leaves the row behind** — the DELETE reads the same
+snapshot and cannot see the just-inserted row. Insert-then-verify-then-delete needs SEPARATE
+statements. Always re-SELECT to confirm cleanup actually happened.
+
+Not exercised: clicking Save in demo (demo mode does not write to the DB). The payload construction
+is plain code and the DB constraints are verified; this is not worth a real-account write.
 
 ## Still open (carried, renumbered)
 
 1. Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
    `debt-transaction-generator.ts:12-34`. **Recommendation: skip.**
-2. **§2.10 UI live-verification** (see the gap box above) — the only open part of §2.10.
-3. `backup.plaid_items_20260807` / `backup.accounts_20260807` — safe to drop; §1 is settled.
-   **Needs Tre's go-ahead** (irreversible), which is why session 108 did not do it.
+2. ~~§2.10 UI live-verification~~ — **DONE session 109**, see above. §2.10 fully closed.
+3. `backup.plaid_items_20260807` (7 rows) / `backup.accounts_20260807` (31 rows) — the 2026-08-07
+   §1 snapshot, taken because the free-tier org has **no PITR and no automated backup**. Live counts
+   match exactly (31/31, 7/7) and the `backup` schema has **no grants to anon/authenticated/public**.
+   **Session 109 recommendation: KEEP them, close this item.** Dropping is irreversible, saves 38
+   rows, and removes the only snapshot of pre-§1 state on a plan with no other recovery path. Tre
+   asked what this item was about on 2026-08-08 and has not said to drop.
 4. Native Plaid Hosted Link device verification (needs a physical device).
 5. Stage A's pending→posted retirement path still **not exercised against real data**.
 
