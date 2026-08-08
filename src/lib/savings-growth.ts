@@ -9,9 +9,9 @@
 //                                 + monthly contribution (once contributions have started)
 //                                 + any planned lump sums dated in that month
 //   - interest accrues in EVERY month, including months before contributions begin
-//   - contributions STOP once the goal reaches its `targetAmount` (handoff item 4b: the
-//     linked transfer really does stop), but interest and planned lump sums keep going,
-//     so a funded goal shows an interest-only tail instead of a straight line
+//   - the monthly contribution STOPS after the month that first reaches
+//     `targetAmount` (see `contributionCutoffIdx`); interest and planned lump sums
+//     carry on, so a funded goal keeps earning instead of flat-lining
 //   - balances are NOT capped at the target, so a goal that overshoots keeps
 //     showing its real trajectory instead of flat-lining at the target
 
@@ -36,9 +36,9 @@ export type GrowthGoalInput = {
   contributionStartDate: string | null;
   lumpSums: GrowthLumpSum[];
   /**
-   * What the goal is saving toward. Optional: omit it (or pass 0) and contributions run for the
-   * whole horizon, which is what `estimateGoalCompletionMonths` needs when it is searching for
-   * the completion month itself and must not gate the very contributions it is measuring.
+   * The goal's target. When present and positive, `buildSavingsGrowthData` stops the monthly
+   * contribution once it is reached, matching what the Forecast, Dashboard and Debt engine
+   * already do via `goal-linkage.ts`. Omit it for a raw "contribute forever" projection.
    */
   targetAmount?: number | null;
 };
@@ -86,8 +86,25 @@ type GoalState = {
   rate: number;
   pmt: number;
   startOffset: number;
+  /** First month index at which the contribution stops, or null for "never stops". */
+  cutoffOffset: number | null;
   lumpsByMonth: Map<number, number>;
 };
+
+/**
+ * Translate a completion month index into the first month index whose contribution should NOT
+ * be made: month k's contribution is the one that tipped the goal over, so 0..k still count and
+ * k+1 onward do not. A goal already at target (k=0) stops immediately, month 0 included.
+ * null in, null out — a goal that never completes never stops contributing.
+ *
+ * Exported so this rule lives in exactly ONE place: `goal-linkage.ts`'s engine cutoffs and this
+ * module's chart derive their stop month from the same line, which is what keeps the Goals chart
+ * and the Forecast from drifting a month apart.
+ */
+export function contributionCutoffIdx(completionIdx: number | null): number | null {
+  if (completionIdx == null) return null;
+  return completionIdx === 0 ? 0 : completionIdx + 1;
+}
 
 function initState(g: GrowthGoalInput, baseYear: number, baseMonth: number, months: number): GoalState {
   // Lump sums dated in the current month or earlier are assumed to already be
@@ -107,43 +124,21 @@ function initState(g: GrowthGoalInput, baseYear: number, baseMonth: number, mont
     pmt: Number(g.monthlyContribution) || 0,
     // A start date in the past (or none) means contributions are already running.
     startOffset: Math.max(0, startOffsetRaw ?? 0),
+    // Set by the caller that knows the target; `estimateGoalCompletionMonths` must leave it
+    // null or it would be defining its own answer in terms of itself.
+    cutoffOffset: null,
     lumpsByMonth,
   };
 }
 
-/**
- * Advance one calendar month. Month 0 is the starting balance and is never stepped.
- *
- * `contribCutoff` is the first month index at which the contribution stops (null = never stops).
- * Only the contribution is gated: interest still compounds on the balance and planned lump sums
- * still land, because 4b stops the recurring transfer, not the account.
- */
-function stepMonth(s: GoalState, monthIndex: number, contribCutoff: number | null = null): number {
+/** Advance one calendar month. Month 0 is the starting balance and is never stepped. */
+function stepMonth(s: GoalState, monthIndex: number): number {
   const contributing = monthIndex >= s.startOffset
-    && (contribCutoff == null || monthIndex < contribCutoff);
+    && (s.cutoffOffset == null || monthIndex < s.cutoffOffset);
   s.balance = s.balance * (1 + s.rate)
     + (contributing ? s.pmt : 0)
     + (s.lumpsByMonth.get(monthIndex) ?? 0);
   return s.balance;
-}
-
-/**
- * The first month index at which a goal's contributions should STOP because the target has been
- * reached: 0 = already at target, never contribute at all; k+1 when month k's contribution is the
- * one that tipped it over (so months 0..k still fund it); null when it never completes.
- *
- * Shared on purpose. `goal-linkage.ts` derives the Forecast's and the debt engines' transfer
- * cutoffs from this exact arithmetic, so the chart and the engines cannot drift into disagreeing
- * about which month a goal stops being funded.
- */
-export function goalContributionCutoffIdx(
-  goal: GrowthGoalInput,
-  targetAmount: number,
-  opts: { today?: Date; maxMonths?: number } = {},
-): number | null {
-  const completionIdx = estimateGoalCompletionMonths(goal, targetAmount, opts);
-  if (completionIdx == null) return null; // never completes within the horizon
-  return completionIdx === 0 ? 0 : completionIdx + 1;
 }
 
 export function buildSavingsGrowthData(
@@ -162,13 +157,16 @@ export function buildSavingsGrowthData(
     name: g.name || `Goal ${i + 1}`,
   }));
 
-  const state = goals.map(g => initState(g, baseYear, baseMonth, months));
-
-  // A goal with a target stops being funded once it gets there, exactly as the linked transfer
-  // does in the Forecast. A goal with no target keeps contributing for the whole horizon.
-  const contribCutoffs = goals.map(g => {
+  const state = goals.map(g => {
+    const s = initState(g, baseYear, baseMonth, months);
+    // Stop contributing once the goal is funded — the same month the engines stop counting it.
     const target = Number(g.targetAmount) || 0;
-    return target > 0 ? goalContributionCutoffIdx(g, target, { today }) : null;
+    if (target > 0) {
+      s.cutoffOffset = contributionCutoffIdx(
+        estimateGoalCompletionMonths(g, target, { today }),
+      );
+    }
+    return s;
   });
 
   const rows: GrowthRow[] = [];
@@ -177,7 +175,7 @@ export function buildSavingsGrowthData(
       month: new Date(baseYear, baseMonth + i).toLocaleString('en', { month: 'short', year: '2-digit' }),
     };
     state.forEach((s, gi) => {
-      if (i > 0) stepMonth(s, i, contribCutoffs[gi]);
+      if (i > 0) stepMonth(s, i);
       row[series[gi].key] = Math.round(s.balance * 100) / 100;
     });
     rows.push(row);
@@ -209,6 +207,25 @@ export function estimateGoalCompletionMonths(
     if (stepMonth(s, i) >= target) return i;
   }
   return null;
+}
+
+/**
+ * The projected balance `months` from now, on the exact same accrual as the chart — interest,
+ * planned lump sums, a future contribution start date, and the stop-at-target cutoff all
+ * included.
+ *
+ * Exists so the lump-sum modal's "projected balance on that date" preview reads the shared
+ * model instead of its own closed-form annuity, which ignored both lump sums and the cutoff and
+ * so could tell the user a goal would hold more on a date than the chart right above it showed.
+ */
+export function projectGoalBalanceAt(
+  goal: GrowthGoalInput,
+  months: number,
+  opts: { today?: Date } = {},
+): number {
+  const horizon = Math.max(1, Math.floor(months) + 1);
+  const { rows, series } = buildSavingsGrowthData([goal], { months: horizon, today: opts.today });
+  return Number(rows[horizon - 1][series[0].key]);
 }
 
 /**

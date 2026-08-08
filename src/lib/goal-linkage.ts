@@ -9,7 +9,7 @@
 // rule's dollars from, mirroring how `end_date` already works everywhere else — a computed
 // exclusion in the read path, not a stored one. Reversible the moment the goal's target rises.
 
-import { estimateGoalCompletionMonths, getGoalEffectiveApyPercent, type ApyAccountLike } from './savings-growth';
+import { contributionCutoffIdx, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, type ApyAccountLike } from './savings-growth';
 
 export type GoalLike = {
   id?: string | null;
@@ -113,9 +113,9 @@ function computeGoalCutoffIdx(
   accounts: AccountLike[],
   today: Date,
 ): number | null {
-  const completionIdx = computeGoalCompletionIdx(goal, rules, accounts, today);
-  if (completionIdx == null) return null; // never completes within the horizon
-  return completionIdx === 0 ? 0 : completionIdx + 1;
+  // The +1 / 0 rule itself lives in savings-growth so the Goals chart stops contributing in the
+  // same month these engine cutoffs do. null = never completes within the horizon.
+  return contributionCutoffIdx(computeGoalCompletionIdx(goal, rules, accounts, today));
 }
 
 /**

@@ -16,7 +16,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, Car, Copy, Link2, Crown, X, Check } from 'lucide-react';
 import { mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, getAccountRemainingCashThisMonth } from '@/lib/pay-schedule';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, type GrowthGoalInput } from '@/lib/savings-growth';
+import { buildSavingsGrowthData, estimateGoalCompletionMonths, getGoalEffectiveApyPercent, goalCompletionMonthLabel, projectGoalBalanceAt, type GrowthGoalInput } from '@/lib/savings-growth';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import { planAutoEndWrites, type StampedMap } from '@/lib/goal-auto-end';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
@@ -152,25 +152,36 @@ function GoalLumpSumModal({
 }
 
 function GoalLumpSumPanel({
-  lumpSums, onSave, liquidCash, currentAmount, monthlyContrib, isRothIra, apyRate = 0,
+  lumpSums, onSave, liquidCash, currentAmount, monthlyContrib, targetAmount, isRothIra, apyRate = 0,
 }: {
   lumpSums: GoalLumpSum[];
   onSave: (lumps: GoalLumpSum[]) => void;
   liquidCash: number;
   currentAmount: number;
   monthlyContrib: number;
+  targetAmount: number;
   isRothIra?: boolean;
   apyRate?: number;
 }) {
   const [modal, setModal] = useState<null | { mode: 'add' } | { mode: 'edit'; id: string; date: string; amount: string }>(null);
 
+  // Reads the same model as the chart above rather than a closed-form annuity of its own: the
+  // old formula ignored the already-planned lump sums AND kept contributing past the target, so
+  // it could quote a bigger balance for a date than the chart drew for that same month.
   const projectedBalanceAt = (dateStr: string) => {
     const today = new Date();
     const target = new Date(dateStr + 'T00:00:00');
     const months = Math.max(0, (target.getFullYear() - today.getFullYear()) * 12 + (target.getMonth() - today.getMonth()));
-    const r = apyRate / 12 / 100;
-    if (r <= 0 || months === 0) return currentAmount + monthlyContrib * months;
-    return currentAmount * Math.pow(1 + r, months) + monthlyContrib * (Math.pow(1 + r, months) - 1) / r;
+    return projectGoalBalanceAt({
+      id: 'preview',
+      name: '',
+      currentAmount,
+      monthlyContribution: monthlyContrib,
+      annualApyPercent: apyRate,
+      contributionStartDate: null,
+      lumpSums,
+      targetAmount,
+    }, months, { today });
   };
 
   const rothByYear = useMemo(() => {
@@ -298,7 +309,9 @@ const toGrowthGoal = (g: EnrichedGoal, index: number): GrowthGoalInput => ({
   lumpSums: Array.isArray(g.lump_sum_payments)
     ? (g.lump_sum_payments as unknown as GoalLumpSum[]).map(ls => ({ date: ls.date, amount: Number(ls.amount) }))
     : [],
-  targetAmount: Number(g.target_amount) || 0,
+  // Handoff 4b, completing it: the chart stops contributing once the goal is funded, exactly as
+  // the Forecast, Dashboard and Debt engine already do. Interest keeps accruing after that.
+  targetAmount: Number(g.target_amount),
 });
 
 function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
@@ -708,6 +721,7 @@ export default function SavingsGoals() {
                   liquidCash={liquidCash}
                   currentAmount={Number(g.current_amount)}
                   monthlyContrib={Number(g.monthly_contribution)}
+                  targetAmount={Number(g.target_amount)}
                   isRothIra={isRothIra}
                   apyRate={g.effective_apy || 0}
                 />
