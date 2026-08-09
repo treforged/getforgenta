@@ -49,6 +49,37 @@ I tried and FAILED to read `scheduledEvents` off the fiber twice (plain prop wal
 walk). **Do not repeat those two attempts.** Cheaper next moves: a temporary `console.log` in that
 memo, or a unit test that feeds real-shaped `scheduledEvents` through it.
 
+### 🔬 CHASED FURTHER (Tre asked, same session). TWO HYPOTHESES NOW DEAD — start from here.
+
+- ❌ **DEAD — "`baseExpenses` isn't downstream of the suppression".** It is.
+  `useForecastEngineInputs.ts:166` `forecastMonthEvents` is the suppression-aware memo (the one with
+  `isRuleOccurrenceConfirmed` at :264); `forecast-engine.ts:745` does
+  `const filteredExpenses = forecastMonthEvents[i]?.expenses ?? 0` and `:747-751` assigns that to
+  `baseExpenses`. The separate un-filtered `monthlyAggregates` (:83) feeds other fields, NOT this one.
+- ❌ **DEAD — "the stored `occurrence_date` disagrees with the forecast's generated date".** This was
+  my best theory (the forecast builds events with **`generateScheduledEvents`**, a DIFFERENT function
+  from the `getRuleOccurrenceDatesInMonth` the writer uses — exactly the two-copies danger that
+  function's own docstring warns about). **Disproved:** re-ran Phone Bill with
+  **`occurrence_date = NULL`, month-key only** — the legacy path that cannot possibly mismatch — and
+  it ALSO moved 0 of 213 keys. A key mismatch would have shown a delta here.
+  ⚠️ The two generators are still an unaudited duplicate and worth checking on their own merits, but
+  they are **not** the cause of this anomaly.
+- ✅ **RULED IN — funding account is not the explanation.** `tre:debt:fundingAccount` =
+  `933cbc10-bceb-4c20-8227-4a02e6db728a` = **TOTAL CHECKING**, which IS Phone Bill's `payment_source`.
+  So the rule is genuinely inside the forecast's scope and `otherAccountRuleIds` does not exclude it.
+
+**What survives, and it is the serious one:** rule-generated expense events may not carry `e.ruleId`,
+so `isRuleOccurrenceConfirmed(e.ruleId, …)` at `:264` always returns false and **§1B Stage 4A never
+suppresses anything in the forecast** — i.e. the whole Stage 4A feature is inert on this surface,
+independently of `3ec7c725`. Both surviving hypotheses (missing `ruleId`, or the event not landing in
+`eventsInMonth`) predict the Δ 0 that was observed, so they must be separated directly.
+
+**Do this first, it is one cheap step:** temporarily `console.log` inside the `:238` `eventsInMonth`
+filter for `monthKey === '2026-08'` — dump `{date, ruleId, type, amount}` — and answer two questions
+at once: (a) is Phone Bill's $30 event present, and (b) does it carry a `ruleId`? Also reconcile the
+standing puzzle that **Aug `baseExpenses` = 120** while the only remaining Aug TOTAL CHECKING cash
+rule is Phone Bill at **$30**; whatever makes up the other $90 will likely explain the shape.
+
 ## 🟢 ANCHOR DECIDED — Tre picked **"Both: derive now, ask later"** (2026-08-09)
 
 For the biweekly phase bug measured in 126b. **Two commits, in this order:**
