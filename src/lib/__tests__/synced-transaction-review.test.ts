@@ -55,6 +55,47 @@ describe('validateReviewInput', () => {
     })).toBe('A plan link needs a payment plan');
   });
 
+  // §1B Stage 4B — the same database-unenforceable rule again: `car_fund_id` is ON DELETE SET NULL,
+  // so a CHECK requiring it would make DELETING A VEHICLE fail.
+  it('rejects a vehicle link with no vehicle', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_car', car_charge_kind: 'loan_payment', occurrence_month: '2026-08',
+    })).toBe('A vehicle link needs a vehicle');
+  });
+
+  // THE RULE 4B EXISTS FOR. A car fund bills a loan payment AND an insurance premium every month,
+  // from the same account, and the engines gate them independently — so a link naming only the
+  // vehicle leaves the two indistinguishable, and the only way to guess would be to compare
+  // amounts, which is the heuristic §1A demoted.
+  it('rejects a vehicle link that does not say which charge', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_car', car_fund_id: 'c1', occurrence_month: '2026-08',
+    })).toBe('A vehicle link needs to say which charge it paid');
+  });
+
+  // Both vehicle charges recur monthly, so the occurrence is as load-bearing as a rule's.
+  it('rejects a vehicle link with no occurrence month', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_car', car_fund_id: 'c1', car_charge_kind: 'insurance',
+    })).toBe('A vehicle link needs the month it settles');
+  });
+
+  it.each(['loan_payment', 'insurance'] as const)('accepts a complete %s vehicle link', kind => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_car', car_fund_id: 'c1',
+      car_charge_kind: kind, occurrence_month: '2026-08',
+    })).toBeNull();
+  });
+
+  // A kind with no fund is a claim about a vehicle obligation with no vehicle. Rejected on EVERY
+  // status, not just `linked_car`, so it cannot reach the row through another path.
+  it('rejects a charge kind with no vehicle on an unrelated status', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_rule', rule_id: 'r1',
+      occurrence_month: '2026-08', car_charge_kind: 'insurance',
+    })).toBe('A vehicle charge needs a vehicle');
+  });
+
   it.each(['linked_txn', 'imported'] as const)('rejects %s with no ledger entry', status => {
     expect(validateReviewInput({ synced_transaction_id: 's1', status }))
       .toBe('That status needs a ledger entry');
@@ -63,11 +104,17 @@ describe('validateReviewInput', () => {
   // A stale pointer would make the row look linked to any query reading the FKs without the status.
   it.each(['ignored', 'categorized'] as const)('rejects %s that still carries a link', status => {
     expect(validateReviewInput({ synced_transaction_id: 's1', status, rule_id: 'r1' }))
-      .toBe('That status cannot stay linked to a rule, plan or entry');
+      .toBe('That status cannot stay linked to a rule, plan, vehicle or entry');
     expect(validateReviewInput({ synced_transaction_id: 's1', status, transaction_id: 't1' }))
-      .toBe('That status cannot stay linked to a rule, plan or entry');
+      .toBe('That status cannot stay linked to a rule, plan, vehicle or entry');
     expect(validateReviewInput({ synced_transaction_id: 's1', status, payment_plan_id: 'p1' }))
-      .toBe('That status cannot stay linked to a rule, plan or entry');
+      .toBe('That status cannot stay linked to a rule, plan, vehicle or entry');
+    expect(validateReviewInput({ synced_transaction_id: 's1', status, car_fund_id: 'c1' }))
+      .toBe('That status cannot stay linked to a rule, plan, vehicle or entry');
+    // The KIND is a pointer too — a dangling "this was an insurance premium" on an ignored row is
+    // the same lie as a dangling fund id.
+    expect(validateReviewInput({ synced_transaction_id: 's1', status, car_charge_kind: 'insurance' }))
+      .toBe('That status cannot stay linked to a rule, plan, vehicle or entry');
   });
 
   it.each(['ignored', 'categorized'] as const)('accepts a clean %s', status => {
@@ -93,7 +140,7 @@ describe('isHandledReview', () => {
     expect(isHandledReview(undefined)).toBe(false);
   });
 
-  it.each(['linked_rule', 'linked_txn', 'imported', 'ignored', 'linked_plan'])('treats %s as handled', status => {
+  it.each(['linked_rule', 'linked_txn', 'imported', 'ignored', 'linked_plan', 'linked_car'])('treats %s as handled', status => {
     expect(isHandledReview({ status })).toBe(true);
   });
 

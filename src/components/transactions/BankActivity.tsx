@@ -27,9 +27,11 @@ import { suggestCategory, hasCategorySuggestion, isValidCategory } from '@/lib/p
 import { matchOccurrence, matchCharge, normalizePaymentSource, type MatchableTransaction } from '@/lib/transaction-matching';
 import {
   useAllSyncedTransactions, useSyncedTransactionReviews, useAccounts, useRecurringRules,
-  useTransactions, usePaymentPlans, isHandledReview, planLedgerImport,
+  useTransactions, usePaymentPlans, useCarFunds, isHandledReview, planLedgerImport,
   type BankActivityRow, type SyncedTransactionReviewRow, type TransactionRow, type RuleRow,
 } from '@/hooks/useSupabaseData';
+import type { CarChargeKind } from '@/lib/synced-transaction-review';
+import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { Link2, EyeOff, RotateCcw, Landmark, Plus, X } from 'lucide-react';
 
 /** `YYYY-MM` for a `YYYY-MM-DD`. */
@@ -83,6 +85,7 @@ export default function BankActivity() {
   const { data: rules } = useRecurringRules();
   const { data: ledger } = useTransactions();
   const { data: paymentPlans } = usePaymentPlans();
+  const { data: carFunds } = useCarFunds();
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   // Defaults to the current month. All history is available, but opening the tab on seven months of
@@ -102,7 +105,7 @@ export default function BankActivity() {
    */
   const [rejected, setRejected] = useState<Record<string, true>>({});
   /** Which row, if any, has a link picker open — and which of the three it is. */
-  const [picker, setPicker] = useState<{ id: string; kind: 'rule' | 'txn' | 'plan' } | null>(null);
+  const [picker, setPicker] = useState<{ id: string; kind: 'rule' | 'txn' | 'plan' | 'car' } | null>(null);
 
   const accountName = useMemo(() => {
     const map: Record<string, string> = {};
@@ -180,6 +183,44 @@ export default function BankActivity() {
     () => paymentPlans.filter(p => p.active).slice().sort((a, b) => a.name.localeCompare(b.name)),
     [paymentPlans],
   );
+
+  /**
+   * §1B Stage 4B — the vehicle charges a bank row may be linked to.
+   *
+   * TWO DESTINATIONS PER VEHICLE, not one. A `phase='loan'` car fund bills a loan payment AND an
+   * insurance premium every month, usually from the same account, and the engines gate the two
+   * independently (`forecast-engine.ts:307` vs `:356`). Offering one "link to this vehicle" entry
+   * would record a decision the number-moving half could only disambiguate by comparing amounts —
+   * the heuristic §1A demoted — so the user picks the obligation, not just the car. Tre's own
+   * request named them separately ("link to car insurance and car payment").
+   *
+   * The loan payment's amount comes from `getActiveCarLoanPayments`, the same helper the engines
+   * charge against cash, rather than `actual_monthly_payment`: it is the authoritative figure, it
+   * already excludes lump sums, and it yields nothing at all for a loan that has not started or has
+   * paid off — which is exactly the set of payments a charge could be settling.
+   */
+  const pickableCarCharges = useMemo(() => {
+    const options: { value: string; label: string }[] = [];
+    const active = getActiveCarLoanPayments(carFunds);
+    for (const p of active) {
+      options.push({
+        value: `${p.carFundId}:loan_payment`,
+        label: `${p.vehicleName} · car payment · ${formatCurrency(p.payment, false)}`,
+      });
+    }
+    // Insurance is an OWNERSHIP cost, not a financing one — it outlives the loan and is anchored to
+    // `insurance_start_date ?? loan_start_date`, so it is listed off the fund's own premium rather
+    // than off the payment list above. A vehicle with no premium recorded bills nothing to link to.
+    for (const cf of carFunds) {
+      const premium = Number(cf.monthly_insurance || 0);
+      if (cf.phase !== 'loan' || premium <= 0) continue;
+      options.push({
+        value: `${cf.id}:insurance`,
+        label: `${cf.vehicle_name} · car insurance · ${formatCurrency(premium, false)}`,
+      });
+    }
+    return options;
+  }, [carFunds]);
 
   const suggestionFor = (txn: BankActivityRow): RowSuggestion => {
     const rule = ruleByTxnId[txn.id];
@@ -277,6 +318,9 @@ export default function BankActivity() {
           const linkedPlan = review?.payment_plan_id
             ? paymentPlans.find(p => p.id === review.payment_plan_id)
             : undefined;
+          const linkedCar = review?.car_fund_id
+            ? carFunds.find(c => c.id === review.car_fund_id)
+            : undefined;
 
           return (
             <div key={txn.id} className="px-4 py-3 space-y-2">
@@ -327,7 +371,14 @@ export default function BankActivity() {
                               // Same ON DELETE SET NULL degraded state as a rule link, for the same
                               // reason: the decision outlives the plan it named.
                               ? (linkedPlan ? `linked · ${linkedPlan.name}` : 'linked · plan deleted')
-                              : 'linked'}
+                              : review?.status === 'linked_car'
+                                // The charge KIND is named, not just the vehicle: a car bills two
+                                // obligations a month and "linked · Civic" would not say which one
+                                // the user just accounted for.
+                                ? (linkedCar
+                                  ? `linked · ${linkedCar.vehicle_name} ${review.car_charge_kind === 'insurance' ? 'insurance' : 'payment'}`
+                                  : 'linked · vehicle deleted')
+                                : 'linked'}
                     </span>
                     {review?.status === 'imported' && review.transaction_id ? (
                       // ⚠️ Undoing an import must delete the LEDGER ROW, not the review. Deleting the
@@ -419,6 +470,16 @@ export default function BankActivity() {
                             <Link2 size={11} /> Link to a payment plan
                           </button>
                         )}
+                        {/* Same rule as the plan picker: offered only when a vehicle charge exists
+                            to link to. A user with no active car loan has no such obligation. */}
+                        {pickableCarCharges.length > 0 && (
+                          <button
+                            onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'car' ? null : { id: txn.id, kind: 'car' }))}
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                          >
+                            <Link2 size={11} /> Link to a vehicle charge
+                          </button>
+                        )}
                         {/* THE ONE CONTROL ON THIS PAGE THAT CREATES MONEY. It appears only when the
                             plan says yes, and there is deliberately no disabled version asserting a
                             reason nobody asked for. */}
@@ -496,6 +557,40 @@ export default function BankActivity() {
                       <option key={p.id} value={p.id}>
                         {p.name} · {formatCurrency(Math.abs(Number(p.payment_amount)), false)}
                       </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {openPicker === 'car' && !handled && (
+                <div className="pl-8">
+                  <select
+                    defaultValue=""
+                    onChange={e => {
+                      if (!e.target.value) return;
+                      // `<fundId>:<kind>` — one option value carrying both halves of the decision,
+                      // because a vehicle and a charge kind are only meaningful together and two
+                      // selects would let a user submit half of one.
+                      const [carFundId, kind] = e.target.value.split(':');
+                      save.mutate({
+                        synced_transaction_id: txn.id,
+                        status: 'linked_car',
+                        car_fund_id: carFundId,
+                        car_charge_kind: kind as CarChargeKind,
+                        // A car payment and its insurance both bill every month, so the link needs
+                        // the month it settles for the same reason a rule or plan link does.
+                        occurrence_month: monthOf(txn.date),
+                        category_override: review?.category_override ?? null,
+                      });
+                      setPicker(null);
+                    }}
+                    className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground max-w-full"
+                    style={{ borderRadius: 'var(--radius)' }}
+                    aria-label="Link this charge to a vehicle charge"
+                  >
+                    <option value="">Which vehicle charge is this?</option>
+                    {pickableCarCharges.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
                 </div>

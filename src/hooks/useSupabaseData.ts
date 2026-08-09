@@ -660,6 +660,8 @@ export function useSyncedTransactionReviews() {
           rule_id: input.rule_id ?? null,
           transaction_id: input.transaction_id ?? null,
           payment_plan_id: input.payment_plan_id ?? null,
+          car_fund_id: input.car_fund_id ?? null,
+          car_charge_kind: input.car_charge_kind ?? null,
           occurrence_month: input.occurrence_month ?? null,
           category_override: input.category_override ?? null,
           updated_at: new Date().toISOString(),

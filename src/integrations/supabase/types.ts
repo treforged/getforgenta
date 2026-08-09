@@ -1478,6 +1478,8 @@ export type Database = {
       }
       synced_transaction_reviews: {
         Row: {
+          car_charge_kind: string | null
+          car_fund_id: string | null
           category_override: string | null
           created_at: string
           id: string
@@ -1491,6 +1493,8 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          car_charge_kind?: string | null
+          car_fund_id?: string | null
           category_override?: string | null
           created_at?: string
           id?: string
@@ -1504,6 +1508,8 @@ export type Database = {
           user_id: string
         }
         Update: {
+          car_charge_kind?: string | null
+          car_fund_id?: string | null
           category_override?: string | null
           created_at?: string
           id?: string
@@ -1517,6 +1523,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "synced_transaction_reviews_car_fund_id_fkey"
+            columns: ["car_fund_id"]
+            isOneToOne: false
+            referencedRelation: "car_funds"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "synced_transaction_reviews_payment_plan_id_fkey"
             columns: ["payment_plan_id"]
