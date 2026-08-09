@@ -1,3 +1,67 @@
+# Handoff — 2026-08-09 — session 129 — 🟢 **BIWEEKLY ANCHOR VERIFIED AGAINST REAL DATA**; only the in-app render is left (blocked on sign-in)
+
+> **START HERE.** `12d01772` is now verified by a before/after A/B on the **real captured fixture**
+> and on **every biweekly row in the live database**. 722/722 tests, tsc clean, tree clean.
+> The one thing not done is looking at the running app, because **the Claude Chrome profile is
+> signed out on both `localhost:8080` and `127.0.0.1:8080`** and only Tre can fix that.
+
+## ✅ The fixture A/B — the change is NOT inert, and the golden test's silence is explained
+
+Method: temporary diag test (deleted) that ran `generateScheduledEvents` + `calculateForecast` +
+`renderProjectionFromFixture` on `forecast-inputs.real.json`, once at HEAD and once with
+`src/lib/{scheduling,pay-schedule}.ts` checked out from `12d01772~1`.
+
+| Measure | before | after |
+|---|---|---|
+| Fuel occurrences, 60-month horizon | **131** | **130** |
+| First Fuel dates | 2026-07-24, 08-07, 08-21, 09-04 … | **2026-07-31, 08-14, 08-28, 09-11 …** (all gaps 14) |
+| Months whose Fuel count changed | — | **21 of 60** (e.g. 2026-10 3→2, 2027-01 2→3) |
+| Sim `allPaymentTotals` (first 18 mo) | — | **3 months moved**: 12 `2417→2346`, 13 `568→633`, 16 `646→581` |
+| `calculateForecast(inputs)` rows | — | **identical, every field** |
+
+⚠️ **Why `goldenTierA` did not move — settled, do not re-investigate.** It asserts on
+`inputs.cardProjectionData.simRevolvingPayoffMonth`, which is **frozen inside the fixture**, and
+`calculateForecast` also consumes the fixture's captured `forecastMonthEvents` / `ccScheduledByMonth`.
+That path never regenerates scheduled events, so it is **insensitive by construction** — its silence
+was never evidence of a no-op. The sim path (`projection-harness.ts:78`, which *does* call
+`generateScheduledEvents`) is the sensitive one, and it moved. Payoff month held at **Jul 2027** on
+both arms, so no golden needs re-pinning.
+
+## ✅ Every biweekly row in the live DB — measured, and the risk is real for OTHER users
+
+`select … from recurring_rules where frequency='biweekly'` returns **7 rows, and 6 of them are
+INCOME** — five paychecks ($3,900 / $2,000 / $2,185.44 / $624 / $756) plus a $2,925 contribution.
+Tre's `Fuel` is the only expense. That is exactly the unsafe direction 126b predicted, and it is
+**other people's accounts**, not his.
+
+Counts over the next 12 months, old vs new (diag deleted; rerun by replaying the rows if needed):
+
+| Rule | occ 12mo | months that moved |
+|---|---|---|
+| $65 expense (Fuel, dd 5) | 26 → 26 | none — but **every date shifts 7 days** (Aug: 07/21 → 14/28) |
+| $3,900 income (dd 0) | 26 → 26 | none |
+| **$2,925 income (dd 3)** | **25 → 26** | 2026-09 2→3, 2026-12 3→2, 2027-03 2→3 |
+| $2,000 income (dd 5) | 26 → 26 | none |
+| **$2,185.44 income (dd 3)** | **25 → 26** | 2026-09 2→3, 2026-12 3→2, 2027-03 2→3 |
+| **$624 income (dd 4)** | **25 → 26** | 2026-10 2→3, 2027-04 2→3, 2027-07 3→2 |
+| $756 income (dd 5) | 26 → 26 | 2026-10 2→3, 2027-01 3→2, 2027-04 2→3, 2027-07 3→2 |
+
+Hand-checked one by arithmetic: the $2,925 rule (`start_date 2026-01-01`, Wednesday) anchors at
+**Wed 2026-01-07**; 01-07 + 17×14 = **2026-09-02**, so Sep really does hold 09-02/09-16/09-30 — the
+new count of 3 is right and the old 2 was wrong. **A 12-month total near 26 either way is expected**
+(365/14 = 26.07); the correction here is *which month* each paycheck lands in, which is what a
+month-0 cash picture is made of.
+
+## ⬜ WHAT IS LEFT — one step, and it needs Tre
+
+Look at the running app and confirm the rendered biweekly dates match the anchored cadence (Fuel on
+**Aug 14 / Aug 28**, not Aug 7 / Aug 21). Blocked: the Claude-controlled Chrome has **no Supabase
+auth key** on either origin, `list_connected_browsers` shows exactly one browser (so it is the
+automated profile, not Tre's). Per the `dev-signin` skill this is the manual-once step. Everything
+that could be established without the browser has been.
+
+---
+
 # Handoff — 2026-08-09 — session 128 — 🟢 anomaly SOLVED + 🟡 **BIWEEKLY ANCHOR SHIPPED `12d01772`, LIVE PASS OWED**
 
 > **START HERE.** Two things landed. `3ec7c725`'s read side is **CLOSED** (details below), and the
@@ -30,7 +94,7 @@ is a phase. Added to `scheduling.ts` as the ONE definition of the cadence:
 - **26 vs 27 a year is both correct** (365/14 = 26.07); the real invariant is that every gap is
   exactly 14. My first test asserted a flat 26 and was wrong — fixed.
 
-### ⬜ THE LIVE PASS IS OWED AND NOT STARTED — do this first
+### ✅ ~~THE LIVE PASS IS OWED AND NOT STARTED~~ — DONE in session 129 except the in-app render (see top)
 
 ⚠️ **This moves projected numbers for every biweekly rule**, which is the whole point, so it needs a
 live pass of its own. Tre's only biweekly rule is **`Fuel`** (`002f7e28…`, $65, Friday, no
