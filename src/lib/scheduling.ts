@@ -126,6 +126,35 @@ export function resolveBiweeklyAnchor(rule: BiweeklyRule, today: Date = new Date
   return d;
 }
 
+/** What the rule editor tells a user about the phase their biweekly rule will actually run on. */
+export type BiweeklyAnchorDescription = {
+  /** The date the 14-day cycle is measured from, as a LOCAL calendar day (`YYYY-MM-DD`). */
+  anchor: string;
+  /** True when the user pinned it via `start_date`; false when it was derived from `created_at`. */
+  pinned: boolean;
+  /** True when a pinned `start_date` was moved because its weekday disagreed with `due_day`. */
+  shiftedFromInput: boolean;
+};
+
+/**
+ * Describe `resolveBiweeklyAnchor`'s answer in the terms a form needs.
+ *
+ * ⚠️ `shiftedFromInput` is the reason this exists rather than the editor calling the resolver
+ * directly. The resolver advances the base date to the first `due_day` weekday on or after it, so
+ * a user who types their real first paycheck date on a rule whose `due_day` names a different
+ * weekday gets a schedule that starts somewhere else. Moving their date is correct — `due_day` is
+ * also something they asked for — but doing it silently is not, so the caller can surface it.
+ */
+export function describeBiweeklyAnchor(rule: BiweeklyRule, today: Date = new Date()): BiweeklyAnchorDescription {
+  const anchor = toLocalDateStr(resolveBiweeklyAnchor(rule, today));
+  const pinnedDay = rule.start_date ? rule.start_date.slice(0, 10) : null;
+  return {
+    anchor,
+    pinned: pinnedDay != null,
+    shiftedFromInput: pinnedDay != null && pinnedDay !== anchor,
+  };
+}
+
 /**
  * Every date a biweekly rule bills on within one calendar month — the ONE definition of biweekly
  * cadence, shared by `generateScheduledEvents`, `countRuleOccurrencesInMonth` and
