@@ -1,3 +1,88 @@
+# Handoff — 2026-08-09 — session 122 — 4A gap in `useCardProjection` **FIXED + unit-tested**; live A/B **INCONCLUSIVE (not failed)** — Tre's month-0 bills are already $0
+
+> **START HERE.** Session 122 built the fix session 121 diagnosed and Tre approved. **679/679 tests
+> (4 new), tsc 0, eslint clean** (one pre-existing `syncedTransactions` exhaustive-deps warning in
+> `useCardProjection.ts`, not mine — see below).
+>
+> **Tre's account is CLEAN.** One review row was inserted for the A/B and deleted; re-SELECTed
+> after: `imported 55 · linked_plan 1 · linked_rule 11 · linked_txn 2` = **69**, byte-identical to
+> the session-121 state. Nothing to clean up.
+
+## ✅ Shipped — the missing 4A gate
+
+| File | Change |
+|---|---|
+| `src/hooks/useCardProjection.ts` | optional `confirmedOccurrences?: ConfirmedOccurrences` param (trailing, undefaulted, module-level `EMPTY_CONFIRMED` for stable memo identity); `isRuleOccurrenceConfirmed` gate inside the `expenses` filter of its own `forecastMonthEvents`; added to the memo deps |
+| `src/contexts/CardProjectionContext.tsx` | `useSyncedTransactionReviews()` + memoised `buildConfirmedOccurrences`, passed into `useCardProjection` |
+| `src/hooks/__tests__/useCardProjection.confirmedOccurrence.test.ts` (new) | 4 tests: omitting the param == empty set; a confirmation drops the bill from `month0.chain.expenses` and raises `cashPreDebt` by exactly its amount; a different month suppresses nothing; a different rule suppresses nothing |
+
+### Design calls — do not re-litigate
+
+- **A param, not an internal `useSyncedTransactionReviews()` call.** `useForecastEngineInputs` calls
+  the data hooks internally, but `useCardProjection` is param-driven and ~18 test files (plus
+  `projection-harness.ts`) `renderHook` it with **no QueryClientProvider**. Calling a react-query
+  hook inside would have broken every one of them.
+- **Both copies build their own set from the SAME react-query cache entry**, so unlike
+  `syncedTransactions` (two genuinely separate fetches) they cannot disagree. That is why the set is
+  NOT hoisted and handed to both. The context comment says so.
+- **`simulationMonthEvents` maps over `forecastMonthEvents`**, so the suppression reaches the real
+  cash simulation and `comprehensiveMExp` too. Deliberate — same obligation, same evidence.
+
+## 🟡 THE LIVE A/B — inconclusive, and the session-121 acceptance test was itself INVALID
+
+Measured on the real account, `/dashboard`:
+
+| State | `Projected remaining` | `Bills still coming` |
+|---|---|---|
+| Baseline | **$3,968.49** | **row absent (= $0)** |
+| With a `linked_rule` confirmation for a funding-account rule due Aug 10 | **$3,968.49** | **row absent (= $0)** |
+
+`month0.chain.expenses` is **already $0** on Tre's account *before* any confirmation — the snapshot
+omits the "Bills still coming" row when the term is ~0, and it is absent in BOTH states. **There is
+nothing left in month 0 for 4A to suppress today**, so the A/B cannot move a number either way. That
+is not evidence the fix is broken; the unit tests prove the wiring on a synthetic account.
+
+### ⚠️ The handoff's "+$22 QUO target" was never a valid test — do not retry it
+
+QUO (`44b8f085…`) is paid from **General Operations** (`63b8e559…`), and the debt/forecast funding
+account is **TOTAL CHECKING** (`933cbc10…`, confirmed from `tre:debt:fundingAccount`). Both
+`forecastMonthEvents` copies exclude rules paid from a **non-funding bank account**
+(`otherAccountRuleIds`), so QUO's $22 is not in month-0 expenses at all and could never have moved
+`Projected remaining` — with or without a working gate. Session 121's "❌ actual: no change" is
+therefore explained by TWO independent causes, and only one of them was the bug.
+
+### ⬜ THE OPEN THREAD — why is `chain.expenses` $0 at all?
+
+`Phone Bill to Mom` (`bd3c9933…`, **$30, due_day 10, monthly, payment_source = the funding
+account**) should land in month-0 expenses on 2026-08-09 (Aug 10 > sync cutoff) and it does not.
+**Establish why before declaring 4A live-verified** — it is either (a) correct and every other
+remaining August bill really is CC-paid / other-account-paid / already past, or (b) a second gap in
+the same chain, in which case §1B has a bigger problem than 4A. Cheapest route: log
+`month0.chain` and the month-0 `forecastMonthEvents` entry from the running app, and check whether
+that rule produced a `scheduledEvents` row at all (start/end dates on the rule).
+
+Once a rule that IS in `chain.expenses` and still ahead of the cutoff exists, the A/B is one insert:
+`insert into synced_transaction_reviews (user_id, synced_transaction_id, status, rule_id,
+occurrence_month) values (…, 'linked_rule', <rule>, '2026-08')` on any unreviewed settled row, then
+reload and read `Bills still coming` / `Projected remaining`, then DELETE the row. That drives the
+READ path directly; the WRITE path was already verified in session 121.
+
+## ⚠️ Pre-existing eslint warning, deliberately left alone
+
+`useCardProjection.ts` memo has a **missing `syncedTransactions` dependency** — it existed before
+this session and is a real latent bug (§1A Stage C data changing would not recompute the
+projection). Fixing it changes §1A behaviour and needs its own verification, so it did not go into
+the one commit that has to be live-verified alone. **Worth a scoped follow-up.**
+
+## ⬜ Still owed, unchanged
+
+- **4C live pass** (not started; baseline `Projected remaining $3,968.49`).
+- The **biweekly-rule key problem** (`ruleId|YYYY-MM` suppresses a whole month's occurrences) —
+  still needs Tre before designing. See the session-121 section.
+- The **N1-N12 backlog** below. None started.
+
+---
+
 # Handoff — 2026-08-09 — session 121 — 🔴 4A LIVE-VERIFIED as **NOT WORKING**; root cause found, NOT fixed
 
 > **START HERE.** Session 121 ran the owed 4A live pass on Tre's real account. **4A does not work.**

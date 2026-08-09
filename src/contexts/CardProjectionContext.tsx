@@ -3,7 +3,9 @@ import type { ReactNode } from 'react';
 import {
   useAccounts, useTransactions, useRecurringRules, useDebts,
   useSavingsGoals, useCarFunds, useProfile, usePaymentPlans, useSyncedTransactions,
+  useSyncedTransactionReviews,
 } from '@/hooks/useSupabaseData';
+import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useCardProjection, type CardProjectionResult } from '@/hooks/useCardProjection';
@@ -164,6 +166,16 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
   }, []);
   const { data: syncedTransactions } = useSyncedTransactions(currentMonthKey);
 
+  // §1B Stage 4A — the rule occurrences the user confirmed a bank transaction already paid.
+  // `useForecastEngineInputs` reads the same react-query cache entry and builds its own set; both
+  // therefore see identical contents, unlike `syncedTransactions` above (whose two fetches could
+  // genuinely diverge, which is why that one is fetched here and handed to both).
+  const { data: syncedReviews } = useSyncedTransactionReviews();
+  const confirmedOccurrences = useMemo(
+    () => buildConfirmedOccurrences(syncedReviews ?? []),
+    [syncedReviews],
+  );
+
   const scheduledEvents = useMemo(
     () => generateScheduledEvents(rules ?? [], accounts ?? [], PROJECTION_MONTHS),
     [rules, accounts],
@@ -220,6 +232,7 @@ export function CardProjectionProvider({ children }: { children: ReactNode }) {
     syncCutoffDate,
     paymentPlans: paymentPlans ?? [],
     syncedTransactions,
+    confirmedOccurrences,
   });
 
   const forecastInputsBundle = useForecastEngineInputs({

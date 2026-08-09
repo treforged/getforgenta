@@ -18,6 +18,7 @@ import type { FilingStatus } from '@/lib/tax-estimator';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, getLoanPrincipal, monthsBetween, buildAmortizationSchedule, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
+import { isRuleOccurrenceConfirmed, type ConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
 import { computeFloorProtection } from '@/lib/floor-protection';
 import { FUNDING_ACCOUNT_TYPES, resolveFundingAccountId } from '@/lib/funding-account';
@@ -33,6 +34,10 @@ import type { CarFund } from '@/lib/types';
 // existing `from '@/hooks/useCardProjection'` imports keep working.
 import type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult } from '@/lib/debt-model-types';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
+
+/** Module-level so the "no confirmations" case keeps a STABLE identity across renders — a fresh
+ * `new Set()` in the hook body would change the memo's dependency every render. */
+const EMPTY_CONFIRMED: ConfirmedOccurrences = new Set<string>();
 
 export interface UseCardProjectionParams {
   accounts: AccountRow[];
@@ -56,6 +61,16 @@ export interface UseCardProjectionParams {
    * engine gets (CardProjectionContext passes one to both) or §1.1 cause C returns in a new form:
    * two surfaces disagreeing about whether the same car payment already left the account. */
   syncedTransactions?: readonly MatchableTransaction[];
+  /** §1B Stage 4A: rule occurrences the user confirmed a bank transaction already paid, from
+   * `buildConfirmedOccurrences`. Optional and undefaulted — omitting it must be byte-identical to
+   * pre-Stage-4 behaviour, which is what lets the fixture harness and every existing test keep
+   * calling this hook unchanged. CardProjectionContext supplies the live one.
+   *
+   * ⚠️ This hook builds its OWN `forecastMonthEvents`, separate from the one in
+   * `useForecastEngineInputs`, and `month0.endCash` (hence Dashboard's `Projected remaining`,
+   * BudgetControl and the month-0 budget snapshot) comes from THIS one whenever the user has any
+   * credit card. Gating only the other copy leaves 4A invisible on every surface a user looks at. */
+  confirmedOccurrences?: ConfirmedOccurrences;
   assumptions: {
     incomeGrowthEnabled: boolean;
     incomeGrowth: number;
@@ -85,8 +100,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
-    syncCutoffDate, paymentPlans, syncedTransactions,
+    syncCutoffDate, paymentPlans, syncedTransactions, confirmedOccurrences,
   } = params;
+  const confirmed: ConfirmedOccurrences = confirmedOccurrences ?? EMPTY_CONFIRMED;
 
   return useMemo(() => {
     try {
@@ -402,6 +418,15 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         const expenses = eventsInMonth
           .filter(e =>
             e.type === 'expense' &&
+            // §1B Stage 4A — mirrors useForecastEngineInputs.ts's identical gate. Rule-generated
+            // events reach month 0 on the bare `e.date > cutoff` test above, so a bill due later
+            // this month that the user already paid still counts against cash. A confirmed link is
+            // the evidence that retires it. Applied in EVERY month, not just month 0, because
+            // `occurrence_month` already scopes a confirmation to one month, making a month filter
+            // redundant. `simulationMonthEvents` maps over this array, so the suppression reaches
+            // the real cash simulation and `comprehensiveMExp` too — deliberately, since those
+            // model the same obligation.
+            !isRuleOccurrenceConfirmed(e.ruleId, e.date, confirmed) &&
             !(e.ruleId && allCcRuleIds.has(e.ruleId)) &&
             !(e.ruleId && otherAccountRuleIds.has(e.ruleId)) &&
             !(pauseSavings && e.ruleId && savingsRuleIds.has(e.ruleId)),
@@ -2097,6 +2122,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
-    syncCutoffDate, paymentPlans,
+    syncCutoffDate, paymentPlans, confirmed,
   ]);
 }
