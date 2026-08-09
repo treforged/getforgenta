@@ -54,6 +54,18 @@ describe('describeBiweeklyAnchor', () => {
     }
   });
 
+  it('terminates on a DAY-OF-MONTH due_day instead of hanging the tab', () => {
+    // The editor calls this on every keystroke, and switching a monthly rule (due_day 15) to
+    // biweekly leaves the two inputs disagreeing for as long as it takes to fix the second one.
+    // Before the clamp, the resolver's "advance to the first due_day weekday" loop searched for
+    // weekday 15 forever — an unrecoverable freeze reachable from a two-click UI path.
+    for (const bad of [15, 31, -1, 7, 1.5, NaN]) {
+      const d = describeBiweeklyAnchor({ due_day: bad, start_date: null, created_at: '2026-03-22T00:00:00Z' });
+      // Falls back to the module's Friday default rather than inventing a weekday.
+      expect(d.anchor).toBe('2026-03-27');
+    }
+  });
+
   it('returns a LOCAL calendar date, so the string cannot slip a day in a UTC+ timezone', () => {
     // toLocalDateStr, not toISOString: the latter would render 2026-03-27T12:00 local as 03-26
     // for any viewer east of UTC.

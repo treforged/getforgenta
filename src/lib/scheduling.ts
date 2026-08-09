@@ -112,7 +112,13 @@ function atNoon(d: Date): Date {
  * database), so in practice this only serves test doubles.
  */
 export function resolveBiweeklyAnchor(rule: BiweeklyRule, today: Date = new Date()): Date {
-  const dayOfWeek = rule.due_day ?? 5;
+  // ⚠️ CLAMPED to a real weekday, not merely null-checked. `due_day` holds a DAY OF MONTH on
+  // monthly rules, so flipping a rule from monthly to biweekly hands this a 15 — and the advance
+  // loop below would spin forever hunting a weekday that does not exist. The rule editor calls
+  // this on every keystroke, while the frequency select and the due_day input are still
+  // disagreeing, so the hang is reachable from the UI and not only from bad stored data.
+  const raw = rule.due_day;
+  const dayOfWeek = typeof raw === 'number' && Number.isInteger(raw) && raw >= 0 && raw <= 6 ? raw : 5;
   // Both columns are read as a CALENDAR DAY at local noon. `created_at` is a UTC timestamp, so
   // taking its date part keeps the anchor stable regardless of the viewer's timezone — the phase
   // must not depend on where the app is opened.
