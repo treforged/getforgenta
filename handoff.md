@@ -1,3 +1,205 @@
+# Handoff — 2026-08-09 — session 120 — §1B Stage 4C (payment-plan LINK) SHIPPED `d56c98a6`
+
+> **START HERE.** Session 120 built **4C, the link half**, exactly as session 119 specced it.
+> **675/675 tests (6 new), tsc 0, eslint clean on every changed file.** The migration is **applied
+> live** and its constraints were re-read back from `pg_constraint` to confirm.
+>
+> **Nothing is half-applied.** A `'linked_plan'` review is an ANNOTATION: it moves no projected
+> number, and Tre's account holds **0 reviews**.
+>
+> ⬜ **NOTHING IS LIVE-VERIFIED.** The session ended on a **usage pause** (93% of the 5-hour window)
+> *immediately before* the browser pass, with Tre already signed in at `localhost:8080` and waiting.
+> **Two separate live passes are owed — 4A and 4C — and they must not be bundled.**
+>
+> ⚠️ Tre then added a LARGE batch of new work (see "🆕 NEW BACKLOG" below). It is captured, not
+> started, and **none of it is scoped**. Do not begin any of it before the live passes.
+
+## 🔥 DO THIS FIRST — the live pass, in this order
+
+Tre said "do what you believe is best. i signed in", so the browser work is authorised and expected.
+**4A first**: it is committed, unverified, and RAISES projected cash (the unsafe direction); 4C only
+labels a row. Do not merge the two passes.
+
+### 1. Live-verify 4A (`f4735630`) — full script in the session-119 section below
+
+Summarised: note `Projected remaining` on `/dashboard` FIRST → `/transactions` → Bank Activity →
+`Link to a bill` on a settled August row whose rule still has a month-0 charge ahead of its due day →
+expect Dashboard `Projected remaining` and BudgetControl `Remaining Cash On Hand` **both up by that
+rule's amount**, the Debt page's cash tooltip to **stop listing that line**, and Forecast month-0
+expenses down by it → `Undo` must restore every number exactly → clean up, re-SELECT **0 reviews**.
+
+### 2. Then live-verify 4C, separately
+
+It writes no money, so this is shorter: on an unsuggested row, `Link to a payment plan` → picker
+lists **active** plans → picking one writes `status='linked_plan'`, `payment_plan_id` = the picked
+plan, `occurrence_month='2026-08'`, `rule_id`/`transaction_id` **null** → row collapses to the
+`linked · <plan name>` badge + `Undo` → **and confirm no projected number moved** (that is the actual
+claim: Dashboard `Projected remaining` identical before and after) → `Undo` → clean up, 0 reviews.
+
+⚠️ Gotchas that have each cost a session a call: the tab toggle persists (`tre:transactions:tab`), so
+switch tabs with the Radix pointer sequence; the filter/category `<select>`s are **native**, driven
+with the value setter + a `change` event; `http://localhost:8080` is the ONLY valid origin; probe
+sign-in state every time. **Never paste a bank row's counterparty name into this file — public repo.**
+
+### 3. Then: income rules (Tre, 2026-08-09, right after 4C shipped)
+
+His words: *"also, be able to link transactions to income rules."*
+
+**Audit before scoping — do not assume.** The open question that decides the size of this: do income
+rules live in `recurring_rules` under a type/flag, or elsewhere? If the former this is a filter +
+copy change (the picker reads *"Which bill does this pay?"* and lists `pickableRules`, which filters
+only on `active`); if the latter it is a fourth link target like 4C.
+⚠️ **`synced_transactions` is outflow-positive**, so an income row is a NEGATIVE amount there. Check
+what `matchOccurrence` already does with inflows rather than assuming it handles them.
+The retire-the-projection half, if it follows, errs in the **safe** direction for once — dropping
+projected income reads cash LOW — which is a real difference from 4A/4C worth stating to Tre.
+
+## ✅ Shipped `d56c98a6` — 4C, the LINK half only
+
+| File | Change |
+|---|---|
+| `supabase/migrations/20260809_synced_transaction_reviews_linked_plan.sql` (new) | `payment_plan_id` FK, `'linked_plan'` status, `link_needs_month`, extended `ignored_is_clean`, plan/month partial index. **APPLIED LIVE** |
+| `src/lib/synced-transaction-review.ts` | sixth status in `ReviewStatus` + `HANDLED_STATUSES`; `payment_plan_id` on `ReviewInput`; the creation-time presence rule |
+| `src/components/transactions/BankActivity.tsx` | third picker over **active** plans; `linked · <plan>` badge with the plan-deleted fallback |
+| `src/hooks/useSupabaseData.ts` | `payment_plan_id` threaded through the `save` upsert |
+| `src/integrations/supabase/types.ts` | the one new column + its Relationships entry |
+| `synced-transaction-review.test.ts`, `confirmed-capture.test.ts` | +6 tests |
+
+### Design calls made this session — do not re-litigate
+
+- **NO `linked_plan implies payment_plan_id is not null` CHECK.** The FK is `ON DELETE SET NULL`,
+  `SET NULL` fires an UPDATE, Postgres evaluates CHECKs on UPDATE — so that constraint would make
+  *deleting a payment plan* fail. Mirrors `rule_id`, never `transaction_id` (which CASCADEs and can
+  therefore carry its CHECK). Creation-time presence lives in `validateReviewInput`, pinned by test.
+- **`rule_needs_month` was REPLACED by `link_needs_month`** covering both link types, not given a
+  sibling — one place to read what "a link needs a month" means. ⚠️ The old name is gone from the DB.
+- **`'linked_plan'` is deliberately EXCLUDED from `buildConfirmedOccurrences`**, and the module
+  comment now says so explicitly so nobody reads it as an oversight. A plan id and a rule id are
+  uuids from **different tables**; one shared key space would let a collision suppress the wrong bill
+  silently. The plan suppression gets its own `buildConfirmedPlanOccurrences`.
+- **`types.ts` was hand-edited, not regenerated** — deliberately, and the drift check was still done:
+  the live `information_schema.columns` list for the table was diffed against the file and is
+  identical but for `payment_plan_id`. `generate_typescript_types` returns an envelope large enough
+  to cost a meaningful slice of context (gotcha #15); the change is one additive column.
+- **The picker is hidden entirely when the user has no active plans** rather than opening an empty
+  select — an empty picker asserts a destination the user does not have.
+
+## ⬜ 4C's number-moving half — NOT built, Tre's call
+
+A confirmed plan link should retire that month's instalment from month-0 cash, as 4A does for rules.
+`getMonthlyPlanCashExpenses` (`payment-plan-generator.ts:123`) already takes an `afterDate` and skips
+installments with `date <= afterDate` — the same bare date test 4A replaced. Build
+**`buildConfirmedPlanOccurrences`** next to the rule one (separate key space, above), and ship it
+**after 4A is live-verified**.
+
+---
+
+# 🆕 NEW BACKLOG — Tre, 2026-08-09, captured verbatim-faithful, NOTHING STARTED
+
+> ⚠️ **None of this is scoped, audited, or estimated.** It was dictated in one message during a usage
+> pause. Several items are questions about live data, not build tasks. **Ask Tre which he wants
+> first** rather than working top-to-bottom — the ordering below is his dictation order, not a
+> priority. Items marked 🔎 need an audit before any code.
+
+### N1 — Link a LOAN ACCOUNT to an active loan 🔎
+
+*"allow users to link a loan account to an active loan. ex: i just added my usaa one and it needs to
+link to my car payment. the first payment has passed but the transaction hasn't settled in my
+checking account to pull in. but the loan account balance is updated."*
+
+**And the bug riding along with it:** *"the net worth with this now updated should also be reflected
+in networth and forecast (the charts dont look like they updated)."* — treat the charts-not-updating
+half as a **separate defect to root-cause**, not as a consequence of the missing link. See the
+`project_net_worth_snapshots` memory: pre-08-04 history used a credit-card-only liability rule, so a
+step change in the chart can be expected rather than broken — verify before "fixing".
+
+### N2 — Merchant auto-categorisation by name 🔎
+
+*"it should auto categorize stores like Costco, sams club, aldi, and publix as groceries. circle k, 7
+eleven, wawa, and any other gas station as gas. follow the same concept for recognizable stores.
+anthropic is claude. open ai is chat gpt. etc."*
+
+⚠️ **This reverses a standing §1A/§1B call and must be raised with him as such, not slipped in.**
+§1A rejected fuzzy merchant-name scoring, and §1B's plan says *"Do not add merchant-name heuristics
+to paper over"* `GENERAL_MERCHANDISE` (32% of rows). Tre is now asking for exactly that. He is
+entitled to overrule it — but the earlier reasoning was about **fuzzy matching for LINKING**, whereas
+this is an **exact-ish merchant list for CATEGORISING**, which is a weaker and safer claim. State
+that distinction to him and build the categorising version only. The Anthropic→Claude /
+OpenAI→ChatGPT pair is a **display-name** mapping, a different feature from the category map.
+
+### N3 — Link to car insurance and car payment
+
+That is **4B**, already specced below (`car_fund_id` + CHECK + `validateReviewInput` case + a
+`'Link to a vehicle charge'` picker, feeding `matched: true` into the two `carChargeEvidence` gates).
+Tre naming it again is a priority signal.
+
+### N4 — ⚠️ Same name + same price ≠ same transaction
+
+*"even though things have the same name and price, doesn't mean they are the same transaction. once
+its decided for one for category or link, the same even should just occur on the date of the
+transaction and also be added to the ledger."*
+
+**This is a correctness constraint on N2 and N5, and the most important sentence in the batch.** A
+learned decision must key on the **occurrence** (this merchant, this date), never collapse two
+distinct same-amount charges into one event. Read it as the direct counterpart of `occurrence_month`
+on the rule/plan links.
+
+### N5 — Auto-link from history, then a confirmation-only flow 🔎
+
+*"based off previous links, start autolinking items. then it would just be a confirmation. make it so
+the next time user signs in/open the app, it would just be going through each item and selecting what
+its for. they can choose to do it later and it would remind them again next time. starting from when
+the first linked there account, just let them know they can go to the transactions page to select
+choices to help build the backlog for future decisions which would be more automated."*
+
+⚠️ **Tension with a load-bearing §1B rule.** §1B is explicitly built NOT to be a queue demanding
+decisions: *"unreviewed is NEVER a nagging count or badge"*, and most rows are permanently unreviewed
+BY DESIGN. This asks for a walk-through-on-sign-in prompt. It is his product and his call, but the
+design note exists for a reason — **raise it, propose a shape that keeps "later" genuinely free of
+nagging, and get his answer before building.**
+
+### N6 — Prime / Discover: paid-but-not-settled suppression 🔎
+
+*"prime had 0 interest this month and the due date already passed. the transaction for it hasn't come
+through yet. the balance on the credit card is updated, but the money hasn't come out of my checking.
+prime should [not] have any contribution suggestion again till next month. discover is due on the
+first of next month but i do need to know how much to schedule to pay for that."*
+
+This is the **same shape as 4A** — an obligation already met that the app still charges against
+month-0 cash — but on the CC engine's contribution suggestions rather than the rule helpers. Likely
+touches `credit-card-engine.ts` / `CreditCardEngine.tsx`. See the `project_isb_semantics` memory
+before calling any balance stale: a big ISB/balance gap on a 0% promo card is normal.
+
+### N7 — Convert a transaction into a payment plan
+
+*"make it so users can easily convert a transaction into a payment plan."* A new action, presumably
+from the ledger row and/or a bank row. Smallest item in the batch.
+
+### N8 — Forecast popups: show full decimals
+
+*"all numbers in the forecast pop ups should show decimal places, not just part of them."*
+Cosmetic and self-contained. ⚠️ Check `formatCurrency`'s second arg (the repo passes `false` in
+places to drop cents) rather than writing new formatting.
+
+### N9 — Retirement & Investment Growth Projections looks wrong 🔎
+
+*"on forecast is the Retirement & Investment Growth Projections section properly reflecting
+everything? it seems off."* **A question, not a task.** Audit and report before changing anything.
+
+### N10 — 401k/Roth percentage contributions must scale with income 🔎
+
+*"the 401k roth contribution scales with income when its a percentage. that needs to be reflected in
+forecast and goals."* Real engine work, touching both forecast and goals. Probably related to N9 —
+check whether N9's "off" feeling is this.
+
+### N11 — Venture X missing full statement balance in later years 🔎
+
+*"can you look at my account and tell me why venture x is missing full statement balance in later
+years, and what i can do to fix it?"* **A diagnosis request about live data.** Answer it with SQL +
+the engine trace; do not change code first. See `project_isb_semantics`.
+
+---
+
 # Handoff — 2026-08-09 — session 119 — §1B Stage 4A FULLY WIRED `f4735630`; 4C (payment-plan link) queued
 
 > **START HERE.** Session 119 pushed the 17-commit backlog (`875ea2a7..524f8585`) and then **wired
