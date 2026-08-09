@@ -1,4 +1,68 @@
-# Handoff — 2026-08-09 — session 124 — ✅ **§1B Stage 4B SHIPPED `e6dbb5af`** (link half); ⬜ live pass OWED
+# Handoff — 2026-08-09 — session 125 — ✅ **4B LIVE-VERIFIED**; §1B verification debt back to ZERO
+
+> **START HERE.** Session 125 ran the owed 4B live pass on Tre's real account. **It passed on every
+> check, including a sensitivity test stronger than the one the handoff asked for.** **No code
+> changed** — `e6dbb5af` is still the last app commit.
+>
+> **Account is CLEAN, re-SELECTed after cleanup:** `imported 55 · linked_plan 1 · linked_rule 11 ·
+> linked_txn 2` = **69**, and **0 rows carry `car_fund_id` or `car_charge_kind`**. `imported` never
+> left 55, so no ledger row was created or deleted at any point.
+
+## ✅ 4B (link half) LIVE-VERIFIED — do not re-verify
+
+Driven through the real UI on `/transactions` → Bank Activity → month `2026-07` (all 24 settled
+August rows are already reviewed, so the unreviewed pool is July — same 53 rows session 123 saw):
+
+| Check | Result |
+|---|---|
+| Picker renders | ✅ placeholder `Which vehicle charge is this?` |
+| **TWO destinations, not one** | ✅ `2004 Chevorlet C5 · car payment · $423` **and** `… · car insurance · $173`, as separate options with `<fundId>:<kind>` values |
+| Offered on unsuggested rows | ✅ **53** unreviewed July rows each offer `Link to a vehicle charge` alongside the other three link types |
+| Write | ✅ `status='linked_car'`, `car_fund_id`=`0f75dec9…`, `car_charge_kind='loan_payment'`, `occurrence_month='2026-07'` — **derived from the row's own 07-22 date, not the current month** — with `rule_id` / `transaction_id` / `payment_plan_id` **all NULL** |
+| Badge names the KIND | ✅ row collapsed to `linked · 2004 Chevorlet C5 payment` + plain `Undo` |
+| **NO projected number moves** | ✅ Aug/Sep/Oct/Nov 2026 × `baseExpenses`/`totalExpenses`/`endingCash`/**`carLoanPayment`**/**`vehicleInsurance`** = **all Δ 0** |
+| UI `Undo` | ✅ deleted the review, badge gone, offer count back to 53 |
+| Cleanup | ✅ re-SELECT = 69, zero car columns set |
+
+### ⭐ The sensitivity control — this test was made STRONGER than specced, deliberately
+
+A July `occurrence_month` is a **past** month, so Δ 0 there proves almost nothing: a wrongly-wired
+suppression aimed at July would be invisible anyway. So after the UI pass, the review row was
+retargeted with a scoped `UPDATE` to **`occurrence_month='2026-09'`** — a month whose
+`carLoanPayment` is live at **$422.89** and `vehicleInsurance` at **$173.23** — and the forecast was
+re-read. **Still Δ 0 on every key.** That is the real proof the link half is inert. The row was then
+restored to `2026-07` before the UI `Undo` so the Undo ran against the true state.
+
+⚠️ **Read `carLoanPayment` / `vehicleInsurance` off the fiber, not `baseExpenses`, when 4B's
+number-moving half lands.** The car charges are their **own chart keys** and are NOT inside
+`baseExpenses` — that is the signal that will move, and this session captured its exact baseline:
+every month Aug-Nov carries `carPay 422.89 · carIns 173.23`.
+
+### Method notes that cost this session time — do not repeat
+
+- **A direct `navigate` to `/forecast` on a cold load lands on `/dashboard`.** Navigate in-app
+  instead: click the sidebar `a[href="/forecast"]`. Session 123's fiber recipe otherwise holds.
+- **The link destinations are `<button>`s, not `<select>`s** — the picker `<select>` only exists
+  *after* clicking `Link to a vehicle charge`. Grepping selects for the placeholder finds nothing.
+- **Never hold a DOM node across an `await`.** React re-renders replace the node and the native
+  value-setter then throws `Illegal invocation`. Re-query the `<select>` in the same call that sets it.
+- The row-container `textContent` comes back `[BLOCKED: Base64 encoded data]`; match the badge by
+  exact text on a **leaf** node instead, then walk up for the `Undo`.
+
+## ⬜ NEXT — Tre picks
+
+§1B verification debt is **zero** again. Nothing is half-applied. Remaining known work, none started:
+- **4B's number-moving half** — a confirmed `linked_car` feeds `matched: true` into
+  `carChargeEvidence` at all four sites (`forecast-engine.ts:307/:356`, `useCardProjection.ts:587/:1338`).
+  ⚠️ Must key on **fund + kind + month**, and it is NOT `buildConfirmedOccurrences`.
+- **4C's number-moving half** (`buildConfirmedPlanOccurrences`) — specced, unbuilt.
+- The **biweekly-rule key problem** (`ruleId|YYYY-MM`) — needs Tre before designing.
+- `useCardProjection.ts` **missing `syncedTransactions` dep** eslint warning — scoped follow-up.
+- **N1-N12 backlog** below.
+
+---
+
+# Handoff — 2026-08-09 — session 124 — ✅ **§1B Stage 4B SHIPPED `e6dbb5af`** (link half); ✅ live pass DONE in session 125
 
 > **START HERE.** Session 124 built **4B = Tre's N3** ("link to car insurance and car payment"),
 > which he named twice. **686/686 tests (7 new), tsc 0, eslint clean on every changed file.** The
