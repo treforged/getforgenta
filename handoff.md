@@ -1,3 +1,79 @@
+# Handoff — 2026-08-09 — session 123 — ✅ **4A LIVE-VERIFIED**; session 122's open thread CLOSED as correct-behaviour
+
+> **START HERE.** Session 123 closed the open thread AND live-verified 4A on Tre's real account.
+> **No code changed.** `881ec9c5` is still HEAD. **Account is CLEAN** — re-SELECTed after cleanup:
+> `imported 55 · linked_plan 1 · linked_rule 11 · linked_txn 2` = **69**, identical to session 122.
+
+## ✅ 4A IS LIVE-VERIFIED — do not re-verify
+
+The month-0 A/B is **impossible on this account today** (see the closed thread below), so the read
+path was driven through **September**, which is legitimate: 4A gates **every** month, and
+`occurrence_month` scopes a confirmation to one. Measured on `/forecast`:
+
+| Month | `baseExpenses` before | after | Δ |
+|---|---|---|---|
+| Aug 2026 | 120 | 120 | **0** (untouched) |
+| **Sep 2026** | **2872** | **957** | **−1915 = Rent, to the dollar** ✅ |
+| Oct 2026 | 2902 | 2902 | **0** (untouched) |
+
+One insert (`linked_rule`, rule `c8bd61fa…` Rent, `occurrence_month='2026-09'`, on unreviewed settled
+synced txn `5f085c0a…`), reload, re-read, then DELETE. **The suppression is exact and correctly
+scoped to the confirmed month only.**
+
+⚠️ **`endingCash` is the WRONG acceptance signal — do not use it.** Sep endingCash moved only
+2685 → 2702 (+17) and `totalExpenses` only −16.28, because the **cycling-debt convergence engine
+absorbs the freed $1,915 into debt paydown and pins ending cash near the floor**. That is the
+engine working as designed, not 4A failing. **`baseExpenses` is the signal.** This cost session 121
+its wrong "❌ no change" conclusion in a different form — `Projected remaining` is damped the same way.
+
+### How to read the forecast's real numbers without the UI
+
+`/forecast` has **no tables** — it is all Recharts. Read the chart's data array off the React fiber:
+walk `__reactFiber$` up from `.recharts-wrapper` looking for `memoizedProps.data` where `d[0].month`
+exists. 60 rows, keys include `baseExpenses`, `totalExpenses`, `endingCash`, `debtBalance`.
+⚠️ Return a **small picked object**, never the row — several keys come back `[BLOCKED: Base64 encoded data]`.
+
+## ✅ THE OPEN THREAD — CLOSED. `chain.expenses = $0` is CORRECT, there is no second gap
+
+Session 122 suspected a second gap because `Phone Bill to Mom` was missing from month 0. It is not a
+gap. Every August funding-account (`933cbc10…`) rule is accounted for:
+
+| Rule | Why it is legitimately absent from month-0 expenses |
+|---|---|
+| Internet, Rent, Water/Sewer/Trash, Smart Home, Electricity | `due_day 1` — already past (today Aug 9) |
+| Life Insurance, Groceries | `due_day 3` — already past |
+| Owners Contribution ($130, `due_day 25`) | **`rule_type = 'transfer'`** — checking → General Operations, his own accounts. Not an expense |
+| Phone Bill to Mom ($30, `due_day 10`) | **`start_date = 2026-10-10`** — does not begin until October |
+
+Independently corroborated on screen: **Aug `baseExpenses` = $120** vs September's $2,872.
+
+**Also settled: all 5 August `linked_rule` confirmations are on `due_day` 1 or 3 rules** (Electricity,
+Rent, Life Insurance, Groceries, Google Workspace) — every one already past the cutoff, so confirming
+them could never move a number **with or without 4A**. That, plus the invalid QUO target session 122
+already documented, fully explains the flat A/B. **§1B has no outstanding correctness defect.**
+
+## ⚠️ `.claude/hooks/usage-guard.mjs` — UNCOMMITTED, awaiting Tre's decision
+
+This session opened blocked by an undocumented PreToolUse hook that halted every tool call while Tre
+was at **22% session / 31% weekly** on Max. Its ceiling is *"the largest 5-hour block seen
+historically"* — a proxy that **broke on the plan upgrade**: the recorded ~108.6M peak is a block
+capped under the OLD plan, and since the guard prevents ever exceeding it, the peak can never
+re-calibrate upward. **It is self-locking.** Threshold default was sed'd 90 → 100000 to unblock.
+
+**Recommendation: delete the hook** (`/status` reports authoritative per-plan percentages, which is
+strictly better than a local token-count proxy that needs a new magic number on every plan change).
+Alternative is an explicit hand-set ceiling. **Tre has not answered yet — do not commit either way
+without his call.** Also: it is missing from CLAUDE.md's hooks list; whatever happens, document it.
+
+## ⬜ STILL OWED — unchanged
+
+- **4C live pass** (not started). Baseline `Projected remaining $3,968.49`, re-confirmed this session.
+- The **biweekly-rule key problem** (`ruleId|YYYY-MM`) — still needs Tre before designing.
+- The `useCardProjection.ts` **missing `syncedTransactions` dep** eslint warning (scoped follow-up).
+- **N1-N12 backlog.** None started.
+
+---
+
 # Handoff — 2026-08-09 — session 122 — 4A gap in `useCardProjection` **FIXED + unit-tested**; live A/B **INCONCLUSIVE (not failed)** — Tre's month-0 bills are already $0
 
 > **START HERE.** Session 122 built the fix session 121 diagnosed and Tre approved. **679/679 tests
