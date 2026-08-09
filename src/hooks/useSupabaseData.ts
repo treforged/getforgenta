@@ -663,6 +663,7 @@ export function useSyncedTransactionReviews() {
           car_fund_id: input.car_fund_id ?? null,
           car_charge_kind: input.car_charge_kind ?? null,
           occurrence_month: input.occurrence_month ?? null,
+          occurrence_date: input.occurrence_date ?? null,
           category_override: input.category_override ?? null,
           updated_at: new Date().toISOString(),
         }), { onConflict: 'synced_transaction_id' });

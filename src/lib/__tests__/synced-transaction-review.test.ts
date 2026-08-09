@@ -127,6 +127,36 @@ describe('validateReviewInput', () => {
     })).toBe('Bad month');
   });
 
+  // §1B occurrence_date — the fine scope must agree with the coarse one it refines, or the row
+  // suppresses an occurrence in one month while every month-scoped read counts it in another.
+  it('accepts an occurrence date inside its month', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_rule', rule_id: 'r1',
+      occurrence_month: '2026-08', occurrence_date: '2026-08-17',
+    })).toBeNull();
+  });
+
+  it('rejects an occurrence date in a different month from occurrence_month', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_rule', rule_id: 'r1',
+      occurrence_month: '2026-08', occurrence_date: '2026-07-25',
+    })).toBe('That occurrence is in another month');
+  });
+
+  it('rejects a malformed occurrence date', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_rule', rule_id: 'r1',
+      occurrence_month: '2026-08', occurrence_date: '2026-08',
+    })).toBe('Bad occurrence date');
+  });
+
+  // Null is the LEGACY value, not an error: every review written before the column existed has one.
+  it('accepts a rule link with no occurrence date at all', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_rule', rule_id: 'r1', occurrence_month: '2026-08',
+    })).toBeNull();
+  });
+
   it('rejects a decision about nothing', () => {
     expect(validateReviewInput({ synced_transaction_id: '', status: 'ignored' })).toBe('Missing transaction');
   });

@@ -33,14 +33,30 @@ export interface RuleOccurrenceReview {
   status: string;
   rule_id: string | null;
   occurrence_month: string | null;
+  /**
+   * `YYYY-MM-DD` — WHICH generated occurrence of the rule, when the writer could locate one.
+   *
+   * NULL is a first-class legacy value, not a defect: every review written before the
+   * occurrence-date migration has one, and this module treats it as "month-keyed, behave exactly as
+   * before". Optional on the interface so the ~8 call sites that build test doubles keep compiling
+   * with the old shape and keep exercising the legacy path on purpose.
+   */
+  occurrence_date?: string | null;
 }
 
-/** Opaque set of confirmed `rule + month` pairs. Build it with `buildConfirmedOccurrences`. */
+/** Opaque set of confirmed rule occurrences. Build it with `buildConfirmedOccurrences`. */
 export type ConfirmedOccurrences = ReadonlySet<string>;
 
-/** Stable key for one rule's occurrence in one month. `|` cannot appear in a uuid or a `YYYY-MM`. */
-function occurrenceKey(ruleId: string, monthKey: string): string {
-  return `${ruleId}|${monthKey}`;
+/**
+ * Stable key for one rule's confirmed occurrence. `|` cannot appear in a uuid, a `YYYY-MM` or a
+ * `YYYY-MM-DD`.
+ *
+ * ⚠️ TWO KEY SHAPES SHARE THIS SPACE, and that is safe rather than sloppy: the right-hand side is
+ * either a `YYYY-MM` (7 chars, legacy month-keyed) or a `YYYY-MM-DD` (10 chars, occurrence-keyed).
+ * No `YYYY-MM` can ever equal a `YYYY-MM-DD`, so a lookup for one can never collide with the other.
+ */
+function occurrenceKey(ruleId: string, scope: string): string {
+  return `${ruleId}|${scope}`;
 }
 
 /**
@@ -66,6 +82,11 @@ function occurrenceKey(ruleId: string, monthKey: string): string {
  * ⚠️ A `'linked_rule'` row with a NULL `rule_id` is skipped, not treated as an error. That is the
  * documented degraded state from the FK's `ON DELETE SET NULL` (see the §1B migration): the review
  * still means "handled", but the rule it named is gone, so there is no occurrence left to suppress.
+ *
+ * ⚠️ ONE KEY PER REVIEW, never both. A row carrying an `occurrence_date` contributes ONLY its date
+ * key — adding its month key too would restore the exact bug the column was added to fix, because
+ * the month key suppresses every occurrence of that rule in the month. A row without one
+ * contributes only its month key, which is the pre-migration behaviour byte for byte.
  */
 export function buildConfirmedOccurrences(
   reviews: readonly RuleOccurrenceReview[] | null | undefined,
@@ -75,17 +96,26 @@ export function buildConfirmedOccurrences(
   for (const review of reviews) {
     if (review.status !== 'linked_rule') continue;
     if (!review.rule_id || !review.occurrence_month) continue;
-    confirmed.add(occurrenceKey(review.rule_id, review.occurrence_month));
+    confirmed.add(occurrenceKey(review.rule_id, review.occurrence_date || review.occurrence_month));
   }
   return confirmed;
 }
 
 /**
- * Has the user confirmed this rule's occurrence in the month containing `date` was already paid?
+ * Has the user confirmed THIS occurrence of this rule was already paid?
  *
  * The rule-id form, for consumers that already know which rule produced a charge — the forecast's
- * `scheduledEvents` carry `ruleId` directly and never take the `gen:` id shape. `date` may be a
- * `YYYY-MM-DD` or a `YYYY-MM`; only the month part is read.
+ * `scheduledEvents` carry `ruleId` directly and never take the `gen:` id shape.
+ *
+ * `date` may be a `YYYY-MM-DD` or a `YYYY-MM`. The exact-occurrence key is tried FIRST, then the
+ * month key, so:
+ *
+ *   - a modern date-keyed confirmation suppresses exactly the occurrence it names, which is what
+ *     makes a weekly or biweekly rule's other occurrences in the same month survive it;
+ *   - a legacy month-keyed confirmation still suppresses the whole month, unchanged;
+ *   - a caller that only knows the month (`'2026-08'`) probes the same key twice and therefore
+ *     matches ONLY legacy rows. That is correct, not a gap: without a day there is no way to say
+ *     which occurrence is being asked about, and guessing would be the original bug.
  */
 export function isRuleOccurrenceConfirmed(
   ruleId: string | null | undefined,
@@ -93,6 +123,7 @@ export function isRuleOccurrenceConfirmed(
   confirmed: ConfirmedOccurrences,
 ): boolean {
   if (confirmed.size === 0 || !ruleId || !date) return false;
+  if (confirmed.has(occurrenceKey(ruleId, date))) return true;
   return confirmed.has(occurrenceKey(ruleId, date.slice(0, 7)));
 }
 

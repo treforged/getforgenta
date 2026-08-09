@@ -32,10 +32,29 @@ import {
 } from '@/hooks/useSupabaseData';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
+import { resolveRuleOccurrenceDate } from '@/lib/pay-schedule';
 import { Link2, EyeOff, RotateCcw, Landmark, Plus, X } from 'lucide-react';
 
 /** `YYYY-MM` for a `YYYY-MM-DD`. */
 const monthOf = (date: string) => date.slice(0, 7);
+
+/**
+ * WHICH occurrence of a rule a charge on `chargeDate` settles — the month, and the day when the app
+ * can name one.
+ *
+ * ⚠️ THE DAY IS WHAT MAKES A BIWEEKLY LINK HONEST. Keyed on the month alone, confirming one of a
+ * biweekly rule's two charges in a month suppressed BOTH, over-raising projected cash by the amount
+ * of the one the user never confirmed. Tre's `Fuel` rule ($65, biweekly) already carries two July
+ * links, so this is a live shape, not a hypothetical.
+ *
+ * A monthly rule has exactly one occurrence a month, so for the overwhelming majority of links this
+ * stores the same information twice and changes nothing. The date resolves to null — and the link
+ * keeps today's month-wide behaviour — only when the rule bills nothing in the charge's month.
+ */
+const ruleOccurrence = (rule: RuleRow, chargeDate: string) => ({
+  occurrence_month: monthOf(chargeDate),
+  occurrence_date: resolveRuleOccurrenceDate(rule, chargeDate),
+});
 
 /** How many rows render before the "show more" cut. All history is browsable; not all at once. */
 const PAGE_SIZE = 100;
@@ -409,7 +428,7 @@ export default function BankActivity() {
                           synced_transaction_id: txn.id,
                           status: 'linked_rule',
                           rule_id: suggestion.rule!.id,
-                          occurrence_month: monthOf(txn.date),
+                          ...ruleOccurrence(suggestion.rule!, txn.date),
                           category_override: review?.category_override ?? null,
                         })}
                         className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
@@ -510,11 +529,13 @@ export default function BankActivity() {
                     defaultValue=""
                     onChange={e => {
                       if (!e.target.value) return;
+                      const picked = pickableRules.find(r => r.id === e.target.value);
+                      if (!picked) return;
                       save.mutate({
                         synced_transaction_id: txn.id,
                         status: 'linked_rule',
-                        rule_id: e.target.value,
-                        occurrence_month: monthOf(txn.date),
+                        rule_id: picked.id,
+                        ...ruleOccurrence(picked, txn.date),
                         category_override: review?.category_override ?? null,
                       });
                       setPicker(null);

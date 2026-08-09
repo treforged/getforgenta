@@ -122,3 +122,67 @@ describe('isRuleOccurrenceConfirmed', () => {
     expect(isRuleOccurrenceConfirmed(RULE, '2026-08-25', buildConfirmedOccurrences([]))).toBe(false);
   });
 });
+
+// THE BIWEEKLY DEFECT. A weekly or biweekly rule bills two or three times in a month, so keying a
+// confirmation on `ruleId|YYYY-MM` meant confirming ONE charge retired ALL of them and over-raised
+// projected cash by the amounts nobody confirmed. `occurrence_date` names the one that was settled.
+describe('occurrence_date — one confirmation retires exactly one occurrence', () => {
+  const FIRST = '2026-08-03';
+  const SECOND = '2026-08-17';
+  const dated = (date: string) => review({ occurrence_date: date });
+
+  it('suppresses the confirmed occurrence and LEAVES THE OTHER ONE STANDING', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST)]);
+    expect(isRuleOccurrenceConfirmed(RULE, FIRST, confirmed)).toBe(true);
+    // The whole point. Under month-keying this was `true`, and $65 of Fuel vanished from the month.
+    expect(isRuleOccurrenceConfirmed(RULE, SECOND, confirmed)).toBe(false);
+  });
+
+  it('suppresses BOTH once both are confirmed — two links, two occurrences, no more', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST), dated(SECOND)]);
+    expect(confirmed.size).toBe(2);
+    expect(isRuleOccurrenceConfirmed(RULE, FIRST, confirmed)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(RULE, SECOND, confirmed)).toBe(true);
+    // A third occurrence of the same rule in the same month is still untouched by the other two.
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-31', confirmed)).toBe(false);
+  });
+
+  it('still scopes to the rule and the month', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST)]);
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, FIRST, confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-09-03', confirmed)).toBe(false);
+  });
+
+  it('adds the DATE key only — a date-keyed review must not also suppress its whole month', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST)]);
+    expect(confirmed.size).toBe(1);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08', confirmed)).toBe(false);
+  });
+
+  it('reaches the generated-transaction form too', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST)]);
+    expect(isOccurrenceConfirmed(genTxn(RULE, FIRST), confirmed)).toBe(true);
+    expect(isOccurrenceConfirmed(genTxn(RULE, SECOND), confirmed)).toBe(false);
+  });
+
+  // Every review written before the column existed has a NULL date. They must keep suppressing the
+  // whole month exactly as they did, or a migration would silently un-confirm settled bills.
+  it('LEGACY: a null occurrence_date still suppresses the whole month, byte for byte', () => {
+    for (const legacy of [review(), review({ occurrence_date: null })]) {
+      const confirmed = buildConfirmedOccurrences([legacy]);
+      expect(isRuleOccurrenceConfirmed(RULE, FIRST, confirmed)).toBe(true);
+      expect(isRuleOccurrenceConfirmed(RULE, SECOND, confirmed)).toBe(true);
+      expect(isRuleOccurrenceConfirmed(RULE, '2026-08', confirmed)).toBe(true);
+      expect(isRuleOccurrenceConfirmed(RULE, '2026-09-03', confirmed)).toBe(false);
+    }
+  });
+
+  // A monthly rule has one occurrence a month, so date-keying and month-keying agree by
+  // construction — which is why the 11 existing links on Tre's account need no backfill.
+  it('a monthly rule behaves identically date-keyed or month-keyed', () => {
+    const byDate = buildConfirmedOccurrences([dated('2026-08-01')]);
+    const byMonth = buildConfirmedOccurrences([review()]);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-01', byDate)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-01', byMonth)).toBe(true);
+  });
+});

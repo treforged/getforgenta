@@ -54,6 +54,14 @@ export interface ReviewInput {
   car_charge_kind?: CarChargeKind | null;
   /** `YYYY-MM` — WHICH occurrence of a monthly rule, plan or vehicle charge this settles. */
   occurrence_month?: string | null;
+  /**
+   * `YYYY-MM-DD` — WHICH occurrence of a WEEKLY or BIWEEKLY rule, refining `occurrence_month`.
+   *
+   * Optional, and null is legitimate rather than degraded: a rule that bills nothing in the charge's
+   * month has no occurrence to name, and every review written before the column existed has none.
+   * The read side falls back to month-keying, which for a monthly rule is the same answer.
+   */
+  occurrence_date?: string | null;
   category_override?: string | null;
 }
 
@@ -77,7 +85,10 @@ export interface ReviewInput {
  * sentence the user can act on rather than a Postgres constraint name.
  */
 export function validateReviewInput(input: ReviewInput): string | null {
-  const { status, rule_id, transaction_id, payment_plan_id, car_fund_id, car_charge_kind, occurrence_month } = input;
+  const {
+    status, rule_id, transaction_id, payment_plan_id, car_fund_id, car_charge_kind,
+    occurrence_month, occurrence_date,
+  } = input;
   if (!input.synced_transaction_id) return 'Missing transaction';
   if (status === 'linked_rule') {
     if (!rule_id) return 'A rule link needs a rule';
@@ -109,5 +120,14 @@ export function validateReviewInput(input: ReviewInput): string | null {
   // just `linked_car`, so it can never reach the row through some other path.
   if (car_charge_kind && !car_fund_id) return 'A vehicle charge needs a vehicle';
   if (occurrence_month && !/^\d{4}-\d{2}$/.test(occurrence_month)) return 'Bad month';
+  // A date outside the month it refines would suppress an occurrence in one month while every
+  // month-scoped read counted the row in another — the two columns asserting different things about
+  // the same charge. The database rejects it too; this fails with a sentence instead of a
+  // constraint name.
+  if (occurrence_date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(occurrence_date)) return 'Bad occurrence date';
+    if (!occurrence_month) return 'An occurrence date needs the month it settles';
+    if (occurrence_date.slice(0, 7) !== occurrence_month) return 'That occurrence is in another month';
+  }
   return null;
 }

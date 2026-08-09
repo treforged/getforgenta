@@ -1483,6 +1483,7 @@ export type Database = {
           category_override: string | null
           created_at: string
           id: string
+          occurrence_date: string | null
           occurrence_month: string | null
           payment_plan_id: string | null
           rule_id: string | null
@@ -1498,6 +1499,7 @@ export type Database = {
           category_override?: string | null
           created_at?: string
           id?: string
+          occurrence_date?: string | null
           occurrence_month?: string | null
           payment_plan_id?: string | null
           rule_id?: string | null
@@ -1513,6 +1515,7 @@ export type Database = {
           category_override?: string | null
           created_at?: string
           id?: string
+          occurrence_date?: string | null
           occurrence_month?: string | null
           payment_plan_id?: string | null
           rule_id?: string | null
