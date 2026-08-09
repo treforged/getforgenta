@@ -1482,6 +1482,7 @@ export type Database = {
           created_at: string
           id: string
           occurrence_month: string | null
+          payment_plan_id: string | null
           rule_id: string | null
           status: string
           synced_transaction_id: string
@@ -1494,6 +1495,7 @@ export type Database = {
           created_at?: string
           id?: string
           occurrence_month?: string | null
+          payment_plan_id?: string | null
           rule_id?: string | null
           status: string
           synced_transaction_id: string
@@ -1506,6 +1508,7 @@ export type Database = {
           created_at?: string
           id?: string
           occurrence_month?: string | null
+          payment_plan_id?: string | null
           rule_id?: string | null
           status?: string
           synced_transaction_id?: string
@@ -1514,6 +1517,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "synced_transaction_reviews_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "synced_transaction_reviews_rule_id_fkey"
             columns: ["rule_id"]

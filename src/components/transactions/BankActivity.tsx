@@ -5,8 +5,8 @@
 // deliberately never interleaved, so there is no ambiguity about which rows are projections.
 //
 // ⚠️ EXACTLY ONE CONTROL HERE WRITES MONEY: "Add to my ledger" (Stage 3). Every other action —
-// confirming a match, linking to a different rule or entry, correcting a category, ignoring — is an
-// ANNOTATION and creates no `public.transactions` row. That table is read by twelve surfaces
+// confirming a match, linking to a different rule, payment plan or entry, correcting a category,
+// ignoring — is an ANNOTATION and creates no `public.transactions` row. That table is read by twelve surfaces
 // including the forecast and card engines, so a row written there moves projected numbers app-wide
 // while `recurring_rules` already projects the same bill.
 //
@@ -27,7 +27,7 @@ import { suggestCategory, hasCategorySuggestion, isValidCategory } from '@/lib/p
 import { matchOccurrence, matchCharge, normalizePaymentSource, type MatchableTransaction } from '@/lib/transaction-matching';
 import {
   useAllSyncedTransactions, useSyncedTransactionReviews, useAccounts, useRecurringRules,
-  useTransactions, isHandledReview, planLedgerImport,
+  useTransactions, usePaymentPlans, isHandledReview, planLedgerImport,
   type BankActivityRow, type SyncedTransactionReviewRow, type TransactionRow, type RuleRow,
 } from '@/hooks/useSupabaseData';
 import { Link2, EyeOff, RotateCcw, Landmark, Plus, X } from 'lucide-react';
@@ -82,6 +82,7 @@ export default function BankActivity() {
   const { data: accounts } = useAccounts();
   const { data: rules } = useRecurringRules();
   const { data: ledger } = useTransactions();
+  const { data: paymentPlans } = usePaymentPlans();
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   // Defaults to the current month. All history is available, but opening the tab on seven months of
@@ -100,8 +101,8 @@ export default function BankActivity() {
    * to remember a non-decision would put "I don't know what this is" in the database.
    */
   const [rejected, setRejected] = useState<Record<string, true>>({});
-  /** Which row, if any, has a link picker open — and which of the two it is. */
-  const [picker, setPicker] = useState<{ id: string; kind: 'rule' | 'txn' } | null>(null);
+  /** Which row, if any, has a link picker open — and which of the three it is. */
+  const [picker, setPicker] = useState<{ id: string; kind: 'rule' | 'txn' | 'plan' } | null>(null);
 
   const accountName = useMemo(() => {
     const map: Record<string, string> = {};
@@ -166,6 +167,20 @@ export default function BankActivity() {
     [rules],
   );
 
+  /**
+   * §1B Stage 4C — payment plans a charge may be linked to. Active only, same reasoning as the
+   * rules: a finished or cancelled plan bills nothing that a bank charge could be settling.
+   *
+   * A plan is a THIRD kind of thing a charge can pay, not a variant of the other two: an instalment
+   * is projected from `payment_plans` by `getMonthlyPlanCashExpenses`, never from `recurring_rules`
+   * and never as a ledger row — so before this existed, the only honest thing a user could do with a
+   * BNPL/Plan-It charge was ignore it.
+   */
+  const pickablePlans = useMemo(
+    () => paymentPlans.filter(p => p.active).slice().sort((a, b) => a.name.localeCompare(b.name)),
+    [paymentPlans],
+  );
+
   const suggestionFor = (txn: BankActivityRow): RowSuggestion => {
     const rule = ruleByTxnId[txn.id];
     if (rule) return { rule };
@@ -224,9 +239,10 @@ export default function BankActivity() {
       </div>
 
       <p className="text-xs text-muted-foreground leading-relaxed">
-        What your connected accounts actually reported. Linking a charge to a bill or to an entry you
-        already made just labels it and changes no projected number. Only "Add to my ledger" creates
-        a new entry, and it is offered only where nothing you already track covers the charge.
+        What your connected accounts actually reported. Linking a charge to a bill, a payment plan or
+        an entry you already made just labels it and changes no projected number. Only "Add to my
+        ledger" creates a new entry, and it is offered only where nothing you already track covers
+        the charge.
       </p>
 
       <div className="card-forged divide-y divide-border">
@@ -258,6 +274,9 @@ export default function BankActivity() {
             : mapped;
           const isGuess = !review?.category_override && !hasCategorySuggestion(txn.category);
           const linkedRule = review?.rule_id ? rules.find(r => r.id === review.rule_id) : undefined;
+          const linkedPlan = review?.payment_plan_id
+            ? paymentPlans.find(p => p.id === review.payment_plan_id)
+            : undefined;
 
           return (
             <div key={txn.id} className="px-4 py-3 space-y-2">
@@ -304,7 +323,11 @@ export default function BankActivity() {
                             // ON DELETE SET NULL precisely so the decision survives the rule, so this
                             // must never assume the rule is still there.
                             ? (linkedRule ? `linked · ${linkedRule.name}` : 'linked · rule deleted')
-                            : 'linked'}
+                            : review?.status === 'linked_plan'
+                              // Same ON DELETE SET NULL degraded state as a rule link, for the same
+                              // reason: the decision outlives the plan it named.
+                              ? (linkedPlan ? `linked · ${linkedPlan.name}` : 'linked · plan deleted')
+                              : 'linked'}
                     </span>
                     {review?.status === 'imported' && review.transaction_id ? (
                       // ⚠️ Undoing an import must delete the LEDGER ROW, not the review. Deleting the
@@ -386,6 +409,16 @@ export default function BankActivity() {
                         >
                           <Link2 size={11} /> Link to an entry
                         </button>
+                        {/* Offered only when a plan exists to link to — an empty picker asserts a
+                            destination the user does not have. */}
+                        {pickablePlans.length > 0 && (
+                          <button
+                            onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'plan' ? null : { id: txn.id, kind: 'plan' }))}
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                          >
+                            <Link2 size={11} /> Link to a payment plan
+                          </button>
+                        )}
                         {/* THE ONE CONTROL ON THIS PAGE THAT CREATES MONEY. It appears only when the
                             plan says yes, and there is deliberately no disabled version asserting a
                             reason nobody asked for. */}
@@ -432,6 +465,37 @@ export default function BankActivity() {
                     <option value="">Which bill does this pay?</option>
                     {pickableRules.map(r => (
                       <option key={r.id} value={r.id}>{r.name} · {formatCurrency(Math.abs(Number(r.amount)), false)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {openPicker === 'plan' && !handled && (
+                <div className="pl-8">
+                  <select
+                    defaultValue=""
+                    onChange={e => {
+                      if (!e.target.value) return;
+                      save.mutate({
+                        synced_transaction_id: txn.id,
+                        status: 'linked_plan',
+                        payment_plan_id: e.target.value,
+                        // A plan bills every month, so the link needs the month it settles for the
+                        // same reason a rule link does.
+                        occurrence_month: monthOf(txn.date),
+                        category_override: review?.category_override ?? null,
+                      });
+                      setPicker(null);
+                    }}
+                    className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground max-w-full"
+                    style={{ borderRadius: 'var(--radius)' }}
+                    aria-label="Link this charge to a payment plan"
+                  >
+                    <option value="">Which plan does this pay?</option>
+                    {pickablePlans.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} · {formatCurrency(Math.abs(Number(p.payment_amount)), false)}
+                      </option>
                     ))}
                   </select>
                 </div>

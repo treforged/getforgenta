@@ -24,6 +24,37 @@ describe('validateReviewInput', () => {
     })).toBeNull();
   });
 
+  // §1B Stage 4C — the SAME database-unenforceable rule as `linked_rule`, and for the same reason:
+  // `payment_plan_id` is ON DELETE SET NULL, so a CHECK requiring it would make deleting a payment
+  // plan fail. Creation-time presence has nowhere to live but here.
+  it('rejects a plan link with no payment plan', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_plan', occurrence_month: '2026-08',
+    })).toBe('A plan link needs a payment plan');
+  });
+
+  // A plan bills every month; without the occurrence the link says nothing about which one.
+  it('rejects a plan link with no occurrence month', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_plan', payment_plan_id: 'p1',
+    })).toBe('A plan link needs the month it settles');
+  });
+
+  it('accepts a complete plan link', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_plan', payment_plan_id: 'p1', occurrence_month: '2026-08',
+    })).toBeNull();
+  });
+
+  // A plan link is NOT a rule link. Nothing about naming a plan implies a recurring rule, and
+  // accepting a `rule_id` in its place would let the (separate) rule-occurrence suppression read a
+  // plan charge as settling a bill.
+  it('does not accept a rule in place of a payment plan', () => {
+    expect(validateReviewInput({
+      synced_transaction_id: 's1', status: 'linked_plan', rule_id: 'r1', occurrence_month: '2026-08',
+    })).toBe('A plan link needs a payment plan');
+  });
+
   it.each(['linked_txn', 'imported'] as const)('rejects %s with no ledger entry', status => {
     expect(validateReviewInput({ synced_transaction_id: 's1', status }))
       .toBe('That status needs a ledger entry');
@@ -32,9 +63,11 @@ describe('validateReviewInput', () => {
   // A stale pointer would make the row look linked to any query reading the FKs without the status.
   it.each(['ignored', 'categorized'] as const)('rejects %s that still carries a link', status => {
     expect(validateReviewInput({ synced_transaction_id: 's1', status, rule_id: 'r1' }))
-      .toBe('That status cannot stay linked to a rule or entry');
+      .toBe('That status cannot stay linked to a rule, plan or entry');
     expect(validateReviewInput({ synced_transaction_id: 's1', status, transaction_id: 't1' }))
-      .toBe('That status cannot stay linked to a rule or entry');
+      .toBe('That status cannot stay linked to a rule, plan or entry');
+    expect(validateReviewInput({ synced_transaction_id: 's1', status, payment_plan_id: 'p1' }))
+      .toBe('That status cannot stay linked to a rule, plan or entry');
   });
 
   it.each(['ignored', 'categorized'] as const)('accepts a clean %s', status => {
@@ -60,7 +93,7 @@ describe('isHandledReview', () => {
     expect(isHandledReview(undefined)).toBe(false);
   });
 
-  it.each(['linked_rule', 'linked_txn', 'imported', 'ignored'])('treats %s as handled', status => {
+  it.each(['linked_rule', 'linked_txn', 'imported', 'ignored', 'linked_plan'])('treats %s as handled', status => {
     expect(isHandledReview({ status })).toBe(true);
   });
 

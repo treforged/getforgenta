@@ -46,10 +46,16 @@ function occurrenceKey(ruleId: string, monthKey: string): string {
 /**
  * The `rule + month` pairs the user has confirmed a bank transaction already paid.
  *
- * Only `'linked_rule'` qualifies. The other four statuses assert something else entirely:
+ * Only `'linked_rule'` qualifies. The other five statuses assert something else entirely:
  * `'linked_txn'` points at a ledger row (money already in `public.transactions`, so suppressing a
  * rule occurrence for it would hide a bill nothing accounts for), `'imported'` CREATED a ledger row,
  * and `'ignored'` / `'categorized'` take no position on whether the charge was paid.
+ *
+ * ⚠️ `'linked_plan'` (§1B Stage 4C) is EXCLUDED ON PURPOSE, not by oversight. It names a
+ * `payment_plans` row, whose month-0 outflow comes from `getMonthlyPlanCashExpenses`, not from a
+ * recurring rule — a plan id and a rule id are uuids from different tables, so folding them into
+ * this one key space would let a collision suppress the wrong bill silently. Its suppression is a
+ * separate `buildConfirmedPlanOccurrences` over the plan key space, and is not built yet.
  *
  * ⚠️ A `'linked_rule'` row with a NULL `rule_id` is skipped, not treated as an error. That is the
  * documented degraded state from the FK's `ON DELETE SET NULL` (see the §1B migration): the review

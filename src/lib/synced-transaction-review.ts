@@ -11,10 +11,12 @@
  * value exists: without it, fixing a wrong auto-category would force the user to also declare the
  * charge linked or dismissed, and the auto-category is wrong often by construction.
  */
-export type ReviewStatus = 'linked_rule' | 'linked_txn' | 'imported' | 'ignored' | 'categorized';
+export type ReviewStatus =
+  | 'linked_rule' | 'linked_txn' | 'imported' | 'ignored' | 'categorized' | 'linked_plan';
 
 /** Statuses meaning the user has dealt with this charge. Deliberately excludes `'categorized'`. */
-const HANDLED_STATUSES: ReadonlySet<string> = new Set(['linked_rule', 'linked_txn', 'imported', 'ignored']);
+const HANDLED_STATUSES: ReadonlySet<string> =
+  new Set(['linked_rule', 'linked_txn', 'imported', 'ignored', 'linked_plan']);
 
 /**
  * Whether a review row represents a charge the user has dealt with.
@@ -33,7 +35,9 @@ export interface ReviewInput {
   status: ReviewStatus;
   rule_id?: string | null;
   transaction_id?: string | null;
-  /** `YYYY-MM` — WHICH occurrence of a monthly rule this charge settles. */
+  /** §1B Stage 4C — the payment plan this charge paid an instalment of. */
+  payment_plan_id?: string | null;
+  /** `YYYY-MM` — WHICH occurrence of a monthly rule or plan this charge settles. */
   occurrence_month?: string | null;
   category_override?: string | null;
 }
@@ -41,31 +45,38 @@ export interface ReviewInput {
 /**
  * A user-facing reason this decision would be meaningless to read back, or null if it is sound.
  *
- * ⚠️ THE RULE THIS EXISTS FOR: "a freshly created `linked_rule` names a rule". That CHECK is
- * deliberately ABSENT from the migration, and the reason is subtle enough to be worth restating —
- * `rule_id` is `ON DELETE SET NULL`, `SET NULL` fires an UPDATE on the referencing row, and Postgres
- * evaluates CHECK constraints on UPDATE. A constraint of that shape would therefore make *deleting a
- * rule* fail with a constraint violation instead of doing what the user asked.
+ * ⚠️ THE RULE THIS EXISTS FOR: "a freshly created `linked_rule` names a rule" — and, since Stage 4C,
+ * the identical rule for `linked_plan`. That CHECK is deliberately ABSENT from the migration, and the
+ * reason is subtle enough to be worth restating — both `rule_id` and `payment_plan_id` are
+ * `ON DELETE SET NULL`, `SET NULL` fires an UPDATE on the referencing row, and Postgres evaluates
+ * CHECK constraints on UPDATE. A constraint of that shape would therefore make *deleting a rule or a
+ * payment plan* fail with a constraint violation instead of doing what the user asked.
  *
- * So the degraded state (`linked_rule` with a null `rule_id`) is legitimate and means "handled, but
- * the rule is gone"; what is illegitimate is CREATING one that way. That distinction cannot be
- * expressed as a CHECK, which is precisely why it is enforced here and pinned by tests.
+ * So the degraded state (`linked_rule` with a null `rule_id`, or `linked_plan` with a null
+ * `payment_plan_id`) is legitimate and means "handled, but the thing it named is gone"; what is
+ * illegitimate is CREATING one that way. That distinction cannot be expressed as a CHECK, which is
+ * precisely why it is enforced here and pinned by tests.
  *
  * Every other rule below is also enforced by the database. They are repeated here to fail with a
  * sentence the user can act on rather than a Postgres constraint name.
  */
 export function validateReviewInput(input: ReviewInput): string | null {
-  const { status, rule_id, transaction_id, occurrence_month } = input;
+  const { status, rule_id, transaction_id, payment_plan_id, occurrence_month } = input;
   if (!input.synced_transaction_id) return 'Missing transaction';
   if (status === 'linked_rule') {
     if (!rule_id) return 'A rule link needs a rule';
     if (!occurrence_month) return 'A rule link needs the month it settles';
   }
+  // A plan bills every month, so the link is as meaningless without its occurrence as a rule's is.
+  if (status === 'linked_plan') {
+    if (!payment_plan_id) return 'A plan link needs a payment plan';
+    if (!occurrence_month) return 'A plan link needs the month it settles';
+  }
   if ((status === 'linked_txn' || status === 'imported') && !transaction_id) {
     return 'That status needs a ledger entry';
   }
-  if ((status === 'ignored' || status === 'categorized') && (rule_id || transaction_id)) {
-    return 'That status cannot stay linked to a rule or entry';
+  if ((status === 'ignored' || status === 'categorized') && (rule_id || transaction_id || payment_plan_id)) {
+    return 'That status cannot stay linked to a rule, plan or entry';
   }
   if (occurrence_month && !/^\d{4}-\d{2}$/.test(occurrence_month)) return 'Bad month';
   return null;

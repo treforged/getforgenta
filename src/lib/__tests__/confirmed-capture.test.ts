@@ -40,6 +40,14 @@ describe('buildConfirmedOccurrences — only an explicit rule link confirms', ()
     },
   );
 
+  // §1B Stage 4C. A plan link names a `payment_plans` row whose month-0 outflow comes from
+  // `getMonthlyPlanCashExpenses`, NOT from a recurring rule. Letting it in here would suppress a
+  // rule occurrence on the strength of a uuid from a different table — a silent cross-table
+  // collision. Its suppression belongs to a separate plan key space, and is not built yet.
+  it('ignores linked_plan — a different key space, deliberately not folded into this one', () => {
+    expect(buildConfirmedOccurrences([review({ status: 'linked_plan' })]).size).toBe(0);
+  });
+
   it('skips a linked_rule whose rule was deleted (FK ON DELETE SET NULL), rather than throwing', () => {
     // The documented degraded state: still "handled", but no rule left to suppress an occurrence of.
     expect(buildConfirmedOccurrences([review({ rule_id: null })]).size).toBe(0);
