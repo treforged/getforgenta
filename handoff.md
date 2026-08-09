@@ -1,3 +1,41 @@
+# Handoff — 2026-08-09 — session 117 — §1B Stage 3 FULLY LIVE-VERIFIED and CLOSED
+
+> **START HERE.** Session 117 clicked the **three remaining UI paths on Tre's real account**. All
+> three pass, the account is **clean** (0 reviews, 22 ledger rows, 0 `origin='synced'`), zero console
+> errors. **No code changed this session** — Stage 3 was already correct as committed `ad841516`.
+>
+> **§1B Stage 3 is CLOSED.** Nothing is queued. The next workstream is **Tre's call** — see below.
+
+## ✅ LIVE-VERIFIED session 117 — do not re-verify
+
+| Path | Result |
+|---|---|
+| Start state | 24 Aug rows. **1** has a rule suggestion → `Confirm` + `Not this`, **no** import button. **23** → `Link to a bill` / `Link to an entry` / `Add to my ledger` |
+| **1. `Not this`** | the suggested row's actions become `Link to a bill` / `Link to an entry` / **`Add to my ledger`** / `Ignore` — the `suggestionRejected` override reaches the live guard |
+| **2. `Link to a bill`** | picker lists **30 active rules** + placeholder. Picking one wrote `status='linked_rule'`, `rule_id` = the picked rule, `occurrence_month='2026-08'`, `transaction_id` null. Row collapses to `Undo` |
+| **3. `Link to an entry`** | picker lists **22 ledger rows** + placeholder, **nearest dates first** off the txn's own date (07-31 before 08-18 before 08-23). Picking one wrote `status='linked_txn'`, `transaction_id` = the picked entry, `rule_id`/`occurrence_month` **null** |
+| Money | `transactions` stayed **22 rows / 0 `origin='synced'`** throughout — a link is an annotation, as designed |
+| `Undo` on both | removed the review; the row returned to offering its destinations |
+| **Cleanup** | re-SELECTed: **0 reviews, 22 ledger rows, 0 synced**. Nothing left behind |
+| Rejection not persisted | reload returned the page to **exactly** the start state (suggestion back, import withheld on that row) — the documented in-memory design call, confirmed on screen |
+
+⚠️ **Do not paste row labels from this tab into handoff.md.** Both rows exercised here carry a
+counterparty name straight out of `synced_transactions`, and this repo is PUBLIC (gotcha #16). Cite
+the amount/date and let the next session re-query.
+
+## ⬜ NEXT — Tre picks
+
+**Stage 4** (feed `buildCaptureEvidence` from a confirmed link — the second §1B thing that moves a
+projected number, so it ships and gets live-verified alone), **§1C** (derive recurring rules from
+transaction history), or the roadmap's **FB.6-13**. Do not start one without Tre choosing.
+
+## Item 6 re-checked (session 117) — STILL HAS NOT FIRED
+
+$422.89 on `933cbc10…` still `pending: true`, `updated_at` **still 2026-08-08 13:00:08 UTC**.
+Seventh session, same answer. Re-run the query; do not investigate.
+
+---
+
 # Handoff — 2026-08-09 — session 116 — §1B Stage 3 BUILT + committed `ad841516`; import path LIVE-VERIFIED
 
 > **START HERE.** Session 116 finished Stage 3 — the hook, the Undo, the UI, and Tre's "Not this"
