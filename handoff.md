@@ -1,9 +1,12 @@
-# Handoff — 2026-08-09 — session 129 — 🟢 **BIWEEKLY ANCHOR VERIFIED AGAINST REAL DATA**; only the in-app render is left (blocked on sign-in)
+# Handoff — 2026-08-09 — session 129 — ✅ **BIWEEKLY ANCHOR `12d01772` FULLY LIVE-VERIFIED. Live pass CLOSED.**
 
-> **START HERE.** `12d01772` is now verified by a before/after A/B on the **real captured fixture**
-> and on **every biweekly row in the live database**. 722/722 tests, tsc clean, tree clean.
-> The one thing not done is looking at the running app, because **the Claude Chrome profile is
-> signed out on both `localhost:8080` and `127.0.0.1:8080`** and only Tre can fix that.
+> **START HERE.** `12d01772` is verified three ways: a before/after A/B on the **real captured
+> fixture**, a count of **every biweekly row in the live database**, and an **in-app pass against
+> Tre's real data** through the Vite-served module plus a rendered surface. 722/722 tests, tsc clean,
+> tree clean. **Nothing about this fix is owed.** Next up is **commit 2** (optional "first
+> occurrence" field) and the standing backlog.
+>
+> 📌 **Phone Bill to Mom starting 2026-10-10 is INTENTIONAL** — Tre confirmed 2026-08-09. Closed.
 
 ## ✅ The fixture A/B — the change is NOT inert, and the golden test's silence is explained
 
@@ -52,13 +55,35 @@ new count of 3 is right and the old 2 was wrong. **A 12-month total near 26 eith
 (365/14 = 26.07); the correction here is *which month* each paycheck lands in, which is what a
 month-0 cash picture is made of.
 
-## ⬜ WHAT IS LEFT — one step, and it needs Tre
+## ✅ IN-APP PASS — DONE. Tre signed in; `12d01772` is LIVE-VERIFIED. Nothing owed.
 
-Look at the running app and confirm the rendered biweekly dates match the anchored cadence (Fuel on
-**Aug 14 / Aug 28**, not Aug 7 / Aug 21). Blocked: the Claude-controlled Chrome has **no Supabase
-auth key** on either origin, `list_connected_browsers` shows exactly one browser (so it is the
-automated profile, not Tre's). Per the `dev-signin` skill this is the manual-once step. Everything
-that could be established without the browser has been.
+Run against `http://localhost:8080` with Tre's real data, using `await import('/src/lib/scheduling.ts')`
+(Vite serves the module, so this is the **shipped code**, not a test double).
+
+1. **Anchor and dates.** `resolveBiweeklyAnchor(Fuel)` = **Fri 2026-03-27** (created Sun 2026-03-22,
+   advanced to the `due_day 5` weekday). Occurrences: Aug **14/28**, Sep **11/25**, Oct **9/23**,
+   Nov **6/20** — every gap exactly 14, across every month boundary.
+2. **The three call sites agree.** 14 months of `generateScheduledEvents` vs
+   `countRuleOccurrencesInMonth` vs `getRuleOccurrenceDatesInMonth` on the live Fuel row:
+   **31 events, all gaps 14, ZERO disagreements.** That is the "one definition of the cadence" claim
+   demonstrated in the browser.
+3. **Rendered surface agrees.** Budget Control → Variable shows
+   `Fuel · Biweekly · Day 5 · From: Prime Visa · $65 · /mo $130` = 2 × 65 for August, matching 14/28.
+4. **The load-date defect, demonstrated live.** Same rule, same page, varying only the day the app is
+   opened:
+
+   | app opened | OLD October | NEW October |
+   |---|---|---|
+   | Aug 9-14 | Oct 9, 23 | Oct 9, 23 |
+   | **Aug 15** | **Oct 2, 16, 30 — three charges, $195** | Oct 9, 23 — $130 |
+
+   The old code re-phased off `max(today, start_date)`, so *the forecast changed because you opened
+   the app on a different day.* The new one is stable on every load date.
+
+⚠️ **Honest caveat, worth carrying:** today (Aug 9) the old and new phases **coincide** for Fuel, so
+**no rendered number on Tre's account changed today**. Do not read that as the fix being inert — the
+A/B above shows it is not, and the four live income rules whose monthly counts move belong to
+**other users**. A same-day rendered A/B was simply not available.
 
 ---
 
