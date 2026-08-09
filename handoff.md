@@ -1,3 +1,50 @@
+# Handoff — 2026-08-09 — session 129b — 🟡 **COMMIT 2 STARTED: helper SHIPPED `79875125`, UI wiring NOT DONE**
+
+> **START HERE.** The context gate fired mid-commit-2. The tree is **green and clean**
+> (728/728, tsc 0, eslint clean) — the atomic action was finished before stopping. What remains is
+> one focused edit in one file.
+
+## ✅ Shipped `79875125` — `describeBiweeklyAnchor` in `src/lib/scheduling.ts`
+
+```ts
+describeBiweeklyAnchor(rule, today?) -> { anchor: 'YYYY-MM-DD', pinned: boolean, shiftedFromInput: boolean }
+```
+`anchor` is `toLocalDateStr(resolveBiweeklyAnchor(...))`, `pinned` is "the user set `start_date`",
+`shiftedFromInput` is "we moved the date they typed". +6 tests in
+`src/lib/__tests__/scheduling.describeAnchor.test.ts`.
+
+## ⬜ NEXT — wire it into the rule editor (`src/pages/BudgetControl.tsx`, ~30 min)
+
+**The finding that shrank this task: the field already exists.** `formFields` (**:781**) already
+pushes a `start_date` date field on every rule, and `resolveBiweeklyAnchor` already prefers
+`start_date`. So commit 2 is **not** a new column, a new input, or an engine change — it is making
+the existing field mean something when `form.frequency === 'biweekly'`. Do this:
+
+1. At **:781**, when `form.frequency === 'biweekly'`, relabel:
+   - income → **`First Paycheck Date (required)`** (income already requires `start_date`, :702)
+   - expense → **`First Occurrence (optional)`**
+2. Add a `hint` (the `Field` type at `src/components/shared/FormModal.tsx:15` already supports one,
+   so **FormModal needs no change**) driven by `describeBiweeklyAnchor`:
+   - blank `start_date` → "Repeats every 14 days from `<anchor>`. Set a date to pin your own cycle."
+   - pinned and unshifted → "Repeats every 14 days from `<anchor>`."
+   - **`shiftedFromInput`** → say plainly that the schedule will run from `<anchor>`, not the date
+     typed, because `due_day` names a different weekday. **Do not silently swallow this.**
+3. For an UNSAVED new rule there is no `created_at`, so pass `{ due_day: Number(form.due_day),
+   start_date: form.start_date || null, created_at: null }` and let the `today` fallback answer.
+   When editing, pass the real row's `created_at` so the hint matches what the engine will do.
+4. `formFields` is a `useMemo` — add `form.start_date` and `form.due_day` to its dep array (**:797**)
+   or the hint will go stale as the user types.
+
+**Deliberately NOT doing:** deriving `due_day` from the picked date. It would often be right ("first
+paycheck was a Thursday" implies Thursdays), but `due_day` is a field the user also set, and
+overwriting one input from another silently is the class of surprise this whole workstream exists to
+remove. Show the conflict, let them fix it. **Do not re-litigate without asking Tre.**
+
+Live-verify after wiring: open Budget Control → Variable → edit **Fuel**, confirm the hint reads
+**2026-03-27** with no `start_date` set, and that typing a non-Friday date raises the shifted warning.
+
+---
+
 # Handoff — 2026-08-09 — session 129 — ✅ **BIWEEKLY ANCHOR `12d01772` FULLY LIVE-VERIFIED. Live pass CLOSED.**
 
 > **START HERE.** `12d01772` is verified three ways: a before/after A/B on the **real captured
