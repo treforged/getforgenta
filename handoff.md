@@ -1,3 +1,88 @@
+# Handoff — 2026-08-09 — session 126 — ✅ **BIWEEKLY OCCURRENCE-DATE FIX SHIPPED `3ec7c725`**; live pass OWED
+
+> **START HERE.** Session 126 built the fix session 125b designed and Tre authorised
+> (*"do what you think is accurate and best for my customers"*). **709/709 tests (+23), tsc 0,
+> eslint clean on every changed file.** The migration is **APPLIED LIVE** and every constraint was
+> re-read from `pg_constraint` to confirm.
+>
+> **Tre's account was NOT touched** — only `select`s. Re-verified after the migration:
+> `imported 55 · linked_plan 1 · linked_rule 11 · linked_txn 2` = **69**, and
+> **0 rows carry `occurrence_date`** (all legacy, all month-keyed, all behaving exactly as before).
+> Backups: `backups/2026-08-09_162505/`.
+>
+> ⬜ **THE LIVE PASS IS OWED AND NOT STARTED** — the context gate fired right after the commit.
+
+## ✅ Shipped `3ec7c725`
+
+| File | Change |
+|---|---|
+| `supabase/migrations/20260809_synced_transaction_reviews_occurrence_date.sql` (new) | `occurrence_date date NULL`, a CHECK that it lies inside `occurrence_month`, a `(user_id, rule_id, occurrence_date)` partial index. **APPLIED LIVE** |
+| `src/lib/confirmed-capture.ts` | `occurrence_date?` on `RuleOccurrenceReview`; `buildConfirmedOccurrences` adds the DATE key when set, else the month key — **never both**; `isRuleOccurrenceConfirmed` tries the full-date key first, then the month key. No signature change, still a pure `has()` |
+| `src/lib/pay-schedule.ts` | **`getRuleOccurrenceDatesInMonth`** extracted (the generator now calls it — one definition of where occurrences land) + **`resolveRuleOccurrenceDate`** |
+| `src/lib/synced-transaction-review.ts` | `occurrence_date` on `ReviewInput`; validation: format, needs a month, must be **inside** that month |
+| `src/components/transactions/BankActivity.tsx` | `ruleOccurrence()` helper; **both** rule-link write sites (the `Confirm: <rule>` suggestion button and the picker) now store the date |
+| `src/hooks/useSupabaseData.ts` | column threaded through the `save` upsert |
+| `src/integrations/supabase/types.ts` | one additive column, hand-edited (diff is exactly 3 lines), drift-checked against live `information_schema.columns` |
+| 3 test files | +23 tests |
+
+### Design calls — do not re-litigate
+
+- **ONE key per review, never both.** A date-keyed row must NOT also add its month key, or the
+  original bug returns intact (the month key suppresses every occurrence of that rule).
+- **NULL `occurrence_date` is a FIRST-CLASS legacy value**, not a degraded state — hence no
+  `linked_rule implies occurrence_date is not null` CHECK (this time the reason is not
+  `ON DELETE SET NULL`; nothing nulls this column — it is that 11 live rows have none). Pinned by a
+  "LEGACY: byte for byte" test.
+- **The date must lie INSIDE `occurrence_month`** (DB CHECK + `validateReviewInput`). This is a
+  deliberate **departure from 125b's plan step 3**, which said to search the previous month too:
+  doing so would leave the row asserting a month whose occurrences it does not suppress, and the two
+  columns would silently disagree. Cross-month attribution (Tre's water bill riding on the rent
+  charge in arrears) is the **SPLIT-LINK** problem, which needs a per-link month and is unbuilt.
+- **NEAREST occurrence, not nearest-on-or-before.** Paying two days early is ordinary and
+  on-or-before would return null and silently fall back to month-wide suppression. **Ties go to the
+  EARLIER** occurrence.
+- **Not a count/budget.** Reasoning preserved in the migration header and in 125b below.
+- **Mixed key space is safe**: a `YYYY-MM` (7 chars) can never equal a `YYYY-MM-DD` (10).
+- **A caller passing only `'2026-08'`** matches ONLY legacy rows. Correct — without a day there is no
+  way to say which occurrence is meant. No live consumer does this (all pass event dates).
+- **No backfill.** Monthly rules are behaviourally identical either way; the only affected rows are
+  Tre's 2 biweekly Fuel links, both in **July, a past month**. Left alone. Mention it to him.
+
+## ⬜ NEXT — the live pass (owed), then Tre picks
+
+**1. The live pass.** It CAN move a number (that is the point), so run it alone.
+On `/transactions` → Bank Activity, pick a **biweekly or weekly** rule (Tre's `Fuel`, `002f7e28…`,
+$65) and a **current-or-future-month** bank row, then:
+- link one row → confirm the DB gets `occurrence_date` set and **inside** `occurrence_month`;
+- confirm the forecast drops **exactly one** occurrence of that rule, not the whole month — read
+  `baseExpenses` off the React fiber, **NOT `endingCash`** (the cycling-debt engine absorbs freed
+  cash);
+- ⚠️ **The sensitivity control that makes the result mean anything:** a July `occurrence_month` is
+  a past month where Δ 0 proves nothing. Session 125 solved this by retargeting the review row with
+  a scoped `UPDATE` to a live month — do the same, or link a row in a live month directly.
+- `Undo` → clean up → re-SELECT to **69 / 0 dates**.
+
+⚠️ Method notes from sessions 123/125 that still hold: a direct `navigate` to `/forecast` on a cold
+load lands on `/dashboard` (click the sidebar `a[href="/forecast"]` instead); resolve elements in JS
+and call `.click()` — **never** click coordinates after a `scrollIntoView`; never hold a DOM node
+across an `await`; `http://localhost:8080` is the ONLY origin; **always** scope SQL with
+`user_id = 'a72f416e-433a-4055-9ab0-9feae4e60edf'`; never paste a counterparty name into this file.
+
+**2. Then Tre picks.** Still open, none started:
+- 🟡 **SPLIT LINK** (one bank row → several rules) — **recommended, Tre has NOT answered. Ask him.**
+  Full evidence in the 125b section below. Blocked by `UNIQUE (synced_transaction_id)`.
+- ⚠️ **Biweekly rules have NO phase anchor** — their phase restarts every month, so generated dates
+  need not match real-world biweekly reality. Found in 125b, **still not raised with Tre.** It is a
+  separate defect from the one just fixed. The comment on `getRuleOccurrenceDatesInMonth` says so.
+- **4B's number-moving half** (`carChargeEvidence`, keys on fund+kind+month) and **4C's**
+  (`buildConfirmedPlanOccurrences`) — both specced, unbuilt.
+- `useCardProjection.ts` **missing `syncedTransactions` dep** eslint warning.
+- **Electricity budgeted $100 but billed $197.93 on 08-05**; Water/Sewer/Trash $30 looks low.
+  Mention, do not act.
+- **N1-N12 backlog** below.
+
+---
+
 # Handoff — 2026-08-09 — session 125b — 🔵 **BIWEEKLY FIX FULLY DESIGNED, NOT STARTED** (Tre authorised); split-link recommended, UNANSWERED
 
 > **START HERE.** Same session, after the 4B live pass below. **NO CODE CHANGED** — `08b0d4ca` is
