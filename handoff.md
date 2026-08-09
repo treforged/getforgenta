@@ -38,7 +38,15 @@ other FKs null). So the write is right and the **read is missing**.
 `getRemainingTransactionExpensesThisMonth` etc. are correctly gated and their tests pass — this is
 not a bug in `confirmed-capture.ts` or `pay-schedule.ts`. Those are fine. The gap is one file.
 
-### ⬜ THE FIX (next session's first job) — thread `confirmed` into `useCardProjection.ts`
+### ⬜ THE FIX — **APPROVED BY TRE 2026-08-09**, and it is the next session's FIRST job
+
+Tre's words after reading the finding: *"do what you believe is most accurate. 4a is fine."* Read as
+**approval to proceed with the fix on my judgement**, not as a claim that the measurement was wrong —
+he had no independent evidence to dispute it with, and the A/B is reproducible. So: **build it, do
+not re-ask.** If a future session finds evidence the measurement itself was wrong, that changes
+things; nothing so far does.
+
+### Thread `confirmed` into `useCardProjection.ts`
 
 Mirror `useForecastEngineInputs.ts:264` exactly: `useSyncedTransactionReviews()` +
 `buildConfirmedOccurrences` (memoised), then in the `eventsInMonth` filter at `useCardProjection.ts:390`
@@ -290,6 +298,23 @@ everything? it seems off."* **A question, not a task.** Audit and report before 
 *"the 401k roth contribution scales with income when its a percentage. that needs to be reflected in
 forecast and goals."* Real engine work, touching both forecast and goals. Probably related to N9 —
 check whether N9's "off" feeling is this.
+
+### N12 — Assign Tre's PAST transactions for him (manual backfill) — Tre, 2026-08-09
+
+*"at some point i want you to go into my account and assign past transactions for me unless we get
+the more automated transaction connection working first."*
+
+**Explicitly authorised account work**, but conditional and NOT yet scheduled — he said *"at some
+point"*. Two things make it different from every other item here:
+- ⚠️ **It is superseded by N5.** If auto-linking-from-history ships first, this becomes unnecessary.
+  Check N5's status before starting, and say so rather than doing redundant manual work.
+- ⚠️ **It writes to real financial data at volume, by judgement.** Every assignment is a guess about
+  what a charge was for. Agree the rules with Tre first (which statuses, how confident is confident
+  enough, what to do with ambiguous rows) and work in **reviewable batches**, not one bulk pass.
+  A wrong `linked_rule` in a CURRENT month moves projected cash; a wrong one in a past month does
+  not. Prefer starting with closed months.
+- Note he has already done ~69 himself on 2026-08-09, so the remaining backlog is the older history
+  (`synced_transactions` runs to ~571 rows). Scope the actual unreviewed count before quoting effort.
 
 ### N11 — Venture X missing full statement balance in later years 🔎
 
