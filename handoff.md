@@ -1,3 +1,79 @@
+# Handoff — 2026-08-09 — session 124 — ✅ **§1B Stage 4B SHIPPED `e6dbb5af`** (link half); ⬜ live pass OWED
+
+> **START HERE.** Session 124 built **4B = Tre's N3** ("link to car insurance and car payment"),
+> which he named twice. **686/686 tests (7 new), tsc 0, eslint clean on every changed file.** The
+> migration is **APPLIED LIVE** and every constraint was re-read from `pg_constraint` to confirm.
+>
+> **Nothing is half-applied.** A `'linked_car'` review is an ANNOTATION — it moves no projected
+> number. **Tre's account was NOT touched this session** (no inserts, no deletes; only `select`s).
+> Backups: `backups/2026-08-09_155659/`.
+>
+> ⬜ **THE LIVE PASS IS OWED AND NOT STARTED** — the context gate fired immediately after the commit.
+
+## ✅ Shipped `e6dbb5af` — 4B, the LINK half only
+
+| File | Change |
+|---|---|
+| `supabase/migrations/20260809_synced_transaction_reviews_linked_car.sql` (new) | `car_fund_id` FK `ON DELETE SET NULL`, `car_charge_kind` + CHECK, `'linked_car'` status, extended `link_needs_month` + `ignored_is_clean`, car/kind/month partial index. **APPLIED LIVE** |
+| `src/lib/synced-transaction-review.ts` | seventh status in `ReviewStatus` + `HANDLED_STATUSES`; new exported `CarChargeKind`; `car_fund_id`/`car_charge_kind` on `ReviewInput`; the `linked_car` validation case |
+| `src/components/transactions/BankActivity.tsx` | `pickableCarCharges` memo + fourth picker `Link to a vehicle charge`; badge names the KIND, not just the vehicle |
+| `src/hooks/useSupabaseData.ts` | both new columns threaded through the `save` upsert |
+| `src/integrations/supabase/types.ts` | two additive columns + the FK Relationships entry (hand-edited, drift-checked against live `information_schema.columns`) |
+| `src/lib/confirmed-capture.ts` | comment: `'linked_car'` is excluded ON PURPOSE, and why |
+| `synced-transaction-review.test.ts` | +7 tests |
+
+### THE design call — **TWO destinations per vehicle, not one.** Do not "simplify" this away.
+
+Every `phase='loan'` car fund bills a **loan payment AND an insurance premium**, usually from the
+same account in the same month, and the engines gate them **independently**:
+`forecast-engine.ts:307` (payment) vs `:356` (insurance), `useCardProjection.ts:587` vs `:1338`.
+A link naming only `car_fund_id` would leave the number-moving half to disambiguate the two **by
+comparing amounts** — the exact heuristic §1A demoted everywhere else. So the row records
+`car_charge_kind ∈ ('loan_payment','insurance')`, and the picker offers the two separately. Tre's own
+phrasing named them as two things. Verified against his live data: his single fund
+(`0f75dec9…`, phase `loan`) bills **$422.89 payment + $173.23 insurance** — two distinct obligations.
+
+Other calls, same reasoning as 4C — do not re-litigate:
+- **NO `linked_car implies car_fund_id is not null` CHECK.** `SET NULL` fires an UPDATE, Postgres
+  evaluates CHECKs on UPDATE → it would make **deleting a vehicle** fail. Creation-time presence is
+  in `validateReviewInput`, pinned by test. Mirrors `rule_id`/`payment_plan_id`, never `transaction_id`.
+- **`link_needs_month` EXTENDED, not given a sibling** — one place to read what "a link needs a month".
+- **A `car_charge_kind` with no `car_fund_id` is rejected on EVERY status**, not just `linked_car`.
+- **Loan-payment amounts come from `getActiveCarLoanPayments`**, the same helper the engines charge
+  against cash — not `actual_monthly_payment`. It excludes lump sums and yields nothing for a loan
+  that has not started or has paid off, which is exactly the set a charge could be settling.
+- **Picker hidden when there is no vehicle charge to link to**, like the plan picker.
+- **One `<select>` with `<fundId>:<kind>` values**, not two selects — a vehicle and a kind are only
+  meaningful together, and two controls would let a user submit half a decision.
+
+## ⬜ NEXT — live-verify 4B, ALONE, then the number-moving half
+
+**1. The live pass (owed).** It writes no money, so this is the short 4C-shaped script:
+on `/transactions` → Bank Activity, on an **unsuggested** row → `Link to a vehicle charge` → picker
+lists **both** of Tre's charges (`2004 Chevorlet C5 · car payment · $422.89` and
+`… · car insurance · $173.23`) → picking one writes `status='linked_car'`, `car_fund_id`,
+`car_charge_kind`, `occurrence_month` derived **from the row's own date**, with `rule_id` /
+`transaction_id` / `payment_plan_id` **all NULL** → row collapses to `linked · <vehicle> payment`
+(or `insurance`) + `Undo` → **confirm NO projected number moved** → `Undo` → clean up, re-SELECT.
+
+⚠️ Account baseline to restore to: `imported 55 · linked_plan 1 · linked_rule 11 · linked_txn 2` = **69**.
+⚠️ Read forecast numbers off the **React fiber** (`baseExpenses`, NOT `endingCash` — the cycling-debt
+engine absorbs freed cash). Full method in the session-123 section below.
+⚠️ Resolve elements in JS and call `.click()` directly — **never** click coordinates read after a
+`scrollIntoView` (that is how session 121 deleted one of Tre's ledger rows).
+⚠️ `http://localhost:8080` is the ONLY valid origin. Never paste a counterparty name into this file.
+
+**2. Then 4B's number-moving half** (separate commit, separate live pass): a confirmed `linked_car`
+feeds `matched: true` into `carChargeEvidence` at all four sites. ⚠️ It must key on
+**fund + kind + month**, and it is NOT `buildConfirmedOccurrences` (different table, different key
+space, and that set has no room for the kind — the module comment now says so).
+
+**3. Also still open:** the biweekly-rule key problem (`ruleId|YYYY-MM`, needs Tre);
+`useCardProjection.ts` missing `syncedTransactions` dep; **4C's number-moving half**
+(`buildConfirmedPlanOccurrences`, specced, unbuilt); the rest of N1-N12.
+
+---
+
 # Handoff — 2026-08-09 — session 123b — ✅ **4C LIVE-VERIFIED TOO**; usage-guard hook DELETED
 
 > **START HERE.** Same session, after the 4A section below. **4A and 4C are both now live-verified
