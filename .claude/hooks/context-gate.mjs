@@ -8,7 +8,14 @@ import { readFileSync, existsSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const THRESHOLD = 150_000;
+// 175k, not 150k (Tre, 2026-08-09). The gate is not really at 87% of a 200k window: a fresh session
+// spends ~65-70k rebuilding context (system + CLAUDE.md + memory + handoff.md + re-reading the same
+// source files) before its first useful edit, so 150k left only ~82k of PRODUCTIVE room and paid the
+// rebuild too often. Restart cost is not a one-off — it sits in the prefix and is re-billed on every
+// request of the new session. 25k of headroom is still comfortable for a handoff write (~8-12k).
+// Do not push past ~180k: overrunning means auto-compact, which flattens exactly the
+// "do not re-litigate" decisions and live-verification debt these handoffs exist to carry.
+const THRESHOLD = 175_000;
 const THROTTLE_MS = 3 * 60 * 1000;
 
 function readStdin() {
