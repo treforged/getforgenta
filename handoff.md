@@ -1,3 +1,87 @@
+# Handoff — 2026-08-09 — session 118 — §1B Stage 3 CLOSED; Stage 4 SCOPED BY TRE + 4A foundation `d59bd19a`
+
+> **START HERE.** Session 118 closed Stage 3 (see the session-117 section below — all three UI paths
+> live-verified, account clean), then **audited Stage 4 and found its one-line spec no longer holds**.
+> Tre re-scoped it. The context gate fired right after the 4A pure module landed.
+>
+> **Nothing is half-applied.** `d59bd19a` is a new pure module + 15 tests, **imported by nothing** —
+> app behaviour is byte-identical to `3bdebcce`. tsc 0.
+
+## ⚠️ THE AUDIT THAT RE-SCOPED STAGE 4 — read before building
+
+The plan's Stage 4 (`docs/1B-transaction-review-plan.md:173`) says *"confirmed links feed
+`buildCaptureEvidence` as `matched: true`"*. That was written session 113, **before Stages 1-3
+existed, and its premise is now false:**
+
+- `buildCaptureEvidence` has **exactly one caller** — `carChargeEvidence` — feeding **exactly two
+  charges** (car loan payment, car insurance) across 4 sites: `forecast-engine.ts:307/:356`,
+  `useCardProjection.ts:562/:1313`.
+- The §1B review UI links a bank row to a **recurring rule** or a **ledger entry**. **Neither is a
+  car-fund charge.** So the spec as written wires a value into a function nothing confirmable reads.
+- Meanwhile **recurring rules have no capture gate at all.** Their month-0 obligations drop out on a
+  bare date test (`t.date > cutoffDate`) inside `getRemainingTransactionExpensesByDay` /
+  `...ItemsByDay` (`pay-schedule.ts:387/:476`) — the exact heuristic §1A demoted everywhere else.
+
+### ✅ TRE DECIDED (2026-08-09): build BOTH A and B. Ship and live-verify SEPARATELY.
+
+- **4A — rule-occurrence capture.** A confirmed `linked_rule` marks that rule's occurrence in that
+  month already paid, so its generated month-0 charge stops being counted against remaining cash.
+- **4B — car-fund link target.** A third link type (`car_fund_id` + a 5th CHECK + a picker) so a bank
+  row can be linked to a vehicle charge, feeding `matched: true` into the two existing gates.
+
+## ✅ Shipped `d59bd19a` — 4A foundation (pure, inert, 15/15 green, tsc 0)
+
+**`src/lib/confirmed-capture.ts`** + its test file. `buildConfirmedOccurrences(reviews)` →
+`ReadonlySet` of `ruleId|YYYY-MM`; `isOccurrenceConfirmed(txn, confirmed)` reads the
+`gen:<ruleId>:<YYYY-MM-DD>` id that `generateMonthTransactionsFromRules` (`pay-schedule.ts:1137`)
+stamps — the only place a row in the merged stream still knows which rule made it.
+
+### Design calls pinned by test — do not "fix" these
+
+- **Only `'linked_rule'` confirms.** `'linked_txn'` points at a ledger row (money already in
+  `public.transactions` — suppressing a rule occurrence for it would hide a bill nothing accounts
+  for); `'imported'` CREATED a row; `'ignored'`/`'categorized'` take no position.
+- **A `'linked_rule'` with a NULL `rule_id` is SKIPPED, not an error** — the documented
+  `ON DELETE SET NULL` degraded state. Still "handled", but no occurrence left to suppress.
+- **Never suppresses a real ledger row**, only `isGenerated` rule expansions, and only for the exact
+  `rule + month` confirmed. Confirming August must not pay September.
+- ⚠️ **This is the rare gate that errs UNSAFE** (dropping an obligation RAISES projected cash). Three
+  things hold it: it fires only on explicit user confirmation; **`BankActivity.tsx` excludes pending
+  rows so a pending debit can never be linked** (same rule as `hasCoverage`, enforced a layer
+  earlier); and it is scoped to one month. All three are load-bearing — the module comment says so.
+
+## ⬜ NEXT — 4A wiring, in order
+
+1. **`pay-schedule.ts`** — add an **optional** `confirmed?: ConfirmedOccurrences` param to
+   `getRemainingTransactionExpensesByDay` (:387) and `getRemainingTransactionExpenseItemsByDay`
+   (:476), skipping a txn when `isOccurrenceConfirmed`. Optional-and-defaulted for the same reason
+   `evidence` is on `isCapturedInBalance`: omitting it must be byte-identical to today, so call
+   sites wire one at a time. Also check `getRemainingTransactionExpensesThisMonth` (BudgetControl,
+   Vehicles) for the same cutoff.
+2. **Thread the reviews in.** `useSyncedTransactionReviews()` already exists. Follow how
+   `syncedTransactions` was threaded for Stage C — `useForecastEngineInputs.ts` →
+   `forecast-engine.ts`; also `CreditCardEngine.tsx:345/:484` and `credit-card-engine.ts:1852`.
+3. **Do NOT filter inside `mergeWithGeneratedTransactions`** even though it is the one shared choke
+   point (9 call sites). Dropping the row there deletes the bill from the **Planning list and Budget
+   Control display** — the money was paid, the plan still contains it. Suppress only where the date
+   cutoff already lives, i.e. the "remaining" helpers.
+4. **Leave the min-safe-cash floor alone.** `pay-schedule.ts:811-817` documents why evidence stays
+   out of the floor. Raising the floor reads cash LOW, the direction a safety rail should err.
+5. Live-verify 4A **alone** on the real account, then build 4B.
+
+## ⬜ 4B — not started
+
+New link type: `synced_transaction_reviews.car_fund_id` (+ CHECK + `validateReviewInput` case +
+`'Link to a vehicle charge'` picker), then `carChargeEvidence` returns `matched: true` on a
+confirmation. Smallest number-moving surface of the two, but needs schema + UI.
+
+## Item 6 re-checked (session 118) — STILL HAS NOT FIRED
+
+$422.89 on `933cbc10…` still `pending: true`, `updated_at` **still 2026-08-08 13:00:08 UTC**.
+Seventh session. Re-run the query; do not investigate.
+
+---
+
 # Handoff — 2026-08-09 — session 117 — §1B Stage 3 FULLY LIVE-VERIFIED and CLOSED
 
 > **START HERE.** Session 117 clicked the **three remaining UI paths on Tre's real account**. All
