@@ -1,4 +1,71 @@
-# Handoff — 2026-08-09 — session 129b — 🟡 **COMMIT 2 STARTED: helper SHIPPED `79875125`, UI wiring NOT DONE**
+# Handoff — 2026-08-09 — session 130 — ✅ **BIWEEKLY WORKSTREAM COMPLETE. Commit 2 shipped `1b919e04` and LIVE-VERIFIED.**
+
+> **START HERE.** Both commits of the biweekly anchor work are done and verified.
+> **729/729 tests, tsc 0, eslint clean, tree clean. Nothing about biweekly is owed.**
+> Next is the standing backlog (N1-N12 below, plus split link) — **ask Tre which he wants first.**
+
+## ✅ Shipped `1b919e04` — the rule editor now states the cycle
+
+The field already existed, so this is a relabel plus a caption, not a schema change:
+
+- **Biweekly only:** income → `First Paycheck Date (required)`, expense → `First Occurrence (optional)`.
+  Every other frequency renders exactly as before — confirmed live, monthly reverts to
+  `Start Date (optional)` with **no** caption.
+- **Caption** from `describeBiweeklyAnchor`, in three voices: derived, pinned, and **shifted**.
+- `form.start_date` / `form.due_day` / `editCreatedAt` added to the `formFields` deps, or the caption
+  goes stale as the user types.
+- `editCreatedAt` is new state (set in `openEdit`, cleared in `openAdd` **and `handleDuplicate`** — a
+  copy is a new row and gets its own `created_at`, so it must not inherit the original's phase).
+- **Still NOT deriving `due_day` from the picked date.** Decided in 129b, unchanged. Do not
+  re-litigate without asking Tre.
+
+### 🐛 A REACHABLE TAB HANG, found by wiring this up — fixed in the same commit
+
+`resolveBiweeklyAnchor` did `const dayOfWeek = rule.due_day ?? 5` and then
+`while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1)`. **`due_day` holds a DAY OF MONTH on
+monthly rules**, so flipping a rule from monthly to biweekly handed it a `15` and the loop hunted
+weekday 15 **forever**. The editor calls this on every keystroke while the frequency select and the
+due_day input still disagree, so **a two-click UI path froze the tab**. Now clamped to 0-6 with the
+module's existing Friday fallback; pinned by a test over `[15, 31, -1, 7, 1.5, NaN]`.
+⚠️ The other two `due_day ?? 5` sites (**:224** weekly generator, **:349** count) were checked and are
+**bounded** — they return an empty/zero result, they do not spin. Left alone deliberately.
+
+### ✅ LIVE PASS — done in-app, every branch
+
+Sign-in had lapsed, so this ran in **demo mode** against real Vite-served modules (the shipped code,
+not a test double). Driving the form's real React state and reading the rendered caption back:
+
+| input | rendered caption |
+|---|---|
+| no date, due_day 1 | `Repeats every 14 days from Mon, Aug 10, 2026. Set a date to pin your own cycle.` |
+| pinned Aug 9, **due_day 0 (matches)** | `Repeats every 14 days from Sun, Aug 9, 2026.` |
+| pinned Aug 9, due_day 4 | `Heads up: the schedule will run from Thu, Aug 13, 2026, not the date entered …` |
+| **due_day 15** (the hang case) | rendered **instantly**, Fri Aug 14 — no freeze |
+| blank due_day | Fri Aug 14 (Friday fallback) |
+
+Labels confirmed live for income and expense, and monthly confirmed to revert with no caption.
+Plus `await import('/src/lib/scheduling.ts')` in the browser on **Fuel's real row values**
+(`due_day 5`, `start_date null`, `created_at 2026-03-22`) → anchor **`2026-03-27`**, `pinned false`,
+`shifted false`. Matches the prediction 129 made from the database.
+
+⚠️ **The one thing NOT done, and why:** the plan asked to edit **Fuel** in Tre's own account and see
+`Mar 27, 2026` on screen. Sign-in had lapsed and I will not enter his password, so the `created_at`
+branch was verified through the shipped module with Fuel's real values rather than through his
+rendered form. The form wiring is verified live and the resolver is verified on his data; only the
+"his row, his screen" combination is untested, and it is the branch carrying the least logic.
+**Not worth a session to re-do.**
+
+### 🧪 Method note worth reusing
+
+The date fields are a `DateScrollPicker`, **not** an `input[type=date]` — there is nothing to type
+into. Drive biweekly hint states from the **Day of Week number input** instead (set via the native
+value setter + `input` event), which moves the anchor without touching the picker at all. Also:
+`[...document.querySelectorAll('select')]` catches the **Income & Tax pay-frequency** select before
+the modal's — scope the query to the `.fixed.inset-0` modal first.
+
+---
+
+# Handoff — 2026-08-09 — session 129b — ✅ helper SHIPPED `79875125` (the UI wiring it asks for is DONE — see session 130 at the top; kept for its reasoning)
 
 > **START HERE.** The context gate fired mid-commit-2. The tree is **green and clean**
 > (728/728, tsc 0, eslint clean) — the atomic action was finished before stopping. What remains is
@@ -13,7 +80,7 @@ describeBiweeklyAnchor(rule, today?) -> { anchor: 'YYYY-MM-DD', pinned: boolean,
 `shiftedFromInput` is "we moved the date they typed". +6 tests in
 `src/lib/__tests__/scheduling.describeAnchor.test.ts`.
 
-## ⬜ NEXT — wire it into the rule editor (`src/pages/BudgetControl.tsx`, ~30 min)
+## ✅ DONE in session 130 (`1b919e04`) — wire it into the rule editor (`src/pages/BudgetControl.tsx`, ~30 min)
 
 **The finding that shrank this task: the field already exists.** `formFields` (**:781**) already
 pushes a `start_date` date field on every rule, and `resolveBiweeklyAnchor` already prefers
