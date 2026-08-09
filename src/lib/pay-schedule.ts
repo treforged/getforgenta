@@ -4,6 +4,7 @@
 import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
 import { isOccurrenceConfirmed, type ConfirmedOccurrences } from './confirmed-capture';
+import { getBiweeklyDatesInMonth, toLocalDateStr } from './scheduling';
 import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 import type { CarFund } from './types';
@@ -1121,14 +1122,14 @@ export function getSafeToPayByDueDate(
  * ⚠️ `due_day` MEANS A DAY OF THE WEEK (0-6) for `weekly` and `biweekly`, and a day of the month for
  * the other two. That is the existing convention, not a choice made here.
  *
- * ⚠️ BIWEEKLY IS NOT PHASE-ANCHORED — it restarts from the first matching weekday of EVERY month,
- * unlike the paycheck generator above, which anchors on `paycheckStartDate`. So the Nth biweekly
- * occurrence is NOT stable across months, and nothing may be built on the assumption that it is.
- * (Arguably its own defect; deliberately not changed here, because changing it would move projected
- * numbers for every biweekly rule in the app.)
+ * ⚠️ BIWEEKLY IS PHASE-ANCHORED, WEEKLY IS NOT, and that asymmetry is deliberate. Biweekly defers to
+ * `getBiweeklyDatesInMonth` so its 14-day cycle is measured from a stable per-rule anchor; restarting
+ * it each month inserted a whole extra cycle four times a year (+7.7%). Weekly keeps the
+ * first-matching-weekday walk because every Friday is a Friday whichever month it falls in — a
+ * 7-day step cannot drift across a boundary, so anchoring it could only move a correct schedule.
  */
 export function getRuleOccurrenceDatesInMonth(
-  rule: Pick<RuleRow, 'frequency' | 'due_day' | 'due_month' | 'start_date'>,
+  rule: Pick<RuleRow, 'frequency' | 'due_day' | 'due_month' | 'start_date' | 'created_at' | 'end_date'>,
   year: number,
   month: number, // 0-indexed
 ): string[] {
@@ -1141,14 +1142,15 @@ export function getRuleOccurrenceDatesInMonth(
     if (startDate > monthEnd) return dates;
   }
 
-  if (rule.frequency === 'weekly' || rule.frequency === 'biweekly') {
-    const step = rule.frequency === 'weekly' ? 7 : 14;
+  if (rule.frequency === 'biweekly') {
+    return getBiweeklyDatesInMonth(rule, year, month).map(toLocalDateStr);
+  } else if (rule.frequency === 'weekly') {
     const d = new Date(monthStart);
     const dayOfWeek = rule.due_day ?? 5;
     while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
     while (d <= monthEnd) {
       dates.push(d.toISOString().split('T')[0]);
-      d.setDate(d.getDate() + step);
+      d.setDate(d.getDate() + 7);
     }
   } else if (rule.frequency === 'monthly') {
     const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());

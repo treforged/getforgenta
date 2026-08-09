@@ -27,6 +27,11 @@ const rule = (over: Partial<RuleRow> = {}): RuleRow => ({
   category: 'Transportation',
   // Monday. `due_day` is a DAY OF THE WEEK for weekly/biweekly rules — the existing convention.
   due_day: 1,
+  // Biweekly is phase-anchored on `start_date ?? created_at` (see `resolveBiweeklyAnchor`), so a
+  // fixture without either would anchor on TODAY and make every expectation below time-dependent.
+  // Mon 2026-01-05 is 210 days before Mon 2026-08-03 — a whole number of 14-day cycles — so the
+  // August dates these tests have always asserted are unchanged by the anchoring fix.
+  created_at: '2026-01-05T00:00:00Z',
   ...over,
 });
 
