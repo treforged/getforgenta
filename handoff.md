@@ -1,3 +1,139 @@
+# Handoff — 2026-08-09 — session 119 — §1B Stage 4A FULLY WIRED `f4735630`; 4C (payment-plan link) queued
+
+> **START HERE.** Session 119 pushed the 17-commit backlog (`875ea2a7..524f8585`) and then **wired
+> 4A end to end**. **669/669 tests (25 new), tsc 0, eslint clean on every changed file.**
+>
+> **Nothing is half-applied.** Every gate is inert until a `linked_rule` review exists, and Tre's
+> account currently has **0 reviews**, so today the app is byte-identical to `524f8585`.
+>
+> ⬜ **The one thing NOT done is live verification** — that is the next session's whole job. **4B has
+> not been started.**
+
+## ✅ Shipped `f4735630` — 4A wiring
+
+`buildConfirmedOccurrences` was inert in `d59bd19a`. It is now read at every place a month-0 rule
+occurrence is charged against cash:
+
+| Layer | Change |
+|---|---|
+| `pay-schedule.ts` | optional trailing `confirmed?: ConfirmedOccurrences` on `getRemainingTransactionExpensesByDay` (:387), `getRemainingTransactionExpenseItemsByDay` (:476) **and** `getRemainingTransactionExpensesThisMonth` (:548). Skips the row right after the `Balance Adjustment` guard |
+| `confirmed-capture.ts` | new **`isRuleOccurrenceConfirmed(ruleId, date, confirmed)`**; `isOccurrenceConfirmed` now delegates to it |
+| `Dashboard.tsx` | `remainingTxExpenses` |
+| `BudgetControl.tsx` | `remainingTxExpenses` (Remaining Cash On Hand) |
+| `Vehicles.tsx` | `remainingTxExpenses` (available-above-floor) |
+| `CreditCardEngine.tsx` | `cashBreakdown`, `cashBreakdownItems` (the tooltip), and `month0Expenses` inside `variableSim` |
+| `credit-card-engine.ts` | trailing param threaded `getMonthlyDebtBreakdown` → `buildCurrentMonthRecommendationSummary` → `generateRecommendations` → the :1852 call |
+| `useForecastEngineInputs.ts` | passes it to `getMonthlyDebtBreakdown`, **and** gates `forecastMonthEvents` |
+
+### ⚠️ Two places the previous handoff's plan was WRONG — do not follow it literally
+
+1. **`forecast-engine.ts` never calls `getRemainingTransactionExpensesByDay`.** Both it and
+   `Forecast.tsx` merely carry an **unused import** of it (`forecast-engine.ts:17`,
+   `Forecast.tsx:17`). Step 2's "`useForecastEngineInputs.ts` → `forecast-engine.ts`" route does not
+   exist. The forecast's month-0 rule expenses come from **`scheduledEvents`**, filtered by a bare
+   `e.date > todayStr` inside `forecastMonthEvents` — the same heuristic, a different code path.
+   That is why `isRuleOccurrenceConfirmed` was added: those events carry `ruleId` + `date` and never
+   take the `gen:` id shape. **Gated there, in every month, not just month 0** — `occurrence_month`
+   already scopes a confirmation to one month, so a month filter would be redundant.
+2. **`getRemainingTransactionExpensesThisMonth` was wired too**, not just checked. Dashboard passes
+   a real `syncCutoffDate`; **BudgetControl and Vehicles pass none at all** and still run on the
+   `txDay >= today` default. Wiring only Dashboard would have made the same "remaining" figure
+   disagree across three pages — that is why all three went in together.
+
+### Design calls made this session
+
+- **The param is trailing, optional and undefaulted everywhere.** Same reason `evidence` is optional
+  on `isCapturedInBalance`: omitting it must be byte-identical to pre-Stage-4, which a test pins.
+- **`credit-card-engine.ts` got a 10th/11th positional param** rather than an options object. It
+  matches the file's existing style; converting those signatures is a separate refactor and would
+  have put a large unrelated diff inside the one commit that must be live-verified alone.
+- **The line-item helper is gated identically to the total**, so the CC tooltip can never list a
+  charge the total no longer counts.
+- Only one production caller of `getMonthlyDebtBreakdown` exists (`useForecastEngineInputs:154`);
+  the other four hits are tests.
+
+## ⬜ ALSO PENDING — live-verify 4A on the real account, ALONE
+
+**Order:** Tre asked for 4C after 4A was already built, so 4C is the live instruction and comes
+first. Do NOT let that skip this verification — 4A is committed, unverified, and raises projected
+cash. Verify it before or immediately after 4C, but never bundle the two into one live pass.
+
+It **raises** projected cash (the unsafe direction), so verify on screen, not by reasoning:
+
+1. In `/transactions` → Bank Activity, **`Link to a bill`** on a settled August row whose rule has a
+   month-0 charge still ahead of its due day. Note `Projected remaining` on `/dashboard` FIRST.
+2. Expect, after the write: Dashboard `Projected remaining` **up by that rule's amount**;
+   BudgetControl `Remaining Cash On Hand` up by the same; the Debt page's cash tooltip **no longer
+   lists that line**; Forecast month 0 expenses down by it.
+3. **`Undo`** must restore every one of those numbers exactly.
+4. **Clean up** (separate statements, then re-SELECT — the CTE gotcha) and confirm **0 reviews**.
+
+⚠️ Gotchas that cost earlier sessions calls: the tab toggle persists (`tre:transactions:tab`), so
+switch tabs with the Radix pointer sequence; the filter `<select>`s are **native**, driven with the
+value setter + `change` event; the Claude Chrome profile is often signed out — probe every time;
+`http://localhost:8080` is the ONLY valid origin.
+
+## 🔥 BUILD THIS FIRST — 4C, link a bank row to a PAYMENT PLAN (Tre, 2026-08-09)
+
+His words: *"also allow items to be linked to payment plans."* Asked at the end of session 119,
+**after** the 4A wiring landed, so nothing of it is built. It outranks 4B — he asked for it directly
+and 4B is still only a session-118 proposal.
+
+**Scope call to state to him, not to guess at silently:** build the LINK (a sixth status, an
+annotation that moves no money) as one shippable unit, exactly like `linked_rule` was in Stage 2.
+Making it *retire the plan's month-0 cash outflow* is the number-moving half and ships separately,
+because that is the pattern every §1B stage has followed and because it errs in the unsafe
+direction. **Recommend both, in that order; do not fold them into one commit.**
+
+Everything needed to build it, already dug out this session:
+
+- **Migration.** `synced_transaction_reviews.payment_plan_id uuid references public.payment_plans(id)
+  on delete set null`, plus `'linked_plan'` added to the `status` CHECK. ⚠️ **SET NULL, and
+  therefore NO "linked_plan implies payment_plan_id is not null" CHECK** — that is the exact FK trap
+  the table is built around (an `ON DELETE SET NULL` fires an UPDATE, Postgres evaluates CHECKs on
+  UPDATE, so deleting a plan would fail). Mirror `rule_id` exactly, not `transaction_id`.
+- **A plan recurs, so the link needs `occurrence_month` too** — same argument as the rule link, and
+  it means adding `'linked_plan'` to the existing `synced_transaction_reviews_rule_needs_month`
+  CHECK (rename it, or add a sibling). Also extend
+  `synced_transaction_reviews_ignored_is_clean` so `'ignored'` cannot keep a plan pointer.
+- **`synced-transaction-review.ts`**: add `'linked_plan'` to `ReviewStatus` and to
+  `HANDLED_STATUSES`, a `payment_plan_id` field on `ReviewInput`, and a `validateReviewInput` case
+  (`:57`) requiring both the plan and the month.
+- **`BankActivity.tsx`**: a third picker, `'Link to a payment plan'`, over **active** plans (same
+  reasoning as `pickableRules` filtering to `active`). It belongs on unsuggested rows and after
+  `Not this`, like the other two.
+- **Regenerate `src/integrations/supabase/types.ts` and DIFF IT** before committing — gotcha #15.
+- Also add `'linked_plan'` to the `confirmed-capture.ts` comment listing why only `'linked_rule'`
+  confirms, so the next reader is not left wondering whether it was forgotten.
+
+**The number-moving half, when Tre okays it:** `getMonthlyPlanCashExpenses`
+(`payment-plan-generator.ts:123`) already takes an `afterDate` and skips installments with
+`date <= afterDate` — the same bare date test 4A replaced. The suppression is the same shape:
+skip an installment when its `plan + YYYY-MM` is confirmed. Build a `buildConfirmedPlanOccurrences`
+next to the rule one rather than overloading `ConfirmedOccurrences`, since the two key spaces are
+different tables and a uuid collision across them would be silent.
+
+## ✅ Commit-message defect in `94179917` — FIXED, Tre said amend
+
+Amended to **`f4735630`** (the stray `@` subject came from PowerShell here-string syntax `@'…'@`
+passed to the **Bash** tool, which does not accept it — use a heredoc there). Done via
+`reset --soft` of the handoff commit, then `commit --amend`, then re-commit — **no rebase**.
+⚠️ **`94179917` no longer exists**; any reference to it means `f4735630`.
+
+## ⬜ 4B — still not started
+
+Unchanged from session 118: `synced_transaction_reviews.car_fund_id` + a 5th CHECK +
+`validateReviewInput` case + a `'Link to a vehicle charge'` picker, feeding `matched: true` into the
+two `carChargeEvidence` gates.
+
+## Item 6 — NOT re-checked this session
+
+Sessions 113-118 all found the $422.89 on `933cbc10…` still `pending: true` with `updated_at` frozen
+at 2026-08-08 13:00:08 UTC. This session spent its budget on the 4A wiring and did not re-run it.
+Re-run the query; do not investigate.
+
+---
+
 # Handoff — 2026-08-09 — session 118 — §1B Stage 3 CLOSED; Stage 4 SCOPED BY TRE + 4A foundation `d59bd19a`
 
 > **START HERE.** Session 118 closed Stage 3 (see the session-117 section below — all three UI paths
