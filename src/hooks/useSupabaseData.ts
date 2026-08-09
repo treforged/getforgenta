@@ -11,6 +11,7 @@ import {
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarFund } from '@/lib/types';
+import { validateReviewInput, type ReviewInput, type ReviewStatus } from '@/lib/synced-transaction-review';
 
 // ─── Accounts (Centralized) ──────────────────────────────
 // FIX #13: Demo accounts now have realistic balances that produce
@@ -539,6 +540,181 @@ export function useSyncedTransactions(monthKey: string) {
       return data ?? [];
     },
   });
+}
+
+/** What the §1B Bank Activity tab reads. Adds `category` — the provider bucket the map suggests from. */
+export type BankActivityRow = Pick<
+  Tables<'synced_transactions'>,
+  'id' | 'account_id' | 'amount' | 'date' | 'pending' | 'name' | 'merchant_name' | 'category'
+>;
+
+/**
+ * PostgREST caps a single response (1000 rows by default), and it does so SILENTLY — a truncated
+ * page looks exactly like a complete one. A history browser that quietly stops at row 1000 would
+ * show a user their recent months and hide the rest with no indication, so the fetch below pages
+ * explicitly rather than trusting one call.
+ */
+const SYNCED_TXN_PAGE_SIZE = 1000;
+
+/** Refuses to loop forever if the server ever returns full pages without advancing. 50k rows. */
+const SYNCED_TXN_MAX_PAGES = 50;
+
+/**
+ * EVERY settled synced transaction, all accounts, all history (§1B Stage 1).
+ *
+ * SEPARATE FROM `useSyncedTransactions` ON PURPOSE — do not merge them. That hook is month-scoped
+ * because it exists to badge one screen and fetching a whole history to do that would be thousands
+ * of rows per render. This one is the opposite requirement: Tre's call (2026-08-08) is that all
+ * history is browsable, because history is the INPUT to discovering recurring rules at onboarding
+ * (§1C), not merely an archive. Widening the month-scoped hook to serve both would silently make
+ * the /budget badge pay this hook's cost.
+ *
+ * Pending rows are excluded here, as everywhere in §1A/§1B: a pending charge is not a fact yet.
+ *
+ * ⚠️ Absence of a row in `synced_transaction_reviews` for anything returned here means UNREVIEWED,
+ * and unreviewed means nothing at all. With all history in scope most rows are permanently
+ * unreviewed by design, so no caller may read it as "this did not happen".
+ *
+ * Demo mode returns nothing — there is no aggregator behind demo data, and inventing bank rows
+ * would put fabricated "your bank says" claims on fixtures.
+ */
+export function useAllSyncedTransactions() {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+  return useQuery({
+    queryKey: ['synced_transactions', 'all', isDemo ? 'demo' : user?.id],
+    enabled: isDemo || !!user,
+    queryFn: async (): Promise<BankActivityRow[]> => {
+      if (isDemo || !user) return [];
+      const rows: BankActivityRow[] = [];
+      for (let page = 0; page < SYNCED_TXN_MAX_PAGES; page++) {
+        const from = page * SYNCED_TXN_PAGE_SIZE;
+        const { data, error } = await supabase
+          .from('synced_transactions')
+          .select('id, account_id, amount, date, pending, name, merchant_name, category')
+          .eq('user_id', user.id)
+          .eq('pending', false)
+          .order('date', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, from + SYNCED_TXN_PAGE_SIZE - 1);
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if (!data || data.length < SYNCED_TXN_PAGE_SIZE) break;
+      }
+      return rows;
+    },
+  });
+}
+
+// ─── Synced transaction reviews (§1B Stage 2 — the USER'S decisions, full CRUD) ───
+//
+// The mirror image of `synced_transactions` above: those are provider facts and the client may only
+// read them, because a user edit to a provider fact is reverted by the next sync. These rows are
+// the user's own assertions, so they get full owner CRUD.
+//
+// ABSENCE MEANS UNREVIEWED. There is deliberately no 'unreviewed' status, so this table only ever
+// holds rows someone acted on and never needs a backfill.
+export type SyncedTransactionReviewRow = Tables<'synced_transaction_reviews'>;
+
+// The rules themselves are pure and live in `@/lib/synced-transaction-review`, so they can be
+// tested without a Supabase client. Re-exported here because every consumer already imports its
+// data from this module.
+export { isHandledReview, validateReviewInput } from '@/lib/synced-transaction-review';
+export type { ReviewStatus, ReviewInput } from '@/lib/synced-transaction-review';
+
+export function useSyncedTransactionReviews() {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: ['synced_transaction_reviews', isDemo ? 'demo' : user?.id],
+    enabled: isDemo || !!user,
+    queryFn: async (): Promise<SyncedTransactionReviewRow[]> => {
+      if (isDemo || !user) return [];
+      const { data, error } = await supabase
+        .from('synced_transaction_reviews')
+        .select('*')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  // Upsert on `synced_transaction_id`, not insert: the column is UNIQUE (one decision per charge),
+  // so a user changing their mind about a row must overwrite the old decision rather than hit a
+  // constraint error they cannot act on.
+  const save = useMutation({
+    mutationFn: async (input: ReviewInput) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const problem = validateReviewInput(input);
+      if (problem) throw new Error(problem);
+      const { error } = await supabase
+        .from('synced_transaction_reviews')
+        .upsert(sanitizePayload({
+          user_id: user.id,
+          synced_transaction_id: input.synced_transaction_id,
+          status: input.status,
+          rule_id: input.rule_id ?? null,
+          transaction_id: input.transaction_id ?? null,
+          occurrence_month: input.occurrence_month ?? null,
+          category_override: input.category_override ?? null,
+          updated_at: new Date().toISOString(),
+        }), { onConflict: 'synced_transaction_id' });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Category is the one field a user edits WITHOUT taking a position on what the charge is, so it
+  // gets its own path: overriding the category of an already-linked row must not disturb the link.
+  const setCategory = useMutation({
+    mutationFn: async ({ syncedTransactionId, category }: { syncedTransactionId: string; category: string | null }) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const existing = (query.data ?? []).find(r => r.synced_transaction_id === syncedTransactionId);
+      if (existing) {
+        const { error } = await supabase
+          .from('synced_transaction_reviews')
+          .update({ category_override: category, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+          .eq('user_id', user.id);
+        if (error) throw error;
+        return;
+      }
+      // No decision yet, and correcting a label is not one. `'categorized'` exists precisely so
+      // this write does not have to borrow a status that would assert the charge is handled.
+      const { error } = await supabase
+        .from('synced_transaction_reviews')
+        .upsert(sanitizePayload({
+          user_id: user.id,
+          synced_transaction_id: syncedTransactionId,
+          status: 'categorized' satisfies ReviewStatus,
+          category_override: category,
+          updated_at: new Date().toISOString(),
+        }), { onConflict: 'synced_transaction_id' });
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Deleting a review returns the synced transaction to unreviewed — the honest state when a user
+  // undoes a decision, and what makes an import re-importable after the ledger row is removed.
+  const remove = useMutation({
+    mutationFn: async (syncedTransactionId: string) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase
+        .from('synced_transaction_reviews')
+        .delete()
+        .eq('synced_transaction_id', syncedTransactionId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error, save, setCategory, remove };
 }
 
 // ─── Transactions (the USER'S manual ledger — full CRUD) ──────────────────

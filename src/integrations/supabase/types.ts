@@ -1476,6 +1476,67 @@ export type Database = {
         }
         Relationships: []
       }
+      synced_transaction_reviews: {
+        Row: {
+          category_override: string | null
+          created_at: string
+          id: string
+          occurrence_month: string | null
+          rule_id: string | null
+          status: string
+          synced_transaction_id: string
+          transaction_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category_override?: string | null
+          created_at?: string
+          id?: string
+          occurrence_month?: string | null
+          rule_id?: string | null
+          status: string
+          synced_transaction_id: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category_override?: string | null
+          created_at?: string
+          id?: string
+          occurrence_month?: string | null
+          rule_id?: string | null
+          status?: string
+          synced_transaction_id?: string
+          transaction_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "synced_transaction_reviews_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "synced_transaction_reviews_synced_transaction_id_fkey"
+            columns: ["synced_transaction_id"]
+            isOneToOne: true
+            referencedRelation: "synced_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "synced_transaction_reviews_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       synced_transactions: {
         Row: {
           account_id: string | null

@@ -9,6 +9,7 @@ import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, type EnrichedTransaction } from '@/lib/pay-schedule';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
+import BankActivity from '@/components/transactions/BankActivity';
 import FormModal from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
@@ -74,6 +75,11 @@ export default function Transactions() {
   // financial data, so localStorage (per-device) rather than a profile column — same choice as
   // `tre:debt:expanded-card` and `tre:debtpayoff:pause-savings`.
   const [showPlans, setShowPlans] = usePersistedState<boolean>('tre:transactions:show-plans', true);
+
+  // §1B — Planning vs Bank Activity. The two streams are never interleaved: this page's rows are
+  // what WILL happen (hand-entered plus generated debt/plan/car-loan occurrences), bank activity is
+  // what DID. Persisted like the other view toggles above, for the same reason.
+  const [activeTab, setActiveTab] = usePersistedState<'planning' | 'bank'>('tre:transactions:tab', 'planning');
 
   // Build account lookup map
   const accountMap = useMemo(() => {
@@ -469,8 +475,26 @@ export default function Transactions() {
     />
   </div>
 
-  {/* Action Buttons */}
-  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+  {/* Tabs — planning stream vs what the bank reported */}
+  <div className="flex items-center gap-1 border-b border-border">
+    {([
+      { id: 'planning' as const, label: 'Planning' },
+      { id: 'bank' as const, label: 'Bank Activity' },
+    ]).map(t => (
+      <button
+        key={t.id}
+        onClick={() => setActiveTab(t.id)}
+        className={`px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
+          activeTab === t.id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        {t.label}
+      </button>
+    ))}
+  </div>
+
+  {/* Action Buttons — export and manual entry belong to the planning ledger only */}
+  <div className={`flex flex-col gap-2 sm:flex-row sm:flex-wrap ${activeTab === 'planning' ? '' : 'hidden'}`}>
     {(isPremium || isDemo) ? (
       <>
         <button
@@ -525,6 +549,10 @@ export default function Transactions() {
     )}
   </div>
 </div>
+
+      {activeTab === 'bank' && <BankActivity />}
+
+      {activeTab === 'planning' && (<>
 
       {!isPremium && !isDemo && (
         <div className="card-forged p-4 border-primary/20 flex flex-col sm:flex-row sm:items-center gap-4">
@@ -784,6 +812,8 @@ export default function Transactions() {
           );
         })}
       </div>
+
+      </>)}
 
       {/* Edit Choice Dialog for Generated Transactions */}
       {editChoiceId && (
