@@ -1,3 +1,52 @@
+# Handoff — 2026-08-09 — session 123b — ✅ **4C LIVE-VERIFIED TOO**; usage-guard hook DELETED
+
+> **START HERE.** Same session, after the 4A section below. **4A and 4C are both now live-verified
+> and §1B has no outstanding verification debt.** No app code changed all session — `881ec9c5` is
+> still the last app commit. **Account CLEAN**: `imported 55 · linked_plan 1 · linked_rule 11 ·
+> linked_txn 2` = **69**, `linked_plan` back to Tre's original single row.
+
+## ✅ 4C LIVE-VERIFIED — do not re-verify
+
+Clicked through the real UI on `/transactions` → Bank Activity → month filter `2026-07`:
+
+| Check | Result |
+|---|---|
+| Picker renders | ✅ placeholder `Which plan does this pay?` + **all 6 active plans**, `name · $amount` |
+| Offered on unsuggested rows | ✅ 53 unreviewed July rows each offer all three link types |
+| Write | ✅ `status='linked_plan'`, `payment_plan_id`=Rear Diff Seals, **`rule_id` + `transaction_id` NULL**, `occurrence_month='2026-07'` — correctly derived from the row's July date, not hardcoded to the current month |
+| Badge + Undo | ✅ row collapsed to `linked · <plan>` + `Undo` |
+| **NO projected number moves** | ✅ **Aug/Sep/Oct/Nov 2026 × `baseExpenses`/`totalExpenses`/`endingCash` = all Δ 0** |
+| UI `Undo` | ✅ removed the review, badge gone, row re-offered its destinations |
+| Cleanup | ✅ re-SELECT = 69, `linked_plan` = 1 (Tre's own) |
+
+**Why the Δ-0 result is trustworthy and not just an insensitive test:** the *identical* fiber-read
+measurement detected 4A's **−$1,915 exactly** an hour earlier. The instrument is proven sensitive on
+the same page, same keys, same session. That is the control 4C's claim needed.
+
+## ✅ `.claude/hooks/usage-guard.mjs` — DELETED (Tre: *"delete usage-guard.mjs"*), commit `6f10e910`
+
+Also removed its registration from **`~/.claude/settings.json`** — it was a **global** `PreToolUse`
+`matcher:"*"` hook pointing at this project's path, so it was gating **every session machine-wide**.
+⚠️ That global file has a **UTF-8 BOM** (PowerShell-written); `JSON.parse` fails unless you strip
+`^﻿` first. It is valid — do not "fix" it.
+
+**Why it was deleted, so nobody rebuilds it:** its ceiling was *"the largest 5-hour block seen
+historically"*. That peak (~108.6M) was a block capped under the **pre-Max** plan, and because the
+guard blocked all tool calls before the peak could ever be exceeded, it could **never recalibrate
+upward — self-locking**. It burned a whole session at **22% session / 31% weekly** actual usage.
+`/status` is authoritative; a local token-count proxy needs a new magic number every plan change.
+`.claude/hooks/` now matches CLAUDE.md's documented list exactly (context-gate + lean-fix-router).
+
+## ⬜ NEXT — Tre picks from N1-N12
+
+§1B verification debt is now **zero**. Remaining known work, none started:
+- The **biweekly-rule key problem** (`ruleId|YYYY-MM` suppresses a whole month) — needs Tre before designing.
+- `useCardProjection.ts` **missing `syncedTransactions` dep** eslint warning — scoped follow-up.
+- **4C's number-moving half** (`buildConfirmedPlanOccurrences`) — specced, unbuilt, Tre's call.
+- **N1-N12 backlog** below. Tre re-flagged **N3 (=4B)** by naming it twice.
+
+---
+
 # Handoff — 2026-08-09 — session 123 — ✅ **4A LIVE-VERIFIED**; session 122's open thread CLOSED as correct-behaviour
 
 > **START HERE.** Session 123 closed the open thread AND live-verified 4A on Tre's real account.
