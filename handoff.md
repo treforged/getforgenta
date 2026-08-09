@@ -1,3 +1,119 @@
+# Handoff — 2026-08-09 — session 127 — 🟡 `3ec7c725` **WRITE side LIVE-VERIFIED; READ side NOT**. One unexplained anomaly. Anchor DECIDED.
+
+> **START HERE.** **No app code changed** — `2ff1347b` is HEAD, `3ec7c725` is still the last app commit.
+> **Tre's account is CLEAN**, re-SELECTed after cleanup: `imported 55 · linked_plan 1 · linked_rule 11 ·
+> linked_txn 2` = **69**, **0 rows carry `occurrence_date`**. Both test rows deleted; `imported` never
+> left 55, so no ledger row was created or deleted at any point. Sign-in lapsed at session start and
+> Tre re-authenticated manually — the app tab is parked open, leave it that way.
+
+## ✅ WRITE SIDE — LIVE-VERIFIED THROUGH THE REAL UI. Do not re-verify.
+
+Linked bank row `f8beb45b…` (2026-07-10, settled, previously unreviewed) to **Weekly Paycheck** via
+the real `Link to a bill` picker on `/transactions`. The DB got:
+
+`status='linked_rule' · rule_id=3a30b089… · occurrence_month='2026-07' · occurrence_date='2026-07-10'`
+
+That is the first `occurrence_date` ever written by the app: correct value, **inside** its
+`occurrence_month`, and equal to a real generated Friday occurrence of the rule. `ruleOccurrence()` /
+`resolveRuleOccurrenceDate` work end-to-end against live data.
+
+## 🔴 READ SIDE — COULD NOT BE DEMONSTRATED. This is the debt this session hands on.
+
+**Every probe returned Δ 0, including probes that SHOULD have moved.** Do not read that as "the fix
+works" — three of the four are explained by scope, but **the fourth is not, and it is the one that
+matters.** Method was a full 213-key numeric diff of the forecast chart data (all keys, first 4
+months), review present vs review absent.
+
+| Probe | Result | Explanation |
+|---|---|---|
+| `Weekly Paycheck` (weekly, income) | Δ 0 | **Inert by design.** `paycheckIncome` comes from the PAYCHECK CONFIG, not this rule (Aug `2546.67` = 3 × 848.89 is a coincidence of equal amounts). `otherIncome` is a flat `1152` = the two GF income rules only. This rule reaches no forecast key. |
+| `Fuel` (biweekly, $65) date-keyed `2026-08-07` | Δ 0 | **Correct AND untestable.** Fuel is funded by **Prime Visa**, and `useForecastEngineInputs.ts:265` excludes every CC-funded rule (`allCcRuleIds`) from month-0 expenses. |
+| `Fuel` month-keyed (`occurrence_date` NULL) | Δ 0 | Same exclusion. ⚠️ **So the A/B I ran proves nothing** — the instrument was insensitive in BOTH arms. Recorded here so nobody cites it as evidence. |
+| `QUO` ($22, due 12, monthly) | Δ 0 | Sits on **`General Operations`**, not the forecast funding account → excluded by `otherAccountRuleIds`. |
+| ⚠️ **`Phone Bill to Mom`** ($30, due **10**, monthly, **TOTAL CHECKING**), `occurrence_date='2026-08-10'` | **Δ 0 — UNEXPLAINED** | Cash-funded, on the forecast funding account, month-0, due AFTER today (Aug 9) so it is a remaining obligation, date exactly on the generated occurrence. **It should have dropped Aug expenses by $30 and moved nothing.** |
+
+### ⚠️ THE NEXT SESSION'S FIRST JOB — chase that last row
+
+Staleness is **ruled out**: after the SQL insert the Bank Activity row visibly collapsed to a linked
+badge with `Undo`, so the app was reading the new review. Remaining hypotheses, untested:
+1. `scheduledEvents` may not carry `ruleId` on rule-generated expense events, in which case
+   `isRuleOccurrenceConfirmed` can NEVER fire and **§1B Stage 4A is inert in the forecast** — the
+   serious possibility, and the reason this is not being written off.
+2. The chart's `baseExpenses` may not be downstream of the `expenses` memo at
+   `useForecastEngineInputs.ts:257-269` at all. Aug `baseExpenses` = **120**, but the only remaining
+   Aug cash rule on TOTAL CHECKING is Phone Bill at **$30** — **those numbers do not reconcile**, which
+   is itself a clue worth pulling.
+3. Some earlier filter drops the event before the confirmation test is reached.
+
+I tried and FAILED to read `scheduledEvents` off the fiber twice (plain prop walk, then hook-chain
+walk). **Do not repeat those two attempts.** Cheaper next moves: a temporary `console.log` in that
+memo, or a unit test that feeds real-shaped `scheduledEvents` through it.
+
+## 🟢 ANCHOR DECIDED — Tre picked **"Both: derive now, ask later"** (2026-08-09)
+
+For the biweekly phase bug measured in 126b. **Two commits, in this order:**
+1. **Derived anchor, silent** — fixes count and spacing for every customer with no form and no action.
+2. **Optional "first occurrence" field** in the rule editor, so anyone who cares can pin their true phase.
+
+Do not re-ask. ⚠️ Still true from 126b: this **moves projected numbers for every biweekly rule**, so
+it needs its own commit and its own live pass, and it interacts with `3ec7c725` — re-phasing can
+strand a stored `occurrence_date` on a date no occurrence lands on any more (cheapest honest
+migration: null out `occurrence_date` on biweekly rules' links).
+⚠️ **Sequencing:** the read-side debt above is unresolved. Resolving it should come FIRST — building a
+second number-moving change on top of a suppression path that may be inert would stack two unverified
+behaviours.
+
+**Anchor choice for NULL `start_date` (my recommendation, not yet Tre's call):** use the rule's
+`created_at` rather than a global epoch — per-rule, stable, already stored, and it means "the rule
+started existing then". `Fuel.created_at` = 2026-03-22. Requires adding `created_at` to the
+`Pick<RuleRow, …>` the generator takes.
+
+## 📌 Findings worth telling Tre (none acted on)
+
+- ⚠️ **§1B Stage 4A does not cover credit-card-funded rules at all.** Confirming a link on Fuel — the
+  exact rule the occurrence-date fix was built for — cannot move the forecast, because CC rules are
+  excluded from month-0 expenses by design. The fix is still correct; its **reach** is narrower than
+  the handoffs imply. Worth a scope conversation.
+- **Two checking accounts exist**: `TOTAL CHECKING` (forecast funding) and `General Operations`
+  (business). `QUO`, `Claude` and `Google Workspace` are on the business one and are invisible to the
+  forecast's month-0 expenses. Expected, but easy to mistake for a bug — it cost this session a probe.
+- **All unreviewed August rows are `pending`**, and BankActivity excludes pending rows by design, so
+  **there is no live-month row that can be linked through the UI today.** Any live-month test must go
+  through the scoped-UPDATE retarget.
+- Latent, unrelated: `getRuleOccurrenceDatesInMonth` builds dates with `new Date(y, m, d)` (LOCAL) then
+  `.toISOString()` (UTC). For a customer in a **UTC+** timezone every rule occurrence date lands **one
+  day early**. Harmless for Tre (UTC-4). Not raised, not fixed.
+
+## 🧪 Method notes that worked — reuse these
+
+- **Find a bank row's DOM node by React fiber `key`**: walk `document.querySelectorAll('div,tr,li')`,
+  read `__reactFiber$…`, then `f.return` up to 8 hops looking for `f.key === <syncedTransactionId>`.
+  Text matching does not work — amounts and row containers come back `[BLOCKED: Base64 encoded data]`.
+- **Forecast chart data off the fiber**: walk from `#root`, find the first fiber whose
+  `memoizedProps.data` is an array whose `[0]` has an `endingCash` key. 60 months, ~65 keys each.
+- **Baselines across a reload**: stash them in `sessionStorage` (and the snapshot fn's `.toString()`),
+  since `window.*` dies. A full `location.href` reload IS needed — the SPA will not pick up an
+  out-of-band SQL change otherwise.
+- ⚠️ **Never `await` across a navigation in one `javascript_tool` call** — the eval dies with
+  `Inspected target navigated or closed`. Navigate in one call, act in the next.
+- ⚠️ **I mis-copied a uuid** from an earlier query and wasted two calls on a row that did not exist.
+  Paste ids from the immediately preceding result, not from memory.
+- Session 125/123 notes still hold: direct `navigate` to `/forecast` cold-lands on `/dashboard` (click
+  the sidebar `a[href="/forecast"]`); always scope SQL with
+  `user_id = 'a72f416e-433a-4055-9ab0-9feae4e60edf'`; `http://localhost:8080` is the ONLY origin;
+  never paste a counterparty name into this file.
+
+## ⬜ NEXT
+
+1. **Resolve the Phone Bill anomaly** — is Stage 4A's suppression actually live in the forecast?
+2. **Biweekly anchor, commit 1** (derived) then **commit 2** (optional field). Decided, unstarted.
+3. **Split link** — authorised, unscoped, unbuilt. Read side needs NO change (confirmed by reading
+   `buildConfirmedOccurrences` this session: it already iterates reviews and keys per rule).
+   UI side: `BankActivity.tsx:135` `reviewByTxn` is a `Record<string, Row>` and must become
+   `Record<string, Row[]>`. Blocker `UNIQUE (synced_transaction_id)` re-confirmed live in `pg_constraint`.
+
+---
+
 # Handoff — 2026-08-09 — session 126b — 🟢 **SPLIT LINK AUTHORISED**; biweekly phase bug MEASURED; harness retuned
 
 > **START HERE.** Same session, after the occurrence-date fix below. **No app code changed** —
@@ -176,197 +292,12 @@ across an `await`; `http://localhost:8080` is the ONLY origin; **always** scope 
 
 ---
 
-# Handoff — 2026-08-09 — session 125b — 🔵 **BIWEEKLY FIX FULLY DESIGNED, NOT STARTED** (Tre authorised); split-link recommended, UNANSWERED
+# 📁 Sessions 125 and 125b — ARCHIVED 2026-08-09 (session 127)
 
-> **START HERE.** Same session, after the 4B live pass below. **NO CODE CHANGED** — `08b0d4ca` is
-> HEAD, `e6dbb5af` is still the last app commit. The gate fired during design research.
-> **The whole design is below; the next session should be able to implement it without re-deriving it.**
-
-## 🟢 TRE AUTHORISED THE BIWEEKLY FIX — *"do what you think is accurate and best for my customers"*
-
-That is the long-open **biweekly-rule key problem**. It no longer needs Tre. **Build it.**
-
-### The defect, restated precisely
-
-`buildConfirmedOccurrences` (`src/lib/confirmed-capture.ts:70`) keys on **`ruleId|YYYY-MM`**, and
-`isRuleOccurrenceConfirmed` (:90) does **`date.slice(0, 7)`**. So for a **weekly or biweekly** rule
-with 2-3 occurrences in one month, confirming **ONE** occurrence suppresses **ALL** of that month's
-occurrences of that rule. Live on Tre's account today: rule **Fuel** (`002f7e28…`, biweekly, $65)
-carries **two** `linked_rule` reviews, both `occurrence_month='2026-07'`.
-
-### ✅ THE DECISION — store the occurrence DATE; keep every consumer a PURE predicate
-
-Add an **`occurrence_date date NULL`** column. Key on **`ruleId|YYYY-MM-DD`** when present, fall back
-to `ruleId|YYYY-MM` when NULL. The mixed key space is unambiguous (7 vs 10 chars after the `|`).
-
-**Why not the obvious alternative — a `Map<key, count>` and a "suppress at most N" budget:** the
-consumers are **stateless predicates called inside `.filter()` at 8+ sites**
-(`pay-schedule.ts:387/:476/:548`, `useForecastEngineInputs`, `useCardProjection`, `credit-card-engine`,
-`Dashboard`, `BudgetControl`, `Vehicles`, `CreditCardEngine`). A consuming budget makes them
-**order-dependent and re-entrant inside React memos** — a whole class of bug this codebase does not
-have today. A date key keeps every call site a pure `has()` and needs no consumer signature change.
-
-### ⚠️ Why the DATE is load-bearing, not just the count — the case that decides it
-
-The month-0 helpers only count occurrences **after the sync cutoff**. Today is Aug 9; suppose Fuel
-lands Aug 3 and Aug 17. Only **Aug 17** is "remaining". The user confirms the bank row for the
-**Aug 3** fill-up:
-
-- **Correct:** suppress Aug 3 → already excluded by the cutoff → **remaining cash does not move.**
-- **Count-based "suppress any one":** kills **Aug 17** → **wrongly raises cash by $65.**
-
-So a count-only fix trades one wrong answer for another. The date is the fix.
-
-### ⚠️⚠️ FINDING THE IMPLEMENTER MUST READ FIRST — biweekly RULES ARE NOT PHASE-ANCHORED
-
-`generateMonthTransactionsFromRules` (`pay-schedule.ts:1132-1199`) is the **only** place rule
-occurrence dates exist. Per frequency:
-
-| Frequency | Occurrence dates |
-|---|---|
-| `weekly` (:1146) | first `due_day` **as a DAY OF WEEK** (0-6, default 5) on/after month start, step **7** |
-| `biweekly` (:1159) | **identical, step 14** — and it **restarts from the first matching weekday of EVERY month** |
-| `monthly` (:1172) | `min(due_day \|\| 1, last day of month)` |
-| `yearly` (:1183) | `due_month` + `due_day` |
-
-**Biweekly rules have NO phase anchor**, unlike the *paycheck* generator at `:97`, which IS anchored
-via `paycheckStartDate` (`(D - anchor) % 14 === 0`). So a biweekly rule's phase **resets every month**
-and its generated dates need not match real-world biweekly reality. **This is arguably its own defect
-and is NOT in scope** — but do not build anything that assumes "the Nth biweekly occurrence" is stable
-across months. **Raise it with Tre separately.** The date fix is strictly better than today either way.
-
-### Implementation plan
-
-1. **Migration** (additive, §1B house style): `occurrence_date date NULL`. ⚠️ **Do NOT add a
-   `linked_rule implies occurrence_date is not null` CHECK** — same `ON DELETE SET NULL`/UPDATE trap
-   documented for `rule_id`, `payment_plan_id` and `car_fund_id`. Leave the existing
-   `link_needs_month` CHECK alone; `occurrence_month` stays and stays required.
-2. **`confirmed-capture.ts`**: `buildConfirmedOccurrences` adds `ruleId|occurrence_date` when the
-   column is set, else today's `ruleId|occurrence_month`. `isRuleOccurrenceConfirmed` checks the
-   **full-date key first, then the month key**. Pure, no signature change.
-3. **Write side (`BankActivity.tsx` + `useSupabaseData.ts`)**: on picking a rule, compute the
-   occurrence date = that rule's generated occurrence **nearest on-or-before the bank row's date**,
-   searching the row's month **and the previous month** (bills settle *after* the obligation, and the
-   water case below proves a bill can settle a month late). Store `occurrence_date` alongside the
-   existing `occurrence_month`.
-4. **Tests**: two confirmations of one biweekly rule in one month suppress **exactly two** occurrences;
-   one confirmation suppresses **exactly one** and leaves the other standing; a NULL `occurrence_date`
-   row behaves exactly as today (legacy fallback, pinned); a monthly rule is unchanged.
-5. **Backfill is optional.** For **monthly** rules month-keying and date-keying are equivalent (one
-   occurrence), so the 11 existing `linked_rule` rows are behaviourally unaffected — except Tre's
-   **2 biweekly Fuel rows, both July**, a past month. Backfill them or leave them; say which.
-
-## 🟡 SPLIT LINK (one bank row → several rules) — RECOMMENDED, TRE HAS NOT ANSWERED
-
-Tre asked whether his rent transaction (which pays **Rent + Internet + Smart Home + Water**) should
-have its rules **combined into one**. **I recommended NOT combining — build split links instead.**
-He replied with the water detail but **never answered the build question. Ask him.**
-
-The evidence, dug out this session:
-
-| Rule | Amount | Due |
-|---|---|---|
-| Rent | $1,915 | 1 |
-| Internet | $85 | 1 |
-| Smart Home | $40 | 1 |
-| *(fixed subtotal)* | **$2,040** | |
-
-Actual bundled charge, 7 months: `2049.95 · 2104.08 · 2082.82 · 2079.48 · 2082.82 · 2117.82 ·
-2079.48` — always **$10-78 above** the fixed $2,040.
-
-### ⭐ TRE EXPLAINED THE VARIANCE — and it adds a hard design requirement
-
-*"it also includes the water bill from a previous month."* So the rider is **Water/Sewer/Trash
-(budgeted $30), billed IN ARREARS**. That means:
-
-**A split link's `occurrence_month` must be PER-LINK, not per-transaction.** One bank row can settle
-Rent/Internet/Smart Home for *this* month **and** Water for the *previous* month. Any design that
-hangs a single `occurrence_month` off the transaction is wrong before it ships. (This is also why
-step 3 of the biweekly plan searches the previous month.)
-
-Why not combine the rules: the bundle is **not a fixed amount**, so one merged rule would carry a
-wrong number every month; per-item visibility is lost; and it muddies the `GF Half of Rent/Groceries`
-($1,100 income) reconciliation against a rule that is no longer just rent.
-
-**Blocked today by schema:** `synced_transaction_reviews` has **`UNIQUE (synced_transaction_id)`** —
-one review, one `rule_id`, per bank row. Build is: drop that UNIQUE (or add a child table), a
-"link another" picker, multi-link badge/undo semantics. **One nice property: `buildConfirmedOccurrences`
-already iterates reviews and keys per rule, so N links for one transaction just work in 4A with no
-logic change.**
-
-## 📌 Facts Tre volunteered this session — for N2 (merchant auto-categorisation)
-
-- **TECO is an electric company.** (*"let it be know that TECO is also an electric company"*)
-- **Duke Energy is electricity, categorised Utilities** — already linked to the Electricity rule.
-- Both belong in N2's merchant→category map when it is built. N2 still needs the §1A/§1B
-  reversal conversation flagged in its backlog entry below before any code.
-- ⚠️ Unrelated open observation, NOT yet raised properly: **Electricity is budgeted $100 but was
-  billed $197.93 on 08-05**, and Water/Sewer/Trash at $30 looks low against the $10-78 actuals.
-  Tre has not asked for this; mention it, do not act.
-
----
-
-# Handoff — 2026-08-09 — session 125 — ✅ **4B LIVE-VERIFIED**; §1B verification debt back to ZERO
-
-> **START HERE.** Session 125 ran the owed 4B live pass on Tre's real account. **It passed on every
-> check, including a sensitivity test stronger than the one the handoff asked for.** **No code
-> changed** — `e6dbb5af` is still the last app commit.
->
-> **Account is CLEAN, re-SELECTed after cleanup:** `imported 55 · linked_plan 1 · linked_rule 11 ·
-> linked_txn 2` = **69**, and **0 rows carry `car_fund_id` or `car_charge_kind`**. `imported` never
-> left 55, so no ledger row was created or deleted at any point.
-
-## ✅ 4B (link half) LIVE-VERIFIED — do not re-verify
-
-Driven through the real UI on `/transactions` → Bank Activity → month `2026-07` (all 24 settled
-August rows are already reviewed, so the unreviewed pool is July — same 53 rows session 123 saw):
-
-| Check | Result |
-|---|---|
-| Picker renders | ✅ placeholder `Which vehicle charge is this?` |
-| **TWO destinations, not one** | ✅ `2004 Chevorlet C5 · car payment · $423` **and** `… · car insurance · $173`, as separate options with `<fundId>:<kind>` values |
-| Offered on unsuggested rows | ✅ **53** unreviewed July rows each offer `Link to a vehicle charge` alongside the other three link types |
-| Write | ✅ `status='linked_car'`, `car_fund_id`=`0f75dec9…`, `car_charge_kind='loan_payment'`, `occurrence_month='2026-07'` — **derived from the row's own 07-22 date, not the current month** — with `rule_id` / `transaction_id` / `payment_plan_id` **all NULL** |
-| Badge names the KIND | ✅ row collapsed to `linked · 2004 Chevorlet C5 payment` + plain `Undo` |
-| **NO projected number moves** | ✅ Aug/Sep/Oct/Nov 2026 × `baseExpenses`/`totalExpenses`/`endingCash`/**`carLoanPayment`**/**`vehicleInsurance`** = **all Δ 0** |
-| UI `Undo` | ✅ deleted the review, badge gone, offer count back to 53 |
-| Cleanup | ✅ re-SELECT = 69, zero car columns set |
-
-### ⭐ The sensitivity control — this test was made STRONGER than specced, deliberately
-
-A July `occurrence_month` is a **past** month, so Δ 0 there proves almost nothing: a wrongly-wired
-suppression aimed at July would be invisible anyway. So after the UI pass, the review row was
-retargeted with a scoped `UPDATE` to **`occurrence_month='2026-09'`** — a month whose
-`carLoanPayment` is live at **$422.89** and `vehicleInsurance` at **$173.23** — and the forecast was
-re-read. **Still Δ 0 on every key.** That is the real proof the link half is inert. The row was then
-restored to `2026-07` before the UI `Undo` so the Undo ran against the true state.
-
-⚠️ **Read `carLoanPayment` / `vehicleInsurance` off the fiber, not `baseExpenses`, when 4B's
-number-moving half lands.** The car charges are their **own chart keys** and are NOT inside
-`baseExpenses` — that is the signal that will move, and this session captured its exact baseline:
-every month Aug-Nov carries `carPay 422.89 · carIns 173.23`.
-
-### Method notes that cost this session time — do not repeat
-
-- **A direct `navigate` to `/forecast` on a cold load lands on `/dashboard`.** Navigate in-app
-  instead: click the sidebar `a[href="/forecast"]`. Session 123's fiber recipe otherwise holds.
-- **The link destinations are `<button>`s, not `<select>`s** — the picker `<select>` only exists
-  *after* clicking `Link to a vehicle charge`. Grepping selects for the placeholder finds nothing.
-- **Never hold a DOM node across an `await`.** React re-renders replace the node and the native
-  value-setter then throws `Illegal invocation`. Re-query the `<select>` in the same call that sets it.
-- The row-container `textContent` comes back `[BLOCKED: Base64 encoded data]`; match the badge by
-  exact text on a **leaf** node instead, then walk up for the `Undo`.
-
-## ⬜ NEXT — Tre picks
-
-§1B verification debt is **zero** again. Nothing is half-applied. Remaining known work, none started:
-- **4B's number-moving half** — a confirmed `linked_car` feeds `matched: true` into
-  `carChargeEvidence` at all four sites (`forecast-engine.ts:307/:356`, `useCardProjection.ts:587/:1338`).
-  ⚠️ Must key on **fund + kind + month**, and it is NOT `buildConfirmedOccurrences`.
-- **4C's number-moving half** (`buildConfirmedPlanOccurrences`) — specced, unbuilt.
-- The **biweekly-rule key problem** (`ruleId|YYYY-MM`) — needs Tre before designing.
-- `useCardProjection.ts` **missing `syncedTransactions` dep** eslint warning — scoped follow-up.
-- **N1-N12 backlog** below.
+Both are CLOSED: 125's 4B live pass passed, and 125b's biweekly design SHIPPED as `3ec7c725`. Every
+load-bearing conclusion from them is restated in the 126/126b sections above. Full text is in git at
+commit **`2ff1347b`** (`git show 2ff1347b:handoff.md`). Sessions 112-124 are in
+`docs/handoff-archive/2026-08_sessions-112-124.md`.
 
 ---
 # 🆕 NEW BACKLOG — Tre, 2026-08-09, captured verbatim-faithful, NOTHING STARTED
