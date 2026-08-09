@@ -1,4 +1,82 @@
-# Handoff — 2026-08-09 — session 114 — §1B Stages 1+2 BUILT + committed `1a9fa956`; LIVE-VERIFY NEXT
+# Handoff — 2026-08-09 — session 115 — §1B Stages 1+2 LIVE-VERIFIED; Stage 3 STARTED (`53609165`)
+
+> **START HERE.** Session 115 did two things: it **live-verified Stages 1+2 on Tre's real account**
+> (all green — see the session-114 section below, which now carries the verification table), and it
+> **began Stage 3**. The context gate fired partway through Stage 3. **Nothing is half-applied:**
+> what shipped is a migration + a pure module + 15 tests, all green, and **no UI calls it yet**, so
+> the app's behaviour is byte-identical to `1a9fa956`.
+>
+> Tre asked for Stage 3 directly ("fix the flagged items then stage 3"). Neither flagged item was a
+> defect — item 1 was the `'categorized'` design call (now verified working), item 6 is a bank wait —
+> and that was said to him plainly. **Stage 3 is the live instruction; keep building it.**
+
+## 🔨 Stage 3 — `Add to my ledger` (IN PROGRESS)
+
+### ✅ DONE and committed `53609165` — green (15 new tests, tsc 0, eslint clean)
+
+1. **`supabase/migrations/20260809_transactions_origin.sql`** — written **AND APPLIED LIVE**
+   (`apply_migration` → success). `public.transactions.origin` `'manual'|'synced'`, NOT NULL,
+   **default `'manual'`** so the 22 existing rows are correct with no backfill, plus a CHECK.
+2. **`src/lib/synced-transaction-import.ts`** (new, pure) + its test file — **15/15**.
+   `planLedgerImport(txn, ctx)` returns `{ok:true, draft}` or `{ok:false, reason}`.
+
+### Why it is a PLAN and not a builder — do not split this
+
+"May this be imported at all" and "what row would it be" are deliberately **one function**. Splitting
+them is exactly how a future caller checks the guard and forgets it, or vice versa. Everything below
+is enforced inside it and pinned by a test:
+
+- **The double-count guard**: `hasSuggestion` → refuse. Import exists ONLY for charges nothing else
+  in the app already describes.
+- **`'categorized'` does NOT block an import** (the other four statuses do). A user who only fixed a
+  label has taken no position on the charge — that is the entire reason the fifth status exists.
+- **Sign flip**: `synced_transactions` is **outflow-positive** (Stage A); the ledger stores a
+  **positive amount + direction in `type`**. Negative → `income`. Getting this backwards files
+  income as spending on twelve surfaces. `Number()` first — PostgREST returns `numeric` as a string.
+- **`payment_source` gets the `account:` prefix** (all 22 live ledger rows use it; bare uuid is the
+  `recurring_rules` spelling).
+- **`account` comes from the real `accounts.name`, or the import REFUSES.** It is a dead legacy
+  free-text label reading `"Checking"` on every live row including credit-card ones, and
+  ⚠️ **`useTransactions().add` coerces a falsy account to the literal `'Checking'`** — so falling
+  through to a default would reproduce the exact bug. (All 571 live rows do resolve; the guard is
+  for correctness, not a live case.)
+
+### ⬜ NEXT — the three pieces left, in order
+
+1. **`useSupabaseData.ts` — an `importToLedger` mutation** inside `useSyncedTransactionReviews`
+   (it owns the review write, and this touches two tables):
+   insert the draft into `transactions` → `.select().single()` → upsert the review as
+   `status:'imported'` with that `transaction_id`.
+   ⚠️ **If the review write fails, DELETE the just-inserted ledger row before throwing.** An orphan
+   imported row with no review is money in the ledger that is also still offered for import — the
+   double-count, arrived at by a partial failure instead of a bad button.
+   Invalidate **both** `['transactions']` and `['synced_transaction_reviews']`.
+2. **Undo of an import must delete the LEDGER ROW, not the review.** Verified in SQL this session:
+   `synced_transaction_reviews.transaction_id` is **`ON DELETE CASCADE`**, so deleting the
+   transaction removes the review for free and returns the charge to unreviewed/re-importable.
+   The existing `remove` (deletes the review only) would **leave the money behind** — it must not be
+   the Undo path for `status='imported'`.
+3. **`BankActivity.tsx`** — call `planLedgerImport` per unhandled row; render
+   `Add to my ledger` when `ok`, nothing when not (never a disabled button asserting a reason the
+   user did not ask for). Imported rows get an `added to ledger` badge + the Undo from (2), with copy
+   saying it removes the entry.
+
+**"Not this" ships here too, and the decision is: a TRANSIENT client-side dismissal, no DB row.**
+Rejecting a suggestion is only a step toward "then it's a new charge" — and both destinations
+(`Add to my ledger`, `Ignore`) write their own row. A persisted rejection would need a sixth status
+carrying `rule_id` to know *which* suggestion was rejected, which the `ignored_is_clean` CHECK
+forbids today. On reload the suggestion returns; that is honest, because no assertion was recorded.
+**Mention this to Tre** — it is a judgement call, not a spec item.
+
+### Then: live-verify Stage 3 alone
+
+It is the **first §1B code that moves a projected number**, so verify it by itself, on the real
+account, and check the plan's **risk 2**: an imported row must not both add an actual *and* retire a
+projected charge for the same dollars. Clean up every test row (separate statements, then re-SELECT).
+
+---
+
+# Handoff — 2026-08-09 — session 114 — §1B Stages 1+2 BUILT + committed `1a9fa956`; LIVE-VERIFIED session 115
 
 > **START HERE.** Session 114 finished §1B Stages 1+2. **All code is committed and green** —
 > 626/626 tests, tsc 0, eslint clean on every changed file. The one thing NOT done is **live
