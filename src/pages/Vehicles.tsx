@@ -8,7 +8,8 @@ import FormModal, { type Field } from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, getLoanPrincipal, getCarFundSaved, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
-import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
+import { useCarFunds, useAccounts, useRecurringRules, useTransactions, useProfile, useSyncedTransactionReviews, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
+import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useDemo } from '@/contexts/DemoContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -842,6 +843,9 @@ export default function Vehicles() {
   const { data: transactions } = useTransactions();
   const { data: profile } = useProfile();
   const { isDemo } = useDemo();
+  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
+  const { data: syncedReviews } = useSyncedTransactionReviews();
+  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
 
   const [activeTab, setActiveTab] = usePersistedState<'saving' | 'loan'>('tre:vehicles:activeTab', 'saving');
   const [showSavingForm, setShowSavingForm] = useState(false);
@@ -874,7 +878,7 @@ export default function Vehicles() {
   );
 
   const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
-  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true), [allMonthTransactions]);
+  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, undefined, undefined, undefined, confirmedOccurrences), [allMonthTransactions, confirmedOccurrences]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
 
   // Available cash above floor today→EOM — mirrors Forecast month 0 surplus.

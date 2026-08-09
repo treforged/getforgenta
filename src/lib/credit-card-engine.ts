@@ -5,6 +5,7 @@ import {
   buildPayConfig, getPrePaycheckNextMonthBills, getMonthNetIncome,
   type EnrichedTransaction,
 } from './pay-schedule';
+import type { ConfirmedOccurrences } from './confirmed-capture';
 import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
 import { FLOOR_CUSHION_DOLLARS } from './floor-protection';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
@@ -1800,6 +1801,9 @@ export function generateRecommendations(
   // reduce the cash available to deploy toward debt, but they don't appear in the transaction stream,
   // so subtract them from availableAboveFloor below. Already cutoff-scoped by the caller.
   month0PlanOutflow = 0,
+  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid. Optional
+  // and defaulted: omitting it must leave the recommendation byte-identical to pre-Stage-4.
+  confirmedOccurrences?: ConfirmedOccurrences,
 ): RecommendationSummary {
   // Preference cards = zero-balance cycling cards only (balance <= 0 encoded in autopayFullBalance).
   // Positive-balance full/statement cards compete under normal strategy in revolvingCards —
@@ -1850,7 +1854,7 @@ export function generateRecommendations(
       : new Set<string>();
     remainingTransactionIncome = getRemainingTransactionIncomeByDay(transactions, 31, syncCutoffDate);
     remainingTransactionExpenses = getRemainingTransactionExpensesByDay(
-      transactions, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate,
+      transactions, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate, confirmedOccurrences,
     );
   } else if (payConfig && rules) {
     remainingTransactionIncome = getRemainingIncomeByDay(payConfig, 31)
@@ -2080,6 +2084,7 @@ function buildCurrentMonthRecommendationSummary(
   safeMinimumOverride?: number,
   syncCutoffDate?: string,
   extraMonthlyExpenses = 0,
+  confirmedOccurrences?: ConfirmedOccurrences,
 ): RecommendationSummary | null {
   if (!accounts || !transactions || !rules || !debts) return null;
   const cards = buildCardData(accounts, transactions, rules, debts);
@@ -2135,7 +2140,7 @@ function buildCurrentMonthRecommendationSummary(
     cards, liquidCash, cashFloor, 'avalanche', monthlyTakeHome, monthlyExpenses + extraMonthlyExpenses,
     'variable', pc, rules, fundingAccountId, safeMinimumOverride ?? ppBills, fundBal,
     undefined, undefined, transactions, primaryDueDay, monthlySavingsAndCar,
-    syncCutoffDate, extraMonthlyExpenses,
+    syncCutoffDate, extraMonthlyExpenses, confirmedOccurrences,
   );
 }
 
@@ -2149,8 +2154,9 @@ export function getMonthlyDebtBreakdown(
   safeMinimumOverride?: number,
   syncCutoffDate?: string,
   extraMonthlyExpenses = 0,
+  confirmedOccurrences?: ConfirmedOccurrences,
 ): MonthlyDebtBreakdown {
-  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar, safeMinimumOverride, syncCutoffDate, extraMonthlyExpenses);
+  const summary = buildCurrentMonthRecommendationSummary(accounts, transactions, rules, debts, profile, monthlySavingsAndCar, safeMinimumOverride, syncCutoffDate, extraMonthlyExpenses, confirmedOccurrences);
   if (!summary) return { recommendations: [], totalMinimumsDue: 0, totalRecommended: 0, totalAvailableCash: 0, autopayTotal: 0, strategyLabel: 'Avalanche', cashWarning: false, interestAvoided: 0 };
   return {
     recommendations: summary.recommendations.map(r => ({

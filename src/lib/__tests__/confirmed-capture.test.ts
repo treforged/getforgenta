@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildConfirmedOccurrences,
   isOccurrenceConfirmed,
+  isRuleOccurrenceConfirmed,
   type RuleOccurrenceReview,
 } from '../confirmed-capture';
 
@@ -89,5 +90,27 @@ describe('isOccurrenceConfirmed — scoped to one rule in one month', () => {
     expect(isOccurrenceConfirmed({ id: null, date: null, isGenerated: true }, confirmed)).toBe(false);
     expect(isOccurrenceConfirmed({ id: 'gen:only-two-parts', date: '2026-08-25', isGenerated: true }, confirmed))
       .toBe(false);
+  });
+});
+
+// The rule-id form, for consumers that already know which rule produced a charge — the forecast's
+// scheduledEvents carry `ruleId` and a date directly and never take the `gen:` id shape.
+describe('isRuleOccurrenceConfirmed', () => {
+  const confirmed = buildConfirmedOccurrences([review()]);
+
+  it('matches on rule + month, reading only the month part of a full date', () => {
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-25', confirmed)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08', confirmed)).toBe(true);
+  });
+
+  it('does not confirm another rule, or the same rule in another month', () => {
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-08-25', confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-09-25', confirmed)).toBe(false);
+  });
+
+  it('is inert on a null rule id, a null date, or an empty set', () => {
+    expect(isRuleOccurrenceConfirmed(null, '2026-08-25', confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(RULE, null, confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-25', buildConfirmedOccurrences([]))).toBe(false);
   });
 });

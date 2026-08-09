@@ -25,7 +25,8 @@ import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
-import { useTransactions, useSyncedTransactions } from '@/hooks/useSupabaseData';
+import { useTransactions, useSyncedTransactions, useSyncedTransactionReviews } from '@/hooks/useSupabaseData';
+import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { matchOccurrence } from '@/lib/transaction-matching';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 
@@ -542,6 +543,9 @@ export default function BudgetControl() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }, []);
   const { data: syncedTxns } = useSyncedTransactions(currentMonthKey);
+  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
+  const { data: syncedReviews } = useSyncedTransactionReviews();
+  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
   const autoMatchedRuleIds = useMemo(() => {
     if (!syncedTxns?.length) return new Set<string>();
     const matched = new Set<string>();
@@ -647,7 +651,7 @@ export default function BudgetControl() {
   }, [accounts, fundingAccount]);
 
   const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
-  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true), [allMonthTransactions]);
+  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, undefined, undefined, undefined, confirmedOccurrences), [allMonthTransactions, confirmedOccurrences]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
 
   const remainingCashOnHand = fundingAccountBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt;

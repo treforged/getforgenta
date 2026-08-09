@@ -3,6 +3,7 @@
 
 import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
+import { isOccurrenceConfirmed, type ConfirmedOccurrences } from './confirmed-capture';
 import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 import type { CarFund } from './types';
@@ -383,6 +384,11 @@ export function getRemainingTransactionIncomeByDay(
  * Get ALL remaining expenses from Transactions (both generated and manual) in the due-date window.
  * Single source of truth — avoids double-counting with Budget Control rules.
  * Can optionally exclude debt payment transactions (since those are what we're computing).
+ *
+ * `confirmed` (§1B Stage 4A) drops a generated rule occurrence the user has explicitly confirmed a
+ * bank transaction already paid. It is optional and defaulted for the same reason `evidence` is
+ * optional on `isCapturedInBalance`: omitting it must be byte-identical to the pre-Stage-4 result,
+ * so call sites can be wired one at a time.
  */
 export function getRemainingTransactionExpensesByDay(
   transactions: EnrichedTransaction[],
@@ -391,6 +397,7 @@ export function getRemainingTransactionExpensesByDay(
   fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
   cutoffDate?: string,
+  confirmed?: ConfirmedOccurrences,
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -410,6 +417,8 @@ export function getRemainingTransactionExpensesByDay(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    // §1B Stage 4A: the user confirmed a bank transaction already paid this rule occurrence.
+    if (confirmed && isOccurrenceConfirmed(t, confirmed)) continue;
     // Only count expenses from the funding account. If a source is set and it
     // isn't the funding account (CC, other checking, savings, etc.), skip it.
     if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
@@ -480,6 +489,7 @@ export function getRemainingTransactionExpenseItemsByDay(
   fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
   cutoffDate?: string,
+  confirmed?: ConfirmedOccurrences,
 ): TransactionLineItem[] {
   const now = new Date();
   const today = now.getDate();
@@ -498,6 +508,9 @@ export function getRemainingTransactionExpenseItemsByDay(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    // §1B Stage 4A: same suppression as getRemainingTransactionExpensesByDay, so the line-item
+    // breakdown never lists a charge the total no longer counts.
+    if (confirmed && isOccurrenceConfirmed(t, confirmed)) continue;
     if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
     if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date) continue;
@@ -551,6 +564,7 @@ export function getRemainingTransactionExpensesThisMonth(
   cutoffDate?: string,
   fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
+  confirmed?: ConfirmedOccurrences,
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -563,6 +577,8 @@ export function getRemainingTransactionExpensesThisMonth(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    // §1B Stage 4A: the user confirmed a bank transaction already paid this rule occurrence.
+    if (confirmed && isOccurrenceConfirmed(t, confirmed)) continue;
     if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
     if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date || !t.date.startsWith(monthStr)) continue;

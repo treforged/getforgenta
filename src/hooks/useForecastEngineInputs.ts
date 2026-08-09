@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import {
   useDebts, useSavingsGoals, useCarFunds, useAccounts, useBudgetItems,
-  useProfile, useRecurringRules, useTransactions, usePaymentPlans,
+  useProfile, useRecurringRules, useTransactions, usePaymentPlans, useSyncedTransactionReviews,
 } from '@/hooks/useSupabaseData';
+import { buildConfirmedOccurrences, isRuleOccurrenceConfirmed } from '@/lib/confirmed-capture';
 import { aggregateByMonth, type ScheduledEvent } from '@/lib/scheduling';
 import { getMonthlyDebtBreakdown, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
@@ -65,6 +66,9 @@ export function useForecastEngineInputs({
   const { data: rules } = useRecurringRules();
   const { data: transactions } = useTransactions();
   const { data: paymentPlans } = usePaymentPlans();
+  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
+  const { data: syncedReviews } = useSyncedTransactionReviews();
+  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
 
   // Annualize the "Federal Withholding" deduction from Budget Control, if the user has set one.
   // Shared with the credit-card sim (useCardProjection) via computeAnnualFederalWithheld so both
@@ -151,12 +155,12 @@ export function useForecastEngineInputs({
           .flatMap(a => [a.id, `account:${a.id}`]),
       );
       const planExpenses = getMonthlyPlanCashExpenses(paymentPlans ?? [], now0.getFullYear(), now0.getMonth(), ccIds);
-      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses);
+      const breakdown = getMonthlyDebtBreakdown(accounts, allTxns, rules, debts, profile, pauseSavings ? 0 : savingsTotal + carTotal + carLoanTotal, undefined, syncCutoffDate, planExpenses, confirmedOccurrences);
       const safeToPayTotal = breakdown.totalRecommended;
       const autopayTotal = 0;
       return { safeToPayTotal, autopayTotal, recommendations: breakdown.recommendations };
     } catch { return null; }
-  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate, paymentPlans]);
+  }, [accounts, transactions, rules, debts, profile, goals, carFunds, pauseSavings, syncCutoffDate, paymentPlans, confirmedOccurrences]);
 
   // ── Shared CC-filtered month events ─────────────────────────────────────────
   const forecastMonthEvents = useMemo((): { income: number; nonPaycheckIncome: number; expenses: number }[] => {
@@ -253,6 +257,11 @@ export function useForecastEngineInputs({
       const expenses = eventsInMonth
         .filter(e =>
           e.type === 'expense' &&
+          // §1B Stage 4A. Rule-generated events reach month 0 on a bare `e.date > todayStr` test
+          // (above), so a bill due later this month that the user already paid still counts. A
+          // confirmed link is the evidence that retires it. Applied in every month, not just
+          // month 0, because `occurrence_month` already scopes a confirmation to one month.
+          !isRuleOccurrenceConfirmed(e.ruleId, e.date, confirmedOccurrences) &&
           !(e.ruleId && allCcRuleIds.has(e.ruleId)) &&
           !(e.ruleId && otherAccountRuleIds.has(e.ruleId)) &&
           !(pauseSavings && e.ruleId && savingsRuleIds.has(e.ruleId)),
@@ -261,7 +270,7 @@ export function useForecastEngineInputs({
 
       return { income, nonPaycheckIncome, expenses };
     });
-  }, [accounts, rules, scheduledEvents, pauseSavings, profile, syncCutoffDate, forecastFundingAccountId]);
+  }, [accounts, rules, scheduledEvents, pauseSavings, profile, syncCutoffDate, forecastFundingAccountId, confirmedOccurrences]);
 
   // One-time manual transactions for forecast.
   const oneTimeByMonth = useMemo(() => {

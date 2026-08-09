@@ -69,6 +69,22 @@ export function buildConfirmedOccurrences(
 }
 
 /**
+ * Has the user confirmed this rule's occurrence in the month containing `date` was already paid?
+ *
+ * The rule-id form, for consumers that already know which rule produced a charge — the forecast's
+ * `scheduledEvents` carry `ruleId` directly and never take the `gen:` id shape. `date` may be a
+ * `YYYY-MM-DD` or a `YYYY-MM`; only the month part is read.
+ */
+export function isRuleOccurrenceConfirmed(
+  ruleId: string | null | undefined,
+  date: string | null | undefined,
+  confirmed: ConfirmedOccurrences,
+): boolean {
+  if (confirmed.size === 0 || !ruleId || !date) return false;
+  return confirmed.has(occurrenceKey(ruleId, date.slice(0, 7)));
+}
+
+/**
  * Has the user confirmed this GENERATED transaction's bill was already paid?
  *
  * Generated rule expansions carry `id: 'gen:<ruleId>:<YYYY-MM-DD>'`
@@ -86,5 +102,5 @@ export function isOccurrenceConfirmed(
   if (!txn.isGenerated || !txn.id || !txn.date) return false;
   const parts = txn.id.split(':');
   if (parts.length !== 3 || parts[0] !== 'gen') return false;
-  return confirmed.has(occurrenceKey(parts[1], txn.date.slice(0, 7)));
+  return isRuleOccurrenceConfirmed(parts[1], txn.date, confirmed);
 }

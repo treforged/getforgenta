@@ -22,7 +22,8 @@ import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/li
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useDebts, useAccounts, useProfile, useRecurringRules, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
+import { useDebts, useAccounts, useProfile, useRecurringRules, useSyncedTransactionReviews, type AccountRow, type RuleRow, type DebtRow } from '@/hooks/useSupabaseData';
+import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import type { EnrichedTransaction } from '@/lib/pay-schedule';
 import type { CarFund } from '@/lib/types';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
@@ -122,6 +123,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const { items: plaidItems } = usePlaidItems();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
+  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
+  const { data: syncedReviews } = useSyncedTransactionReviews();
+  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
   const [strategy, setStrategy] = usePersistedState<'avalanche' | 'snowball'>('tre:debt:strategy', 'avalanche');
   const [paymentMode, setPaymentMode] = usePersistedState<'variable' | 'consistent'>('tre:debt:paymentMode', 'variable');
   const [cashFloor, setCashFloorLocal] = useState(() => profile?.cash_floor != null ? Number(profile.cash_floor) : 1000);
@@ -342,16 +346,16 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
   const cashBreakdown = useMemo(() => {
     const transactionIncome = getRemainingTransactionIncomeByDay(allTransactionsWithNextMonth, 31, syncCutoffDate);
-    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
+    const transactionExpenses = getRemainingTransactionExpensesByDay(allTransactionsWithNextMonth, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate, confirmedOccurrences);
     return { transactionIncome, transactionExpenses };
-  }, [allTransactionsWithNextMonth, syncCutoffDate, fundingSources]);
+  }, [allTransactionsWithNextMonth, syncCutoffDate, fundingSources, confirmedOccurrences]);
 
   // Line-item breakdown so the tooltip can show exactly what's included
   const cashBreakdownItems = useMemo(() => {
     const incomeItems = getRemainingTransactionIncomeItemsByDay(allTransactionsWithNextMonth, 31, syncCutoffDate);
-    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate);
+    const expenseItems = getRemainingTransactionExpenseItemsByDay(allTransactionsWithNextMonth, 31, true, fundingSources, CC_DEFAULT_CATEGORIES, syncCutoffDate, confirmedOccurrences);
     return { incomeItems, expenseItems };
-  }, [allTransactionsWithNextMonth, syncCutoffDate, fundingSources]);
+  }, [allTransactionsWithNextMonth, syncCutoffDate, fundingSources, confirmedOccurrences]);
 
   // Estimated liquid cash: funding balance + full-month income − full-month non-debt expenses.
   // Pre-debt-payment cash — feeds Safe to Pay (estLiquidCash − safeMinimum − autopay).
@@ -481,7 +485,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
     const month0Income = getRemainingTransactionIncomeByDay(allTransactions, 31, syncCutoffDate);
 
-    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true, new Set(), new Set(), syncCutoffDate);
+    const month0Expenses = getRemainingTransactionExpensesByDay(allTransactions, 31, true, new Set(), new Set(), syncCutoffDate, confirmedOccurrences);
 
     // CC account IDs used to exclude CC-charged one-time expenses from future cash-flow months.
     const ccIds = new Set(
@@ -805,7 +809,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
       bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring,
       taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth,
       rules, payConfig, resolvedFundingId, carFunds, goals, pauseSavings, syncCutoffDate,
-      paymentPlans, prePaycheckBills.total]);
+      paymentPlans, prePaycheckBills.total, confirmedOccurrences]);
 
   // Override-rebalance (Anomaly B): when the user pins any month's payment, rebuild the
   // CONTEXT's raw projection with the pins applied (withPaymentOverrides bakes them into both
