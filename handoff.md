@@ -1,4 +1,103 @@
-# Handoff — 2026-08-09 — session 120 — §1B Stage 4C (payment-plan LINK) SHIPPED `d56c98a6`
+# Handoff — 2026-08-09 — session 121 — 🔴 4A LIVE-VERIFIED as **NOT WORKING**; root cause found, NOT fixed
+
+> **START HERE.** Session 121 ran the owed 4A live pass on Tre's real account. **4A does not work.**
+> The root cause is identified and precise (below). **No code was changed this session** — the gate
+> fired at diagnosis. `d56c98a6` is still HEAD.
+>
+> **Tre's account is CLEAN and restored.** I mutated it during the test and put every row back; the
+> verification at the bottom of this section proves it. Do not "clean up" anything.
+
+## 🔴 THE FINDING — 4A never reaches the numbers Tre actually sees
+
+Measured on the real account, `/dashboard` → `Projected remaining`:
+
+| Step | Expected | Actual |
+|---|---|---|
+| Baseline | — | **$3,968.49** |
+| Unlink a rule link whose `due_day` (1) is already past | no change (inert) | **$3,968.49** ✅ |
+| Link that same bank row to **QUO** (`44b8f085…`, $22, **due_day 12**, checking-paid, Aug 12 charge still ahead) | **$3,990.49** (+$22) | **$3,968.49** ❌ |
+
+The premise was checked, not assumed: QUO has **no** August ledger row, and the Dashboard still lists
+`QUO Aug 12 · General Operations $22` under UPCOMING THIS WEEK *after* the link was confirmed. The
+review row wrote correctly (`status='linked_rule'`, `rule_id`=QUO, `occurrence_month='2026-08'`,
+other FKs null). So the write is right and the **read is missing**.
+
+### Root cause — there are TWO `forecastMonthEvents`, and 4A gated the wrong one
+
+- `useForecastEngineInputs.ts:264` gates its `forecastMonthEvents` with `isRuleOccurrenceConfirmed`. ✅
+- **`useCardProjection.ts:384-411` builds its OWN, ungated `forecastMonthEvents`**, and
+  **`:422 m0Expenses = forecastMonthEvents[0].expenses`**. `grep` for
+  `confirmed|ConfirmedOccurrences` in that file returns **only comments** — the whole 4A concept
+  never entered it.
+- **`Dashboard.tsx:658`**: `monthEndCash = cardProjection?.month0?.endCash ?? txMergeMonthEndCash`.
+  `cardProjection` wins **whenever the user has any credit card**. The 4A-gated
+  `remainingTxExpenses` (`Dashboard.tsx:572`) is only the **fallback for users with no credit cards**.
+- `Projected remaining` is built by `month0-budget-snapshot.ts:146` off that same month-0 chain.
+
+**So session 119 wired 4A into a real path and the fallback path, but not the one that renders.**
+`getRemainingTransactionExpensesThisMonth` etc. are correctly gated and their tests pass — this is
+not a bug in `confirmed-capture.ts` or `pay-schedule.ts`. Those are fine. The gap is one file.
+
+### ⬜ THE FIX (next session's first job) — thread `confirmed` into `useCardProjection.ts`
+
+Mirror `useForecastEngineInputs.ts:264` exactly: `useSyncedTransactionReviews()` +
+`buildConfirmedOccurrences` (memoised), then in the `eventsInMonth` filter at `useCardProjection.ts:390`
+(or the `.expenses` reduce at :402) drop events where
+`isRuleOccurrenceConfirmed(e.ruleId, e.date, confirmed)`.
+⚠️ **Gate it in EVERY month, not just month 0** — `occurrence_month` already scopes a confirmation to
+one month, so a month filter is redundant (this is the same call session 119 made and documented).
+⚠️ Check `simulationMonthEvents` / `comprehensiveMExp` in the same file (referenced around :426) —
+if they derive from the same `eventsInMonth`, decide deliberately whether the suppression belongs
+there too rather than letting it happen by accident.
+⚠️ 4A **raises** projected cash. Re-run the QUO A/B above as the acceptance test; it is now a known
++$22 target with a known baseline.
+
+## ⚠️ SECOND FINDING — biweekly rules, not yet investigated
+
+`buildConfirmedOccurrences` keys on **`ruleId|YYYY-MM`**. For a **biweekly/weekly** rule that has 2-3
+occurrences in one month, confirming ONE occurrence therefore suppresses **the whole month's**
+remaining occurrences of that rule. Tre already has this shape live: rule `Fuel` (`002f7e28…`,
+biweekly, $65) carries **two** `linked_rule` reviews both at `occurrence_month='2026-07'`. July is a
+past month so nothing is mis-stated today, but the same pattern in a current month over-raises cash.
+**Raise it with Tre before designing** — the fix is a key change (rule+date, not rule+month) and that
+is a schema-shaped decision, not a silent one.
+
+## ✅ Account state — mutated during the test, then RESTORED. Verified by re-SELECT.
+
+**Tre used §1B heavily on 2026-08-09 14:43-15:53 UTC. His account is NOT the "0 reviews" the previous
+handoff describes** — that line is stale and cost me a wrong assumption. Current, verified:
+
+`imported 55 · linked_rule 11 · linked_txn 2 · linked_plan 1` = **69 reviews**, and the 08-05 utility
+row is back to `rule_id`=Electricity (`5b9334d3…`), `occurrence_month='2026-08'`.
+
+Two mutations were made and both were reversed:
+1. Undid + relinked that utility row (QUO for the A/B, then **restored to Electricity by a scoped
+   `UPDATE` on the single review id**).
+2. ❗ **I mis-clicked and deleted one of Tre's imported ledger rows** (the 08-05 `+$45` statement
+   credit on Discover). **Restored via the UI's own `Add to my ledger`**: it is back as
+   `income $44.60 · Other · Discover it Card · origin='synced'` with its review at `imported`. Only
+   its row `id` and `created_at` differ from the original; nothing else. `imported` is 55 again.
+
+## ⚠️ Two gotchas that cost this session real time — do not repeat
+
+1. **NEVER click browser coordinates read after `scrollIntoView`.** The smooth scroll was still
+   animating when the rect was read, so the click landed a row lower and hit
+   `Undo — deletes the entry`. **That is how I deleted Tre's ledger row.** Resolve the element in JS
+   and call **`.click()` on it directly** — deterministic, and it is what worked for every later step.
+2. **ALWAYS scope Supabase queries with `user_id = 'a72f416e-433a-4055-9ab0-9feae4e60edf'`.**
+   Unscoped, this DB shows **46 "Rent" rules, 44 "Weekly Paycheck"** and 7 phantom "unreviewed"
+   August rows — all other users'. I briefly believed Tre had 20 duplicate Insurance rules. He does
+   not; his rule set is clean. (The memory says this; I still got caught.)
+
+## ⬜ STILL OWED — 4C live pass, NOT started
+
+Untouched this session. 4C's picker **was seen rendering correctly** (`Link to a payment plan` appears
+on an unreviewed row alongside the other two, and Tre already has 1 real `linked_plan` row), but the
+actual claim — *picking a plan writes `status='linked_plan'` and **moves no projected number*** — was
+never measured. Do it **after** the 4A fix, separately, per the standing rule.
+Baseline to use: `Projected remaining $3,968.49`.
+
+
 
 > **START HERE.** Session 120 built **4C, the link half**, exactly as session 119 specced it.
 > **675/675 tests (6 new), tsc 0, eslint clean on every changed file.** The migration is **applied
