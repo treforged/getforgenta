@@ -30,6 +30,27 @@ describe('planLedgerImport — the double-count guard', () => {
     if (!plan.ok) expect(plan.reason).toMatch(/already/i);
   });
 
+  // Tre's "Not this" decision (2026-08-09): rejecting the guess must land somewhere, and one of the
+  // three destinations is a brand-new ledger row. The override is deliberately its own named field
+  // so a call site cannot defeat the guard by quietly forgetting to pass `hasSuggestion`.
+  it('allows import of a suggestion the user explicitly rejected', () => {
+    const plan = planLedgerImport(txn(), ctx({ hasSuggestion: true, suggestionRejected: true }));
+    expect(plan.ok).toBe(true);
+  });
+
+  it('still refuses a suggestion the user has NOT rejected', () => {
+    const plan = planLedgerImport(txn(), ctx({ hasSuggestion: true, suggestionRejected: false }));
+    expect(plan.ok).toBe(false);
+  });
+
+  // A rejection overrules the matcher; it does not overrule a decision the user already recorded.
+  it('does not let a rejection reopen a charge already dealt with', () => {
+    const plan = planLedgerImport(txn(), ctx({
+      hasSuggestion: true, suggestionRejected: true, review: { status: 'imported' },
+    }));
+    expect(plan.ok).toBe(false);
+  });
+
   it('refuses a row the user has already dealt with', () => {
     for (const status of ['linked_rule', 'linked_txn', 'imported', 'ignored']) {
       const plan = planLedgerImport(txn(), ctx({ review: { status } }));

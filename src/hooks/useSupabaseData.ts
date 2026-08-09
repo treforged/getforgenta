@@ -12,6 +12,7 @@ import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarFund } from '@/lib/types';
 import { validateReviewInput, type ReviewInput, type ReviewStatus } from '@/lib/synced-transaction-review';
+import type { LedgerDraft } from '@/lib/synced-transaction-import';
 
 // ─── Accounts (Centralized) ──────────────────────────────
 // FIX #13: Demo accounts now have realistic balances that produce
@@ -621,6 +622,8 @@ export type SyncedTransactionReviewRow = Tables<'synced_transaction_reviews'>;
 // data from this module.
 export { isHandledReview, validateReviewInput } from '@/lib/synced-transaction-review';
 export type { ReviewStatus, ReviewInput } from '@/lib/synced-transaction-review';
+export { planLedgerImport } from '@/lib/synced-transaction-import';
+export type { LedgerDraft, ImportPlan, ImportContext } from '@/lib/synced-transaction-import';
 
 export function useSyncedTransactionReviews() {
   const { user } = useAuth();
@@ -698,6 +701,70 @@ export function useSyncedTransactionReviews() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // §1B Stage 3 — THE ONLY PATH IN THIS FILE THAT TURNS A BANK CHARGE INTO MONEY.
+  //
+  // It lives here rather than in `useTransactions` because it spans two tables and the review row is
+  // this hook's to own: the ledger row and the `'imported'` decision are one act, and a caller
+  // holding two hooks would be free to do half of it.
+  //
+  // ⚠️ WHETHER the charge may be imported at all is NOT decided here — `planLedgerImport` decides
+  // that and hands back the exact row, precisely so the guard and the row cannot drift apart.
+  const importToLedger = useMutation({
+    mutationFn: async ({ syncedTransactionId, draft }: { syncedTransactionId: string; draft: LedgerDraft }) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { data: inserted, error: insertError } = await supabase
+        .from('transactions')
+        .insert(sanitizePayload({ ...draft, user_id: user.id }))
+        .select()
+        .single();
+      if (insertError) throw insertError;
+
+      const { error: reviewError } = await supabase
+        .from('synced_transaction_reviews')
+        .upsert(sanitizePayload({
+          user_id: user.id,
+          synced_transaction_id: syncedTransactionId,
+          status: 'imported' satisfies ReviewStatus,
+          transaction_id: inserted.id,
+          updated_at: new Date().toISOString(),
+        }), { onConflict: 'synced_transaction_id' });
+
+      // ⚠️ ROLL THE MONEY BACK. A ledger row with no review is spending that counts in twelve
+      // surfaces AND is still offered for import — the exact double-count this feature is built to
+      // prevent, arrived at by a partial failure rather than a bad button. There is no transaction
+      // across two PostgREST calls, so the compensation is the transaction.
+      if (reviewError) {
+        await supabase.from('transactions').delete().eq('id', inserted.id).eq('user_id', user.id);
+        throw reviewError;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] });
+      toast.success('Added to your ledger');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // Undoing an IMPORT deletes the LEDGER ROW, not the review.
+  //
+  // ⚠️ Do not route this through `remove` below. That deletes only the review, which would leave the
+  // money in `public.transactions` while telling the user the import was undone. The FK is
+  // `ON DELETE CASCADE` (chosen for exactly this), so deleting the transaction removes the review
+  // for free and returns the charge to unreviewed and re-importable.
+  const undoImport = useMutation({
+    mutationFn: async (transactionId: string) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase.from('transactions').delete().eq('id', transactionId).eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   // Deleting a review returns the synced transaction to unreviewed — the honest state when a user
   // undoes a decision, and what makes an import re-importable after the ledger row is removed.
   const remove = useMutation({
@@ -714,7 +781,7 @@ export function useSyncedTransactionReviews() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return { data: query.data ?? [], loading: query.isLoading, error: query.error, save, setCategory, remove };
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error, save, setCategory, remove, importToLedger, undoImport };
 }
 
 // ─── Transactions (the USER'S manual ledger — full CRUD) ──────────────────

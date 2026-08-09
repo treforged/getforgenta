@@ -1620,6 +1620,7 @@ export type Database = {
           date: string
           id: string
           note: string | null
+          origin: string
           payment_source: string | null
           type: string
           updated_at: string
@@ -1634,6 +1635,7 @@ export type Database = {
           date?: string
           id?: string
           note?: string | null
+          origin?: string
           payment_source?: string | null
           type?: string
           updated_at?: string
@@ -1648,6 +1650,7 @@ export type Database = {
           date?: string
           id?: string
           note?: string | null
+          origin?: string
           payment_source?: string | null
           type?: string
           updated_at?: string

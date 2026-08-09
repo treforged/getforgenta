@@ -42,6 +42,16 @@ export interface ImportContext {
   categoryOverride: string | null | undefined;
   /** Whether the matcher offered a rule or ledger suggestion for this charge. */
   hasSuggestion: boolean;
+  /**
+   * The user pressed "Not this" — they looked at the suggestion and overruled the matcher.
+   *
+   * ⚠️ THIS IS THE ONE THING THAT DEFEATS THE DOUBLE-COUNT GUARD, and it is a named field rather
+   * than "stop passing `hasSuggestion`" on purpose: at the call site it must read as a person
+   * overruling a guess, not as the guard having been forgotten. Tre's decision (2026-08-09) — a
+   * rejection has to LAND somewhere ("match to a different transaction, or have it be its own new
+   * transaction"), and one of the three places it can land is a new ledger row.
+   */
+  suggestionRejected?: boolean;
   /** The user's existing decision on this charge, if any. */
   review: { status: string } | null | undefined;
 }
@@ -65,8 +75,10 @@ export function planLedgerImport(txn: SyncedTransactionForImport, ctx: ImportCon
     return { ok: false, reason: 'You have already dealt with this charge.' };
   }
 
-  // THE double-count guard. Import exists only for charges nothing else in the app describes.
-  if (ctx.hasSuggestion) {
+  // THE double-count guard. Import exists only for charges nothing else in the app describes —
+  // unless the user has explicitly rejected the suggestion, which is them telling us the match was
+  // wrong and this charge is in fact its own event.
+  if (ctx.hasSuggestion && !ctx.suggestionRejected) {
     return { ok: false, reason: 'This already matches something you track — linking it keeps the numbers right.' };
   }
 
