@@ -58,21 +58,56 @@ still means unreviewed. **Tre has not seen this call yet — mention it.**
 - `setCategory` upserts a `'categorized'` row when no decision exists, and otherwise patches
   `category_override` **without disturbing an existing link**.
 
-## ⬜ NEXT SESSION — live-verify the tab, then report to Tre
+## ✅ LIVE-VERIFIED session 115 — on Tre's REAL account. Do not re-verify.
 
-Nothing else is queued. Concretely:
+Signed in as `tre@treforged.com` on the Claude-controlled Chrome at `http://localhost:8080`
+(**the profile is signed in again** — gotcha #2's "SIGNED OUT" note is stale; probe anyway).
+Tab left parked and open. Zero console errors throughout.
 
-1. `node scripts/dev-session.mjs up`, then **`http://localhost:8080` only** (canonical origin).
-2. **Demo mode shows the EMPTY STATE by design** — `useAllSyncedTransactions` returns `[]` in demo,
-   because inventing bank rows would put fabricated "your bank says" claims on fixtures. So demo
-   proves the tab mounts and switches, and **nothing more**. Do not read an empty list as a bug.
-3. Real rows need a signed-in session (run the `dev-signin` skill; the Claude-controlled Chrome was
-   signed OUT as of 2026-08-08 — probe, don't assume). What to check: rows render for 2026-08,
-   the month filter switches, a category override persists across a reload, `Confirm` on a suggested
-   rule writes a `linked_rule` row, and `Undo` removes it.
-4. ⚠️ **Verify against `synced_transaction_reviews` in SQL after writing** — and **clean up any test
-   rows** (separate statements, then re-SELECT; the CTE insert-then-delete trap is in §2.10's notes).
-5. Then ask Tre: Stage 3, Stage 4, §1C, or the roadmap's FB.6-13.
+Every claim below was checked in the browser AND against SQL:
+
+| Check | Result |
+|---|---|
+| Planning / Bank Activity tabs | both render; Radix pointer sequence switches; `tre:transactions:tab` persists across reload |
+| Export CSV / Export PDF / Add Transaction on the Bank tab | present in DOM but **not visible** — hiding works |
+| Rows for 2026-08 | **24 settled**, matches SQL exactly |
+| Month filter | 9 options; 2026-07 → **134**, All Time → **566** = 571 total − 5 pending. Pending exclusion and the 1000-row paging are both correct at full history |
+| Paging | progressive **"Show 100 more"**; 100 → 200 rows |
+| Auto-categories | landing per the map (Utilities / Shopping / Car / Bills), `Other` where the map declines |
+| `Confirm` on a rule suggestion ($54.07, 2026-08-03) | wrote `status='linked_rule'` with **`rule_id` present**, `transaction_id` null |
+| `Undo` | deleted the row; the suggestion re-appeared |
+| Category override | wrote **`status='categorized'`**, `category_override='Groceries'`, **no FKs** — the new fifth status works end to end |
+| Override persistence | survived a full page reload |
+| `Ignore` | wrote `status='ignored'`, no FKs; `Undo` removed it |
+| Nag text | **zero** matches for "need review" / "unreviewed" / "unpaid" anywhere on the page |
+| **Money written** | `public.transactions` still **22 rows** — the tab creates no money, as designed |
+| Rule matching over history | 5 distinct rule suggestions across All Time, not just the current month |
+
+**Cleanup verified:** all test writes removed, `synced_transaction_reviews` re-SELECTed at **0 rows**.
+(The `'categorized'` row was deleted in SQL — resetting the dropdown would have left the row behind.)
+
+⚠️ **The native-`<select>` find:** the category/month/account controls are plain `<select>`, **not**
+Radix comboboxes. Drive them with the native value setter + `change` event, not a pointer sequence:
+```js
+Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'Groceries');
+s.dispatchEvent(new Event('change',{bubbles:true}));
+```
+The page *tabs* still need the pointer sequence. Both patterns are in play on one page.
+
+## ⬜ NEXT SESSION — Tre's call
+
+Nothing is queued. Ask Tre: **Stage 3** (import — "Add to my ledger", the first thing here that
+writes money, and the prerequisite for "Not this"), **Stage 4** (feed `buildCaptureEvidence`),
+**§1C**, or the roadmap's **FB.6-13**.
+
+**"Not this" was re-confirmed as NOT buildable now** (session 115, Tre re-raised it): rejecting a
+suggestion is only actionable once import exists to receive the row, and a sixth status invented
+before that would be a guess. It ships **with Stage 3**, not before.
+
+## Item 6 re-checked (session 115) — STILL HAS NOT FIRED
+
+$422.89 on `933cbc10…` still `pending: true`, `updated_at` **still unmoved at 2026-08-08 13:00:08
+UTC**. Fifth session with the same answer. Bank settlement lag. Re-run the query; do not investigate.
 
 ## Item 6 re-checked (session 114) — STILL HAS NOT FIRED
 
