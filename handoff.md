@@ -1,3 +1,87 @@
+# Handoff — 2026-08-09 — session 114 — §1B Stages 1+2 BUILT + committed `1a9fa956`; LIVE-VERIFY NEXT
+
+> **START HERE.** Session 114 finished §1B Stages 1+2. **All code is committed and green** —
+> 626/626 tests, tsc 0, eslint clean on every changed file. The one thing NOT done is **live
+> verification in the browser**, which is the next session's whole job. See "Next" below.
+>
+> Nothing is half-applied. Read the §1B plan (`docs/1B-transaction-review-plan.md`) and the session
+> 113 section below for the design; this section only records what changed since.
+
+## ✅ Shipped `1a9fa956` — the Bank Activity tab
+
+**Still writes no money.** Nothing in this commit creates a `public.transactions` row; a confirmed
+link is an annotation. Stage 3 (import) and Stage 4 (feed `buildCaptureEvidence`) are NOT built and
+each must ship and be live-verified alone.
+
+Files:
+- **`src/components/transactions/BankActivity.tsx`** (new) — the tab. Month filter defaults to the
+  current month (`all` available), account filter, 100-row pages, pending excluded, **no
+  "N need review" count anywhere**.
+- **`src/lib/synced-transaction-review.ts`** (new, pure) + its test file — **18 tests**.
+- **`src/hooks/useSupabaseData.ts`** — `useAllSyncedTransactions()` and
+  `useSyncedTransactionReviews()` added next to the §1A block.
+- **`src/pages/Transactions.tsx`** — `usePersistedState('tre:transactions:tab')` Planning/Bank tabs.
+  Planning content wrapped in `{activeTab === 'planning' && (<>…</>)}`; the modals below it stay
+  mounted (they are already state-gated). Export/Add-Transaction buttons hide on the Bank tab.
+- **`src/integrations/supabase/types.ts`** — regenerated. Diffed first: the ONLY change is the new
+  table, nothing else drifted.
+- **`supabase/migrations/20260809_synced_transaction_reviews_categorized.sql`** — written **AND
+  APPLIED LIVE** (`apply_migration` → success).
+
+### ⚠️ NEW DECISION this session — a FIFTH status `'categorized'`
+
+The plan's four statuses could not express "the user fixed the label and took no other position".
+All four assert something: three say *handled*, `'ignored'` says *dismissed*. So changing a wrong
+auto-category would have forced a decision out of someone who only wanted to fix a word — in a
+feature explicitly designed not to be a queue demanding decisions, and against Tre's "users should
+be able to categorize if the auto cat is wrong". Since `GENERAL_MERCHANDISE` is 32% of the rows and
+the map is wrong *by construction*, that path is the common one, not an edge case.
+
+`'categorized'` carries no FKs (same cleanliness rule as `'ignored'`) and **`isHandledReview()`
+deliberately returns FALSE for it** — pinned by a test whose comment says why. Absence of a row
+still means unreviewed. **Tre has not seen this call yet — mention it.**
+
+### Design calls worth not re-litigating
+
+- **No second matcher was written.** Rule suggestions invert `matchOccurrence` (ask every rule "which
+  txn settles you", index the answer); ledger suggestions adapt `transactions` rows into
+  `MatchableTransaction` shape and call `matchCharge`. One definition of "matched", app-wide.
+  The ledger adapter re-signs to Stage A's **outflow-positive** convention and routes
+  `payment_source` through `normalizePaymentSource` (the two tables disagree — see below).
+- **`due_day` guard**: `RuleRow` has it optional, the matcher requires it. Same guard + spread
+  adapter as `BudgetControl.tsx:549`. Copy that, don't invent one.
+- **`useAllSyncedTransactions` pages explicitly** in 1000-row batches. PostgREST truncates silently,
+  and a history browser that stops at row 1000 hides months with no indication.
+- **"Not this" (reject a suggestion) was deliberately NOT built.** Rejecting a suggestion is only
+  actionable once "Add to my ledger" exists to receive the row, and adding a sixth status for it now
+  would be guessing. It belongs to Stage 3.
+- `setCategory` upserts a `'categorized'` row when no decision exists, and otherwise patches
+  `category_override` **without disturbing an existing link**.
+
+## ⬜ NEXT SESSION — live-verify the tab, then report to Tre
+
+Nothing else is queued. Concretely:
+
+1. `node scripts/dev-session.mjs up`, then **`http://localhost:8080` only** (canonical origin).
+2. **Demo mode shows the EMPTY STATE by design** — `useAllSyncedTransactions` returns `[]` in demo,
+   because inventing bank rows would put fabricated "your bank says" claims on fixtures. So demo
+   proves the tab mounts and switches, and **nothing more**. Do not read an empty list as a bug.
+3. Real rows need a signed-in session (run the `dev-signin` skill; the Claude-controlled Chrome was
+   signed OUT as of 2026-08-08 — probe, don't assume). What to check: rows render for 2026-08,
+   the month filter switches, a category override persists across a reload, `Confirm` on a suggested
+   rule writes a `linked_rule` row, and `Undo` removes it.
+4. ⚠️ **Verify against `synced_transaction_reviews` in SQL after writing** — and **clean up any test
+   rows** (separate statements, then re-SELECT; the CTE insert-then-delete trap is in §2.10's notes).
+5. Then ask Tre: Stage 3, Stage 4, §1C, or the roadmap's FB.6-13.
+
+## Item 6 re-checked (session 114) — STILL HAS NOT FIRED
+
+$422.89 on `933cbc10…` still `pending: true`, dated 2026-08-07, `updated_at` **unmoved at
+2026-08-08 13:00:08 UTC**. Bank settlement lag, not a sync failure. Fourth session with the same
+answer — re-run the query, but do not re-investigate.
+
+---
+
 # Handoff — 2026-08-08 — session 113 — §1B PLANNED + APPROVED; build Stages 1+2 next
 
 > **START HERE.** Session 113 planned §1B, got Tre's approval on all four open questions, and
@@ -39,7 +123,7 @@ would make *deleting a rule* fail with a constraint violation. Hence the deliber
   review and returns the synced txn to unreviewed — re-importable. That is also what makes the
   `txn_present` CHECK safe to enforce.
 
-### ⬜ NOT DONE — next session picks up here
+### ✅ ALL DONE session 114 — see the top section. Kept for the design notes only.
 
 3. **Regenerate `src/integrations/supabase/types.ts`** — it has no `synced_transaction_reviews`
    yet, so the hooks below will not typecheck. (Gotcha #15: `generate_typescript_types` returns an
