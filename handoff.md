@@ -1,3 +1,98 @@
+# Handoff — 2026-08-09 — session 116 — §1B Stage 3 BUILT + committed `ad841516`; import path LIVE-VERIFIED
+
+> **START HERE.** Session 116 finished Stage 3 — the hook, the Undo, the UI, and Tre's "Not this"
+> re-target. **644/644 tests (3 new), tsc 0, eslint clean.** The **import + undo path is
+> live-verified on Tre's real account and the account is CLEAN** (22 ledger rows, 0 `origin='synced'`,
+> 0 reviews — re-SELECTed after cleanup).
+>
+> The context gate fired with **three UI paths still unverified** — see "⬜ NEXT" below. Nothing is
+> half-applied; the unverified paths are ordinary writes through the same `save` mutation Stages 1+2
+> already verified.
+
+## ✅ Shipped `ad841516`
+
+- **`src/lib/synced-transaction-import.ts`** — added `suggestionRejected?: boolean` to
+  `ImportContext`. It is the ONLY thing that defeats the double-count guard, and it is a **named
+  field rather than "stop passing `hasSuggestion`"** so the call site reads as a person overruling
+  the matcher instead of as a guard that went missing. 3 new tests: a rejected suggestion imports, an
+  un-rejected one still refuses, and **a rejection does NOT reopen a charge already dealt with**.
+- **`useSupabaseData.ts`** — `importToLedger` + `undoImport` on `useSyncedTransactionReviews`,
+  both invalidating `['transactions']` AND `['synced_transaction_reviews']`.
+  - `importToLedger` inserts the draft → `.select().single()` → upserts the review as `'imported'`
+    with that id. ⚠️ **On a review-write failure it DELETES the just-inserted ledger row before
+    throwing.** Two PostgREST calls are not a transaction, so the compensation is the transaction.
+  - `undoImport` deletes the **LEDGER ROW**; the FK cascade clears the review. `remove` (review-only)
+    is still there for the annotation statuses and must never be the Undo for `'imported'`.
+- **`BankActivity.tsx`** — `Add to my ledger` (rendered iff `planLedgerImport` says ok — never a
+  disabled button asserting a reason), `Not this`, the two pickers, the `added to ledger` badge and
+  an Undo labelled **"Undo — deletes the entry"**.
+- **`src/integrations/supabase/types.ts`** — regenerated for `transactions.origin`. **Diffed first:
+  those 3 lines are the ONLY change.** (tsc caught this — the Stage-3 migration was applied live in
+  session 115 but the types were never regenerated.)
+
+### Design calls made this session
+
+- **Rejection is deliberately NOT persisted.** Each of the three destinations writes its own review
+  row, which persists; the only case in-memory state loses is a user who rejects and walks away,
+  which recorded no decision — the honest outcome. A sixth status to remember a non-decision would
+  put "I don't know what this is" in the database.
+- **The pickers are offered on rows with NO suggestion too**, per the plan: a missed link and a wrong
+  link are the same user need and the same write.
+- `pickableRules` filters to `active` — an inactive rule describes nothing that still bills.
+- The ledger picker sorts **nearest dates first**, capped at 40.
+
+## ✅ LIVE-VERIFIED session 116 — real account, then cleaned up. Do not re-verify these.
+
+Signed in as `tre@treforged.com` at `http://localhost:8080` (Tre signed in manually when asked —
+the Claude Chrome was signed out AGAIN; probe every time). Zero console errors.
+
+| Check | Result |
+|---|---|
+| Aug rows | 24. **1** row has a rule suggestion → `Confirm` + `Not this`, and correctly **no** import button. **23** have none → `Link to a bill` / `Link to an entry` / `Add to my ledger` |
+| Import write | ONE row: `2026-08-07`, `expense`, `$12`, `origin='synced'`, `payment_source='account:63b8e559…'`, `account='General Operations'` — **the REAL `accounts.name`, not the legacy `"Checking"`** |
+| Review write | `status='imported'`, `transaction_id` = the inserted row, `rule_id`/`occurrence_month` null |
+| After import | badge `added to ledger`; the row's ONLY action is `Undo — deletes the entry` (+ the `title` saying it removes the entry); import count 23 → 22 |
+| Ledger visibility | the imported entry appears on the **Planning** tab |
+| Dashboard | the $12 lands as spending (`Other −$12`); `Month-End Cash $3,160`, `After all scheduled items $3,804`, `Projected remaining $3,943.49` |
+| Undo | **cascade confirmed** — deleting the ledger row removed the review too; badge gone, import re-offered (22 → 23) |
+| **Cleanup** | re-SELECTed: **22 ledger rows, 0 `origin='synced'`, 0 reviews.** Nothing left behind |
+
+### Plan risk 2 — answered structurally, and it is stronger than a screen check
+
+**An imported row cannot both add an actual and retire a projected charge.** The gate that retires a
+charge (`carChargeEvidence` → `buildCaptureEvidence`) reads **`synced_transactions`**, never
+`public.transactions` (`CardProjectionContext.tsx:165` feeds it `useSyncedTransactions`). The synced
+row driving that gate was already there before the import, so importing changes nothing about it —
+the import only ever ADDS an actual. The single way an actual and a projection can cover the same
+dollars is the `hasSuggestion` guard being overridden, which happens in exactly one place: the user
+pressing `Not this`, i.e. asserting the charge is not that bill. That is Tre's decision working, not
+a leak.
+
+## ⬜ NEXT — finish the live pass, then Stage 4 is Tre's call
+
+Three UI paths built and unit-covered but **not yet clicked on the real account**. All three go
+through the SAME `save` mutation Stages 1+2 already live-verified, so this is confirmation, not
+exploration. **Clean up every test row (separate statements, then re-SELECT).**
+
+1. **`Not this`** on the one suggested row → the row must then offer both pickers **and**
+   `Add to my ledger` (the `suggestionRejected` override reaching the live guard).
+2. **`Link to a bill`** picker → writes `status='linked_rule'` with `rule_id` + `occurrence_month`.
+3. **`Link to an entry`** picker → writes `status='linked_txn'` with `transaction_id`.
+
+Then: **Stage 4** (feed `buildCaptureEvidence` from a confirmed link), **§1C**, or roadmap FB.6-13.
+Do not start one without Tre choosing.
+
+⚠️ **The tab toggle persists.** Clicking Planning writes `tre:transactions:tab='planning'`, so a
+later reload opens there and a `querySelector` for a Bank-tab button silently returns undefined.
+Switch tabs explicitly (Radix pointer sequence) before hunting for row controls — cost me one call.
+
+## Item 6 re-checked (session 116) — STILL HAS NOT FIRED
+
+$422.89 on `933cbc10…` still `pending: true`, `updated_at` **still 2026-08-08 13:00:08 UTC**. Sixth
+session, same answer. Re-run the query; do not investigate.
+
+---
+
 # Handoff — 2026-08-09 — session 115 — §1B Stages 1+2 LIVE-VERIFIED; Stage 3 STARTED (`53609165`)
 
 > **START HERE.** Session 115 did two things: it **live-verified Stages 1+2 on Tre's real account**
