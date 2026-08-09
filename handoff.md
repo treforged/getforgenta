@@ -61,12 +61,37 @@ is enforced inside it and pinned by a test:
    user did not ask for). Imported rows get an `added to ledger` badge + the Undo from (2), with copy
    saying it removes the entry.
 
-**"Not this" ships here too, and the decision is: a TRANSIENT client-side dismissal, no DB row.**
-Rejecting a suggestion is only a step toward "then it's a new charge" — and both destinations
-(`Add to my ledger`, `Ignore`) write their own row. A persisted rejection would need a sixth status
-carrying `rule_id` to know *which* suggestion was rejected, which the `ignored_is_clean` CHECK
-forbids today. On reload the suggestion returns; that is honest, because no assertion was recorded.
-**Mention this to Tre** — it is a judgement call, not a spec item.
+### ⚠️ "Not this" — TRE DECIDED 2026-08-09, and it OVERRODE my proposal. Build this, not that.
+
+His words: *"be able to match after not this to a different transaction, or have it be its own new
+transaction."*
+
+I had proposed a transient dismissal that merely hid the wrong suggestion. **He is right and it is
+discarded.** "Not this" is not a dismissal, it is a **re-target**: rejecting the guess must land
+somewhere. So after `Not this`, the row offers all three destinations:
+
+1. **Link to a different rule** → `linked_rule` + `rule_id` + `occurrence_month` (a picker over
+   active `recurring_rules`).
+2. **Link to a different ledger entry** → `linked_txn` + `transaction_id` (a picker over
+   `public.transactions`, nearest dates first).
+3. **`Add to my ledger`** → the Stage 3 import — "it's its own new transaction".
+
+Plus `Ignore`, as now. 1 and 2 are annotations and move no money; only 3 does.
+
+**The picker should be offered on rows with NO suggestion too**, not only after a rejection — the
+matcher missing a link is the same user need as the matcher getting it wrong, and the write path is
+identical.
+
+⚠️ **This changes the import guard, deliberately and only here.** `planLedgerImport` refuses when
+`hasSuggestion` is true; a rejection must flip that. Pass it as an **explicitly named override**
+(e.g. `suggestionRejected: true` in `ImportContext`, so the call site reads as a user overruling the
+matcher) — do NOT just stop passing `hasSuggestion`, which would make the guard look absent rather
+than overridden. Add a test asserting a rejected suggestion permits import and an un-rejected one
+still does not.
+
+Whether the rejection itself persists across a reload is then **moot for destinations 1-3** — each
+writes its own handled row. It only matters for a user who rejects and walks away, which records
+nothing, which is honest.
 
 ### Then: live-verify Stage 3 alone
 
