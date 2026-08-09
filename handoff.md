@@ -1,6 +1,66 @@
-# Handoff — 2026-08-09 — session 127 — 🟡 `3ec7c725` **WRITE side LIVE-VERIFIED; READ side NOT**. One unexplained anomaly. Anchor DECIDED.
+# Handoff — 2026-08-09 — session 128 — 🟢 **`3ec7c725` FULLY LIVE-VERIFIED, BOTH SIDES. Anomaly SOLVED — it was never a bug.**
 
-> **START HERE.** **No app code changed** — `2ff1347b` is HEAD, `3ec7c725` is still the last app commit.
+> **START HERE.** **No app code changed.** The read-side debt session 127 handed on is **CLOSED**.
+> Tre's account is **restored byte-for-byte**: `imported 55 · linked_plan 1 · linked_rule 11 ·
+> linked_txn 2` = **69**, **0 rows carry `occurrence_date`** — re-SELECTed after the probe.
+
+## ✅ THE PHONE BILL ANOMALY — SOLVED. Stage 4A is NOT inert. Do not re-investigate.
+
+**Root cause: `Phone Bill to Mom` has `start_date = '2026-10-10'`.** `generateScheduledEvents`
+anchors at `max(today, start_date)`, so the rule generates **no August occurrence at all** — its first
+event is Oct 10, 2026. Session 127's probe suppressed an occurrence that did not exist. That was the
+**fifth** insensitive instrument in a row, not evidence of a broken read path.
+
+Both surviving hypotheses from 127 are **DEAD**:
+- ❌ "expense events may not carry `ruleId`" — they do. `scheduling.ts` sets `ruleId: rule.id` on all
+  four frequency branches (:111, :125, :155, :177).
+- ❌ "§1B Stage 4A is inert in the forecast" — **disproved by live measurement below.**
+
+### 🧮 The `baseExpenses = 120` puzzle — RECONCILED TO THE DOLLAR
+
+August has **zero** rule expenses. Every TOTAL CHECKING cash rule is due on day 1-3 and today is
+Aug 9, so `e.date > todayStr` drops them all; Phone Bill (day 10) does not start until October.
+The 120 is **entirely `planExpensesByMonth`** (`forecast-engine.ts:756`) — the `Carnival Ultimate
+Package` plan, $120/mo, cash-funded on TOTAL CHECKING. Verified against live chart data:
+
+| Month | `baseExpenses` | Reconciliation |
+|---|---|---|
+| Aug 2026 | **120** | 0 rules + 120 Carnival |
+| Sep 2026 | **2872** | 2524 rules (Rent 1915, Groceries 300, Electricity 100, Internet 85, Life Ins 54, Smart Home 40, Water 30) + 348 plans (Carnival 120 + payback-to-mom 228, starts 09-20) |
+| Oct 2026 | **2902** | Sep + **exactly 30** = Phone Bill's first occurrence. Independent confirmation of the start-date finding. |
+
+⚠️ **THE REAL LESSON, worth keeping:** *nothing in August was ever testable.* After the 9th there is
+not one remaining cash-funded rule occurrence on the forecast funding account. Any future month-0
+probe in this account will read Δ 0 for that reason alone. **Probe SEPTEMBER or later.**
+
+## ✅ READ SIDE — LIVE-VERIFIED. The `occurrence_date` key path works end-to-end.
+
+Retargeted review `33354d22…` (Life Insurance, `9a0950c1…`, $54, due day 3) from its legacy
+`2026-08`/NULL to **`occurrence_month='2026-09'` + `occurrence_date='2026-09-03'`** — the NEW
+date-keyed path shipped in `3ec7c725` — reloaded, and diffed `baseExpenses` off the fiber:
+
+| | Aug | **Sep** | Oct | Nov |
+|---|---|---|---|---|
+| baseline | 120 | 2872 | 2902 | 2902 |
+| with date-keyed confirmation | 120 | **2818** | 2902 | 2902 |
+| Δ | 0 | **−54.00, exact** | 0 | 0 |
+
+That is the whole feature demonstrated at once: the confirmation **fires**, it removes **exactly** the
+named occurrence's amount, and it is **scoped to its own month** — no leakage into Oct/Nov.
+**The row was restored to `2026-08` / NULL immediately and the 69/0 counts re-verified.**
+
+**`3ec7c725` is now verified on both sides. Neither side needs re-testing.**
+
+## 📌 Tell Tre (not acted on)
+
+- **`Phone Bill to Mom` starts 2026-10-10.** So the app shows no phone-bill charge in Aug or Sep by
+  design. Probably intentional, but it is the data point that cost two sessions — worth one question.
+
+---
+
+# Handoff — 2026-08-09 — session 127 — 🟡 (superseded above; read side now CLOSED). Anchor DECIDED.
+
+> **No app code changed** — `2ff1347b` is HEAD, `3ec7c725` is still the last app commit.
 > **Tre's account is CLEAN**, re-SELECTed after cleanup: `imported 55 · linked_plan 1 · linked_rule 11 ·
 > linked_txn 2` = **69**, **0 rows carry `occurrence_date`**. Both test rows deleted; `imported` never
 > left 55, so no ledger row was created or deleted at any point. Sign-in lapsed at session start and
@@ -17,7 +77,11 @@ That is the first `occurrence_date` ever written by the app: correct value, **in
 `occurrence_month`, and equal to a real generated Friday occurrence of the rule. `ruleOccurrence()` /
 `resolveRuleOccurrenceDate` work end-to-end against live data.
 
-## 🔴 READ SIDE — COULD NOT BE DEMONSTRATED. This is the debt this session hands on.
+## ~~🔴 READ SIDE — COULD NOT BE DEMONSTRATED~~ — ✅ **CLOSED in session 128, see top of file.**
+
+> ⚠️ **Everything in the rest of this session-127 section is SUPERSEDED.** The cause was
+> `Phone Bill to Mom`'s future `start_date` (no August occurrence exists), not a broken read path.
+> Kept only for the method notes at the end. **Do not re-run any probe described below.**
 
 **Every probe returned Δ 0, including probes that SHOULD have moved.** Do not read that as "the fix
 works" — three of the four are explained by scope, but **the fourth is not, and it is the one that
@@ -136,8 +200,9 @@ started existing then". `Fuel.created_at` = 2026-03-22. Requires adding `created
 
 ## ⬜ NEXT
 
-1. **Resolve the Phone Bill anomaly** — is Stage 4A's suppression actually live in the forecast?
+1. ~~Resolve the Phone Bill anomaly~~ — ✅ **DONE, session 128. Stage 4A is live.**
 2. **Biweekly anchor, commit 1** (derived) then **commit 2** (optional field). Decided, unstarted.
+   ⚠️ Its blocker is now gone: 127 said to resolve the read side FIRST, and that is done.
 3. **Split link** — authorised, unscoped, unbuilt. Read side needs NO change (confirmed by reading
    `buildConfirmedOccurrences` this session: it already iterates reviews and keys per rule).
    UI side: `BankActivity.tsx:135` `reviewByTxn` is a `Record<string, Row>` and must become
