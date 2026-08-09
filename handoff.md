@@ -1,6 +1,60 @@
-# Handoff — 2026-08-09 — session 128 — 🟢 **`3ec7c725` FULLY LIVE-VERIFIED, BOTH SIDES. Anomaly SOLVED — it was never a bug.**
+# Handoff — 2026-08-09 — session 128 — 🟢 anomaly SOLVED + 🟡 **BIWEEKLY ANCHOR SHIPPED `12d01772`, LIVE PASS OWED**
 
-> **START HERE.** **No app code changed.** The read-side debt session 127 handed on is **CLOSED**.
+> **START HERE.** Two things landed. `3ec7c725`'s read side is **CLOSED** (details below), and the
+> biweekly phase fix Tre authorised is **committed but NOT live-verified**.
+
+## 🟡 BIWEEKLY ANCHOR — commit 1 of 2 SHIPPED `12d01772`. **722/722 tests (+13), tsc 0.**
+
+Tre said **"yes. and go"** (2026-08-09) to commit 1 (derived anchor, silent). It is built.
+
+**What changed.** All three biweekly generators restarted their cycle from scratch — the per-month
+one at the first matching weekday of EACH month, the other two at `max(today, start_date)`. Neither
+is a phase. Added to `scheduling.ts` as the ONE definition of the cadence:
+- **`resolveBiweeklyAnchor(rule, today?)`** — anchor = `start_date ?? created_at`, then advanced to
+  the first `due_day` weekday on or after it. ⚠️ **`due_day` wins over the anchor's own weekday** —
+  Fuel bills Fridays but was created on a Sunday (`2026-03-22`), so anchoring on the raw date would
+  have moved every occurrence to a Sunday. Fuel's real anchor is **Fri 2026-03-27**.
+- **`getBiweeklyDatesInMonth(rule, year, month, today?)`** — consumed by all three call sites
+  (`generateScheduledEvents`, `countRuleOccurrencesInMonth`, `getRuleOccurrenceDatesInMonth`), so
+  they can no longer disagree. New test asserts all three agree month-by-month for 14 months.
+
+**Decisions made — do not re-litigate:**
+- **WEEKLY UNTOUCHED.** A 7-day step cannot drift across a month boundary; 126b verified weekly is
+  already correct (52/yr, all gaps 7). Pinned by a test.
+- **NO MIGRATION NEEDED.** 126b feared re-phasing would strand stored `occurrence_date`s off-phase.
+  Checked live: **zero rows in the entire database carry an `occurrence_date`** (all users, not just
+  Tre). The concern is moot. Nothing to null out.
+- **`created_at` is safe as the fallback** — verified non-null for every row in `recurring_rules`.
+- Anchor reads the **date part** of both columns at local noon, so the phase cannot shift with the
+  viewer's timezone.
+- **26 vs 27 a year is both correct** (365/14 = 26.07); the real invariant is that every gap is
+  exactly 14. My first test asserted a flat 26 and was wrong — fixed.
+
+### ⬜ THE LIVE PASS IS OWED AND NOT STARTED — do this first
+
+⚠️ **This moves projected numbers for every biweekly rule**, which is the whole point, so it needs a
+live pass of its own. Tre's only biweekly rule is **`Fuel`** (`002f7e28…`, $65, Friday, no
+`start_date`) and it is **funded by Prime Visa**, so it is **excluded from month-0 forecast expenses**
+by `allCcRuleIds` — *do not expect the Aug/Sep `baseExpenses` probe to move.* Look instead at a
+surface that shows CC purchases: the **CC engine / Debt Payoff** projection, or Fuel's occurrence
+COUNT per month before vs after.
+
+⚠️ **The pinned real-data fixture tests still pass**, meaning the golden payoff month (Jul 2027) did
+NOT move. Worth understanding rather than assuming — either the fixture's phase happens to coincide
+or those assertions are insensitive to ±$130/yr. **Check before declaring the live pass clean.**
+
+### ⬜ Commit 2 (decided, unstarted)
+
+**Optional "first occurrence" field in the rule editor**, so anyone who cares can pin their true
+phase instead of living with the derived one. Tre already chose "Both: derive now, ask later" — this
+is the "ask later" half. Writes `start_date`, which `resolveBiweeklyAnchor` already prefers, so it
+needs no engine change.
+
+---
+
+## ✅ `3ec7c725` FULLY LIVE-VERIFIED, BOTH SIDES. Anomaly SOLVED — it was never a bug.
+
+> The read-side debt session 127 handed on is **CLOSED**.
 > Tre's account is **restored byte-for-byte**: `imported 55 · linked_plan 1 · linked_rule 11 ·
 > linked_txn 2` = **69**, **0 rows carry `occurrence_date`** — re-SELECTed after the probe.
 
@@ -201,8 +255,8 @@ started existing then". `Fuel.created_at` = 2026-03-22. Requires adding `created
 ## ⬜ NEXT
 
 1. ~~Resolve the Phone Bill anomaly~~ — ✅ **DONE, session 128. Stage 4A is live.**
-2. **Biweekly anchor, commit 1** (derived) then **commit 2** (optional field). Decided, unstarted.
-   ⚠️ Its blocker is now gone: 127 said to resolve the read side FIRST, and that is done.
+2. ~~Biweekly anchor commit 1~~ — ✅ **SHIPPED `12d01772`, session 128. LIVE PASS OWED (see top).**
+   **Commit 2** (optional "first occurrence" field) still unstarted.
 3. **Split link** — authorised, unscoped, unbuilt. Read side needs NO change (confirmed by reading
    `buildConfirmedOccurrences` this session: it already iterates reviews and keys per rule).
    UI side: `BankActivity.tsx:135` `reviewByTxn` is a `Record<string, Row>` and must become
