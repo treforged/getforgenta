@@ -1,6 +1,101 @@
 # Handoff — Forgenta
 
-## ▶ 2026-08-10 — session 133 — 🟡 **SLICE C IS BUILT, REHEARSED AND GREEN. ONE THING BLOCKS IT: SIGN-IN.**
+## ▶ 2026-08-10 — session 134 — 🟢 **SLICE C IS LIVE-VERIFIED AND THE MIGRATION IS APPLIED. Split link works on Tre's real account.**
+
+> **START HERE.** Branch **`feat/split-link-slice-c`**, rebased onto current `origin/main` (jsdom 30
+> included) — **`0 7`**, clean rebase. **788/788 tests under jsdom 30, tsc 0.** The migration is
+> **APPLIED to the live database**. Account restored byte-for-byte and verified against the backup
+> with `EXCEPT ALL` **in both directions: 0 and 0**. Nothing pushed, no PR yet.
+
+### 🔬 THE FINDING THAT MATTERS — the handoff's ordering premise was WRONG, and the live pass proved it
+
+Sessions 131-133 all asserted that Slice C's code was a **pure no-op under today's UNIQUE**, so the
+UI could ship and be live-verified BEFORE the migration. **It is not, and it cannot.** Measured, not
+reasoned:
+
+| sequence, pre-migration | result |
+|---|---|
+| set a category on a clean charge | ✅ works (`categorized` row, INSERT) |
+| change that category | ✅ works, **same row id** (UPDATE branch) |
+| **then link it to a bill** | ❌ **POST 409** — `duplicate key value violates unique constraint "synced_transaction_reviews_synced_transaction_id_key"` |
+| link a bill on a CLEAN charge | ✅ works (one `linked_rule` row) |
+| **then set a category on it** | ❌ **POST 409**, same constraint |
+
+**Root cause:** Slice C routes the exclusive decision and the link to **two different rows** by
+design. Any charge needing two rows violates `UNIQUE (synced_transaction_id)`. Before Slice C the
+link write UPDATED the single row and carried `category_override` forward, so the sequence worked.
+**So the code and the migration are ONE deployable unit** — shipping `9c2fb6bc`/Slice C without the
+migration is a live regression on the ordinary path "categorize a charge, then link it to a bill".
+The 409 does surface (a toast), but as raw Postgres text a user cannot act on.
+
+⚠️ **Do not restore the old ordering advice.** The migration must land with or before the code.
+
+### ✅ THE MIGRATION IS APPLIED — and it was safe to apply ahead of the code
+
+`supabase/migrations/20260810_synced_transaction_reviews_split_link.sql`, applied via
+`apply_migration`. Verified after: the old `synced_transaction_reviews_synced_transaction_id_key`
+constraint is **gone**, and all four partial indexes exist —
+`one_exclusive`, `one_rule_link`, `one_plan_link`, `one_car_link`.
+
+🔬 **Checked before trusting it, because the migration is now live while production still runs
+`main`:** `origin/main` already contains Slice B, so **no review write path on main passes
+`onConflict`** (the only three hits are two explanatory comments and an unrelated
+`user_id,snapshot_date` upsert on net-worth snapshots). Production's SELECT-then-UPDATE-or-INSERT is
+unaffected by the relaxed constraint, and `one_exclusive` preserves import idempotency exactly. **The
+live app is not broken by this migration sitting ahead of the code.**
+
+### ✅ THE SECOND LIVE PASS — the feature demonstrated on Tre's real data
+
+Same test charge `1cf1cd2a…` (Dave & Buster's, 2026-07-25, past month so no forecast can move):
+
+| step | result |
+|---|---|
+| category, **then** link (the 409 case, re-run post-migration) | ✅ **no error**, badge `linked · Chewy` |
+| **the category SURVIVED the link** — the one flagged regression risk | ✅ select still reads `Groceries`; DB shows `categorized` row holding the override and `linked_rule` row with `category_override` NULL |
+| "Link another bill" → a second rule | ✅ **two badges**: `linked · Chewy` and `linked · Claude` |
+| `Undo all` appears only at ≥2 links | ✅ appeared on the second link, absent on the first |
+| exclusive destinations hidden while links exist | ✅ only "Link another …" offered; "Add to my ledger"/"Ignore" gone |
+| **per-link ✕ removes one and leaves the other** (`removeLink`'s first live exercise) | ✅ Chewy gone, Claude and the category both intact |
+| final undo → charge clean | ✅ **69 rows, 0 `occurrence_date`, 0 on the test charge, EXCEPT ALL 0/0 vs the backup** |
+
+### ⬜ WHAT IS OWED NOW
+
+1. **Open the PR** — `git push -u origin feat/split-link-slice-c` → `gh pr create` → `conductor pr N`.
+   The migration is already live, so the PR is the code half catching up to it. Say so in the body.
+2. ⚠️ **A better error than the raw constraint name.** The 409 toast printed
+   `duplicate key value violates unique constraint …`. Post-migration the reachable version is "the
+   same bill linked twice" (`one_rule_link`). That is a real user action with an unreadable message.
+   Not blocking the PR; worth its own small slice.
+
+### 🐛 SEPARATE BUG — Tre reported "dashboard fails to load on initial login sometimes"
+
+**Reported mid-session. Not fixed, deliberately kept off the split-link branch.** Strong candidate
+found by reading `src/contexts/AuthContext.tsx:213-221`:
+
+```ts
+if (locationRef.current === '/auth') {
+  reviewerResetPromise
+    .then(() => supabase.auth.mfa.getAuthenticatorAssuranceLevel())
+    .then(({ data: aal }) => { …; navigate('/dashboard'); });
+}
+```
+
+**There is no `.catch()` on that chain.** If `getAuthenticatorAssuranceLevel()` rejects — a network
+blip on a call made at the exact moment of sign-in — `navigate('/dashboard')` never runs and the user
+is stranded on `/auth` after a *successful* authentication. That is intermittent by construction,
+which matches "sometimes", and it fails silently. `resetReviewerAccount` rejecting has the same
+effect (reviewer account only).
+
+⚠️ **NOT reproduced.** Sign-in cannot be driven from a session — entering his password is off-limits
+— so this is a code-read hypothesis, not a measured one. **Before fixing, get the symptom:** does the
+page stay on the sign-in form, or land on a blank/spinning dashboard? Those are different bugs; the
+second would point at the 5s `setLoading(false)` fallback (**:249**) instead.
+Suggested fix if confirmed: `.catch(() => navigate('/dashboard'))` — an AAL check that cannot be
+reached should not cost the user their session, and the MFA gate re-asserts on the next load.
+
+---
+
+## 2026-08-10 — session 133 — 🟡 ~~SLICE C IS BUILT, REHEARSED AND GREEN. ONE THING BLOCKS IT: SIGN-IN.~~ (live pass DONE — see above)
 
 > **START HERE.** Branch **`feat/split-link-slice-c`**, now **rebased onto `main`** (the 6 dependency
 > bumps, including framer-motion 13 and react-resizable-panels 4 — clean rebase, no conflicts).
