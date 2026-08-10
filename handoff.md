@@ -1,5 +1,28 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — housekeeping before the first relay run (Conductor session)
+
+Three things, none of them touching Slice C's code.
+
+**The branch IS pushed, and the note below saying otherwise is stale.**
+Verified by SHA rather than by memory: `git ls-remote --heads origin
+feat/split-link-slice-c` returns **`97698724`**, byte-identical to local `HEAD`,
+and `git log origin/feat/split-link-slice-c..HEAD` is **empty**. Working tree
+clean. So nothing was "in the way" and nothing needed pushing.
+
+**There is still NO PR for it**, which is the state Tre's rules call invisible —
+the board is where a PR gets approved and one-tap merged, so a branch that is
+pushed and unfiled is waiting on nobody. Left as his call deliberately: the work
+below is mid-flight, and filing hands him a merge button on it.
+
+**A tracked junk file is gone.** A Windows temp path had been used LITERALLY as
+a filename in the repo root, with the colon stored as `U+F03A` — the private-use
+substitute Windows uses because a real colon is illegal in a filename. That is
+why every shell mangled it and `git ls-files` printed it as an escape sequence.
+It held 1,145 bytes of `npm run dev` Vite startup output, was referenced
+nowhere, and entered git as collateral in `c687a70f` — a convergence-engine
+commit that had nothing to do with logs. Deleted.
+
 ## ▶ 2026-08-10 — session 134 — 🟢 **SLICE C IS LIVE-VERIFIED AND THE MIGRATION IS APPLIED. Split link works on Tre's real account.**
 
 > **START HERE.** Branch **`feat/split-link-slice-c`**, rebased onto current `origin/main` (jsdom 30
