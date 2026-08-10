@@ -1,6 +1,11 @@
-# Handoff — 2026-08-09 — session 130b — 🟡 **SPLIT LINK: DESIGN AUDITED AND SLICED. Build started.**
+# Handoff — 2026-08-09 — session 130b — 🟡 **SPLIT LINK: DESIGN AUDITED AND SLICED. NO CODE WRITTEN YET — start at Slice A.**
 
-> **START HERE if split link is the task.** Tre authorised this in 126b (*"for split links i think
+> **START HERE.** The context gate fired right after this audit was committed, so the tree is
+> **green and clean** (729/729, tsc 0, eslint clean) with **zero split-link code in it**. Everything
+> below is design, and Slice A is a clean start.
+>
+> Tre asked to "continue to next" after biweekly closed; split link is the next thing he has already
+> said yes to, which is why it was picked over the unscoped N1-N12. Tre authorised this in 126b (*"for split links i think
 > yes since it can integrate the variable items into cost… forecast can get a better month 0
 > picture"*). **Do not re-ask.** His goal is that the **variable** rider (Water/Sewer/Trash, billed
 > in arrears) stops being invisible inside the bundled rent charge. Design to that, not to "N rules
