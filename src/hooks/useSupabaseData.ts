@@ -625,6 +625,37 @@ export type { ReviewStatus, ReviewInput } from '@/lib/synced-transaction-review'
 export { planLedgerImport } from '@/lib/synced-transaction-import';
 export type { LedgerDraft, ImportPlan, ImportContext } from '@/lib/synced-transaction-import';
 
+/**
+ * §1B SPLIT LINK Slice B — the charge's existing review row, or null.
+ *
+ * ⚠️ THIS FUNCTION IS THE WHOLE POINT OF SLICE B. Every write below used to be an upsert with
+ * `{ onConflict: 'synced_transaction_id' }`, which does not merely USE the UNIQUE constraint — it
+ * REQUIRES it. Postgres has to infer an arbiter index from the column list, so the moment split
+ * link relaxes that constraint all three writes fail outright with "no unique or exclusion
+ * constraint matching the ON CONFLICT specification". A partial unique index does not rescue them
+ * either: Postgres can only infer a partial index when the statement repeats its predicate, and
+ * supabase-js `onConflict` takes a bare column list with no `WHERE`. So the code has to stop
+ * depending on the constraint BEFORE the migration can drop it, and find-then-update is how.
+ *
+ * Under today's UNIQUE this is exactly equivalent to the upsert it replaces — at most one row can
+ * match — which is what makes it shippable and live-runnable on its own, ahead of any schema change.
+ *
+ * ⚠️ A LIVE SELECT, not the cached `query.data`. A stale cache miss would become an INSERT that
+ * fails on a constraint the user can do nothing about; a stale cache HIT would update a row that no
+ * longer exists and silently write nothing.
+ */
+async function findChargeReviewId(userId: string, syncedTransactionId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('synced_transaction_reviews')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('synced_transaction_id', syncedTransactionId)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.id ?? null;
+}
+
 export function useSyncedTransactionReviews() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
@@ -643,30 +674,40 @@ export function useSyncedTransactionReviews() {
     },
   });
 
-  // Upsert on `synced_transaction_id`, not insert: the column is UNIQUE (one decision per charge),
-  // so a user changing their mind about a row must overwrite the old decision rather than hit a
-  // constraint error they cannot act on.
+  // Find-then-write, NOT an upsert — see `findChargeReviewId`. A user changing their mind about a
+  // charge overwrites their old decision rather than hitting a constraint error they cannot act on,
+  // exactly as before, but without requiring `UNIQUE (synced_transaction_id)` to exist.
+  //
+  // ⚠️ EVERY COLUMN IS WRITTEN ON BOTH PATHS, including the nulls. Changing a decision must CLEAR
+  // the fields the previous one set — a `linked_rule` becoming `ignored` while keeping its stale
+  // `rule_id` would read as linked to any query that checks the FK without the status.
   const save = useMutation({
     mutationFn: async (input: ReviewInput) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const problem = validateReviewInput(input);
       if (problem) throw new Error(problem);
-      const { error } = await supabase
-        .from('synced_transaction_reviews')
-        .upsert(sanitizePayload({
-          user_id: user.id,
-          synced_transaction_id: input.synced_transaction_id,
-          status: input.status,
-          rule_id: input.rule_id ?? null,
-          transaction_id: input.transaction_id ?? null,
-          payment_plan_id: input.payment_plan_id ?? null,
-          car_fund_id: input.car_fund_id ?? null,
-          car_charge_kind: input.car_charge_kind ?? null,
-          occurrence_month: input.occurrence_month ?? null,
-          occurrence_date: input.occurrence_date ?? null,
-          category_override: input.category_override ?? null,
-          updated_at: new Date().toISOString(),
-        }), { onConflict: 'synced_transaction_id' });
+      const fields = {
+        status: input.status,
+        rule_id: input.rule_id ?? null,
+        transaction_id: input.transaction_id ?? null,
+        payment_plan_id: input.payment_plan_id ?? null,
+        car_fund_id: input.car_fund_id ?? null,
+        car_charge_kind: input.car_charge_kind ?? null,
+        occurrence_month: input.occurrence_month ?? null,
+        occurrence_date: input.occurrence_date ?? null,
+        category_override: input.category_override ?? null,
+        updated_at: new Date().toISOString(),
+      };
+      const existingId = await findChargeReviewId(user.id, input.synced_transaction_id);
+      const { error } = existingId
+        ? await supabase.from('synced_transaction_reviews')
+            .update(sanitizePayload(fields)).eq('id', existingId).eq('user_id', user.id)
+        : await supabase.from('synced_transaction_reviews')
+            .insert(sanitizePayload({
+              user_id: user.id,
+              synced_transaction_id: input.synced_transaction_id,
+              ...fields,
+            }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
@@ -678,12 +719,15 @@ export function useSyncedTransactionReviews() {
   const setCategory = useMutation({
     mutationFn: async ({ syncedTransactionId, category }: { syncedTransactionId: string; category: string | null }) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const existing = (query.data ?? []).find(r => r.synced_transaction_id === syncedTransactionId);
-      if (existing) {
+      // The lookup moved off the cached `query.data` and onto the database for the same reason the
+      // upsert below did: a stale cache decides INSERT vs UPDATE wrongly, and both wrong answers
+      // fail silently or unactionably. Behaviour is otherwise unchanged.
+      const existingId = await findChargeReviewId(user.id, syncedTransactionId);
+      if (existingId) {
         const { error } = await supabase
           .from('synced_transaction_reviews')
           .update({ category_override: category, updated_at: new Date().toISOString() })
-          .eq('id', existing.id)
+          .eq('id', existingId)
           .eq('user_id', user.id);
         if (error) throw error;
         return;
@@ -692,13 +736,13 @@ export function useSyncedTransactionReviews() {
       // this write does not have to borrow a status that would assert the charge is handled.
       const { error } = await supabase
         .from('synced_transaction_reviews')
-        .upsert(sanitizePayload({
+        .insert(sanitizePayload({
           user_id: user.id,
           synced_transaction_id: syncedTransactionId,
           status: 'categorized' satisfies ReviewStatus,
           category_override: category,
           updated_at: new Date().toISOString(),
-        }), { onConflict: 'synced_transaction_id' });
+        }));
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
@@ -723,15 +767,40 @@ export function useSyncedTransactionReviews() {
         .single();
       if (insertError) throw insertError;
 
-      const { error: reviewError } = await supabase
-        .from('synced_transaction_reviews')
-        .upsert(sanitizePayload({
-          user_id: user.id,
-          synced_transaction_id: syncedTransactionId,
-          status: 'imported' satisfies ReviewStatus,
-          transaction_id: inserted.id,
-          updated_at: new Date().toISOString(),
-        }), { onConflict: 'synced_transaction_id' });
+      // Find-then-write, like `save` — see `findChargeReviewId`.
+      //
+      // ⚠️ DELIBERATELY WRITES THE SAME COLUMNS THE UPSERT DID, no more. An upsert only updates the
+      // columns it names, so an existing row's `rule_id` / `occurrence_month` survived an import
+      // before this change, and they survive it now. That may or may not be what anyone wants, but
+      // Slice B's contract is "exactly equivalent, minus the constraint dependency" — widening the
+      // write here would change live data under cover of a refactor.
+      //
+      // ⚠️ THE LOOKUP IS A NEW FAILURE POINT BETWEEN THE MONEY AND THE REVIEW, so it is inside the
+      // compensated region. Letting a failed SELECT throw straight out would leave a ledger row with
+      // no review — the exact double-count state the rollback below exists to prevent, arrived at by
+      // the refactor rather than by a bad button.
+      const reviewFields = {
+        status: 'imported' satisfies ReviewStatus,
+        transaction_id: inserted.id,
+        updated_at: new Date().toISOString(),
+      };
+      const reviewError = await (async () => {
+        try {
+          const existingReviewId = await findChargeReviewId(user.id, syncedTransactionId);
+          const { error } = existingReviewId
+            ? await supabase.from('synced_transaction_reviews')
+                .update(sanitizePayload(reviewFields)).eq('id', existingReviewId).eq('user_id', user.id)
+            : await supabase.from('synced_transaction_reviews')
+                .insert(sanitizePayload({
+                  user_id: user.id,
+                  synced_transaction_id: syncedTransactionId,
+                  ...reviewFields,
+                }));
+          return error;
+        } catch (e) {
+          return e as Error;
+        }
+      })();
 
       // ⚠️ ROLL THE MONEY BACK. A ledger row with no review is spending that counts in twelve
       // surfaces AND is still offered for import — the exact double-count this feature is built to
@@ -785,7 +854,28 @@ export function useSyncedTransactionReviews() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  return { data: query.data ?? [], loading: query.isLoading, error: query.error, save, setCategory, remove, importToLedger, undoImport };
+  // §1B SPLIT LINK Slice B — undo ONE of a charge's decisions, by row.
+  //
+  // ⚠️ WHY THIS EXISTS ALONGSIDE `remove` RATHER THAN REPLACING IT. `remove` deletes by
+  // `synced_transaction_id`, which under one-row-per-charge means "undo this decision" and under
+  // split link silently becomes "undo EVERY link on this charge". Both are wanted — per-link undo on
+  // a badge, undo-everything on the charge — so they are two mutations with two names instead of one
+  // whose meaning changed under it when the constraint was dropped.
+  const removeLink = useMutation({
+    mutationFn: async (reviewId: string) => {
+      if (isDemo || !user) throw new Error('Demo mode');
+      const { error } = await supabase
+        .from('synced_transaction_reviews')
+        .delete()
+        .eq('id', reviewId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error, save, setCategory, remove, removeLink, importToLedger, undoImport };
 }
 
 // ─── Transactions (the USER'S manual ledger — full CRUD) ──────────────────
