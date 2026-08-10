@@ -63,6 +63,79 @@ describe('buildConfirmedOccurrences — only an explicit rule link confirms', ()
   });
 });
 
+// §1B SPLIT LINK Slice A — N links on ONE charge.
+//
+// The read side needs NO logic change for split link, and these tests are what make that claim
+// checkable rather than asserted: `buildConfirmedOccurrences` already iterates reviews and keys per
+// rule, so several rows sharing a `synced_transaction_id` are simply several reviews to it. The
+// module never sees `synced_transaction_id` at all, which is exactly why it does not care.
+describe('buildConfirmedOccurrences — a charge split across several rules', () => {
+  const THIRD_RULE = 'e6a1f2c3-3333-4aaa-9bbb-000000000003';
+
+  it('keys every link of a split charge separately', () => {
+    const confirmed = buildConfirmedOccurrences([
+      review({ rule_id: RULE }),
+      review({ rule_id: OTHER_RULE }),
+      review({ rule_id: THIRD_RULE }),
+    ]);
+    expect(confirmed.size).toBe(3);
+    for (const id of [RULE, OTHER_RULE, THIRD_RULE]) {
+      expect(isRuleOccurrenceConfirmed(id, '2026-08-05', confirmed)).toBe(true);
+    }
+  });
+
+  // THE CASE SPLIT LINK EXISTS FOR. One rent debit settles Rent for THIS month and the
+  // Water/Sewer/Trash rider for the PREVIOUS one, billed in arrears — so the two links carry
+  // DIFFERENT `occurrence_month`s. Multi-row gets that for free; each row already has its own.
+  it('honours a PER-LINK month, so a rider in arrears suppresses the previous month', () => {
+    const confirmed = buildConfirmedOccurrences([
+      review({ rule_id: RULE, occurrence_month: '2026-08' }),
+      review({ rule_id: OTHER_RULE, occurrence_month: '2026-07' }),
+    ]);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-01', confirmed)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-07-20', confirmed)).toBe(true);
+    // And neither leaks into the other's month.
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-07-01', confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-08-20', confirmed)).toBe(false);
+  });
+
+  it('mixes a date-keyed link and a month-keyed one on the same charge', () => {
+    const confirmed = buildConfirmedOccurrences([
+      review({ rule_id: RULE, occurrence_month: '2026-08', occurrence_date: '2026-08-14' }),
+      review({ rule_id: OTHER_RULE, occurrence_month: '2026-08' }),
+    ]);
+    // The biweekly one suppresses exactly its own occurrence and leaves the other fortnight alone.
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-14', confirmed)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-28', confirmed)).toBe(false);
+    // The month-keyed one keeps its legacy whole-month behaviour, unaffected by its neighbour.
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-08-28', confirmed)).toBe(true);
+  });
+
+  // A charge holding several links may also hold ONE exclusive row. It must contribute nothing —
+  // `'categorized'` takes no position on whether anything was paid, and the split-link design puts
+  // `category_override` on exactly that row.
+  it('ignores the charge\'s exclusive row while collecting its links', () => {
+    const confirmed = buildConfirmedOccurrences([
+      { status: 'categorized', rule_id: null, occurrence_month: null },
+      review({ rule_id: RULE }),
+      review({ rule_id: OTHER_RULE }),
+    ]);
+    expect(confirmed.size).toBe(2);
+  });
+
+  // A charge whose links are all degraded (their rules deleted) confirms nothing, rather than
+  // throwing or collapsing into a single null-keyed entry that would suppress an unrelated bill.
+  it('skips degraded links without disturbing the sound ones beside them', () => {
+    const confirmed = buildConfirmedOccurrences([
+      review({ rule_id: null }),
+      review({ rule_id: RULE }),
+      review({ rule_id: null }),
+    ]);
+    expect(confirmed.size).toBe(1);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-05', confirmed)).toBe(true);
+  });
+});
+
 describe('isOccurrenceConfirmed — scoped to one rule in one month', () => {
   const confirmed = buildConfirmedOccurrences([review()]);
 

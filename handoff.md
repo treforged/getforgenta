@@ -68,8 +68,24 @@ change = exactly one row holding the override".
 
 ## 📋 THE SLICES — each one live-safe ALONE. Do not reorder.
 
-- **Slice A — rules.** `validateReviewInput` learns split-aware rules; tests for N links on one
-  charge through `buildConfirmedOccurrences`. Pure lib, no schema, no behaviour change.
+- ✅ **Slice A — rules. SHIPPED. 762/762 (+33), tsc 0, eslint clean.** In
+  `src/lib/synced-transaction-review.ts`:
+  - `LINK_STATUSES` / `isLinkStatus` — **the one definition of the partial index's predicate.**
+    Slice C must use it rather than re-typing `status not in (…)` in the UI.
+  - `validateReviewInput` gained **"one row names one thing"** (a `linked_rule` carrying a
+    `payment_plan_id` etc.). Load-bearing under multi-row: each link occupies a slot in exactly one
+    dedupe index, and `buildConfirmedOccurrences` keys on `rule_id` alone.
+  - **New `validateReviewSet(inputs)`** — the rules about the SET, which the per-row validator
+    cannot see: at most one exclusive row (= idempotency preserved), no target linked twice, and
+    **no `category_override` on a link row**.
+  - ⚠️ **Why the category rule is in the SET validator and not the per-row one:** every
+    `save.mutate` site in `BankActivity.tsx` today passes
+    `category_override: review?.category_override ?? null` when converting a `categorized` row into
+    a link, so enforcing it per-row would break the live app before the UI is ready. **Slice C must
+    stop passing it and route the category to the exclusive row.** `validateReviewSet` has no
+    callers yet — it is the contract Slice C builds against, and Slice C must call BOTH validators.
+  - Read side confirmed unchanged by test, not by assertion: N links on one charge, per-link
+    months (the arrears case), a date-keyed and a month-keyed link side by side.
 - **Slice B — THE ENABLER. Get the writes off `onConflict`.** Rewrite `save`, `setCategory`,
   `importToLedger` to "find the existing row, UPDATE by `id`, else INSERT". Under today's UNIQUE
   this is exactly equivalent, so it ships and runs live **before** any schema change and makes the
