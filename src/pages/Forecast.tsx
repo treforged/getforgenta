@@ -32,7 +32,6 @@ import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-d
 import { useForecastProjections } from '@/hooks/useForecastProjections';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
-const DEFAULT_APY_FORECAST = 7;
 
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
   if (!open) return null;
@@ -332,7 +331,11 @@ export default function Forecast() {
     const multipliers = incomeMultipliersByMonth(assumptions, annualBaseSalary, today, 240);
 
     return retireAccounts.map((a) => {
-      const apyRate = a.apy_rate != null ? Number(a.apy_rate) : DEFAULT_APY_FORECAST;
+      // Same fallback as the chart (forecast-engine's weightedRetireApy), so an
+      // account with no apy_rate grows at one rate in both. A hardcoded default
+      // here disagreed with the chart on the same page for every user whose
+      // investment-growth assumption was not exactly 7%.
+      const apyRate = a.apy_rate != null ? Number(a.apy_rate) : assumptions.investmentGrowth;
       const fromDeductions = monthlyContribSplitForAccount(deductions, a.id, paycheckGross, paychecksPerYear);
       const fromTransfers = transferContribByAccount[a.id] || 0;
       const flatContrib = fromDeductions.flat + fromTransfers;
