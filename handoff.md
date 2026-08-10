@@ -1,5 +1,42 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 5 — 🟢 **N11 FIX SHIPPED on `fix/n11-later-year-purchases` (`9e8291be`, local only, unpushed)**
+
+**What shipped (display-only, deliberately):** session 4's N11 diagnosis (on the N8 branch's
+handoff copy) stands, but changing the flat `monthlyNewPurchases` itself was rejected — it feeds
+`Math.max(cardPurchasesThisMonth, monthlyNewPurchases)` inside the sim
+(`credit-card-engine.ts:1291/:1594/:1628`), so raising it to $300 would wrongly charge Venture X
+$300/mo for the months BEFORE its rule starts and move the golden fixtures. Instead:
+- **New `CardData.steadyMonthlyPurchases`** (buildCardData): same recurring estimate, but each rule
+  is counted in the first month it actually fires at/after max(next month, `start_date`) — probes up
+  to 3 months forward because a mid-month start can zero its own start month. Equal to the flat
+  number when no rule is future-dated, so every existing card is unchanged.
+- **`CreditCardEngine.tsx`**: Purchases/Mo stat and the debt-free caption read the steady estimate;
+  the post-payoff chart fallback now reads the real per-month series
+  (`variableSim.augmentedCCPurchases[i]`) instead of the flat number — a paid-off statement card
+  whose spend resumes later no longer draws a $0 line forever.
+- The sim reads `monthlyNewPurchases` everywhere, untouched.
+
+**Proof: tsc 0, eslint clean on the 3 files, 807/807 (804 + 3 new in
+`credit-card-engine.steadyPurchases.test.ts` — future-dated rule → flat $0 / steady $300; active
+rule → both equal; yearly excluded from both). No fixture pin moved — the display-only claim,
+demonstrated.** NOT live-verified (needs a signed-in browser). Also honest: mechanism 2 from the
+N11 diagnosis (engine `:482` post-window zero) was NOT changed — the "beyond sim range" regime is a
+deliberate, commented, Q8-test-pinned choice; every main UI path already passes a full 60-month
+purchases array so the zero is unreachable there, and `debt-transaction-generator`'s projections
+without purchase arrays compute REVOLVING totals, where $0 for an in-grace card is correct. If
+Tre's actual on-screen surface turns out to be something else, that needs one signed-in repro
+naming the page.
+
+**Also this session:** the four squash-merged local branches (`fix/error-boundary-retry`,
+`fix/duplicate-link-toast`, `fix/auth-navigate-catch`, `feat/split-link-slice-c`) could NOT be
+deleted — `git branch -D` is permission-blocked in this relay. Delete from an interactive terminal.
+
+**Open:** file TWO PRs (`fix/n8-forecast-popup-decimals` — behind 1, trivial rebase over the docs
+commit — and `fix/n11-later-year-purchases`, cut from current `origin/main` `b75758b9`); delete the
+four merged branches; live-verify N11 on the Debt page (Venture X Purchases/Mo should read $300 and
+the chart line go non-zero after Mar 2027); N-ordering card still awaiting Tre.
+
 ## ▶ 2026-08-10 — relay session 2 — 🟢 **ALL THREE FIX PRs ARE MERGED. Local `main` synced to `89e6747e`, 804/804 green. Fix workstream CLOSED.**
 
 **The board moved again since section 1c below: Tre filed and merged all three PRs.** Verified by
