@@ -48,12 +48,15 @@ Plus `await import('/src/lib/scheduling.ts')` in the browser on **Fuel's real ro
 (`due_day 5`, `start_date null`, `created_at 2026-03-22`) → anchor **`2026-03-27`**, `pinned false`,
 `shifted false`. Matches the prediction 129 made from the database.
 
-⚠️ **The one thing NOT done, and why:** the plan asked to edit **Fuel** in Tre's own account and see
-`Mar 27, 2026` on screen. Sign-in had lapsed and I will not enter his password, so the `created_at`
-branch was verified through the shipped module with Fuel's real values rather than through his
-rendered form. The form wiring is verified live and the resolver is verified on his data; only the
-"his row, his screen" combination is untested, and it is the branch carrying the least logic.
-**Not worth a session to re-do.**
+✅ **THE LAST GAP IS NOW CLOSED (same session, Tre signed in).** Budget Control → Variable →
+edit **Fuel** on his real row renders:
+
+> **FIRST OCCURRENCE (OPTIONAL)** — *Repeats every 14 days from **Fri, Mar 27, 2026**. Set a date to
+> pin your own cycle.*
+
+That is the derived-from-`created_at` branch, on his data, on his screen, matching both the unit
+test and the database prediction. Modal closed **without saving**; the row still reads
+`Fuel · Biweekly · Day 5 · From: Prime Visa · $65 · /mo $130`. **Nothing is owed on biweekly.**
 
 ### 🧪 Method note worth reusing
 
@@ -62,6 +65,11 @@ into. Drive biweekly hint states from the **Day of Week number input** instead (
 value setter + `input` event), which moves the anchor without touching the picker at all. Also:
 `[...document.querySelectorAll('select')]` catches the **Income & Tax pay-frequency** select before
 the modal's — scope the query to the `.fixed.inset-0` modal first.
+⚠️ **Radix tabs and the row action buttons ignore a bare `.click()`** — `aria-selected` never
+flips. Dispatch the full sequence `pointerdown,mousedown,pointerup,mouseup,click` as `MouseEvent`s
+with `bubbles:true`. Also: `computer` **screenshot timed out** twice on the signed-in Budget page
+(heavy paint, renderer NOT actually frozen — `javascript_tool` kept answering). Read the DOM instead
+of screenshotting that page.
 
 ---
 
