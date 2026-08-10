@@ -81,18 +81,47 @@ they are exactly the shape `synced-transaction-review.splitLink.test.ts` already
 block there: link-another INSERTs, same-target UPDATEs, exclusive always routes to the exclusive row,
 and `applyReviewToSet` does not mutate its input.
 
-### 🧷 A GIT NOTE THAT WILL BITE THE NEXT SESSION
+### ✅ ALSO DONE THIS SESSION (Tre asked directly) — repoint + 6 Dependabot merges
+
+**`main` is repointed and correct.** `git tag pre-squash-main-20260810 main && git branch -f main
+origin/main`. `origin/main...main` is now **`0 0`**. The old 35-commit history is preserved on the
+tag if it is ever wanted; nothing was lost, because the trees were byte-identical.
+
+**6 of 8 Dependabot PRs merged**, verified by contents (`setup-java@v5.7.0` present in
+`origin/main`'s workflows), not by "it says merged": **#61, #62, #63, #64, #67, #68**.
+`main` is now `82206a05`.
+
+🔬 **The finding that unblocked them, worth keeping:** every one of those PRs showed a failing
+`audit` check, which reads as "six broken upgrades". It is not. `npm audit` fails on **`main` itself**
+— a pre-existing **`nanoid <3.3.17`** high-severity advisory in the current lockfile — so `audit` red
+is repo-wide noise, present on every PR regardless of content. Their build and test checks were all
+green. **Do not treat a red `audit` on a Dependabot PR as a signal until that advisory is cleared**
+(`npm audit fix` would do it, and is its own small piece of work nobody has done).
+
+⬜ **Two PRs still open, both deliberately:**
+- **#65 TypeScript 7.0.2 — HELD BACK, and this one is real.** It fails **Vercel** as well as `audit`,
+  i.e. the build genuinely breaks. A major TS bump across this codebase is its own task with its own
+  live pass. Do not merge it to clear the board.
+- **#66 jsdom 30.0.1 — lockfile conflict** caused by the six merges landing ahead of it.
+  `@dependabot rebase` was posted; it should go green on its own and can then be merged as normal.
+
+⚠️ **`feat/split-link-slice-c` is based on `d1e9afab`, which is now 6 commits behind `main`.** Those
+6 are dependency bumps including **framer-motion 13** and **react-resizable-panels 4** (majors).
+**Rebase onto `main` and re-run `npx vitest run` + `npx tsc --noEmit` BEFORE the live pass**, or the
+live pass verifies a tree nobody is going to ship. `npm install` first — `node_modules` is stale
+relative to the new lockfile.
+
+### 🧷 A GIT NOTE — RESOLVED, kept for the reasoning
 
 **Local `main` is 35 commits ahead of `origin/main` and that is a lie.** PR #69 was **squash-merged**,
 so `origin/main` (`d1e9afab`) has a tree **byte-identical** to the old branch head — verified by an
 empty `git diff origin/main HEAD`, not by "it says merged". The 35 local commits are the same content
 under different hashes.
 
-So **cut every new branch from `origin/main`, never from local `main`.** I tried
-`git branch -f main origin/main` (with a safety tag first) and the permission classifier blocked it,
-correctly — it moves history. **It is Tre's call.** The fix when he wants it:
-`git tag pre-squash-main-20260810 main && git branch -f main origin/main`. Zero content loss;
-the trees are identical.
+✅ **FIXED this session** — Tre authorised it and `main` now tracks `origin/main` cleanly. Kept here
+because the *shape* recurs: after any squash merge, local `main` will look ahead by N while being
+content-identical. **Verify by contents (`git diff origin/main HEAD`), never by the ahead/behind
+count**, and cut branches from `origin/main` when in doubt.
 
 ---
 
