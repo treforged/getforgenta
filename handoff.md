@@ -1,8 +1,14 @@
-# Handoff — 2026-08-09 — session 130b — 🟡 **SPLIT LINK: DESIGN AUDITED AND SLICED. NO CODE WRITTEN YET — start at Slice A.**
+# Handoff — 2026-08-09 — session 131 — 🟢 **SPLIT LINK: SLICES A AND B SHIPPED. B IS LIVE-VERIFIED. Start at Slice C.**
 
-> **START HERE.** The context gate fired right after this audit was committed, so the tree is
-> **green and clean** (729/729, tsc 0, eslint clean) with **zero split-link code in it**. Everything
-> below is design, and Slice A is a clean start.
+> **START HERE.** `5fa248f0` (Slice A, rules) and `43d807be` (Slice B, the enabler) are committed.
+> **762/762 tests (+33), tsc 0, eslint clean, tree clean.** Slice B's four write paths were driven
+> through the real UI on Tre's account and the account was restored byte-for-byte — evidence in the
+> slice list below. **The `onConflict` blocker is GONE; the migration is now safe to write.**
+> Everything else below is the session-130b design, unchanged and still authoritative.
+>
+> ⚠️ **Slice C is the only slice left, and it is the one that touches the schema. Back up
+> `synced_transaction_reviews` into the `backup` schema BEFORE the migration** — free tier means no
+> PITR (see `project_supabase_backup_schema`), same as 2026-08-07 did.
 >
 > Tre asked to "continue to next" after biweekly closed; split link is the next thing he has already
 > said yes to, which is why it was picked over the unscoped N1-N12. Tre authorised this in 126b (*"for split links i think
@@ -86,13 +92,54 @@ change = exactly one row holding the override".
     callers yet — it is the contract Slice C builds against, and Slice C must call BOTH validators.
   - Read side confirmed unchanged by test, not by assertion: N links on one charge, per-link
     months (the arrears case), a date-keyed and a month-keyed link side by side.
-- **Slice B — THE ENABLER. Get the writes off `onConflict`.** Rewrite `save`, `setCategory`,
-  `importToLedger` to "find the existing row, UPDATE by `id`, else INSERT". Under today's UNIQUE
-  this is exactly equivalent, so it ships and runs live **before** any schema change and makes the
-  migration safe. Add `removeLink(id)` beside the existing whole-charge `remove`.
-- **Slice C — schema + UI.** Apply the migration, then `BankActivity.tsx:135` `reviewByTxn`
-  `Record<string, Row>` → `Record<string, Row[]>`, a "link another" affordance, and multi-badge /
-  per-link undo. **:312** `const review = reviewByTxn[txn.id]` is the single read to fan out.
+- ✅ **Slice B — THE ENABLER. SHIPPED `43d807be` AND LIVE-VERIFIED.** `save`, `setCategory` and
+  `importToLedger` in `src/hooks/useSupabaseData.ts` no longer pass `onConflict` — they call the new
+  module-level **`findChargeReviewId`** (a LIVE SELECT, deliberately not the cached `query.data`)
+  and then UPDATE by `id` or INSERT. Under today's UNIQUE that is exactly equivalent.
+  **`removeLink(id)` added** beside the whole-charge `remove`; nothing calls it yet — Slice C's
+  per-link undo does.
+  - ⚠️ `importToLedger`'s lookup is INSIDE the compensated region (an IIFE returning the error
+    rather than throwing). A failed SELECT there would otherwise leave a ledger row with no review
+    — the double-count the rollback exists to prevent, reached via the refactor. Do not "simplify"
+    that back into a bare `await`.
+  - ⚠️ `importToLedger` still writes only the columns the upsert wrote, so an existing row's
+    `rule_id` / `occurrence_month` survives an import exactly as before. That may be worth changing
+    on its own merits; it was **not** changed here, because widening a write under cover of a
+    refactor changes live data silently.
+
+### ✅ SLICE B'S LIVE PASS — done in-app on Tre's real data, all four paths. Do not re-run.
+
+Test charge `1cf1cd2a…` (2026-07-25, $7.50, past month so no forecast could move), driven through
+the real Bank Activity UI, each step checked in SQL:
+
+| step | path exercised | result |
+|---|---|---|
+| set category on an unreviewed row | `setCategory` **INSERT** | new `categorized` row `99402619…`, override `Shopping` |
+| change the category again | `setCategory` **UPDATE** | **same row id**, override → `Groceries`, still exactly 1 row |
+| Ignore | `save` **UPDATE** | same row id, status → `ignored`, and **`category_override` cleared to NULL** — the "every column is written, including the nulls" claim, demonstrated |
+| Undo, then Ignore again | `remove` + `save` **INSERT** | old row gone, **new row id `fb27f6ff…`** |
+| Add to my ledger | `importToLedger` | ledger row `b7a5611a…` created, review `imported` pointing at it |
+| Undo — deletes the entry | `undoImport` | both gone by FK cascade |
+
+**Account restored byte-for-byte, re-SELECTed after:** `imported 55 · linked_rule 11 · linked_plan 1
+· linked_txn 2` = **69**, **0 rows carry `occurrence_date`**, 0 rows on the test charge, test ledger
+row gone.
+🧪 Method: `updated_at` is CLIENT-generated while `created_at` is a DB default, so a fresh row can
+show them ~20s apart. That is clock skew, **not** a second write — do not chase it.
+
+- **Slice C — schema + UI. NOT STARTED, and the only slice left.** `BankActivity.tsx:135`
+  `reviewByTxn` `Record<string, Row>` → `Record<string, Row[]>`, a "link another" affordance, and
+  multi-badge / per-link undo (call `removeLink`). **:312** `const review = reviewByTxn[txn.id]` is
+  the single read to fan out. Then apply the migration.
+  - **Use `isLinkStatus` / `LINK_STATUSES` from Slice A** to pick the exclusive row; do not re-type
+    the predicate in the UI.
+  - **Call `validateReviewSet` as well as `validateReviewInput`** when writing several rows.
+  - ⚠️ **Slice C owes the category move:** every `save.mutate` site in `BankActivity.tsx` currently
+    passes `category_override: review?.category_override ?? null`. It must stop, and route the
+    category to the exclusive row instead — `validateReviewSet` already rejects an override on a
+    link row, so the contract is written and tested and waiting.
+  - The array shape is safe to build BEFORE the migration (every array is length 1 under today's
+    UNIQUE), so the UI can ship and be live-verified first and the migration can land last.
 
 ⚠️ **Back up `synced_transaction_reviews` before Slice C.** Free tier = no PITR (see
 `project_supabase_backup_schema`); snapshot into the locked-down `backup` schema like 2026-08-07 did.
