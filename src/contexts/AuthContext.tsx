@@ -218,6 +218,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return; // MFA pending — Auth.tsx handles challenge
               }
               navigate('/dashboard');
+            })
+            .catch((err) => {
+              // The user IS signed in at this point; parking them on /auth
+              // because a pre-navigation step failed is worse than landing on
+              // the dashboard without it (reviewer reset and the MFA probe
+              // both fail toward the common no-MFA case).
+              console.error('Post-sign-in navigation chain failed:', err);
+              navigate('/dashboard');
             });
         }
       } else if (event === 'PASSWORD_RECOVERY') {
