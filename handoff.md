@@ -67,31 +67,51 @@ Same test charge `1cf1cd2a…` (Dave & Buster's, 2026-07-25, past month so no fo
    same bill linked twice" (`one_rule_link`). That is a real user action with an unreadable message.
    Not blocking the PR; worth its own small slice.
 
-### 🐛 SEPARATE BUG — Tre reported "dashboard fails to load on initial login sometimes"
+### 🐛 SEPARATE BUG — "dashboard fails to load on initial login sometimes". **Diagnosed, NOT fixed.**
 
-**Reported mid-session. Not fixed, deliberately kept off the split-link branch.** Strong candidate
-found by reading `src/contexts/AuthContext.tsx:213-221`:
+**Kept off the split-link branch deliberately — it needs its own branch cut from `main`.**
+
+⚠️ **The first hypothesis was WRONG and is recorded so nobody re-runs it.** I proposed the missing
+`.catch()` on the sign-in navigate chain in `AuthContext.tsx:213-221`. **Tre's symptom rules it out:**
+he *lands on the dashboard*, so the navigate fired. (The missing `.catch()` is still real and still
+worth a defensive fix, but it is not this bug.)
+
+**Tre's actual symptom, and it is the whole diagnosis:** the dashboard shows the
+**`Try again` button — `src/components/shared/ErrorBoundary.tsx:66` — and clicking it does nothing.
+Reloading the page always works.**
+
+**Root cause, in `handleRetry` (:37):**
 
 ```ts
-if (locationRef.current === '/auth') {
-  reviewerResetPromise
-    .then(() => supabase.auth.mfa.getAuthenticatorAssuranceLevel())
-    .then(({ data: aal }) => { …; navigate('/dashboard'); });
-}
+handleRetry = () => {
+  sessionStorage.removeItem(RELOAD_FLAG);
+  this.setState({ hasError: false, error: null, reloading: false });
+};
 ```
 
-**There is no `.catch()` on that chain.** If `getAuthenticatorAssuranceLevel()` rejects — a network
-blip on a call made at the exact moment of sign-in — `navigate('/dashboard')` never runs and the user
-is stranded on `/auth` after a *successful* authentication. That is intermittent by construction,
-which matches "sometimes", and it fails silently. `resetReviewerAccount` rejecting has the same
-effect (reviewer account only).
+It clears the boundary's own flag and nothing else, then re-renders **the same children over the same
+state that just crashed** — so the render throws again, `getDerivedStateFromError` fires again, and
+the user sees the identical screen. "Clicking does nothing" is exactly what a retry that resets
+nothing looks like. A full reload works because it rebuilds the QueryClient cache and the module
+state from scratch.
 
-⚠️ **NOT reproduced.** Sign-in cannot be driven from a session — entering his password is off-limits
-— so this is a code-read hypothesis, not a measured one. **Before fixing, get the symptom:** does the
-page stay on the sign-in form, or land on a blank/spinning dashboard? Those are different bugs; the
-second would point at the 5s `setLoading(false)` fallback (**:249**) instead.
-Suggested fix if confirmed: `.catch(() => navigate('/dashboard'))` — an AAL check that cannot be
-reached should not cost the user their session, and the MFA gate re-asserts on the next load.
+🔬 **Checked, so the fix is not designed against a guess:** there is **no `throwOnError`, no
+`useSuspenseQuery` and no `suspense: true` anywhere in `src/`**, so React Query is *not* throwing
+into this boundary. The thrower is an ordinary render crash — most likely a component reading
+loaded-shaped data during the sign-in race, when the query has not resolved. **That upstream crash is
+the second half of this bug and is NOT yet identified** — the retry fix makes it recoverable, it does
+not make it stop happening.
+
+**Suggested fix, in this order:**
+1. Make retry actually reset the data layer: `queryClient.resetQueries()` (needs the client — either
+   a `useQueryClient` wrapper around the class, or `QueryErrorResetBoundary`), plus a `key` bump on
+   the children so they get a genuinely fresh mount.
+2. **Escalate on a second failure.** If a retry throws again, `window.location.reload()` — Tre has
+   confirmed reload always works, so the escape hatch is known-good rather than hypothetical. A
+   button that silently does nothing twice is worse than one that reloads.
+3. Then find the upstream crash: reproduce on a real sign-in with the console open and read the
+   `console.error('Page render error:', …)` at **:26** — the boundary already logs the message and
+   component stack, so the offending component is one login away from being named.
 
 ---
 
