@@ -1,5 +1,33 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 1 — 🟢 **DASHBOARD "Try again" BUG FIXED on `fix/error-boundary-retry` (`84a6a686`), NOT pushed**
+
+The session-134 diagnosis below was implemented as designed, on a fresh branch cut
+from `origin/main` (`9190611f`) — kept off the split-link branch as instructed.
+
+**What changed** (`src/components/shared/ErrorBoundary.tsx` + new test file):
+- `handleRetry` now calls `queryClient.resetQueries()` (a function wrapper provides
+  the client via `useQueryClient`; public API unchanged) and bumps a `key` on the
+  children so they get a genuinely fresh mount, not a re-render over crashed state.
+- **Escalation:** if a retry crashes again, the button becomes **`Reload page`** and
+  calls `window.location.reload()` — Tre confirmed reload always works. The flag
+  re-arms after any clean render, so a later unrelated crash gets a soft retry first.
+- `reload` is an injectable prop on the exported `ErrorBoundaryInner` (jsdom cannot
+  mock `window.location.reload`); the default export behaves as before.
+
+**Proof:** 4 new tests (recover-on-transient + resetQueries called, escalate-on-persistent,
+re-arm after recovery, normal render). **tsc 0, full suite 792/792.** No live pass — the
+crash needs the real sign-in race, which the handoff says is not reproducible on demand;
+the upstream crash (second half of the bug, boundary log at `ErrorBoundary.tsx` catch)
+is **still unidentified** — next real repro, read the `Page render error:` console line.
+
+**Not done, still open:**
+- Branch is **local only** (push/PR denied for this relay). Filing it is the three-step PR.
+- `conductor answers` is **permission-denied in this relay session** (both shells) — run it
+  from an interactive terminal; nothing here collected Tre's tapped answers.
+- The split-link PR (item 1 below) still needs filing; the 409 message slice (item 2) untouched.
+- The missing `.catch()` on `AuthContext.tsx:213-221` — defensive, not this bug, still unfixed.
+
 ## ▶ 2026-08-10 — session 134 — 🟢 **SLICE C IS LIVE-VERIFIED AND THE MIGRATION IS APPLIED. Split link works on Tre's real account.**
 
 > **START HERE.** Branch **`feat/split-link-slice-c`**, rebased onto current `origin/main` (jsdom 30
