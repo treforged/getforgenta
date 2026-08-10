@@ -52,11 +52,19 @@ already iterates reviews and keys per rule, so the read side needs NO logic chan
   `(synced_transaction_id, payment_plan_id) where payment_plan_id is not null`,
   `(synced_transaction_id, car_fund_id, car_charge_kind) where car_fund_id is not null`
 
-⚠️ **Open question the schema does not answer: where does `category_override` live** once a charge
-has several rows? It is a property of the CHARGE, not of any one link. Cheapest honest answer:
-keep it on the exclusive row only, and have `setCategory` always target that row (creating a
-`'categorized'` row when there is none). **Decide it explicitly before Slice C; do not let it be
-decided by whichever row an upsert happens to hit.**
+🟢 **DECIDED — `category_override` stays on the EXCLUSIVE row, and only there.** (Tre, 2026-08-09:
+*"do what you think is best"*, having been given this recommendation. **Do not re-litigate.**)
+
+A category describes the CHARGE, not any one of the several things the charge paid — a rent debit
+split across Rent and Water has one merchant and one label, not two. So `setCategory` always targets
+the single exclusive row (`status not in (linked_rule, linked_plan, linked_car)`), creating a
+`categorized` row when none exists, exactly as it does today. Link rows carry `category_override`
+NULL and no reader consults them for it.
+
+⚠️ The failure mode this forecloses: with the column left on every row, `setCategory` would write to
+whichever row an upsert happened to reach, and a charge could end up asserting two different
+categories with no rule for which one wins. Worth a test that pins "N link rows + one category
+change = exactly one row holding the override".
 
 ## 📋 THE SLICES — each one live-safe ALONE. Do not reorder.
 
