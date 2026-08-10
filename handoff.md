@@ -11,12 +11,17 @@
 > **The live UNIQUE constraint is still in place and the live table is untouched: 69 rows,
 > `imported 55 · linked_rule 11 · linked_plan 1 · linked_txn 2`, 0 rows carry `occurrence_date`.**
 
-### 🔴 THE ONE BLOCKER — Tre must sign in, once, in the Claude-controlled Chrome
+### 🟢 THE BLOCKER IS CLEARED — Tre signed in. **START THE LIVE PASS IMMEDIATELY.**
 
-The automation profile has **no Supabase session** on `http://localhost:8080` (37 localStorage keys
-present, **zero `sb-*` keys** — the profile is intact, the session simply lapsed). Filed to the board
-as card **`c1532724`**; unanswered as of the end of this session. The tab is **parked open on
-`/auth`** so he can match the window on screen.
+Probed and confirmed at the end of session 133: **signed in as `tre@treforged.com`** on
+`http://localhost:8080`, refresh token present, tab parked open on `/dashboard`. Board card
+`c1532724` can be closed.
+
+⚠️ **The live pass was NOT started, and the reason was context, not doubt.** Session 133 hit ~178k
+tokens right as the sign-in landed. A live pass writes to Tre's real account and then restores it, so
+being compacted halfway through would strand test rows on his data with no session left to clean
+them up. **Nothing is unknown about it — the full script is in the section directly below. Just run
+it.** If sign-in has lapsed again by then, see the demo-mode warning below (demo is NOT a fallback).
 
 ⚠️ **Demo mode is NOT a fallback here, and this was measured rather than assumed.** `/transactions` →
 Bank Activity in demo renders **"No bank activity yet"** — the demo fixture has no synced
@@ -97,8 +102,11 @@ verification. Not casual work — leave it.
 
 ### ⬜ The two open Dependabot PRs, re-checked live this session
 
-- **#66 jsdom 30.0.1 — now GREEN and MERGEABLE.** The `@dependabot rebase` worked; `audit` passes.
-  **Ready for Tre to merge** (merging is his button, not an unattended action).
+- ✅ **#66 jsdom 30.0.1 — MERGED** (Tre asked directly, end of session 133). Verified by CONTENTS:
+  `"jsdom": "^30.0.1"` is in `origin/main`'s `package.json`, not by "it says merged".
+  ⚠️ **So `main` has moved again and this branch is 1 behind.** jsdom is the **test DOM** and this was
+  a MAJOR bump, so **rebase and re-run `npx vitest run` before opening the PR** — a jsdom major is
+  exactly the kind of thing that turns tests red without touching a line of app code.
 - **#65 TypeScript 7.0.2 — still HOLD, and now confirmed rather than repeated.** Its base is
   `82206a05`, i.e. current `main`, so it is NOT stale — and it still fails **both `audit` and
   `Vercel`**. The build genuinely breaks. Do not merge it to clear the board.
