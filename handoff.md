@@ -1,3 +1,75 @@
+# Handoff — 2026-08-09 — session 130b — 🟡 **SPLIT LINK: DESIGN AUDITED AND SLICED. Build started.**
+
+> **START HERE if split link is the task.** Tre authorised this in 126b (*"for split links i think
+> yes since it can integrate the variable items into cost… forecast can get a better month 0
+> picture"*). **Do not re-ask.** His goal is that the **variable** rider (Water/Sewer/Trash, billed
+> in arrears) stops being invisible inside the bundled rent charge. Design to that, not to "N rules
+> per row".
+
+## 🔬 THE AUDIT — what actually blocks it, measured this session
+
+`UNIQUE (synced_transaction_id)` (re-read live from `pg_constraint`, still present) is doing
+**three** jobs, and split link only wants to relax one of them:
+
+1. **Import idempotency** — the migration header says so outright: *"a row already imported cannot
+   be imported twice"*. **Must survive.**
+2. **The `ON CONFLICT` arbiter for every write path.** ⚠️ **THIS IS THE REAL BLOCKER, and the
+   handoff did not know about it.** Three mutations in `useSupabaseData.ts` pass
+   `{ onConflict: 'synced_transaction_id' }` — `save` (**:669**), `setCategory` (**:701**),
+   `importToLedger` (**:734**). Drop the UNIQUE and **all three fail immediately** with *"no unique
+   or exclusion constraint matching the ON CONFLICT specification"*. A partial unique index does
+   NOT rescue them: Postgres can only infer a partial index when the statement repeats its
+   predicate, and supabase-js `onConflict` takes a bare column list with no `WHERE`.
+   **=> The migration CANNOT land before the code. Ordering is not a preference here.**
+3. "One decision per charge" in the UI — the only job split link actually wants to relax.
+
+Also load-bearing: **`remove` (:774) deletes by `synced_transaction_id`**, so under multi-row it
+silently becomes "remove ALL links on this charge". It needs a per-link sibling, and the existing
+whole-charge behaviour is still wanted for Undo-everything.
+
+## ✅ DECIDED — multi-row, NOT a child table
+
+126b floated "drop the UNIQUE **or** add a child table". Multi-row wins, and the reason is
+`occurrence_month`: a split link's month must be **PER-LINK** (one bank row settles Rent for THIS
+month and Water for the PREVIOUS one). Multi-row gets that for free — each row already has its own
+`occurrence_month`/`occurrence_date`. A child table would have to duplicate both columns and leave
+the parent's meaningless. Multi-row also keeps 126b's finding true: **`buildConfirmedOccurrences`
+already iterates reviews and keys per rule, so the read side needs NO logic change.**
+
+### The schema, once the code is ready
+
+- `DROP CONSTRAINT synced_transaction_reviews_synced_transaction_id_key`
+- Partial unique index — **at most one EXCLUSIVE decision per charge**, which is idempotency (1)
+  preserved exactly:
+  `unique (synced_transaction_id) where status not in ('linked_rule','linked_plan','linked_car')`
+- Partial unique indexes so the same thing cannot be linked twice:
+  `(synced_transaction_id, rule_id) where rule_id is not null`,
+  `(synced_transaction_id, payment_plan_id) where payment_plan_id is not null`,
+  `(synced_transaction_id, car_fund_id, car_charge_kind) where car_fund_id is not null`
+
+⚠️ **Open question the schema does not answer: where does `category_override` live** once a charge
+has several rows? It is a property of the CHARGE, not of any one link. Cheapest honest answer:
+keep it on the exclusive row only, and have `setCategory` always target that row (creating a
+`'categorized'` row when there is none). **Decide it explicitly before Slice C; do not let it be
+decided by whichever row an upsert happens to hit.**
+
+## 📋 THE SLICES — each one live-safe ALONE. Do not reorder.
+
+- **Slice A — rules.** `validateReviewInput` learns split-aware rules; tests for N links on one
+  charge through `buildConfirmedOccurrences`. Pure lib, no schema, no behaviour change.
+- **Slice B — THE ENABLER. Get the writes off `onConflict`.** Rewrite `save`, `setCategory`,
+  `importToLedger` to "find the existing row, UPDATE by `id`, else INSERT". Under today's UNIQUE
+  this is exactly equivalent, so it ships and runs live **before** any schema change and makes the
+  migration safe. Add `removeLink(id)` beside the existing whole-charge `remove`.
+- **Slice C — schema + UI.** Apply the migration, then `BankActivity.tsx:135` `reviewByTxn`
+  `Record<string, Row>` → `Record<string, Row[]>`, a "link another" affordance, and multi-badge /
+  per-link undo. **:312** `const review = reviewByTxn[txn.id]` is the single read to fan out.
+
+⚠️ **Back up `synced_transaction_reviews` before Slice C.** Free tier = no PITR (see
+`project_supabase_backup_schema`); snapshot into the locked-down `backup` schema like 2026-08-07 did.
+
+---
+
 # Handoff — 2026-08-09 — session 130 — ✅ **BIWEEKLY WORKSTREAM COMPLETE. Commit 2 shipped `1b919e04` and LIVE-VERIFIED.**
 
 > **START HERE.** Both commits of the biweekly anchor work are done and verified.
