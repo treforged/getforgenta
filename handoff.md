@@ -1,5 +1,37 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 7 — 🟢 **N9 FINDING 2 FIXED on `fix/n9-panel-apy-fallback` (`1074ac90`, local only, unpushed)**
+
+The small display-only slice from session 6's audit is done. Branch cut from `origin/main`
+(now `eb24e14f` — **N11 merged as PR #78**; the multiple #75/#76/#77 commits with the same message
+are the conductor retries, all the same fix). One commit, one file:
+
+- `src/pages/Forecast.tsx`: the retirement milestones panel's fallback APY for accounts with no
+  `apy_rate` is now **`assumptions.investmentGrowth`** (the same fallback the engine uses at
+  `forecast-engine.ts:209`), instead of the hardcoded `DEFAULT_APY_FORECAST = 7`, which was removed.
+  `assumptions.investmentGrowth` added to the `retirementProjections` memo deps so the panel
+  re-computes when the assumption is edited. This closes the surface disagreement where Tre's Roth
+  IRA (`apy_rate NULL`) grew at one rate in the chart and another in the panel on the same page.
+
+**Proof: tsc 0, eslint clean on the file, full suite 807/807.** NOT live-verified (needs a signed-in
+browser — open Forecast, set Investment % to something other than 7, and confirm the Roth IRA
+milestone numbers move). No dedicated test: exercising this needs a full page render with mocked
+contexts, scaffolding that does not exist for Forecast.tsx; the change is a two-line fallback swap.
+
+`conductor answers` this session: "nothing outstanding".
+
+**Next up (unchanged from session 6):**
+1. **Finding 1 (N10 engine fix)** — pct deductions frozen at month-0 gross; needs its own branch,
+   fixture A/B, and a live pass. The biggest remaining piece; a relay session CAN build it but must
+   be honest that live verification waits for a signed-in browser.
+2. **Finding 3** — the milestones panel also freezes contributions for 20 years (same class as
+   Finding 1, longer horizon); decide whether it rides along with Finding 1's fix.
+3. **Finding 4** — goal contribution should derive from the linked pct deduction; design question,
+   raise with Tre before building.
+4. File the PRs for `fix/n8-forecast-popup-decimals` and now `fix/n9-panel-apy-fallback`
+   (push/PR denied in this relay); delete the merged local branches (also denied here).
+5. Live-verify N11 on the Debt page (Venture X Purchases/Mo $300, chart non-zero after Mar 2027).
+
 ## ▶ 2026-08-10 — relay session 6 — 🔎 **N9/N10 AUDIT DONE — report only, NO code changed. Both are real.**
 
 Tre asked (N9): *"is the Retirement & Investment Growth Projections section properly reflecting
