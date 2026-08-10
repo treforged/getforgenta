@@ -11,7 +11,10 @@ import {
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarFund } from '@/lib/types';
-import { validateReviewInput, type ReviewInput, type ReviewStatus } from '@/lib/synced-transaction-review';
+import {
+  validateReviewInput, validateReviewSet, findExclusiveReview, findReviewRowFor, applyReviewToSet,
+  type ReviewInput, type ReviewStatus, type CarChargeKind,
+} from '@/lib/synced-transaction-review';
 import type { LedgerDraft } from '@/lib/synced-transaction-import';
 
 // ─── Accounts (Centralized) ──────────────────────────────
@@ -620,41 +623,62 @@ export type SyncedTransactionReviewRow = Tables<'synced_transaction_reviews'>;
 // The rules themselves are pure and live in `@/lib/synced-transaction-review`, so they can be
 // tested without a Supabase client. Re-exported here because every consumer already imports its
 // data from this module.
-export { isHandledReview, validateReviewInput } from '@/lib/synced-transaction-review';
-export type { ReviewStatus, ReviewInput } from '@/lib/synced-transaction-review';
+export {
+  isHandledReview, validateReviewInput, validateReviewSet, isLinkStatus, LINK_STATUSES,
+  findExclusiveReview, findReviewRowFor, applyReviewToSet, linkTarget,
+} from '@/lib/synced-transaction-review';
+export type { ReviewStatus, ReviewInput, CarChargeKind } from '@/lib/synced-transaction-review';
 export { planLedgerImport } from '@/lib/synced-transaction-import';
 export type { LedgerDraft, ImportPlan, ImportContext } from '@/lib/synced-transaction-import';
 
 /**
- * §1B SPLIT LINK Slice B — the charge's existing review row, or null.
+ * §1B SPLIT LINK — EVERY decision already recorded about one charge.
  *
- * ⚠️ THIS FUNCTION IS THE WHOLE POINT OF SLICE B. Every write below used to be an upsert with
+ * ⚠️ SLICE B'S POINT, WIDENED BY SLICE C. Every write below used to be an upsert with
  * `{ onConflict: 'synced_transaction_id' }`, which does not merely USE the UNIQUE constraint — it
  * REQUIRES it. Postgres has to infer an arbiter index from the column list, so the moment split
  * link relaxes that constraint all three writes fail outright with "no unique or exclusion
  * constraint matching the ON CONFLICT specification". A partial unique index does not rescue them
  * either: Postgres can only infer a partial index when the statement repeats its predicate, and
- * supabase-js `onConflict` takes a bare column list with no `WHERE`. So the code has to stop
- * depending on the constraint BEFORE the migration can drop it, and find-then-update is how.
+ * supabase-js `onConflict` takes a bare column list with no `WHERE`. So the code had to stop
+ * depending on the constraint BEFORE the migration could drop it, and find-then-write is how.
  *
- * Under today's UNIQUE this is exactly equivalent to the upsert it replaces — at most one row can
- * match — which is what makes it shippable and live-runnable on its own, ahead of any schema change.
+ * Slice B returned one id because one row was all a charge could hold. Slice C returns the SET,
+ * because which of them a decision belongs to is now a real question — `findReviewRowFor` answers
+ * it, and `applyReviewToSet` turns the answer into the set the validator judges. Under today's
+ * UNIQUE the set is never longer than one, which is what keeps this shippable ahead of the migration.
  *
  * ⚠️ A LIVE SELECT, not the cached `query.data`. A stale cache miss would become an INSERT that
- * fails on a constraint the user can do nothing about; a stale cache HIT would update a row that no
- * longer exists and silently write nothing.
+ * duplicates a decision; a stale cache HIT would update a row that no longer exists and silently
+ * write nothing. Selecting `*` rather than `id` is deliberate — the set rules read nine columns, and
+ * a charge holds a handful of rows at most.
  */
-async function findChargeReviewId(userId: string, syncedTransactionId: string): Promise<string | null> {
+async function fetchChargeReviews(
+  userId: string,
+  syncedTransactionId: string,
+): Promise<SyncedTransactionReviewRow[]> {
   const { data, error } = await supabase
     .from('synced_transaction_reviews')
-    .select('id')
+    .select('*')
     .eq('user_id', userId)
-    .eq('synced_transaction_id', syncedTransactionId)
-    .limit(1)
-    .maybeSingle();
+    .eq('synced_transaction_id', syncedTransactionId);
   if (error) throw error;
-  return data?.id ?? null;
+  return data ?? [];
 }
+
+/** A stored row in the shape the pure set rules read. Narrows `status` back to the union. */
+const asReviewInput = (row: SyncedTransactionReviewRow): ReviewInput => ({
+  synced_transaction_id: row.synced_transaction_id,
+  status: row.status as ReviewStatus,
+  rule_id: row.rule_id,
+  transaction_id: row.transaction_id,
+  payment_plan_id: row.payment_plan_id,
+  car_fund_id: row.car_fund_id,
+  car_charge_kind: row.car_charge_kind as CarChargeKind | null,
+  occurrence_month: row.occurrence_month,
+  occurrence_date: row.occurrence_date,
+  category_override: row.category_override,
+});
 
 export function useSyncedTransactionReviews() {
   const { user } = useAuth();
@@ -674,9 +698,13 @@ export function useSyncedTransactionReviews() {
     },
   });
 
-  // Find-then-write, NOT an upsert — see `findChargeReviewId`. A user changing their mind about a
-  // charge overwrites their old decision rather than hitting a constraint error they cannot act on,
-  // exactly as before, but without requiring `UNIQUE (synced_transaction_id)` to exist.
+  // Find-then-write, NOT an upsert — see `fetchChargeReviews`.
+  //
+  // ⚠️ WHICH ROW A DECISION LANDS ON IS THE WHOLE OF SPLIT LINK, and it is `findReviewRowFor`'s
+  // answer, not this function's. An exclusive decision replaces the charge's exclusive row; a link
+  // replaces the row naming the SAME rule, plan or vehicle charge, and otherwise INSERTS a new one.
+  // That is what makes "link another" add a badge instead of silently overwriting the first — the
+  // failure mode that would look to a user like the app forgetting what they just told it.
   //
   // ⚠️ EVERY COLUMN IS WRITTEN ON BOTH PATHS, including the nulls. Changing a decision must CLEAR
   // the fields the previous one set — a `linked_rule` becoming `ignored` while keeping its stale
@@ -686,6 +714,14 @@ export function useSyncedTransactionReviews() {
       if (isDemo || !user) throw new Error('Demo mode');
       const problem = validateReviewInput(input);
       if (problem) throw new Error(problem);
+      const existing = await fetchChargeReviews(user.id, input.synced_transaction_id);
+      // BOTH validators, as Slice A specified. The routing above already forecloses a second
+      // exclusive row and a target linked twice, so this can only fire if that routing is wrong —
+      // which is exactly when a sentence beats a Postgres constraint name. It also catches the one
+      // rule routing cannot enforce: a `category_override` riding along on a link row.
+      const setProblem = validateReviewSet(applyReviewToSet(existing.map(asReviewInput), input));
+      if (setProblem) throw new Error(setProblem);
+      const target = findReviewRowFor(existing, input);
       const fields = {
         status: input.status,
         rule_id: input.rule_id ?? null,
@@ -698,10 +734,9 @@ export function useSyncedTransactionReviews() {
         category_override: input.category_override ?? null,
         updated_at: new Date().toISOString(),
       };
-      const existingId = await findChargeReviewId(user.id, input.synced_transaction_id);
-      const { error } = existingId
+      const { error } = target
         ? await supabase.from('synced_transaction_reviews')
-            .update(sanitizePayload(fields)).eq('id', existingId).eq('user_id', user.id)
+            .update(sanitizePayload(fields)).eq('id', target.id).eq('user_id', user.id)
         : await supabase.from('synced_transaction_reviews')
             .insert(sanitizePayload({
               user_id: user.id,
@@ -721,13 +756,21 @@ export function useSyncedTransactionReviews() {
       if (isDemo || !user) throw new Error('Demo mode');
       // The lookup moved off the cached `query.data` and onto the database for the same reason the
       // upsert below did: a stale cache decides INSERT vs UPDATE wrongly, and both wrong answers
-      // fail silently or unactionably. Behaviour is otherwise unchanged.
-      const existingId = await findChargeReviewId(user.id, syncedTransactionId);
-      if (existingId) {
+      // fail silently or unactionably.
+      //
+      // ⚠️ THE EXCLUSIVE ROW SPECIFICALLY, and this is Tre's 2026-08-09 decision made mechanical.
+      // A category describes the CHARGE, not any one of the several things the charge paid — a rent
+      // debit split across Rent and Water has one merchant and one label, not two. Taking whichever
+      // row came back first would scatter the override across link rows, and a charge asserting two
+      // categories has no rule for which one wins. `validateReviewSet` rejects that state; this is
+      // what stops it being reachable in the first place.
+      const existing = await fetchChargeReviews(user.id, syncedTransactionId);
+      const exclusive = findExclusiveReview(existing);
+      if (exclusive) {
         const { error } = await supabase
           .from('synced_transaction_reviews')
           .update({ category_override: category, updated_at: new Date().toISOString() })
-          .eq('id', existingId)
+          .eq('id', exclusive.id)
           .eq('user_id', user.id);
         if (error) throw error;
         return;
@@ -767,7 +810,12 @@ export function useSyncedTransactionReviews() {
         .single();
       if (insertError) throw insertError;
 
-      // Find-then-write, like `save` — see `findChargeReviewId`.
+      // Find-then-write, like `save` — see `fetchChargeReviews`.
+      //
+      // ⚠️ THE EXCLUSIVE ROW, for the same reason `setCategory` takes it: `'imported'` is an
+      // exclusive status, and import idempotency ("a row already imported cannot be imported twice")
+      // is the one job of the dropped UNIQUE that must survive split link untouched. Writing
+      // `'imported'` onto a link row would destroy a link AND leave the charge importable again.
       //
       // ⚠️ DELIBERATELY WRITES THE SAME COLUMNS THE UPSERT DID, no more. An upsert only updates the
       // columns it names, so an existing row's `rule_id` / `occurrence_month` survived an import
@@ -786,10 +834,10 @@ export function useSyncedTransactionReviews() {
       };
       const reviewError = await (async () => {
         try {
-          const existingReviewId = await findChargeReviewId(user.id, syncedTransactionId);
-          const { error } = existingReviewId
+          const existingExclusive = findExclusiveReview(await fetchChargeReviews(user.id, syncedTransactionId));
+          const { error } = existingExclusive
             ? await supabase.from('synced_transaction_reviews')
-                .update(sanitizePayload(reviewFields)).eq('id', existingReviewId).eq('user_id', user.id)
+                .update(sanitizePayload(reviewFields)).eq('id', existingExclusive.id).eq('user_id', user.id)
             : await supabase.from('synced_transaction_reviews')
                 .insert(sanitizePayload({
                   user_id: user.id,

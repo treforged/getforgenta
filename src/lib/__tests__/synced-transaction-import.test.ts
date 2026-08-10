@@ -16,7 +16,7 @@ const ctx = (over: Partial<Parameters<typeof planLedgerImport>[1]> = {}) => ({
   accountName: 'TOTAL CHECKING',
   categoryOverride: null,
   hasSuggestion: false,
-  review: null,
+  reviews: null,
   ...over,
 });
 
@@ -46,22 +46,35 @@ describe('planLedgerImport — the double-count guard', () => {
   // A rejection overrules the matcher; it does not overrule a decision the user already recorded.
   it('does not let a rejection reopen a charge already dealt with', () => {
     const plan = planLedgerImport(txn(), ctx({
-      hasSuggestion: true, suggestionRejected: true, review: { status: 'imported' },
+      hasSuggestion: true, suggestionRejected: true, reviews: [{ status: 'imported' }],
     }));
     expect(plan.ok).toBe(false);
   });
 
+  // `'linked_plan'` and `'linked_car'` joined this list in Slice C. Both were always in
+  // `HANDLED_STATUSES`, so the UI already hid the button; the two lists simply disagreed, and a
+  // plan instalment or car charge imported to the ledger is the same double-count as a linked rule.
   it('refuses a row the user has already dealt with', () => {
-    for (const status of ['linked_rule', 'linked_txn', 'imported', 'ignored']) {
-      const plan = planLedgerImport(txn(), ctx({ review: { status } }));
+    for (const status of ['linked_rule', 'linked_txn', 'imported', 'ignored', 'linked_plan', 'linked_car']) {
+      const plan = planLedgerImport(txn(), ctx({ reviews: [{ status }] }));
       expect(plan.ok, status).toBe(false);
     }
+  });
+
+  // §1B SPLIT LINK — the reason this became a SET. A charge may hold several decisions, and the
+  // blocking one need not be the first: asking about "the" review would read one row and let the
+  // charge be imported alongside a link that already accounts for it.
+  it('refuses when ANY of several decisions blocks, not just the first', () => {
+    const plan = planLedgerImport(txn(), ctx({
+      reviews: [{ status: 'categorized' }, { status: 'linked_rule' }],
+    }));
+    expect(plan.ok).toBe(false);
   });
 
   // `'categorized'` means only "the user fixed the label" — it asserts nothing about the charge
   // being handled, so it must NOT block an import. This is the whole reason the fifth status exists.
   it('allows a row whose only review is a category correction', () => {
-    const plan = planLedgerImport(txn(), ctx({ review: { status: 'categorized' }, categoryOverride: 'Groceries' }));
+    const plan = planLedgerImport(txn(), ctx({ reviews: [{ status: 'categorized' }], categoryOverride: 'Groceries' }));
     expect(plan.ok).toBe(true);
     if (plan.ok) expect(plan.draft.category).toBe('Groceries');
   });

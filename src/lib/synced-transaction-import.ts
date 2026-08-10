@@ -52,16 +52,34 @@ export interface ImportContext {
    * transaction"), and one of the three places it can land is a new ledger row.
    */
   suggestionRejected?: boolean;
-  /** The user's existing decision on this charge, if any. */
-  review: { status: string } | null | undefined;
+  /**
+   * EVERY decision the user has already recorded about this charge — none, one, or several.
+   *
+   * ⚠️ A SET SINCE SPLIT LINK (Slice C), and it had to become one. A charge may now hold N link rows
+   * beside its exclusive row, so asking about "the" review would pick one of them and let the other
+   * N-1 blocking decisions through — importing a charge that is already linked to a rule is the
+   * double-count this whole guard exists to prevent, reached by reading only part of the answer.
+   */
+  reviews: readonly { status: string }[] | null | undefined;
 }
 
 export type ImportPlan =
   | { ok: true; draft: LedgerDraft }
   | { ok: false; reason: string };
 
-/** Statuses that mean the charge is already accounted for. `'categorized'` is deliberately absent. */
-const BLOCKING_STATUSES: ReadonlySet<string> = new Set(['linked_rule', 'linked_txn', 'imported', 'ignored']);
+/**
+ * Statuses that mean the charge is already accounted for. `'categorized'` is deliberately absent —
+ * correcting a label takes no position on whether the charge was handled.
+ *
+ * ⚠️ `'linked_plan'` and `'linked_car'` were missing here until Slice C, and adding them can only
+ * REFUSE imports that were previously allowed. Both were unreachable in practice — `BankActivity`
+ * hides every action once `isHandledReview` is true, and that set has always included them — so this
+ * closes a gap between two lists that were supposed to agree rather than changing what any button
+ * does. A plan instalment is projected from `payment_plans` and a car charge from the vehicle
+ * engines, so importing one is the same double-count as importing a linked rule.
+ */
+const BLOCKING_STATUSES: ReadonlySet<string> =
+  new Set(['linked_rule', 'linked_txn', 'imported', 'ignored', 'linked_plan', 'linked_car']);
 
 /**
  * Whether this synced charge may become a ledger row, and if so exactly which row.
@@ -71,7 +89,7 @@ const BLOCKING_STATUSES: ReadonlySet<string> = new Set(['linked_rule', 'linked_t
  * missing, and a thrown error would turn a normal state into an incident.
  */
 export function planLedgerImport(txn: SyncedTransactionForImport, ctx: ImportContext): ImportPlan {
-  if (ctx.review && BLOCKING_STATUSES.has(ctx.review.status)) {
+  if (ctx.reviews?.some(r => BLOCKING_STATUSES.has(r.status))) {
     return { ok: false, reason: 'You have already dealt with this charge.' };
   }
 
