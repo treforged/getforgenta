@@ -303,6 +303,40 @@ CONTENTS, not by "it says merged":
    stands: **ask Tre which he wants first.** A card was filed via `conductor ask` this session.
 3. `@capacitor/cli` moderate-advisory chain — needs an 8.x major + mobile verification. Leave it.
 4. TypeScript 7 (Dependabot #65) — still HOLD, build genuinely breaks.
+## ▶ 2026-08-10 — relay session 3 — 🟢 **N8 SHIPPED on `fix/n8-forecast-popup-decimals` (local only, unpushed). Forecast popup shows exact cents on every line.**
+
+**Why N8:** `conductor answers` returned nothing outstanding (the N-ordering card from session 2 is
+still unanswered). N8 is the smallest verbatim-requested backlog item — cosmetic, no migration, no
+live writes, cannot conflict with whatever ordering Tre answers. Assumption stated on the board.
+
+**What changed** (one commit on the new branch, cut from `origin/main` `89e6747e`):
+- `src/lib/forecast-engine.ts` — the Month Breakdown popup's balance lines were the only numbers
+  still whole-dollar ("not just part of them" = exactly this block). Following the file's own
+  `rawEndingCash` pattern: new `rawNetWorth` / `rawTotalAssets` / `rawTotalLiabilities` /
+  `rawCcDisplayBalance` / `rawTotalCCPurchases` on `ForecastMonthRow`; the rounded twins are
+  untouched so the chart/table/milestones render exactly as before. `assetBreakdown` and
+  `nonCCLiabBreakdown` balances are no longer pre-rounded (popup + CSV export are their only
+  readers, and the export now matches the drawer to the cent instead of to the dollar).
+- `src/pages/Forecast.tsx` — the drawer's asset/liability/CC/net-worth lines render the raws with
+  `formatCurrency(..., true)`; the per-card CC balance dropped its `Math.round`. The cash-walk
+  lines already showed cents (Tre 2026-08-06 decision) — unchanged.
+- **Decision recorded in the engine comment:** the 2026-08-06 "balances stay rounded" call is
+  superseded BY TRE'S OWN later N8 ask, for the popup surface only. Chart series stay rounded, so
+  the chart hover tooltip still shows whole dollars — it mirrors the plotted line, and unrounding
+  the series is a bigger change nobody asked for. If Tre meant the hover tooltip too, that is the
+  follow-up: unround the chart series fields or feed the tooltip the raws.
+
+**Proof:** new fixture-gated test `src/lib/__tests__/forecast-popup-decimals.test.ts` — every raw
+rounds to its display twin (popup and table can never disagree on dollars), raw assets − raw
+liabilities = raw net worth to the cent, and at least one raw carries cents (fails if someone
+re-rounds them at the push site). **tsc 0, eslint clean on the 3 files, full suite 805/805** (804 + 1).
+**NOT verified live** — the drawer needs a signed-in browser session; the change is string
+formatting on an unchanged code path, covered by the test.
+
+**Open:** file the PR for `fix/n8-forecast-popup-decimals` (three steps). Branch cleanup from
+session 2 still owed (`fix/error-boundary-retry`, `fix/duplicate-link-toast`,
+`fix/auth-navigate-catch`, `feat/split-link-slice-c` all merged, safe to delete). N-ordering card
+still awaiting Tre's answer.
 
 ## ▶ 2026-08-10 — relay session 1c — 🟢 **AuthContext defensive `.catch()` SHIPPED on `fix/auth-navigate-catch` (`b6f77bc6`), NOT pushed**
 
