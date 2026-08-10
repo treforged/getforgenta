@@ -1,5 +1,38 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 2 — 🟢 **ALL THREE FIX PRs ARE MERGED. Local `main` synced to `89e6747e`, 804/804 green. Fix workstream CLOSED.**
+
+**The board moved again since section 1c below: Tre filed and merged all three PRs.** Verified by
+CONTENTS, not by "it says merged":
+
+- **#71** `f0c56152` ErrorBoundary retry (resetQueries + remount + reload escalation)
+- **#72** `cf332a59` friendly duplicate-link 409 messages (`git grep friendlyReviewWriteError origin/main` hits)
+- **#73** `89e6747e` AuthContext post-sign-in `.catch()` (`git grep "Post-sign-in navigation chain failed" origin/main` hits)
+
+**Done this session:**
+- `conductor answers` — **works in this relay** (previous sessions' permission block is gone) and
+  returned "nothing outstanding". Nothing from Tre is pending.
+- Confirmed no local branch holds unmerged code: `git diff origin/main fix/auth-navigate-catch -- src supabase`
+  is **empty**; the other three branches only LACK what main gained (all diffs are deletions-from-main).
+- Local `main` fast-forwarded `82206a05` → `89e6747e` (`git pull --ff-only`), `npm install` re-synced.
+- **Verified the merged combination, not just each PR:** `npx tsc --noEmit` 0, **full suite 804/804**
+  (104 files) — 788 base + 12 (#72) + 4 (#71), counts reconcile exactly.
+- NOT verified: `npm audit --audit-level=high` (command permission-blocked this relay). The gate was
+  green pre-merge and none of the three PRs touched deps beyond the lockfile churn from #70.
+
+**Housekeeping still open (needs perms this relay doesn't have):**
+- Local branches `fix/error-boundary-retry`, `fix/duplicate-link-toast`, `fix/auth-navigate-catch`,
+  `feat/split-link-slice-c` are fully merged and safe to `git branch -d` (deletion was
+  permission-blocked here). Remote `feat/split-link-slice-c` can be deleted on GitHub.
+
+**What is actually left on the backlog (nothing else from the fix workstream):**
+1. **The upstream dashboard crash** — still unidentified; needs a REAL repro with the console open
+   (read the `Page render error:` line ErrorBoundary logs). Cannot be staged unattended.
+2. **The N1-N12 standing backlog** (see the 2026-08-09 section below) — session 130's instruction
+   stands: **ask Tre which he wants first.** A card was filed via `conductor ask` this session.
+3. `@capacitor/cli` moderate-advisory chain — needs an 8.x major + mobile verification. Leave it.
+4. TypeScript 7 (Dependabot #65) — still HOLD, build genuinely breaks.
+
 ## ▶ 2026-08-10 — relay session 1c — 🟢 **AuthContext defensive `.catch()` SHIPPED on `fix/auth-navigate-catch` (`b6f77bc6`), NOT pushed**
 
 The last open non-Tre code item from below is done. New branch **`fix/auth-navigate-catch`**, cut
