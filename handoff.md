@@ -1,6 +1,111 @@
 # Handoff — Forgenta
 
-## ▶ 2026-08-10 — session 132 — 🟡 **SLICE C PART 1 SHIPPED `9c2fb6bc`. Live pass + migration OWED.**
+## ▶ 2026-08-10 — session 133 — 🟡 **SLICE C IS BUILT, REHEARSED AND GREEN. ONE THING BLOCKS IT: SIGN-IN.**
+
+> **START HERE.** Branch **`feat/split-link-slice-c`**, now **rebased onto `main`** (the 6 dependency
+> bumps, including framer-motion 13 and react-resizable-panels 4 — clean rebase, no conflicts).
+> **788/788 tests, tsc 0, eslint clean, tree clean.** Three commits: `9c2fb6bc` (Slice C part 1, from
+> session 132), **`dbebf460`** (the owed routing tests), **`8f77decd`** (the migration, WRITTEN AND
+> NOT APPLIED). Nothing pushed, no PR.
+>
+> **The live UNIQUE constraint is still in place and the live table is untouched: 69 rows,
+> `imported 55 · linked_rule 11 · linked_plan 1 · linked_txn 2`, 0 rows carry `occurrence_date`.**
+
+### 🔴 THE ONE BLOCKER — Tre must sign in, once, in the Claude-controlled Chrome
+
+The automation profile has **no Supabase session** on `http://localhost:8080` (37 localStorage keys
+present, **zero `sb-*` keys** — the profile is intact, the session simply lapsed). Filed to the board
+as card **`c1532724`**; unanswered as of the end of this session. The tab is **parked open on
+`/auth`** so he can match the window on screen.
+
+⚠️ **Demo mode is NOT a fallback here, and this was measured rather than assumed.** `/transactions` →
+Bank Activity in demo renders **"No bank activity yet"** — the demo fixture has no synced
+transactions at all. So *nothing* about split link can be verified in demo. (Session 130's demo-mode
+pass worked because Budget Control has demo data; Bank Activity does not.) Also: demo is in-memory
+with no route, so a hard `navigate` after "Try Demo" drops straight back to `/auth` — enter demo,
+then move by clicking the app's own links.
+
+### ⬜ WHAT IS STILL OWED — the live pass, then the apply. In that order.
+
+**1. THE LIVE PASS**, unchanged from session 132 and still the right test: under today's UNIQUE this
+should be a **pure no-op** on Tre's account. Test charge is ready and unreviewed again:
+**`1cf1cd2a-37a3-44fd-a6c5-d621e77f63ba`** (Dave & Buster's, 2026-07-25, $7.50 — a past month, so no
+forecast can move). Drive on `/transactions` → Bank Activity:
+- unreviewed row → set a category → one `categorized` row, override set (`setCategory` INSERT);
+- change it again → **same row id** (UPDATE branch);
+- link it to a bill → badge reads `linked · <rule>`, and the **✕ on the badge** removes just it
+  (`removeLink`'s first live exercise — it had no caller before `9c2fb6bc`);
+- ⚠️ **the category must SURVIVE the link.** The link write no longer carries `category_override`
+  forward; the label is supposed to stay on the exclusive row. **If the category disappears when you
+  link, that is the one regression this commit could plausibly have introduced — check it first.**
+- Undo → row gone; re-verify **69** and **0 `occurrence_date`**.
+
+**2. APPLY THE MIGRATION** — `supabase/migrations/20260810_synced_transaction_reviews_split_link.sql`.
+Then the second live pass that actually demonstrates the feature: link one charge to two rules with
+**different `occurrence_month`s** (the arrears case), confirm two badges, confirm per-link undo
+removes one and leaves the other.
+
+### ✅ THE BACKUP IS TAKEN — do not take another
+
+`backup.synced_transaction_reviews_20260810`, the whole table (69 rows, and the table holds only
+Tre's rows). **Verified rather than assumed:** `EXCEPT ALL` in *both* directions returns 0 rows, and
+it carries **zero `anon`/`authenticated` grants**, matching the 2026-08-07 precedent. Free tier means
+no PITR, so this snapshot is the only way back. Keep it (see `project_supabase_backup_schema`).
+
+### 🔬 THE MIGRATION WAS REHEARSED ON A CLONE — it is proven, not merely written
+
+Rather than apply it and find out, the four indexes were built on a full copy of the real table and
+probed, then the clone was dropped. Two results worth carrying:
+
+- **All four indexes BUILT over the real 69 rows.** That is the finding that de-risks the apply:
+  today's live data violates none of the new constraints, so the migration cannot fail partway.
+- Behaviour, on real-shaped rows:
+
+| probe | result |
+|---|---|
+| second link to a **different** rule, different month (the arrears case) | **ALLOWED** — correct, this is the feature |
+| the **same** rule twice on one charge | **REJECTED** — correct |
+| an exclusive row **beside** links | **ALLOWED** — correct |
+| a **second** exclusive row | **REJECTED** — correct, import idempotency preserved |
+
+`backup.split_link_rehearsal` and `backup.rehearsal_log` were dropped afterwards; only the real
+snapshot remains.
+
+### ✅ `dbebf460` — the tests session 132 said were owed
+
+19 tests on the routing helpers (`linkTarget`, `findExclusiveReview`, `findReviewRowFor`,
+`applyReviewToSet`) in the file that already owns the set rules. **Verified they bite, not just
+pass:** stubbing `findReviewRowFor` to return `rows[0]` fails 7 of them.
+
+### ✅ `8f77decd` — and a parity test that makes "one rule written twice" real
+
+The index predicate and `LINK_STATUSES` are the same rule in two languages, and no compiler spans
+them. `synced-transaction-review.migrationParity.test.ts` **parses the shipped SQL** and asserts the
+`NOT IN` list equals the Set. Verified it bites: removing `'linked_car'` from the predicate fails it.
+The drift is quiet in both directions — the app offering a link the database rejects, or a charge
+silently holding two exclusive rows, which is idempotency gone.
+
+### 🔬 THE `audit` ADVICE IN THE SECTION BELOW IS NOW STALE — corrected here
+
+Session 132 said "do not treat a red `audit` on a Dependabot PR as signal until the **nanoid**
+advisory is cleared". **The six merges cleared it.** `npm audit --audit-level=high` — which is
+exactly what `.github/workflows/dependency-audit.yml:33` runs — now **exits 0** on this tree.
+**A red `audit` is real signal again.** What remains is 3 **moderate** advisories in one chain
+(`@capacitor/cli` → `xcode` → `uuid`); they do not fail the gate, and the only fix is a
+`@capacitor/cli` 8.x **major**, which touches native builds and is its own task with its own mobile
+verification. Not casual work — leave it.
+
+### ⬜ The two open Dependabot PRs, re-checked live this session
+
+- **#66 jsdom 30.0.1 — now GREEN and MERGEABLE.** The `@dependabot rebase` worked; `audit` passes.
+  **Ready for Tre to merge** (merging is his button, not an unattended action).
+- **#65 TypeScript 7.0.2 — still HOLD, and now confirmed rather than repeated.** Its base is
+  `82206a05`, i.e. current `main`, so it is NOT stale — and it still fails **both `audit` and
+  `Vercel`**. The build genuinely breaks. Do not merge it to clear the board.
+
+---
+
+## 2026-08-10 — session 132 — 🟡 **SLICE C PART 1 SHIPPED `9c2fb6bc`.** (live pass still owed — see above)
 
 > **START HERE.** Branch **`feat/split-link-slice-c`**, cut from `origin/main` (**not** from local
 > `main` — see the git note below). **763/763 tests (+1), tsc 0, eslint clean on every changed file.**
