@@ -1,5 +1,67 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 6 — 🔎 **N9/N10 AUDIT DONE — report only, NO code changed. Both are real.**
+
+Tre asked (N9): *"is the Retirement & Investment Growth Projections section properly reflecting
+everything? it seems off."* Answer: **no, and here is exactly why.** N10 (percentage 401k/Roth must
+scale with income) is confirmed as the biggest cause, plus one surface-disagreement bug of its own.
+Everything below was read from code + SELECT-only queries; nothing was written.
+
+### Finding 1 — N10 CONFIRMED in the engine: % contributions are frozen at month-0 gross
+
+- `forecast-engine.ts:227-235` computes `perCheck401k` (and the per-account map at `:241-250`)
+  **once**, from `paycheckGrossForForecast` — the month-0 gross. The 60-month loop then does
+  `month401kContrib = perCheck401k * paychecksThisMonth` (`:902`, `:905`).
+- Meanwhile income itself DOES scale: `incomeMultiplier` compounds annual raises (`:697-704`) and
+  snaps to promotions (`:689-694`), and `adjustedConfig` (`:706`) carries it into every income call.
+  The multiplier is **never applied to the pct deductions**.
+- **The asymmetry is the bug:** take-home is computed from `adjustedConfig` (pay-schedule reads
+  deductions off the config it is handed, so the net side scales), but the retirement-asset side
+  credits a contribution frozen at today's salary. After the first raise the forecast understates
+  retirement balances more every year — over 60 months with 3%/yr growth that compounds.
+- **Fix shape (NOT built):** recompute the pct portion of each deduction inside the loop from
+  `paycheckGrossForForecast * incomeMultiplier`; flat-mode deductions stay flat (that is what flat
+  means). ⚠️ This is a number-moving engine change — it needs its own branch, a fixture A/B, and a
+  live pass; the golden fixture may or may not move depending on whether its assumptions enable
+  income growth. Do not slip it into another PR.
+
+### Finding 2 — N9's own bug: the panel's fallback APY disagrees with the chart's
+
+- `Forecast.tsx:35` hardcodes `DEFAULT_APY_FORECAST = 7` for accounts with no `apy_rate`; the main
+  forecast falls back to **`assumptions.investmentGrowth`** instead (`forecast-engine.ts:209`).
+- **This bites on real data:** Tre's Roth IRA has `apy_rate = NULL` (his other three retirement/
+  brokerage accounts are explicitly 7). So if the Investment Growth assumption is anything but 7,
+  the Roth IRA grows at one rate in the chart and another in the milestones panel on the same page —
+  and the page's own tutorial text says Investment Growth % is "applied to investment account
+  balances in the projection". Fix: pass `assumptions.investmentGrowth` in as the panel's fallback.
+
+### Finding 3 — the panel freezes contributions too, for 20 years
+
+`Forecast.tsx:297-335` + `projectMilestones` (`retirement-projection.ts:29`) compound today's
+`monthlyContrib` flat to year 20 — no income growth, no promotions. Same understatement as
+Finding 1 but over a longer horizon. Minor also: the panel compounds at nominal `apy/12`
+(`projectBalance:20`) while the engine uses geometric `(1+apy)^(1/12)-1` (`:213`) — small, note only.
+
+### Finding 4 — N10's "and goals" half
+
+A goal's `monthly_contribution` is a manual flat number (`SavingsGoals.tsx:298/:715`). Tre's 5%
+401(k) Roth deduction is **pct-mode and linked to a goal** (`goalId e0bd7507…`,
+`accountId 1a6890a5…` — verified by SELECT), so that goal neither derives today's true dollar
+amount nor scales with raises. Any fix should probably derive the goal's contribution from the
+linked deduction rather than duplicating the number.
+
+### What this session did NOT do, deliberately
+
+No code. N9 was dictated as "audit and report before changing anything", the engine fix is
+number-moving (needs fixture A/B + live pass), and this relay cannot push or live-verify. The next
+session with a signed-in browser should: (1) branch for Finding 2 (small, display-only, cheap),
+(2) branch for Finding 1 (engine, own live pass), (3) raise Finding 4's design with Tre.
+
+**Still open from session 5, all still blocked in this relay:** file the two PRs
+(`fix/n8-forecast-popup-decimals`, `fix/n11-later-year-purchases`); delete the four merged local
+branches; live-verify N11 on the Debt page; N-ordering card still with Tre (`conductor answers`
+returned "nothing outstanding" this session).
+
 ## ▶ 2026-08-10 — relay session 5 — 🟢 **N11 FIX SHIPPED on `fix/n11-later-year-purchases` (`9e8291be`, local only, unpushed)**
 
 **What shipped (display-only, deliberately):** session 4's N11 diagnosis (on the N8 branch's
