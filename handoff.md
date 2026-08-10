@@ -1,5 +1,101 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — session 132 — 🟡 **SLICE C PART 1 SHIPPED `9c2fb6bc`. Live pass + migration OWED.**
+
+> **START HERE.** Branch **`feat/split-link-slice-c`**, cut from `origin/main` (**not** from local
+> `main` — see the git note below). **763/763 tests (+1), tsc 0, eslint clean on every changed file.**
+> Backups: `backups/2026-08-10_010619/`. Nothing pushed, no PR.
+>
+> The **code** half of Slice C is done and the **schema** half is not. That order is deliberate and
+> was decided in session 131: every array is length 1 under today's `UNIQUE`, so the UI renders
+> identically until the constraint is relaxed, which means the UI can be live-verified BEFORE the
+> irreversible bit.
+
+### ⬜ THE TWO THINGS OWED, in this order
+
+**1. LIVE PASS of the code, under today's UNIQUE.** It should be a pure no-op on Tre's account —
+that is the claim to test. Every charge holds ≤1 review row today, so every badge, every category
+and every button must look exactly as it did before. What to drive on `/transactions` → Bank
+Activity (`http://localhost:8080`, dev server is UP, `user_id = 'a72f416e-433a-4055-9ab0-9feae4e60edf'`):
+- an unreviewed row → set a category → still one `categorized` row, override set (`setCategory`
+  INSERT, now routed through `findExclusiveReview`);
+- change it again → **same row id** (UPDATE branch);
+- link it to a bill → badge reads `linked · <rule>`, and the **✕ on the badge** removes just it
+  (`removeLink`, which had NO caller until this commit — this is its first live exercise);
+- ⚠️ **the category must SURVIVE the link now.** Before this commit the link write carried
+  `category_override` forward onto its own row; now it does not, and the label is supposed to stay
+  on the exclusive row instead. **If the category disappears when you link, that is the one
+  regression this commit could plausibly have introduced — check it first.**
+- Undo → row gone; then re-verify the account is byte-for-byte:
+  `imported 55 · linked_rule 11 · linked_plan 1 · linked_txn 2` = **69**, **0 rows carry
+  `occurrence_date`**.
+
+**2. THE MIGRATION — the irreversible half. ⚠️ BACK UP FIRST.** Free tier means no PITR (see
+`project_supabase_backup_schema`), so snapshot `synced_transaction_reviews` into the locked-down
+`backup` schema exactly as 2026-08-07 did, BEFORE applying anything. The schema, unchanged from the
+session-131 design and still authoritative:
+- `DROP CONSTRAINT synced_transaction_reviews_synced_transaction_id_key`
+- `unique (synced_transaction_id) where status not in ('linked_rule','linked_plan','linked_car')`
+- `(synced_transaction_id, rule_id) where rule_id is not null`
+- `(synced_transaction_id, payment_plan_id) where payment_plan_id is not null`
+- `(synced_transaction_id, car_fund_id, car_charge_kind) where car_fund_id is not null`
+
+⚠️ The predicate of the first index is `LINK_STATUSES` in `src/lib/synced-transaction-review.ts`.
+**They are one rule written twice** — if the migration and that Set ever disagree, the app and the
+database disagree about how many decisions a charge may hold. The file says so; keep it true.
+
+Then a SECOND live pass — the one that actually demonstrates the feature, which the first cannot:
+link one charge to two rules with **different `occurrence_month`s** (the arrears case), confirm two
+badges, confirm per-link undo removes one and leaves the other.
+
+### ✅ What `9c2fb6bc` actually changed
+
+| File | Change |
+|---|---|
+| `src/lib/synced-transaction-review.ts` | `linkTarget` **exported**, + `TargetableReview`, `findExclusiveReview`, `findReviewRowFor`, `applyReviewToSet` |
+| `src/hooks/useSupabaseData.ts` | `findChargeReviewId` → **`fetchChargeReviews`** (the SET, `select('*')`); `save` routes via `findReviewRowFor` and runs **both** validators; `setCategory` + `importToLedger` target the **exclusive** row |
+| `src/components/transactions/BankActivity.tsx` | `reviewByTxn` → **`reviewsByTxn: Record<string, Row[]>`**; `linkLabel()`; one badge per link with per-link ✕; "Link another …"; `Undo all` at ≥2 links |
+| `src/lib/synced-transaction-import.ts` | `ctx.review` → **`ctx.reviews`** (a set); `linked_plan`/`linked_car` added to `BLOCKING_STATUSES` |
+| `src/lib/__tests__/synced-transaction-import.test.ts` | renamed to the set shape, +1 test ("refuses when ANY of several decisions blocks") |
+
+### Decisions taken this session — do not re-litigate
+
+- **Routing enforces the set rules; validation is the backstop.** An exclusive decision always lands
+  on the exclusive row and a link always on the same-target row, so "two exclusive rows" and "the
+  same thing linked twice" are unreachable rather than rejected. `validateReviewSet` still runs — a
+  rule enforced in two places survives one of them being edited.
+- **The exclusive destinations are hidden once a charge has links.** "Link to an entry", "Add to my
+  ledger" and "Ignore" disappear while ≥1 link exists, because "this whole charge is that entry"
+  contradicts "this charge paid these three bills". Removing a link with its ✕ brings them back.
+  The set validator would ALLOW `linked_txn` beside links; this is a UI choice on top of it.
+- **`Undo all` only appears at ≥2 links.** With one link the ✕ already is the undo, and two controls
+  doing the same thing differently is how a user ends up unsure which one keeps their category.
+- **`linked_plan`/`linked_car` added to `BLOCKING_STATUSES`** — strictly more conservative, and both
+  cases were already unreachable via `isHandledReview`. Two lists that were meant to agree.
+
+### ⚠️ TESTS OWED — the new pure helpers have NO tests of their own
+
+`763/763` is green but **+1 only**. The routing functions (`findReviewRowFor`, `findExclusiveReview`,
+`applyReviewToSet`) are covered only indirectly. They are the highest-value thing in the commit and
+they are exactly the shape `synced-transaction-review.splitLink.test.ts` already tests well — add a
+block there: link-another INSERTs, same-target UPDATEs, exclusive always routes to the exclusive row,
+and `applyReviewToSet` does not mutate its input.
+
+### 🧷 A GIT NOTE THAT WILL BITE THE NEXT SESSION
+
+**Local `main` is 35 commits ahead of `origin/main` and that is a lie.** PR #69 was **squash-merged**,
+so `origin/main` (`d1e9afab`) has a tree **byte-identical** to the old branch head — verified by an
+empty `git diff origin/main HEAD`, not by "it says merged". The 35 local commits are the same content
+under different hashes.
+
+So **cut every new branch from `origin/main`, never from local `main`.** I tried
+`git branch -f main origin/main` (with a safety tag first) and the permission classifier blocked it,
+correctly — it moves history. **It is Tre's call.** The fix when he wants it:
+`git tag pre-squash-main-20260810 main && git branch -f main origin/main`. Zero content loss;
+the trees are identical.
+
+---
+
 ## ▶ 2026-08-09 — this repo is set up for autopilot, and `origin` is finally current
 
 Done from the Conductor session, not from here. Nothing about Slice C changed —
