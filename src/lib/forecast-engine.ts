@@ -223,31 +223,35 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     const retireAcctIdSet = retireAccountIds; // alias for per-account tracking
     const payDeds: { value: number; mode: 'flat' | 'pct'; accountId?: string }[] =
       Array.isArray(prof?.paycheck_deductions) ? (prof.paycheck_deductions as typeof payDeds) : [];
-    // Per-paycheck contribution amount — multiplied by actual paycheck count per month inside the loop
-    const perCheck401k = (() => {
+    // Per-paycheck contribution amount — multiplied by actual paycheck count per month inside the
+    // loop. N10 fix: pct-mode deductions are a share of GROSS, and gross scales with raises and
+    // promotions (incomeMultiplier), so these are functions of the month's multiplier rather than
+    // values frozen at month-0 gross. Flat-mode deductions stay flat — that is what flat means.
+    const perCheck401kAt = (mult: number): number => {
       const linked = payDeds
         .filter(d => d.accountId && retireAccountIds.has(d.accountId) && d.value > 0)
-        .reduce((s, d) => s + (d.mode === 'pct' ? paycheckGrossForForecast * (d.value / 100) : d.value), 0);
+        .reduce((s, d) => s + (d.mode === 'pct' ? paycheckGrossForForecast * mult * (d.value / 100) : d.value), 0);
       if (linked > 0) return linked;
       const d401kVal = Number(prof?.deduction_401k_value) || 0;
       const d401kMode = prof?.deduction_401k_mode || 'pct';
-      return d401kMode === 'pct' ? paycheckGrossForForecast * (d401kVal / 100) : d401kVal;
-    })();
+      return d401kMode === 'pct' ? paycheckGrossForForecast * mult * (d401kVal / 100) : d401kVal;
+    };
 
-    // Per-paycheck retirement attribution per account
-    const perCheckRetireByAcct = (() => {
+    // Per-paycheck retirement attribution per account — same multiplier rule; recomputed per month
+    // in step 4a because a mixed flat+pct set changes its SPLIT (not just its total) after a raise.
+    const perCheckRetireByAcctAt = (mult: number): Map<string, number> => {
       const m = new Map<string, number>();
       const linked = payDeds.filter(d => d.accountId && retireAcctIdSet.has(d.accountId!) && d.value > 0);
       if (linked.length > 0) {
         for (const d of linked) {
-          m.set(d.accountId!, (m.get(d.accountId!) ?? 0) + (d.mode === 'pct' ? paycheckGrossForForecast * (d.value / 100) : d.value));
+          m.set(d.accountId!, (m.get(d.accountId!) ?? 0) + (d.mode === 'pct' ? paycheckGrossForForecast * mult * (d.value / 100) : d.value));
         }
       } else {
         const fallback = retireAccounts.find((a) => a.account_type === '401k') ?? retireAccounts[0];
-        if (fallback) m.set(fallback.id as string, perCheck401k);
+        if (fallback) m.set(fallback.id as string, perCheck401kAt(mult));
       }
       return m;
-    })();
+    };
 
     // Per-account retire tracker and goal pools (savings accounts already in perAcctSavings above)
     const perAcctRetire = new Map<string, { name: string; balance: number }>(
@@ -620,6 +624,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       paycheckIncome: number; otherIncome: number; bonusIncome: number; taxReturnIncome: number; isRaiseMonth: boolean;
       promotionNewSalary: number;
       paycheckRetireContrib: number; fullMonth401kContrib: number;
+      /** The month's compounded raise/promotion multiplier — step 4a re-derives the per-account
+       * deduction split from it, since a mixed flat+pct set splits differently after a raise. */
+      incomeMultiplier: number;
       transferBreakdown: { name: string; amount: number }[];
       nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
       floorItems: { name: string; amount: number; dueDay: number }[];
@@ -899,10 +906,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
               return pStr > syncCutoffDate;
             }).length
         : getPaychecksInMonth(adjustedConfig, d.getFullYear(), d.getMonth()).length;
-      const month401kContrib = payConfig ? perCheck401k * paychecksThisMonth : 0;
+      const perCheck401kNow = perCheck401kAt(incomeMultiplier);
+      const month401kContrib = payConfig ? perCheck401kNow * paychecksThisMonth : 0;
       // Full month paychecks — used for display only (popup shows full month total, not remaining)
       const allPaychecksThisMonth = getPaychecksInMonth(adjustedConfig, d.getFullYear(), d.getMonth()).length;
-      const fullMonth401kContrib = payConfig ? perCheck401k * allPaychecksThisMonth : 0;
+      const fullMonth401kContrib = payConfig ? perCheck401kNow * allPaychecksThisMonth : 0;
       monthRetireContrib += month401kContrib;
 
       const oneTime = oneTimeByMonth[monthKey] || { income: 0, expense: 0 };
@@ -952,7 +960,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         monthLabel, monthKey, netIncome, baseExpenses, rawDebtPayment,
         monthTransfers, monthBrokerageContrib, monthRetireContrib, monthBusinessContrib, monthSavingsTransferContrib, oneTimeNet, ccDebtBalance, otherDebtBalance, monthMinSafe, monthlySavingsContrib,
         paycheckIncome, otherIncome, bonusIncome, taxReturnIncome, isRaiseMonth, promotionNewSalary,
-        paycheckRetireContrib: month401kContrib, fullMonth401kContrib, transferBreakdown, nonCashTransferItems,
+        paycheckRetireContrib: month401kContrib, fullMonth401kContrib, incomeMultiplier, transferBreakdown, nonCashTransferItems,
         floorItems, prePaycheckBillsTotal, savingsGoalItems, carContribItems, perAccountTransferContribs,
         otherAccountExpenseItems,
       });
@@ -1297,6 +1305,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
 
       // 4a. Paycheck retire deductions → per-account attribution
       if (b.paycheckRetireContrib > 0) {
+        const perCheckRetireByAcct = perCheckRetireByAcctAt(b.incomeMultiplier);
         const totalPerCheckBasis = Array.from(perCheckRetireByAcct.values()).reduce((s, v) => s + v, 0);
         for (const [id, baseAmt] of perCheckRetireByAcct) {
           const a = perAcctRetire.get(id);
