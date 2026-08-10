@@ -1,5 +1,38 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 1c — 🟢 **AuthContext defensive `.catch()` SHIPPED on `fix/auth-navigate-catch` (`b6f77bc6`), NOT pushed**
+
+The last open non-Tre code item from below is done. New branch **`fix/auth-navigate-catch`**, cut
+from `origin/main` (`9190611f`), one code commit:
+
+- **`b6f77bc6`** — the post-SIGNED_IN chain in `src/contexts/AuthContext.tsx`
+  (reviewer reset → MFA probe → `navigate('/dashboard')`) now has a `.catch()`: it logs
+  `Post-sign-in navigation chain failed:` and **still navigates to `/dashboard`**, because the user
+  is authenticated at that point and being silently parked on `/auth` is the worse outcome. The
+  MFA-pending path `return`s inside the `.then` (not a rejection), so the catch cannot bypass a
+  working MFA challenge — it only fires when the probe itself throws, and that degrades toward the
+  common no-MFA case. This is the DEFENSIVE fix from session 134's diagnosis, explicitly NOT the
+  dashboard Try-again bug (fixed separately on `fix/error-boundary-retry`).
+- **Proof: tsc 0, eslint clean on the file, full suite 788/788** (788 is `origin/main`'s count; the
+  800 figure below is the toast branch's +12). No dedicated unit test — nothing in `src/` mocks the
+  supabase auth listener today, and building that scaffolding for a 4-line catch was judged not
+  worth it. Not live-verified: the catch path needs a failing reviewer-reset/MFA probe, which cannot
+  be staged unattended.
+- This branch's `handoff.md` was refreshed from `fix/duplicate-link-toast`'s copy, so all three fix
+  branches now prepend the same file — **expect trivial prepend conflicts** when merging the second
+  and third PRs.
+
+**`conductor` is still permission-blocked in this relay (both shells)** — `conductor answers` was
+never collected and no note/card could be filed. Run `conductor answers` from an interactive
+terminal.
+
+**Open, needing Tre (unchanged plus one):**
+- File THREE PRs now: `fix/error-boundary-retry`, `fix/duplicate-link-toast`, `fix/auth-navigate-catch`
+  (all local-only, all based on `9190611f`).
+- Delete or leave `feat/split-link-slice-c` (merged via #70).
+- The upstream dashboard crash is still unidentified — needs a real repro with the console open
+  (read the `Page render error:` line).
+
 ## ▶ 2026-08-10 — relay session 1b — 🟢 **DUPLICATE-LINK 409 TOAST FIXED on `fix/duplicate-link-toast`, NOT pushed. Split link (#70) is MERGED.**
 
 **The board has moved since session 134 wrote the section below: PR #70 (split link, Slice C)
