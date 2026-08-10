@@ -139,6 +139,46 @@ the pct deduction vs keep manual — recommended derive. Do not build until Tre 
 2. **Finding 4** — blocked on card `20648b6f`; collect with `conductor answers`, then build.
 3. Live-verify N11 (Debt page) and N9/N10 (Forecast page, incl. this panel fix) in a signed-in
    browser.
+## ▶ 2026-08-10 — relay session 8 — 🟢 **N10 FINDING 1 FIXED on `fix/n10-pct-deductions-scale` (`2125b1be`, local only, unpushed)**
+
+The engine fix from session 6's audit is built, TDD'd, and green. Branch cut from `origin/main`
+(now `39b5ea4e` — that tip only added the session-6/7 handoff docs via PR #79; the N9 fix branch
+`fix/n9-panel-apy-fallback` is still local and unpushed). One commit, two files:
+
+- **`src/lib/forecast-engine.ts`**: `perCheck401k` / `perCheckRetireByAcct` are now functions of the
+  month's `incomeMultiplier` (`perCheck401kAt` / `perCheckRetireByAcctAt`). Pct-mode deductions read
+  `paycheckGrossForForecast * incomeMultiplier`; flat stays flat. PASS 1 computes the per-check
+  amount per month (`:902-905` sites); PASS 3 step 4a re-derives the per-account map from the
+  month's multiplier — carried on `baseData` as a new `incomeMultiplier` field — because a mixed
+  flat+pct set changes its SPLIT after a raise, not just its total.
+- **`src/lib/__tests__/forecast-engine.pctDeductionScaling.test.ts`** — the first fully SYNTHETIC
+  `ForecastInputs` engine test (every other engine test self-skips without the gitignored real
+  fixture, so this one runs in CI). 3 tests, all RED before the fix: pct steps up ×1.10 at the raise
+  month and compounds ×1.21 at the second; flat deduction and its per-account delta stay flat while
+  the pct account absorbs the raise; a promotion snap scales from its effective month.
+
+**Proof: tsc 0, eslint clean on both files, full suite 810/810 (807 + 3 new) — including the
+Tier-A golden real-fixture pins, which did NOT move.** Why they couldn't: the deduction credit only
+feeds retirement balances and the popup display fields; net income was already computed from the
+scaled `adjustedConfig`, so the cash walk (and every debt-payoff pin) is untouched. Backup of the
+original at `backups/2026-08-10_193500/`. NOT live-verified (needs a signed-in browser: open
+Forecast with a raise enabled, confirm `401k Contribution` in a post-raise month's popup is higher
+than month 0's).
+
+**Decision: Finding 3 does NOT ride along.** It is the same class of bug but in the milestones
+PANEL (`Forecast.tsx:297-335` + `retirement-projection.ts`), a different surface with a different
+horizon (20y), and the panel has no `incomeMultiplier` concept to reuse — bundling it would have put
+a UI-layer change inside an engine PR. It is now the top remaining N9/N10 item.
+
+**Next up:**
+1. **Finding 3** — milestones panel freezes contributions for 20 years (and compounds at nominal
+   `apy/12` vs the engine's geometric rate — minor). Own small slice on `Forecast.tsx` /
+   `retirement-projection.ts`.
+2. **Finding 4** — goal contribution should derive from the linked pct deduction; design question,
+   file a card for Tre before building.
+3. File THREE PRs (`fix/n8-forecast-popup-decimals`, `fix/n9-panel-apy-fallback`,
+   `fix/n10-pct-deductions-scale`) — push/PR denied in this relay. Delete merged local branches.
+4. Live-verify N11 (Debt page) and N9/N10 (Forecast page) in a signed-in browser.
 
 ## ▶ 2026-08-10 — relay session 7 — 🟢 **N9 FINDING 2 FIXED on `fix/n9-panel-apy-fallback` (`1074ac90`, local only, unpushed)**
 
