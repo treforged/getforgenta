@@ -13,6 +13,7 @@ import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarFund } from '@/lib/types';
 import {
   validateReviewInput, validateReviewSet, findExclusiveReview, findReviewRowFor, applyReviewToSet,
+  friendlyReviewWriteError,
   type ReviewInput, type ReviewStatus, type CarChargeKind,
 } from '@/lib/synced-transaction-review';
 import type { LedgerDraft } from '@/lib/synced-transaction-import';
@@ -746,7 +747,7 @@ export function useSyncedTransactionReviews() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyReviewWriteError(e) ?? e.message),
   });
 
   // Category is the one field a user edits WITHOUT taking a position on what the charge is, so it
@@ -789,7 +790,7 @@ export function useSyncedTransactionReviews() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyReviewWriteError(e) ?? e.message),
   });
 
   // §1B Stage 3 — THE ONLY PATH IN THIS FILE THAT TURNS A BANK CHARGE INTO MONEY.
@@ -864,7 +865,7 @@ export function useSyncedTransactionReviews() {
       qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] });
       toast.success('Added to your ledger');
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(friendlyReviewWriteError(e) ?? e.message),
   });
 
   // Undoing an IMPORT deletes the LEDGER ROW, not the review.
