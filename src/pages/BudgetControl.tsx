@@ -19,13 +19,14 @@ import {
   Wallet, TrendingDown, DollarSign, PiggyBank, Plus, Edit2, Trash2, Copy,
   CalendarDays, Pause, Play, ArrowLeftRight, CreditCard, Info, X, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { getDayName, countRuleOccurrencesInMonth } from '@/lib/scheduling';
+import { getDayName, countRuleOccurrencesInMonth, describeBiweeklyAnchor } from '@/lib/scheduling';
 import { CATEGORIES } from '@/lib/types';
 import { generateRecommendations } from '@/lib/credit-card-engine';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
 import { buildPayConfig, getPaycheckNet, getRemainingIncomeThisMonth, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, getPrePaycheckNextMonthBills, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth, mergeWithGeneratedTransactions, createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, type PayFrequency } from '@/lib/pay-schedule';
-import { useTransactions, useSyncedTransactions } from '@/hooks/useSupabaseData';
+import { useTransactions, useSyncedTransactions, useSyncedTransactionReviews } from '@/hooks/useSupabaseData';
+import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { matchOccurrence } from '@/lib/transaction-matching';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 
@@ -42,7 +43,31 @@ type BudgetRule = {
   category: string; due_day?: number | null; due_month?: number | null; start_date?: string | null;
   end_date?: string | null; cost_type?: string | null; isSub?: boolean; isDebtSync?: boolean;
   payment_source?: string | null; deposit_account?: string | null; notes?: string | null;
-  tax_rate?: number | null;
+  tax_rate?: number | null; created_at?: string | null;
+};
+
+/**
+ * The sentence the rule editor shows under a biweekly rule's date field.
+ *
+ * A biweekly cadence has a PHASE, and the app derives one whether or not the user supplies it
+ * (`resolveBiweeklyAnchor`). Showing the derived date is the whole point: "every 14 days" is
+ * ambiguous until you say from when, and a user who disagrees can now pin their own.
+ *
+ * ⚠️ The shifted case is stated plainly rather than swallowed. When someone types their real first
+ * paycheck date on a rule whose Day of Week names a different weekday, we MOVE their date — which
+ * is defensible, since the weekday is also something they asked for — but a silently relocated
+ * schedule is exactly the surprise this workstream exists to remove.
+ */
+const biweeklyAnchorHint = (rule: { due_day?: number | null; start_date?: string | null; created_at?: string | null }): string => {
+  const { anchor, pinned, shiftedFromInput } = describeBiweeklyAnchor(rule);
+  const pretty = new Date(`${anchor}T12:00:00`).toLocaleDateString(undefined, {
+    weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+  });
+  if (shiftedFromInput) {
+    return `Heads up: the schedule will run from ${pretty}, not the date entered — Day of Week above names a different weekday. Change either one so they agree.`;
+  }
+  if (pinned) return `Repeats every 14 days from ${pretty}.`;
+  return `Repeats every 14 days from ${pretty}. Set a date to pin your own cycle.`;
 };
 
 const DEFAULT_STARTER_RULES = [
@@ -209,6 +234,11 @@ export default function BudgetControl() {
   // Rule form state
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  // The edited row's `created_at`, kept alongside the form because it is the biweekly phase anchor
+  // whenever `start_date` is blank — the hint has to describe what the ENGINE will do, and the
+  // engine reads this column. A rule being added has none yet, so the hint falls back to today,
+  // which is what that rule's anchor will actually resolve to once it is written.
+  const [editCreatedAt, setEditCreatedAt] = useState<string | null>(null);
   const [form, setForm] = useState(emptyRuleForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   // Guard only — never read during render. A ref rather than state because it
@@ -542,6 +572,9 @@ export default function BudgetControl() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }, []);
   const { data: syncedTxns } = useSyncedTransactions(currentMonthKey);
+  // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid.
+  const { data: syncedReviews } = useSyncedTransactionReviews();
+  const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
   const autoMatchedRuleIds = useMemo(() => {
     if (!syncedTxns?.length) return new Set<string>();
     const matched = new Set<string>();
@@ -647,7 +680,7 @@ export default function BudgetControl() {
   }, [accounts, fundingAccount]);
 
   const remainingTxIncome = useMemo(() => getRemainingTransactionIncomeThisMonth(allMonthTransactions), [allMonthTransactions]);
-  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true), [allMonthTransactions]);
+  const remainingTxExpenses = useMemo(() => getRemainingTransactionExpensesThisMonth(allMonthTransactions, true, undefined, undefined, undefined, confirmedOccurrences), [allMonthTransactions, confirmedOccurrences]);
   const remainingTxDebt = useMemo(() => getRemainingTransactionDebtPaymentsThisMonth(allMonthTransactions), [allMonthTransactions]);
 
   const remainingCashOnHand = fundingAccountBalance + remainingTxIncome - remainingTxExpenses - remainingTxDebt;
@@ -676,6 +709,7 @@ export default function BudgetControl() {
   const openAdd = (type: string, category?: string) => {
     setForm({ ...emptyRuleForm, rule_type: type, category: category || 'Other' });
     setEditId(null);
+    setEditCreatedAt(null);
     setShowForm(true);
   };
 
@@ -689,6 +723,7 @@ export default function BudgetControl() {
       tax_rate: r.tax_rate != null ? String(r.tax_rate) : '',
     });
     setEditId(r.id);
+    setEditCreatedAt(r.created_at || null);
     setShowForm(true);
   };
 
@@ -774,7 +809,24 @@ export default function BudgetControl() {
     }
     fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
     
-    fields.push({ key: 'start_date', label: form.rule_type === 'income' ? 'Start Date (required)' : 'Start Date (optional)', type: 'date', ...(form.rule_type === 'income' ? { required: true } : { clearable: true }) });
+    // On a biweekly rule this existing field is doing a second job — it is the phase anchor
+    // `resolveBiweeklyAnchor` already prefers — so it is relabelled to say what it actually
+    // controls and captioned with the cycle the engine will run. No new column, no new input.
+    const isBiweekly = form.frequency === 'biweekly';
+    const startDateLabel = isBiweekly
+      ? (form.rule_type === 'income' ? 'First Paycheck Date (required)' : 'First Occurrence (optional)')
+      : (form.rule_type === 'income' ? 'Start Date (required)' : 'Start Date (optional)');
+    fields.push({
+      key: 'start_date',
+      label: startDateLabel,
+      type: 'date',
+      ...(form.rule_type === 'income' ? { required: true } : { clearable: true }),
+      ...(isBiweekly ? { hint: biweeklyAnchorHint({
+        due_day: form.due_day.trim() === '' ? null : Number(form.due_day),
+        start_date: form.start_date || null,
+        created_at: editCreatedAt,
+      }) } : {}),
+    });
     fields.push({ key: 'end_date', label: 'End Date (optional)', type: 'date', clearable: true });
 
     if (form.rule_type === 'income') {
@@ -790,7 +842,9 @@ export default function BudgetControl() {
     }
     fields.push({ key: 'notes', label: 'Notes', type: 'text', placeholder: 'Optional' });
     return fields;
-  }, [form.frequency, form.rule_type, allAccountOptions, depositAccountOptions, editId, paycheckRuleId, weeklyGross]);
+    // `form.start_date`, `form.due_day` and `editCreatedAt` are inputs to the biweekly hint above —
+    // omit them and the caption goes stale the moment the user types.
+  }, [form.frequency, form.rule_type, form.start_date, form.due_day, editCreatedAt, allAccountOptions, depositAccountOptions, editId, paycheckRuleId, weeklyGross]);
 
   const handleDuplicate = (r: BudgetRule) => {
     if (r.isSub || r.isDebtSync) return;
@@ -802,6 +856,9 @@ export default function BudgetControl() {
       tax_rate: r.tax_rate != null ? String(r.tax_rate) : '',
     });
     setEditId(null);
+    // A copy is a NEW row and will get its own `created_at` on save, so it does not inherit the
+    // original's phase anchor. Only a pinned `start_date` (copied above) carries over.
+    setEditCreatedAt(null);
     setShowForm(true);
     toast.info('Rule duplicated — edit and save');
   };

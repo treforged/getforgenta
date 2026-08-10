@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildConfirmedOccurrences,
   isOccurrenceConfirmed,
+  isRuleOccurrenceConfirmed,
   type RuleOccurrenceReview,
 } from '../confirmed-capture';
 
@@ -39,6 +40,14 @@ describe('buildConfirmedOccurrences — only an explicit rule link confirms', ()
     },
   );
 
+  // §1B Stage 4C. A plan link names a `payment_plans` row whose month-0 outflow comes from
+  // `getMonthlyPlanCashExpenses`, NOT from a recurring rule. Letting it in here would suppress a
+  // rule occurrence on the strength of a uuid from a different table — a silent cross-table
+  // collision. Its suppression belongs to a separate plan key space, and is not built yet.
+  it('ignores linked_plan — a different key space, deliberately not folded into this one', () => {
+    expect(buildConfirmedOccurrences([review({ status: 'linked_plan' })]).size).toBe(0);
+  });
+
   it('skips a linked_rule whose rule was deleted (FK ON DELETE SET NULL), rather than throwing', () => {
     // The documented degraded state: still "handled", but no rule left to suppress an occurrence of.
     expect(buildConfirmedOccurrences([review({ rule_id: null })]).size).toBe(0);
@@ -51,6 +60,79 @@ describe('buildConfirmedOccurrences — only an explicit rule link confirms', ()
   it('treats null/undefined review lists as "nothing confirmed"', () => {
     expect(buildConfirmedOccurrences(null).size).toBe(0);
     expect(buildConfirmedOccurrences(undefined).size).toBe(0);
+  });
+});
+
+// §1B SPLIT LINK Slice A — N links on ONE charge.
+//
+// The read side needs NO logic change for split link, and these tests are what make that claim
+// checkable rather than asserted: `buildConfirmedOccurrences` already iterates reviews and keys per
+// rule, so several rows sharing a `synced_transaction_id` are simply several reviews to it. The
+// module never sees `synced_transaction_id` at all, which is exactly why it does not care.
+describe('buildConfirmedOccurrences — a charge split across several rules', () => {
+  const THIRD_RULE = 'e6a1f2c3-3333-4aaa-9bbb-000000000003';
+
+  it('keys every link of a split charge separately', () => {
+    const confirmed = buildConfirmedOccurrences([
+      review({ rule_id: RULE }),
+      review({ rule_id: OTHER_RULE }),
+      review({ rule_id: THIRD_RULE }),
+    ]);
+    expect(confirmed.size).toBe(3);
+    for (const id of [RULE, OTHER_RULE, THIRD_RULE]) {
+      expect(isRuleOccurrenceConfirmed(id, '2026-08-05', confirmed)).toBe(true);
+    }
+  });
+
+  // THE CASE SPLIT LINK EXISTS FOR. One rent debit settles Rent for THIS month and the
+  // Water/Sewer/Trash rider for the PREVIOUS one, billed in arrears — so the two links carry
+  // DIFFERENT `occurrence_month`s. Multi-row gets that for free; each row already has its own.
+  it('honours a PER-LINK month, so a rider in arrears suppresses the previous month', () => {
+    const confirmed = buildConfirmedOccurrences([
+      review({ rule_id: RULE, occurrence_month: '2026-08' }),
+      review({ rule_id: OTHER_RULE, occurrence_month: '2026-07' }),
+    ]);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-01', confirmed)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-07-20', confirmed)).toBe(true);
+    // And neither leaks into the other's month.
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-07-01', confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-08-20', confirmed)).toBe(false);
+  });
+
+  it('mixes a date-keyed link and a month-keyed one on the same charge', () => {
+    const confirmed = buildConfirmedOccurrences([
+      review({ rule_id: RULE, occurrence_month: '2026-08', occurrence_date: '2026-08-14' }),
+      review({ rule_id: OTHER_RULE, occurrence_month: '2026-08' }),
+    ]);
+    // The biweekly one suppresses exactly its own occurrence and leaves the other fortnight alone.
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-14', confirmed)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-28', confirmed)).toBe(false);
+    // The month-keyed one keeps its legacy whole-month behaviour, unaffected by its neighbour.
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-08-28', confirmed)).toBe(true);
+  });
+
+  // A charge holding several links may also hold ONE exclusive row. It must contribute nothing —
+  // `'categorized'` takes no position on whether anything was paid, and the split-link design puts
+  // `category_override` on exactly that row.
+  it('ignores the charge\'s exclusive row while collecting its links', () => {
+    const confirmed = buildConfirmedOccurrences([
+      { status: 'categorized', rule_id: null, occurrence_month: null },
+      review({ rule_id: RULE }),
+      review({ rule_id: OTHER_RULE }),
+    ]);
+    expect(confirmed.size).toBe(2);
+  });
+
+  // A charge whose links are all degraded (their rules deleted) confirms nothing, rather than
+  // throwing or collapsing into a single null-keyed entry that would suppress an unrelated bill.
+  it('skips degraded links without disturbing the sound ones beside them', () => {
+    const confirmed = buildConfirmedOccurrences([
+      review({ rule_id: null }),
+      review({ rule_id: RULE }),
+      review({ rule_id: null }),
+    ]);
+    expect(confirmed.size).toBe(1);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-05', confirmed)).toBe(true);
   });
 });
 
@@ -89,5 +171,91 @@ describe('isOccurrenceConfirmed — scoped to one rule in one month', () => {
     expect(isOccurrenceConfirmed({ id: null, date: null, isGenerated: true }, confirmed)).toBe(false);
     expect(isOccurrenceConfirmed({ id: 'gen:only-two-parts', date: '2026-08-25', isGenerated: true }, confirmed))
       .toBe(false);
+  });
+});
+
+// The rule-id form, for consumers that already know which rule produced a charge — the forecast's
+// scheduledEvents carry `ruleId` and a date directly and never take the `gen:` id shape.
+describe('isRuleOccurrenceConfirmed', () => {
+  const confirmed = buildConfirmedOccurrences([review()]);
+
+  it('matches on rule + month, reading only the month part of a full date', () => {
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-25', confirmed)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08', confirmed)).toBe(true);
+  });
+
+  it('does not confirm another rule, or the same rule in another month', () => {
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-08-25', confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-09-25', confirmed)).toBe(false);
+  });
+
+  it('is inert on a null rule id, a null date, or an empty set', () => {
+    expect(isRuleOccurrenceConfirmed(null, '2026-08-25', confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(RULE, null, confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-25', buildConfirmedOccurrences([]))).toBe(false);
+  });
+});
+
+// THE BIWEEKLY DEFECT. A weekly or biweekly rule bills two or three times in a month, so keying a
+// confirmation on `ruleId|YYYY-MM` meant confirming ONE charge retired ALL of them and over-raised
+// projected cash by the amounts nobody confirmed. `occurrence_date` names the one that was settled.
+describe('occurrence_date — one confirmation retires exactly one occurrence', () => {
+  const FIRST = '2026-08-03';
+  const SECOND = '2026-08-17';
+  const dated = (date: string) => review({ occurrence_date: date });
+
+  it('suppresses the confirmed occurrence and LEAVES THE OTHER ONE STANDING', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST)]);
+    expect(isRuleOccurrenceConfirmed(RULE, FIRST, confirmed)).toBe(true);
+    // The whole point. Under month-keying this was `true`, and $65 of Fuel vanished from the month.
+    expect(isRuleOccurrenceConfirmed(RULE, SECOND, confirmed)).toBe(false);
+  });
+
+  it('suppresses BOTH once both are confirmed — two links, two occurrences, no more', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST), dated(SECOND)]);
+    expect(confirmed.size).toBe(2);
+    expect(isRuleOccurrenceConfirmed(RULE, FIRST, confirmed)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(RULE, SECOND, confirmed)).toBe(true);
+    // A third occurrence of the same rule in the same month is still untouched by the other two.
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-31', confirmed)).toBe(false);
+  });
+
+  it('still scopes to the rule and the month', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST)]);
+    expect(isRuleOccurrenceConfirmed(OTHER_RULE, FIRST, confirmed)).toBe(false);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-09-03', confirmed)).toBe(false);
+  });
+
+  it('adds the DATE key only — a date-keyed review must not also suppress its whole month', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST)]);
+    expect(confirmed.size).toBe(1);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08', confirmed)).toBe(false);
+  });
+
+  it('reaches the generated-transaction form too', () => {
+    const confirmed = buildConfirmedOccurrences([dated(FIRST)]);
+    expect(isOccurrenceConfirmed(genTxn(RULE, FIRST), confirmed)).toBe(true);
+    expect(isOccurrenceConfirmed(genTxn(RULE, SECOND), confirmed)).toBe(false);
+  });
+
+  // Every review written before the column existed has a NULL date. They must keep suppressing the
+  // whole month exactly as they did, or a migration would silently un-confirm settled bills.
+  it('LEGACY: a null occurrence_date still suppresses the whole month, byte for byte', () => {
+    for (const legacy of [review(), review({ occurrence_date: null })]) {
+      const confirmed = buildConfirmedOccurrences([legacy]);
+      expect(isRuleOccurrenceConfirmed(RULE, FIRST, confirmed)).toBe(true);
+      expect(isRuleOccurrenceConfirmed(RULE, SECOND, confirmed)).toBe(true);
+      expect(isRuleOccurrenceConfirmed(RULE, '2026-08', confirmed)).toBe(true);
+      expect(isRuleOccurrenceConfirmed(RULE, '2026-09-03', confirmed)).toBe(false);
+    }
+  });
+
+  // A monthly rule has one occurrence a month, so date-keying and month-keying agree by
+  // construction — which is why the 11 existing links on Tre's account need no backfill.
+  it('a monthly rule behaves identically date-keyed or month-keyed', () => {
+    const byDate = buildConfirmedOccurrences([dated('2026-08-01')]);
+    const byMonth = buildConfirmedOccurrences([review()]);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-01', byDate)).toBe(true);
+    expect(isRuleOccurrenceConfirmed(RULE, '2026-08-01', byMonth)).toBe(true);
   });
 });

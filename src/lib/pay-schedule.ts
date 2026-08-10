@@ -3,6 +3,8 @@
 
 import { getActiveCarLoanPayments, getLoanPrincipal, monthsBetween } from './vehicle-loan-engine';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
+import { isOccurrenceConfirmed, type ConfirmedOccurrences } from './confirmed-capture';
+import { getBiweeklyDatesInMonth, toLocalDateStr } from './scheduling';
 import type { AccountRow, RuleRow, TransactionRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 import type { CarFund } from './types';
@@ -383,6 +385,11 @@ export function getRemainingTransactionIncomeByDay(
  * Get ALL remaining expenses from Transactions (both generated and manual) in the due-date window.
  * Single source of truth — avoids double-counting with Budget Control rules.
  * Can optionally exclude debt payment transactions (since those are what we're computing).
+ *
+ * `confirmed` (§1B Stage 4A) drops a generated rule occurrence the user has explicitly confirmed a
+ * bank transaction already paid. It is optional and defaulted for the same reason `evidence` is
+ * optional on `isCapturedInBalance`: omitting it must be byte-identical to the pre-Stage-4 result,
+ * so call sites can be wired one at a time.
  */
 export function getRemainingTransactionExpensesByDay(
   transactions: EnrichedTransaction[],
@@ -391,6 +398,7 @@ export function getRemainingTransactionExpensesByDay(
   fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
   cutoffDate?: string,
+  confirmed?: ConfirmedOccurrences,
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -410,6 +418,8 @@ export function getRemainingTransactionExpensesByDay(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    // §1B Stage 4A: the user confirmed a bank transaction already paid this rule occurrence.
+    if (confirmed && isOccurrenceConfirmed(t, confirmed)) continue;
     // Only count expenses from the funding account. If a source is set and it
     // isn't the funding account (CC, other checking, savings, etc.), skip it.
     if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
@@ -480,6 +490,7 @@ export function getRemainingTransactionExpenseItemsByDay(
   fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
   cutoffDate?: string,
+  confirmed?: ConfirmedOccurrences,
 ): TransactionLineItem[] {
   const now = new Date();
   const today = now.getDate();
@@ -498,6 +509,9 @@ export function getRemainingTransactionExpenseItemsByDay(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    // §1B Stage 4A: same suppression as getRemainingTransactionExpensesByDay, so the line-item
+    // breakdown never lists a charge the total no longer counts.
+    if (confirmed && isOccurrenceConfirmed(t, confirmed)) continue;
     if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
     if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date) continue;
@@ -551,6 +565,7 @@ export function getRemainingTransactionExpensesThisMonth(
   cutoffDate?: string,
   fundingAccountSources: Set<string> = new Set(),
   excludeCategories: Set<string> = new Set(),
+  confirmed?: ConfirmedOccurrences,
 ): number {
   const now = new Date();
   const today = now.getDate();
@@ -563,6 +578,8 @@ export function getRemainingTransactionExpensesThisMonth(
     if (t.type !== 'expense') continue;
     if (excludeDebtPayments && t.category === 'Debt Payments') continue;
     if (t.category === 'Balance Adjustment') continue;
+    // §1B Stage 4A: the user confirmed a bank transaction already paid this rule occurrence.
+    if (confirmed && isOccurrenceConfirmed(t, confirmed)) continue;
     if (fundingAccountSources.size > 0 && t.payment_source && !fundingAccountSources.has(t.payment_source)) continue;
     if (excludeCategories.size > 0 && !t.payment_source && excludeCategories.has(t.category)) continue;
     if (!t.date || !t.date.startsWith(monthStr)) continue;
@@ -1093,14 +1110,113 @@ export function getSafeToPayByDueDate(
  * This is the shared utility so all pages (Dashboard, Debt Payoff, Budget Control)
  * produce the same generated transaction set before merging with real DB transactions.
  */
+/**
+ * The dates one rule bills on in one month — the ONLY definition of where a rule's occurrences land.
+ *
+ * Extracted from `generateMonthTransactionsFromRules` (which now calls it) so the §1B link writer
+ * can name the occurrence a bank charge settled without owning a second copy of this arithmetic.
+ * A second copy is the specific danger here: a writer that disagreed with the generator by one day
+ * would store an `occurrence_date` no generated occurrence has, and the confirmation would suppress
+ * nothing while looking correct in the database.
+ *
+ * ⚠️ `due_day` MEANS A DAY OF THE WEEK (0-6) for `weekly` and `biweekly`, and a day of the month for
+ * the other two. That is the existing convention, not a choice made here.
+ *
+ * ⚠️ BIWEEKLY IS PHASE-ANCHORED, WEEKLY IS NOT, and that asymmetry is deliberate. Biweekly defers to
+ * `getBiweeklyDatesInMonth` so its 14-day cycle is measured from a stable per-rule anchor; restarting
+ * it each month inserted a whole extra cycle four times a year (+7.7%). Weekly keeps the
+ * first-matching-weekday walk because every Friday is a Friday whichever month it falls in — a
+ * 7-day step cannot drift across a boundary, so anchoring it could only move a correct schedule.
+ */
+export function getRuleOccurrenceDatesInMonth(
+  rule: Pick<RuleRow, 'frequency' | 'due_day' | 'due_month' | 'start_date' | 'created_at' | 'end_date'>,
+  year: number,
+  month: number, // 0-indexed
+): string[] {
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0);
+  const dates: string[] = [];
+
+  if (rule.start_date) {
+    const startDate = new Date(rule.start_date + 'T12:00:00');
+    if (startDate > monthEnd) return dates;
+  }
+
+  if (rule.frequency === 'biweekly') {
+    return getBiweeklyDatesInMonth(rule, year, month).map(toLocalDateStr);
+  } else if (rule.frequency === 'weekly') {
+    const d = new Date(monthStart);
+    const dayOfWeek = rule.due_day ?? 5;
+    while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
+    while (d <= monthEnd) {
+      dates.push(d.toISOString().split('T')[0]);
+      d.setDate(d.getDate() + 7);
+    }
+  } else if (rule.frequency === 'monthly') {
+    const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());
+    const d = new Date(year, month, dueDay);
+    if (d >= monthStart && d <= monthEnd) dates.push(d.toISOString().split('T')[0]);
+  } else if (rule.frequency === 'yearly') {
+    const dueMonth = (rule.due_month ?? 1) - 1;
+    if (dueMonth === month) {
+      const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());
+      dates.push(new Date(year, dueMonth, dueDay).toISOString().split('T')[0]);
+    }
+  }
+
+  return dates;
+}
+
+/**
+ * §1B — which of a rule's occurrences a bank charge on `chargeDate` settles, or null if none.
+ *
+ * Used at link time to store `occurrence_date`, so that confirming one biweekly Fuel charge retires
+ * that fill-up and leaves the month's other one standing.
+ *
+ * ⚠️ CANDIDATES COME FROM THE CHARGE'S OWN MONTH ONLY, deliberately. `occurrence_date` refines
+ * `occurrence_month`; letting it point into a neighbouring month would leave the row asserting a
+ * month whose occurrences it does not suppress, and the two columns would silently disagree (the
+ * migration's CHECK rejects exactly that). A bill genuinely settling in a different month from the
+ * obligation — Tre's water bill riding on the rent charge in arrears — is the SPLIT-LINK problem,
+ * which needs a per-link month and is not built.
+ *
+ * ⚠️ NEAREST, not nearest-on-or-before. Bills usually settle on or after the obligation, but paying
+ * two days early is ordinary, and an on-or-before rule would return null for it and silently fall
+ * back to suppressing the whole month. Ties go to the EARLIER occurrence: an obligation already
+ * passed is the likelier one to have been settled.
+ *
+ * Returns null when the rule bills nothing that month, in which case the caller stores no date and
+ * the link keeps the legacy month-wide behaviour — which for a monthly rule is identical anyway.
+ */
+export function resolveRuleOccurrenceDate(
+  rule: Pick<RuleRow, 'frequency' | 'due_day' | 'due_month' | 'start_date'>,
+  chargeDate: string,
+): string | null {
+  const [year, month] = chargeDate.split('-').map(Number);
+  if (!year || !month) return null;
+  const candidates = getRuleOccurrenceDatesInMonth(rule, year, month - 1);
+  if (candidates.length === 0) return null;
+
+  const chargeTime = new Date(`${chargeDate.slice(0, 10)}T12:00:00`).getTime();
+  let best = candidates[0];
+  let bestDistance = Infinity;
+  for (const date of candidates) {
+    const distance = Math.abs(new Date(`${date}T12:00:00`).getTime() - chargeTime);
+    // Strictly less, so an equidistant later occurrence never displaces the earlier one.
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = date;
+    }
+  }
+  return best;
+}
+
 export function generateMonthTransactionsFromRules(
   rules: RuleRow[],
   accounts: AccountRow[],
   year: number,
   month: number, // 0-indexed
 ): EnrichedTransaction[] {
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month + 1, 0);
   const generated: EnrichedTransaction[] = [];
 
   const accountMap: Record<string, AccountRow> = {};
@@ -1119,63 +1235,18 @@ export function generateMonthTransactionsFromRules(
       : (r.payment_source || r.deposit_account);
     const source = normalizeSource(rawSource);
 
-    if (r.start_date) {
-      const startDate = new Date(r.start_date + 'T12:00:00');
-      if (startDate > monthEnd) return;
-    }
-
     const txType = r.rule_type === 'income' ? 'income' : 'expense';
     const txCategory = r.rule_type === 'income' ? 'Income' : r.category;
 
-    if (r.frequency === 'weekly') {
-      const d = new Date(monthStart);
-      const dayOfWeek = r.due_day ?? 5;
-      while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
-      while (d <= monthEnd) {
-        const dateStr = d.toISOString().split('T')[0];
-        generated.push({
-          id: `gen:${r.id}:${dateStr}`, date: dateStr, type: txType,
-          amount: Number(r.amount), category: txCategory, note: r.name,
-          payment_source: source, isGenerated: true,
-        });
-        d.setDate(d.getDate() + 7);
-      }
-    } else if (r.frequency === 'biweekly') {
-      const d = new Date(monthStart);
-      const dayOfWeek = r.due_day ?? 5;
-      while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
-      while (d <= monthEnd) {
-        const dateStr = d.toISOString().split('T')[0];
-        generated.push({
-          id: `gen:${r.id}:${dateStr}`, date: dateStr, type: txType,
-          amount: Number(r.amount), category: txCategory, note: r.name,
-          payment_source: source, isGenerated: true,
-        });
-        d.setDate(d.getDate() + 14);
-      }
-    } else if (r.frequency === 'monthly') {
-      const dueDay = Math.min(r.due_day || 1, monthEnd.getDate());
-      const d = new Date(year, month, dueDay);
-      if (d >= monthStart && d <= monthEnd) {
-        const dateStr = d.toISOString().split('T')[0];
-        generated.push({
-          id: `gen:${r.id}:${dateStr}`, date: dateStr, type: txType,
-          amount: Number(r.amount), category: txCategory, note: r.name,
-          payment_source: source, isGenerated: true,
-        });
-      }
-    } else if (r.frequency === 'yearly') {
-      const dueMonth = (r.due_month ?? 1) - 1;
-      if (dueMonth === month) {
-        const dueDay = Math.min(r.due_day || 1, monthEnd.getDate());
-        const d = new Date(year, dueMonth, dueDay);
-        const dateStr = d.toISOString().split('T')[0];
-        generated.push({
-          id: `gen:${r.id}:${dateStr}`, date: dateStr, type: txType,
-          amount: Number(r.amount), category: txCategory, note: r.name,
-          payment_source: source, isGenerated: true,
-        });
-      }
+    // Occurrence DATES (including the `start_date` guard and every frequency's convention) come from
+    // `getRuleOccurrenceDatesInMonth`, the one definition the §1B link writer reads too. This loop
+    // owns only what a generated transaction looks like.
+    for (const dateStr of getRuleOccurrenceDatesInMonth(r, year, month)) {
+      generated.push({
+        id: `gen:${r.id}:${dateStr}`, date: dateStr, type: txType,
+        amount: Number(r.amount), category: txCategory, note: r.name,
+        payment_source: source, isGenerated: true,
+      });
     }
   });
 

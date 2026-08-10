@@ -17,7 +17,18 @@ scripts/graph-sync.log
 # large (~18 MB of zips alone), regenerable, and one contained a copy of the real
 # financial fixture that is itself gitignored below. Backups stay on disk and
 # mirror to Drive via scripts/backup-drive-sync.ps1 — they never belong in git.
+#
+# THE GLOB IS WIDER THAN THE PATH ON PURPOSE. `backups/` matches one exact name,
+# and the backup path is built by shell interpolation — so a mis-quoted command
+# writes somewhere `backups/` does not cover and the archive lands outside the
+# only rule protecting it. That is not hypothetical: a directory literally named
+# `backups$(date +%Y-%m-%d_%H%M%S)` was sitting in this working tree on
+# 2026-08-09, untracked AND unignored, one `git add -A` away from a PUBLIC repo.
+# It happened to be empty, so git could never have taken it. The next one might
+# not be, and this repo has already leaked a real financial fixture exactly once
+# by letting a backup route around an ignore rule.
 backups/
+backups*/
 .env.local
 .env.*.local
 .env.development

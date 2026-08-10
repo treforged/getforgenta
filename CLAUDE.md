@@ -73,20 +73,49 @@ revoked from `anon`/`authenticated`.
 
 Escalate to Tre only when proceeding under any assumption would be unsafe
 AND you cannot construct the safety net yourself. Then ask once,
-specifically, and lead with a recommendation.
+specifically, and lead with a recommendation — **and do not wait for the
+answer**. See the AMBIGUITY RULE below.
 
-## AMBIGUITY RULE
+## AMBIGUITY RULE — ask, and keep working
 
-If an ambiguity is hit at any point — unclear requirements, conflicting
-instructions, multiple valid interpretations, or a decision that changes
-scope or behavior — STOP and ask the user for clarification before
-proceeding. Do not guess, do not pick the "most likely" interpretation
-silently, and do not implement multiple variants. State the ambiguity,
-list the options, and wait for an answer.
+**Rewritten 2026-08-09.** It used to end "state the ambiguity, list the
+options, and wait for an answer." The instinct was right and the cost was
+wrong: a stopped session spends Tre's attention *and* the session, and a
+question sitting in a terminal he is not looking at has not been asked.
+
+If an ambiguity is hit — unclear requirements, conflicting instructions,
+multiple valid interpretations, or a decision that changes scope or
+behaviour — **put it on the board and carry on**:
+
+```
+conductor ask "<the question>" --options a,b,c
+```
+
+It returns immediately, and the question reaches his phone with one-tap
+answers. Do NOT use `AskUserQuestion`; it halts the session on the
+keyboard, which is the thing being removed.
+
+Then, in this order:
+
+1. Everything that does not depend on the answer.
+2. What does depend on it, under an assumption you **state out loud** and
+   mark in the code or the handoff — so the answer either confirms the
+   work or redirects one clearly-labelled piece.
+3. Something else: the queue, `handoff.md`'s next steps, a known bug.
+
+Collect replies with `conductor answers` at natural boundaries — after a
+test run, before a commit, starting the next slice. Never in a poll loop.
+
+Still true: do not guess silently, and do not implement multiple variants.
+Pick the more conservative reading, say which one you picked, and make it
+easy to switch.
 
 This rule governs genuine ambiguity — questions of intent, scope, or
 preference. It does NOT cover facts that a tool can check; those go
-through the VERIFY-FIRST RULE above.
+through the VERIFY-FIRST RULE above, and most "ambiguities" turn out to be
+those.
+
+Unattended sessions have a harder boundary still: see `AGENT.md`.
 
 ## CONTEXT GATE (handoff loop)
 

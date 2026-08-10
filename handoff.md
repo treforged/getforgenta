@@ -1,1054 +1,1027 @@
-# Handoff — 2026-08-09 — session 118 — §1B Stage 3 CLOSED; Stage 4 SCOPED BY TRE + 4A foundation `d59bd19a`
+# Handoff — Forgenta
 
-> **START HERE.** Session 118 closed Stage 3 (see the session-117 section below — all three UI paths
-> live-verified, account clean), then **audited Stage 4 and found its one-line spec no longer holds**.
-> Tre re-scoped it. The context gate fired right after the 4A pure module landed.
->
-> **Nothing is half-applied.** `d59bd19a` is a new pure module + 15 tests, **imported by nothing** —
-> app behaviour is byte-identical to `3bdebcce`. tsc 0.
+## ▶ 2026-08-09 — this repo is set up for autopilot, and `origin` is finally current
 
-## ⚠️ THE AUDIT THAT RE-SCOPED STAGE 4 — read before building
+Done from the Conductor session, not from here. Nothing about Slice C changed —
+that section is below and still authoritative. **Start there.**
 
-The plan's Stage 4 (`docs/1B-transaction-review-plan.md:173`) says *"confirmed links feed
-`buildCaptureEvidence` as `matched: true`"*. That was written session 113, **before Stages 1-3
-existed, and its premise is now false:**
+### The 35 commits are pushed
 
-- `buildCaptureEvidence` has **exactly one caller** — `carChargeEvidence` — feeding **exactly two
-  charges** (car loan payment, car insurance) across 4 sites: `forecast-engine.ts:307/:356`,
-  `useCardProjection.ts:562/:1313`.
-- The §1B review UI links a bank row to a **recurring rule** or a **ledger entry**. **Neither is a
-  car-fund charge.** So the spec as written wires a value into a function nothing confirmable reads.
-- Meanwhile **recurring rules have no capture gate at all.** Their month-0 obligations drop out on a
-  bare date test (`t.date > cutoffDate`) inside `getRemainingTransactionExpensesByDay` /
-  `...ItemsByDay` (`pay-schedule.ts:387/:476`) — the exact heuristic §1A demoted everywhere else.
+`origin/main` had been **35 commits behind** local `main`, and had been drifting
+like that for a long time because nothing in this repo pushes on its own.
 
-### ✅ TRE DECIDED (2026-08-09): build BOTH A and B. Ship and live-verify SEPARATELY.
+That was the single biggest thing standing between this project and unattended
+work, and the reason is not tidiness: **a cloud agent only ever sees `origin`.**
+It plans against a tree 35 commits old, writes code that assumes the world of a
+fortnight ago, and produces conflicts and duplicated work. It is the same root
+cause behind the `goal-linkage.ts` mess.
 
-- **4A — rule-occurrence capture.** A confirmed `linked_rule` marks that rule's occurrence in that
-  month already paid, so its generated month-0 charge stops being counted against remaining cash.
-- **4B — car-fund link target.** A third link type (`car_fund_id` + a 5th CHECK + a picker) so a bank
-  row can be linked to a vehicle charge, feeding `matched: true` into the two existing gates.
+Verified before pushing rather than after: `origin/main...main` was `0 35` — a
+pure fast-forward, no divergence — and `npx tsc --noEmit` clean with
+**762/762 tests passing** across 101 files. Shipped as one PR rather than a push
+to `main`, per the standing rule that opening the PR is what pushes.
 
-## ✅ Shipped `d59bd19a` — 4A foundation (pure, inert, 15/15 green, tsc 0)
+**Keep it current from now on.** `git log origin/main..main` before planning
+anything, and if that number is climbing again, the autopilot guarantee below
+has quietly expired.
 
-**`src/lib/confirmed-capture.ts`** + its test file. `buildConfirmedOccurrences(reviews)` →
-`ReadonlySet` of `ruleId|YYYY-MM`; `isOccurrenceConfirmed(txn, confirmed)` reads the
-`gen:<ruleId>:<YYYY-MM-DD>` id that `generateMonthTransactionsFromRules` (`pay-schedule.ts:1137`)
-stamps — the only place a row in the merged stream still knows which rule made it.
+### `AGENT.md` — what an unattended session may NOT do
 
-### Design calls pinned by test — do not "fix" these
+New file, and the important one. `CLAUDE.md` says how to work here; `AGENT.md`
+says what is off-limits when nobody is reading the diff.
 
-- **Only `'linked_rule'` confirms.** `'linked_txn'` points at a ledger row (money already in
-  `public.transactions` — suppressing a rule occurrence for it would hide a bill nothing accounts
-  for); `'imported'` CREATED a row; `'ignored'`/`'categorized'` take no position.
-- **A `'linked_rule'` with a NULL `rule_id` is SKIPPED, not an error** — the documented
-  `ON DELETE SET NULL` degraded state. Still "handled", but no occurrence left to suppress.
-- **Never suppresses a real ledger row**, only `isGenerated` rule expansions, and only for the exact
-  `rule + month` confirmed. Confirming August must not pay September.
-- ⚠️ **This is the rare gate that errs UNSAFE** (dropping an obligation RAISES projected cash). Three
-  things hold it: it fires only on explicit user confirmation; **`BankActivity.tsx` excludes pending
-  rows so a pending debit can never be linked** (same rule as `hasCoverage`, enforced a layer
-  earlier); and it is scoped to one month. All three are load-bearing — the module comment says so.
+Three facts drive all of it: **this repository is PUBLIC**, it is a financial
+application holding real accounts, and **it has already leaked once** — the real
+`forecast-inputs.real.PRE-P0.json` fixture sat here from 2026-07-07 because a
+tracked backup copied it past the ignore rule protecting it.
 
-## ⬜ NEXT — 4A wiring, in order
+The hard nos: nothing derived from real data, ever, in a commit. No secrets. No
+migrations written or applied — free tier means no PITR, so a bad one is
+unrecoverable. No writes to live rows. No Stripe or Plaid wiring. No push, PR,
+merge or history rewrite from an unattended run. Never delete `handoff.md`.
 
-1. **`pay-schedule.ts`** — add an **optional** `confirmed?: ConfirmedOccurrences` param to
-   `getRemainingTransactionExpensesByDay` (:387) and `getRemainingTransactionExpenseItemsByDay`
-   (:476), skipping a txn when `isOccurrenceConfirmed`. Optional-and-defaulted for the same reason
-   `evidence` is on `isCapturedInBalance`: omitting it must be byte-identical to today, so call
-   sites wire one at a time. Also check `getRemainingTransactionExpensesThisMonth` (BudgetControl,
-   Vehicles) for the same cutoff.
-2. **Thread the reviews in.** `useSyncedTransactionReviews()` already exists. Follow how
-   `syncedTransactions` was threaded for Stage C — `useForecastEngineInputs.ts` →
-   `forecast-engine.ts`; also `CreditCardEngine.tsx:345/:484` and `credit-card-engine.ts:1852`.
-3. **Do NOT filter inside `mergeWithGeneratedTransactions`** even though it is the one shared choke
-   point (9 call sites). Dropping the row there deletes the bill from the **Planning list and Budget
-   Control display** — the money was paid, the plan still contains it. Suppress only where the date
-   cutoff already lives, i.e. the "remaining" helpers.
-4. **Leave the min-safe-cash floor alone.** `pay-schedule.ts:811-817` documents why evidence stays
-   out of the floor. Raising the floor reads cash LOW, the direction a safety rail should err.
-5. Live-verify 4A **alone** on the real account, then build 4B.
+### The ignore rule protecting the backups was one typo wide
 
-## ⬜ 4B — not started
+A directory literally named `backups$(date +%Y-%m-%d_%H%M%S)` was sitting in the
+working tree — a shell command that never interpolated. **Untracked AND
+unignored**, because `.gitignore` said `backups/`, which does not match it. One
+`git add -A` from a public repo.
 
-New link type: `synced_transaction_reviews.car_fund_id` (+ CHECK + `validateReviewInput` case +
-`'Link to a vehicle charge'` picker), then `carChargeEvidence` returns `matched: true` on a
-confirmation. Smallest number-moving surface of the two, but needs schema + UI.
+It happened to contain no files, only empty folders, so git could never have
+taken it. That is luck, not a control. The glob is `backups*/` now, and the
+empty directory is gone. This is the second time a backup has routed around the
+one rule protecting it here.
 
-## Item 6 re-checked (session 118) — STILL HAS NOT FIRED
+### The AMBIGUITY RULE no longer stops the session
 
-$422.89 on `933cbc10…` still `pending: true`, `updated_at` **still 2026-08-08 13:00:08 UTC**.
-Seventh session. Re-run the query; do not investigate.
+Tre's standing rule as of today, across every repo: **a session never parks and
+waits for him.** `CLAUDE.md`'s ambiguity rule used to end "wait for an answer";
+it now files the question to the board with `conductor ask` — which returns
+immediately — and carries on with what does not depend on the answer, then with
+what does under a stated assumption, then with the backlog. `conductor answers`
+collects replies at natural boundaries.
 
----
+The instinct was right and the cost was wrong: a stopped session spends his
+attention *and* the session, and a question in a terminal he is not looking at
+has not been asked. VERIFY-FIRST still comes first — most "ambiguities" are
+facts a tool can settle.
 
-# Handoff — 2026-08-09 — session 117 — §1B Stage 3 FULLY LIVE-VERIFIED and CLOSED
+### Still owed, and it is not mine to do
 
-> **START HERE.** Session 117 clicked the **three remaining UI paths on Tre's real account**. All
-> three pass, the account is **clean** (0 reviews, 22 ledger rows, 0 `origin='synced'`), zero console
-> errors. **No code changed this session** — Stage 3 was already correct as committed `ad841516`.
->
-> **§1B Stage 3 is CLOSED.** Nothing is queued. The next workstream is **Tre's call** — see below.
+**This terminal does not report to the board.** There is no live session row for
+this project. Windows hands user environment variables to a process when it
+STARTS, so a window opened before the `CONDUCTOR_*` variables existed will never
+see them, and `conductor` cannot authenticate from it. **A new terminal is the
+entire fix** — nothing needs reinstalling.
 
-## ✅ LIVE-VERIFIED session 117 — do not re-verify
-
-| Path | Result |
-|---|---|
-| Start state | 24 Aug rows. **1** has a rule suggestion → `Confirm` + `Not this`, **no** import button. **23** → `Link to a bill` / `Link to an entry` / `Add to my ledger` |
-| **1. `Not this`** | the suggested row's actions become `Link to a bill` / `Link to an entry` / **`Add to my ledger`** / `Ignore` — the `suggestionRejected` override reaches the live guard |
-| **2. `Link to a bill`** | picker lists **30 active rules** + placeholder. Picking one wrote `status='linked_rule'`, `rule_id` = the picked rule, `occurrence_month='2026-08'`, `transaction_id` null. Row collapses to `Undo` |
-| **3. `Link to an entry`** | picker lists **22 ledger rows** + placeholder, **nearest dates first** off the txn's own date (07-31 before 08-18 before 08-23). Picking one wrote `status='linked_txn'`, `transaction_id` = the picked entry, `rule_id`/`occurrence_month` **null** |
-| Money | `transactions` stayed **22 rows / 0 `origin='synced'`** throughout — a link is an annotation, as designed |
-| `Undo` on both | removed the review; the row returned to offering its destinations |
-| **Cleanup** | re-SELECTed: **0 reviews, 22 ledger rows, 0 synced**. Nothing left behind |
-| Rejection not persisted | reload returned the page to **exactly** the start state (suggestion back, import withheld on that row) — the documented in-memory design call, confirmed on screen |
-
-⚠️ **Do not paste row labels from this tab into handoff.md.** Both rows exercised here carry a
-counterparty name straight out of `synced_transactions`, and this repo is PUBLIC (gotcha #16). Cite
-the amount/date and let the next session re-query.
-
-## ⬜ NEXT — Tre picks
-
-**Stage 4** (feed `buildCaptureEvidence` from a confirmed link — the second §1B thing that moves a
-projected number, so it ships and gets live-verified alone), **§1C** (derive recurring rules from
-transaction history), or the roadmap's **FB.6-13**. Do not start one without Tre choosing.
-
-## Item 6 re-checked (session 117) — STILL HAS NOT FIRED
-
-$422.89 on `933cbc10…` still `pending: true`, `updated_at` **still 2026-08-08 13:00:08 UTC**.
-Seventh session, same answer. Re-run the query; do not investigate.
+Also open: **8 Dependabot PRs**, several of them majors that would not be safe
+to take unattended — TypeScript 7.0.2, framer-motion 13, react-resizable-panels
+4. They are noise on the board rather than a blocker, but they are not
+autopilot work.
 
 ---
 
-# Handoff — 2026-08-09 — session 116 — §1B Stage 3 BUILT + committed `ad841516`; import path LIVE-VERIFIED
+## 2026-08-09 — session 131 — 🟢 **SPLIT LINK: SLICES A AND B SHIPPED. B IS LIVE-VERIFIED. Start at Slice C.**
 
-> **START HERE.** Session 116 finished Stage 3 — the hook, the Undo, the UI, and Tre's "Not this"
-> re-target. **644/644 tests (3 new), tsc 0, eslint clean.** The **import + undo path is
-> live-verified on Tre's real account and the account is CLEAN** (22 ledger rows, 0 `origin='synced'`,
-> 0 reviews — re-SELECTed after cleanup).
+> **START HERE.** `5fa248f0` (Slice A, rules) and `43d807be` (Slice B, the enabler) are committed.
+> **762/762 tests (+33), tsc 0, eslint clean, tree clean.** Slice B's four write paths were driven
+> through the real UI on Tre's account and the account was restored byte-for-byte — evidence in the
+> slice list below. **The `onConflict` blocker is GONE; the migration is now safe to write.**
+> Everything else below is the session-130b design, unchanged and still authoritative.
 >
-> The context gate fired with **three UI paths still unverified** — see "⬜ NEXT" below. Nothing is
-> half-applied; the unverified paths are ordinary writes through the same `save` mutation Stages 1+2
-> already verified.
-
-## ✅ Shipped `ad841516`
-
-- **`src/lib/synced-transaction-import.ts`** — added `suggestionRejected?: boolean` to
-  `ImportContext`. It is the ONLY thing that defeats the double-count guard, and it is a **named
-  field rather than "stop passing `hasSuggestion`"** so the call site reads as a person overruling
-  the matcher instead of as a guard that went missing. 3 new tests: a rejected suggestion imports, an
-  un-rejected one still refuses, and **a rejection does NOT reopen a charge already dealt with**.
-- **`useSupabaseData.ts`** — `importToLedger` + `undoImport` on `useSyncedTransactionReviews`,
-  both invalidating `['transactions']` AND `['synced_transaction_reviews']`.
-  - `importToLedger` inserts the draft → `.select().single()` → upserts the review as `'imported'`
-    with that id. ⚠️ **On a review-write failure it DELETES the just-inserted ledger row before
-    throwing.** Two PostgREST calls are not a transaction, so the compensation is the transaction.
-  - `undoImport` deletes the **LEDGER ROW**; the FK cascade clears the review. `remove` (review-only)
-    is still there for the annotation statuses and must never be the Undo for `'imported'`.
-- **`BankActivity.tsx`** — `Add to my ledger` (rendered iff `planLedgerImport` says ok — never a
-  disabled button asserting a reason), `Not this`, the two pickers, the `added to ledger` badge and
-  an Undo labelled **"Undo — deletes the entry"**.
-- **`src/integrations/supabase/types.ts`** — regenerated for `transactions.origin`. **Diffed first:
-  those 3 lines are the ONLY change.** (tsc caught this — the Stage-3 migration was applied live in
-  session 115 but the types were never regenerated.)
-
-### Design calls made this session
-
-- **Rejection is deliberately NOT persisted.** Each of the three destinations writes its own review
-  row, which persists; the only case in-memory state loses is a user who rejects and walks away,
-  which recorded no decision — the honest outcome. A sixth status to remember a non-decision would
-  put "I don't know what this is" in the database.
-- **The pickers are offered on rows with NO suggestion too**, per the plan: a missed link and a wrong
-  link are the same user need and the same write.
-- `pickableRules` filters to `active` — an inactive rule describes nothing that still bills.
-- The ledger picker sorts **nearest dates first**, capped at 40.
-
-## ✅ LIVE-VERIFIED session 116 — real account, then cleaned up. Do not re-verify these.
-
-Signed in as `tre@treforged.com` at `http://localhost:8080` (Tre signed in manually when asked —
-the Claude Chrome was signed out AGAIN; probe every time). Zero console errors.
-
-| Check | Result |
-|---|---|
-| Aug rows | 24. **1** row has a rule suggestion → `Confirm` + `Not this`, and correctly **no** import button. **23** have none → `Link to a bill` / `Link to an entry` / `Add to my ledger` |
-| Import write | ONE row: `2026-08-07`, `expense`, `$12`, `origin='synced'`, `payment_source='account:63b8e559…'`, `account='General Operations'` — **the REAL `accounts.name`, not the legacy `"Checking"`** |
-| Review write | `status='imported'`, `transaction_id` = the inserted row, `rule_id`/`occurrence_month` null |
-| After import | badge `added to ledger`; the row's ONLY action is `Undo — deletes the entry` (+ the `title` saying it removes the entry); import count 23 → 22 |
-| Ledger visibility | the imported entry appears on the **Planning** tab |
-| Dashboard | the $12 lands as spending (`Other −$12`); `Month-End Cash $3,160`, `After all scheduled items $3,804`, `Projected remaining $3,943.49` |
-| Undo | **cascade confirmed** — deleting the ledger row removed the review too; badge gone, import re-offered (22 → 23) |
-| **Cleanup** | re-SELECTed: **22 ledger rows, 0 `origin='synced'`, 0 reviews.** Nothing left behind |
-
-### Plan risk 2 — answered structurally, and it is stronger than a screen check
-
-**An imported row cannot both add an actual and retire a projected charge.** The gate that retires a
-charge (`carChargeEvidence` → `buildCaptureEvidence`) reads **`synced_transactions`**, never
-`public.transactions` (`CardProjectionContext.tsx:165` feeds it `useSyncedTransactions`). The synced
-row driving that gate was already there before the import, so importing changes nothing about it —
-the import only ever ADDS an actual. The single way an actual and a projection can cover the same
-dollars is the `hasSuggestion` guard being overridden, which happens in exactly one place: the user
-pressing `Not this`, i.e. asserting the charge is not that bill. That is Tre's decision working, not
-a leak.
-
-## ⬜ NEXT — finish the live pass, then Stage 4 is Tre's call
-
-Three UI paths built and unit-covered but **not yet clicked on the real account**. All three go
-through the SAME `save` mutation Stages 1+2 already live-verified, so this is confirmation, not
-exploration. **Clean up every test row (separate statements, then re-SELECT).**
-
-1. **`Not this`** on the one suggested row → the row must then offer both pickers **and**
-   `Add to my ledger` (the `suggestionRejected` override reaching the live guard).
-2. **`Link to a bill`** picker → writes `status='linked_rule'` with `rule_id` + `occurrence_month`.
-3. **`Link to an entry`** picker → writes `status='linked_txn'` with `transaction_id`.
-
-Then: **Stage 4** (feed `buildCaptureEvidence` from a confirmed link), **§1C**, or roadmap FB.6-13.
-Do not start one without Tre choosing.
-
-⚠️ **The tab toggle persists.** Clicking Planning writes `tre:transactions:tab='planning'`, so a
-later reload opens there and a `querySelector` for a Bank-tab button silently returns undefined.
-Switch tabs explicitly (Radix pointer sequence) before hunting for row controls — cost me one call.
-
-## Item 6 re-checked (session 116) — STILL HAS NOT FIRED
-
-$422.89 on `933cbc10…` still `pending: true`, `updated_at` **still 2026-08-08 13:00:08 UTC**. Sixth
-session, same answer. Re-run the query; do not investigate.
-
----
-
-# Handoff — 2026-08-09 — session 115 — §1B Stages 1+2 LIVE-VERIFIED; Stage 3 STARTED (`53609165`)
-
-> **START HERE.** Session 115 did two things: it **live-verified Stages 1+2 on Tre's real account**
-> (all green — see the session-114 section below, which now carries the verification table), and it
-> **began Stage 3**. The context gate fired partway through Stage 3. **Nothing is half-applied:**
-> what shipped is a migration + a pure module + 15 tests, all green, and **no UI calls it yet**, so
-> the app's behaviour is byte-identical to `1a9fa956`.
+> ⚠️ **Slice C is the only slice left, and it is the one that touches the schema. Back up
+> `synced_transaction_reviews` into the `backup` schema BEFORE the migration** — free tier means no
+> PITR (see `project_supabase_backup_schema`), same as 2026-08-07 did.
 >
-> Tre asked for Stage 3 directly ("fix the flagged items then stage 3"). Neither flagged item was a
-> defect — item 1 was the `'categorized'` design call (now verified working), item 6 is a bank wait —
-> and that was said to him plainly. **Stage 3 is the live instruction; keep building it.**
+> Tre asked to "continue to next" after biweekly closed; split link is the next thing he has already
+> said yes to, which is why it was picked over the unscoped N1-N12. Tre authorised this in 126b (*"for split links i think
+> yes since it can integrate the variable items into cost… forecast can get a better month 0
+> picture"*). **Do not re-ask.** His goal is that the **variable** rider (Water/Sewer/Trash, billed
+> in arrears) stops being invisible inside the bundled rent charge. Design to that, not to "N rules
+> per row".
+
+## 🔬 THE AUDIT — what actually blocks it, measured this session
+
+`UNIQUE (synced_transaction_id)` (re-read live from `pg_constraint`, still present) is doing
+**three** jobs, and split link only wants to relax one of them:
+
+1. **Import idempotency** — the migration header says so outright: *"a row already imported cannot
+   be imported twice"*. **Must survive.**
+2. **The `ON CONFLICT` arbiter for every write path.** ⚠️ **THIS IS THE REAL BLOCKER, and the
+   handoff did not know about it.** Three mutations in `useSupabaseData.ts` pass
+   `{ onConflict: 'synced_transaction_id' }` — `save` (**:669**), `setCategory` (**:701**),
+   `importToLedger` (**:734**). Drop the UNIQUE and **all three fail immediately** with *"no unique
+   or exclusion constraint matching the ON CONFLICT specification"*. A partial unique index does
+   NOT rescue them: Postgres can only infer a partial index when the statement repeats its
+   predicate, and supabase-js `onConflict` takes a bare column list with no `WHERE`.
+   **=> The migration CANNOT land before the code. Ordering is not a preference here.**
+3. "One decision per charge" in the UI — the only job split link actually wants to relax.
+
+Also load-bearing: **`remove` (:774) deletes by `synced_transaction_id`**, so under multi-row it
+silently becomes "remove ALL links on this charge". It needs a per-link sibling, and the existing
+whole-charge behaviour is still wanted for Undo-everything.
+
+## ✅ DECIDED — multi-row, NOT a child table
+
+126b floated "drop the UNIQUE **or** add a child table". Multi-row wins, and the reason is
+`occurrence_month`: a split link's month must be **PER-LINK** (one bank row settles Rent for THIS
+month and Water for the PREVIOUS one). Multi-row gets that for free — each row already has its own
+`occurrence_month`/`occurrence_date`. A child table would have to duplicate both columns and leave
+the parent's meaningless. Multi-row also keeps 126b's finding true: **`buildConfirmedOccurrences`
+already iterates reviews and keys per rule, so the read side needs NO logic change.**
+
+### The schema, once the code is ready
+
+- `DROP CONSTRAINT synced_transaction_reviews_synced_transaction_id_key`
+- Partial unique index — **at most one EXCLUSIVE decision per charge**, which is idempotency (1)
+  preserved exactly:
+  `unique (synced_transaction_id) where status not in ('linked_rule','linked_plan','linked_car')`
+- Partial unique indexes so the same thing cannot be linked twice:
+  `(synced_transaction_id, rule_id) where rule_id is not null`,
+  `(synced_transaction_id, payment_plan_id) where payment_plan_id is not null`,
+  `(synced_transaction_id, car_fund_id, car_charge_kind) where car_fund_id is not null`
+
+🟢 **DECIDED — `category_override` stays on the EXCLUSIVE row, and only there.** (Tre, 2026-08-09:
+*"do what you think is best"*, having been given this recommendation. **Do not re-litigate.**)
+
+A category describes the CHARGE, not any one of the several things the charge paid — a rent debit
+split across Rent and Water has one merchant and one label, not two. So `setCategory` always targets
+the single exclusive row (`status not in (linked_rule, linked_plan, linked_car)`), creating a
+`categorized` row when none exists, exactly as it does today. Link rows carry `category_override`
+NULL and no reader consults them for it.
+
+⚠️ The failure mode this forecloses: with the column left on every row, `setCategory` would write to
+whichever row an upsert happened to reach, and a charge could end up asserting two different
+categories with no rule for which one wins. Worth a test that pins "N link rows + one category
+change = exactly one row holding the override".
+
+## 📋 THE SLICES — each one live-safe ALONE. Do not reorder.
+
+- ✅ **Slice A — rules. SHIPPED. 762/762 (+33), tsc 0, eslint clean.** In
+  `src/lib/synced-transaction-review.ts`:
+  - `LINK_STATUSES` / `isLinkStatus` — **the one definition of the partial index's predicate.**
+    Slice C must use it rather than re-typing `status not in (…)` in the UI.
+  - `validateReviewInput` gained **"one row names one thing"** (a `linked_rule` carrying a
+    `payment_plan_id` etc.). Load-bearing under multi-row: each link occupies a slot in exactly one
+    dedupe index, and `buildConfirmedOccurrences` keys on `rule_id` alone.
+  - **New `validateReviewSet(inputs)`** — the rules about the SET, which the per-row validator
+    cannot see: at most one exclusive row (= idempotency preserved), no target linked twice, and
+    **no `category_override` on a link row**.
+  - ⚠️ **Why the category rule is in the SET validator and not the per-row one:** every
+    `save.mutate` site in `BankActivity.tsx` today passes
+    `category_override: review?.category_override ?? null` when converting a `categorized` row into
+    a link, so enforcing it per-row would break the live app before the UI is ready. **Slice C must
+    stop passing it and route the category to the exclusive row.** `validateReviewSet` has no
+    callers yet — it is the contract Slice C builds against, and Slice C must call BOTH validators.
+  - Read side confirmed unchanged by test, not by assertion: N links on one charge, per-link
+    months (the arrears case), a date-keyed and a month-keyed link side by side.
+- ✅ **Slice B — THE ENABLER. SHIPPED `43d807be` AND LIVE-VERIFIED.** `save`, `setCategory` and
+  `importToLedger` in `src/hooks/useSupabaseData.ts` no longer pass `onConflict` — they call the new
+  module-level **`findChargeReviewId`** (a LIVE SELECT, deliberately not the cached `query.data`)
+  and then UPDATE by `id` or INSERT. Under today's UNIQUE that is exactly equivalent.
+  **`removeLink(id)` added** beside the whole-charge `remove`; nothing calls it yet — Slice C's
+  per-link undo does.
+  - ⚠️ `importToLedger`'s lookup is INSIDE the compensated region (an IIFE returning the error
+    rather than throwing). A failed SELECT there would otherwise leave a ledger row with no review
+    — the double-count the rollback exists to prevent, reached via the refactor. Do not "simplify"
+    that back into a bare `await`.
+  - ⚠️ `importToLedger` still writes only the columns the upsert wrote, so an existing row's
+    `rule_id` / `occurrence_month` survives an import exactly as before. That may be worth changing
+    on its own merits; it was **not** changed here, because widening a write under cover of a
+    refactor changes live data silently.
+
+### ✅ SLICE B'S LIVE PASS — done in-app on Tre's real data, all four paths. Do not re-run.
+
+Test charge `1cf1cd2a…` (2026-07-25, $7.50, past month so no forecast could move), driven through
+the real Bank Activity UI, each step checked in SQL:
 
-## 🔨 Stage 3 — `Add to my ledger` (IN PROGRESS)
-
-### ✅ DONE and committed `53609165` — green (15 new tests, tsc 0, eslint clean)
-
-1. **`supabase/migrations/20260809_transactions_origin.sql`** — written **AND APPLIED LIVE**
-   (`apply_migration` → success). `public.transactions.origin` `'manual'|'synced'`, NOT NULL,
-   **default `'manual'`** so the 22 existing rows are correct with no backfill, plus a CHECK.
-2. **`src/lib/synced-transaction-import.ts`** (new, pure) + its test file — **15/15**.
-   `planLedgerImport(txn, ctx)` returns `{ok:true, draft}` or `{ok:false, reason}`.
-
-### Why it is a PLAN and not a builder — do not split this
-
-"May this be imported at all" and "what row would it be" are deliberately **one function**. Splitting
-them is exactly how a future caller checks the guard and forgets it, or vice versa. Everything below
-is enforced inside it and pinned by a test:
-
-- **The double-count guard**: `hasSuggestion` → refuse. Import exists ONLY for charges nothing else
-  in the app already describes.
-- **`'categorized'` does NOT block an import** (the other four statuses do). A user who only fixed a
-  label has taken no position on the charge — that is the entire reason the fifth status exists.
-- **Sign flip**: `synced_transactions` is **outflow-positive** (Stage A); the ledger stores a
-  **positive amount + direction in `type`**. Negative → `income`. Getting this backwards files
-  income as spending on twelve surfaces. `Number()` first — PostgREST returns `numeric` as a string.
-- **`payment_source` gets the `account:` prefix** (all 22 live ledger rows use it; bare uuid is the
-  `recurring_rules` spelling).
-- **`account` comes from the real `accounts.name`, or the import REFUSES.** It is a dead legacy
-  free-text label reading `"Checking"` on every live row including credit-card ones, and
-  ⚠️ **`useTransactions().add` coerces a falsy account to the literal `'Checking'`** — so falling
-  through to a default would reproduce the exact bug. (All 571 live rows do resolve; the guard is
-  for correctness, not a live case.)
-
-### ⬜ NEXT — the three pieces left, in order
-
-1. **`useSupabaseData.ts` — an `importToLedger` mutation** inside `useSyncedTransactionReviews`
-   (it owns the review write, and this touches two tables):
-   insert the draft into `transactions` → `.select().single()` → upsert the review as
-   `status:'imported'` with that `transaction_id`.
-   ⚠️ **If the review write fails, DELETE the just-inserted ledger row before throwing.** An orphan
-   imported row with no review is money in the ledger that is also still offered for import — the
-   double-count, arrived at by a partial failure instead of a bad button.
-   Invalidate **both** `['transactions']` and `['synced_transaction_reviews']`.
-2. **Undo of an import must delete the LEDGER ROW, not the review.** Verified in SQL this session:
-   `synced_transaction_reviews.transaction_id` is **`ON DELETE CASCADE`**, so deleting the
-   transaction removes the review for free and returns the charge to unreviewed/re-importable.
-   The existing `remove` (deletes the review only) would **leave the money behind** — it must not be
-   the Undo path for `status='imported'`.
-3. **`BankActivity.tsx`** — call `planLedgerImport` per unhandled row; render
-   `Add to my ledger` when `ok`, nothing when not (never a disabled button asserting a reason the
-   user did not ask for). Imported rows get an `added to ledger` badge + the Undo from (2), with copy
-   saying it removes the entry.
-
-### ⚠️ "Not this" — TRE DECIDED 2026-08-09, and it OVERRODE my proposal. Build this, not that.
-
-His words: *"be able to match after not this to a different transaction, or have it be its own new
-transaction."*
-
-I had proposed a transient dismissal that merely hid the wrong suggestion. **He is right and it is
-discarded.** "Not this" is not a dismissal, it is a **re-target**: rejecting the guess must land
-somewhere. So after `Not this`, the row offers all three destinations:
-
-1. **Link to a different rule** → `linked_rule` + `rule_id` + `occurrence_month` (a picker over
-   active `recurring_rules`).
-2. **Link to a different ledger entry** → `linked_txn` + `transaction_id` (a picker over
-   `public.transactions`, nearest dates first).
-3. **`Add to my ledger`** → the Stage 3 import — "it's its own new transaction".
-
-Plus `Ignore`, as now. 1 and 2 are annotations and move no money; only 3 does.
-
-**The picker should be offered on rows with NO suggestion too**, not only after a rejection — the
-matcher missing a link is the same user need as the matcher getting it wrong, and the write path is
-identical.
-
-⚠️ **This changes the import guard, deliberately and only here.** `planLedgerImport` refuses when
-`hasSuggestion` is true; a rejection must flip that. Pass it as an **explicitly named override**
-(e.g. `suggestionRejected: true` in `ImportContext`, so the call site reads as a user overruling the
-matcher) — do NOT just stop passing `hasSuggestion`, which would make the guard look absent rather
-than overridden. Add a test asserting a rejected suggestion permits import and an un-rejected one
-still does not.
-
-Whether the rejection itself persists across a reload is then **moot for destinations 1-3** — each
-writes its own handled row. It only matters for a user who rejects and walks away, which records
-nothing, which is honest.
-
-### Then: live-verify Stage 3 alone
-
-It is the **first §1B code that moves a projected number**, so verify it by itself, on the real
-account, and check the plan's **risk 2**: an imported row must not both add an actual *and* retire a
-projected charge for the same dollars. Clean up every test row (separate statements, then re-SELECT).
-
----
-
-# Handoff — 2026-08-09 — session 114 — §1B Stages 1+2 BUILT + committed `1a9fa956`; LIVE-VERIFIED session 115
-
-> **START HERE.** Session 114 finished §1B Stages 1+2. **All code is committed and green** —
-> 626/626 tests, tsc 0, eslint clean on every changed file. The one thing NOT done is **live
-> verification in the browser**, which is the next session's whole job. See "Next" below.
->
-> Nothing is half-applied. Read the §1B plan (`docs/1B-transaction-review-plan.md`) and the session
-> 113 section below for the design; this section only records what changed since.
-
-## ✅ Shipped `1a9fa956` — the Bank Activity tab
-
-**Still writes no money.** Nothing in this commit creates a `public.transactions` row; a confirmed
-link is an annotation. Stage 3 (import) and Stage 4 (feed `buildCaptureEvidence`) are NOT built and
-each must ship and be live-verified alone.
-
-Files:
-- **`src/components/transactions/BankActivity.tsx`** (new) — the tab. Month filter defaults to the
-  current month (`all` available), account filter, 100-row pages, pending excluded, **no
-  "N need review" count anywhere**.
-- **`src/lib/synced-transaction-review.ts`** (new, pure) + its test file — **18 tests**.
-- **`src/hooks/useSupabaseData.ts`** — `useAllSyncedTransactions()` and
-  `useSyncedTransactionReviews()` added next to the §1A block.
-- **`src/pages/Transactions.tsx`** — `usePersistedState('tre:transactions:tab')` Planning/Bank tabs.
-  Planning content wrapped in `{activeTab === 'planning' && (<>…</>)}`; the modals below it stay
-  mounted (they are already state-gated). Export/Add-Transaction buttons hide on the Bank tab.
-- **`src/integrations/supabase/types.ts`** — regenerated. Diffed first: the ONLY change is the new
-  table, nothing else drifted.
-- **`supabase/migrations/20260809_synced_transaction_reviews_categorized.sql`** — written **AND
-  APPLIED LIVE** (`apply_migration` → success).
-
-### ⚠️ NEW DECISION this session — a FIFTH status `'categorized'`
-
-The plan's four statuses could not express "the user fixed the label and took no other position".
-All four assert something: three say *handled*, `'ignored'` says *dismissed*. So changing a wrong
-auto-category would have forced a decision out of someone who only wanted to fix a word — in a
-feature explicitly designed not to be a queue demanding decisions, and against Tre's "users should
-be able to categorize if the auto cat is wrong". Since `GENERAL_MERCHANDISE` is 32% of the rows and
-the map is wrong *by construction*, that path is the common one, not an edge case.
-
-`'categorized'` carries no FKs (same cleanliness rule as `'ignored'`) and **`isHandledReview()`
-deliberately returns FALSE for it** — pinned by a test whose comment says why. Absence of a row
-still means unreviewed. **Tre has not seen this call yet — mention it.**
-
-### Design calls worth not re-litigating
-
-- **No second matcher was written.** Rule suggestions invert `matchOccurrence` (ask every rule "which
-  txn settles you", index the answer); ledger suggestions adapt `transactions` rows into
-  `MatchableTransaction` shape and call `matchCharge`. One definition of "matched", app-wide.
-  The ledger adapter re-signs to Stage A's **outflow-positive** convention and routes
-  `payment_source` through `normalizePaymentSource` (the two tables disagree — see below).
-- **`due_day` guard**: `RuleRow` has it optional, the matcher requires it. Same guard + spread
-  adapter as `BudgetControl.tsx:549`. Copy that, don't invent one.
-- **`useAllSyncedTransactions` pages explicitly** in 1000-row batches. PostgREST truncates silently,
-  and a history browser that stops at row 1000 hides months with no indication.
-- **"Not this" (reject a suggestion) was deliberately NOT built.** Rejecting a suggestion is only
-  actionable once "Add to my ledger" exists to receive the row, and adding a sixth status for it now
-  would be guessing. It belongs to Stage 3.
-- `setCategory` upserts a `'categorized'` row when no decision exists, and otherwise patches
-  `category_override` **without disturbing an existing link**.
-
-## ✅ LIVE-VERIFIED session 115 — on Tre's REAL account. Do not re-verify.
-
-Signed in as `tre@treforged.com` on the Claude-controlled Chrome at `http://localhost:8080`
-(**the profile is signed in again** — gotcha #2's "SIGNED OUT" note is stale; probe anyway).
-Tab left parked and open. Zero console errors throughout.
-
-Every claim below was checked in the browser AND against SQL:
-
-| Check | Result |
-|---|---|
-| Planning / Bank Activity tabs | both render; Radix pointer sequence switches; `tre:transactions:tab` persists across reload |
-| Export CSV / Export PDF / Add Transaction on the Bank tab | present in DOM but **not visible** — hiding works |
-| Rows for 2026-08 | **24 settled**, matches SQL exactly |
-| Month filter | 9 options; 2026-07 → **134**, All Time → **566** = 571 total − 5 pending. Pending exclusion and the 1000-row paging are both correct at full history |
-| Paging | progressive **"Show 100 more"**; 100 → 200 rows |
-| Auto-categories | landing per the map (Utilities / Shopping / Car / Bills), `Other` where the map declines |
-| `Confirm` on a rule suggestion ($54.07, 2026-08-03) | wrote `status='linked_rule'` with **`rule_id` present**, `transaction_id` null |
-| `Undo` | deleted the row; the suggestion re-appeared |
-| Category override | wrote **`status='categorized'`**, `category_override='Groceries'`, **no FKs** — the new fifth status works end to end |
-| Override persistence | survived a full page reload |
-| `Ignore` | wrote `status='ignored'`, no FKs; `Undo` removed it |
-| Nag text | **zero** matches for "need review" / "unreviewed" / "unpaid" anywhere on the page |
-| **Money written** | `public.transactions` still **22 rows** — the tab creates no money, as designed |
-| Rule matching over history | 5 distinct rule suggestions across All Time, not just the current month |
-
-**Cleanup verified:** all test writes removed, `synced_transaction_reviews` re-SELECTed at **0 rows**.
-(The `'categorized'` row was deleted in SQL — resetting the dropdown would have left the row behind.)
-
-⚠️ **The native-`<select>` find:** the category/month/account controls are plain `<select>`, **not**
-Radix comboboxes. Drive them with the native value setter + `change` event, not a pointer sequence:
-```js
-Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(s,'Groceries');
-s.dispatchEvent(new Event('change',{bubbles:true}));
-```
-The page *tabs* still need the pointer sequence. Both patterns are in play on one page.
-
-## ⬜ NEXT SESSION — Tre's call
-
-Nothing is queued. Ask Tre: **Stage 3** (import — "Add to my ledger", the first thing here that
-writes money, and the prerequisite for "Not this"), **Stage 4** (feed `buildCaptureEvidence`),
-**§1C**, or the roadmap's **FB.6-13**.
-
-**"Not this" was re-confirmed as NOT buildable now** (session 115, Tre re-raised it): rejecting a
-suggestion is only actionable once import exists to receive the row, and a sixth status invented
-before that would be a guess. It ships **with Stage 3**, not before.
-
-## Item 6 re-checked (session 115) — STILL HAS NOT FIRED
-
-$422.89 on `933cbc10…` still `pending: true`, `updated_at` **still unmoved at 2026-08-08 13:00:08
-UTC**. Fifth session with the same answer. Bank settlement lag. Re-run the query; do not investigate.
-
-## Item 6 re-checked (session 114) — STILL HAS NOT FIRED
-
-$422.89 on `933cbc10…` still `pending: true`, dated 2026-08-07, `updated_at` **unmoved at
-2026-08-08 13:00:08 UTC**. Bank settlement lag, not a sync failure. Fourth session with the same
-answer — re-run the query, but do not re-investigate.
-
----
-
-# Handoff — 2026-08-08 — session 113 — §1B PLANNED + APPROVED; build Stages 1+2 next
-
-> **START HERE.** Session 113 planned §1B, got Tre's approval on all four open questions, and
-> **began building Stages 1+2**. Read `docs/1B-transaction-review-plan.md` in full first — it
-> carries the ground-state audit, the double-count hazard, the schema, and the staging.
->
-> Session 113 was cut by the context gate partway through the build. **Nothing is half-applied:**
-> what shipped is additive and inert (a pure module + an empty table). See "Build progress" below.
-
-## 🔨 Build progress — §1B Stages 1+2 (IN PROGRESS)
-
-### ✅ DONE and committed
-
-1. **`src/lib/plaid-category-map.ts`** (new, pure) + `src/lib/__tests__/plaid-category-map.test.ts`
-   — **15/15 green**. `suggestCategory()` / `hasCategorySuggestion()` / `isValidCategory()`.
-   ⚠️ **Non-obvious find that shaped it:** `synced_transactions.category` is the Plaid PFC
-   **primary**, but `providers/plaid.ts:100` falls back to the **legacy title-case `category[0]`**
-   (`"Food and Drink"`) on older items. So the map is keyed on a NORMALISED form (upper, non-alnum
-   → `_`) and both vocabularies collapse onto one key. Legacy keys (`SHOPS`, `PAYMENT`,
-   `HEALTHCARE`, …) are in the map too.
-   Deliberate calls pinned by test, do not "fix": **`TRANSPORTATION` → `'Car'`, NOT `'Gas'`**
-   (Plaid's TRANSPORTATION spans gas/parking/tolls/transit/ride-share; `Gas` is wrong 5 times in
-   6). `FOOD_AND_DRINK` → `Dining` and `RENT_AND_UTILITIES` → `Utilities` each pick the more
-   frequent of two inseparable members. Transfers → `Other` on purpose.
-2. **`supabase/migrations/20260808_synced_transaction_reviews.sql`** — written **AND APPLIED LIVE**
-   (`apply_migration` → success). Empty table, RLS on, full owner CRUD. Inert until the UI reads it.
-
-### ⚠️ The FK trap this schema is built around — read before touching it
-
-`ON DELETE SET NULL` fires an **UPDATE** on the referencing row, and Postgres **evaluates CHECK
-constraints on UPDATE**. So a CHECK of the form "status='linked_rule' implies rule_id is not null"
-would make *deleting a rule* fail with a constraint violation. Hence the deliberate asymmetry:
-
-- `rule_id` → **SET NULL**, and that CHECK is **intentionally absent**. The degraded state
-  (`linked_rule`, `rule_id` null) is legitimate and means *"handled, but the rule is gone"*. **The
-  UI must render it as handled and must not assume `rule_id` is present.** Creation-time presence
-  is the hook's job + a test.
-- `transaction_id` → **CASCADE** (not set null), so deleting the imported ledger row deletes the
-  review and returns the synced txn to unreviewed — re-importable. That is also what makes the
-  `txn_present` CHECK safe to enforce.
-
-### ✅ ALL DONE session 114 — see the top section. Kept for the design notes only.
-
-3. **Regenerate `src/integrations/supabase/types.ts`** — it has no `synced_transaction_reviews`
-   yet, so the hooks below will not typecheck. (Gotcha #15: `generate_typescript_types` returns an
-   envelope too large to paste; read the persisted tool-result file and extract `.types` with node.)
-4. **`useSupabaseData.ts`** — add two hooks next to the existing §1A block (line ~494):
-   - a filterable/all-history synced-transaction hook. **`useSyncedTransactions(monthKey)` at :518
-     must be left ALONE** — it is month-scoped on purpose for the `/budget` badge and Stage C;
-     add a SEPARATE hook rather than widening it.
-   - `useSyncedTransactionReviews()` with full CRUD (this table *is* user-writable).
-5. **`src/components/transactions/BankActivity.tsx`** (NEW FILE — do not grow `Transactions.tsx`,
-   already **998 lines** against the 800 max in the coding rules).
-6. **`src/pages/Transactions.tsx`** — a tab switch mounting it. The page is currently one flat
-   render with **no tab pattern at all** (`return (` at :451); `usePersistedState` is already
-   imported and is how the repo persists that kind of toggle (see :76).
-
-### UI rules that are decisions, not polish
-
-- Bank activity gets its **own tab**, never interleaved: `/transactions` is a *planning* stream (22
-  manual rows merged with generated debt/plan/car-loan rows); bank activity is what happened.
-- Filter **defaults to current month**, switchable to any month or All. **Pending rows excluded.**
-- **"unreviewed" is NEVER a nagging count or badge**, and nothing may read it as "did not happen".
-- An absent match suggestion renders as **no information**, never "unpaid" (§1A design bias).
-- `hasCategorySuggestion()` false → say **"uncategorised"**, not "Other" — do not assert.
-
-## §1B — surface synced Plaid transactions in `/transactions` (review / link / categorize / import)
-
-Tre's ask, verbatim: *"i want to pull transactions in and have them also auto connect to user
-created rule and transaction. otherwise it adds a transaction if the user says it doesnt match
-anything… it should go into the transactions tab and integrate with calculations and rules. users
-should be able to categorize if the auto cat is wrong"*
-
-**Plaid ingestion was already fully live** — §1A Stages A/B/C all shipped, cron `plaid-daily-sync`
-(jobid 16) runs Mon/Wed/Fri/Sat 13:00 UTC, 571 rows for Tre. The missing piece was only the UI, which
-the 2026-08-07 scope call had deliberately excluded. **§1B reverses that call — Tre's decision.**
-
-### ⚠️ The hazard the whole design hangs on
-
-`public.transactions` is read by **12 surfaces**, incl. `useForecastEngineInputs.ts:66` and
-`CardProjectionContext.tsx:63` — every row written there moves projected numbers app-wide, while
-`recurring_rules` already projects the same bills. So:
-
-**Import is offered ONLY on rows that matched nothing. A linked row is an annotation and creates no
-money.** If a future session relaxes that, the double-count returns. Tre's phrasing ("otherwise it
-adds a transaction") is load-bearing, not UX.
-
-### Tre's decisions (2026-08-08) — do not re-ask
-
-1. **Inbox scope: ALL accounts, ALL history.** His reasoning, better than my initial
-   recommendation: history is the *input* to discovering recurring rules at onboarding. I had
-   conflated *browsing* with *a queue demanding decisions*. Resolution: everything browsable +
-   filterable, filter **defaults to current month**, and **"unreviewed" is NEVER a nagging count or
-   badge** — no "24 items need review". Most rows stay permanently unreviewed by design, so
-   **nothing anywhere may read "unreviewed" as "did not happen".**
-2. **Stage 4 = YES.** A confirmed link feeds `buildCaptureEvidence` as `matched: true`, overriding
-   the auto-matcher. Rationale: otherwise an explicit user confirmation counts for less than an
-   automatic guess, which is backwards.
-3. **Imported rows: fully editable, stamped `origin='synced'`** on `public.transactions`. Re-import
-   blocked by the review row's unique constraint.
-4. **Build now: Stages 1+2 only** (zero effect on any projected number). 3 and 4 ship separately and
-   get live-verified separately.
-
-### 🆕 §1C (new, NOT started, do not build without Tre)
-
-Tre's onboarding idea: **derive recurring rules from transaction history.** A pattern detector over
-`synced_transactions`, a different consumer from the review inbox. Filed as §1C so it isn't lost.
-This is the reason all-history is in scope.
-
-### Facts verified session 113 (don't re-query)
-
-- `synced_transactions` (Tre): **571 rows**, 2026-01-17 → 2026-08-07, 5 pending; 24 settled this month.
-- `public.transactions` (Tre): **22 rows**. Active `recurring_rules`: **30**.
-- ⚠️ **The two tables disagree on a convention.** `recurring_rules.payment_source` = **bare uuid**;
-  `transactions.payment_source` = **`account:`-prefixed** (22/22 rows, 0 bare). Reuse
-  `normalizePaymentSource()` (`transaction-matching.ts:113`) — it accepts both. Do NOT write a second parser.
-- ⚠️ `transactions.account` is a **dead legacy free-text label** — reads `"Checking"` on all 22 rows
-  *including* ones whose `payment_source` points at the Discover card. Import must set it from the
-  real `accounts.name`, never by copying an existing row.
-- Plaid categories present: 18 PFC primaries. **`GENERAL_MERCHANDISE` is 183/571 (32%)** and only
-  means "a store" — mapping it to `Shopping` is a guess that will often be wrong. That is precisely
-  why the override exists. **Do not add merchant-name heuristics to paper over it** — §1A rejected
-  fuzzy name scoring for reasons that apply here too.
-
-### Item 6 re-checked (session 113) — STILL HAS NOT FIRED
-
-$422.89 on `933cbc10…` still `pending: true`, dated 2026-08-07, `updated_at` unmoved at
-**2026-08-08 13:00:08 UTC**. Latest settled on that account still **2026-08-05**. Bank settlement
-lag, not a sync failure. Same conclusion as sessions 111/112.
-
----
-
-# Handoff — 2026-08-08 — session 112 — Stage 6 FULLY DELIVERED (deployed v51); item 6 not yet fired
-
-> Session 112 **deployed the `ai-advisor` edge function** (Tre approved; v50 → **v51**, ACTIVE,
-> `verify_jwt: true`) and smoke-tested it live. **Stage 6 is now closed end to end.**
->
-> It re-ran item 6's watch: the $422.89 car payment is **still pending, unchanged** — no flip yet.
->
-> ⚠️ **The work queue is now empty.** Items 4 and 6 are waits, not tasks. There is no §2.11 and no
-> queued plan item — picking the next workstream is Tre's call. See "Next" below.
->
-> Push status: run `git rev-list --count origin/main..main` — do not trust a number written here.
-
-## ✅ Stage 6 CLOSED — `ai-advisor` deployed v51 and verified booting
-
-Deployed 2026-08-08 via Supabase MCP with the 3-file set (`ai-advisor/index.ts` +
-`_shared/cors.ts` + `_shared/rate-limit.ts`; every other import is a remote esm.sh URL Deno
-fetches itself). `verify_jwt: true` passed explicitly, since MCP ignores `config.toml` — and
-`config.toml` has **no `ai-advisor` entry at all**, so the explicit flag is the only thing
-preserving the live setting.
-
-**Boot verified, not assumed.** POSTing `{}` with the **anon key as the Bearer token** passes the
-gateway (the anon key is itself a valid JWT), so the request reaches the function body, which
-returns its own `{"error":"not_authenticated"}` / 401. That single call proves the module graph
-loaded, both `_shared` imports resolved, the `rate_limit_check` RPC path works, and
-`GEMINI_API_KEY` is set — a missing key returns 503 *before* the auth check. **Reuse this trick for
-any `verify_jwt: true` function**: it is a free, no-side-effect boot test that reaches real code.
-
-The client and edge function now agree on `payoffMonthsFromNow`; the renamed-field intermediate
-state is over.
-
-## Item 6 — first live Stage C flip: re-checked 2026-08-08, HAS NOT FIRED
-
-Nothing to do; the bank has not settled the charge. Re-run the two queries next session.
-
-- The $422.89 row on `933cbc10…` is **still `pending: true`**, dated 2026-08-07, with `updated_at`
-  still **2026-08-08 13:00 UTC** — no sync has touched the row since session 111 looked at it.
-- The account still holds **138 rows / 4 pending**, latest **settled** still **2026-08-05**.
-- Because `updated_at` has not moved, this is bank settlement lag, not a sync failure.
-
-⚠️ **Column name trap:** `synced_transactions` has **`date`**, not `transaction_date`. Full column
-list: `id, user_id, connection_id, account_id, provider_transaction_id, pending_transaction_id,
-amount, date, pending, name, merchant_name, category, created_at, updated_at`. Also watch
-`updated_at` alongside `pending` — it is what distinguishes "bank hasn't settled" from "sync is
-stale", in one query.
-
-Both Stage C conditions therefore still evaluate exactly as traced in session 110 (`matched: false`
-via the pending skip, `hasTxnCoverage: false` since 08-05 < 08-12). **Still number-neutral, still
-for the verified reason.** The prediction in the section below stands unchanged.
-
-## ⚠️ Correction to session 110's connection table — one row was NOT Tre's
-
-The session-110 table listed **7 connections as if all were Tre's**. Filtering
-`financial_connections` by `user_id = a72f416e…` returns **6**. The second Chase connection,
-**`eaddb4e3-4d07-4554-b207-d2cacbdda106` (128 rows, 5 pending)**, belongs to a **different user**
-(`25e2e6bf-4c62-4313-8a26-99c44d8dfce6`) — another account on the app, not Tre's.
-
-Not a bug, and it changes no Stage C conclusion (the car fund's account `933cbc10…` is on Tre's
-`de492512…` Chase connection). But **any live tracing must filter by Tre's `user_id`**, or it will
-silently read a stranger's rows. `synced_transactions` totals in the old table were cross-user.
-
-## ✅ Item 5 CLOSED — pending→posted retirement verified against real data
-
-`synced_transactions` is now **699 rows across 6 connections** (was 143, Discover only). That is
-enough real traffic to test the retirement path directly, and it is clean:
-
-- **270** posted rows carry a `pending_transaction_id`, and **0** of those pointers resolve to a
-  still-live row. Every superseded pending row was retired. (Self-join on
-  `connection_id + provider_transaction_id`.)
-- **0** pointer-less duplicates — no (same account, same amount, one pending + one posted, within
-  6 days) pair exists anywhere, so the path is not missing charges where Plaid omits the pointer.
-- The **10** surviving pending rows are all **1-2 days old** (dated 08-06/08-07). Legitimately
-  in-flight, not stranded.
-
-The double-count `SETTLEMENT_LAG_DAYS` exists to prevent is not occurring in live data.
-
-## ⚠️ The standing re-check FIRED — Stage C is no longer a structural no-op
-
-Previous handoffs said "only Discover has a `sync_cursor`… the moment a checking-account cursor
-appears, §1A Stage C stops being a no-op." **That moment has arrived.** All 7 connections now have
-cursors; 6 synced 2026-08-08 13:00 UTC:
-
-| Institution | conn | rows | pending |
-|---|---|---|---|
-| Chase | `de492512…` | 376 | 4 |
-| Discover | `881f3807…` | 143 | 0 |
-| Chase | `eaddb4e3…` | 128 | 5 |
-| American Express | `6e1f30db…` | 34 | 1 |
-| Alliant | `12dd917f…` | 18 | 0 |
-| Robinhood / Empower | — | 0 | 0 |
-
-The car-loan funding account `933cbc10…` (**Chase TOTAL CHECKING**) went **0 → 138 rows**, settled
-range **2026-01-17 → 2026-08-05**, `account_id` resolved on every row (0 untracked).
-
-### Stage C is still number-neutral today — and now for a VERIFIED reason
-
-Traced by hand for the live car fund (`0f75dec9…`, 2004 Chevorlet C5, `loan_payment_account` =
-`933cbc10…`, `actual_monthly_payment` **$422.89**, `payment_start_date` **2026-08-07**):
-
-- **The real payment is sitting PENDING** — matching amount and date, on the loan payment account.
-  There is **no settled** row near that amount on that account. (Descriptor deliberately not quoted:
-  this repo is PUBLIC. Re-read it from `synced_transactions` if a future session needs it.)
-- `matchCharge` skips pending rows → `matched: false`.
-- `hasCoverage` needs latest **settled** ≥ dueDate+5 = **2026-08-12**; latest settled is
-  **2026-08-05** → `hasTxnCoverage: false`.
-- Both false → `isCapturedInBalance` falls through to the date heuristic, byte-identical to
-  pre-Stage-C. **No projected number moves.**
-
-This is the design working, not a gap: pending is not settled evidence, and the gate declines to
-conclude anything rather than guess.
-
-### 🔜 Predicted FIRST real Stage C number move — worth watching
-
-`matched` is honoured **without** coverage (`sync-cutoff.ts:102-105`), so the moment that $422.89
-settles, the August car payment flips to **captured** and drops out of month 0. Under the heuristic
-alone that drop would not occur until `balanceAsOf ≥ 2026-08-11` (dueDate 08-07 `<` basis−3). So
-Stage C should retire the charge **~2 days earlier than the old rule**, which is the entire point
-of §1A. If the payment settles and the August car payment does **not** drop, that is a real bug —
-check that the settled row kept a date within ±5 days of 08-07.
-
-## ✅ §2.10 SHIPPED — `80f72c2d` — percent-of-linked-account saved source
-
-**The audit corrected the spec, and this is the part worth carrying forward.** Car funds ALREADY
-derive from the linked account at nine read sites — but only when that account is *separate* from
-the funding account. That guard is load-bearing (`forecast-engine.ts:406-408`): when the linked
-account IS the funding account, its balance is already offered as available cash, so calling it
-"saved" too double-counts. Therefore the originally specced **`account_balance` mode was dropped** —
-it already exists where it is valid and would be actively wrong in the exact case §2.9's drift lives
-in. **Do not re-propose it.**
-
-`getCarFundSaved(cf, fundingAccountId, linkedAccountBalance)` in `vehicle-loan-engine.ts` is now THE
-single source; both rules (percent, and separate-account-derives-live) live in it, and all ten call
-sites route through it including `getCarFundEarmark`. Under `'fixed'` it returns exactly what each
-site computed inline before — pinned across all six link/funding/balance shapes, so §2.10 **moves no
-existing cash figure**.
-
-DB (migration `car_funds_saved_source`, applied live): `saved_source` (`'fixed'|'account_percent'`,
-default `'fixed'`) + `saved_percent`, with three CHECKs (enum, 0-100, percent requires a linked
-account). **All existing rows are `'fixed'`** — verified, zero behavior change.
-
-Gate: **578/578 tests (18 new), tsc 0**, eslint unchanged (the 1 `useCardProjection` exhaustive-deps
-warning is PRE-EXISTING — verified by stashing).
-
-Deliberate calls, do not re-litigate:
-- **Demo stays on `'fixed'`.** The only percent reproducing §2.9's live-verified $1,200 against d1's
-  $2,800 is 42.857…%, which puts float noise into an on-screen money figure. Percent mode is
-  covered by unit tests instead.
-- **Two divergences preserved, not unified**: the fallback purchase-date estimator
-  (`forecast-engine.ts`) and the lump-sum path (`useCardProjection.ts`) have always derived from ANY
-  linked account, funding one included. They pass a **null funding id** so percent mode is added
-  without changing which account they read. Unifying them is a separate, behavior-changing decision.
-
-Files: `vehicle-loan-engine.ts`, `types.ts`, `forecast-engine.ts`, `useCardProjection.ts`,
-`Dashboard.tsx`, `Vehicles.tsx`, `demo-data.ts`, `integrations/supabase/types.ts` + 7 test files.
-Backups: `backups/2026-08-08_105248/`.
-
-### ✅ §2.10 UI — LIVE-VERIFIED (session 109, demo mode + DB round-trip). Do not re-verify.
-
-On screen in demo, Vehicles → Saving for Down Payment → edit the Civic:
-- Form labels include **"Amount Saved"**; **"Current Saved" is correctly absent** (d1 is linked).
-- Its select carries exactly `['fixed','account_percent']`, defaulting to `fixed`.
-- Switching to `account_percent` reveals **"Percent of Balance Saved for This Vehicle"** and swaps the
-  hint to *"Tracks the balance, so it can never claim more than the account holds."*
-- The Civic card reads **$2,800 / $5,600 (50%)** — the linked-balance derivation, unchanged by §2.10
-  (stored `current_saved` is $1,200; the card correctly shows d1's live $2,800).
-
-DB round-trip verified against the real project: a throwaway `account_percent` row inserted and
-**deleted** (only Tre's `2004 Chevorlet C5` remains, untouched — confirmed by SELECT), and the
-`car_funds_saved_percent_requires_account_check` constraint correctly **rejected** percent mode with
-a null linked account.
-
-⚠️ **CTE gotcha, cost a cleanup call:** `WITH ins AS (INSERT…), del AS (DELETE … WHERE id IN (SELECT
-id FROM ins))` reports `rows_deleted: 0` and **leaves the row behind** — the DELETE reads the same
-snapshot and cannot see the just-inserted row. Insert-then-verify-then-delete needs SEPARATE
-statements. Always re-SELECT to confirm cleanup actually happened.
-
-Not exercised: clicking Save in demo (demo mode does not write to the DB). The payload construction
-is plain code and the DB constraints are verified; this is not worth a real-account write.
-
-## Still open (carried, renumbered)
-
-1. ~~Deferred debt-engine sites — `credit-card-engine.ts:2087-2100`,
-   `debt-transaction-generator.ts:12-34`~~ — **CLOSED session 110 as SKIP, now measured rather than
-   assumed.** The item is 4b's goal auto-stop: both sites count a transfer/investment rule as a cash
-   outflow after its savings goal is fully funded, because `goals` are not in scope on either call
-   chain, so the debt engine slightly UNDER-recommends payments in that window.
-
-   **Live effect is $0, and structurally so.** Two things close it: (a) both sites already honour
-   `recurring_rules.end_date`, and 97.3's auto-end toggle WRITES that date on a goal's linked rules,
-   so every toggle-on goal is correct by construction; (b) the gap only bites if a goal completes
-   inside `PROJECTION_MONTHS` (60). Measured 2026-08-08 — **none of the four goals does**:
-   Brokerage ~month 335, Roth IRA ~month 280, 401K Roth has no linked rule at all, and Savings
-   (the nearest) lands ~**month 62**, just past the horizon — and its HYS rule already carries a
-   user-set `end_date` of 2031-06-30 (~month 58) that both sites honour anyway.
-
-   Fixing it means threading a completion cutoff into the 60-month convergence loop — the engine
-   with ~12 rounds of hard-won fixes — for zero dollars. Not a trade worth making. Both sites now
-   carry the analysis in place so it is not re-derived a fourth time.
-
-   **REOPEN WHEN:** a goal's linked contributions complete it inside 60 months while its rule
-   carries no `end_date`. **This is now AUTOMATED** (`347d051f`, Tre's call — "you should just test
-   for that"): `src/lib/__tests__/goal-contribution-overrun.test.ts` fails the moment that becomes
-   true, so nobody has to remember to re-measure it. The real-data half reads the gitignored
-   fixture and skips where it is absent (CI); the synthetic half always runs.
-
-   ⚠️ **`computeGoalCompletionIdx` is NOT bounded by `PROJECTION_MONTHS`.** It returns indices
-   9-14 years out on Tre's real goals. The first version of this guard treated "returns a date" as
-   "completes in-horizon" and flagged all three linked goals; it must bound the index against
-   `PROJECTION_MONTHS` explicitly. It also has its OWN much-longer internal cap (a $100k goal at
-   $25/mo returns null), so a test case meant to sit "past 60" needs to land in the gap — ~100
-   months works. Both traps are now pinned by tests.
-2. ~~§2.10 UI live-verification~~ — **DONE session 109**, see above. §2.10 fully closed.
-3. ~~`backup.plaid_items_20260807` / `backup.accounts_20260807`~~ — **CLOSED AS KEEP. Tre decided
-   2026-08-08: "don't drop them — close the item as keep." Do NOT re-propose dropping these.**
-   They are the 2026-08-07 §1 snapshot (7 + 31 rows), kept because the org is on the **free plan —
-   no PITR, no automated backup**, so this is the only copy of pre-§1 state. Live counts match
-   exactly (31/31, 7/7) and the `backup` schema has **no grants to anon/authenticated/public**, so
-   it is not an exposure. 38 rows is not worth an irreversible drop.
-4. Native Plaid Hosted Link device verification (needs a physical device).
-5. ~~Stage A's pending→posted retirement path not exercised against real data~~ — **CLOSED session
-   110**, verified clean at 699 rows / 270 pointers. See above. Do not re-verify.
-6. **Watch the first live Stage C flip** (see prediction above). Not a task; a check to run each
-   session: has the $422.89 settled, and did the August car payment drop from month 0?
-   **Re-checked session 112 — still pending, has not fired.** See the item 6 section at the top.
-
-## ✅ Stage 6 — shipped `0b66da3c`, DEPLOYED session 112 (see the top section)
-
-**Tre picked Stage 6 (session 111).** Code committed locally, **593/593 green, tsc 0, eslint
-clean**. Backup `backups/2026-08-08_124500/`. Edge function **deployed session 112 (v51)**.
-The design notes below are kept because they record decisions, not pending work.
-
-### The audit corrected the plan's premise — carry this forward
-
-- **The "Goals" half of Stage 6 is already done and should NOT be built.** SavingsGoals has no
-  ad-hoc projection; it was extracted into `src/lib/savings-growth.ts` (pure, shares
-  `PROJECTION_MONTHS`) and its contribution-stop rule already matches the Forecast/Dashboard/debt
-  engine. Pointing it at `calculateForecast()` would be churn — goal APY growth is not something
-  that engine models. **Do not re-propose it.**
-- **The AI Advisor was the whole of the real work.** `AiAdvisor.tsx:736-744` ran its own
-  closed-form amortization (`-ln(1 - rB/P)/ln(1+r)`) per `debts` row.
-- **Root cause is the `debts` table: it has NO `account_id`.** It is a standalone user-entered
-  tracker, which is why line 700 already excludes it from `totalDebt` as a double-count. Matching
-  to engine cards is by case-insensitive name — the convention the loans block at :680 already used.
-
-### Live defect this fixed (measured, not hypothetical)
-
-| Debt | Advisor told the LLM | Reality |
+| step | path exercised | result |
 |---|---|---|
-| Prime Visa $5,037.73 @ 27.49%, target $500 | payoff in **12 months** | full APR applied, 0% promo installment ignored |
-| Discover $3,734.71 @ 19.49%, target **$52** | **never pays off** (null) | $52 < $60.65/mo interest, so the guard fell through — while the app shows a real payoff date |
+| set category on an unreviewed row | `setCategory` **INSERT** | new `categorized` row `99402619…`, override `Shopping` |
+| change the category again | `setCategory` **UPDATE** | **same row id**, override → `Groceries`, still exactly 1 row |
+| Ignore | `save` **UPDATE** | same row id, status → `ignored`, and **`category_override` cleared to NULL** — the "every column is written, including the nulls" claim, demonstrated |
+| Undo, then Ignore again | `remove` + `save` **INSERT** | old row gone, **new row id `fb27f6ff…`** |
+| Add to my ledger | `importToLedger` | ledger row `b7a5611a…` created, review `imported` pointing at it |
+| Undo — deletes the entry | `undoImport` | both gone by FK cascade |
 
-An advisor that contradicts the page it is embedded in is worse than one that stays quiet.
+**Account restored byte-for-byte, re-SELECTed after:** `imported 55 · linked_rule 11 · linked_plan 1
+· linked_txn 2` = **69**, **0 rows carry `occurrence_date`**, 0 rows on the test charge, test ledger
+row gone.
+🧪 Method: `updated_at` is CLIENT-generated while `created_at` is a DB default, so a fresh row can
+show them ~20s apart. That is clock skew, **not** a second write — do not chase it.
 
-### Design (Tre delegated: "do what you believe is best for my customers")
+- **Slice C — schema + UI. NOT STARTED, and the only slice left.** `BankActivity.tsx:135`
+  `reviewByTxn` `Record<string, Row>` → `Record<string, Row[]>`, a "link another" affordance, and
+  multi-badge / per-link undo (call `removeLink`). **:312** `const review = reviewByTxn[txn.id]` is
+  the single read to fan out. Then apply the migration.
+  - **Use `isLinkStatus` / `LINK_STATUSES` from Slice A** to pick the exclusive row; do not re-type
+    the predicate in the UI.
+  - **Call `validateReviewSet` as well as `validateReviewInput`** when writing several rows.
+  - ⚠️ **Slice C owes the category move:** every `save.mutate` site in `BankActivity.tsx` currently
+    passes `category_override: review?.category_override ?? null`. It must stop, and route the
+    category to the exclusive row instead — `validateReviewSet` already rejects an override on a
+    link row, so the contract is written and tested and waiting.
+  - The array shape is safe to build BEFORE the migration (every array is length 1 under today's
+    UNIQUE), so the UI can ship and be live-verified first and the migration can land last.
 
-`src/lib/advisor-debt-context.ts` (**new, pure, 10 tests**) is the single source:
-- Engine-modelled cards are authoritative, payoff from `firstRevolvingPayoffMonth` — **the same
-  helper Debt Payoff uses**, so it cannot drift. Covers Venture X / Apple, which `debts` never had.
-- `debts` rows with **no** engine match are preserved (nothing typed is lost) but carry
-  `payoffMonthsFromNow: null` + `source: 'user_entered'`, and the prompt explicitly tells the model
-  not to estimate their payoff. A failed name match degrades to "listed once, no claim" rather than
-  "payoff silently dropped".
-- Adds `creditCardDebtFreeMonthsFromNow` to the prompt as the authoritative figure.
+⚠️ **Back up `synced_transaction_reviews` before Slice C.** Free tier = no PITR (see
+`project_supabase_backup_schema`); snapshot into the locked-down `backup` schema like 2026-08-07 did.
 
-⚠️ **Off-by-one trap, pinned by test:** `firstRevolvingPayoffMonth` returns a **1-indexed** month
-where index 0 is the CURRENT month, so months-from-now is `payoffMonth - 1`. `DebtPayoff.tsx:96`'s
-`debtFreeDate()` takes a **duration** (`now + months`) — different semantics, do NOT reuse it
-directly. That is why the conversion lives in `payoffMonthsFromNow()` with its own tests.
+---
 
-### ✅ Deploy DONE (session 112)
+# Handoff — 2026-08-09 — session 130 — ✅ **BIWEEKLY WORKSTREAM COMPLETE. Commit 2 shipped `1b919e04` and LIVE-VERIFIED.**
 
-The field rename `projectedPayoffMonths` → `payoffMonthsFromNow` is now live on both sides.
-Also fixed in passing: `body.debtDetails.sort()` mutated the request body; now `[...].sort()`.
+> **START HERE.** Both commits of the biweekly anchor work are done and verified.
+> **729/729 tests, tsc 0, eslint clean, tree clean. Nothing about biweekly is owed.**
+> Next is the standing backlog (N1-N12 below, plus split link) — **ask Tre which he wants first.**
 
-## Next
+## ✅ Shipped `1b919e04` — the rule editor now states the cycle
 
-Items 4 and 6 are **waits** (physical device / bank settlement), not work. Everything else is
-closed. There is no §2.11 — the §2.x series ended at §2.10. Forecast-engine **Stages 4-5 remain
-deliberately on hold**.
+The field already existed, so this is a relabel plus a caption, not a schema change:
 
-**The queue is empty.** The only queued candidate is the roadmap's **FB.6-13** UX items. **Do not
-start without Tre choosing** — it changes scope. A fresh session should run item 6's two queries,
-report, and then ask Tre what to pick up.
+- **Biweekly only:** income → `First Paycheck Date (required)`, expense → `First Occurrence (optional)`.
+  Every other frequency renders exactly as before — confirmed live, monthly reverts to
+  `Start Date (optional)` with **no** caption.
+- **Caption** from `describeBiweeklyAnchor`, in three voices: derived, pinned, and **shifted**.
+- `form.start_date` / `form.due_day` / `editCreatedAt` added to the `formFields` deps, or the caption
+  goes stale as the user types.
+- `editCreatedAt` is new state (set in `openEdit`, cleared in `openAdd` **and `handleDuplicate`** — a
+  copy is a new row and gets its own `created_at`, so it must not inherit the original's phase).
+- **Still NOT deriving `due_day` from the picked date.** Decided in 129b, unchanged. Do not
+  re-litigate without asking Tre.
 
-## Closed previously (do not reopen)
+### 🐛 A REACHABLE TAB HANG, found by wiring this up — fixed in the same commit
 
-§2.10 (session 109, code+DB+UI, fully live-verified), §1A Stage C (all parts, session 103), 97.1 `/debt` TOTAL LIMIT tile ($25,400), `types.ts` regen
-(session 104), remote access (Tailscale+RDP, sessions 104/107 — lives OUTSIDE this repo in
-`C:\Users\tvonh\Desktop\remote-access\`; **this repo is PUBLIC**), **97.3** (all parts, incl. the
-goal chart earning interest after contributions stop, live-verified session 107), **§2.9**, and now **§2.10**.
+`resolveBiweeklyAnchor` did `const dayOfWeek = rule.due_day ?? 5` and then
+`while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1)`. **`due_day` holds a DAY OF MONTH on
+monthly rules**, so flipping a rule from monthly to biweekly handed it a `15` and the loop hunted
+weekday 15 **forever**. The editor calls this on every keystroke while the frequency select and the
+due_day input still disagree, so **a two-click UI path froze the tab**. Now clamped to 0-6 with the
+module's existing Friday fallback; pinned by a test over `[15, 31, -1, 7, 1.5, NaN]`.
+⚠️ The other two `due_day ?? 5` sites (**:224** weekly generator, **:349** count) were checked and are
+**bounded** — they return an empty/zero result, they do not spin. Left alone deliberately.
 
-**~~Re-check each session~~ — RESOLVED session 110.** This said "only Discover has a `sync_cursor`
-(143 rows); the car-loan funding account `933cbc10…` has 0 synced transactions." **All of that is
-now stale** — every connection has a cursor, TOTAL CHECKING has 138 rows, and Stage C's evidence
-path is live. See the Stage C section above. Do not carry the old wording forward.
+### ✅ LIVE PASS — done in-app, every branch
 
-## Live drift worth knowing (not a bug, do not chase)
+Sign-in had lapsed, so this ran in **demo mode** against real Vite-served modules (the shipped code,
+not a test double). Driving the form's real React state and reading the rendered caption back:
 
-Live shows **CC Debt Free Oct 2028**; the fixture golden pins **Jul 2027**. The fixture is from
-2026-07-20 and live balances have moved. The golden asserts against the fixture, not live.
-Do not "fix" the golden to match live.
+| input | rendered caption |
+|---|---|
+| no date, due_day 1 | `Repeats every 14 days from Mon, Aug 10, 2026. Set a date to pin your own cycle.` |
+| pinned Aug 9, **due_day 0 (matches)** | `Repeats every 14 days from Sun, Aug 9, 2026.` |
+| pinned Aug 9, due_day 4 | `Heads up: the schedule will run from Thu, Aug 13, 2026, not the date entered …` |
+| **due_day 15** (the hang case) | rendered **instantly**, Fri Aug 14 — no freeze |
+| blank due_day | Fri Aug 14 (Friday fallback) |
 
-## Push status
+Labels confirmed live for income and expense, and monthly confirmed to revert with no caption.
+Plus `await import('/src/lib/scheduling.ts')` in the browser on **Fuel's real row values**
+(`due_day 5`, `start_date null`, `created_at 2026-03-22`) → anchor **`2026-03-27`**, `pinned false`,
+`shifted false`. Matches the prediction 129 made from the database.
 
-**Run `git rev-list --count origin/main..main`.** Do not trust a number written here — this line
-has gone stale within a single session before, because parallel sessions push. Session 112 found 3
-unpushed and added its own commits on top; it did **not** push.
+✅ **THE LAST GAP IS NOW CLOSED (same session, Tre signed in).** Budget Control → Variable →
+edit **Fuel** on his real row renders:
 
-Standing rule unchanged: **never auto-push** — session 107's push was a one-off explicit
-authorization and does NOT carry forward.
+> **FIRST OCCURRENCE (OPTIONAL)** — *Repeats every 14 days from **Fri, Mar 27, 2026**. Set a date to
+> pin your own cycle.*
 
-## Supabase — real IDs (carried)
+That is the derived-from-`created_at` branch, on his data, on his screen, matching both the unit
+test and the database prediction. Modal closed **without saving**; the row still reads
+`Fuel · Biweekly · Day 5 · From: Prime Visa · $65 · /mo $130`. **Nothing is owed on biweekly.**
 
-- Tre `user_id` = `a72f416e-433a-4055-9ab0-9feae4e60edf`. Always filter by it.
-- Savings goal's linked rule (97.3's stamped one) = `73a5c998-d99d-4418-9578-c9d8d9f5dc10` (HYS).
-- Discover connection = `881f3807-2974-411b-a406-ac6007a6e7d2`; Discover account =
-  `34c9574b-3557-4729-a812-f0b1b508b882` (still the ONLY account with synced transactions).
-- Car loan payment account = `933cbc10-bceb-4c20-8227-4a02e6db728a` (**Chase TOTAL CHECKING**).
-- `sync_cursor` lives on **`financial_connections`**, NOT on `accounts`.
-- `financial_connections` uses **`last_synced_at`** and **`connection_status`**.
-- `accounts.account_type` (not `type`); `recurring_rules.rule_type`.
+### 🧪 Method note worth reusing
 
-## Environment gotchas (carried)
+The date fields are a `DateScrollPicker`, **not** an `input[type=date]` — there is nothing to type
+into. Drive biweekly hint states from the **Day of Week number input** instead (set via the native
+value setter + `input` event), which moves the anchor without touching the picker at all. Also:
+`[...document.querySelectorAll('select')]` catches the **Income & Tax pay-frequency** select before
+the modal's — scope the query to the `.fixed.inset-0` modal first.
+⚠️ **Radix tabs and the row action buttons ignore a bare `.click()`** — `aria-selected` never
+flips. Dispatch the full sequence `pointerdown,mousedown,pointerup,mouseup,click` as `MouseEvent`s
+with `bubbles:true`. Also: `computer` **screenshot timed out** twice on the signed-in Budget page
+(heavy paint, renderer NOT actually frozen — `javascript_tool` kept answering). Read the DOM instead
+of screenshotting that page.
 
-1. Tre is signed in on his real account in HIS browser. Never sign him in or out.
-2. ⚠️ **CHANGED 2026-08-08:** the Claude-controlled Chrome is now **SIGNED OUT** — session 107's
-   parked signed-in tab is gone. `localStorage` had **no `sb-*` key**. Probe before assuming.
-3. **Demo mode is in-memory React state, NOT a URL or a flag.** There is no `/demo` route and no
-   localStorage toggle. Go to `/auth` and dispatch the full pointer sequence on the **"Try Demo"**
-   button; it navigates to `/dashboard`. `useSupabaseData` then serves `demoAccounts`
-   (`useSupabaseData.ts:19-29`, Chase Checking `d1` = **$2,800**) + `demo-data.ts`.
-4. ⚠️ **`javascript_tool` returns `[BLOCKED: Cookie/query string data]`** when the result is a large
-   array of page strings. It is not a page error. Fix: return a **small structured object of just
-   the values you need** (label → amount map), not a dump of every text leaf. Cost me 2 calls.
-5. Dev server `localhost:8080`, `strictPort`. Start with `node scripts/dev-session.mjs up`.
-6. `/budget` rules split across tabs; `cost_type` overrides category ("Dog food" is **Variable**).
-7. `npx vitest run --reporter=basic` fails on vitest 4.1.10. Use `npx vitest run`.
-8. No PowerShell here-string in a `;`-chained command — use a Bash heredoc.
-9. Vitest suppresses `console.log` — write to a scratch file.
-10. `.env.local` (not `.env`) holds the VITE_ keys — all publishable/client-side.
-11. `npx supabase` CLI has **no config READ path**; never use it to fix a redirect URL.
-12. `config.toml` is the source of truth for `verify_jwt`.
-13. **No `deno` binary locally** — but edge functions are **NOT unverifiable**. Type-check one with
-    the TypeScript compiler API using `noResolve` (which skips the unresolvable remote imports)
-    and a `lib` of `es2022 + dom`. Everything then resolves except `Deno` itself, which the
-    runtime provides — so **4 × TS2304 `Cannot find name 'Deno'` is the clean result**:
-    ```js
-    const ts=require('typescript');
-    const prog=ts.createProgram(['supabase/functions/<fn>/index.ts'],{noResolve:true,
-      skipLibCheck:true,target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,
-      moduleResolution:ts.ModuleResolutionKind.Bundler,
-      lib:['lib.es2022.d.ts','lib.dom.d.ts'],noEmit:true});
-    // ignore 2307/2688/2792 (module resolution); anything else is real
-    ```
-    This catches exactly the class of bug hand-review misses (undeclared names, wrong field
-    types). ⚠️ **There is no `esbuild` in this repo** — Vite 8/rolldown replaced it; `typescript`
-    is present.
-14. `tre-forged-conductor/` belongs to a PARALLEL session. Never `git add -A`; list files explicitly.
-15. Supabase MCP `generate_typescript_types` returns a JSON envelope too large to paste; read the
-    persisted tool-result file and extract `.types` with node.
-16. ⚠️ **`handoff.md` is committed to a PUBLIC repo.** It is a working note, but it ships to GitHub.
-    Amounts, account UUIDs and `user_id` are the established (accepted) level of detail. Do NOT add
-    raw bank transaction descriptors, merchant/counterparty names, or anything pulled verbatim out
-    of `synced_transactions` — cite the amount and date and let the next session re-query the row.
-    Session 110 pasted one descriptor and had to scrub it after pushing.
+---
 
-## Browser-verification recipes (reusable)
+# Handoff — 2026-08-09 — session 129b — ✅ helper SHIPPED `79875125` (the UI wiring it asks for is DONE — see session 130 at the top; kept for its reasoning)
 
-Radix tabs do **not** switch on `element.click()`. Dispatch the full pointer sequence — this is also
-how you enter demo mode (gotcha #3):
+> **START HERE.** The context gate fired mid-commit-2. The tree is **green and clean**
+> (728/728, tsc 0, eslint clean) — the atomic action was finished before stopping. What remains is
+> one focused edit in one file.
 
-```js
-for (const t of ['pointerdown','mousedown','pointerup','mouseup','click'])
-  el.dispatchEvent(new (t.startsWith('pointer')?PointerEvent:MouseEvent)(
-    t, {bubbles:true, cancelable:true, button:0, pointerId:1}));
+## ✅ Shipped `79875125` — `describeBiweeklyAnchor` in `src/lib/scheduling.ts`
+
+```ts
+describeBiweeklyAnchor(rule, today?) -> { anchor: 'YYYY-MM-DD', pinned: boolean, shiftedFromInput: boolean }
 ```
+`anchor` is `toLocalDateStr(resolveBiweeklyAnchor(...))`, `pinned` is "the user set `start_date`",
+`shiftedFromInput` is "we moved the date they typed". +6 tests in
+`src/lib/__tests__/scheduling.describeAnchor.test.ts`.
 
-**Verifying a snapshot/chain equation on screen** (session 108, better than parsing SVG): pair each
-known row label with the next money-shaped text leaf, then fold it yourself and compare to the
-rendered total. Proves the column adds up in the units Tre sees:
+## ✅ DONE in session 130 (`1b919e04`) — wire it into the rule editor (`src/pages/BudgetControl.tsx`, ~30 min)
 
-```js
-const leaves=[...document.querySelectorAll('*')].filter(e=>!e.children.length).map(e=>e.textContent.trim());
-const i=leaves.indexOf('Balance on hand');
-const amt=leaves.slice(i+1,i+4).find(t=>/^[−+-]?\$[\d,]/.test(t));
-```
+**The finding that shrank this task: the field already exists.** `formFields` (**:781**) already
+pushes a `start_date` date field on every rule, and `resolveBiweeklyAnchor` already prefers
+`start_date`. So commit 2 is **not** a new column, a new input, or an engine change — it is making
+the existing field mean something when `form.frequency === 'biweekly'`. Do this:
 
-For a recharts line, read exact rows off the **React fiber** (walk up from `.recharts-surface` via
-`__reactFiber$` until `memoizedProps.data` has `month`) rather than parsing `d` geometry.
-`computer{action:'hover'}` does not populate the recharts tooltip; do not burn calls on it.
+1. At **:781**, when `form.frequency === 'biweekly'`, relabel:
+   - income → **`First Paycheck Date (required)`** (income already requires `start_date`, :702)
+   - expense → **`First Occurrence (optional)`**
+2. Add a `hint` (the `Field` type at `src/components/shared/FormModal.tsx:15` already supports one,
+   so **FormModal needs no change**) driven by `describeBiweeklyAnchor`:
+   - blank `start_date` → "Repeats every 14 days from `<anchor>`. Set a date to pin your own cycle."
+   - pinned and unshifted → "Repeats every 14 days from `<anchor>`."
+   - **`shiftedFromInput`** → say plainly that the schedule will run from `<anchor>`, not the date
+     typed, because `due_day` names a different weekday. **Do not silently swallow this.**
+3. For an UNSAVED new rule there is no `created_at`, so pass `{ due_day: Number(form.due_day),
+   start_date: form.start_date || null, created_at: null }` and let the `today` fallback answer.
+   When editing, pass the real row's `created_at` so the hint matches what the engine will do.
+4. `formFields` is a `useMemo` — add `form.start_date` and `form.due_day` to its dep array (**:797**)
+   or the hint will go stale as the user types.
 
-## Lessons
+**Deliberately NOT doing:** deriving `due_day` from the picked date. It would often be right ("first
+paycheck was a Thursday" implies Thursdays), but `due_day` is a field the user also set, and
+overwriting one input from another silently is the class of surprise this whole workstream exists to
+remove. Show the conflict, let them fix it. **Do not re-litigate without asking Tre.**
 
-**Session 112 — "no local toolchain" is usually "no local toolchain I reached for."** Four handoffs
-carried gotcha #13 as "edge function type errors only surface at deploy", and Stage 6 shipped its
-edge-function edit reviewed *by hand* on that basis. But `typescript` is a dependency of this repo,
-and its compiler API type-checks a Deno file fine once `noResolve` takes the remote imports out of
-play. The blocker was never the missing binary; it was accepting the missing binary as the end of
-the question. **Before recording something as unverifiable, name the specific tool you tried.**
+Live-verify after wiring: open Budget Control → Variable → edit **Fuel**, confirm the hint reads
+**2026-03-27** with no `start_date` set, and that typing a non-Friday date raises the shifted warning.
 
-**Session 112 — a deploy that succeeds is not a deploy that runs.** The MCP call returning
-`version: 51, ACTIVE` only says the upload was accepted; a bad import path or a missing env var
-still fails at first invocation, in front of a customer. On a `verify_jwt: true` function the anon
-key is itself a valid JWT, so POSTing with it as the Bearer token clears the gateway and lands in
-the function body, which rejects it as not-a-user. **One free call with no side effects proves the
-module graph loaded and the env is populated.** Always spend it.
+---
 
-**Session 111 — a surface that TALKS about the numbers is a surface that computes them.** Stage 6
-was filed as "wire Goals + AI Advisor to the engine", which reads like plumbing. The actual find was
-an LLM being fed a fabricated payoff timeline that contradicted the app's own screen. When auditing
-for duplicate math, **include the surfaces that only narrate** — a chat answer is as much a number
-the customer acts on as a tile is, and it is the one place a wrong number arrives phrased
-persuasively.
+# Handoff — 2026-08-09 — session 129 — ✅ **BIWEEKLY ANCHOR `12d01772` FULLY LIVE-VERIFIED. Live pass CLOSED.**
 
-**Session 111 — check the OTHER side of the wire before renaming a field.** Renaming
-`projectedPayoffMonths` in the client would have silently broken the deployed edge function that
-formats it into the prompt: no crash, no error, the payoff line just vanishes. `grep` for the field
-name across `supabase/functions/` is the whole check, and it costs one call.
+> **START HERE.** `12d01772` is verified three ways: a before/after A/B on the **real captured
+> fixture**, a count of **every biweekly row in the live database**, and an **in-app pass against
+> Tre's real data** through the Vite-served module plus a rendered surface. 722/722 tests, tsc clean,
+> tree clean. **Nothing about this fix is owed.** Next up is **commit 2** (optional "first
+> occurrence" field) and the standing backlog.
+>
+> 📌 **Phone Bill to Mom starting 2026-10-10 is INTENTIONAL** — Tre confirmed 2026-08-09. Closed.
 
-**Session 111 — a multi-tenant table does not owe you a single tenant.** Session 110 grouped
-`synced_transactions` by `connection_id` with no `user_id` filter, got 7 connections, and wrote them
-up as Tre's. One of them is another user's. Every count in that table was cross-user. The app has
-real users now, so **the unfiltered query is the wrong query by default** — the standing "always
-filter by Tre's `user_id`" rule exists for reads, not just writes, and grouping by a foreign key is
-exactly where it gets forgotten.
+## ✅ The fixture A/B — the change is NOT inert, and the golden test's silence is explained
 
-**Session 111 — a stale push-status line is worse than none.** The handoff asserted "8 ahead" as
-fact; it was 0 by the time it was read, because another session pushed. Anything about mutable
-external state should be written as a command to run, not a value to trust.
+Method: temporary diag test (deleted) that ran `generateScheduledEvents` + `calculateForecast` +
+`renderProjectionFromFixture` on `forecast-inputs.real.json`, once at HEAD and once with
+`src/lib/{scheduling,pay-schedule}.ts` checked out from `12d01772~1`.
 
-**Session 110 — if a deferral rests on a property of the DATA, encode it as a test, not a note.**
-Tre's call, and the right one: item 1's skip was justified by "no goal completes inside 60 months",
-which can stop being true with no code change and no one noticing. A note asks a future session to
-re-measure; a test just fails. Writing it also caught a real error in my own reasoning
-(`computeGoalCompletionIdx` is not horizon-bounded), which the prose version would have preserved
-indefinitely — **a claim you can execute gets checked; a claim you can only read does not.**
+| Measure | before | after |
+|---|---|---|
+| Fuel occurrences, 60-month horizon | **131** | **130** |
+| First Fuel dates | 2026-07-24, 08-07, 08-21, 09-04 … | **2026-07-31, 08-14, 08-28, 09-11 …** (all gaps 14) |
+| Months whose Fuel count changed | — | **21 of 60** (e.g. 2026-10 3→2, 2027-01 2→3) |
+| Sim `allPaymentTotals` (first 18 mo) | — | **3 months moved**: 12 `2417→2346`, 13 `568→633`, 16 `646→581` |
+| `calculateForecast(inputs)` rows | — | **identical, every field** |
 
-**Session 110 — price a deferral before re-carrying it.** Item 1 rode four handoffs as
-"Recommendation: skip" with the reasoning compressed out of it. Reading the original entry showed it
-was 4b's goal auto-stop, and four SQL queries showed the effect is $0 because no goal completes
-inside the projection horizon and 97.3's `end_date` writes already cover the toggle-on case. A
-deferral with its reasoning stripped is indistinguishable from an unexamined one — either restate
-the cost or close it.
+⚠️ **Why `goldenTierA` did not move — settled, do not re-investigate.** It asserts on
+`inputs.cardProjectionData.simRevolvingPayoffMonth`, which is **frozen inside the fixture**, and
+`calculateForecast` also consumes the fixture's captured `forecastMonthEvents` / `ccScheduledByMonth`.
+That path never regenerates scheduled events, so it is **insensitive by construction** — its silence
+was never evidence of a no-op. The sim path (`projection-harness.ts:78`, which *does* call
+`generateScheduledEvents`) is the sensitive one, and it moved. Payoff month held at **Jul 2027** on
+both arms, so no golden needs re-pinning.
 
-**Session 110 — a "blocked on real data" item can unblock itself while you aren't looking.** Item 5
-sat carried for sessions as un-exercisable because only Discover had synced rows. One `count(*)`
-showed the table had grown 143 → 699 and the checking accounts had backfilled; the item was
-verifiable in three queries and closed the same session. **Re-measure a blocking condition before
-re-carrying it** — the handoff records what was true when it was written, not what is true now.
+## ✅ Every biweekly row in the live DB — measured, and the risk is real for OTHER users
 
-**Session 110 — "number-neutral" from an untested path and from a traced one are different facts.**
-Stage C shipped number-neutral because no checking account had transactions; it is *still*
-number-neutral, but now because the real payment is pending, `matched` is false, and coverage ends
-2026-08-05. Same observable, completely different confidence. When the precondition for a
-no-op changes, re-derive the no-op instead of assuming it held.
+`select … from recurring_rules where frequency='biweekly'` returns **7 rows, and 6 of them are
+INCOME** — five paychecks ($3,900 / $2,000 / $2,185.44 / $624 / $756) plus a $2,925 contribution.
+Tre's `Fuel` is the only expense. That is exactly the unsafe direction 126b predicted, and it is
+**other people's accounts**, not his.
 
-**Session 109 — audit the premise before building the spec.** The handoff said car funds "never got"
-the derive-from-account treatment savings goals have. One grep showed they had it at nine sites, and
-that the guard those sites share made one of the three proposed modes actively wrong. Three modes
-became one, and the feature got smaller and more correct. A spec inherited from a previous session
-is a hypothesis, not a requirement — cheapest possible check, run it first.
+Counts over the next 12 months, old vs new (diag deleted; rerun by replaying the rows if needed):
 
-**Session 109 — a guard repeated at every call site is a rule with no home.** `!== fundingAccountId`
-appeared at nine sites and was missing from the tenth, which is exactly where §2.9's bug was. Same
-shape as session 108's clamp: when you see the same condition copied everywhere, the one place it
-was forgotten is where the bug lives.
+| Rule | occ 12mo | months that moved |
+|---|---|---|
+| $65 expense (Fuel, dd 5) | 26 → 26 | none — but **every date shifts 7 days** (Aug: 07/21 → 14/28) |
+| $3,900 income (dd 0) | 26 → 26 | none |
+| **$2,925 income (dd 3)** | **25 → 26** | 2026-09 2→3, 2026-12 3→2, 2027-03 2→3 |
+| $2,000 income (dd 5) | 26 → 26 | none |
+| **$2,185.44 income (dd 3)** | **25 → 26** | 2026-09 2→3, 2026-12 3→2, 2027-03 2→3 |
+| **$624 income (dd 4)** | **25 → 26** | 2026-10 2→3, 2027-04 2→3, 2027-07 3→2 |
+| $756 income (dd 5) | 26 → 26 | 2026-10 2→3, 2027-01 3→2, 2027-04 2→3, 2027-07 3→2 |
 
-**Session 108 — a clamp is not a model.** `Math.max(0, …)` at two call sites looked like defensive
-arithmetic; it was actually the app deciding, silently, that a data inconsistency didn't exist. When
-you find the same clamp duplicated at every caller, the thing being clamped away is usually
-information someone needs. Move the clamp into one helper and **return what it discarded**.
+Hand-checked one by arithmetic: the $2,925 rule (`start_date 2026-01-01`, Wednesday) anchors at
+**Wed 2026-01-07**; 01-07 + 17×14 = **2026-09-02**, so Sep really does hold 09-02/09-16/09-30 — the
+new count of 3 is right and the old 2 was wrong. **A 12-month total near 26 either way is expected**
+(365/14 = 26.07); the correction here is *which month* each paycheck lands in, which is what a
+month-0 cash picture is made of.
 
-**Session 108 — prove a refactor moves nothing.** The risky part of §2.9 was re-expressing a cash
-figure the entire debt engine is built on. A test asserting the old and new expressions agree across
-the sign boundaries turns "should be equivalent" into a pinned fact, and it costs six lines.
+## ✅ IN-APP PASS — DONE. Tre signed in; `12d01772` is LIVE-VERIFIED. Nothing owed.
 
-**Session 105 — when one surface disagrees with three others, fix the outlier by making it CALL
-them.** Not by re-implementing the rule in the outlier.
+Run against `http://localhost:8080` with Tre's real data, using `await import('/src/lib/scheduling.ts')`
+(Vite serves the module, so this is the **shipped code**, not a test double).
 
-**Session 105 — prove the fix in the units the user sees.** "The slope drops" is a shape claim;
-"$20,548 not $25,000" is the claim Tre can check.
+1. **Anchor and dates.** `resolveBiweeklyAnchor(Fuel)` = **Fri 2026-03-27** (created Sun 2026-03-22,
+   advanced to the `due_day 5` weekday). Occurrences: Aug **14/28**, Sep **11/25**, Oct **9/23**,
+   Nov **6/20** — every gap exactly 14, across every month boundary.
+2. **The three call sites agree.** 14 months of `generateScheduledEvents` vs
+   `countRuleOccurrencesInMonth` vs `getRuleOccurrenceDatesInMonth` on the live Fuel row:
+   **31 events, all gaps 14, ZERO disagreements.** That is the "one definition of the cadence" claim
+   demonstrated in the browser.
+3. **Rendered surface agrees.** Budget Control → Variable shows
+   `Fuel · Biweekly · Day 5 · From: Prime Visa · $65 · /mo $130` = 2 × 65 for August, matching 14/28.
+4. **The load-date defect, demonstrated live.** Same rule, same page, varying only the day the app is
+   opened:
 
-Prior sessions' lessons (1-107) are in git history under `docs: handoff` commits —
-`git log --all --oneline | grep handoff`.
+   | app opened | OLD October | NEW October |
+   |---|---|---|
+   | Aug 9-14 | Oct 9, 23 | Oct 9, 23 |
+   | **Aug 15** | **Oct 2, 16, 30 — three charges, $195** | Oct 9, 23 — $130 |
+
+   The old code re-phased off `max(today, start_date)`, so *the forecast changed because you opened
+   the app on a different day.* The new one is stable on every load date.
+
+⚠️ **Honest caveat, worth carrying:** today (Aug 9) the old and new phases **coincide** for Fuel, so
+**no rendered number on Tre's account changed today**. Do not read that as the fix being inert — the
+A/B above shows it is not, and the four live income rules whose monthly counts move belong to
+**other users**. A same-day rendered A/B was simply not available.
+
+---
+
+# Handoff — 2026-08-09 — session 128 — 🟢 anomaly SOLVED + 🟡 **BIWEEKLY ANCHOR SHIPPED `12d01772`, LIVE PASS OWED**
+
+> **START HERE.** Two things landed. `3ec7c725`'s read side is **CLOSED** (details below), and the
+> biweekly phase fix Tre authorised is **committed but NOT live-verified**.
+
+## 🟡 BIWEEKLY ANCHOR — commit 1 of 2 SHIPPED `12d01772`. **722/722 tests (+13), tsc 0.**
+
+Tre said **"yes. and go"** (2026-08-09) to commit 1 (derived anchor, silent). It is built.
+
+**What changed.** All three biweekly generators restarted their cycle from scratch — the per-month
+one at the first matching weekday of EACH month, the other two at `max(today, start_date)`. Neither
+is a phase. Added to `scheduling.ts` as the ONE definition of the cadence:
+- **`resolveBiweeklyAnchor(rule, today?)`** — anchor = `start_date ?? created_at`, then advanced to
+  the first `due_day` weekday on or after it. ⚠️ **`due_day` wins over the anchor's own weekday** —
+  Fuel bills Fridays but was created on a Sunday (`2026-03-22`), so anchoring on the raw date would
+  have moved every occurrence to a Sunday. Fuel's real anchor is **Fri 2026-03-27**.
+- **`getBiweeklyDatesInMonth(rule, year, month, today?)`** — consumed by all three call sites
+  (`generateScheduledEvents`, `countRuleOccurrencesInMonth`, `getRuleOccurrenceDatesInMonth`), so
+  they can no longer disagree. New test asserts all three agree month-by-month for 14 months.
+
+**Decisions made — do not re-litigate:**
+- **WEEKLY UNTOUCHED.** A 7-day step cannot drift across a month boundary; 126b verified weekly is
+  already correct (52/yr, all gaps 7). Pinned by a test.
+- **NO MIGRATION NEEDED.** 126b feared re-phasing would strand stored `occurrence_date`s off-phase.
+  Checked live: **zero rows in the entire database carry an `occurrence_date`** (all users, not just
+  Tre). The concern is moot. Nothing to null out.
+- **`created_at` is safe as the fallback** — verified non-null for every row in `recurring_rules`.
+- Anchor reads the **date part** of both columns at local noon, so the phase cannot shift with the
+  viewer's timezone.
+- **26 vs 27 a year is both correct** (365/14 = 26.07); the real invariant is that every gap is
+  exactly 14. My first test asserted a flat 26 and was wrong — fixed.
+
+### ✅ ~~THE LIVE PASS IS OWED AND NOT STARTED~~ — DONE in session 129 except the in-app render (see top)
+
+⚠️ **This moves projected numbers for every biweekly rule**, which is the whole point, so it needs a
+live pass of its own. Tre's only biweekly rule is **`Fuel`** (`002f7e28…`, $65, Friday, no
+`start_date`) and it is **funded by Prime Visa**, so it is **excluded from month-0 forecast expenses**
+by `allCcRuleIds` — *do not expect the Aug/Sep `baseExpenses` probe to move.* Look instead at a
+surface that shows CC purchases: the **CC engine / Debt Payoff** projection, or Fuel's occurrence
+COUNT per month before vs after.
+
+⚠️ **The pinned real-data fixture tests still pass**, meaning the golden payoff month (Jul 2027) did
+NOT move. Worth understanding rather than assuming — either the fixture's phase happens to coincide
+or those assertions are insensitive to ±$130/yr. **Check before declaring the live pass clean.**
+
+### ⬜ Commit 2 (decided, unstarted)
+
+**Optional "first occurrence" field in the rule editor**, so anyone who cares can pin their true
+phase instead of living with the derived one. Tre already chose "Both: derive now, ask later" — this
+is the "ask later" half. Writes `start_date`, which `resolveBiweeklyAnchor` already prefers, so it
+needs no engine change.
+
+---
+
+## ✅ `3ec7c725` FULLY LIVE-VERIFIED, BOTH SIDES. Anomaly SOLVED — it was never a bug.
+
+> The read-side debt session 127 handed on is **CLOSED**.
+> Tre's account is **restored byte-for-byte**: `imported 55 · linked_plan 1 · linked_rule 11 ·
+> linked_txn 2` = **69**, **0 rows carry `occurrence_date`** — re-SELECTed after the probe.
+
+## ✅ THE PHONE BILL ANOMALY — SOLVED. Stage 4A is NOT inert. Do not re-investigate.
+
+**Root cause: `Phone Bill to Mom` has `start_date = '2026-10-10'`.** `generateScheduledEvents`
+anchors at `max(today, start_date)`, so the rule generates **no August occurrence at all** — its first
+event is Oct 10, 2026. Session 127's probe suppressed an occurrence that did not exist. That was the
+**fifth** insensitive instrument in a row, not evidence of a broken read path.
+
+Both surviving hypotheses from 127 are **DEAD**:
+- ❌ "expense events may not carry `ruleId`" — they do. `scheduling.ts` sets `ruleId: rule.id` on all
+  four frequency branches (:111, :125, :155, :177).
+- ❌ "§1B Stage 4A is inert in the forecast" — **disproved by live measurement below.**
+
+### 🧮 The `baseExpenses = 120` puzzle — RECONCILED TO THE DOLLAR
+
+August has **zero** rule expenses. Every TOTAL CHECKING cash rule is due on day 1-3 and today is
+Aug 9, so `e.date > todayStr` drops them all; Phone Bill (day 10) does not start until October.
+The 120 is **entirely `planExpensesByMonth`** (`forecast-engine.ts:756`) — the `Carnival Ultimate
+Package` plan, $120/mo, cash-funded on TOTAL CHECKING. Verified against live chart data:
+
+| Month | `baseExpenses` | Reconciliation |
+|---|---|---|
+| Aug 2026 | **120** | 0 rules + 120 Carnival |
+| Sep 2026 | **2872** | 2524 rules (Rent 1915, Groceries 300, Electricity 100, Internet 85, Life Ins 54, Smart Home 40, Water 30) + 348 plans (Carnival 120 + payback-to-mom 228, starts 09-20) |
+| Oct 2026 | **2902** | Sep + **exactly 30** = Phone Bill's first occurrence. Independent confirmation of the start-date finding. |
+
+⚠️ **THE REAL LESSON, worth keeping:** *nothing in August was ever testable.* After the 9th there is
+not one remaining cash-funded rule occurrence on the forecast funding account. Any future month-0
+probe in this account will read Δ 0 for that reason alone. **Probe SEPTEMBER or later.**
+
+## ✅ READ SIDE — LIVE-VERIFIED. The `occurrence_date` key path works end-to-end.
+
+Retargeted review `33354d22…` (Life Insurance, `9a0950c1…`, $54, due day 3) from its legacy
+`2026-08`/NULL to **`occurrence_month='2026-09'` + `occurrence_date='2026-09-03'`** — the NEW
+date-keyed path shipped in `3ec7c725` — reloaded, and diffed `baseExpenses` off the fiber:
+
+| | Aug | **Sep** | Oct | Nov |
+|---|---|---|---|---|
+| baseline | 120 | 2872 | 2902 | 2902 |
+| with date-keyed confirmation | 120 | **2818** | 2902 | 2902 |
+| Δ | 0 | **−54.00, exact** | 0 | 0 |
+
+That is the whole feature demonstrated at once: the confirmation **fires**, it removes **exactly** the
+named occurrence's amount, and it is **scoped to its own month** — no leakage into Oct/Nov.
+**The row was restored to `2026-08` / NULL immediately and the 69/0 counts re-verified.**
+
+**`3ec7c725` is now verified on both sides. Neither side needs re-testing.**
+
+## 📌 Tell Tre (not acted on)
+
+- **`Phone Bill to Mom` starts 2026-10-10.** So the app shows no phone-bill charge in Aug or Sep by
+  design. Probably intentional, but it is the data point that cost two sessions — worth one question.
+
+---
+
+# Handoff — 2026-08-09 — session 127 — 🟡 (superseded above; read side now CLOSED). Anchor DECIDED.
+
+> **No app code changed** — `2ff1347b` is HEAD, `3ec7c725` is still the last app commit.
+> **Tre's account is CLEAN**, re-SELECTed after cleanup: `imported 55 · linked_plan 1 · linked_rule 11 ·
+> linked_txn 2` = **69**, **0 rows carry `occurrence_date`**. Both test rows deleted; `imported` never
+> left 55, so no ledger row was created or deleted at any point. Sign-in lapsed at session start and
+> Tre re-authenticated manually — the app tab is parked open, leave it that way.
+
+## ✅ WRITE SIDE — LIVE-VERIFIED THROUGH THE REAL UI. Do not re-verify.
+
+Linked bank row `f8beb45b…` (2026-07-10, settled, previously unreviewed) to **Weekly Paycheck** via
+the real `Link to a bill` picker on `/transactions`. The DB got:
+
+`status='linked_rule' · rule_id=3a30b089… · occurrence_month='2026-07' · occurrence_date='2026-07-10'`
+
+That is the first `occurrence_date` ever written by the app: correct value, **inside** its
+`occurrence_month`, and equal to a real generated Friday occurrence of the rule. `ruleOccurrence()` /
+`resolveRuleOccurrenceDate` work end-to-end against live data.
+
+## ~~🔴 READ SIDE — COULD NOT BE DEMONSTRATED~~ — ✅ **CLOSED in session 128, see top of file.**
+
+> ⚠️ **Everything in the rest of this session-127 section is SUPERSEDED.** The cause was
+> `Phone Bill to Mom`'s future `start_date` (no August occurrence exists), not a broken read path.
+> Kept only for the method notes at the end. **Do not re-run any probe described below.**
+
+**Every probe returned Δ 0, including probes that SHOULD have moved.** Do not read that as "the fix
+works" — three of the four are explained by scope, but **the fourth is not, and it is the one that
+matters.** Method was a full 213-key numeric diff of the forecast chart data (all keys, first 4
+months), review present vs review absent.
+
+| Probe | Result | Explanation |
+|---|---|---|
+| `Weekly Paycheck` (weekly, income) | Δ 0 | **Inert by design.** `paycheckIncome` comes from the PAYCHECK CONFIG, not this rule (Aug `2546.67` = 3 × 848.89 is a coincidence of equal amounts). `otherIncome` is a flat `1152` = the two GF income rules only. This rule reaches no forecast key. |
+| `Fuel` (biweekly, $65) date-keyed `2026-08-07` | Δ 0 | **Correct AND untestable.** Fuel is funded by **Prime Visa**, and `useForecastEngineInputs.ts:265` excludes every CC-funded rule (`allCcRuleIds`) from month-0 expenses. |
+| `Fuel` month-keyed (`occurrence_date` NULL) | Δ 0 | Same exclusion. ⚠️ **So the A/B I ran proves nothing** — the instrument was insensitive in BOTH arms. Recorded here so nobody cites it as evidence. |
+| `QUO` ($22, due 12, monthly) | Δ 0 | Sits on **`General Operations`**, not the forecast funding account → excluded by `otherAccountRuleIds`. |
+| ⚠️ **`Phone Bill to Mom`** ($30, due **10**, monthly, **TOTAL CHECKING**), `occurrence_date='2026-08-10'` | **Δ 0 — UNEXPLAINED** | Cash-funded, on the forecast funding account, month-0, due AFTER today (Aug 9) so it is a remaining obligation, date exactly on the generated occurrence. **It should have dropped Aug expenses by $30 and moved nothing.** |
+
+### ⚠️ THE NEXT SESSION'S FIRST JOB — chase that last row
+
+Staleness is **ruled out**: after the SQL insert the Bank Activity row visibly collapsed to a linked
+badge with `Undo`, so the app was reading the new review. Remaining hypotheses, untested:
+1. `scheduledEvents` may not carry `ruleId` on rule-generated expense events, in which case
+   `isRuleOccurrenceConfirmed` can NEVER fire and **§1B Stage 4A is inert in the forecast** — the
+   serious possibility, and the reason this is not being written off.
+2. The chart's `baseExpenses` may not be downstream of the `expenses` memo at
+   `useForecastEngineInputs.ts:257-269` at all. Aug `baseExpenses` = **120**, but the only remaining
+   Aug cash rule on TOTAL CHECKING is Phone Bill at **$30** — **those numbers do not reconcile**, which
+   is itself a clue worth pulling.
+3. Some earlier filter drops the event before the confirmation test is reached.
+
+I tried and FAILED to read `scheduledEvents` off the fiber twice (plain prop walk, then hook-chain
+walk). **Do not repeat those two attempts.** Cheaper next moves: a temporary `console.log` in that
+memo, or a unit test that feeds real-shaped `scheduledEvents` through it.
+
+### 🔬 CHASED FURTHER (Tre asked, same session). TWO HYPOTHESES NOW DEAD — start from here.
+
+- ❌ **DEAD — "`baseExpenses` isn't downstream of the suppression".** It is.
+  `useForecastEngineInputs.ts:166` `forecastMonthEvents` is the suppression-aware memo (the one with
+  `isRuleOccurrenceConfirmed` at :264); `forecast-engine.ts:745` does
+  `const filteredExpenses = forecastMonthEvents[i]?.expenses ?? 0` and `:747-751` assigns that to
+  `baseExpenses`. The separate un-filtered `monthlyAggregates` (:83) feeds other fields, NOT this one.
+- ❌ **DEAD — "the stored `occurrence_date` disagrees with the forecast's generated date".** This was
+  my best theory (the forecast builds events with **`generateScheduledEvents`**, a DIFFERENT function
+  from the `getRuleOccurrenceDatesInMonth` the writer uses — exactly the two-copies danger that
+  function's own docstring warns about). **Disproved:** re-ran Phone Bill with
+  **`occurrence_date = NULL`, month-key only** — the legacy path that cannot possibly mismatch — and
+  it ALSO moved 0 of 213 keys. A key mismatch would have shown a delta here.
+  ⚠️ The two generators are still an unaudited duplicate and worth checking on their own merits, but
+  they are **not** the cause of this anomaly.
+- ✅ **RULED IN — funding account is not the explanation.** `tre:debt:fundingAccount` =
+  `933cbc10-bceb-4c20-8227-4a02e6db728a` = **TOTAL CHECKING**, which IS Phone Bill's `payment_source`.
+  So the rule is genuinely inside the forecast's scope and `otherAccountRuleIds` does not exclude it.
+
+**What survives, and it is the serious one:** rule-generated expense events may not carry `e.ruleId`,
+so `isRuleOccurrenceConfirmed(e.ruleId, …)` at `:264` always returns false and **§1B Stage 4A never
+suppresses anything in the forecast** — i.e. the whole Stage 4A feature is inert on this surface,
+independently of `3ec7c725`. Both surviving hypotheses (missing `ruleId`, or the event not landing in
+`eventsInMonth`) predict the Δ 0 that was observed, so they must be separated directly.
+
+**Do this first, it is one cheap step:** temporarily `console.log` inside the `:238` `eventsInMonth`
+filter for `monthKey === '2026-08'` — dump `{date, ruleId, type, amount}` — and answer two questions
+at once: (a) is Phone Bill's $30 event present, and (b) does it carry a `ruleId`? Also reconcile the
+standing puzzle that **Aug `baseExpenses` = 120** while the only remaining Aug TOTAL CHECKING cash
+rule is Phone Bill at **$30**; whatever makes up the other $90 will likely explain the shape.
+
+## 🟢 ANCHOR DECIDED — Tre picked **"Both: derive now, ask later"** (2026-08-09)
+
+For the biweekly phase bug measured in 126b. **Two commits, in this order:**
+1. **Derived anchor, silent** — fixes count and spacing for every customer with no form and no action.
+2. **Optional "first occurrence" field** in the rule editor, so anyone who cares can pin their true phase.
+
+Do not re-ask. ⚠️ Still true from 126b: this **moves projected numbers for every biweekly rule**, so
+it needs its own commit and its own live pass, and it interacts with `3ec7c725` — re-phasing can
+strand a stored `occurrence_date` on a date no occurrence lands on any more (cheapest honest
+migration: null out `occurrence_date` on biweekly rules' links).
+⚠️ **Sequencing:** the read-side debt above is unresolved. Resolving it should come FIRST — building a
+second number-moving change on top of a suppression path that may be inert would stack two unverified
+behaviours.
+
+**Anchor choice for NULL `start_date` (my recommendation, not yet Tre's call):** use the rule's
+`created_at` rather than a global epoch — per-rule, stable, already stored, and it means "the rule
+started existing then". `Fuel.created_at` = 2026-03-22. Requires adding `created_at` to the
+`Pick<RuleRow, …>` the generator takes.
+
+## 📌 Findings worth telling Tre (none acted on)
+
+- ⚠️ **§1B Stage 4A does not cover credit-card-funded rules at all.** Confirming a link on Fuel — the
+  exact rule the occurrence-date fix was built for — cannot move the forecast, because CC rules are
+  excluded from month-0 expenses by design. The fix is still correct; its **reach** is narrower than
+  the handoffs imply. Worth a scope conversation.
+- **Two checking accounts exist**: `TOTAL CHECKING` (forecast funding) and `General Operations`
+  (business). `QUO`, `Claude` and `Google Workspace` are on the business one and are invisible to the
+  forecast's month-0 expenses. Expected, but easy to mistake for a bug — it cost this session a probe.
+- **All unreviewed August rows are `pending`**, and BankActivity excludes pending rows by design, so
+  **there is no live-month row that can be linked through the UI today.** Any live-month test must go
+  through the scoped-UPDATE retarget.
+- Latent, unrelated: `getRuleOccurrenceDatesInMonth` builds dates with `new Date(y, m, d)` (LOCAL) then
+  `.toISOString()` (UTC). For a customer in a **UTC+** timezone every rule occurrence date lands **one
+  day early**. Harmless for Tre (UTC-4). Not raised, not fixed.
+
+## 🧪 Method notes that worked — reuse these
+
+- **Find a bank row's DOM node by React fiber `key`**: walk `document.querySelectorAll('div,tr,li')`,
+  read `__reactFiber$…`, then `f.return` up to 8 hops looking for `f.key === <syncedTransactionId>`.
+  Text matching does not work — amounts and row containers come back `[BLOCKED: Base64 encoded data]`.
+- **Forecast chart data off the fiber**: walk from `#root`, find the first fiber whose
+  `memoizedProps.data` is an array whose `[0]` has an `endingCash` key. 60 months, ~65 keys each.
+- **Baselines across a reload**: stash them in `sessionStorage` (and the snapshot fn's `.toString()`),
+  since `window.*` dies. A full `location.href` reload IS needed — the SPA will not pick up an
+  out-of-band SQL change otherwise.
+- ⚠️ **Never `await` across a navigation in one `javascript_tool` call** — the eval dies with
+  `Inspected target navigated or closed`. Navigate in one call, act in the next.
+- ⚠️ **I mis-copied a uuid** from an earlier query and wasted two calls on a row that did not exist.
+  Paste ids from the immediately preceding result, not from memory.
+- Session 125/123 notes still hold: direct `navigate` to `/forecast` cold-lands on `/dashboard` (click
+  the sidebar `a[href="/forecast"]`); always scope SQL with
+  `user_id = 'a72f416e-433a-4055-9ab0-9feae4e60edf'`; `http://localhost:8080` is the ONLY origin;
+  never paste a counterparty name into this file.
+
+## ⬜ NEXT
+
+1. ~~Resolve the Phone Bill anomaly~~ — ✅ **DONE, session 128. Stage 4A is live.**
+2. ~~Biweekly anchor commit 1~~ — ✅ **SHIPPED `12d01772`, session 128. LIVE PASS OWED (see top).**
+   **Commit 2** (optional "first occurrence" field) still unstarted.
+3. **Split link** — authorised, unscoped, unbuilt. Read side needs NO change (confirmed by reading
+   `buildConfirmedOccurrences` this session: it already iterates reviews and keys per rule).
+   UI side: `BankActivity.tsx:135` `reviewByTxn` is a `Record<string, Row>` and must become
+   `Record<string, Row[]>`. Blocker `UNIQUE (synced_transaction_id)` re-confirmed live in `pg_constraint`.
+
+---
+
+# Handoff — 2026-08-09 — session 126b — 🟢 **SPLIT LINK AUTHORISED**; biweekly phase bug MEASURED; harness retuned
+
+> **START HERE.** Same session, after the occurrence-date fix below. **No app code changed** —
+> `3ec7c725` is still the last app commit. Two decisions landed and one investigation finished.
+
+## 🟢 SPLIT LINK — TRE SAID YES. Build it. (2026-08-09)
+
+His words: *"for split links i think yes since it can integrate the variable items into cost. the
+total for rent would be change but then it would be calculated correctly since it will update the
+ledger with these items and forecast can get a better month 0 picture."*
+
+That answers the question left open in 125b. **Do not re-ask.** Note what he added beyond a plain
+yes — his goal is that the **variable** rider (Water/Sewer/Trash, billed in arrears) stops being
+invisible, so the bundled rent charge reconciles to the right total and **month 0 gets a truer
+picture**. Design to that, not merely to "N rules per row".
+
+**Still true and still load-bearing (from 125b):** a split link's `occurrence_month` must be
+**PER-LINK, not per-transaction** — one bank row settles Rent/Internet/Smart Home for THIS month and
+Water for the PREVIOUS one. Blocked by `UNIQUE (synced_transaction_id)` on
+`synced_transaction_reviews`; the build is drop that UNIQUE (or add a child table), a "link another"
+picker, and multi-link badge/undo semantics. `buildConfirmedOccurrences` already iterates reviews and
+keys per rule, so N links on one row just work in 4A with **no logic change**.
+⚠️ Now also give each split link its own **`occurrence_date`** (shipped `3ec7c725`), same as any rule link.
+
+## 🔴 BIWEEKLY PHASE BUG — MEASURED, NOT FIXED. Tre asked me to look at it.
+
+**WEEKLY RULES ARE FINE. Only biweekly is broken.** Every Friday is a Friday no matter which month it
+falls in, so the monthly phase reset is harmless at a 7-day step. Verified for 2026: the weekly
+`Weekly Paycheck` ($848.89) generates **52 occurrences, every gap exactly 7 days**. That is the
+big-dollar rule and it is correct. Do not "fix" it.
+
+**Biweekly drifts because the generator restarts from the first matching weekday of EVERY month**
+(`getRuleOccurrenceDatesInMonth`, the `weekly`/`biweekly` branch) instead of anchoring the phase like
+the paycheck generator does at `pay-schedule.ts:97` with `(D - anchor) % 14 === 0`.
+
+Measured for Tre's `Fuel` rule (`002f7e28…`, $65, biweekly, `due_day 5` = Friday, **`start_date` NULL**), 2026:
+
+| | Generated | True cadence |
+|---|---|---|
+| Occurrences in 2026 | **28** | 26 |
+| Gaps between occurrences | **23 × 14 days + 4 × 7 days** | 26 × 14 days |
+| Months with 3 occurrences | Jan, May, Jul, Oct | (2 or 3 legitimately) |
+
+Four times a year a month ends on a generated occurrence and the next month restarts only 7 days
+later, inserting an extra cycle. **+2 occurrences a year = +7.7%.**
+
+### ⚠️ THE REAL RISK IS NOT TRE — IT IS EVERY CUSTOMER WITH A BIWEEKLY PAYCHECK
+
+- For a biweekly **expense** (Tre's only case today) over-counting reads cash **LOW** — the safe
+  direction. Cost to him: **$130/yr** of phantom Fuel, plus individual charges misplaced by up to 7 days.
+- For a biweekly **income** rule it reads cash **HIGH** — the unsafe direction. Biweekly is the most
+  common US pay cadence, so a customer on a $2,000 biweekly paycheck is projected **~$4,000/yr of
+  income that never arrives.** Tre is insulated only because his paycheck happens to be weekly.
+
+**Recommendation: fix it, and treat it as an income-correctness bug rather than a Fuel rounding issue.**
+
+### The wrinkle that decides the design — there is no anchor to use
+
+`Fuel.start_date` is **NULL**, and an anchor is exactly what the fix needs. Options, in the order I'd
+weigh them:
+1. **`start_date` when set, else the rule's earliest known occurrence** (or a fixed global epoch).
+   Fixes the *count and spacing* for everyone immediately. For a null-`start_date` rule the *phase*
+   is arbitrary, so which specific dates it picks will shift — but they are already wrong.
+2. **Ask for a start date on biweekly rules in the rule editor** (and backfill-prompt existing ones).
+   Correct, but it puts a form in front of the user before their forecast is right.
+
+⚠️ **This MOVES PROJECTED NUMBERS for every biweekly rule in the app**, so it is its own commit and
+its own live pass. ⚠️ **It also interacts with `3ec7c725`:** a stored `occurrence_date` names a date
+the *current* generator produces, so re-phasing can leave existing links pointing at a date no
+occurrence lands on any more, silently degrading them to "suppresses nothing". Decide the migration
+for those rows as part of the fix (cheapest honest option: null out `occurrence_date` on biweekly
+rules' links so they fall back to month-keying).
+
+## ✅ Harness retuned this session (Tre asked "should I extend the gate?")
+
+- **`.claude/hooks/context-gate.mjs` THRESHOLD 150k → 175k.** A fresh session spends ~65-70k
+  rebuilding context before its first useful edit, so 150k left only ~82k of productive room, and
+  restart cost is re-billed on **every** request of the new session, not once. Do not exceed ~180k:
+  overrunning means auto-compact, which flattens exactly the "do not re-litigate" decisions these
+  handoffs carry.
+- **`handoff.md` split: 2,081 lines / 139 KB → 411 lines / 27 KB** (~40k tokens → ~7k, saved on every
+  request of every future session). Sessions 112-124, all closed or live-verified, moved to
+  `docs/handoff-archive/2026-08_sessions-112-124.md`. **Keep it this way** — trim to the current
+  session, the previous one, and the standing backlog whenever it grows past ~3 live sections.
+
+## ⬜ NEXT
+
+1. **The `3ec7c725` live pass is still owed** (script in the session-126 section below).
+2. **Split link** — authorised, unscoped, unbuilt.
+3. **Biweekly phase fix** — measured above, needs Tre's pick between the two anchor options.
+
+---
+
+# Handoff — 2026-08-09 — session 126 — ✅ **BIWEEKLY OCCURRENCE-DATE FIX SHIPPED `3ec7c725`**; live pass OWED
+
+> **START HERE.** Session 126 built the fix session 125b designed and Tre authorised
+> (*"do what you think is accurate and best for my customers"*). **709/709 tests (+23), tsc 0,
+> eslint clean on every changed file.** The migration is **APPLIED LIVE** and every constraint was
+> re-read from `pg_constraint` to confirm.
+>
+> **Tre's account was NOT touched** — only `select`s. Re-verified after the migration:
+> `imported 55 · linked_plan 1 · linked_rule 11 · linked_txn 2` = **69**, and
+> **0 rows carry `occurrence_date`** (all legacy, all month-keyed, all behaving exactly as before).
+> Backups: `backups/2026-08-09_162505/`.
+>
+> ⬜ **THE LIVE PASS IS OWED AND NOT STARTED** — the context gate fired right after the commit.
+
+## ✅ Shipped `3ec7c725`
+
+| File | Change |
+|---|---|
+| `supabase/migrations/20260809_synced_transaction_reviews_occurrence_date.sql` (new) | `occurrence_date date NULL`, a CHECK that it lies inside `occurrence_month`, a `(user_id, rule_id, occurrence_date)` partial index. **APPLIED LIVE** |
+| `src/lib/confirmed-capture.ts` | `occurrence_date?` on `RuleOccurrenceReview`; `buildConfirmedOccurrences` adds the DATE key when set, else the month key — **never both**; `isRuleOccurrenceConfirmed` tries the full-date key first, then the month key. No signature change, still a pure `has()` |
+| `src/lib/pay-schedule.ts` | **`getRuleOccurrenceDatesInMonth`** extracted (the generator now calls it — one definition of where occurrences land) + **`resolveRuleOccurrenceDate`** |
+| `src/lib/synced-transaction-review.ts` | `occurrence_date` on `ReviewInput`; validation: format, needs a month, must be **inside** that month |
+| `src/components/transactions/BankActivity.tsx` | `ruleOccurrence()` helper; **both** rule-link write sites (the `Confirm: <rule>` suggestion button and the picker) now store the date |
+| `src/hooks/useSupabaseData.ts` | column threaded through the `save` upsert |
+| `src/integrations/supabase/types.ts` | one additive column, hand-edited (diff is exactly 3 lines), drift-checked against live `information_schema.columns` |
+| 3 test files | +23 tests |
+
+### Design calls — do not re-litigate
+
+- **ONE key per review, never both.** A date-keyed row must NOT also add its month key, or the
+  original bug returns intact (the month key suppresses every occurrence of that rule).
+- **NULL `occurrence_date` is a FIRST-CLASS legacy value**, not a degraded state — hence no
+  `linked_rule implies occurrence_date is not null` CHECK (this time the reason is not
+  `ON DELETE SET NULL`; nothing nulls this column — it is that 11 live rows have none). Pinned by a
+  "LEGACY: byte for byte" test.
+- **The date must lie INSIDE `occurrence_month`** (DB CHECK + `validateReviewInput`). This is a
+  deliberate **departure from 125b's plan step 3**, which said to search the previous month too:
+  doing so would leave the row asserting a month whose occurrences it does not suppress, and the two
+  columns would silently disagree. Cross-month attribution (Tre's water bill riding on the rent
+  charge in arrears) is the **SPLIT-LINK** problem, which needs a per-link month and is unbuilt.
+- **NEAREST occurrence, not nearest-on-or-before.** Paying two days early is ordinary and
+  on-or-before would return null and silently fall back to month-wide suppression. **Ties go to the
+  EARLIER** occurrence.
+- **Not a count/budget.** Reasoning preserved in the migration header and in 125b below.
+- **Mixed key space is safe**: a `YYYY-MM` (7 chars) can never equal a `YYYY-MM-DD` (10).
+- **A caller passing only `'2026-08'`** matches ONLY legacy rows. Correct — without a day there is no
+  way to say which occurrence is meant. No live consumer does this (all pass event dates).
+- **No backfill.** Monthly rules are behaviourally identical either way; the only affected rows are
+  Tre's 2 biweekly Fuel links, both in **July, a past month**. Left alone. Mention it to him.
+
+## ⬜ NEXT — the live pass (owed), then Tre picks
+
+**1. The live pass.** It CAN move a number (that is the point), so run it alone.
+On `/transactions` → Bank Activity, pick a **biweekly or weekly** rule (Tre's `Fuel`, `002f7e28…`,
+$65) and a **current-or-future-month** bank row, then:
+- link one row → confirm the DB gets `occurrence_date` set and **inside** `occurrence_month`;
+- confirm the forecast drops **exactly one** occurrence of that rule, not the whole month — read
+  `baseExpenses` off the React fiber, **NOT `endingCash`** (the cycling-debt engine absorbs freed
+  cash);
+- ⚠️ **The sensitivity control that makes the result mean anything:** a July `occurrence_month` is
+  a past month where Δ 0 proves nothing. Session 125 solved this by retargeting the review row with
+  a scoped `UPDATE` to a live month — do the same, or link a row in a live month directly.
+- `Undo` → clean up → re-SELECT to **69 / 0 dates**.
+
+⚠️ Method notes from sessions 123/125 that still hold: a direct `navigate` to `/forecast` on a cold
+load lands on `/dashboard` (click the sidebar `a[href="/forecast"]` instead); resolve elements in JS
+and call `.click()` — **never** click coordinates after a `scrollIntoView`; never hold a DOM node
+across an `await`; `http://localhost:8080` is the ONLY origin; **always** scope SQL with
+`user_id = 'a72f416e-433a-4055-9ab0-9feae4e60edf'`; never paste a counterparty name into this file.
+
+**2. Then Tre picks.** Still open, none started:
+- 🟡 **SPLIT LINK** (one bank row → several rules) — **recommended, Tre has NOT answered. Ask him.**
+  Full evidence in the 125b section below. Blocked by `UNIQUE (synced_transaction_id)`.
+- ⚠️ **Biweekly rules have NO phase anchor** — their phase restarts every month, so generated dates
+  need not match real-world biweekly reality. Found in 125b, **still not raised with Tre.** It is a
+  separate defect from the one just fixed. The comment on `getRuleOccurrenceDatesInMonth` says so.
+- **4B's number-moving half** (`carChargeEvidence`, keys on fund+kind+month) and **4C's**
+  (`buildConfirmedPlanOccurrences`) — both specced, unbuilt.
+- `useCardProjection.ts` **missing `syncedTransactions` dep** eslint warning.
+- **Electricity budgeted $100 but billed $197.93 on 08-05**; Water/Sewer/Trash $30 looks low.
+  Mention, do not act.
+- **N1-N12 backlog** below.
+
+---
+
+# 📁 Sessions 125 and 125b — ARCHIVED 2026-08-09 (session 127)
+
+Both are CLOSED: 125's 4B live pass passed, and 125b's biweekly design SHIPPED as `3ec7c725`. Every
+load-bearing conclusion from them is restated in the 126/126b sections above. Full text is in git at
+commit **`2ff1347b`** (`git show 2ff1347b:handoff.md`). Sessions 112-124 are in
+`docs/handoff-archive/2026-08_sessions-112-124.md`.
+
+---
+# 🆕 NEW BACKLOG — Tre, 2026-08-09, captured verbatim-faithful, NOTHING STARTED
+
+> ⚠️ **None of this is scoped, audited, or estimated.** It was dictated in one message during a usage
+> pause. Several items are questions about live data, not build tasks. **Ask Tre which he wants
+> first** rather than working top-to-bottom — the ordering below is his dictation order, not a
+> priority. Items marked 🔎 need an audit before any code.
+
+### N1 — Link a LOAN ACCOUNT to an active loan 🔎
+
+*"allow users to link a loan account to an active loan. ex: i just added my usaa one and it needs to
+link to my car payment. the first payment has passed but the transaction hasn't settled in my
+checking account to pull in. but the loan account balance is updated."*
+
+**And the bug riding along with it:** *"the net worth with this now updated should also be reflected
+in networth and forecast (the charts dont look like they updated)."* — treat the charts-not-updating
+half as a **separate defect to root-cause**, not as a consequence of the missing link. See the
+`project_net_worth_snapshots` memory: pre-08-04 history used a credit-card-only liability rule, so a
+step change in the chart can be expected rather than broken — verify before "fixing".
+
+### N2 — Merchant auto-categorisation by name 🔎
+
+*"it should auto categorize stores like Costco, sams club, aldi, and publix as groceries. circle k, 7
+eleven, wawa, and any other gas station as gas. follow the same concept for recognizable stores.
+anthropic is claude. open ai is chat gpt. etc."*
+
+⚠️ **This reverses a standing §1A/§1B call and must be raised with him as such, not slipped in.**
+§1A rejected fuzzy merchant-name scoring, and §1B's plan says *"Do not add merchant-name heuristics
+to paper over"* `GENERAL_MERCHANDISE` (32% of rows). Tre is now asking for exactly that. He is
+entitled to overrule it — but the earlier reasoning was about **fuzzy matching for LINKING**, whereas
+this is an **exact-ish merchant list for CATEGORISING**, which is a weaker and safer claim. State
+that distinction to him and build the categorising version only. The Anthropic→Claude /
+OpenAI→ChatGPT pair is a **display-name** mapping, a different feature from the category map.
+
+### N3 — Link to car insurance and car payment
+
+That is **4B**, already specced below (`car_fund_id` + CHECK + `validateReviewInput` case + a
+`'Link to a vehicle charge'` picker, feeding `matched: true` into the two `carChargeEvidence` gates).
+Tre naming it again is a priority signal.
+
+### N4 — ⚠️ Same name + same price ≠ same transaction
+
+*"even though things have the same name and price, doesn't mean they are the same transaction. once
+its decided for one for category or link, the same even should just occur on the date of the
+transaction and also be added to the ledger."*
+
+**This is a correctness constraint on N2 and N5, and the most important sentence in the batch.** A
+learned decision must key on the **occurrence** (this merchant, this date), never collapse two
+distinct same-amount charges into one event. Read it as the direct counterpart of `occurrence_month`
+on the rule/plan links.
+
+### N5 — Auto-link from history, then a confirmation-only flow 🔎
+
+*"based off previous links, start autolinking items. then it would just be a confirmation. make it so
+the next time user signs in/open the app, it would just be going through each item and selecting what
+its for. they can choose to do it later and it would remind them again next time. starting from when
+the first linked there account, just let them know they can go to the transactions page to select
+choices to help build the backlog for future decisions which would be more automated."*
+
+⚠️ **Tension with a load-bearing §1B rule.** §1B is explicitly built NOT to be a queue demanding
+decisions: *"unreviewed is NEVER a nagging count or badge"*, and most rows are permanently unreviewed
+BY DESIGN. This asks for a walk-through-on-sign-in prompt. It is his product and his call, but the
+design note exists for a reason — **raise it, propose a shape that keeps "later" genuinely free of
+nagging, and get his answer before building.**
+
+### N6 — Prime / Discover: paid-but-not-settled suppression 🔎
+
+*"prime had 0 interest this month and the due date already passed. the transaction for it hasn't come
+through yet. the balance on the credit card is updated, but the money hasn't come out of my checking.
+prime should [not] have any contribution suggestion again till next month. discover is due on the
+first of next month but i do need to know how much to schedule to pay for that."*
+
+This is the **same shape as 4A** — an obligation already met that the app still charges against
+month-0 cash — but on the CC engine's contribution suggestions rather than the rule helpers. Likely
+touches `credit-card-engine.ts` / `CreditCardEngine.tsx`. See the `project_isb_semantics` memory
+before calling any balance stale: a big ISB/balance gap on a 0% promo card is normal.
+
+### N7 — Convert a transaction into a payment plan
+
+*"make it so users can easily convert a transaction into a payment plan."* A new action, presumably
+from the ledger row and/or a bank row. Smallest item in the batch.
+
+### N8 — Forecast popups: show full decimals
+
+*"all numbers in the forecast pop ups should show decimal places, not just part of them."*
+Cosmetic and self-contained. ⚠️ Check `formatCurrency`'s second arg (the repo passes `false` in
+places to drop cents) rather than writing new formatting.
+
+### N9 — Retirement & Investment Growth Projections looks wrong 🔎
+
+*"on forecast is the Retirement & Investment Growth Projections section properly reflecting
+everything? it seems off."* **A question, not a task.** Audit and report before changing anything.
+
+### N10 — 401k/Roth percentage contributions must scale with income 🔎
+
+*"the 401k roth contribution scales with income when its a percentage. that needs to be reflected in
+forecast and goals."* Real engine work, touching both forecast and goals. Probably related to N9 —
+check whether N9's "off" feeling is this.
+
+### N12 — Assign Tre's PAST transactions for him (manual backfill) — Tre, 2026-08-09
+
+*"at some point i want you to go into my account and assign past transactions for me unless we get
+the more automated transaction connection working first."*
+
+**Explicitly authorised account work**, but conditional and NOT yet scheduled — he said *"at some
+point"*. Two things make it different from every other item here:
+- ⚠️ **It is superseded by N5.** If auto-linking-from-history ships first, this becomes unnecessary.
+  Check N5's status before starting, and say so rather than doing redundant manual work.
+- ⚠️ **It writes to real financial data at volume, by judgement.** Every assignment is a guess about
+  what a charge was for. Agree the rules with Tre first (which statuses, how confident is confident
+  enough, what to do with ambiguous rows) and work in **reviewable batches**, not one bulk pass.
+  A wrong `linked_rule` in a CURRENT month moves projected cash; a wrong one in a past month does
+  not. Prefer starting with closed months.
+- Note he has already done ~69 himself on 2026-08-09, so the remaining backlog is the older history
+  (`synced_transactions` runs to ~571 rows). Scope the actual unreviewed count before quoting effort.
+
+### N11 — Venture X missing full statement balance in later years 🔎
+
+*"can you look at my account and tell me why venture x is missing full statement balance in later
+years, and what i can do to fix it?"* **A diagnosis request about live data.** Answer it with SQL +
+the engine trace; do not change code first. See `project_isb_semantics`.
+
+---
+
+# 📁 Older handoffs — ARCHIVED, not deleted
+
+Sessions **112 through 124** (§1B Stages 1-4B, all closed or live-verified) moved to
+`docs/handoff-archive/2026-08_sessions-112-124.md` on 2026-08-09.
+
+WHY: this file is re-read at the start of every session and sat on the prefix of every request
+in it, so 16 stacked sections were costing ~40k tokens per session before the first useful edit.
+Nothing is lost — the archive is committed, and git has every version regardless. Read it only
+when you need the history of a decision; the live sections above plus the backlog below are
+sufficient to resume work.
