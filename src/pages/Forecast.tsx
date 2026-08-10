@@ -15,7 +15,7 @@ import { getMonthlyPlanCashExpenses } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, getRemainingPaychecksThisMonth, getMinSafeCash, getAugmentedMinSafeCash, mergeWithGeneratedTransactions, getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay, getPaycheckGross, type EnrichedTransaction } from '@/lib/pay-schedule';
-import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
+import { projectMilestonesWithGrowth, monthlyContribSplitForAccount, incomeMultipliersByMonth } from '@/lib/retirement-projection';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
@@ -324,15 +324,23 @@ export default function Forecast() {
       transferContribByAccount[destId] = (transferContribByAccount[destId] || 0) + monthly;
     }
 
+    // Pct-mode deduction contributions scale with raises/promotions exactly as the
+    // engine scales them; flat deductions and transfer rules stay flat. Without this
+    // split the panel froze today's contribution flat for 20 years while the chart
+    // on the same page grew it.
+    const annualBaseSalary = (payConfig?.weeklyGross ?? 0) * 52;
+    const multipliers = incomeMultipliersByMonth(assumptions, annualBaseSalary, today, 240);
+
     return retireAccounts.map((a) => {
       const apyRate = a.apy_rate != null ? Number(a.apy_rate) : DEFAULT_APY_FORECAST;
-      const fromDeductions = monthlyContribForAccount(deductions, a.id, paycheckGross, paychecksPerYear);
+      const fromDeductions = monthlyContribSplitForAccount(deductions, a.id, paycheckGross, paychecksPerYear);
       const fromTransfers = transferContribByAccount[a.id] || 0;
-      const monthlyContrib = fromDeductions + fromTransfers;
-      const milestones = projectMilestones(Number(a.balance), monthlyContrib, apyRate);
+      const flatContrib = fromDeductions.flat + fromTransfers;
+      const monthlyContrib = flatContrib + fromDeductions.pct;
+      const milestones = projectMilestonesWithGrowth(Number(a.balance), flatContrib, fromDeductions.pct, apyRate, multipliers);
       return { account: a, apyRate, monthlyContrib, milestones };
     });
-  }, [accounts, profile, rules, payConfig, syncCutoffDate]);
+  }, [accounts, profile, rules, payConfig, syncCutoffDate, assumptions]);
 
   const freePreview = !isPremium && !isDemo;
   const displayData = freePreview ? filteredData.slice(0, 12) : filteredData;
