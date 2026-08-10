@@ -10,6 +10,10 @@ import {
   validateReviewSet,
   isLinkStatus,
   LINK_STATUSES,
+  linkTarget,
+  findExclusiveReview,
+  findReviewRowFor,
+  applyReviewToSet,
   type ReviewInput,
 } from '../synced-transaction-review';
 
@@ -197,5 +201,175 @@ describe('validateReviewSet — the rules about the whole charge', () => {
   it('rejects a set spanning two charges', () => {
     expect(validateReviewSet([ruleLink(), ruleLink({ synced_transaction_id: 'other', rule_id: 'water' })]))
       .toBe('These decisions are about different charges');
+  });
+});
+
+// §1B SPLIT LINK Slice C — THE ROUTING.
+//
+// `validateReviewSet` above says which sets are legal. These say how a write REACHES a set: which of
+// a charge's rows a decision lands on, and whether "link another" is an INSERT or an UPDATE. The two
+// are one mechanism — the routing enforces structurally what the validator rejects, so a rule that
+// survives here survives an edit to the validator, and vice versa.
+//
+// Written against the same pure helpers `useSupabaseData.ts` calls, so a change that would break the
+// live write paths breaks these first, without a Supabase client.
+
+const carLink = (kind: 'loan_payment' | 'insurance', over: Partial<ReviewInput> = {}): ReviewInput => ({
+  synced_transaction_id: CHARGE,
+  status: 'linked_car',
+  car_fund_id: 'c1',
+  car_charge_kind: kind,
+  occurrence_month: '2026-08',
+  ...over,
+});
+
+const planLink = (id: string, over: Partial<ReviewInput> = {}): ReviewInput => ({
+  synced_transaction_id: CHARGE,
+  status: 'linked_plan',
+  payment_plan_id: id,
+  occurrence_month: '2026-08',
+  ...over,
+});
+
+const categorized = (label: string): ReviewInput => ({
+  synced_transaction_id: CHARGE,
+  status: 'categorized',
+  category_override: label,
+});
+
+describe('linkTarget — the key of the three dedupe indexes', () => {
+  it('keys a rule link by its rule, a plan link by its plan', () => {
+    expect(linkTarget(ruleLink({ rule_id: 'rent' }))).toBe('rule:rent');
+    expect(linkTarget(planLink('p1'))).toBe('plan:p1');
+  });
+
+  // The car index is `(txn, car_fund_id, car_charge_kind)` — the kind is part of the key because one
+  // vehicle bills two independently-gated obligations a month, and both may sit on one charge.
+  it('keys a vehicle link by BOTH the vehicle and which of its two charges it paid', () => {
+    expect(linkTarget(carLink('loan_payment'))).toBe('car:c1:loan_payment');
+    expect(linkTarget(carLink('loan_payment'))).not.toBe(linkTarget(carLink('insurance')));
+  });
+
+  // Null is not "no answer" here, it is the answer: the exclusive row occupies no dedupe slot, and
+  // that is exactly what routes an exclusive decision to `findExclusiveReview`.
+  it.each(['imported', 'ignored', 'linked_txn', 'categorized'])('is null for the exclusive status %s', s => {
+    expect(linkTarget({ status: s })).toBeNull();
+  });
+
+  // The month is deliberately NOT in the key. One charge settling two occurrences of the SAME rule is
+  // a claim nothing downstream can read — see the arrears test above, which rejects it.
+  it('does not distinguish two months of the same rule', () => {
+    expect(linkTarget(ruleLink({ occurrence_month: '2026-07' })))
+      .toBe(linkTarget(ruleLink({ occurrence_month: '2026-08' })));
+  });
+});
+
+describe('findExclusiveReview — the at-most-one row that is about the charge itself', () => {
+  it('finds the exclusive row among several links', () => {
+    const cat = categorized('Rent');
+    expect(findExclusiveReview([ruleLink({ rule_id: 'rent' }), cat, planLink('p1')])).toBe(cat);
+  });
+
+  // A charge whose only decisions are links has NO row to carry a category, which is why
+  // `setCategory` must be able to INSERT one rather than assuming it can update.
+  it('returns undefined when the charge holds only links', () => {
+    expect(findExclusiveReview([ruleLink({ rule_id: 'rent' }), ruleLink({ rule_id: 'water' })]))
+      .toBeUndefined();
+    expect(findExclusiveReview([])).toBeUndefined();
+  });
+});
+
+describe('findReviewRowFor — UPDATE this row, or undefined to INSERT a new one', () => {
+  // THE BUG THIS FUNCTION EXISTS TO PREVENT: before it, every write found the charge's one row and
+  // updated it, so linking a second rule would have silently overwritten the first.
+  it('routes a NEW target to an INSERT, leaving the existing link alone', () => {
+    const rows = [ruleLink({ rule_id: 'rent' })];
+    expect(findReviewRowFor(rows, ruleLink({ rule_id: 'water', occurrence_month: '2026-07' })))
+      .toBeUndefined();
+  });
+
+  it('routes the SAME target to the row already holding it — changing your mind is an UPDATE', () => {
+    const rent = ruleLink({ rule_id: 'rent', occurrence_month: '2026-08' });
+    const rows = [rent, ruleLink({ rule_id: 'water', occurrence_month: '2026-07' })];
+    // Same rule, different month: still the same row, because the month is not part of the key.
+    expect(findReviewRowFor(rows, ruleLink({ rule_id: 'rent', occurrence_month: '2026-07' }))).toBe(rent);
+  });
+
+  it('treats a vehicle two charges as different targets and the same one as an UPDATE', () => {
+    const loan = carLink('loan_payment');
+    expect(findReviewRowFor([loan], carLink('insurance'))).toBeUndefined();
+    expect(findReviewRowFor([loan], carLink('loan_payment', { occurrence_month: '2026-07' }))).toBe(loan);
+  });
+
+  // Structural enforcement of idempotency: an exclusive decision can never find its way to a second
+  // row, so "a row already imported cannot be imported twice" holds without the validator being asked.
+  it('routes EVERY exclusive decision to the one exclusive row, whatever its status', () => {
+    const cat = categorized('Rent');
+    const rows = [ruleLink({ rule_id: 'rent' }), cat, planLink('p1')];
+    const ignored: ReviewInput = { synced_transaction_id: CHARGE, status: 'ignored' };
+    const imported: ReviewInput = {
+      synced_transaction_id: CHARGE, status: 'imported', transaction_id: 't1',
+    };
+    expect(findReviewRowFor(rows, ignored)).toBe(cat);
+    expect(findReviewRowFor(rows, imported)).toBe(cat);
+    expect(findReviewRowFor(rows, categorized('Groceries'))).toBe(cat);
+  });
+
+  it('routes an exclusive decision to an INSERT when the charge holds only links', () => {
+    expect(findReviewRowFor([ruleLink({ rule_id: 'rent' })], categorized('Rent'))).toBeUndefined();
+  });
+});
+
+describe('applyReviewToSet — the set a write would produce', () => {
+  it('appends a new target', () => {
+    const rows = [ruleLink({ rule_id: 'rent' })];
+    const water = ruleLink({ rule_id: 'water', occurrence_month: '2026-07' });
+    expect(applyReviewToSet(rows, water)).toEqual([...rows, water]);
+  });
+
+  it('replaces the row it routes to, in place, without growing the set', () => {
+    const rent = ruleLink({ rule_id: 'rent', occurrence_month: '2026-08' });
+    const water = ruleLink({ rule_id: 'water', occurrence_month: '2026-07' });
+    const next = ruleLink({ rule_id: 'rent', occurrence_month: '2026-07' });
+    expect(applyReviewToSet([rent, water], next)).toEqual([next, water]);
+  });
+
+  // The caller still holds `existing`, and one of those rows is about to be sent to the database as
+  // an UPDATE. Mutating it here would change what the caller believes it is updating.
+  it('does not mutate its input', () => {
+    const rent = ruleLink({ rule_id: 'rent', occurrence_month: '2026-08' });
+    const existing = [rent];
+    const before = JSON.parse(JSON.stringify(existing));
+    const result = applyReviewToSet(existing, ruleLink({ rule_id: 'rent', occurrence_month: '2026-07' }));
+    expect(existing).toEqual(before);
+    expect(existing[0]).toBe(rent);
+    expect(result).not.toBe(existing);
+  });
+
+  // The join the write path actually makes: route, apply, then hand the result to the set validator.
+  // These are the two answers that matter — the arrears case is legal, and neither of the two things
+  // the routing is supposed to make unreachable can be produced by it.
+  it('produces a set the validator accepts for the arrears case', () => {
+    const built = [
+      ruleLink({ rule_id: 'rent' }),
+      ruleLink({ rule_id: 'internet' }),
+      ruleLink({ rule_id: 'water', occurrence_month: '2026-07' }),
+      categorized('Rent'),
+    ].reduce<ReviewInput[]>((set, input) => applyReviewToSet(set, input), []);
+    expect(built.length).toBe(4);
+    expect(validateReviewSet(built)).toBeNull();
+  });
+
+  it('cannot produce a second exclusive row, nor the same thing linked twice', () => {
+    const ignored: ReviewInput = { synced_transaction_id: CHARGE, status: 'ignored' };
+    const built = [
+      categorized('Rent'),
+      ruleLink({ rule_id: 'rent' }),
+      ignored,
+      ruleLink({ rule_id: 'rent', occurrence_month: '2026-07' }),
+    ].reduce<ReviewInput[]>((set, input) => applyReviewToSet(set, input), []);
+    expect(built.length).toBe(2);
+    expect(built.filter(r => !isLinkStatus(r.status)).length).toBe(1);
+    expect(validateReviewSet(built)).toBeNull();
   });
 });

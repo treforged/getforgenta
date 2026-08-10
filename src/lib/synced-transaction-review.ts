@@ -174,12 +174,69 @@ export function validateReviewInput(input: ReviewInput): string | null {
   return null;
 }
 
-/** What one link row occupies in the dedupe space. Null for the exclusive row, which has no target. */
-function linkTarget(input: ReviewInput): string | null {
+/**
+ * The fields that decide WHICH of a charge's rows a decision is about.
+ *
+ * Structural rather than the generated row type so the routing below can be handed either a stored
+ * row or an unsaved `ReviewInput` — they are the same question asked of the same five columns, and
+ * two overloads would be two chances for them to answer differently.
+ */
+export interface TargetableReview {
+  status: string;
+  rule_id?: string | null;
+  payment_plan_id?: string | null;
+  car_fund_id?: string | null;
+  car_charge_kind?: string | null;
+}
+
+/**
+ * What one link row occupies in the dedupe space. Null for the exclusive row, which has no target.
+ *
+ * ⚠️ THIS IS THE KEY OF THE THREE DEDUPE INDEXES, so it must stay in step with them:
+ * `(txn, rule_id)`, `(txn, payment_plan_id)`, `(txn, car_fund_id, car_charge_kind)`. It is also what
+ * makes "link another" an INSERT and "change your mind about this link" an UPDATE — see
+ * `findReviewRowFor`.
+ */
+export function linkTarget(input: TargetableReview): string | null {
   if (input.status === 'linked_rule') return `rule:${input.rule_id}`;
   if (input.status === 'linked_plan') return `plan:${input.payment_plan_id}`;
   if (input.status === 'linked_car') return `car:${input.car_fund_id}:${input.car_charge_kind}`;
   return null;
+}
+
+/**
+ * §1B SPLIT LINK Slice C — the EXCLUSIVE row of a charge, or undefined.
+ *
+ * The at-most-one decision a charge may hold about ITSELF rather than about one of the things it
+ * paid: import idempotency (`'imported'`), dismissal (`'ignored'`), a ledger pointer
+ * (`'linked_txn'`), a label correction (`'categorized'`) — and, by Tre's 2026-08-09 decision,
+ * `category_override`, which lives here and nowhere else.
+ */
+export function findExclusiveReview<T extends TargetableReview>(rows: readonly T[]): T | undefined {
+  return rows.find(r => !isLinkStatus(r.status));
+}
+
+/**
+ * §1B SPLIT LINK Slice C — the row a decision should be written to, or undefined to INSERT a new one.
+ *
+ * ⚠️ THIS FUNCTION IS WHAT MAKES SPLIT LINK A FEATURE RATHER THAN A DATA LOSS BUG. Before it, every
+ * write found the charge's one row and updated it, so a second link would have overwritten the
+ * first — the user would press "link another", watch the first badge vanish, and have no way to tell
+ * that the app had discarded a decision rather than added one.
+ *
+ * The routing is also what ENFORCES two of the three set rules structurally instead of by validation:
+ * an exclusive decision always lands on the exclusive row, so a charge cannot acquire a second one;
+ * and a link always lands on the row with the SAME target, so the same rule, plan or vehicle charge
+ * cannot be linked twice. `validateReviewSet` still runs on the result — a rule enforced in two
+ * places is a rule that survives one of them being edited.
+ */
+export function findReviewRowFor<T extends TargetableReview>(
+  rows: readonly T[],
+  input: TargetableReview,
+): T | undefined {
+  const target = linkTarget(input);
+  if (!target) return findExclusiveReview(rows);
+  return rows.find(r => linkTarget(r) === target);
 }
 
 /**
@@ -226,4 +283,24 @@ export function validateReviewSet(inputs: readonly ReviewInput[]): string | null
     if (target) targets.add(target);
   }
   return null;
+}
+
+/**
+ * §1B SPLIT LINK Slice C — the set of decisions a charge WOULD hold once `input` is written.
+ *
+ * The write path knows the charge's current rows and the one decision being made; `validateReviewSet`
+ * judges sets. This is the join between them, kept pure and separate so the "what would this become"
+ * question can be tested without a Supabase client — and so the answer the validator is given is
+ * built by the same routing that decides the UPDATE-vs-INSERT, rather than by a second guess at it.
+ *
+ * Immutable by construction: the existing rows are never edited in place, which matters because the
+ * caller still holds them and one of them is about to be sent to the database as an UPDATE.
+ */
+export function applyReviewToSet(
+  existing: readonly ReviewInput[],
+  input: ReviewInput,
+): ReviewInput[] {
+  const replacing = findReviewRowFor(existing, input);
+  if (!replacing) return [...existing, input];
+  return existing.map(row => (row === replacing ? input : row));
 }

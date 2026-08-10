@@ -1,5 +1,358 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — session 134 — 🟢 **SLICE C IS LIVE-VERIFIED AND THE MIGRATION IS APPLIED. Split link works on Tre's real account.**
+
+> **START HERE.** Branch **`feat/split-link-slice-c`**, rebased onto current `origin/main` (jsdom 30
+> included) — **`0 7`**, clean rebase. **788/788 tests under jsdom 30, tsc 0.** The migration is
+> **APPLIED to the live database**. Account restored byte-for-byte and verified against the backup
+> with `EXCEPT ALL` **in both directions: 0 and 0**. Nothing pushed, no PR yet.
+
+### 🔬 THE FINDING THAT MATTERS — the handoff's ordering premise was WRONG, and the live pass proved it
+
+Sessions 131-133 all asserted that Slice C's code was a **pure no-op under today's UNIQUE**, so the
+UI could ship and be live-verified BEFORE the migration. **It is not, and it cannot.** Measured, not
+reasoned:
+
+| sequence, pre-migration | result |
+|---|---|
+| set a category on a clean charge | ✅ works (`categorized` row, INSERT) |
+| change that category | ✅ works, **same row id** (UPDATE branch) |
+| **then link it to a bill** | ❌ **POST 409** — `duplicate key value violates unique constraint "synced_transaction_reviews_synced_transaction_id_key"` |
+| link a bill on a CLEAN charge | ✅ works (one `linked_rule` row) |
+| **then set a category on it** | ❌ **POST 409**, same constraint |
+
+**Root cause:** Slice C routes the exclusive decision and the link to **two different rows** by
+design. Any charge needing two rows violates `UNIQUE (synced_transaction_id)`. Before Slice C the
+link write UPDATED the single row and carried `category_override` forward, so the sequence worked.
+**So the code and the migration are ONE deployable unit** — shipping `9c2fb6bc`/Slice C without the
+migration is a live regression on the ordinary path "categorize a charge, then link it to a bill".
+The 409 does surface (a toast), but as raw Postgres text a user cannot act on.
+
+⚠️ **Do not restore the old ordering advice.** The migration must land with or before the code.
+
+### ✅ THE MIGRATION IS APPLIED — and it was safe to apply ahead of the code
+
+`supabase/migrations/20260810_synced_transaction_reviews_split_link.sql`, applied via
+`apply_migration`. Verified after: the old `synced_transaction_reviews_synced_transaction_id_key`
+constraint is **gone**, and all four partial indexes exist —
+`one_exclusive`, `one_rule_link`, `one_plan_link`, `one_car_link`.
+
+🔬 **Checked before trusting it, because the migration is now live while production still runs
+`main`:** `origin/main` already contains Slice B, so **no review write path on main passes
+`onConflict`** (the only three hits are two explanatory comments and an unrelated
+`user_id,snapshot_date` upsert on net-worth snapshots). Production's SELECT-then-UPDATE-or-INSERT is
+unaffected by the relaxed constraint, and `one_exclusive` preserves import idempotency exactly. **The
+live app is not broken by this migration sitting ahead of the code.**
+
+### ✅ THE SECOND LIVE PASS — the feature demonstrated on Tre's real data
+
+Same test charge `1cf1cd2a…` (Dave & Buster's, 2026-07-25, past month so no forecast can move):
+
+| step | result |
+|---|---|
+| category, **then** link (the 409 case, re-run post-migration) | ✅ **no error**, badge `linked · Chewy` |
+| **the category SURVIVED the link** — the one flagged regression risk | ✅ select still reads `Groceries`; DB shows `categorized` row holding the override and `linked_rule` row with `category_override` NULL |
+| "Link another bill" → a second rule | ✅ **two badges**: `linked · Chewy` and `linked · Claude` |
+| `Undo all` appears only at ≥2 links | ✅ appeared on the second link, absent on the first |
+| exclusive destinations hidden while links exist | ✅ only "Link another …" offered; "Add to my ledger"/"Ignore" gone |
+| **per-link ✕ removes one and leaves the other** (`removeLink`'s first live exercise) | ✅ Chewy gone, Claude and the category both intact |
+| final undo → charge clean | ✅ **69 rows, 0 `occurrence_date`, 0 on the test charge, EXCEPT ALL 0/0 vs the backup** |
+
+### ⬜ WHAT IS OWED NOW
+
+1. **Open the PR** — `git push -u origin feat/split-link-slice-c` → `gh pr create` → `conductor pr N`.
+   The migration is already live, so the PR is the code half catching up to it. Say so in the body.
+2. ⚠️ **A better error than the raw constraint name.** The 409 toast printed
+   `duplicate key value violates unique constraint …`. Post-migration the reachable version is "the
+   same bill linked twice" (`one_rule_link`). That is a real user action with an unreadable message.
+   Not blocking the PR; worth its own small slice.
+
+### 🐛 SEPARATE BUG — "dashboard fails to load on initial login sometimes". **Diagnosed, NOT fixed.**
+
+**Kept off the split-link branch deliberately — it needs its own branch cut from `main`.**
+
+⚠️ **The first hypothesis was WRONG and is recorded so nobody re-runs it.** I proposed the missing
+`.catch()` on the sign-in navigate chain in `AuthContext.tsx:213-221`. **Tre's symptom rules it out:**
+he *lands on the dashboard*, so the navigate fired. (The missing `.catch()` is still real and still
+worth a defensive fix, but it is not this bug.)
+
+**Tre's actual symptom, and it is the whole diagnosis:** the dashboard shows the
+**`Try again` button — `src/components/shared/ErrorBoundary.tsx:66` — and clicking it does nothing.
+Reloading the page always works.**
+
+**Root cause, in `handleRetry` (:37):**
+
+```ts
+handleRetry = () => {
+  sessionStorage.removeItem(RELOAD_FLAG);
+  this.setState({ hasError: false, error: null, reloading: false });
+};
+```
+
+It clears the boundary's own flag and nothing else, then re-renders **the same children over the same
+state that just crashed** — so the render throws again, `getDerivedStateFromError` fires again, and
+the user sees the identical screen. "Clicking does nothing" is exactly what a retry that resets
+nothing looks like. A full reload works because it rebuilds the QueryClient cache and the module
+state from scratch.
+
+🔬 **Checked, so the fix is not designed against a guess:** there is **no `throwOnError`, no
+`useSuspenseQuery` and no `suspense: true` anywhere in `src/`**, so React Query is *not* throwing
+into this boundary. The thrower is an ordinary render crash — most likely a component reading
+loaded-shaped data during the sign-in race, when the query has not resolved. **That upstream crash is
+the second half of this bug and is NOT yet identified** — the retry fix makes it recoverable, it does
+not make it stop happening.
+
+**Suggested fix, in this order:**
+1. Make retry actually reset the data layer: `queryClient.resetQueries()` (needs the client — either
+   a `useQueryClient` wrapper around the class, or `QueryErrorResetBoundary`), plus a `key` bump on
+   the children so they get a genuinely fresh mount.
+2. **Escalate on a second failure.** If a retry throws again, `window.location.reload()` — Tre has
+   confirmed reload always works, so the escape hatch is known-good rather than hypothetical. A
+   button that silently does nothing twice is worse than one that reloads.
+3. Then find the upstream crash: reproduce on a real sign-in with the console open and read the
+   `console.error('Page render error:', …)` at **:26** — the boundary already logs the message and
+   component stack, so the offending component is one login away from being named.
+
+---
+
+## 2026-08-10 — session 133 — 🟡 ~~SLICE C IS BUILT, REHEARSED AND GREEN. ONE THING BLOCKS IT: SIGN-IN.~~ (live pass DONE — see above)
+
+> **START HERE.** Branch **`feat/split-link-slice-c`**, now **rebased onto `main`** (the 6 dependency
+> bumps, including framer-motion 13 and react-resizable-panels 4 — clean rebase, no conflicts).
+> **788/788 tests, tsc 0, eslint clean, tree clean.** Three commits: `9c2fb6bc` (Slice C part 1, from
+> session 132), **`dbebf460`** (the owed routing tests), **`8f77decd`** (the migration, WRITTEN AND
+> NOT APPLIED). Nothing pushed, no PR.
+>
+> **The live UNIQUE constraint is still in place and the live table is untouched: 69 rows,
+> `imported 55 · linked_rule 11 · linked_plan 1 · linked_txn 2`, 0 rows carry `occurrence_date`.**
+
+### 🟢 THE BLOCKER IS CLEARED — Tre signed in. **START THE LIVE PASS IMMEDIATELY.**
+
+Probed and confirmed at the end of session 133: **signed in as `tre@treforged.com`** on
+`http://localhost:8080`, refresh token present, tab parked open on `/dashboard`. Board card
+`c1532724` can be closed.
+
+⚠️ **The live pass was NOT started, and the reason was context, not doubt.** Session 133 hit ~178k
+tokens right as the sign-in landed. A live pass writes to Tre's real account and then restores it, so
+being compacted halfway through would strand test rows on his data with no session left to clean
+them up. **Nothing is unknown about it — the full script is in the section directly below. Just run
+it.** If sign-in has lapsed again by then, see the demo-mode warning below (demo is NOT a fallback).
+
+⚠️ **Demo mode is NOT a fallback here, and this was measured rather than assumed.** `/transactions` →
+Bank Activity in demo renders **"No bank activity yet"** — the demo fixture has no synced
+transactions at all. So *nothing* about split link can be verified in demo. (Session 130's demo-mode
+pass worked because Budget Control has demo data; Bank Activity does not.) Also: demo is in-memory
+with no route, so a hard `navigate` after "Try Demo" drops straight back to `/auth` — enter demo,
+then move by clicking the app's own links.
+
+### ⬜ WHAT IS STILL OWED — the live pass, then the apply. In that order.
+
+**1. THE LIVE PASS**, unchanged from session 132 and still the right test: under today's UNIQUE this
+should be a **pure no-op** on Tre's account. Test charge is ready and unreviewed again:
+**`1cf1cd2a-37a3-44fd-a6c5-d621e77f63ba`** (Dave & Buster's, 2026-07-25, $7.50 — a past month, so no
+forecast can move). Drive on `/transactions` → Bank Activity:
+- unreviewed row → set a category → one `categorized` row, override set (`setCategory` INSERT);
+- change it again → **same row id** (UPDATE branch);
+- link it to a bill → badge reads `linked · <rule>`, and the **✕ on the badge** removes just it
+  (`removeLink`'s first live exercise — it had no caller before `9c2fb6bc`);
+- ⚠️ **the category must SURVIVE the link.** The link write no longer carries `category_override`
+  forward; the label is supposed to stay on the exclusive row. **If the category disappears when you
+  link, that is the one regression this commit could plausibly have introduced — check it first.**
+- Undo → row gone; re-verify **69** and **0 `occurrence_date`**.
+
+**2. APPLY THE MIGRATION** — `supabase/migrations/20260810_synced_transaction_reviews_split_link.sql`.
+Then the second live pass that actually demonstrates the feature: link one charge to two rules with
+**different `occurrence_month`s** (the arrears case), confirm two badges, confirm per-link undo
+removes one and leaves the other.
+
+### ✅ THE BACKUP IS TAKEN — do not take another
+
+`backup.synced_transaction_reviews_20260810`, the whole table (69 rows, and the table holds only
+Tre's rows). **Verified rather than assumed:** `EXCEPT ALL` in *both* directions returns 0 rows, and
+it carries **zero `anon`/`authenticated` grants**, matching the 2026-08-07 precedent. Free tier means
+no PITR, so this snapshot is the only way back. Keep it (see `project_supabase_backup_schema`).
+
+### 🔬 THE MIGRATION WAS REHEARSED ON A CLONE — it is proven, not merely written
+
+Rather than apply it and find out, the four indexes were built on a full copy of the real table and
+probed, then the clone was dropped. Two results worth carrying:
+
+- **All four indexes BUILT over the real 69 rows.** That is the finding that de-risks the apply:
+  today's live data violates none of the new constraints, so the migration cannot fail partway.
+- Behaviour, on real-shaped rows:
+
+| probe | result |
+|---|---|
+| second link to a **different** rule, different month (the arrears case) | **ALLOWED** — correct, this is the feature |
+| the **same** rule twice on one charge | **REJECTED** — correct |
+| an exclusive row **beside** links | **ALLOWED** — correct |
+| a **second** exclusive row | **REJECTED** — correct, import idempotency preserved |
+
+`backup.split_link_rehearsal` and `backup.rehearsal_log` were dropped afterwards; only the real
+snapshot remains.
+
+### ✅ `dbebf460` — the tests session 132 said were owed
+
+19 tests on the routing helpers (`linkTarget`, `findExclusiveReview`, `findReviewRowFor`,
+`applyReviewToSet`) in the file that already owns the set rules. **Verified they bite, not just
+pass:** stubbing `findReviewRowFor` to return `rows[0]` fails 7 of them.
+
+### ✅ `8f77decd` — and a parity test that makes "one rule written twice" real
+
+The index predicate and `LINK_STATUSES` are the same rule in two languages, and no compiler spans
+them. `synced-transaction-review.migrationParity.test.ts` **parses the shipped SQL** and asserts the
+`NOT IN` list equals the Set. Verified it bites: removing `'linked_car'` from the predicate fails it.
+The drift is quiet in both directions — the app offering a link the database rejects, or a charge
+silently holding two exclusive rows, which is idempotency gone.
+
+### 🔬 THE `audit` ADVICE IN THE SECTION BELOW IS NOW STALE — corrected here
+
+Session 132 said "do not treat a red `audit` on a Dependabot PR as signal until the **nanoid**
+advisory is cleared". **The six merges cleared it.** `npm audit --audit-level=high` — which is
+exactly what `.github/workflows/dependency-audit.yml:33` runs — now **exits 0** on this tree.
+**A red `audit` is real signal again.** What remains is 3 **moderate** advisories in one chain
+(`@capacitor/cli` → `xcode` → `uuid`); they do not fail the gate, and the only fix is a
+`@capacitor/cli` 8.x **major**, which touches native builds and is its own task with its own mobile
+verification. Not casual work — leave it.
+
+### ⬜ The two open Dependabot PRs, re-checked live this session
+
+- ✅ **#66 jsdom 30.0.1 — MERGED** (Tre asked directly, end of session 133). Verified by CONTENTS:
+  `"jsdom": "^30.0.1"` is in `origin/main`'s `package.json`, not by "it says merged".
+  ⚠️ **So `main` has moved again and this branch is 1 behind.** jsdom is the **test DOM** and this was
+  a MAJOR bump, so **rebase and re-run `npx vitest run` before opening the PR** — a jsdom major is
+  exactly the kind of thing that turns tests red without touching a line of app code.
+- **#65 TypeScript 7.0.2 — still HOLD, and now confirmed rather than repeated.** Its base is
+  `82206a05`, i.e. current `main`, so it is NOT stale — and it still fails **both `audit` and
+  `Vercel`**. The build genuinely breaks. Do not merge it to clear the board.
+
+---
+
+## 2026-08-10 — session 132 — 🟡 **SLICE C PART 1 SHIPPED `9c2fb6bc`.** (live pass still owed — see above)
+
+> **START HERE.** Branch **`feat/split-link-slice-c`**, cut from `origin/main` (**not** from local
+> `main` — see the git note below). **763/763 tests (+1), tsc 0, eslint clean on every changed file.**
+> Backups: `backups/2026-08-10_010619/`. Nothing pushed, no PR.
+>
+> The **code** half of Slice C is done and the **schema** half is not. That order is deliberate and
+> was decided in session 131: every array is length 1 under today's `UNIQUE`, so the UI renders
+> identically until the constraint is relaxed, which means the UI can be live-verified BEFORE the
+> irreversible bit.
+
+### ⬜ THE TWO THINGS OWED, in this order
+
+**1. LIVE PASS of the code, under today's UNIQUE.** It should be a pure no-op on Tre's account —
+that is the claim to test. Every charge holds ≤1 review row today, so every badge, every category
+and every button must look exactly as it did before. What to drive on `/transactions` → Bank
+Activity (`http://localhost:8080`, dev server is UP, `user_id = 'a72f416e-433a-4055-9ab0-9feae4e60edf'`):
+- an unreviewed row → set a category → still one `categorized` row, override set (`setCategory`
+  INSERT, now routed through `findExclusiveReview`);
+- change it again → **same row id** (UPDATE branch);
+- link it to a bill → badge reads `linked · <rule>`, and the **✕ on the badge** removes just it
+  (`removeLink`, which had NO caller until this commit — this is its first live exercise);
+- ⚠️ **the category must SURVIVE the link now.** Before this commit the link write carried
+  `category_override` forward onto its own row; now it does not, and the label is supposed to stay
+  on the exclusive row instead. **If the category disappears when you link, that is the one
+  regression this commit could plausibly have introduced — check it first.**
+- Undo → row gone; then re-verify the account is byte-for-byte:
+  `imported 55 · linked_rule 11 · linked_plan 1 · linked_txn 2` = **69**, **0 rows carry
+  `occurrence_date`**.
+
+**2. THE MIGRATION — the irreversible half. ⚠️ BACK UP FIRST.** Free tier means no PITR (see
+`project_supabase_backup_schema`), so snapshot `synced_transaction_reviews` into the locked-down
+`backup` schema exactly as 2026-08-07 did, BEFORE applying anything. The schema, unchanged from the
+session-131 design and still authoritative:
+- `DROP CONSTRAINT synced_transaction_reviews_synced_transaction_id_key`
+- `unique (synced_transaction_id) where status not in ('linked_rule','linked_plan','linked_car')`
+- `(synced_transaction_id, rule_id) where rule_id is not null`
+- `(synced_transaction_id, payment_plan_id) where payment_plan_id is not null`
+- `(synced_transaction_id, car_fund_id, car_charge_kind) where car_fund_id is not null`
+
+⚠️ The predicate of the first index is `LINK_STATUSES` in `src/lib/synced-transaction-review.ts`.
+**They are one rule written twice** — if the migration and that Set ever disagree, the app and the
+database disagree about how many decisions a charge may hold. The file says so; keep it true.
+
+Then a SECOND live pass — the one that actually demonstrates the feature, which the first cannot:
+link one charge to two rules with **different `occurrence_month`s** (the arrears case), confirm two
+badges, confirm per-link undo removes one and leaves the other.
+
+### ✅ What `9c2fb6bc` actually changed
+
+| File | Change |
+|---|---|
+| `src/lib/synced-transaction-review.ts` | `linkTarget` **exported**, + `TargetableReview`, `findExclusiveReview`, `findReviewRowFor`, `applyReviewToSet` |
+| `src/hooks/useSupabaseData.ts` | `findChargeReviewId` → **`fetchChargeReviews`** (the SET, `select('*')`); `save` routes via `findReviewRowFor` and runs **both** validators; `setCategory` + `importToLedger` target the **exclusive** row |
+| `src/components/transactions/BankActivity.tsx` | `reviewByTxn` → **`reviewsByTxn: Record<string, Row[]>`**; `linkLabel()`; one badge per link with per-link ✕; "Link another …"; `Undo all` at ≥2 links |
+| `src/lib/synced-transaction-import.ts` | `ctx.review` → **`ctx.reviews`** (a set); `linked_plan`/`linked_car` added to `BLOCKING_STATUSES` |
+| `src/lib/__tests__/synced-transaction-import.test.ts` | renamed to the set shape, +1 test ("refuses when ANY of several decisions blocks") |
+
+### Decisions taken this session — do not re-litigate
+
+- **Routing enforces the set rules; validation is the backstop.** An exclusive decision always lands
+  on the exclusive row and a link always on the same-target row, so "two exclusive rows" and "the
+  same thing linked twice" are unreachable rather than rejected. `validateReviewSet` still runs — a
+  rule enforced in two places survives one of them being edited.
+- **The exclusive destinations are hidden once a charge has links.** "Link to an entry", "Add to my
+  ledger" and "Ignore" disappear while ≥1 link exists, because "this whole charge is that entry"
+  contradicts "this charge paid these three bills". Removing a link with its ✕ brings them back.
+  The set validator would ALLOW `linked_txn` beside links; this is a UI choice on top of it.
+- **`Undo all` only appears at ≥2 links.** With one link the ✕ already is the undo, and two controls
+  doing the same thing differently is how a user ends up unsure which one keeps their category.
+- **`linked_plan`/`linked_car` added to `BLOCKING_STATUSES`** — strictly more conservative, and both
+  cases were already unreachable via `isHandledReview`. Two lists that were meant to agree.
+
+### ⚠️ TESTS OWED — the new pure helpers have NO tests of their own
+
+`763/763` is green but **+1 only**. The routing functions (`findReviewRowFor`, `findExclusiveReview`,
+`applyReviewToSet`) are covered only indirectly. They are the highest-value thing in the commit and
+they are exactly the shape `synced-transaction-review.splitLink.test.ts` already tests well — add a
+block there: link-another INSERTs, same-target UPDATEs, exclusive always routes to the exclusive row,
+and `applyReviewToSet` does not mutate its input.
+
+### ✅ ALSO DONE THIS SESSION (Tre asked directly) — repoint + 6 Dependabot merges
+
+**`main` is repointed and correct.** `git tag pre-squash-main-20260810 main && git branch -f main
+origin/main`. `origin/main...main` is now **`0 0`**. The old 35-commit history is preserved on the
+tag if it is ever wanted; nothing was lost, because the trees were byte-identical.
+
+**6 of 8 Dependabot PRs merged**, verified by contents (`setup-java@v5.7.0` present in
+`origin/main`'s workflows), not by "it says merged": **#61, #62, #63, #64, #67, #68**.
+`main` is now `82206a05`.
+
+🔬 **The finding that unblocked them, worth keeping:** every one of those PRs showed a failing
+`audit` check, which reads as "six broken upgrades". It is not. `npm audit` fails on **`main` itself**
+— a pre-existing **`nanoid <3.3.17`** high-severity advisory in the current lockfile — so `audit` red
+is repo-wide noise, present on every PR regardless of content. Their build and test checks were all
+green. **Do not treat a red `audit` on a Dependabot PR as a signal until that advisory is cleared**
+(`npm audit fix` would do it, and is its own small piece of work nobody has done).
+
+⬜ **Two PRs still open, both deliberately:**
+- **#65 TypeScript 7.0.2 — HELD BACK, and this one is real.** It fails **Vercel** as well as `audit`,
+  i.e. the build genuinely breaks. A major TS bump across this codebase is its own task with its own
+  live pass. Do not merge it to clear the board.
+- **#66 jsdom 30.0.1 — lockfile conflict** caused by the six merges landing ahead of it.
+  `@dependabot rebase` was posted; it should go green on its own and can then be merged as normal.
+
+⚠️ **`feat/split-link-slice-c` is based on `d1e9afab`, which is now 6 commits behind `main`.** Those
+6 are dependency bumps including **framer-motion 13** and **react-resizable-panels 4** (majors).
+**Rebase onto `main` and re-run `npx vitest run` + `npx tsc --noEmit` BEFORE the live pass**, or the
+live pass verifies a tree nobody is going to ship. `npm install` first — `node_modules` is stale
+relative to the new lockfile.
+
+### 🧷 A GIT NOTE — RESOLVED, kept for the reasoning
+
+**Local `main` is 35 commits ahead of `origin/main` and that is a lie.** PR #69 was **squash-merged**,
+so `origin/main` (`d1e9afab`) has a tree **byte-identical** to the old branch head — verified by an
+empty `git diff origin/main HEAD`, not by "it says merged". The 35 local commits are the same content
+under different hashes.
+
+✅ **FIXED this session** — Tre authorised it and `main` now tracks `origin/main` cleanly. Kept here
+because the *shape* recurs: after any squash merge, local `main` will look ahead by N while being
+content-identical. **Verify by contents (`git diff origin/main HEAD`), never by the ahead/behind
+count**, and cut branches from `origin/main` when in doubt.
+
+---
+
 ## ▶ 2026-08-09 — this repo is set up for autopilot, and `origin` is finally current
 
 Done from the Conductor session, not from here. Nothing about Slice C changed —

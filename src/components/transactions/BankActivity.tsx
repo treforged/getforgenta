@@ -28,6 +28,7 @@ import { matchOccurrence, matchCharge, normalizePaymentSource, type MatchableTra
 import {
   useAllSyncedTransactions, useSyncedTransactionReviews, useAccounts, useRecurringRules,
   useTransactions, usePaymentPlans, useCarFunds, isHandledReview, planLedgerImport,
+  isLinkStatus, findExclusiveReview,
   type BankActivityRow, type SyncedTransactionReviewRow, type TransactionRow, type RuleRow,
 } from '@/hooks/useSupabaseData';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
@@ -99,7 +100,9 @@ function asMatchable(txns: readonly TransactionRow[]): MatchableTransaction[] {
 
 export default function BankActivity() {
   const { data: synced = [], isLoading } = useAllSyncedTransactions();
-  const { data: reviews, save, setCategory, remove, importToLedger, undoImport } = useSyncedTransactionReviews();
+  const {
+    data: reviews, save, setCategory, remove, removeLink, importToLedger, undoImport,
+  } = useSyncedTransactionReviews();
   const { data: accounts } = useAccounts();
   const { data: rules } = useRecurringRules();
   const { data: ledger } = useTransactions();
@@ -132,9 +135,22 @@ export default function BankActivity() {
     return map;
   }, [accounts]);
 
-  const reviewByTxn = useMemo(() => {
-    const map: Record<string, SyncedTransactionReviewRow> = {};
-    reviews.forEach(r => { map[r.synced_transaction_id] = r; });
+  /**
+   * §1B SPLIT LINK — EVERY decision on a charge, not the last one to be iterated.
+   *
+   * ⚠️ THIS WAS A `Record<string, Row>` AND THE SHAPE CHANGE IS THE FEATURE. One bank debit
+   * routinely settles more than one obligation: Tre's rent charge pays Rent, Internet and Smart Home
+   * for THIS month and the Water/Sewer/Trash rider for the PREVIOUS one, billed in arrears. Keyed by
+   * charge alone, the second link overwrote the first in this map and the user saw one badge for two
+   * decisions — the variable rider staying invisible inside the bundled charge, which is the exact
+   * thing Tre asked for this feature to fix.
+   *
+   * Safe to build BEFORE the migration: under today's `UNIQUE (synced_transaction_id)` every array
+   * is length 1, so this renders identically until the constraint is relaxed.
+   */
+  const reviewsByTxn = useMemo(() => {
+    const map: Record<string, SyncedTransactionReviewRow[]> = {};
+    reviews.forEach(r => { (map[r.synced_transaction_id] ??= []).push(r); });
     return map;
   }, [reviews]);
 
@@ -241,6 +257,34 @@ export default function BankActivity() {
     return options;
   }, [carFunds]);
 
+  /**
+   * What one link badge says.
+   *
+   * ⚠️ EVERY BRANCH TOLERATES THE THING BEING GONE. `rule_id`, `payment_plan_id` and `car_fund_id`
+   * are all `ON DELETE SET NULL` precisely so a decision outlives the rule, plan or vehicle it named
+   * — so "linked · rule deleted" is a legitimate state to render, not a bug to guard against.
+   *
+   * The vehicle branch names the CHARGE KIND, not just the car: a vehicle bills a loan payment AND
+   * an insurance premium every month, and "linked · Civic" would not say which one the user just
+   * accounted for.
+   */
+  const linkLabel = (link: SyncedTransactionReviewRow): string => {
+    if (link.status === 'linked_rule') {
+      const rule = link.rule_id ? rules.find(r => r.id === link.rule_id) : undefined;
+      return rule ? `linked · ${rule.name}` : 'linked · rule deleted';
+    }
+    if (link.status === 'linked_plan') {
+      const plan = link.payment_plan_id ? paymentPlans.find(p => p.id === link.payment_plan_id) : undefined;
+      return plan ? `linked · ${plan.name}` : 'linked · plan deleted';
+    }
+    if (link.status === 'linked_car') {
+      const car = link.car_fund_id ? carFunds.find(c => c.id === link.car_fund_id) : undefined;
+      const kind = link.car_charge_kind === 'insurance' ? 'insurance' : 'payment';
+      return car ? `linked · ${car.vehicle_name} ${kind}` : 'linked · vehicle deleted';
+    }
+    return 'linked';
+  };
+
   const suggestionFor = (txn: BankActivityRow): RowSuggestion => {
     const rule = ruleByTxnId[txn.id];
     if (rule) return { rule };
@@ -309,8 +353,16 @@ export default function BankActivity() {
         {visible.length === 0 ? (
           <div className="p-8 text-center"><p className="text-sm text-muted-foreground">Nothing settled in this period.</p></div>
         ) : visible.map(txn => {
-          const review = reviewByTxn[txn.id];
-          const handled = isHandledReview(review);
+          const chargeReviews = reviewsByTxn[txn.id] ?? [];
+          // The at-most-one decision about the CHARGE ITSELF — ignored, imported, pointed at a
+          // ledger entry, or merely relabelled. It is also the only row that may carry a category.
+          const exclusive = findExclusiveReview(chargeReviews);
+          const links = chargeReviews.filter(r => isLinkStatus(r.status));
+          const hasLinks = links.length > 0;
+          // A TERMINAL decision about the whole charge. `'categorized'` is deliberately not one:
+          // correcting a label takes no position on whether the charge was dealt with.
+          const exclusiveHandled = isHandledReview(exclusive);
+          const handled = exclusiveHandled || hasLinks;
           const suggestion = handled ? {} : suggestionFor(txn);
           const hasSuggestion = !!(suggestion.rule || suggestion.ledgerTxn);
           const suggestionRejected = !!rejected[txn.id];
@@ -320,26 +372,23 @@ export default function BankActivity() {
           // says yes, and it inserts exactly the row the plan produced.
           const plan = handled ? null : planLedgerImport(txn, {
             accountName: txn.account_id ? accountName[txn.account_id] : null,
-            categoryOverride: review?.category_override ?? null,
+            categoryOverride: exclusive?.category_override ?? null,
             hasSuggestion,
             suggestionRejected,
-            review: review ?? null,
+            // The whole set, not one row: a charge already linked to a rule must not also become a
+            // ledger entry, and asking about a single review would read only part of the answer.
+            reviews: chargeReviews,
           });
           const openPicker = picker?.id === txn.id ? picker.kind : null;
           const amount = Number(txn.amount);
           const isInflow = amount < 0;
           const mapped = suggestCategory(txn.category);
-          const category = review?.category_override && isValidCategory(review.category_override)
-            ? review.category_override
+          // The category comes off the EXCLUSIVE row and nowhere else (Tre, 2026-08-09). A charge
+          // split across Rent and Water has one merchant and one label, not two.
+          const category = exclusive?.category_override && isValidCategory(exclusive.category_override)
+            ? exclusive.category_override
             : mapped;
-          const isGuess = !review?.category_override && !hasCategorySuggestion(txn.category);
-          const linkedRule = review?.rule_id ? rules.find(r => r.id === review.rule_id) : undefined;
-          const linkedPlan = review?.payment_plan_id
-            ? paymentPlans.find(p => p.id === review.payment_plan_id)
-            : undefined;
-          const linkedCar = review?.car_fund_id
-            ? carFunds.find(c => c.id === review.car_fund_id)
-            : undefined;
+          const isGuess = !exclusive?.category_override && !hasCategorySuggestion(txn.category);
 
           return (
             <div key={txn.id} className="px-4 py-3 space-y-2">
@@ -376,36 +425,45 @@ export default function BankActivity() {
                     asserts the charge is miscellaneous; the honest claim is that we do not know. */}
                 {isGuess && <span className="text-[10px] text-muted-foreground">uncategorised — pick one</span>}
 
-                {handled ? (
+                {/* ONE BADGE PER DECISION. A charge that settles four obligations shows four, each
+                    with its own undo — the point of split link is that the Water rider stops being
+                    invisible inside the bundled rent charge, and a single merged badge would put it
+                    straight back. */}
+                {links.map(link => (
+                  <span
+                    key={link.id}
+                    className="inline-flex items-center gap-1 text-[10px] text-success bg-success/10 pl-1.5 pr-1 py-0.5"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  >
+                    {linkLabel(link)}
+                    {/* Per-link undo — `removeLink` deletes THIS row by id. The whole-charge
+                        `remove` is still available below, but using it here would undo every
+                        decision on the charge to correct one of them. */}
+                    <button
+                      onClick={() => removeLink.mutate(link.id)}
+                      className="text-success/70 hover:text-success"
+                      title="Undo just this link"
+                      aria-label={`Undo ${linkLabel(link)}`}
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+
+                {exclusiveHandled && exclusive ? (
                   <>
                     <span className="text-[10px] text-success bg-success/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
-                      {review?.status === 'ignored' ? 'ignored'
-                        : review?.status === 'imported' ? 'added to ledger'
-                          : review?.status === 'linked_rule'
-                            // A link whose rule was later deleted is still handled. `rule_id` is
-                            // ON DELETE SET NULL precisely so the decision survives the rule, so this
-                            // must never assume the rule is still there.
-                            ? (linkedRule ? `linked · ${linkedRule.name}` : 'linked · rule deleted')
-                            : review?.status === 'linked_plan'
-                              // Same ON DELETE SET NULL degraded state as a rule link, for the same
-                              // reason: the decision outlives the plan it named.
-                              ? (linkedPlan ? `linked · ${linkedPlan.name}` : 'linked · plan deleted')
-                              : review?.status === 'linked_car'
-                                // The charge KIND is named, not just the vehicle: a car bills two
-                                // obligations a month and "linked · Civic" would not say which one
-                                // the user just accounted for.
-                                ? (linkedCar
-                                  ? `linked · ${linkedCar.vehicle_name} ${review.car_charge_kind === 'insurance' ? 'insurance' : 'payment'}`
-                                  : 'linked · vehicle deleted')
-                                : 'linked'}
+                      {exclusive.status === 'ignored' ? 'ignored'
+                        : exclusive.status === 'imported' ? 'added to ledger'
+                          : 'linked · your entry'}
                     </span>
-                    {review?.status === 'imported' && review.transaction_id ? (
+                    {exclusive.status === 'imported' && exclusive.transaction_id ? (
                       // ⚠️ Undoing an import must delete the LEDGER ROW, not the review. Deleting the
                       // review alone would report the import undone while leaving the money in
                       // `public.transactions`, where twelve surfaces still count it. The FK cascades,
                       // so removing the entry also clears this decision and re-offers the charge.
                       <button
-                        onClick={() => undoImport.mutate(review.transaction_id!)}
+                        onClick={() => undoImport.mutate(exclusive.transaction_id!)}
                         className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                         title="Removes the entry this created from your transactions"
                       >
@@ -428,8 +486,12 @@ export default function BankActivity() {
                           synced_transaction_id: txn.id,
                           status: 'linked_rule',
                           rule_id: suggestion.rule!.id,
-                          ...ruleOccurrence(suggestion.rule!, txn.date),
-                          category_override: review?.category_override ?? null,
+                          // ⚠️ NO `category_override`. It used to be carried forward here so that
+                          // converting a `'categorized'` row into a link did not wipe the user's
+                          // label — correct while a charge had ONE row, and wrong now: a link is a
+                          // new row and the label stays on the exclusive one, untouched. Passing it
+                          // would put the same category on two rows with no rule for which wins,
+                          // which `validateReviewSet` rejects outright (Tre, 2026-08-09).
                         })}
                         className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
                       >
@@ -442,7 +504,11 @@ export default function BankActivity() {
                           synced_transaction_id: txn.id,
                           status: 'linked_txn',
                           transaction_id: suggestion.ledgerTxn!.id,
-                          category_override: review?.category_override ?? null,
+                          // KEPT, unlike the link writes above, and the difference is the point:
+                          // `linked_txn` is an EXCLUSIVE status, so it lands ON the exclusive row —
+                          // the row that owns the category. `save` writes every column including
+                          // the nulls, so omitting this would silently clear the user's label.
+                          category_override: exclusive?.category_override ?? null,
                         })}
                         className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
                       >
@@ -471,14 +537,21 @@ export default function BankActivity() {
                           onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'rule' ? null : { id: txn.id, kind: 'rule' }))}
                           className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                         >
-                          <Link2 size={11} /> Link to a bill
+                          <Link2 size={11} /> {hasLinks ? 'Link another bill' : 'Link to a bill'}
                         </button>
-                        <button
-                          onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'txn' ? null : { id: txn.id, kind: 'txn' }))}
-                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-                        >
-                          <Link2 size={11} /> Link to an entry
-                        </button>
+                        {/* EXCLUSIVE destinations, offered only while the charge has no links.
+                            "This whole charge is that entry I already made" contradicts "this charge
+                            paid these three bills", and the app should not let a user assert both
+                            and then have to work out which one the forecast believed. Removing a
+                            link with its ✕ brings these back. */}
+                        {!hasLinks && (
+                          <button
+                            onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'txn' ? null : { id: txn.id, kind: 'txn' }))}
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                          >
+                            <Link2 size={11} /> Link to an entry
+                          </button>
+                        )}
                         {/* Offered only when a plan exists to link to — an empty picker asserts a
                             destination the user does not have. */}
                         {pickablePlans.length > 0 && (
@@ -486,7 +559,7 @@ export default function BankActivity() {
                             onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'plan' ? null : { id: txn.id, kind: 'plan' }))}
                             className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                           >
-                            <Link2 size={11} /> Link to a payment plan
+                            <Link2 size={11} /> {hasLinks ? 'Link another payment plan' : 'Link to a payment plan'}
                           </button>
                         )}
                         {/* Same rule as the plan picker: offered only when a vehicle charge exists
@@ -496,7 +569,7 @@ export default function BankActivity() {
                             onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'car' ? null : { id: txn.id, kind: 'car' }))}
                             className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
                           >
-                            <Link2 size={11} /> Link to a vehicle charge
+                            <Link2 size={11} /> {hasLinks ? 'Link another vehicle charge' : 'Link to a vehicle charge'}
                           </button>
                         )}
                         {/* THE ONE CONTROL ON THIS PAGE THAT CREATES MONEY. It appears only when the
@@ -513,17 +586,35 @@ export default function BankActivity() {
                       </>
                     )}
 
-                    <button
-                      onClick={() => save.mutate({ synced_transaction_id: txn.id, status: 'ignored' })}
-                      className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-                    >
-                      <EyeOff size={11} /> Ignore
-                    </button>
+                    {/* Also exclusive, and also contradictory once links exist — a charge cannot
+                        both settle three bills and be nothing worth recording. */}
+                    {!hasLinks && (
+                      <button
+                        onClick={() => save.mutate({ synced_transaction_id: txn.id, status: 'ignored' })}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        <EyeOff size={11} /> Ignore
+                      </button>
+                    )}
+                    {/* Undo-everything, offered only where the per-link ✕ would be tedious. With a
+                        single link the ✕ already IS the undo, and two controls doing the same thing
+                        differently is how a user ends up unsure which one keeps their category. */}
+                    {links.length > 1 && (
+                      <button
+                        onClick={() => remove.mutate(txn.id)}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        title="Removes every decision on this charge, including its category"
+                      >
+                        <RotateCcw size={11} /> Undo all
+                      </button>
+                    )}
                   </>
                 )}
               </div>
 
-              {openPicker === 'rule' && !handled && (
+              {/* The three LINK pickers stay open to a charge that already holds links — that is
+                  "link another". They close only on a terminal exclusive decision. */}
+              {openPicker === 'rule' && !exclusiveHandled && (
                 <div className="pl-8">
                   <select
                     defaultValue=""
@@ -536,7 +627,8 @@ export default function BankActivity() {
                         status: 'linked_rule',
                         rule_id: picked.id,
                         ...ruleOccurrence(picked, txn.date),
-                        category_override: review?.category_override ?? null,
+                        // No `category_override` — the label lives on the exclusive row. See the
+                        // suggestion button above.
                       });
                       setPicker(null);
                     }}
@@ -552,7 +644,7 @@ export default function BankActivity() {
                 </div>
               )}
 
-              {openPicker === 'plan' && !handled && (
+              {openPicker === 'plan' && !exclusiveHandled && (
                 <div className="pl-8">
                   <select
                     defaultValue=""
@@ -563,9 +655,8 @@ export default function BankActivity() {
                         status: 'linked_plan',
                         payment_plan_id: e.target.value,
                         // A plan bills every month, so the link needs the month it settles for the
-                        // same reason a rule link does.
+                        // same reason a rule link does. No `category_override` — see above.
                         occurrence_month: monthOf(txn.date),
-                        category_override: review?.category_override ?? null,
                       });
                       setPicker(null);
                     }}
@@ -583,7 +674,7 @@ export default function BankActivity() {
                 </div>
               )}
 
-              {openPicker === 'car' && !handled && (
+              {openPicker === 'car' && !exclusiveHandled && (
                 <div className="pl-8">
                   <select
                     defaultValue=""
@@ -599,9 +690,9 @@ export default function BankActivity() {
                         car_fund_id: carFundId,
                         car_charge_kind: kind as CarChargeKind,
                         // A car payment and its insurance both bill every month, so the link needs
-                        // the month it settles for the same reason a rule or plan link does.
+                        // the month it settles for the same reason a rule or plan link does. No
+                        // `category_override` — see above.
                         occurrence_month: monthOf(txn.date),
-                        category_override: review?.category_override ?? null,
                       });
                       setPicker(null);
                     }}
@@ -627,7 +718,8 @@ export default function BankActivity() {
                         synced_transaction_id: txn.id,
                         status: 'linked_txn',
                         transaction_id: e.target.value,
-                        category_override: review?.category_override ?? null,
+                        // Kept: `linked_txn` is exclusive and lands on the row owning the category.
+                        category_override: exclusive?.category_override ?? null,
                       });
                       setPicker(null);
                     }}
