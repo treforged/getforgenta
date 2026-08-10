@@ -1,4 +1,87 @@
-# Handoff — 2026-08-09 — session 131 — 🟢 **SPLIT LINK: SLICES A AND B SHIPPED. B IS LIVE-VERIFIED. Start at Slice C.**
+# Handoff — Forgenta
+
+## ▶ 2026-08-09 — this repo is set up for autopilot, and `origin` is finally current
+
+Done from the Conductor session, not from here. Nothing about Slice C changed —
+that section is below and still authoritative. **Start there.**
+
+### The 35 commits are pushed
+
+`origin/main` had been **35 commits behind** local `main`, and had been drifting
+like that for a long time because nothing in this repo pushes on its own.
+
+That was the single biggest thing standing between this project and unattended
+work, and the reason is not tidiness: **a cloud agent only ever sees `origin`.**
+It plans against a tree 35 commits old, writes code that assumes the world of a
+fortnight ago, and produces conflicts and duplicated work. It is the same root
+cause behind the `goal-linkage.ts` mess.
+
+Verified before pushing rather than after: `origin/main...main` was `0 35` — a
+pure fast-forward, no divergence — and `npx tsc --noEmit` clean with
+**762/762 tests passing** across 101 files. Shipped as one PR rather than a push
+to `main`, per the standing rule that opening the PR is what pushes.
+
+**Keep it current from now on.** `git log origin/main..main` before planning
+anything, and if that number is climbing again, the autopilot guarantee below
+has quietly expired.
+
+### `AGENT.md` — what an unattended session may NOT do
+
+New file, and the important one. `CLAUDE.md` says how to work here; `AGENT.md`
+says what is off-limits when nobody is reading the diff.
+
+Three facts drive all of it: **this repository is PUBLIC**, it is a financial
+application holding real accounts, and **it has already leaked once** — the real
+`forecast-inputs.real.PRE-P0.json` fixture sat here from 2026-07-07 because a
+tracked backup copied it past the ignore rule protecting it.
+
+The hard nos: nothing derived from real data, ever, in a commit. No secrets. No
+migrations written or applied — free tier means no PITR, so a bad one is
+unrecoverable. No writes to live rows. No Stripe or Plaid wiring. No push, PR,
+merge or history rewrite from an unattended run. Never delete `handoff.md`.
+
+### The ignore rule protecting the backups was one typo wide
+
+A directory literally named `backups$(date +%Y-%m-%d_%H%M%S)` was sitting in the
+working tree — a shell command that never interpolated. **Untracked AND
+unignored**, because `.gitignore` said `backups/`, which does not match it. One
+`git add -A` from a public repo.
+
+It happened to contain no files, only empty folders, so git could never have
+taken it. That is luck, not a control. The glob is `backups*/` now, and the
+empty directory is gone. This is the second time a backup has routed around the
+one rule protecting it here.
+
+### The AMBIGUITY RULE no longer stops the session
+
+Tre's standing rule as of today, across every repo: **a session never parks and
+waits for him.** `CLAUDE.md`'s ambiguity rule used to end "wait for an answer";
+it now files the question to the board with `conductor ask` — which returns
+immediately — and carries on with what does not depend on the answer, then with
+what does under a stated assumption, then with the backlog. `conductor answers`
+collects replies at natural boundaries.
+
+The instinct was right and the cost was wrong: a stopped session spends his
+attention *and* the session, and a question in a terminal he is not looking at
+has not been asked. VERIFY-FIRST still comes first — most "ambiguities" are
+facts a tool can settle.
+
+### Still owed, and it is not mine to do
+
+**This terminal does not report to the board.** There is no live session row for
+this project. Windows hands user environment variables to a process when it
+STARTS, so a window opened before the `CONDUCTOR_*` variables existed will never
+see them, and `conductor` cannot authenticate from it. **A new terminal is the
+entire fix** — nothing needs reinstalling.
+
+Also open: **8 Dependabot PRs**, several of them majors that would not be safe
+to take unattended — TypeScript 7.0.2, framer-motion 13, react-resizable-panels
+4. They are noise on the board rather than a blocker, but they are not
+autopilot work.
+
+---
+
+## 2026-08-09 — session 131 — 🟢 **SPLIT LINK: SLICES A AND B SHIPPED. B IS LIVE-VERIFIED. Start at Slice C.**
 
 > **START HERE.** `5fa248f0` (Slice A, rules) and `43d807be` (Slice B, the enabler) are committed.
 > **762/762 tests (+33), tsc 0, eslint clean, tree clean.** Slice B's four write paths were driven
