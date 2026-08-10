@@ -1,5 +1,42 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 1b — 🟢 **DUPLICATE-LINK 409 TOAST FIXED on `fix/duplicate-link-toast`, NOT pushed. Split link (#70) is MERGED.**
+
+**The board has moved since session 134 wrote the section below: PR #70 (split link, Slice C)
+is MERGED into `origin/main` (`9190611f`) — verified by CONTENTS** (`git grep fetchChargeReviews
+origin/main` hits 6 in `useSupabaseData.ts`), not by "it says merged". So "open the PR" below is
+DONE by Tre, and both remaining items were picked up by this relay:
+
+**1. This session shipped item 2 — the friendly 409.** Branch **`fix/duplicate-link-toast`**, cut
+from `origin/main`, one commit **`28903a51` `fix: say duplicate-link 409s in the user's language`**:
+- `friendlyReviewWriteError` in `src/lib/synced-transaction-review.ts` maps each partial-index
+  violation (`one_rule_link` / `one_plan_link` / `one_car_link` / `one_exclusive`) to a sentence
+  naming what the user did; unmapped unique clashes on the review table get an honest generic
+  ("updated in another tab — refresh"); **anything that is not a unique violation returns null** so
+  RLS/network failures keep their original message.
+- Wired into the `onError` of `save`, `setCategory` and `importToLedger` in `useSupabaseData.ts`
+  (the three paths that INSERT/UPDATE review rows). `remove`/`removeLink`/`undoImport` are deletes
+  and cannot 23505 — left alone.
+- **Proof: tsc 0, full suite 800/800 (+12).** A parity test parses the shipped migration SQL and
+  fails if any created unique index lacks a specific sentence. **Verified the tests bite:** disabling
+  the `one_car_link` branch fails 2 of them.
+- **NOT verified live** — reaching the constraint needs a write race on real data, which AGENT.md
+  forbids an unattended session to stage. The mapping is exercised against the exact Postgres
+  message text captured in session 134's live pass.
+
+**2. The ErrorBoundary fix from the parallel relay session was VERIFIED here, not just trusted:**
+on `fix/error-boundary-retry`, `tsc` exits 0 and its 4 tests pass. The diff matches the session-134
+diagnosis. One accepted tradeoff, noted for the future: `retryPending` re-arms on the first clean
+commit, so a crash that only happens after data arrives gets a soft retry per click rather than
+escalating — no automatic loop, each click resets the cache.
+
+**Open, needing Tre (filed nowhere — `conductor` is permission-blocked in this relay, both shells):**
+- File the two PRs: `fix/error-boundary-retry` and `fix/duplicate-link-toast` (both local-only,
+  both based on `9190611f`; both touch `handoff.md` top — expect a trivial prepend conflict on the
+  second merge).
+- Delete or leave `feat/split-link-slice-c` (merged via #70; remote branch can be deleted).
+- Still open from below: the upstream dashboard crash (unidentified — needs a real repro with the
+  console open), and the defensive `.catch()` in `AuthContext.tsx:213-221`.
 ## ▶ 2026-08-10 — relay session 1 — 🟢 **DASHBOARD "Try again" BUG FIXED on `fix/error-boundary-retry` (`84a6a686`), NOT pushed**
 
 The session-134 diagnosis below was implemented as designed, on a fresh branch cut

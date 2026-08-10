@@ -304,3 +304,43 @@ export function applyReviewToSet(
   if (!replacing) return [...existing, input];
   return existing.map(row => (row === replacing ? input : row));
 }
+
+/**
+ * §1B SPLIT LINK — a unique-violation from the review table, said in a sentence a user can act on.
+ *
+ * The routing above makes these states unreachable through one tab, but the database indexes are the
+ * backstop for the paths routing cannot see — two tabs, a stale SELECT, a retried request — and when
+ * one fires, supabase-js hands the UI raw Postgres text ("duplicate key value violates unique
+ * constraint \"synced_transaction_reviews_one_rule_link\""), which reached a real toast during the
+ * 2026-08-10 live pass. This maps each index to what the user actually did.
+ *
+ * ⚠️ The index names here are the ones the migration creates
+ * (`20260810_synced_transaction_reviews_split_link.sql`) — one rule written twice, like
+ * `LINK_STATUSES` and the `one_exclusive` predicate. The friendlyError parity test parses the
+ * shipped SQL and fails if they drift.
+ *
+ * Returns null for anything that is not a unique violation on this table, so callers fall back to
+ * the original message rather than mislabelling an unrelated failure.
+ */
+export function friendlyReviewWriteError(
+  error: { code?: string; message?: string } | null | undefined,
+): string | null {
+  const message = error?.message ?? '';
+  const isUniqueViolation =
+    error?.code === '23505' || /duplicate key value violates unique constraint/i.test(message);
+  if (!isUniqueViolation || !message.includes('synced_transaction_reviews')) return null;
+  if (message.includes('one_rule_link')) {
+    return 'This charge is already linked to that bill. Remove the existing link first if you meant to change it.';
+  }
+  if (message.includes('one_plan_link')) {
+    return 'This charge is already linked to that payment plan. Remove the existing link first if you meant to change it.';
+  }
+  if (message.includes('one_car_link')) {
+    return 'This charge is already linked to that vehicle charge. Remove the existing link first if you meant to change it.';
+  }
+  if (message.includes('one_exclusive')) {
+    return 'This charge already has a decision recorded. Undo it first, then try again.';
+  }
+  // The pre-migration UNIQUE, or a future index nobody mapped yet: still say something honest.
+  return 'This charge already has that decision recorded — it may have been updated in another tab. Refresh and try again.';
+}
