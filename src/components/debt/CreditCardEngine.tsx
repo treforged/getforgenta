@@ -1065,8 +1065,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           const cum = overrideData ? 0 : (step3CumSurplus.get(p.card.id)?.[i] ?? 0);
           row[p.card.name] = Math.round(revBal > 0 ? adjustedDisplayBalance(m.endBalance, cum) : m.endBalance);
         } else if (p.payoffMonth !== null && i >= p.payoffMonth) {
+          // Per-month purchases, not the flat next-month estimate: the flat number is $0 for a
+          // card whose only spend is future-dated (N11), which drew a paid-off statement card as
+          // a $0 line forever even though scheduled purchases resume later in the horizon.
           row[p.card.name] = p.card.paymentPreference === 'full' || p.card.paymentPreference === 'statement'
-            ? Math.round(p.card.monthlyNewPurchases)
+            ? Math.round(variableSim.augmentedCCPurchases[i]?.[p.card.id] ?? p.card.monthlyNewPurchases)
             : 0;
         }
       }
@@ -1785,7 +1788,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <p className="text-xs font-semibold">{proj.card.dueDay ? ordinal(proj.card.dueDay) : '—'}</p>
                     <p className="text-[8px] text-muted-foreground">Edit on Accounts</p>
                   </div>
-                  <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.card.monthlyNewPurchases, false)}</p></div>
+                  <div><p className="text-[9px] text-muted-foreground uppercase">Purchases/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases, false)}</p></div>
                   <div><p className="text-[9px] text-muted-foreground uppercase">Interest/Mo</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.projectedInterestThisMonth, true)}</p></div>
                   <div><p className="text-[9px] text-muted-foreground uppercase">Total Interest</p><p className="text-xs font-semibold text-destructive">{formatCurrency(proj.totalInterest, false)}</p></div>
                 </div>
@@ -1873,7 +1876,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {proj.card.balance <= 0 && (
                       <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={14} className="shrink-0" />
-                        <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.monthlyNewPurchases, false)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : proj.card.paymentPreference === 'statement' ? 'statement balance' : 'minimum'} — as cash allows.</span>
+                        <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases, false)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : proj.card.paymentPreference === 'statement' ? 'statement balance' : 'minimum'} — as cash allows.</span>
                       </div>
                     )}
                     <div className="flex items-center justify-between mb-2 flex-wrap gap-1">

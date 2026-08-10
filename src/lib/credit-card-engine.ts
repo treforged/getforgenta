@@ -31,6 +31,16 @@ export type CardData = {
   minPaymentIsManual?: boolean;
   targetPayment: number;
   monthlyNewPurchases: number;
+  /**
+   * The same recurring-spend estimate as monthlyNewPurchases, but with each rule counted in the
+   * first month it is actually ACTIVE instead of strictly next month. monthlyNewPurchases reads
+   * 0 for a rule whose start_date is still in the future (countRuleOccurrencesInMonth returns 0
+   * before start_date), so a card whose only spend is future-dated shows $0/mo for the whole
+   * horizon (N11 — a card opening next year with groceries routed to it from a later date).
+   * DISPLAY ONLY: the simulation keeps monthlyNewPurchases, so months before a rule starts are
+   * never charged its steady amount. Equal to monthlyNewPurchases when no rule is future-dated.
+   */
+  steadyMonthlyPurchases?: number;
   monthlyRepayments: number;
   color: string;
   paymentPreference: 'statement' | 'full' | null;
@@ -267,6 +277,28 @@ export function buildCardData(
 
     const monthlyNewPurchases = recurringExplicit + recurringDefault;
 
+    // Steady-state twin of the estimate above (see CardData.steadyMonthlyPurchases): each rule is
+    // counted in the first month it actually fires at/after max(next month, its start_date), so a
+    // future-dated rule contributes its real monthly amount instead of 0. Probes a couple of
+    // months forward because a mid-month start can zero its own start month (due day already past).
+    const steadyOccurrences = (r: RuleRow): number => {
+      const sd = r.start_date ? new Date(r.start_date + 'T00:00:00') : null;
+      const ref = sd && sd > projRef ? sd : projRef;
+      for (let k = 0; k < 3; k++) {
+        const d = new Date(ref.getFullYear(), ref.getMonth() + k, 1);
+        const n = countRuleOccurrencesInMonth(r, d.getFullYear(), d.getMonth());
+        if (n > 0) return n;
+      }
+      return 0;
+    };
+    const steadyExplicit = rules
+      .filter(r => isRecurringMonthlySpend(r) && (r.payment_source === acctKey || r.payment_source === acct.id))
+      .reduce((s, r) => s + Number(r.amount) * steadyOccurrences(r), 0);
+    const steadyDefault = isDefaultCard ? rules
+      .filter(r => isRecurringMonthlySpend(r) && !r.payment_source && CC_DEFAULT_CATEGORIES.has(r.category))
+      .reduce((s, r) => s + Number(r.amount) * steadyOccurrences(r), 0) : 0;
+    const steadyMonthlyPurchases = steadyExplicit + steadyDefault;
+
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const monthRepayments = transactions
       .filter(t => t.type === 'expense' && t.category === 'Debt Payments' && t.note?.toLowerCase().includes(acct.name.toLowerCase()) && t.date >= monthStart)
@@ -304,7 +336,7 @@ export function buildCardData(
       id: acct.id, name: acct.name, balance, apr, creditLimit,
       minPayment: minPay, minPaymentIsManual,
       targetPayment: Math.max(targetPay, minPay),
-      monthlyNewPurchases, monthlyRepayments: monthRepayments,
+      monthlyNewPurchases, steadyMonthlyPurchases, monthlyRepayments: monthRepayments,
       color: getCardColor(colorStartIndex + i),
       paymentPreference, autopayFullBalance,
       dueDay: acct.payment_due_day ?? null,
