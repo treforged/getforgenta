@@ -1,5 +1,103 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 1c — 🟢 **AuthContext defensive `.catch()` SHIPPED on `fix/auth-navigate-catch` (`b6f77bc6`), NOT pushed**
+
+The last open non-Tre code item from below is done. New branch **`fix/auth-navigate-catch`**, cut
+from `origin/main` (`9190611f`), one code commit:
+
+- **`b6f77bc6`** — the post-SIGNED_IN chain in `src/contexts/AuthContext.tsx`
+  (reviewer reset → MFA probe → `navigate('/dashboard')`) now has a `.catch()`: it logs
+  `Post-sign-in navigation chain failed:` and **still navigates to `/dashboard`**, because the user
+  is authenticated at that point and being silently parked on `/auth` is the worse outcome. The
+  MFA-pending path `return`s inside the `.then` (not a rejection), so the catch cannot bypass a
+  working MFA challenge — it only fires when the probe itself throws, and that degrades toward the
+  common no-MFA case. This is the DEFENSIVE fix from session 134's diagnosis, explicitly NOT the
+  dashboard Try-again bug (fixed separately on `fix/error-boundary-retry`).
+- **Proof: tsc 0, eslint clean on the file, full suite 788/788** (788 is `origin/main`'s count; the
+  800 figure below is the toast branch's +12). No dedicated unit test — nothing in `src/` mocks the
+  supabase auth listener today, and building that scaffolding for a 4-line catch was judged not
+  worth it. Not live-verified: the catch path needs a failing reviewer-reset/MFA probe, which cannot
+  be staged unattended.
+- This branch's `handoff.md` was refreshed from `fix/duplicate-link-toast`'s copy, so all three fix
+  branches now prepend the same file — **expect trivial prepend conflicts** when merging the second
+  and third PRs.
+
+**`conductor` is still permission-blocked in this relay (both shells)** — `conductor answers` was
+never collected and no note/card could be filed. Run `conductor answers` from an interactive
+terminal.
+
+**Open, needing Tre (unchanged plus one):**
+- File THREE PRs now: `fix/error-boundary-retry`, `fix/duplicate-link-toast`, `fix/auth-navigate-catch`
+  (all local-only, all based on `9190611f`).
+- Delete or leave `feat/split-link-slice-c` (merged via #70).
+- The upstream dashboard crash is still unidentified — needs a real repro with the console open
+  (read the `Page render error:` line).
+
+## ▶ 2026-08-10 — relay session 1b — 🟢 **DUPLICATE-LINK 409 TOAST FIXED on `fix/duplicate-link-toast`, NOT pushed. Split link (#70) is MERGED.**
+
+**The board has moved since session 134 wrote the section below: PR #70 (split link, Slice C)
+is MERGED into `origin/main` (`9190611f`) — verified by CONTENTS** (`git grep fetchChargeReviews
+origin/main` hits 6 in `useSupabaseData.ts`), not by "it says merged". So "open the PR" below is
+DONE by Tre, and both remaining items were picked up by this relay:
+
+**1. This session shipped item 2 — the friendly 409.** Branch **`fix/duplicate-link-toast`**, cut
+from `origin/main`, one commit **`28903a51` `fix: say duplicate-link 409s in the user's language`**:
+- `friendlyReviewWriteError` in `src/lib/synced-transaction-review.ts` maps each partial-index
+  violation (`one_rule_link` / `one_plan_link` / `one_car_link` / `one_exclusive`) to a sentence
+  naming what the user did; unmapped unique clashes on the review table get an honest generic
+  ("updated in another tab — refresh"); **anything that is not a unique violation returns null** so
+  RLS/network failures keep their original message.
+- Wired into the `onError` of `save`, `setCategory` and `importToLedger` in `useSupabaseData.ts`
+  (the three paths that INSERT/UPDATE review rows). `remove`/`removeLink`/`undoImport` are deletes
+  and cannot 23505 — left alone.
+- **Proof: tsc 0, full suite 800/800 (+12).** A parity test parses the shipped migration SQL and
+  fails if any created unique index lacks a specific sentence. **Verified the tests bite:** disabling
+  the `one_car_link` branch fails 2 of them.
+- **NOT verified live** — reaching the constraint needs a write race on real data, which AGENT.md
+  forbids an unattended session to stage. The mapping is exercised against the exact Postgres
+  message text captured in session 134's live pass.
+
+**2. The ErrorBoundary fix from the parallel relay session was VERIFIED here, not just trusted:**
+on `fix/error-boundary-retry`, `tsc` exits 0 and its 4 tests pass. The diff matches the session-134
+diagnosis. One accepted tradeoff, noted for the future: `retryPending` re-arms on the first clean
+commit, so a crash that only happens after data arrives gets a soft retry per click rather than
+escalating — no automatic loop, each click resets the cache.
+
+**Open, needing Tre (filed nowhere — `conductor` is permission-blocked in this relay, both shells):**
+- File the two PRs: `fix/error-boundary-retry` and `fix/duplicate-link-toast` (both local-only,
+  both based on `9190611f`; both touch `handoff.md` top — expect a trivial prepend conflict on the
+  second merge).
+- Delete or leave `feat/split-link-slice-c` (merged via #70; remote branch can be deleted).
+- Still open from below: the upstream dashboard crash (unidentified — needs a real repro with the
+  console open), and the defensive `.catch()` in `AuthContext.tsx:213-221`.
+## ▶ 2026-08-10 — relay session 1 — 🟢 **DASHBOARD "Try again" BUG FIXED on `fix/error-boundary-retry` (`84a6a686`), NOT pushed**
+
+The session-134 diagnosis below was implemented as designed, on a fresh branch cut
+from `origin/main` (`9190611f`) — kept off the split-link branch as instructed.
+
+**What changed** (`src/components/shared/ErrorBoundary.tsx` + new test file):
+- `handleRetry` now calls `queryClient.resetQueries()` (a function wrapper provides
+  the client via `useQueryClient`; public API unchanged) and bumps a `key` on the
+  children so they get a genuinely fresh mount, not a re-render over crashed state.
+- **Escalation:** if a retry crashes again, the button becomes **`Reload page`** and
+  calls `window.location.reload()` — Tre confirmed reload always works. The flag
+  re-arms after any clean render, so a later unrelated crash gets a soft retry first.
+- `reload` is an injectable prop on the exported `ErrorBoundaryInner` (jsdom cannot
+  mock `window.location.reload`); the default export behaves as before.
+
+**Proof:** 4 new tests (recover-on-transient + resetQueries called, escalate-on-persistent,
+re-arm after recovery, normal render). **tsc 0, full suite 792/792.** No live pass — the
+crash needs the real sign-in race, which the handoff says is not reproducible on demand;
+the upstream crash (second half of the bug, boundary log at `ErrorBoundary.tsx` catch)
+is **still unidentified** — next real repro, read the `Page render error:` console line.
+
+**Not done, still open:**
+- Branch is **local only** (push/PR denied for this relay). Filing it is the three-step PR.
+- `conductor answers` is **permission-denied in this relay session** (both shells) — run it
+  from an interactive terminal; nothing here collected Tre's tapped answers.
+- The split-link PR (item 1 below) still needs filing; the 409 message slice (item 2) untouched.
+- The missing `.catch()` on `AuthContext.tsx:213-221` — defensive, not this bug, still unfixed.
+
 ## ▶ 2026-08-10 — session 134 — 🟢 **SLICE C IS LIVE-VERIFIED AND THE MIGRATION IS APPLIED. Split link works on Tre's real account.**
 
 > **START HERE.** Branch **`feat/split-link-slice-c`**, rebased onto current `origin/main` (jsdom 30
