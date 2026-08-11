@@ -453,13 +453,15 @@ export default function Transactions() {
       // purchase everywhere the ledger is summed. `mutateAsync` (not `mutate`) is what makes the
       // ordering real; a rejected insert already toasts through the hook's own `onError`, and
       // reaching the catch means the row is deliberately left exactly where it was.
+      // `silentSuccess` on both writes: a convert is ONE action to the user, so it gets one toast
+      // below, not the hooks' "Payment plan added" + "Transaction deleted" pair on top of it.
       try {
-        await addPlan.mutateAsync(payload);
+        await addPlan.mutateAsync({ ...payload, silentSuccess: true });
       } catch {
         return;
       }
       try {
-        await remove.mutateAsync(convertSourceTxnId);
+        await remove.mutateAsync({ id: convertSourceTxnId, silentSuccess: true });
         toast.success('Plan created — the original transaction was removed and replaced by its installments.');
       } catch {
         // The plan exists but its source row does not: both are now in the ledger, and saying so is
