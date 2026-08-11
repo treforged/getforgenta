@@ -967,12 +967,18 @@ export function useTransactions() {
     onError: (e) => toast.error(e.message),
   });
   const remove = useMutation({
-    mutationFn: async (id: string) => {
+    // Accepts a bare id, or `{ id, silentSuccess }` when the delete is one half of a larger action
+    // (N7's convert-to-plan) whose caller owns the single success toast. Errors always toast.
+    mutationFn: async (vars: string | { id: string; silentSuccess?: boolean }) => {
       if (isDemo || !user) throw new Error('Demo mode');
+      const id = typeof vars === 'string' ? vars : vars.id;
       const { error } = await supabase.from('transactions').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['transactions'] }); toast.success('Transaction deleted'); },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      if (typeof vars === 'string' || !vars.silentSuccess) toast.success('Transaction deleted');
+    },
     onError: (e) => toast.error(e.message),
   });
   return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
@@ -1262,13 +1268,16 @@ export function usePaymentPlans() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'>) => {
+    // `silentSuccess` lets a caller that composes this write into a larger action (N7's
+    // convert-to-plan pairs it with a transaction delete) show ONE toast for the whole action
+    // instead of three. Errors always toast — only the success message is the caller's to own.
+    mutationFn: async ({ silentSuccess: _, ...item }: Omit<PaymentPlan, 'id' | 'user_id' | 'created_at'> & { silentSuccess?: boolean }) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { data, error } = await supabase.from('payment_plans').insert(sanitizePayload({ ...item, user_id: user.id })).select().single();
       if (error) throw error;
       return data as unknown as PaymentPlan;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payment_plans'] }); toast.success('Payment plan added'); },
+    onSuccess: (_data, vars) => { qc.invalidateQueries({ queryKey: ['payment_plans'] }); if (!vars.silentSuccess) toast.success('Payment plan added'); },
     onError: (e: Error) => toast.error(e.message),
   });
   const update = useMutation({
