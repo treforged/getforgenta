@@ -10,6 +10,28 @@ on:
       - 'package.json'
   workflow_dispatch:
 
+# ONE STORE DEPLOY AT A TIME.
+#
+# Google Play's publishing API works through an "Edit" — a transaction opened
+# against the app, written to, then committed. Two runs open two edits over the
+# same app and the second invalidates the first, which surfaces as:
+#
+#   ##[error]This edit has expired, please create a new Edit.
+#
+# That is what failed on 2026-08-11: three pull requests merged within seconds
+# of each other, each pushing to main, each starting this workflow. Two runs
+# collided and died at the upload step after doing all the work — the build was
+# never the problem.
+#
+# `cancel-in-progress: true` rather than queueing, because these deploy to a
+# STORE. If two commits land a minute apart, shipping the older one first is
+# pointless work that also publishes a version nobody wants; the newest commit
+# on main is the only one worth releasing. Queueing would serialise the edits
+# and remove the error, and still push an intermediate build to production.
+concurrency:
+  group: store-deploy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
