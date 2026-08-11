@@ -1,5 +1,100 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — session 11 — 🟢 **THE MAINTENANCE MIGRATION IS APPLIED. DB half verified on real data; UI click-through still owed.**
+
+Tre answered "Run it on my PC", so this session applied the blocker from session 10 and verified
+everything that can be verified without a browser.
+
+**Applied:** `20260810_car_maintenance_logs.sql` via `apply_migration`, on `mdtosrbfkextcaezuclh`.
+Confirmed after, by query rather than by "it succeeded": `car_maintenance_logs` exists with **RLS on
+and 1 policy**, 3 indexes; `transactions.car_maintenance_log_id` exists with **`confdeltype = 'n'`
+(SET NULL)** and its partial index; the build FK is `'c'` (cascade). `get_advisors(security)` reports
+**no new lint** for the table — every finding it returns predates this change.
+
+🔬 **THE DELETE-SAFETY GUARANTEE IS PROVEN ON THE REAL SCHEMA, not just designed.** Ran the full
+path inside a `begin … rollback`: insert a log against a real build → insert a transaction carrying
+`car_maintenance_log_id` → **delete the log** → assert the transaction still exists with a NULL link.
+It passed, and the rollback was verified clean afterwards: **0 maintenance rows, 0 linked
+transactions, 162 total transactions — Tre's ledger untouched.** This is the one thing session 10
+listed that could have destroyed data, and it cannot.
+
+**Local gates on Tre's PC:** `npx tsc --noEmit` **0**; full suite **834/834** across 106 files,
+including all **27** tests in `car-maintenance.test.ts` (run separately to confirm they are really in
+the run); `npm run build` green in 2.10s. ⚠️ **Correction to session 10's claim of 846/846 — the real
+count on this tree is 834/834.** All pass either way; the figure below was wrong.
+
+**⬜ STILL OWED — the browser pass. This session had NO browser tooling, so `/builds` was never
+clicked.** Dev server is UP on `http://localhost:8080` (`dev-session.mjs check` → serving). The
+script: log an oil change with a 6-month/5,000-mile interval → confirm the due fields auto-fill →
+confirm the badge → "＋ New" transaction files a Car expense visible on the ledger → delete the entry
+and confirm the transaction SURVIVES (the DB half of this is already proven above; what is unproven
+is that the UI wires it up).
+
+**Then:** file the PR (still local-only, unpushed) plus the four unfiled fix branches below.
+
+## ▶ 2026-08-10 — session 10 — 🟢 **BUILD MAINTENANCE LOG SHIPPED on `feat/build-maintenance-log` (`9ec7940d`, local only, unpushed). ~~⚠️ MIGRATION NOT APPLIED.~~ APPLIED — see session 11 above.**
+
+Tre asked for a maintenance log on the builds page — oil changes, tire rotations, next-due dates,
+cost, and the ability to file a transaction against a service. Built end to end. Branch cut from
+`origin/main` (`39b5ea4e`) — deliberately NOT stacked on the N10/N9 fix branches, which touch
+Forecast only and merge independently.
+
+**⚠️ THE ONE THING THAT BLOCKS IT: `supabase/migrations/20260810_car_maintenance_logs.sql` is
+WRITTEN AND NOT APPLIED.** Until it runs, `/builds` will error on the maintenance query for a
+signed-in user (demo mode still works — it reads the in-memory fixture). Applying it was deliberately
+left to an attended session: `AGENT.md` forbids an unattended run from applying migrations, and free
+tier means no PITR. The migration is **purely additive** (new table + one nullable column on
+`transactions`), so it cannot destroy anything and needs no backup — it is safe to apply, it just
+was not mine to apply. **Apply it, then live-verify.**
+
+**What shipped, 10 files:**
+- **Migration**: `car_maintenance_logs` (build_id, user_id, service, service_date, odometer, cost,
+  vendor, notes, interval_months, interval_miles, next_due_date, next_due_odometer) with RLS
+  "users manage own maintenance logs", two indexes; plus `transactions.car_maintenance_log_id`
+  **mirroring `car_build_item_id` exactly** — FK `on delete set null`, partial index. Deleting a
+  service entry can never destroy a ledger row.
+- **`src/lib/car-maintenance.ts`** — all the rules as pure functions: `addMonthsToDate` (end-of-month
+  clamping, 31 Jan + 1 mo = 28/29 Feb), `daysBetween`, `computeNextDue`, `currentOdometer`,
+  `maintenanceStatus`, `upcomingMaintenance`, `totalMaintenanceCost`, `costLast12Months`,
+  `SERVICE_PRESETS` (15 services with typical intervals, form pre-fill only).
+- **`MaintenanceLog.tsx`** (list + stats + "Coming Due" strip) and **`MaintenanceFormModal.tsx`**
+  (service datalist, date, odometer, cost, vendor, intervals, editable due fields, notes, and a
+  None/Existing/New transaction section reusing the build-item pattern).
+- **`Builds.tsx`**: `useCarMaintenanceLogs(resolvedBuildId)`, `applyMaintenanceTransaction`,
+  save/delete handlers, renders below `BuildSummary`.
+- **`useSupabaseData.ts`**: `useCarMaintenanceLogs` hook (delete also invalidates `transactions`,
+  because the SET NULL leaves a stale link on screen otherwise); `addTransaction` accepts the new
+  column. **`demo-data.ts`**: 4 demo entries, dates relative to today so demo always shows one
+  overdue, one due-soon and one scheduled. Generated `integrations/supabase/types.ts` hand-extended
+  (new table block + the column on transactions' Row/Insert/Update + the FK relationship).
+
+**Design decisions — do not re-litigate:**
+- **`next_due_date` / `next_due_odometer` are the SOURCE OF TRUTH** for the due badge. The intervals
+  only pre-fill them and remain editable. Deriving the badge from the interval as well would be two
+  sources of truth for one number, which is how a due date and its badge end up disagreeing.
+- **A mileage interval with no odometer reading yields NO mileage due.** An invented number is worse
+  than an empty field. Likewise `currentOdometer` is null, never 0, when nothing is recorded.
+- **Date maths runs on the ISO string parts, never `new Date('YYYY-MM-DD')`** — that is UTC midnight
+  and shifts a day in every US timezone. There is a test pinning it.
+- **"Coming Due" considers only the LATEST entry per service** (case/whitespace-insensitive match):
+  once the oil is changed again, last year's change is history, not a pending job.
+- **Maintenance is NOT on the public share page.** The `public-build` Edge Function was left
+  untouched: service history carries vendor names and free-text notes, and the privacy-preserving
+  default is not to publish it. If Tre wants it shared, that is a deliberate follow-up.
+
+**Proof: tsc 0, eslint clean on all 8 touched/created source files, full suite 846/846 (819 + 27
+new in `src/lib/__tests__/car-maintenance.test.ts`), `npm run build` green. Verified the tests bite:
+removing the end-of-month clamp fails the clamp test.** Backup at
+`backups/2026-08-10_maintenance-log/`. **NOT live-verified** — needs the migration applied and a
+signed-in browser.
+
+**Next up:**
+1. **Apply `20260810_car_maintenance_logs.sql`**, then live-verify on `/builds`: log an oil change
+   with a 6-month/5,000-mile interval, confirm the due fields auto-fill, confirm the badge, confirm
+   "＋ New" transaction files a Car expense that shows on the ledger, then delete the entry and
+   confirm the transaction SURVIVES with a null link.
+2. File the PR (push/PR not done here) — plus the four still-unfiled fix branches listed below.
+3. Everything from session 9 below is unchanged and still open.
 ## ▶ 2026-08-10 — relay session 9 — 🟢 **N10 FINDING 3 FIXED on `fix/n10-milestones-panel-scaling` (`860b7413`, local only, unpushed)**
 
 > NOTE: this branch is cut from `origin/main` (`39b5ea4e`), so this handoff copy lacks session 8's

@@ -9,6 +9,7 @@ export type Transaction = {
   note: string;
   payment_source?: string;
   car_build_item_id?: string | null;
+  car_maintenance_log_id?: string | null;
   created_at: string;
 };
 
@@ -198,6 +199,23 @@ export type CarBuildItem = {
   completed: boolean;
   sort_order: number;
   payment_plan_id?: string | null;
+  created_at: string;
+};
+
+export type CarMaintenanceLog = {
+  id: string;
+  build_id: string;
+  user_id: string;
+  service: string;
+  service_date: string;
+  odometer: number | null;
+  cost: number | null;
+  vendor: string | null;
+  notes: string | null;
+  interval_months: number | null;
+  interval_miles: number | null;
+  next_due_date: string | null;
+  next_due_odometer: number | null;
   created_at: string;
 };
 
