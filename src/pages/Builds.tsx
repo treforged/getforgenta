@@ -6,15 +6,18 @@ import { Browser } from '@capacitor/browser';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useIsTouch } from '@/hooks/use-mobile';
-import { useCarBuilds, useCarBuildPhases, useCarBuildItems, usePaymentPlans, useTransactions, useAccounts } from '@/hooks/useSupabaseData';
+import { useCarBuilds, useCarBuildPhases, useCarBuildItems, useCarMaintenanceLogs, usePaymentPlans, useTransactions, useAccounts } from '@/hooks/useSupabaseData';
 import type { PaymentPlan } from '@/lib/payment-plan-generator';
 import BuildHeader from '@/components/builds/BuildHeader';
 import BuildSummary from '@/components/builds/BuildSummary';
 import PhaseBlock from '@/components/builds/PhaseBlock';
 import BuildFormModal from '@/components/builds/BuildFormModal';
 import BuildPhotoUploader from '@/components/builds/BuildPhotoUploader';
+import MaintenanceLog from '@/components/builds/MaintenanceLog';
+import MaintenanceFormModal, { type MaintenanceFormValues, type MaintenanceTransactionIntent } from '@/components/builds/MaintenanceFormModal';
 import PremiumGate from '@/components/shared/PremiumGate';
-import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
+import { currentOdometer } from '@/lib/car-maintenance';
+import type { CarBuild, CarBuildPhase, CarBuildItem, CarMaintenanceLog } from '@/lib/types';
 
 const SHARE_BASE = 'https://getforgenta.com';
 
@@ -45,6 +48,10 @@ export default function Builds() {
 
   const { data: phases, loading: phasesLoading, add: addPhase, update: updatePhase, remove: removePhase, reorder: reorderPhases } = useCarBuildPhases(resolvedBuildId);
   const { data: items, loading: itemsLoading, add: addItem, update: updateItem, remove: removeItem, reorder: reorderItems } = useCarBuildItems(resolvedBuildId);
+  const {
+    data: maintenanceLogs, loading: maintenanceLoading,
+    add: addMaintenance, update: updateMaintenance, remove: removeMaintenance,
+  } = useCarMaintenanceLogs(resolvedBuildId);
   const { data: paymentPlans, add: addPaymentPlan } = usePaymentPlans();
   const { data: transactions, update: updateTransaction, add: addTransaction } = useTransactions();
   const { data: accounts } = useAccounts();
@@ -188,6 +195,12 @@ export default function Builds() {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareLoading, setShareLoading] = useState(false);
 
+  // Maintenance form modal state
+  const [maintenanceOpen, setMaintenanceOpen] = useState(false);
+  const [editingMaintenance, setEditingMaintenance] = useState<CarMaintenanceLog | null>(null);
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
+  const lastOdometer = useMemo(() => currentOdometer(maintenanceLogs), [maintenanceLogs]);
+
   // ── Build CRUD ───────────────────────────────────────────
   async function handleSaveBuild(data: { name: string; year: number | null; make: string | null; model: string | null; notes: string | null }) {
     setFormSaving(true);
@@ -314,6 +327,68 @@ export default function Builds() {
     if (created?.id) {
       await updateItem.mutateAsync({ id: itemId, payment_plan_id: created.id });
     }
+  }
+
+  // ── Maintenance log ──────────────────────────────────────
+  //
+  // A maintenance entry owns its cost; the transaction link is optional on top of
+  // it, exactly like a build item. The FK is ON DELETE SET NULL, so nothing here
+  // can destroy a ledger row — the worst case is an unlinked expense.
+  async function applyMaintenanceTransaction(logId: string, tx: MaintenanceTransactionIntent) {
+    const prevTxId = transactions.find(t => t.car_maintenance_log_id === logId)?.id ?? null;
+
+    if (tx.mode === 'none') {
+      if (prevTxId) await updateTransaction.mutateAsync({ id: prevTxId, car_maintenance_log_id: null });
+      return;
+    }
+
+    if (tx.mode === 'existing') {
+      if (prevTxId === tx.transactionId) return;
+      if (prevTxId) await updateTransaction.mutateAsync({ id: prevTxId, car_maintenance_log_id: null });
+      await updateTransaction.mutateAsync({ id: tx.transactionId, car_maintenance_log_id: logId });
+      return;
+    }
+
+    if (prevTxId) await updateTransaction.mutateAsync({ id: prevTxId, car_maintenance_log_id: null });
+    await addTransaction.mutateAsync({
+      date: tx.date,
+      type: 'expense',
+      amount: tx.amount,
+      category: 'Car',
+      account: '',
+      note: tx.note,
+      payment_source: tx.payment_source ?? null,
+      car_maintenance_log_id: logId,
+    });
+  }
+
+  async function handleSaveMaintenance(values: MaintenanceFormValues, tx: MaintenanceTransactionIntent) {
+    if (!resolvedBuildId) return;
+    setMaintenanceSaving(true);
+    try {
+      let logId = editingMaintenance?.id ?? null;
+      if (editingMaintenance) {
+        await updateMaintenance.mutateAsync({ id: editingMaintenance.id, ...values });
+        toast.success('Service updated');
+      } else {
+        const created = await addMaintenance.mutateAsync({ build_id: resolvedBuildId, ...values });
+        logId = created?.id ?? null;
+        toast.success('Service logged');
+      }
+      if (logId) await applyMaintenanceTransaction(logId, tx);
+      setMaintenanceOpen(false);
+      setEditingMaintenance(null);
+    } catch {
+      // errors handled by hook
+    } finally {
+      setMaintenanceSaving(false);
+    }
+  }
+
+  async function handleDeleteMaintenance(log: CarMaintenanceLog) {
+    if (!confirm(`Delete the ${log.service} logged on ${log.service_date}? Any linked transaction is kept.`)) return;
+    await removeMaintenance.mutateAsync(log.id);
+    toast.success('Service deleted');
   }
 
   // ── Share ────────────────────────────────────────────────
@@ -776,8 +851,28 @@ export default function Builds() {
           )}
 
           <BuildSummary phases={displayPhases} items={displayItems} />
+
+          <MaintenanceLog
+            logs={maintenanceLogs}
+            transactions={transactions}
+            loading={maintenanceLoading}
+            onAdd={() => { setEditingMaintenance(null); setMaintenanceOpen(true); }}
+            onEdit={log => { setEditingMaintenance(log); setMaintenanceOpen(true); }}
+            onDelete={handleDeleteMaintenance}
+          />
         </>
       )}
+
+      <MaintenanceFormModal
+        open={maintenanceOpen}
+        log={editingMaintenance}
+        lastOdometer={lastOdometer}
+        transactions={transactions}
+        paymentSourceOptions={paymentSourceOptions}
+        onClose={() => { setMaintenanceOpen(false); setEditingMaintenance(null); }}
+        onSave={handleSaveMaintenance}
+        saving={maintenanceSaving}
+      />
 
       <BuildFormModal
         open={formOpen}

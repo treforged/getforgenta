@@ -384,6 +384,65 @@ export type Database = {
           },
         ]
       }
+      car_maintenance_logs: {
+        Row: {
+          build_id: string
+          cost: number | null
+          created_at: string
+          id: string
+          interval_miles: number | null
+          interval_months: number | null
+          next_due_date: string | null
+          next_due_odometer: number | null
+          notes: string | null
+          odometer: number | null
+          service: string
+          service_date: string
+          user_id: string
+          vendor: string | null
+        }
+        Insert: {
+          build_id: string
+          cost?: number | null
+          created_at?: string
+          id?: string
+          interval_miles?: number | null
+          interval_months?: number | null
+          next_due_date?: string | null
+          next_due_odometer?: number | null
+          notes?: string | null
+          odometer?: number | null
+          service: string
+          service_date: string
+          user_id: string
+          vendor?: string | null
+        }
+        Update: {
+          build_id?: string
+          cost?: number | null
+          created_at?: string
+          id?: string
+          interval_miles?: number | null
+          interval_months?: number | null
+          next_due_date?: string | null
+          next_due_odometer?: number | null
+          notes?: string | null
+          odometer?: number | null
+          service?: string
+          service_date?: string
+          user_id?: string
+          vendor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "car_maintenance_logs_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "car_builds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       car_build_phases: {
         Row: {
           build_id: string
@@ -1641,6 +1700,7 @@ export type Database = {
           account: string | null
           amount: number
           car_build_item_id: string | null
+          car_maintenance_log_id: string | null
           category: string
           created_at: string
           date: string
@@ -1656,6 +1716,7 @@ export type Database = {
           account?: string | null
           amount: number
           car_build_item_id?: string | null
+          car_maintenance_log_id?: string | null
           category?: string
           created_at?: string
           date?: string
@@ -1671,6 +1732,7 @@ export type Database = {
           account?: string | null
           amount?: number
           car_build_item_id?: string | null
+          car_maintenance_log_id?: string | null
           category?: string
           created_at?: string
           date?: string
@@ -1688,6 +1750,13 @@ export type Database = {
             columns: ["car_build_item_id"]
             isOneToOne: false
             referencedRelation: "car_build_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_car_maintenance_log_id_fkey"
+            columns: ["car_maintenance_log_id"]
+            isOneToOne: false
+            referencedRelation: "car_maintenance_logs"
             referencedColumns: ["id"]
           },
         ]

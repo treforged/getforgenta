@@ -1,4 +1,4 @@
-import { Transaction, Debt, SavingsGoal, CarFund, Asset, Liability, CarBuild, CarBuildPhase, CarBuildItem } from './types';
+import { Transaction, Debt, SavingsGoal, CarFund, Asset, Liability, CarBuild, CarBuildPhase, CarBuildItem, CarMaintenanceLog } from './types';
 
 const now = new Date();
 const y = now.getFullYear();
@@ -310,4 +310,43 @@ export const demoCarBuildItems: CarBuildItem[] = [
   { id: 'demo-item-11', phase_id: DEMO_PHASE_WRAP, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'Midnight Purple Full Wrap', brand: 'Professional Install',                      price: 2500, link: null, completed: false, sort_order: 0, created_at: '' },
   // Supercharger — end-game
   { id: 'demo-item-12', phase_id: DEMO_PHASE_BLWR, build_id: DEMO_BUILD_ID, user_id: 'demo', name: 'TVS2300 Supercharger Kit', brand: 'Magnuson',                                   price: 4300, link: null, completed: false, sort_order: 0, created_at: '' },
+];
+
+// ── Maintenance log ───────────────────────────────────────────────────────
+// Dates are relative to today so the demo always shows one of each due state:
+// an overdue oil change, an air filter coming up, and a rotation still a while off.
+function dPlusDays(days: number) {
+  const dt = new Date(y, m, now.getDate() + days);
+  return dt.toISOString().split('T')[0];
+}
+
+export const demoCarMaintenanceLogs: CarMaintenanceLog[] = [
+  {
+    id: 'demo-maint-1', build_id: DEMO_BUILD_ID, user_id: 'demo',
+    service: 'Oil Change', service_date: d(10, -7), odometer: 87400, cost: 89.99,
+    vendor: 'Valvoline', notes: '5W-30 full synthetic, Mobil 1 filter',
+    interval_months: 6, interval_miles: 5000,
+    next_due_date: d(10, -1), next_due_odometer: 92400, created_at: '',
+  },
+  {
+    id: 'demo-maint-2', build_id: DEMO_BUILD_ID, user_id: 'demo',
+    service: 'Engine Air Filter', service_date: d(5, -11), odometer: 84000, cost: 32,
+    vendor: 'DIY', notes: null,
+    interval_months: 12, interval_miles: 15000,
+    next_due_date: dPlusDays(14), next_due_odometer: 99000, created_at: '',
+  },
+  {
+    id: 'demo-maint-3', build_id: DEMO_BUILD_ID, user_id: 'demo',
+    service: 'Tire Rotation', service_date: d(2, -3), odometer: 90100, cost: 45,
+    vendor: 'Discount Tire', notes: null,
+    interval_months: 6, interval_miles: 6000,
+    next_due_date: d(2, 3), next_due_odometer: 96100, created_at: '',
+  },
+  {
+    id: 'demo-maint-4', build_id: DEMO_BUILD_ID, user_id: 'demo',
+    service: 'Brake Fluid', service_date: d(18, -1), odometer: 91900, cost: 140,
+    vendor: 'Independent shop', notes: 'Flushed after coilover install',
+    interval_months: 24, interval_miles: null,
+    next_due_date: d(18, 23), next_due_odometer: null, created_at: '',
+  },
 ];

@@ -7,10 +7,11 @@ import { sanitizePayload } from '@/lib/sanitize';
 import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
   demoNetWorthSnapshots, demoCarBuilds, demoCarBuildPhases, demoCarBuildItems,
+  demoCarMaintenanceLogs,
 } from '@/lib/demo-data';
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
-import type { CarBuild, CarBuildPhase, CarBuildItem, CarFund } from '@/lib/types';
+import type { CarBuild, CarBuildPhase, CarBuildItem, CarFund, CarMaintenanceLog } from '@/lib/types';
 import {
   validateReviewInput, validateReviewSet, findExclusiveReview, findReviewRowFor, applyReviewToSet,
   friendlyReviewWriteError,
@@ -947,7 +948,7 @@ export function useTransactions() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string | null; car_build_item_id?: string | null }) => {
+    mutationFn: async (item: { date: string; type: string; amount: number; category: string; account?: string; note?: string; payment_source?: string | null; car_build_item_id?: string | null; car_maintenance_log_id?: string | null }) => {
       if (isDemo || !user) throw new Error('Demo mode');
       const { data, error } = await supabase.from('transactions').insert(sanitizePayload({ ...item, user_id: user.id, note: item.note || '', account: item.account || 'Checking' })).select().single();
       if (error) throw error;
@@ -1532,6 +1533,82 @@ export function useCarBuildItems(buildId: string | null) {
   });
 
   return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove, reorder };
+}
+
+// ─── Car Maintenance Logs ────────────────────────────────
+const _EMPTY_MAINTENANCE: CarMaintenanceLog[] = [];
+
+export function useCarMaintenanceLogs(buildId: string | null) {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+  const qc = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ['car_maintenance_logs', isDemo ? `demo-${buildId}` : buildId],
+    enabled: (isDemo || !!user) && !!buildId,
+    queryFn: async (): Promise<CarMaintenanceLog[]> => {
+      if (isDemo || !user) return demoCarMaintenanceLogs.filter(l => l.build_id === buildId);
+      if (!buildId) return [];
+      const { data, error } = await supabase
+        .from('car_maintenance_logs')
+        .select('*')
+        .eq('build_id', buildId)
+        .eq('user_id', user.id)
+        .order('service_date', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as CarMaintenanceLog[];
+    },
+  });
+
+  const add = useMutation({
+    mutationFn: async (item: Omit<Tables<'car_maintenance_logs'>, 'id' | 'user_id' | 'created_at'>) => {
+      if (!user) throw new Error('Not authenticated');
+      const { data, error } = await supabase
+        .from('car_maintenance_logs')
+        .insert(sanitizePayload({ ...item, user_id: user.id }))
+        .select()
+        .single();
+      if (error) throw error;
+      return data as CarMaintenanceLog;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_maintenance_logs', buildId] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const update = useMutation({
+    mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_maintenance_logs'>>) => {
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('car_maintenance_logs')
+        .update(sanitizePayload(item))
+        .eq('id', id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_maintenance_logs', buildId] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      if (!user) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('car_maintenance_logs')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
+      if (error) throw error;
+    },
+    // A linked transaction survives the delete (FK is ON DELETE SET NULL), so the
+    // ledger has to be refetched or it keeps showing a link to a row that is gone.
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['car_maintenance_logs', buildId] });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return { data: query.data ?? _EMPTY_MAINTENANCE, loading: query.isLoading, error: query.error, add, update, remove };
 }
 
 // ─── Public build by share token (no auth required) ──────────────────────────
