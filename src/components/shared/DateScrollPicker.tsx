@@ -134,6 +134,18 @@ export default function DateScrollPicker({ value, onChange }: { value: string; o
   const [mo, setMo] = useState(init.m);
   const [dy, setDy] = useState(init.d);
 
+  // Keep the columns in step when the PARENT changes the value programmatically
+  // (e.g. the maintenance form re-projects the due date from an interval preset).
+  // Without this the picker keeps displaying its mount-time date while the form
+  // state holds the new one. After a user scroll the round-tripped value parses
+  // to the current state, so these set calls are no-ops.
+  useEffect(() => {
+    if (!value) return;
+    setYr(+value.slice(0, 4));
+    setMo(+value.slice(5, 7));
+    setDy(+value.slice(8, 10));
+  }, [value]);
+
   const maxDay = new Date(yr, mo, 0).getDate();
   const safeDay = Math.min(dy, maxDay);
 
@@ -155,10 +167,18 @@ export default function DateScrollPicker({ value, onChange }: { value: string; o
   useEffect(() => {
     const mm = String(mo).padStart(2, '0');
     const dd = String(safeDay).padStart(2, '0');
-    onChange(`${yr}-${mm}-${dd}`);
-    // Intentionally excludes onChange: the parent typically passes a fresh
-    // inline callback every render, and this should only fire when the actual
-    // date value changes, not on every parent re-render.
+    const composed = `${yr}-${mm}-${dd}`;
+    // Only emit when the columns actually disagree with the prop. An
+    // unconditional emit wrote the mount-time date back into the parent, which
+    // turned an untouched optional field (the maintenance form's due date)
+    // into a value the user never chose.
+    if (composed !== value) onChange(composed);
+    // Intentionally excludes onChange and value: the parent typically passes a
+    // fresh inline callback every render, and this should only fire when the
+    // COLUMNS change — an external value change is handled by the sync effect
+    // above, and emitting on it would fire the stale composed date back at the
+    // parent before that sync's state update lands. The closure still reads the
+    // render-current value for the comparison.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [yr, mo, safeDay]);
 
