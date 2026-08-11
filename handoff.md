@@ -1,5 +1,7 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-11 — N7 (convert transaction → payment plan) SHIPPED on `autopilot/getforgenta-0811-160304` — see `handoff/2026-08-11-n7-convert-txn-to-plan.md`
+
 ## ▶ 2026-08-10 — session 11 — 🟢 **THE MAINTENANCE MIGRATION IS APPLIED. DB half verified on real data; UI click-through still owed.**
 
 Tre answered "Run it on my PC", so this session applied the blocker from session 10 and verified

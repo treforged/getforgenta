@@ -12,7 +12,8 @@ import { getCardStartDateViolation } from '@/lib/card-start-date';
 import BankActivity from '@/components/transactions/BankActivity';
 import FormModal from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
-import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp, Split } from 'lucide-react';
+import { planDraftFromTransaction } from '@/lib/payment-plan-from-transaction';
 import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
@@ -71,6 +72,10 @@ export default function Transactions() {
   const [editPlanId, setEditPlanId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState(emptyPlanForm);
   const [planDeleteConfirm, setPlanDeleteConfirm] = useState<string | null>(null);
+  // N7 — the transaction the open plan modal was converted FROM, or null for an ordinary add/edit.
+  // Held here rather than folded into `editPlanId` because the two mean opposite things at save
+  // time: an edit updates a plan, a conversion inserts one AND deletes the row named here.
+  const [convertSourceTxnId, setConvertSourceTxnId] = useState<string | null>(null);
   // Persisted so the section is in the same state the user left it in. UI preference, not
   // financial data, so localStorage (per-device) rather than a profile column — same choice as
   // `tre:debt:expanded-card` and `tre:debtpayoff:pause-savings`.
@@ -378,7 +383,22 @@ export default function Transactions() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
-  const openAddPlan = () => { setPlanForm(emptyPlanForm); setEditPlanId(null); setShowPlanForm(true); };
+  const openAddPlan = () => { setPlanForm(emptyPlanForm); setEditPlanId(null); setConvertSourceTxnId(null); setShowPlanForm(true); };
+
+  // N7 — the row's own "Convert to payment plan" action. Every refusal rule and every mapped field
+  // lives in the lib function, so the button's visibility and this handler cannot disagree.
+  const openConvertPlan = (t: EnrichedTransaction) => {
+    const intent = planDraftFromTransaction(t, { paymentSource: normalizeSource(t.payment_source) });
+    if (!intent.ok) { toast.error(intent.reason); return; }
+    setPlanForm(intent.draft);
+    setEditPlanId(null);
+    setConvertSourceTxnId(t.id);
+    setShowPlanForm(true);
+    toast.info('Converting this transaction — set how many payments, then save.');
+  };
+
+  const closePlanForm = () => { setShowPlanForm(false); setConvertSourceTxnId(null); };
+
   const openEditPlan = (plan: PaymentPlan) => {
     setPlanForm({
       name: plan.name,
@@ -393,10 +413,11 @@ export default function Transactions() {
       notes: plan.notes ?? '',
     });
     setEditPlanId(plan.id);
+    setConvertSourceTxnId(null);
     setShowPlanForm(true);
   };
 
-  const handleSavePlan = () => {
+  const handleSavePlan = async () => {
     const totalAmt = parseFloat(planForm.total_amount);
     const totalPay = parseInt(planForm.total_payments, 10);
     const payAmt = totalAmt / totalPay;
@@ -425,12 +446,33 @@ export default function Transactions() {
     };
     if (editPlanId) {
       updatePlan.mutate({ id: editPlanId, ...payload });
+    } else if (convertSourceTxnId) {
+      // N7 — a conversion REPLACES the transaction, so the two writes are ordered and the delete is
+      // conditional on the insert. `generatePaymentPlanTransactions` projects an installment row per
+      // payment into this same stream, so leaving the original behind would double-count the
+      // purchase everywhere the ledger is summed. `mutateAsync` (not `mutate`) is what makes the
+      // ordering real; a rejected insert already toasts through the hook's own `onError`, and
+      // reaching the catch means the row is deliberately left exactly where it was.
+      try {
+        await addPlan.mutateAsync(payload);
+      } catch {
+        return;
+      }
+      try {
+        await remove.mutateAsync(convertSourceTxnId);
+        toast.success('Plan created — the original transaction was removed and replaced by its installments.');
+      } catch {
+        // The plan exists but its source row does not: both are now in the ledger, and saying so is
+        // the only way the user knows to delete one. The hook's onError has already shown the cause.
+        toast.warning('Plan created, but the original transaction could not be removed — delete it to avoid counting it twice.');
+      }
     } else {
       addPlan.mutate(payload);
     }
     setShowPlanForm(false);
     setPlanForm(emptyPlanForm);
     setEditPlanId(null);
+    setConvertSourceTxnId(null);
   };
 
   const handleDeletePlan = (id: string) => {
@@ -773,6 +815,10 @@ export default function Transactions() {
           const isRecon = t.isReconciliation;
           const sourceMissing = !isRecon && isSourceMissing(t.payment_source);
           const reconDelta = t.reconciliationDelta;
+          // N7 — the lib decides; the button is just the visible half of that answer. Same premium
+          // gate as the Payment Plans section it feeds.
+          const canConvertToPlan = (isPremium || isDemo)
+            && planDraftFromTransaction(t, { paymentSource: normalizeSource(t.payment_source) }).ok;
           return (
             <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-amber-500/40' : ''}`}>
               <div className="flex items-center gap-3">
@@ -804,6 +850,9 @@ export default function Transactions() {
                 </span>
                 {!isRecon && <button onClick={() => duplicateTransaction(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Duplicate"><Copy size={12} /></button>}
                 {!isRecon && <button onClick={() => handleEditClick(t)} className="icon-btn text-muted-foreground hover:text-foreground" title="Edit"><Edit2 size={12} /></button>}
+                {canConvertToPlan && (
+                  <button onClick={() => openConvertPlan(t)} className="icon-btn text-muted-foreground hover:text-primary" title="Convert to payment plan" aria-label="Convert to payment plan"><Split size={12} /></button>
+                )}
                 {!isRecon && !t.isGenerated && (
                   <button onClick={() => handleDelete(t.id)} className={`icon-btn ${deleteConfirm === t.id ? 'text-destructive' : 'text-muted-foreground hover:text-destructive'}`}><Trash2 size={12} /></button>
                 )}
@@ -860,13 +909,18 @@ export default function Transactions() {
 
       {/* Payment Plan Form Modal */}
       {showPlanForm && (
-        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4" onClick={() => setShowPlanForm(false)}>
+        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4" onClick={closePlanForm}>
           <div className="bg-card border border-border w-full sm:max-w-md rounded-t-(--radius) rounded-b-none sm:rounded-b-(--radius) overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-border">
-              <h3 className="text-sm font-display font-bold">{editPlanId ? 'Edit Payment Plan' : 'Add Payment Plan'}</h3>
-              <button onClick={() => setShowPlanForm(false)} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
+              <h3 className="text-sm font-display font-bold">{editPlanId ? 'Edit Payment Plan' : convertSourceTxnId ? 'Convert to Payment Plan' : 'Add Payment Plan'}</h3>
+              <button onClick={closePlanForm} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>
             </div>
             <div className="p-4 space-y-3">
+              {convertSourceTxnId && (
+                <p className="text-[10px] text-muted-foreground leading-relaxed p-2.5 bg-muted/30" style={{ borderRadius: 'var(--radius)' }}>
+                  Saving replaces the original transaction with this plan's installments, so the purchase is only counted once.
+                </p>
+              )}
               <div>
                 <label className="text-xs text-muted-foreground block mb-1">Plan Name *</label>
                 <input
@@ -1013,11 +1067,11 @@ export default function Transactions() {
               )}
               <button
                 onClick={handleSavePlan}
-                disabled={addPlan.isPending || updatePlan.isPending}
+                disabled={addPlan.isPending || updatePlan.isPending || (Boolean(convertSourceTxnId) && remove.isPending)}
                 className="w-full bg-primary text-primary-foreground py-2 text-xs font-semibold disabled:opacity-50"
                 style={{ borderRadius: 'var(--radius)' }}
               >
-                {addPlan.isPending || updatePlan.isPending ? 'Saving...' : editPlanId ? 'Update Plan' : 'Add Plan'}
+                {addPlan.isPending || updatePlan.isPending || (convertSourceTxnId && remove.isPending) ? 'Saving...' : editPlanId ? 'Update Plan' : convertSourceTxnId ? 'Replace With Plan' : 'Add Plan'}
               </button>
             </div>
           </div>
