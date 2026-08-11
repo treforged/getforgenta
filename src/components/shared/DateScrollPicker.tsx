@@ -137,14 +137,20 @@ export default function DateScrollPicker({ value, onChange }: { value: string; o
   // Keep the columns in step when the PARENT changes the value programmatically
   // (e.g. the maintenance form re-projects the due date from an interval preset).
   // Without this the picker keeps displaying its mount-time date while the form
-  // state holds the new one. After a user scroll the round-tripped value parses
-  // to the current state, so these set calls are no-ops.
-  useEffect(() => {
-    if (!value) return;
-    setYr(+value.slice(0, 4));
-    setMo(+value.slice(5, 7));
-    setDy(+value.slice(8, 10));
-  }, [value]);
+  // state holds the new one. Render-phase adjustment against the previous prop,
+  // per react.dev's "adjusting state when a prop changes" pattern — an effect
+  // here would both trip react-hooks/set-state-in-effect and race the emit
+  // effect below. After a user scroll the round-tripped value parses back to
+  // the current columns, so those set calls are no-ops.
+  const [prevValue, setPrevValue] = useState(value);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    if (value) {
+      setYr(+value.slice(0, 4));
+      setMo(+value.slice(5, 7));
+      setDy(+value.slice(8, 10));
+    }
+  }
 
   const maxDay = new Date(yr, mo, 0).getDate();
   const safeDay = Math.min(dy, maxDay);
