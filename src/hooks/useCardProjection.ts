@@ -2122,6 +2122,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,
     forecastFundingAccountId, debtStrategy, persistedDebtFundingId, assumptions,
-    syncCutoffDate, paymentPlans, confirmed,
+    syncCutoffDate, paymentPlans, confirmed, syncedTransactions,
   ]);
 }

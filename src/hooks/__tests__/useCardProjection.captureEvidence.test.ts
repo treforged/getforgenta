@@ -170,6 +170,49 @@ describe('useCardProjection — §1A Stage C capture evidence', () => {
     });
   });
 
+  it('a LIVE sync landing the debit updates the projection in place', () => {
+    // The gates above read `syncedTransactions`, so the memo must recompute when a refetch hands
+    // it a new array — every other test here mounts a fresh hook and would never catch the memo
+    // going stale. This is the render-level path a real Plaid sync takes: same mounted hook, new
+    // transactions prop, and the settled loan debit must drop out of month 0 without a remount.
+    const stable = {
+      accounts: [
+        { id: CHECKING_ID, name: 'Checking', account_type: 'checking', balance: 5000, active: true },
+        { id: CARD_ID, name: 'Card', account_type: 'credit_card', balance: 500, credit_limit: 15000, apr: 20, payment_due_day: 1, active: true, min_payment: 25, payment_preference: 'statement' },
+      ],
+      transactions: [], rules: [
+        { id: 'income-1', name: 'Paycheck', amount: 4000, rule_type: 'income', frequency: 'monthly', due_day: 1, payment_source: null, deposit_account: CHECKING_ID, active: true, category: 'Other' },
+        { id: 'bill-1', name: 'Rent', amount: 1200, rule_type: 'expense', frequency: 'monthly', due_day: 1, payment_source: CHECKING_ID, deposit_account: null, active: true, category: 'Bills' },
+      ],
+      debts: [
+        { id: CARD_ID, name: 'Card', balance: 500, apr: 20, min_payment: 25, target_payment: 25, credit_limit: 15000 },
+      ],
+      goals: [], carFunds: [CAR_FUND],
+      profile: { weekly_gross_income: 0.01 } as Partial<Tables<'profiles'>>,
+      debtPayoffOptions: { cashFloor: 1000 },
+      payConfig: buildPayConfig({ weekly_gross_income: 0.01 }),
+      pauseSavings: false,
+      forecastFundingAccountId: CHECKING_ID,
+      debtStrategy: 'avalanche',
+      persistedDebtFundingId: null,
+      assumptions: DEFAULT_ASSUMPTIONS,
+      syncCutoffDate: SYNC_CUTOFF,
+      paymentPlans: [],
+    };
+    const scheduledEvents = generateScheduledEvents(
+      stable.rules as unknown as RuleRow[], stable.accounts as unknown as AccountRow[], 36,
+    );
+    const hook = renderHook(
+      ({ synced }: { synced: readonly MatchableTransaction[] }) =>
+        useCardProjection({ ...stable, scheduledEvents, syncedTransactions: synced } as unknown as UseCardProjectionParams),
+      { initialProps: { synced: coverageRows() } },
+    );
+    expect(hook.result.current!.month0.chain.carLoanPayment).toBeCloseTo(LOAN_PAYMENT, 2);
+
+    hook.rerender({ synced: [...coverageRows(), txn({ amount: LOAN_PAYMENT })] });
+    expect(hook.result.current!.month0.chain.carLoanPayment).toBe(0);
+  });
+
   it('a pending debit is not evidence — the charge stays in month 0', () => {
     // `balances.current` excludes pending debits, so a posted-but-unsettled payment is precisely
     // what must NOT be assumed gone. Pending rows also must not stretch the observed coverage range.
