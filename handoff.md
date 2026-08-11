@@ -1,6 +1,38 @@
 # Handoff — Forgenta
 
-## ▶ 2026-08-10 — session 10 — 🟢 **BUILD MAINTENANCE LOG SHIPPED on `feat/build-maintenance-log` (`9ec7940d`, local only, unpushed). ⚠️ MIGRATION NOT APPLIED.**
+## ▶ 2026-08-10 — session 11 — 🟢 **THE MAINTENANCE MIGRATION IS APPLIED. DB half verified on real data; UI click-through still owed.**
+
+Tre answered "Run it on my PC", so this session applied the blocker from session 10 and verified
+everything that can be verified without a browser.
+
+**Applied:** `20260810_car_maintenance_logs.sql` via `apply_migration`, on `mdtosrbfkextcaezuclh`.
+Confirmed after, by query rather than by "it succeeded": `car_maintenance_logs` exists with **RLS on
+and 1 policy**, 3 indexes; `transactions.car_maintenance_log_id` exists with **`confdeltype = 'n'`
+(SET NULL)** and its partial index; the build FK is `'c'` (cascade). `get_advisors(security)` reports
+**no new lint** for the table — every finding it returns predates this change.
+
+🔬 **THE DELETE-SAFETY GUARANTEE IS PROVEN ON THE REAL SCHEMA, not just designed.** Ran the full
+path inside a `begin … rollback`: insert a log against a real build → insert a transaction carrying
+`car_maintenance_log_id` → **delete the log** → assert the transaction still exists with a NULL link.
+It passed, and the rollback was verified clean afterwards: **0 maintenance rows, 0 linked
+transactions, 162 total transactions — Tre's ledger untouched.** This is the one thing session 10
+listed that could have destroyed data, and it cannot.
+
+**Local gates on Tre's PC:** `npx tsc --noEmit` **0**; full suite **834/834** across 106 files,
+including all **27** tests in `car-maintenance.test.ts` (run separately to confirm they are really in
+the run); `npm run build` green in 2.10s. ⚠️ **Correction to session 10's claim of 846/846 — the real
+count on this tree is 834/834.** All pass either way; the figure below was wrong.
+
+**⬜ STILL OWED — the browser pass. This session had NO browser tooling, so `/builds` was never
+clicked.** Dev server is UP on `http://localhost:8080` (`dev-session.mjs check` → serving). The
+script: log an oil change with a 6-month/5,000-mile interval → confirm the due fields auto-fill →
+confirm the badge → "＋ New" transaction files a Car expense visible on the ledger → delete the entry
+and confirm the transaction SURVIVES (the DB half of this is already proven above; what is unproven
+is that the UI wires it up).
+
+**Then:** file the PR (still local-only, unpushed) plus the four unfiled fix branches below.
+
+## ▶ 2026-08-10 — session 10 — 🟢 **BUILD MAINTENANCE LOG SHIPPED on `feat/build-maintenance-log` (`9ec7940d`, local only, unpushed). ~~⚠️ MIGRATION NOT APPLIED.~~ APPLIED — see session 11 above.**
 
 Tre asked for a maintenance log on the builds page — oil changes, tire rotations, next-due dates,
 cost, and the ability to file a transaction against a service. Built end to end. Branch cut from
