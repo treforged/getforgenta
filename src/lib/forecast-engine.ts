@@ -83,6 +83,14 @@ export interface ForecastMonthRow {
    * misses — diagnostics and floor-breach checks that care about cents must use these. */
   rawEndingCash: number;
   rawMonthMinSafe: number;
+  /** Unrounded balance-style projections for the Month Breakdown popup (N8, Tre 2026-08-09:
+   * "all numbers in the forecast pop ups should show decimal places"). The rounded fields
+   * above stay whole-dollar for the chart/table; the popup and CSV export render these. */
+  rawNetWorth: number;
+  rawTotalAssets: number;
+  rawTotalLiabilities: number;
+  rawCcDisplayBalance: number;
+  rawTotalCCPurchases: number;
 }
 
 // Inputs to the projection engine. At the Stage-2 extraction boundary these are exactly the
@@ -1446,6 +1454,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         monthMinSafe: Math.round(b.monthMinSafe),
         rawEndingCash: finalLiquid + cumulativeCarReserveHeld,
         rawMonthMinSafe: b.monthMinSafe,
+        rawNetWorth: netWorth,
+        rawTotalAssets: totalAssets,
+        rawTotalLiabilities: totalLiabilityBal,
+        rawCcDisplayBalance: adjCCLiab,
+        rawTotalCCPurchases: (ccScheduledByMonth[i] ?? 0) + (ccOneTimeByMonth[b.monthKey] || 0),
         floorBreachedByOneTime,
         debtWasReduced,
         // Popup breakdown fields.
@@ -1455,9 +1468,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // parts — that is the same defect the month-0 cash chain had when Dashboard and Forecast
         // printed a dollar apart (`debt-model-types.ts` Month0CashChain carries the same warning).
         // Rounding happens at RENDER only; the drawer prints two decimals so it visibly balances.
-        // Balance-style fields below (netWorth/assets/liabilities/CC balances) stay rounded on
-        // purpose: they are projections, not a reconciled cash walk, and cents there would imply
-        // precision the model does not have.
+        // Balance-style fields above (netWorth/assets/liabilities/CC balances) stay rounded for
+        // the chart/table, but the popup renders their raw* variants with cents — N8 (Tre,
+        // 2026-08-09) asked for full decimals on every number in the forecast popups, superseding
+        // the earlier keep-balances-rounded call for that surface only.
         baseExpenses: b.baseExpenses,
         savingsContrib: actualGoalsSavings,
         savingsGoalItems: b.savingsGoalItems,
@@ -1497,17 +1511,19 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         prePaycheckBillsTotal: b.prePaycheckBillsTotal ?? 0,
         settingsCashFloor: cashFloor,
         // Per-account breakdown snapshots for popup display
+        // Per-account balances stay unrounded: the popup and CSV export are their only readers,
+        // and both now print exact cents (N8).
         assetBreakdown: [
-          ...Array.from(perAcctRetire.entries()).map(([id, a]) => ({ bucket: 'retirement' as const, id, name: a.name, balance: Math.round(a.balance) })),
-          ...Array.from(perAcctInvest.entries()).map(([id, a]) => ({ bucket: 'investment' as const, id, name: a.name, balance: Math.round(a.balance) })),
-          ...Array.from(perAcctSavings.entries()).map(([id, a]) => ({ bucket: 'savings' as const, id, name: a.name, balance: Math.round(a.balance) })),
-          ...Array.from(goalPools.entries()).map(([id, p]) => ({ bucket: 'savings' as const, id, name: p.name, balance: Math.round(p.balance) })),
+          ...Array.from(perAcctRetire.entries()).map(([id, a]) => ({ bucket: 'retirement' as const, id, name: a.name, balance: a.balance })),
+          ...Array.from(perAcctInvest.entries()).map(([id, a]) => ({ bucket: 'investment' as const, id, name: a.name, balance: a.balance })),
+          ...Array.from(perAcctSavings.entries()).map(([id, a]) => ({ bucket: 'savings' as const, id, name: a.name, balance: a.balance })),
+          ...Array.from(goalPools.entries()).map(([id, p]) => ({ bucket: 'savings' as const, id, name: p.name, balance: p.balance })),
         ],
         nonCCLiabBreakdown: nonCCLiabAccts.map(la => ({
           id: la.id,
           name: la.name,
           account_type: la.account_type,
-          balance: Math.max(0, Math.round(la.startBalance - la.monthlyPayment * i)),
+          balance: Math.max(0, la.startBalance - la.monthlyPayment * i),
         })),
         carLoanBreakdown: carLoanPerFund
           .map(cf => ({ name: cf.name, balance: cf.balances[i] ?? 0 }))

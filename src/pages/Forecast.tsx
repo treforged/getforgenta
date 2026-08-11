@@ -1102,16 +1102,16 @@ export default function Forecast() {
                       : []),
                     ...((row.assetBreakdown ?? []) as { bucket: string; id: string; name: string; balance: number }[])
                       .filter(a => a.bucket === 'retirement')
-                      .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, false) })),
+                      .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, true) })),
                     ...((row.assetBreakdown ?? []) as { bucket: string; id: string; name: string; balance: number }[])
                       .filter(a => a.bucket === 'investment')
-                      .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, false) })),
+                      .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, true) })),
                     ...((row.assetBreakdown ?? []) as { bucket: string; id: string; name: string; balance: number }[])
                       .filter(a => a.bucket === 'savings')
-                      .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, false) })),
-                    { label: 'Total Assets', value: formatCurrency(row.totalAssets, false) },
+                      .map(a => ({ label: `  ${a.name}`, value: formatCurrency(a.balance, true) })),
+                    { label: 'Total Assets', value: formatCurrency(row.rawTotalAssets ?? row.totalAssets, true) },
                     { label: '', value: '' },
-                    { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.totalCCPurchases, false) : '—' },
+                    { label: 'CC Purchases', value: (row.totalCCPurchases ?? 0) > 0 ? formatCurrency(row.rawTotalCCPurchases ?? row.totalCCPurchases, true) : '—' },
                     ...((cardProjectionData?.simCards ?? []) as { id: string; name: string }[]).map(card => ({
                       label: `  ${card.name}`,
                       value: (() => {
@@ -1125,17 +1125,17 @@ export default function Forecast() {
                         const cyclingBal = Number(cardProjectionData?.data[absoluteI]?.[card.name] ?? 0);
                         const cum = step3CumSurplus.get(card.id)?.[absoluteI] ?? 0;
                         const bal = revBal > 0 ? adjustedDisplayBalance(simBal, cum) : cyclingBal;
-                        return bal > 0 ? formatCurrency(Math.round(bal), false) : '—';
+                        return bal > 0 ? formatCurrency(bal, true) : '—';
                       })(),
                     })),
-                    { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.ccDisplayBalance ?? row.ccDebtBalance, false) : '—' },
+                    { label: 'Total CC Balance', value: (row.ccDisplayBalance ?? row.ccDebtBalance ?? 0) > 0 ? formatCurrency(row.rawCcDisplayBalance ?? row.ccDisplayBalance ?? row.ccDebtBalance, true) : '—' },
                     ...((row.nonCCLiabBreakdown ?? []) as { id: string; name: string; balance: number }[])
-                      .map(la => ({ label: `  ${la.name}`, value: la.balance > 0 ? formatCurrency(la.balance, false) : '—' })),
+                      .map(la => ({ label: `  ${la.name}`, value: la.balance > 0 ? formatCurrency(la.balance, true) : '—' })),
                     ...((row.carLoanBreakdown ?? []) as { name: string; balance: number }[])
-                      .map(cl => ({ label: `  ${cl.name}`, value: formatCurrency(cl.balance, false) })),
-                    { label: 'Total Liabilities', value: formatCurrency(row.totalLiabilities, false) },
+                      .map(cl => ({ label: `  ${cl.name}`, value: formatCurrency(cl.balance, true) })),
+                    { label: 'Total Liabilities', value: formatCurrency(row.rawTotalLiabilities ?? row.totalLiabilities, true) },
                     { label: '', value: '' },
-                    { label: 'Net Worth', value: formatCurrency(row.netWorth, false) },
+                    { label: 'Net Worth', value: formatCurrency(row.rawNetWorth ?? row.netWorth, true) },
                   ],
                 });
               };
