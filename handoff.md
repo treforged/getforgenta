@@ -1,5 +1,50 @@
 # Handoff — Forgenta
 
+## ▶ 2026-08-10 — relay session 9 — 🟢 **N10 FINDING 3 FIXED on `fix/n10-milestones-panel-scaling` (`860b7413`, local only, unpushed)**
+
+> NOTE: this branch is cut from `origin/main` (`39b5ea4e`), so this handoff copy lacks session 8's
+> section — session 8 (N10 Finding 1, engine fix, `2125b1be`) lives on `fix/n10-pct-deductions-scale`,
+> local only. Expect the usual trivial handoff prepend conflict when the branches merge.
+
+The milestones-panel half of the audit's contribution-freeze bug is done. Deliberately NOT stacked
+on the unmerged N10 engine branch; the two touch different files and merge independently. One
+commit, three files:
+
+- **`src/lib/retirement-projection.ts`**: new `incomeMultipliersByMonth` mirrors the engine's income
+  multiplier exactly (promotion snap to `newAnnualSalary/annualBase` incl. immediate past-dated
+  promotions, annual raise step in `raiseMonth` with the engine's `i > 0` guard, flat-mode raises
+  against the CURRENT annual, zero-base guard). New `projectMilestonesWithGrowth` iterates 240
+  months scaling only the **pct** share; new `monthlyContribSplitForAccount` splits flat/pct and the
+  legacy `monthlyContribForAccount` now delegates to it (NetWorth/auto-update callers unchanged).
+- **`src/pages/Forecast.tsx`**: the milestones memo (`:297`) computes the multiplier series from
+  `assumptions` and passes the flat share (flat deductions + transfer rules) and pct share
+  separately; `assumptions` added to the memo deps. Same flat-stays-flat rule as the engine fix.
+- **`src/lib/__tests__/retirement-projection.growth.test.ts`** — 12 tests: all-ones parity with the
+  old closed form (the "no growth ⇒ identical numbers" guarantee), raise step/compound + the i>0
+  guard, flat-raise mode, promotion snap + past-dated + zero-base, a hand-walked 12-month loop for a
+  mid-window promotion, and the flat/pct split summing to the legacy total.
+
+**Proof: tsc 0, eslint clean on all 3 files, full suite 819/819 (807 + 12 new).** Backup at
+`backups/2026-08-10_210000/`. Deliberately NOT changed: the panel still compounds at nominal
+`apy/12` (the audit called the geometric-vs-nominal gap minor/note-only, and matching
+`projectBalance` is what makes the parity pin exact) and `DEFAULT_APY_FORECAST` is untouched here
+(that's Finding 2's fix, already on `fix/n9-panel-apy-fallback`; expect a trivial adjacent-line
+merge in `Forecast.tsx` when both land). NOT live-verified (needs a signed-in browser: open
+Forecast with a raise enabled and confirm the pct-funded account's year-20 milestone exceeds the
+no-growth value while a flat-funded account's doesn't move).
+
+**Finding 4 card FILED** (`conductor ask` `20648b6f`): derive the linked goal's contribution from
+the pct deduction vs keep manual — recommended derive. Do not build until Tre answers.
+`conductor answers` at session start: nothing outstanding.
+
+**Next up:**
+1. File FOUR PRs (`fix/n8-forecast-popup-decimals`, `fix/n9-panel-apy-fallback`,
+   `fix/n10-pct-deductions-scale`, `fix/n10-milestones-panel-scaling`) — push/PR denied in this
+   relay. Delete merged local branches from an interactive terminal.
+2. **Finding 4** — blocked on card `20648b6f`; collect with `conductor answers`, then build.
+3. Live-verify N11 (Debt page) and N9/N10 (Forecast page, incl. this panel fix) in a signed-in
+   browser.
+
 ## ▶ 2026-08-10 — relay session 7 — 🟢 **N9 FINDING 2 FIXED on `fix/n9-panel-apy-fallback` (`1074ac90`, local only, unpushed)**
 
 The small display-only slice from session 6's audit is done. Branch cut from `origin/main`
