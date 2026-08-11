@@ -25,16 +25,42 @@ export type PaymentPlan = {
 
 export function getPaymentDates(startDate: string, frequency: PaymentPlanFrequency, count: number): string[] {
   const dates: string[] = [];
-  const d = new Date(startDate + 'T00:00:00');
-  for (let i = 0; i < count; i++) {
-    dates.push(d.toISOString().split('T')[0]);
-    if (frequency === 'weekly') {
-      d.setDate(d.getDate() + 7);
-    } else if (frequency === 'biweekly') {
-      d.setDate(d.getDate() + 14);
-    } else {
-      d.setMonth(d.getMonth() + 1);
+
+  // Weekly and biweekly are plain day arithmetic and were always correct.
+  if (frequency === 'weekly' || frequency === 'biweekly') {
+    const d = new Date(startDate + 'T00:00:00');
+    const step = frequency === 'weekly' ? 7 : 14;
+    for (let i = 0; i < count; i++) {
+      dates.push(d.toISOString().split('T')[0]);
+      d.setDate(d.getDate() + step);
     }
+    return dates;
+  }
+
+  // MONTHLY IS DERIVED FROM A CURSOR, NEVER FROM setMonth ON A LIVE DATE.
+  //
+  // `d.setMonth(d.getMonth() + 1)` does not clamp: a day-31 anchor moved into a
+  // 30-day month rolls over into the NEXT month, so the schedule skips a month
+  // and every payment after it is off by one. `scheduling.ts` already learned
+  // this — its comment says a day-31 anchor mutated this way "silently skipped
+  // September" — and re-derives from (year, monthIndex) for exactly this
+  // reason. This generator was the last one still doing it the old way.
+  //
+  // The anchor is kept as the ORIGINAL day, not the clamped one, so a plan
+  // starting on the 31st pays 28 Feb and then 31 March. Clamping permanently
+  // would walk the whole schedule down to the 28th after one short month, which
+  // is the same drift wearing different clothes.
+  const [y0, m0, d0] = startDate.split('-').map(Number);
+  const anchor = d0;
+  for (let i = 0; i < count; i++) {
+    const total = (m0 - 1) + i;
+    const year = y0 + Math.floor(total / 12);
+    const month = (total % 12) + 1;
+    const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    const day = Math.min(anchor, lastDay);
+    dates.push(
+      `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+    );
   }
   return dates;
 }

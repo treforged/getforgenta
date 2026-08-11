@@ -1142,6 +1142,24 @@ export function getRuleOccurrenceDatesInMonth(
     if (startDate > monthEnd) return dates;
   }
 
+  // END_DATE, HONOURED FOR EVERY FREQUENCY AND NOT JUST BIWEEKLY.
+  //
+  // `start_date` was checked above and `end_date` was checked only inside
+  // getBiweeklyDatesInMonth, so a weekly, monthly or yearly rule that had ended
+  // kept producing occurrences in every later month — with `end_date` sitting
+  // right there in this function's own parameter type.
+  //
+  // Harmless until something asked about a FUTURE month, because an ended rule
+  // stops mattering the month after it ends and `active` is usually flipped by
+  // hand. "Does the Transactions tab cover all 60 months" is exactly that
+  // question, which is how the audit found it.
+  const endDate = rule.end_date ? new Date(rule.end_date + 'T12:00:00') : null;
+  if (endDate && endDate < monthStart) return dates;
+
+  // Compared per occurrence rather than per month, so a rule ending mid-month
+  // keeps the occurrences before the end and drops the ones after it.
+  const notPastEnd = (iso: string) => !endDate || new Date(iso + 'T12:00:00') <= endDate;
+
   if (rule.frequency === 'biweekly') {
     return getBiweeklyDatesInMonth(rule, year, month).map(toLocalDateStr);
   } else if (rule.frequency === 'weekly') {
@@ -1149,18 +1167,21 @@ export function getRuleOccurrenceDatesInMonth(
     const dayOfWeek = rule.due_day ?? 5;
     while (d.getDay() !== dayOfWeek) d.setDate(d.getDate() + 1);
     while (d <= monthEnd) {
-      dates.push(d.toISOString().split('T')[0]);
+      const iso = d.toISOString().split('T')[0];
+      if (notPastEnd(iso)) dates.push(iso);
       d.setDate(d.getDate() + 7);
     }
   } else if (rule.frequency === 'monthly') {
     const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());
     const d = new Date(year, month, dueDay);
-    if (d >= monthStart && d <= monthEnd) dates.push(d.toISOString().split('T')[0]);
+    const iso = d.toISOString().split('T')[0];
+    if (d >= monthStart && d <= monthEnd && notPastEnd(iso)) dates.push(iso);
   } else if (rule.frequency === 'yearly') {
     const dueMonth = (rule.due_month ?? 1) - 1;
     if (dueMonth === month) {
       const dueDay = Math.min(rule.due_day || 1, monthEnd.getDate());
-      dates.push(new Date(year, dueMonth, dueDay).toISOString().split('T')[0]);
+      const iso = new Date(year, dueMonth, dueDay).toISOString().split('T')[0];
+      if (notPastEnd(iso)) dates.push(iso);
     }
   }
 
