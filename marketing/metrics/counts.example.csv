@@ -1,0 +1,28 @@
+# EXAMPLE ONLY — the live file is marketing/metrics/counts.csv, which is gitignored.
+#
+# Why gitignored: this repository is PUBLIC. Weekly signup, subscriber and reach
+# figures are TRE Forged business numbers, and committing them publishes them
+# permanently. The schema below is the part worth sharing; the values are not.
+#
+# Every value in this example is invented. Do not read it as a result.
+#
+# Rules:
+#   week_start  must be a MONDAY (the script will snap a mid-week date for you
+#               when you use --add, and reject a non-Monday typed by hand)
+#   campaign    one of: pit-crew, project-ledger, teardown, payment-letter,
+#               answer-engine, carousel, north-star
+#   metric      see `node scripts/marketing-report.mjs --targets`
+#   value       a number >= 0. If you did not read it, leave the row OUT.
+#               A missing row prints "no reading". A zero means you looked and
+#               it was genuinely zero, which is a different fact.
+#   source      free text, where you read it. Commas are fine.
+#
+# Append only. A later row for the same week/campaign/metric wins, so a
+# correction is one more line rather than an edit.
+week_start,campaign,metric,value,source
+2026-08-10,pit-crew,replies_posted,11,reddit profile, counted Sunday night
+2026-08-10,pit-crew,replies_positive,4,same page, comments at +3 or better
+2026-08-10,project-ledger,thread_views,860,r/projectcar post insights
+2026-08-10,teardown,shorts_posted,3,upload log
+2026-08-10,answer-engine,pages_live,3,ls public/answers/*.html
+2026-08-10,north-star,signups,2,GA4 sign_up event
