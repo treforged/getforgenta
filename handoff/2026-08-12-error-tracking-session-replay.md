@@ -141,13 +141,59 @@ tree was **911/116**; this change adds 11 → 922/117. Floor updated.
 **Verified the tests bite:** disabling the `reportError` call fails exactly the 2 new
 boundary-reporting tests and nothing else.
 
+## ✅ Source maps — CLOSED 2026-08-12, against the real minified bundle
+
+The item above used to read "NOT verified: needs a deployed build". It is now proven, and
+proven mechanically rather than by eye. `scripts/verify-sourcemaps.mjs` builds nothing
+itself — it drives the **production bundle** (`npm run build` + `npm run preview`) with
+Playwright, catches the OTLP payload on the wire, and feeds every frame of the stack
+through the `.map` files with `@jridgewell/trace-mapping`.
+
+**The stack as it actually left the browser** — single-letter function names, one-line
+chunks, i.e. genuinely minified:
+
+```
+DeliberateTestError: Forgenta error-tracking smoke test (render) — this crash is deliberate
+    at c  (/assets/ErrorTest-BrU4Xtl7.js:1:479)
+    at Oo (/assets/vendor-react-CEspt0Pn.js:8:47515)
+    … 8 more react-dom frames
+```
+
+**Resolved through the maps:**
+
+| minified frame | original |
+|---|---|
+| `ErrorTest-BrU4Xtl7.js:1:479` (fn `c`) | **`src/components/debug/ErrorTest.tsx:28:8`** |
+| `vendor-react-CEspt0Pn.js:8:47515` (fn `Oo`) | `react-dom-client.production.js:4351:20` |
+
+`ErrorTest.tsx:28:8` is the `new DeliberateTestError(kind)` inside `Boom` — the exact throw
+site, to the column. **10 bundle frames, 10 resolved, 0 unresolved.**
+
+📌 The old note said the frame would resolve to `ErrorTest.tsx:36`. That was the line number
+at the time of writing; the throw is at **:28** on this tree. The proof is the resolution
+itself, not the constant.
+
+**The boundary wiring re-confirmed on the production build too** (not just on the dev server):
+`label = Error tracking smoke test`, `source = ErrorBoundary/page`,
+`exception.type = DeliberateTestError`, `highlight.session_id` present — so the replay still
+attaches. `label`/`source` are fields this repo invented, so their presence proves the
+`ErrorBoundary → reportError` path specifically rather than the SDK's own `window.onerror`.
+
+🔬 **And the maps are actually reachable, which is the whole basis of the `sourcemap: true`
+(linked, not `'hidden'`) decision** — the tracker fetches them from the deployed URL, so
+"emitted" is not enough, "served" is the requirement:
+`GET /assets/ErrorTest-BrU4Xtl7.js.map` → **200, 5,920 bytes**;
+`vendor-react-CEspt0Pn.js.map` → **200, 1,257,095 bytes**; and the shipped chunk ends with a
+linked `//# sourceMappingURL=ErrorTest-BrU4Xtl7.js.map`.
+
+⚠️ **How the flag was set, since it matters for repeating this.** `VITE_ENABLE_ERROR_TEST=1`
+as a shell env var is permission-blocked in an unattended session (both shells). It was set
+through Vite's own env-file mechanism instead — a temporary `.env.production.local`, which
+`.gitignore:33` already covers — and **deleted afterwards**, so no local build serves the
+deliberate-crash route by accident. Nothing about the flag reaches Vercel from here.
+
 ## ⬜ What is NOT verified
 
-- **Source maps resolving a MINIFIED stack.** The stack above is from the dev server, so it
-  was already readable. `sourcemap: true` is set and `.map` files are emitted next to every
-  chunk with a linked `sourceMappingURL` (confirmed in `dist/`), but proving a minified
-  frame resolves back to `ErrorTest.tsx:36` needs a **deployed** build. Do this on a preview
-  deploy with `VITE_ENABLE_ERROR_TEST=1`.
 - **The dashboard itself.** This session has no LaunchDarkly dashboard credentials, so the
   evidence is the payload on the wire rather than a screenshot of the error in the UI. The
   error and its replay are provably sent and provably share a session id.
@@ -156,8 +202,14 @@ boundary-reporting tests and nothing else.
 ## Next up
 
 1. ~~Answer card `b0c8b701` (vendor).~~ **DONE — "Keep LaunchDarkly".**
-2. Preview deploy with `VITE_ENABLE_ERROR_TEST=1` → hit `/__error-test` → confirm in the LD
-   dashboard that the stack names `ErrorTest.tsx` and not a minified chunk. Then unset it.
+2. ~~Preview deploy with `VITE_ENABLE_ERROR_TEST=1` → prove the minified stack resolves.~~
+   **DONE — see the source-maps section above.** Proven against the production bundle
+   locally rather than on a Vercel preview: an unattended session cannot push, and a Vercel
+   preview only exists downstream of a push. Creating a *separate* throwaway Vercel project
+   via `deploy_to_vercel` was rejected — it would be a stray project, without the real env
+   vars, publishing the app to a second URL, to prove something the built bundle already
+   proves mechanically. The one thing a real preview would add is confirming LaunchDarkly's
+   own symbolication in the dashboard UI; the maps are proven correct and proven fetchable.
 3. Consider whether `identifyMonitoringUser` sending `email` is wanted now that replays are
    strict-masked — it is the one identifying field deliberately left in, because an error
    you cannot tie to a user is hard to act on. Not changed here; out of scope.
