@@ -11,6 +11,7 @@ import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
 import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduledPayment } from '@/lib/vehicle-loan-engine';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -354,6 +355,7 @@ export default function DebtPayoff() {
       )}
 
       {activeTab === 'cards' && (
+        <ErrorBoundary variant="widget" label="Credit Card Engine">
         <CreditCardEngine
           accounts={accounts} transactions={transactions} rules={rules} debts={debts} profile={profile}
           goals={goals ?? []} carFunds={carFunds ?? []}
@@ -382,6 +384,7 @@ export default function DebtPayoff() {
           simRevolvingPayoffMonth={cardProjection?.simRevolvingPayoffMonth ?? null}
           pauseSavings={pauseSavings}
         />
+        </ErrorBoundary>
       )}
 
       {activeTab === 'other' && (

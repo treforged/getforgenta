@@ -18,6 +18,7 @@ import MaintenanceFormModal, { type MaintenanceFormValues, type MaintenanceTrans
 import PremiumGate from '@/components/shared/PremiumGate';
 import { currentOdometer } from '@/lib/car-maintenance';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarMaintenanceLog } from '@/lib/types';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 const SHARE_BASE = 'https://getforgenta.com';
 
@@ -852,6 +853,7 @@ export default function Builds() {
 
           <BuildSummary phases={displayPhases} items={displayItems} />
 
+          <ErrorBoundary variant="widget" label="Maintenance Log">
           <MaintenanceLog
             logs={maintenanceLogs}
             transactions={transactions}
@@ -860,6 +862,7 @@ export default function Builds() {
             onEdit={log => { setEditingMaintenance(log); setMaintenanceOpen(true); }}
             onDelete={handleDeleteMaintenance}
           />
+          </ErrorBoundary>
         </>
       )}
 

@@ -30,6 +30,7 @@ import { computeFloorProtection } from '@/lib/floor-protection';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { useForecastProjections } from '@/hooks/useForecastProjections';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 
@@ -858,6 +859,7 @@ export default function Forecast() {
       {viewMode === 'monthly' ? (
         <>
           {/* Net Worth Chart */}
+          <ErrorBoundary variant="widget" label="Net Worth & Assets Projection">
           <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
               <div>
@@ -900,6 +902,7 @@ export default function Forecast() {
               )}
             </ResponsiveContainer>
           </div>
+          </ErrorBoundary>
 
           {/* Premium upgrade CTA — free users only */}
           {freePreview && (

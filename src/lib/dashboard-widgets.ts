@@ -80,6 +80,12 @@ export const WIDGET_META: WidgetMeta[] = [
   },
 ];
 
+// The user-facing name of a widget, for anything that has to talk ABOUT a
+// widget rather than render it — the error fallback names the card that broke.
+export function widgetLabel(id: WidgetId): string {
+  return WIDGET_META.find(w => w.id === id)?.label ?? 'This section';
+}
+
 export const DEFAULT_LAYOUT: WidgetConfig[] = WIDGET_META.map(w => ({
   id: w.id,
   visible: true,

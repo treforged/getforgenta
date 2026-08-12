@@ -71,7 +71,16 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
-import type { WidgetId } from '@/lib/dashboard-widgets';
+import { widgetLabel, type WidgetId } from '@/lib/dashboard-widgets';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
+
+// Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
+// straight in the map would execute the widget's data-mapping during the
+// Dashboard's render instead, so a bad number in one card would throw past its
+// own boundary and take the whole page down — the exact failure being fixed.
+function Widget({ id, render }: { id: WidgetId; render: (id: WidgetId) => React.ReactNode }) {
+  return <>{render(id)}</>;
+}
 
 interface ChartTooltipProps {
   active?: boolean;
@@ -1506,8 +1515,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Dynamic widget stack */}
-      {visibleWidgets.map(id => renderWidget(id))}
+      {/* Dynamic widget stack. Each widget gets its own boundary so a crash in
+          one card replaces only that card — the rest of the dashboard keeps
+          rendering, and the fallback names the widget that failed. */}
+      {visibleWidgets.map(id => (
+        <ErrorBoundary key={id} variant="widget" label={widgetLabel(id)}>
+          <Widget id={id} render={renderWidget} />
+        </ErrorBoundary>
+      ))}
 
       {/* Customizer panel */}
       {isCustomizing && (

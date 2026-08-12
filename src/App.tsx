@@ -111,55 +111,59 @@ function AppRoutes() {
     <>
       <ScrollToTop />
       <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/auth" element={<Suspense fallback={<PageLoader />}><Auth /></Suspense>} />
-      <Route element={<ProtectedRoute><ErrorBoundary><DashboardLayout /></ErrorBoundary></ProtectedRoute>}>
-        <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Dashboard /></ErrorBoundary></Suspense>} />
-        <Route path="/accounts" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Accounts /></ErrorBoundary></Suspense>} />
-        <Route path="/budget" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><BudgetControl /></ErrorBoundary></Suspense>} />
-        <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Transactions /></ErrorBoundary></Suspense>} />
-        <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><DebtPayoff /></ErrorBoundary></Suspense>} />
-        <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SavingsGoals /></ErrorBoundary></Suspense>} />
-        <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Vehicles /></ErrorBoundary></Suspense>} />
-        <Route path="/builds" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Builds /></ErrorBoundary></Suspense>} />
+      <Route path="/" element={<ErrorBoundary label="Home" homeTo={null}><Landing /></ErrorBoundary>} />
+      <Route path="/auth" element={<ErrorBoundary label="Sign in" homeTo="/"><Suspense fallback={<PageLoader />}><Auth /></Suspense></ErrorBoundary>} />
+      {/* The layout boundary is the last line of defence: a crash in the nav or
+          the shell itself would otherwise take the whole app white. It offers no
+          way-back button because every route lives inside it — retry/reload are
+          the only honest options at that level. */}
+      <Route element={<ProtectedRoute><ErrorBoundary label="The app" homeTo={null}><DashboardLayout /></ErrorBoundary></ProtectedRoute>}>
+        <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Dashboard" homeTo={null}><Dashboard /></ErrorBoundary></Suspense>} />
+        <Route path="/accounts" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Accounts"><Accounts /></ErrorBoundary></Suspense>} />
+        <Route path="/budget" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Budget Control"><BudgetControl /></ErrorBoundary></Suspense>} />
+        <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Transactions"><Transactions /></ErrorBoundary></Suspense>} />
+        <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Debt Payoff"><DebtPayoff /></ErrorBoundary></Suspense>} />
+        <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Savings Goals"><SavingsGoals /></ErrorBoundary></Suspense>} />
+        <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Vehicles"><Vehicles /></ErrorBoundary></Suspense>} />
+        <Route path="/builds" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Builds"><Builds /></ErrorBoundary></Suspense>} />
         <Route path="/net-worth" element={<Navigate to="/accounts" replace />} />
-        <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><Forecast /></ErrorBoundary></Suspense>} />
-        <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary><SettingsPage /></ErrorBoundary></Suspense>} />
+        <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Forecast"><Forecast /></ErrorBoundary></Suspense>} />
+        <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Settings"><SettingsPage /></ErrorBoundary></Suspense>} />
         <Route path="/ai" element={AI_ADVISOR_ENABLED
-          ? <Suspense fallback={<PageLoader />}><ErrorBoundary><AiAdvisor /></ErrorBoundary></Suspense>
+          ? <Suspense fallback={<PageLoader />}><ErrorBoundary label="Forgenta AI"><AiAdvisor /></ErrorBoundary></Suspense>
           : <FeatureInDevelopment
               title="Forgenta AI"
               icon={<Sparkles size={18} className="text-primary" />}
               message="Forgenta AI is temporarily unavailable while we finish the controls and policies covering how your account data is shared with it. It will be back once that work is done."
             />
         } />
-        <Route path="/premium" element={<Suspense fallback={<PageLoader />}><Premium /></Suspense>} />
-        <Route path="/premium/success" element={<Suspense fallback={<PageLoader />}><PremiumSuccess /></Suspense>} />
-        <Route path="/premium/cancel" element={<Suspense fallback={<PageLoader />}><PremiumCancel /></Suspense>} />
+        <Route path="/premium" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Premium"><Premium /></ErrorBoundary></Suspense>} />
+        <Route path="/premium/success" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Premium"><PremiumSuccess /></ErrorBoundary></Suspense>} />
+        <Route path="/premium/cancel" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Premium"><PremiumCancel /></ErrorBoundary></Suspense>} />
       </Route>
       <Route path="/onboarding" element={
         <ProtectedRoute skipOnboardingCheck>
-          <Suspense fallback={<PageLoader />}><Onboarding /></Suspense>
+          <ErrorBoundary label="Setup"><Suspense fallback={<PageLoader />}><Onboarding /></Suspense></ErrorBoundary>
         </ProtectedRoute>
       } />
       <Route path="/oauth" element={
         <ProtectedRoute skipOnboardingCheck>
-          <Suspense fallback={<PageLoader />}><PlaidOAuth /></Suspense>
+          <ErrorBoundary label="Bank connection"><Suspense fallback={<PageLoader />}><PlaidOAuth /></Suspense></ErrorBoundary>
         </ProtectedRoute>
       } />
       {/* Akoya redirects here after consent. Must match AKOYA_REDIRECT_URI
           exactly and be registered in the Data Recipient Hub. */}
       <Route path="/akoya-oauth" element={
         <ProtectedRoute skipOnboardingCheck>
-          <Suspense fallback={<PageLoader />}><AkoyaOAuth /></Suspense>
+          <ErrorBoundary label="Bank connection"><Suspense fallback={<PageLoader />}><AkoyaOAuth /></Suspense></ErrorBoundary>
         </ProtectedRoute>
       } />
-      <Route path="/auth-callback" element={<Suspense fallback={<PageLoader />}><AuthCallback /></Suspense>} />
-      <Route path="/builds/share/:token" element={<Suspense fallback={<PageLoader />}><BuildShare /></Suspense>} />
-      <Route path="/privacy" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
-      <Route path="/terms" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
-      <Route path="/refund" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
-      <Route path="/delete-data" element={<Suspense fallback={<PageLoader />}><Legal /></Suspense>} />
+      <Route path="/auth-callback" element={<ErrorBoundary label="Sign in" homeTo="/"><Suspense fallback={<PageLoader />}><AuthCallback /></Suspense></ErrorBoundary>} />
+      <Route path="/builds/share/:token" element={<ErrorBoundary label="This build" homeTo="/"><Suspense fallback={<PageLoader />}><BuildShare /></Suspense></ErrorBoundary>} />
+      <Route path="/privacy" element={<ErrorBoundary label="This page" homeTo="/"><Suspense fallback={<PageLoader />}><Legal /></Suspense></ErrorBoundary>} />
+      <Route path="/terms" element={<ErrorBoundary label="This page" homeTo="/"><Suspense fallback={<PageLoader />}><Legal /></Suspense></ErrorBoundary>} />
+      <Route path="/refund" element={<ErrorBoundary label="This page" homeTo="/"><Suspense fallback={<PageLoader />}><Legal /></Suspense></ErrorBoundary>} />
+      <Route path="/delete-data" element={<ErrorBoundary label="This page" homeTo="/"><Suspense fallback={<PageLoader />}><Legal /></Suspense></ErrorBoundary>} />
       <Route path="/subscriptions" element={<Navigate to="/budget" replace />} />
       <Route path="/car-fund" element={<Navigate to="/goals" replace />} />
       <Route path="*" element={<NotFound />} />
