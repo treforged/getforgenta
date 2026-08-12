@@ -7,12 +7,27 @@
 // switches the first number, and cap the last number at 99 before it switches
 // the middle."
 //
-// WHAT PROBLEM IT SOLVES. Right now every user-facing change tends to become its
-// own published version — the app is at 2.56.0, which is fifty-six minor
-// releases. Customers do not want fifty-six release notes; they want to hear
-// from the app when something worth hearing about has landed. So work
-// accumulates in PATCH releases nobody outside is told about, and a MINOR
-// release is the thing that goes to customers with a real changelog behind it.
+// WHAT PROBLEM IT SOLVES, and it is worse than "too many release notes".
+//
+// The version customers see is not a release number at all — it is a count of CI
+// runs. `.github/workflows/android-build.yml` computes it:
+//
+//     RAW = 75 + (github.run_number - 4)
+//     versionName = "${1 + RAW/100}.${RAW % 100}"
+//
+// Google Play shows 5.86 today, which is run 415. Every Actions build moves it,
+// whether or not anything shipped, whether or not a customer would notice. There
+// is no such thing as an in-between build in that scheme, because the number has
+// no idea what a release is.
+//
+// (Nothing in the repo agrees with the store, either: package.json says 2.56.0,
+// android/app/build.gradle falls back to "1.75", and the iOS project says 1.0.
+// The only true version is the one CI computes at build time, and it is not
+// written down anywhere.)
+//
+// So work accumulates in PATCH releases nobody outside is told about, and a
+// MINOR release is the thing that goes to customers with a real changelog behind
+// it:
 //
 //   6.0.1, 6.0.2, …    IN BETWEEN. Internal. Not announced, not published.
 //   6.1                THE PUSH. This is what customers get, and it carries
@@ -34,7 +49,19 @@
 // version to increase monotonically, so a bad bump is a release that cannot be
 // published and is discovered at submission.
 
-/** The floor this scheme starts at. Below it, the old unbounded-minor history. */
+// WHEN IT STARTS, and it is soon: under the formula above, 6.00 lands 14 builds
+// after 5.86 and arrives on its own. That is the changeover Tre named, and it is
+// a deadline rather than an aspiration.
+//
+// THIS MODULE IS THE ARITHMETIC, NOT THE PIPELINE. Nothing here is wired into a
+// build yet, and it cannot be until versionName stops being derived from
+// run_number and starts being read from a declared version in the repo —
+// run_number cannot know whether a build is an in-between or a customer push,
+// which is the entire distinction being introduced. versionCode should keep
+// coming from run_number: it must only ever increase and is unrelated to what is
+// displayed.
+
+/** The floor this scheme starts at. Below it, the CI-run-derived history. */
 export const SCHEME_FROM = { major: 6, minor: 0, patch: 0 };
 
 /** `"6.0.1"` -> `{ major, minor, patch }`. Throws on anything else, deliberately:
@@ -47,6 +74,29 @@ export function parseVersion(text) {
 
 export function formatVersion({ major, minor, patch }) {
   return `${major}.${minor}.${patch}`;
+}
+
+/**
+ * The version as a PERSON sees it — two parts for a release, three for a build
+ * that is not one.
+ *
+ * Tre, 2026-08-12: "the one that's published to users should just show 6.0. 3
+ * digits is internal between public release."
+ *
+ * So the third digit is not merely unimportant to customers, it is the MARK of
+ * something they were never meant to be looking at. `6.0` is a release; `6.0.1`
+ * is an in-between build, and if one ever reaches a store listing the extra
+ * digit is the thing that says so at a glance.
+ *
+ * The canonical version stays three-part everywhere it is stored and compared —
+ * VERSION, this module, the tests. This is a rendering, applied at the edge, and
+ * it is deliberately not reversible: `6.0` and `6.0.0` are the same version
+ * said to two different audiences.
+ */
+export function displayVersion(version) {
+  const v = typeof version === "string" ? parseVersion(version) : version;
+  if (!underScheme(v)) return formatVersion(v);
+  return v.patch === 0 ? `${v.major}.${v.minor}` : formatVersion(v);
 }
 
 /** Is this version inside the scheme's range — i.e. do the caps apply to it? */
@@ -64,11 +114,11 @@ export function underScheme(version) {
  * consequence of ten customer releases, not a marketing decision taken
  * separately from them.
  *
- * BELOW 6.0 THIS REFUSES rather than guessing. The app is at 2.56.0 and 56 is
- * not a legal minor under these caps; applying the carry rules to it would
- * produce 3.0.0 out of a routine patch bump and quietly reset a version series
- * customers can see. What happens between here and 6.0 is unchanged, and the
- * changeover is a decision someone makes on purpose.
+ * BELOW 6.0 THIS REFUSES rather than guessing. Play shows 5.86, and 86 is not a
+ * legal minor under these caps; applying the carry rules to it would produce
+ * 6.0.0 out of a routine patch bump and skip the fourteen builds still to come.
+ * What happens between here and 6.0 is unchanged, and the changeover is a
+ * decision someone makes on purpose.
  */
 export function nextVersion(current, kind) {
   const v = typeof current === "string" ? parseVersion(current) : { ...current };

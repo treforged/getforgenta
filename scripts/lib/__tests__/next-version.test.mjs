@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
+  displayVersion,
   formatVersion,
   isCustomerRelease,
   nextVersion,
@@ -53,20 +55,30 @@ describe("what goes to customers", () => {
 });
 
 describe("versions that predate the scheme", () => {
-  it("today's version is not under it", () => {
-    // The app is at 2.56.0 and 56 is not a legal minor here. Applying the carry
-    // rules to it would turn a routine patch bump into 3.0.0 and reset a series
-    // customers can see.
-    expect(underScheme("2.56.0")).toBe(false);
-    expect(() => nextVersion("2.56.0", "patch")).toThrow(/predates it/);
+  it("the version Google Play shows today is not under it", () => {
+    // 5.86, and 86 is not a legal minor here. Applying the carry rules to it
+    // would produce 6.0.0 out of a routine patch bump and skip the fourteen
+    // builds still between here and the changeover.
+    expect(underScheme("5.86.0")).toBe(false);
+    expect(() => nextVersion("5.86.0", "patch")).toThrow(/predates it/);
+  });
+
+  it("6.0.0 is the first version under it", () => {
+    expect(underScheme("5.99.0")).toBe(false);
+    expect(underScheme("6.0.0")).toBe(true);
   });
 
   it("an old version is not reported as violating caps it was never under", () => {
+    // package.json says 2.56.0, the gradle fallback says 1.75 and Play says
+    // 5.86. None of them are wrong under a scheme none of them were built for.
+    expect(violations("5.86.0")).toEqual([]);
     expect(violations("2.56.0")).toEqual([]);
   });
 
   it("everything before the scheme counts as a customer release", () => {
-    expect(isCustomerRelease("2.56.0")).toBe(true);
+    // True by history rather than by design: under the run-number formula every
+    // build went to the store, which is the thing being changed.
+    expect(isCustomerRelease("5.86.0")).toBe(true);
   });
 });
 
@@ -97,5 +109,45 @@ describe("reading a version string", () => {
     for (const bad of ["6.0", "v6.0.1", "6.0.1-beta", "", null, undefined, "6.0.1.2"]) {
       expect(() => parseVersion(bad)).toThrow(/not a version/);
     }
+  });
+});
+
+describe("the VERSION file this repo actually ships", () => {
+  const declared = readFileSync(new URL("../../../VERSION", import.meta.url), "utf-8").trim();
+
+  it("is legal under the scheme", () => {
+    // The one thing a build cannot recover from, checked where it is cheap.
+    expect(violations(declared)).toEqual([]);
+    expect(underScheme(declared)).toBe(true);
+  });
+
+  it("starts the scheme at 6.0.0", () => {
+    expect(declared).toBe("6.0.0");
+  });
+});
+
+describe("what a person sees", () => {
+  it("a release shows two parts", () => {
+    expect(displayVersion("6.0.0")).toBe("6.0");
+    expect(displayVersion("6.1.0")).toBe("6.1");
+    expect(displayVersion("7.0.0")).toBe("7.0");
+  });
+
+  it("an in-between build keeps the third digit, which is the point of it", () => {
+    // If one of these ever reaches a store listing, the extra digit is what
+    // says so at a glance.
+    expect(displayVersion("6.0.1")).toBe("6.0.1");
+    expect(displayVersion("6.0.99")).toBe("6.0.99");
+  });
+
+  it("agrees with isCustomerRelease, always", () => {
+    for (const v of ["6.0.0", "6.0.1", "6.4.0", "6.9.99", "7.0.0"]) {
+      const twoPart = displayVersion(v).split(".").length === 2;
+      expect(twoPart).toBe(isCustomerRelease(v));
+    }
+  });
+
+  it("leaves pre-scheme versions exactly as they are", () => {
+    expect(displayVersion("5.86.0")).toBe("5.86.0");
   });
 });
