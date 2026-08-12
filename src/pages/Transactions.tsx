@@ -24,6 +24,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, isPlanInProgress, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
 import type { Tables } from '@/integrations/supabase/types';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 
@@ -594,7 +595,9 @@ export default function Transactions() {
   </div>
 </div>
 
-      {activeTab === 'bank' && <BankActivity />}
+      {activeTab === 'bank' && (
+        <ErrorBoundary variant="widget" label="Bank Activity"><BankActivity /></ErrorBoundary>
+      )}
 
       {activeTab === 'planning' && (<>
 

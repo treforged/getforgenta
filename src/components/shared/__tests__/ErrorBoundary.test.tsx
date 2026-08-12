@@ -76,6 +76,69 @@ describe('ErrorBoundary retry', () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it('names what failed, so the fallback is not an anonymous apology', () => {
+    shouldCrash = true;
+    render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} label="Cash Flow Chart">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    expect(screen.getByText(/Cash Flow Chart couldn’t load/)).toBeTruthy();
+    // The technical detail is carried too — it is what a support conversation
+    // actually needs, and hiding it entirely helps nobody.
+    expect(screen.getByText('render crash')).toBeTruthy();
+  });
+
+  it('offers a way back when one is given, and none when it would be a dead button', () => {
+    const goHome = vi.fn<() => void>();
+    shouldCrash = true;
+    const view = render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} goHome={goHome} homeTo="/dashboard">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    fireEvent.click(screen.getByText('Back to dashboard'));
+    expect(goHome).toHaveBeenCalledTimes(1);
+
+    // A route that IS the destination passes no goHome; showing the button
+    // there would navigate to the page the user is already stuck on.
+    view.rerender(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload}>
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    expect(screen.queryByText('Back to dashboard')).toBeNull();
+    expect(screen.getByText('Try again')).toBeTruthy();
+  });
+
+  it('keeps a widget crash inside the widget', () => {
+    shouldCrash = true;
+    render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} variant="widget" label="Goal Progress">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    expect(screen.getByText(/Goal Progress couldn’t load/)).toBeTruthy();
+    // The promise the widget variant makes to the user.
+    expect(screen.getByText('The rest of this page still works.')).toBeTruthy();
+    // A widget must not offer navigation away from a page that still works.
+    expect(screen.queryByText('Back to dashboard')).toBeNull();
+    expect(screen.getByText('Try again')).toBeTruthy();
+  });
+
+  it('recovers a widget in place, leaving no fallback behind', () => {
+    shouldCrash = true;
+    render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} variant="widget" label="Goal Progress">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    shouldCrash = false;
+    fireEvent.click(screen.getByText('Try again'));
+    expect(screen.getByText('recovered content')).toBeTruthy();
+    expect(screen.queryByText(/couldn’t load/)).toBeNull();
+  });
+
   it('re-arms the soft retry after a successful recovery', () => {
     shouldCrash = true;
     const view = renderBoundary(reload, queryClient);
