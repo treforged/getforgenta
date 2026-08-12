@@ -20,6 +20,7 @@ import { currentOdometer } from '@/lib/car-maintenance';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarMaintenanceLog } from '@/lib/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { BuildsSkeleton, BuildPhasesSkeleton } from '@/components/shared/PageSkeleton';
+import ContentTransition from '@/components/shared/ContentTransition';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const SHARE_BASE = 'https://getforgenta.com';
@@ -643,9 +644,14 @@ export default function Builds() {
     return map;
   }, [displayPhases, displayItems]);
 
-  if (buildsLoading) return <BuildsSkeleton />;
-
+  // The skeleton cross-fades into the page rather than being swapped out on a
+  // single frame. The children are passed as a FUNCTION deliberately: this
+  // replaced an `if (buildsLoading) return <BuildsSkeleton />` early return, and
+  // the body below reads build data that does not exist yet while loading — as
+  // eager JSX children it would be evaluated on the loading branch too.
   return (
+    <ContentTransition loading={buildsLoading} skeleton={<BuildsSkeleton />} transitionKey="builds">
+      {() => (
     <div className="max-w-3xl mx-auto py-2 sm:py-4">
       {/* Build Switcher */}
       <div className="flex items-center gap-2 mb-6 flex-wrap">
@@ -940,5 +946,7 @@ export default function Builds() {
         saving={formSaving}
       />
     </div>
+      )}
+    </ContentTransition>
   );
 }

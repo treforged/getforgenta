@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router";
 import { Capacitor } from '@capacitor/core';
+import { MotionConfig } from 'framer-motion';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -278,6 +279,17 @@ function DeepLinkHandler() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    {/* Every animation in the app is inside this boundary, and that is the
+        point: `reducedMotion="user"` makes "reduce motion" the default answer
+        for anyone whose OS asks for it, rather than a thing each new component
+        has to remember to check. It neutralises transform and layout animation
+        automatically and leaves opacity alone, which is the correct split — a
+        cross-fade is not what makes people motion-sick.
+
+        It does NOT reach animation that is not a motion value: a number
+        counting up, or recharts drawing its own line. Those ask
+        `usePrefersReducedMotion()` directly. */}
+    <MotionConfig reducedMotion="user">
     <TooltipProvider>
       <Sonner />
       {Capacitor.isNativePlatform() ? (
@@ -308,6 +320,7 @@ const App = () => (
         </BrowserRouter>
       )}
     </TooltipProvider>
+    </MotionConfig>
   </QueryClientProvider>
 );
 
