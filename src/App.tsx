@@ -16,7 +16,7 @@ import CookieBanner from "@/components/shared/CookieBanner";
 import Analytics from "@/components/shared/Analytics";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import FeatureInDevelopment from "@/components/shared/FeatureInDevelopment";
-import { AI_ADVISOR_ENABLED } from "@/lib/feature-flags";
+import { AI_ADVISOR_ENABLED, ERROR_TEST_ENABLED } from "@/lib/feature-flags";
 import { Sparkles } from "lucide-react";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
@@ -43,6 +43,7 @@ const PlaidOAuth = lazy(() => import("@/pages/PlaidOAuth"));
 const AkoyaOAuth = lazy(() => import("@/pages/AkoyaOAuth"));
 const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
 const BuildShare = lazy(() => import("@/pages/BuildShare"));
+const ErrorTest = lazy(() => import("@/components/debug/ErrorTest"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -164,6 +165,19 @@ function AppRoutes() {
       <Route path="/terms" element={<ErrorBoundary label="This page" homeTo="/"><Suspense fallback={<PageLoader />}><Legal /></Suspense></ErrorBoundary>} />
       <Route path="/refund" element={<ErrorBoundary label="This page" homeTo="/"><Suspense fallback={<PageLoader />}><Legal /></Suspense></ErrorBoundary>} />
       <Route path="/delete-data" element={<ErrorBoundary label="This page" homeTo="/"><Suspense fallback={<PageLoader />}><Legal /></Suspense></ErrorBoundary>} />
+      {/* Deliberate-crash route for proving the error pipeline. Off in
+          production unless VITE_ENABLE_ERROR_TEST=1 — when the flag is unset
+          the route is never registered, so it falls through to the 404 like
+          any other unknown path. Public (no ProtectedRoute) so the pipeline
+          can be proven without a signed-in account and therefore without
+          putting real balances on screen. */}
+      {ERROR_TEST_ENABLED && (
+        <Route path="/__error-test" element={
+          <ErrorBoundary label="Error tracking smoke test" homeTo="/">
+            <Suspense fallback={<PageLoader />}><ErrorTest /></Suspense>
+          </ErrorBoundary>
+        } />
+      )}
       <Route path="/subscriptions" element={<Navigate to="/budget" replace />} />
       <Route path="/car-fund" element={<Navigate to="/goals" replace />} />
       <Route path="*" element={<NotFound />} />

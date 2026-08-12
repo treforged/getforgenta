@@ -20,3 +20,20 @@
  * entries and the route both read this flag.
  */
 export const AI_ADVISOR_ENABLED = false;
+
+/**
+ * `/__error-test` — a route that crashes on purpose, for proving the error
+ * tracking + session replay pipeline reaches the dashboard.
+ *
+ * It lives here rather than beside the component so that App.tsx can read the
+ * flag WITHOUT statically importing the component: importing it there would
+ * defeat the `lazy()` and pull the debug page into the main bundle for every
+ * user, which is the opposite of what a dev-only route should do.
+ *
+ * Off in production unless `VITE_ENABLE_ERROR_TEST=1`. Set it on a preview
+ * deploy to prove the production path (minified bundle resolved through source
+ * maps), then unset it — a route that deliberately breaks the app should not be
+ * reachable by a real user who mistypes a URL.
+ */
+export const ERROR_TEST_ENABLED =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_ERROR_TEST === '1';

@@ -92,7 +92,7 @@ can settle; only a genuine question of intent is worth a card.
 An unattended run cannot prove work happened by exiting 0. It has to show
 something:
 
-- `npx tsc --noEmit` clean, `npm test` green (**892 tests across 115 files as of
+- `npx tsc --noEmit` clean, `npm test` green (**922 tests across 117 files as of
   2026-08-12**, measured on this branch — a lower number means you deleted
   coverage), `npm run lint` clean.
 - Anything with a visible surface was **rendered and looked at**, not just

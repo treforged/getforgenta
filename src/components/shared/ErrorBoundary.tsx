@@ -2,6 +2,7 @@ import { Component, Fragment, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { reportError } from '@/lib/monitoring';
 
 interface Props {
   children: ReactNode;
@@ -68,6 +69,18 @@ class ErrorBoundaryInner extends Component<InnerProps, State> {
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
     console.error('Page render error:', this.props.label ?? 'unlabelled', error.message, info.componentStack);
+
+    // A boundary's whole job is to stop the error reaching the window — which
+    // also stops the error tracker's window.onerror hook from ever seeing it.
+    // So the errors users actually hit are exactly the ones that would go
+    // unreported unless we hand them over explicitly. The session replay is
+    // attached automatically, giving the "what did they do before it broke"
+    // that a stack trace alone cannot.
+    reportError(error, {
+      label: this.props.label,
+      componentStack: info.componentStack,
+      source: this.props.variant === 'widget' ? 'ErrorBoundary/widget' : 'ErrorBoundary/page',
+    });
 
     // Auto-reload once on chunk errors — new deploy replaced the old hashed chunks.
     // Guard with sessionStorage so a broken chunk can't cause an infinite reload loop.
