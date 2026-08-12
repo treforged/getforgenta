@@ -25,6 +25,18 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    // Source maps, so a production stack trace names a real file and line
+    // instead of `vendor-react-Ct3x9.js:1:48210`. Without this, error tracking
+    // reports a crash nobody can act on.
+    //
+    // `true` (emitted AND linked via sourceMappingURL) rather than 'hidden':
+    // the linked form is what lets the error tracker fetch the map straight
+    // from the deployed URL, so stacks resolve with no upload step and no CI
+    // token to keep alive. The usual reason to hide maps is to avoid
+    // publishing source — but this repository is already PUBLIC, so there is
+    // no secret here to protect. Maps are fetched on demand by devtools/the
+    // tracker; they do not touch what a normal visitor downloads.
+    sourcemap: true,
     rollupOptions: {
       output: {
         // NOTE: this used to be `manualChunks`. Vite 8 bundles with rolldown,
