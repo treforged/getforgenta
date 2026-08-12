@@ -9,6 +9,7 @@ import { initRevenueCat, logOutRevenueCat } from '@/lib/purchases';
 import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { useDemo } from '@/contexts/DemoContext';
+import { clearAllFormDrafts } from '@/hooks/useFormDraft';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;    // 10 minutes
 const IDLE_WARNING_MS =  8 * 60 * 1000;    // warn at 8 minutes
@@ -289,6 +290,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOutWithBroadcast = useCallback(async () => {
     localStorage.removeItem(LAST_ACTIVITY_KEY);
+    // Half-typed balances are that person's data. On a shared device they must
+    // not be waiting in a form for whoever signs in next.
+    clearAllFormDrafts();
     if (user?.email === REVIEWER_EMAIL && user?.id) {
       await resetReviewerAccount(user.id);
     }

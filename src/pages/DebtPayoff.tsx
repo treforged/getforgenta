@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
+import { DebtSkeleton } from '@/components/shared/PageSkeleton';
+import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulateDebtPayoff } from '@/lib/calculations';
 import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations, useSavingsGoals, useCarFunds, usePaymentPlans } from '@/hooks/useSupabaseData';
 import FormModal from '@/components/shared/FormModal';
@@ -16,15 +17,15 @@ import ErrorBoundary from '@/components/shared/ErrorBoundary';
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
 export default function DebtPayoff() {
-  const { data: debts, update, remove } = useDebts();
+  const { data: debts, update, remove, loading: debtsLoading } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: transactions } = useTransactions();
   const { data: rules } = useRecurringRules();
-  const { data: profile } = useProfile();
+  const { data: profile, loading: profileLoading } = useProfile();
   const { data: goals } = useSavingsGoals();
-  const { data: carFunds } = useCarFunds();
-  const { data: paymentPlans } = usePaymentPlans();
+  const { data: carFunds, loading: carFundsLoading } = useCarFunds();
+  const { data: paymentPlans, loading: paymentPlansLoading } = usePaymentPlans();
   const { isDemo } = useDemo();
 
   const {
@@ -100,6 +101,25 @@ export default function DebtPayoff() {
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
 
+  const { restored: draftRestored, discard: discardDraft } = useFormDraft({
+    formKey: 'debts',
+    open: showForm,
+    editId,
+    values: form,
+    enabled: !isDemo,
+    onRestore: useCallback((draft: FormDraft<typeof emptyForm>) => {
+      setForm(draft.values);
+      setEditId(draft.editId);
+      setShowForm(true);
+    }, []),
+  });
+
+  const handleDiscardDraft = useCallback(() => {
+    discardDraft();
+    setForm(emptyForm);
+    setEditId(null);
+  }, [discardDraft]);
+
   const openEdit = (d: (typeof otherDebts)[number]) => {
     setForm({ name: d.name, balance: String(d.balance), apr: String(d.apr), min_payment: String(d.min_payment), target_payment: String(d.target_payment), credit_limit: String(d.credit_limit || '') });
     setEditId(d.id); setShowForm(true);
@@ -141,7 +161,12 @@ export default function DebtPayoff() {
   const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
   const savingVehicles = useMemo(() => carFunds.filter(c => c.phase === 'saving'), [carFunds]);
 
-  if (accountsLoading) return <PageSkeleton />;
+  // The Auto / Mortgage / Student / Other tabs are fed by `debts` and `carFunds`,
+  // not by `accounts`. Gating on accounts alone flashed "No mortgage tracked yet"
+  // and "No other debts tracked yet" at users who have both.
+  if (accountsLoading || debtsLoading || carFundsLoading || paymentPlansLoading || profileLoading) {
+    return <DebtSkeleton />;
+  }
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 overflow-x-hidden">
@@ -589,6 +614,8 @@ export default function DebtPayoff() {
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
+          draftRestored={draftRestored}
+          onDiscardDraft={handleDiscardDraft}
           onClose={() => setShowForm(false)}
           saving={update.isPending}
           saveLabel={editId ? 'Update Debt' : 'Add Debt'}

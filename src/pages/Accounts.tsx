@@ -12,6 +12,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
+import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { Link } from 'react-router';
 import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
@@ -20,6 +21,7 @@ import AkoyaFallbackPrompt from '@/components/shared/AkoyaFallbackPrompt';
 import AkoyaConnectButton from '@/components/shared/AkoyaConnectButton';
 import { AKOYA_INSTITUTIONS, findAkoyaInstitution, type AkoyaInstitution } from '@/config/akoya-institutions';
 import PremiumGate from '@/components/shared/PremiumGate';
+import { AccountsSkeleton } from '@/components/shared/PageSkeleton';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
@@ -137,9 +139,9 @@ export default function Accounts() {
   const { isPremium } = useSubscription();
   const { data: accounts, add, update, remove, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
-  const { data: manualAssets } = useAssets();
-  const { data: manualLiabilities } = useLiabilities();
-  const { data: carFunds } = useCarFunds();
+  const { data: manualAssets, loading: assetsLoading } = useAssets();
+  const { data: manualLiabilities, loading: liabilitiesLoading } = useLiabilities();
+  const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const { data: snapshots, loading: snapshotsLoading } = useNetWorthSnapshots();
@@ -337,6 +339,45 @@ export default function Accounts() {
     if (searchParams.get('new') === '1') openAdd(searchParams.get('type') ?? undefined);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Draft resistance ──────────────────────────────────────────────────────
+  // Everything that defines what the open form LOOKS like, not just its values:
+  // the four Plaid flags decide which fields are read-only, so a restore that
+  // dropped them would bring the text back into the wrong form.
+  const draftValues = useMemo(() => ({
+    form,
+    plaidLinked: editingPlaidLinked,
+    plaidLiability: editingPlaidLiability,
+    plaidAprSynced: editingPlaidAprSynced,
+    plaidMinSynced: editingPlaidMinSynced,
+  }), [form, editingPlaidLinked, editingPlaidLiability, editingPlaidAprSynced, editingPlaidMinSynced]);
+
+  const { restored: draftRestored, discard: discardDraft } = useFormDraft({
+    formKey: 'accounts',
+    open: showForm,
+    editId,
+    values: draftValues,
+    enabled: !isDemo,
+    onRestore: useCallback((draft: FormDraft<typeof draftValues>) => {
+      setForm(draft.values.form);
+      setEditingPlaidLinked(draft.values.plaidLinked);
+      setEditingPlaidLiability(draft.values.plaidLiability);
+      setEditingPlaidAprSynced(draft.values.plaidAprSynced);
+      setEditingPlaidMinSynced(draft.values.plaidMinSynced);
+      setEditId(draft.editId);
+      setShowForm(true);
+    }, []),
+  });
+
+  const handleDiscardDraft = useCallback(() => {
+    discardDraft();
+    setForm(emptyForm);
+    setEditId(null);
+    setEditingPlaidLinked(false);
+    setEditingPlaidLiability(false);
+    setEditingPlaidAprSynced(false);
+    setEditingPlaidMinSynced(false);
+  }, [discardDraft]);
+
   const openEdit = (a: AccountRow) => {
     const matchDebt = debts.find(d => d.name.toLowerCase() === a.name.toLowerCase());
     const plaidLiability = !!a.plaid_account_id && !!a.liability_synced_at;
@@ -495,6 +536,13 @@ export default function Accounts() {
       toast.error(err instanceof Error ? err.message : 'Unlink failed');
     }
   };
+
+  // Every figure in the summary block is an aggregate of accounts + manual assets +
+  // manual liabilities + vehicle loans. Gating on `accounts` alone used to paint
+  // eight confident $0.00 tiles and a "Current Net Worth $0.00" chart while the
+  // rest was still in flight. Wait for all four sources, or show none of them.
+  const summaryLoading = loading || assetsLoading || liabilitiesLoading || carFundsLoading;
+  if (summaryLoading) return <AccountsSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
@@ -765,8 +813,7 @@ export default function Accounts() {
 
       {/* Account List */}
       <div className="space-y-3">
-        {loading && <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">Loading accounts...</p></div>}
-        {!loading && filteredAccounts.length === 0 && (
+        {filteredAccounts.length === 0 && (
           <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">No accounts yet. Add one above.</p></div>
         )}
         {filteredAccounts.map(a => {
@@ -1095,6 +1142,8 @@ export default function Accounts() {
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
+          draftRestored={draftRestored}
+          onDiscardDraft={handleDiscardDraft}
           onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}

@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Link } from 'react-router';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
+import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { Skeleton } from '@/components/ui/skeleton';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import FormModal, { type Field } from '@/components/shared/FormModal';
@@ -952,6 +953,35 @@ export default function Vehicles() {
     return fields;
   }, [savingForm.linked_account, savingForm.saved_source, accountOptions, transferRuleOptions]);
 
+  // Both vehicle forms share one editId, so they share one draft: whichever was
+  // open is the one that comes back, and reopening the other is a fresh form.
+  const draftValues = useMemo(
+    () => ({ savingForm, loanForm, which: showLoanForm ? 'loan' as const : 'saving' as const }),
+    [savingForm, loanForm, showLoanForm],
+  );
+
+  const { restored: draftRestored, discard: discardDraft } = useFormDraft({
+    formKey: 'vehicles',
+    open: showSavingForm || showLoanForm,
+    editId,
+    values: draftValues,
+    enabled: !isDemo,
+    onRestore: useCallback((draft: FormDraft<typeof draftValues>) => {
+      setSavingForm(draft.values.savingForm);
+      setLoanForm(draft.values.loanForm);
+      setEditId(draft.editId);
+      if (draft.values.which === 'loan') setShowLoanForm(true);
+      else setShowSavingForm(true);
+    }, []),
+  });
+
+  const handleDiscardDraft = useCallback(() => {
+    discardDraft();
+    setSavingForm(emptySavingForm);
+    setLoanForm(emptyLoanForm);
+    setEditId(null);
+  }, [discardDraft]);
+
   const openAddSaving = () => { setSavingForm(emptySavingForm); setEditId(null); setShowSavingForm(true); };
   const openAddLoan = () => { setLoanForm(emptyLoanForm); setEditId(null); setShowLoanForm(true); };
 
@@ -1365,6 +1395,8 @@ export default function Vehicles() {
             return next;
           })}
           onSave={handleSaveSaving}
+          draftRestored={draftRestored}
+          onDiscardDraft={handleDiscardDraft}
           onClose={() => setShowSavingForm(false)}
         />
       )}
@@ -1388,6 +1420,8 @@ export default function Vehicles() {
           values={loanForm}
           onChange={(k, v) => setLoanForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSaveLoan}
+          draftRestored={draftRestored}
+          onDiscardDraft={handleDiscardDraft}
           onClose={() => setShowLoanForm(false)}
         />
       )}
