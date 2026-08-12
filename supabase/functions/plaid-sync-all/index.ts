@@ -1,7 +1,7 @@
 /**
  * plaid-sync-all
  *
- * Called by pg_cron daily at 8am EST (13:00 UTC) / 8am EDT (12:00 UTC).
+ * Called by pg_cron every day at 13:00 UTC (8am EST / 9am EDT).
  * Syncs balances for ALL premium users across EVERY provider — despite the
  * name, which is kept because the pg_cron schedule references it.
  * Secured by CRON_SECRET header — no user JWT required.

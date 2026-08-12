@@ -91,18 +91,18 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
   other_liability: TrendingDown, other_asset: Wallet,
 };
 
-// Plaid sync runs Mon/Wed/Fri at 13:00 UTC (9 AM ET).
-const PLAID_SYNC_DAYS = new Set([1, 3, 5, 6]); // Mon, Wed, Fri, Sat UTC day-of-week
+// Plaid sync runs EVERY day at 13:00 UTC (9 AM EDT / 8 AM EST).
+// This mirrors the pg_cron job `plaid-daily-sync` ('0 13 * * *') —
+// see supabase/migrations/20260811_plaid_restore_daily_cron.sql. The two are one
+// rule written twice: if the cron changes and this does not, the freshness badge
+// below silently under-reports staleness on the days it thinks are skipped.
 const PLAID_SYNC_HOUR_UTC = 13;
 
 function getLastScheduledSyncTime(from: Date): Date {
-  for (let i = 0; i <= 7; i++) {
-    const d = new Date(from);
-    d.setUTCDate(d.getUTCDate() - i);
-    d.setUTCHours(PLAID_SYNC_HOUR_UTC, 0, 0, 0);
-    if (PLAID_SYNC_DAYS.has(d.getUTCDay()) && d <= from) return d;
-  }
-  return new Date(from.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const d = new Date(from);
+  d.setUTCHours(PLAID_SYNC_HOUR_UTC, 0, 0, 0);
+  if (d > from) d.setUTCDate(d.getUTCDate() - 1);
+  return d;
 }
 
 function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale: boolean } {
