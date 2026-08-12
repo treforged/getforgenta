@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { flushSync } from 'react-dom';
 import { useParams, Link } from 'react-router';
-import { Check, ExternalLink, ChevronDown, Printer } from 'lucide-react';
+import { Check, ExternalLink, ChevronDown, Printer, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePublicBuild } from '@/hooks/useSupabaseData';
 import { isSafeUrl } from '@/lib/content-filter';
+import type { PublicMaintenanceEntry } from '@/lib/public-maintenance';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
 
 const PHASE_COLORS = [
@@ -60,7 +61,7 @@ export default function BuildShare() {
     );
   }
 
-  const { build, phases, items, displayName } = data;
+  const { build, phases, items, displayName, maintenancePublic, maintenance } = data;
 
   const hasPlannedPhases = phases.some((p: CarBuildPhase) => p.hidden);
 
@@ -322,6 +323,57 @@ export default function BuildShare() {
             );
           })}
         </div>
+
+        {/* Service history — only when the owner published it (per build, not per entry).
+            Costs, vendors and notes are never sent by the Edge Function, so there is
+            nothing to hide here: what arrives is what may be shown. */}
+        {maintenancePublic && (
+          <div className="mt-8">
+            <div className="flex items-center gap-2 text-[11px] font-mono text-muted-foreground uppercase tracking-[0.15em] mb-3">
+              <Wrench size={12} />
+              Service History
+            </div>
+            {maintenance.length === 0 ? (
+              <div className="border border-border rounded px-4 py-5 text-center text-[12px] font-mono text-muted-foreground">
+                No services logged yet.
+              </div>
+            ) : (
+              <div className="border border-border rounded overflow-hidden">
+                {maintenance.map((entry: PublicMaintenanceEntry) => (
+                  <div
+                    key={entry.id}
+                    className="print-item flex items-start justify-between gap-3 px-4 py-3 border-b border-[#141414] last:border-b-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm text-[#c8c2b8] leading-snug wrap-break-word">
+                        {entry.service}
+                      </div>
+                      {entry.next_due_date !== null || entry.next_due_odometer !== null ? (
+                        <div className="text-[11px] font-mono text-muted-foreground mt-0.5">
+                          Next due{' '}
+                          {[
+                            entry.next_due_date,
+                            entry.next_due_odometer !== null
+                              ? `${entry.next_due_odometer.toLocaleString()} mi`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="text-right shrink-0 font-mono text-[12px] text-muted-foreground">
+                      <div>{entry.service_date}</div>
+                      {entry.odometer !== null && (
+                        <div className="mt-0.5">{entry.odometer.toLocaleString()} mi</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Conversion CTA */}
         <div className="mt-8 rounded border p-5 sm:p-6 text-center print:hidden" style={{ borderColor: 'rgba(200, 168, 75, 0.4)', background: 'linear-gradient(180deg, rgba(200, 168, 75, 0.08), transparent)' }}>

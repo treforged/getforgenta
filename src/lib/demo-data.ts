@@ -279,6 +279,7 @@ export const demoCarBuilds: CarBuild[] = [
     notes: 'Daily → weekend warrior. Midnight purple wrap, supercharger end-game.',
     sort_order: 0,
     share_token: null,
+    maintenance_public: false,
     photos: null,
     created_at: '',
   },

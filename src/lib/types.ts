@@ -173,6 +173,8 @@ export type CarBuild = {
   notes: string | null;
   sort_order: number;
   share_token: string | null;
+  /** Does the service history travel with the share link? Per build, not per entry. */
+  maintenance_public: boolean;
   photos: string[] | null;
   created_at: string;
 };

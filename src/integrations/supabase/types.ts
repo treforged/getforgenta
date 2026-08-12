@@ -485,6 +485,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          maintenance_public: boolean
           make: string | null
           model: string | null
           name: string
@@ -498,6 +499,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          maintenance_public?: boolean
           make?: string | null
           model?: string | null
           name: string
@@ -511,6 +513,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          maintenance_public?: boolean
           make?: string | null
           model?: string | null
           name?: string
