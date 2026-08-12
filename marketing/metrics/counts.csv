@@ -1,0 +1,4 @@
+# Forgenta marketing counts. One row per week, per campaign, per metric.
+# Append only; a later row for the same key wins, so corrections just get added.
+# Schema and a worked example: marketing/metrics/counts.example.csv
+week_start,campaign,metric,value,source

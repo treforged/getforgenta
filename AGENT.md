@@ -131,3 +131,76 @@ Finish everything before filing: filing hands Tre a merge button and he presses
 it, so anything committed afterwards lands on a branch whose PR is already
 closed. Verify a merge by CONTENTS (`git grep -F <marker> origin/main`), never
 by "it says merged".
+
+### Versions, from 6.0 onward
+
+Set 2026-08-12, and **in force from the next build.** The version is `6.0`.
+
+**`VERSION` at the repo root is the only version that means anything.** Both
+build workflows read it through `scripts/read-version.mjs`. Do not bump
+`package.json` (2.56.0), the gradle fallback, or the iOS project expecting
+customers to see it — none of them ever reached a store.
+
+What this replaced: `versionName` used to be computed from the CI run number
+(`RAW = 75 + (run_number - 4)`), so the number customers saw was a count of
+Actions runs. Play showed **5.86**, which was run 415. Every build moved it
+whether or not anything shipped, and an in-between build could not be expressed
+at all, because a run number cannot know what a release is.
+
+**`versionCode` still comes from `run_number + 100`, unchanged.** Play orders
+builds by it and it must only ever increase; it is not what anybody reads. That
+is what makes moving the display string from `5.86` to `6.0` safe.
+
+```
+6.0.1, 6.0.2, …   IN BETWEEN. Internal. Not announced, not published.
+6.1               THE PUSH. What customers get, carrying everything the
+                  6.0.x builds accumulated.
+```
+
+**Two digits are public, three are internal.** `displayVersion` renders a
+release as `6.0` and an in-between build as `6.0.1` — so a third digit on a
+store listing is the tell that something internal escaped. `VERSION` itself
+stays three-part; the two-part form is a rendering applied at the edge.
+
+The caps, which are the part a person gets wrong by hand:
+
+| | range | at the top, the next bump |
+|---|---|---|
+| patch | 0–99 | rolls the minor, patch returns to 0 |
+| minor | 0–9 | rolls the major, minor returns to 0 |
+
+So **6.9.99 is the last version of the 6 series, and 7.0.0 follows it.** A major
+holds a thousand in-between builds and exactly ten customer releases.
+
+**The major never moves on its own.** There is no "major bump" — a major is a
+consequence of ten customer releases, not a decision taken beside them. Use
+`nextVersion(current, "patch" | "minor")` rather than editing `VERSION` by hand;
+`read-version.mjs` fails the build on an illegal one rather than letting the
+store find it.
+
+```
+6.0.1, 6.0.2, …   IN BETWEEN. Internal. Not announced, not published.
+6.1               THE PUSH. What customers get, carrying everything the
+                  6.0.x builds accumulated.
+```
+
+Work accumulates in **patch** releases nobody outside is told about; a **minor**
+release is the one that goes to customers with a real changelog behind it. The
+app is at fifty-six minor releases today, and customers do not want fifty-six
+sets of release notes.
+
+The caps, which are the part a person gets wrong by hand:
+
+| | range | at the top, the next bump |
+|---|---|---|
+| patch | 0–99 | rolls the minor, patch returns to 0 |
+| minor | 0–9 | rolls the major, minor returns to 0 |
+
+So **6.9.99 is the last version of the 6 series, and 7.0.0 follows it.** A major
+holds a thousand in-between builds and exactly ten customer releases.
+
+**The major never moves on its own.** There is no "major bump" — a major is a
+consequence of ten customer releases, not a decision taken beside them. Use
+`nextVersion(current, "patch" | "minor")` rather than editing `package.json` by
+hand: both app stores require the version to increase monotonically, so a bad
+carry is a release that cannot be published and is found at submission time.
