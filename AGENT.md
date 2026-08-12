@@ -111,3 +111,36 @@ Finish everything before filing: filing hands Tre a merge button and he presses
 it, so anything committed afterwards lands on a branch whose PR is already
 closed. Verify a merge by CONTENTS (`git grep -F <marker> origin/main`), never
 by "it says merged".
+
+### Versions, from 6.0 onward
+
+Set 2026-08-12. **Not yet in force** — the app is at 2.56.0, which predates it.
+`scripts/lib/next-version.mjs` refuses to apply the rules below to anything under
+6.0, so nothing changes until someone changes it on purpose.
+
+```
+6.0.1, 6.0.2, …   IN BETWEEN. Internal. Not announced, not published.
+6.1               THE PUSH. What customers get, carrying everything the
+                  6.0.x builds accumulated.
+```
+
+Work accumulates in **patch** releases nobody outside is told about; a **minor**
+release is the one that goes to customers with a real changelog behind it. The
+app is at fifty-six minor releases today, and customers do not want fifty-six
+sets of release notes.
+
+The caps, which are the part a person gets wrong by hand:
+
+| | range | at the top, the next bump |
+|---|---|---|
+| patch | 0–99 | rolls the minor, patch returns to 0 |
+| minor | 0–9 | rolls the major, minor returns to 0 |
+
+So **6.9.99 is the last version of the 6 series, and 7.0.0 follows it.** A major
+holds a thousand in-between builds and exactly ten customer releases.
+
+**The major never moves on its own.** There is no "major bump" — a major is a
+consequence of ten customer releases, not a decision taken beside them. Use
+`nextVersion(current, "patch" | "minor")` rather than editing `package.json` by
+hand: both app stores require the version to increase monotonically, so a bad
+carry is a release that cannot be published and is found at submission time.
