@@ -61,6 +61,28 @@ where jobid = 22 order by start_time desc limit 5;
 
 A Thursday row is the confirmation.
 
+### Re-checked 2026-08-12 04:15 UTC (next session)
+
+- `cron.job` still reads **jobid 22 · `plaid-daily-sync` · `0 13 * * *` · `active = true`**.
+  The change survived; nothing reverted it.
+- Command re-asserted by predicate, not eyeballed: posts to `functions/v1/plaid-sync-all`,
+  sends `x-cron-secret`, reads `vault.decrypted_secrets`, and `CRON_SECRET` is present (count 1).
+- `cron.job_run_details` for jobid 22: **0 rows, correctly.** The job was created at
+  ~03:5x UTC on 08-12 and its first fire is **13:00 UTC today**. Old jobid 16 ended at
+  42 runs, last one Mon 2026-08-10 13:00 UTC.
+- 🔬 **Stronger evidence than `job_run_details` that this cron does real work:** a
+  `succeeded` row only proves the SQL ran, not that the edge function did. But
+  `financial_connections.last_synced_at` shows **7 of 8 connections stamped
+  2026-08-10 13:00:03 → 13:00:28 UTC**, in sequence, with `accounts.updated_at`
+  following each within ~3s. The post reaches the function and the function writes rows.
+- The 8th (USAA, `last_synced_at` 2026-08-09 16:50 UTC) is **not broken** —
+  `connection_status = 'active'`. It was manually synced 20h10m before the 08-10 run,
+  inside `SYNC_COOLDOWN_MS = 23.5h`, so that run returned its cached account list and
+  left the timestamp alone. This is the cooldown behaviour documented below, observed live.
+  ⚠️ **Consequence of daily cadence worth knowing:** any manual refresh in the 23.5h
+  before 13:00 UTC costs that connection its next scheduled sync. Under the old 4-day
+  schedule that meant up to a 5-day gap; under daily it is 2 days at worst.
+
 ### ⚠️ Why `plaid-sync-all` was NOT manually triggered
 
 Tempting as a "watch it fire" proof, and wrong. `_shared/sync-handler.ts` sets
