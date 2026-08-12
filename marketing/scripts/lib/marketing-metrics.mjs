@@ -1,7 +1,7 @@
 /**
  * Pure logic behind the weekly marketing report.
  *
- * Split out from `scripts/marketing-report.mjs` so it can be tested: the report
+ * Split out from `marketing/scripts/marketing-report.mjs` so it can be tested: the report
  * is the only thing that says whether a campaign is working, and a report that
  * silently prints a wrong number is worse than no report at all.
  *

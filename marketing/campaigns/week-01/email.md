@@ -76,8 +76,8 @@ banner, no images, no second call to action. Five minutes to read.
 ## What gets recorded on Sunday
 
 ```
-node scripts/marketing-report.mjs --add "2026-08-10,payment-letter,subscribers_net_new,0,Google Form responses"
-node scripts/marketing-report.mjs --add "2026-08-10,payment-letter,open_rate_pct,0,Resend broadcast"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,payment-letter,subscribers_net_new,0,Google Form responses"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,payment-letter,open_rate_pct,0,Resend broadcast"
 ```
 
 Both targets (+10 net new per week, 40% opens) are due at week 4, so week 1 prints as 🟡 tracking

@@ -54,8 +54,8 @@ back.
 ## What gets recorded on Sunday
 
 ```
-node scripts/marketing-report.mjs --add "2026-08-10,project-ledger,thread_views,0,post insights"
-node scripts/marketing-report.mjs --add "2026-08-10,project-ledger,thread_saves,0,post insights"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,project-ledger,thread_views,0,post insights"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,project-ledger,thread_saves,0,post insights"
 ```
 
 Read from the Reddit post, the `⋯` menu, then **Insights**, a panel only the OP can see. Views,

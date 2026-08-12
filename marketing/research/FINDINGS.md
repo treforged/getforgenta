@@ -1,7 +1,7 @@
 # What the audience research actually said
 
-Pulled 2026-08-12 with `scripts/research/reddit-rss-pull.mjs`, condensed with
-`scripts/research/reddit-digest.mjs`. This file is the part worth keeping: aggregate counts and the
+Pulled 2026-08-12 with `marketing/scripts/research/reddit-rss-pull.mjs`, condensed with
+`marketing/scripts/research/reddit-digest.mjs`. This file is the part worth keeping: aggregate counts and the
 conclusions they support.
 
 ⚠️ **The raw dump is deliberately NOT committed** (`marketing/research/raw/` is gitignored). It is 289

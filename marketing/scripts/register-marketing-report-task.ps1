@@ -19,7 +19,7 @@ param()
 $TaskName = "Forgenta Marketing Report"
 $Repo = "C:\Users\tvonh\Desktop\getforgenta"
 $Node = "C:\Program Files\nodejs\node.exe"
-$Log = "$Repo\scripts\marketing-report.log"
+$Log = "$Repo\marketing\scripts\marketing-report.log"
 
 if (-not (Test-Path $Node)) {
     Write-Error "node.exe not found at $Node. Fix the path in this script before registering."
@@ -28,7 +28,7 @@ if (-not (Test-Path $Node)) {
 
 # `--post` files it on the board; stdout is appended to a log so a failed post
 # still leaves the report somewhere readable.
-$Command = "& '$Node' '$Repo\scripts\marketing-report.mjs' --post *>> '$Log'"
+$Command = "& '$Node' '$Repo\marketing\scripts\marketing-report.mjs' --post *>> '$Log'"
 
 $Action = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -ExecutionPolicy Bypass -Command `"$Command`"" `
@@ -40,8 +40,8 @@ $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopOnIdleEnd 
     -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
 
 Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Settings $Settings `
-    -Description "Posts last week's Forgenta marketing report to the Conductor board every Monday at 8 AM. Reads marketing/metrics/counts.csv (gitignored). Logs to scripts/marketing-report.log." `
+    -Description "Posts last week's Forgenta marketing report to the Conductor board every Monday at 8 AM. Reads marketing/metrics/counts.csv (gitignored). Logs to marketing/scripts/marketing-report.log." `
     -Force
 
 Write-Output "Registered scheduled task '$TaskName' (Mondays 8:00 AM, runs ASAP if missed)."
-Write-Output "Test it now with:  node `"$Repo\scripts\marketing-report.mjs`" --post"
+Write-Output "Test it now with:  node `"$Repo\marketing\scripts\marketing-report.mjs`" --post"

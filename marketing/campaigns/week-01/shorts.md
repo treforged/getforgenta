@@ -60,5 +60,5 @@ onwards `teardown/median_views`. Median across the week's videos, not the total,
 cannot hide the other two.
 
 ```
-node scripts/marketing-report.mjs --add "2026-08-10,teardown,shorts_posted,3,upload log"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,teardown,shorts_posted,3,upload log"
 ```

@@ -58,6 +58,21 @@ Total time: **about 4 to 5 hours a week**, most of it on Sunday. The day-by-day 
 | `week-01/shorts.md` | Campaign 3: three shot lists, second by second |
 | `week-01/email.md` | Campaign 4: form + Resend setup, and issue 1 written |
 
+**And the rest of it, one level up in `marketing/`:**
+
+| Path | What it is |
+|---|---|
+| `marketing/scripts/marketing-report.mjs` | The weekly report. `--targets`, `--add`, `--post` |
+| `marketing/scripts/register-marketing-report-task.ps1` | Registers the Monday 8 AM run |
+| `marketing/scripts/lib/marketing-metrics.mjs` | The scoring rules, with 27 tests beside them |
+| `marketing/scripts/research/` | The Reddit pull and digest behind `research/FINDINGS.md` |
+| `marketing/metrics/counts.example.csv` | The counts schema; the real `counts.csv` is gitignored |
+| `marketing/research/FINDINGS.md` | 271 posts counted — the evidence the wedge rests on |
+
+⚠️ **Campaign 5 is the exception and must stay where it is.** Its pages live in
+`public/answers/` with `public/sitemap.xml`, because the web server serves them and
+the URL is the whole campaign. Do not move them under `marketing/`.
+
 ---
 
 ## 1. Pit Crew — being the person in the thread who did the math

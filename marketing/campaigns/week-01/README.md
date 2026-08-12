@@ -23,7 +23,7 @@ Optional, one command, and it is a change to the PC rather than the repo, so it 
 left for you:
 
 ```
-powershell -ExecutionPolicy Bypass -File scripts\register-marketing-report-task.ps1
+powershell -ExecutionPolicy Bypass -File marketing\scripts\register-marketing-report-task.ps1
 ```
 
 ## Monday
@@ -67,10 +67,10 @@ powershell -ExecutionPolicy Bypass -File scripts\register-marketing-report-task.
 Read the six dashboards and record what you actually saw:
 
 ```
-node scripts/marketing-report.mjs --add "2026-08-10,pit-crew,replies_posted,10,reddit profile"
-node scripts/marketing-report.mjs --add "2026-08-10,teardown,shorts_posted,3,upload log"
-node scripts/marketing-report.mjs --add "2026-08-10,answer-engine,pages_live,3,ls public/answers"
-node scripts/marketing-report.mjs --add "2026-08-10,north-star,signups,0,GA4 sign_up"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,pit-crew,replies_posted,10,reddit profile"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,teardown,shorts_posted,3,upload log"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,answer-engine,pages_live,3,ls public/answers"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,north-star,signups,0,GA4 sign_up"
 ```
 
 **A number you did not read gets no row.** It prints as *no reading*, which is a different fact from
@@ -80,7 +80,7 @@ way to corrupt this dataset.
 Then print the week:
 
 ```
-node scripts/marketing-report.mjs --this-week
+node marketing/scripts/marketing-report.mjs --this-week
 ```
 
 ## What week 1 is allowed to look like

@@ -123,13 +123,13 @@ week_start,campaign,metric,value,source
 Record a number:
 
 ```
-node scripts/marketing-report.mjs --add "2026-08-16,pit-crew,replies_posted,11,reddit profile"
+node marketing/scripts/marketing-report.mjs --add "2026-08-16,pit-crew,replies_posted,11,reddit profile"
 ```
 
 See every metric and its source:
 
 ```
-node scripts/marketing-report.mjs --targets
+node marketing/scripts/marketing-report.mjs --targets
 ```
 
 ---
@@ -137,15 +137,15 @@ node scripts/marketing-report.mjs --targets
 ## 6. The weekly report on the board
 
 ```
-node scripts/marketing-report.mjs              # last completed week, printed
-node scripts/marketing-report.mjs --this-week
-node scripts/marketing-report.mjs --post       # also files it on the Conductor board
+node marketing/scripts/marketing-report.mjs              # last completed week, printed
+node marketing/scripts/marketing-report.mjs --this-week
+node marketing/scripts/marketing-report.mjs --post       # also files it on the Conductor board
 ```
 
 To have it arrive on its own every Monday at 8 AM:
 
 ```
-powershell -ExecutionPolicy Bypass -File scripts\register-marketing-report-task.ps1
+powershell -ExecutionPolicy Bypass -File marketing\scripts\register-marketing-report-task.ps1
 ```
 
 ⚠️ **The task was written but not registered** — registering a scheduled task on Tre's PC is a

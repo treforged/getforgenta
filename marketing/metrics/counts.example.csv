@@ -11,7 +11,7 @@
 #               when you use --add, and reject a non-Monday typed by hand)
 #   campaign    one of: pit-crew, project-ledger, teardown, payment-letter,
 #               answer-engine, carousel, north-star
-#   metric      see `node scripts/marketing-report.mjs --targets`
+#   metric      see `node marketing/scripts/marketing-report.mjs --targets`
 #   value       a number >= 0. If you did not read it, leave the row OUT.
 #               A missing row prints "no reading". A zero means you looked and
 #               it was genuinely zero, which is a different fact.

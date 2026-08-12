@@ -80,8 +80,8 @@ worse than no reply.
 ## What gets recorded on Sunday
 
 ```
-node scripts/marketing-report.mjs --add "2026-08-10,pit-crew,replies_posted,10,reddit profile comments"
-node scripts/marketing-report.mjs --add "2026-08-10,pit-crew,replies_positive,3,same page, +3 or better"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,pit-crew,replies_posted,10,reddit profile comments"
+node marketing/scripts/marketing-report.mjs --add "2026-08-10,pit-crew,replies_positive,3,same page, +3 or better"
 ```
 
 Both are counted off `reddit.com/user/<handle>/comments`, where your own comment scores are visible.

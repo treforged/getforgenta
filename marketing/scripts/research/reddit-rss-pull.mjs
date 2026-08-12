@@ -15,7 +15,7 @@
  * Output: one JSON array on stdout — {query, sub, title, link, author, date, text}.
  * Nothing is summarised or invented here; a human reads the dump and quotes it.
  *
- * Usage: node scripts/research/reddit-rss-pull.mjs > out.json
+ * Usage: node marketing/scripts/research/reddit-rss-pull.mjs > out.json
  */
 
 const UA =

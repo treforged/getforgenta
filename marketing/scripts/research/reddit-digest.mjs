@@ -3,7 +3,7 @@
  * Condense the raw RSS dump into something a human can read in one sitting.
  * Dedupes by permalink, drops link-only posts, and prints the money sentences.
  *
- * Usage: node scripts/research/reddit-digest.mjs marketing/research/raw/<file>.json [minChars]
+ * Usage: node marketing/scripts/research/reddit-digest.mjs marketing/research/raw/<file>.json [minChars]
  */
 import { readFileSync } from 'node:fs';
 

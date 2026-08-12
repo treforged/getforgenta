@@ -2,12 +2,12 @@
 /**
  * The weekly marketing report.
  *
- *   node scripts/marketing-report.mjs                 last completed week, printed
- *   node scripts/marketing-report.mjs --week 2026-08-10
- *   node scripts/marketing-report.mjs --this-week
- *   node scripts/marketing-report.mjs --post          also file it on the Conductor board
- *   node scripts/marketing-report.mjs --add "2026-08-14,pit-crew,replies_posted,9,reddit profile"
- *   node scripts/marketing-report.mjs --targets       what each number is and where to read it
+ *   node marketing/scripts/marketing-report.mjs                 last completed week, printed
+ *   node marketing/scripts/marketing-report.mjs --week 2026-08-10
+ *   node marketing/scripts/marketing-report.mjs --this-week
+ *   node marketing/scripts/marketing-report.mjs --post          also file it on the Conductor board
+ *   node marketing/scripts/marketing-report.mjs --add "2026-08-14,pit-crew,replies_posted,9,reddit profile"
+ *   node marketing/scripts/marketing-report.mjs --targets       what each number is and where to read it
  *
  * The counts file is `marketing/metrics/counts.csv` and it is **gitignored on
  * purpose**: this repository is public, and week-by-week signup and subscriber
@@ -37,7 +37,8 @@ import {
   buildCountsLine,
 } from './lib/marketing-metrics.mjs';
 
-const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+// This file lives at marketing/scripts/, so the repo root is two levels up.
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const COUNTS = path.join(REPO, 'marketing', 'metrics', 'counts.csv');
 const EXAMPLE = path.join(REPO, 'marketing', 'metrics', 'counts.example.csv');
 
