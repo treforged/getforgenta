@@ -13,7 +13,7 @@ deployable.
 - `plaid_items` relkind `r` (real table); RLS policy named exactly `Users own plaid items`;
   `accounts.provider` / `connection_id` absent. All match the migration's assumptions.
 - Tree clean, on `main`, migration byte-identical to `aabdcdbd`.
-- Cron `plaid-daily-sync` is `0 13 * * 1,3,5,6` (UTC). Start the window right after a run.
+- Cron `plaid-daily-sync` is `0 13 * * *` (UTC) — every day. Start the window right after a run.
 - Tre was taking a manual backup / PITR checkpoint. **Confirm that exists before step 1.**
 
 Re-run the pre-flight SQL anyway if any real time has passed — treat the numbers above as the
