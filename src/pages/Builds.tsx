@@ -418,6 +418,26 @@ export default function Builds() {
     }
   }
 
+  /**
+   * The maintenance private/public switch. Per build, so it travels with the
+   * share link — there is deliberately no per-entry flag: an owner who has to
+   * mark each row is one forgotten row away from publishing a receipt.
+   *
+   * Even when public, the share page never receives cost, vendor or notes — the
+   * Edge Function does not select them.
+   */
+  async function handleToggleMaintenancePublic() {
+    if (!activeBuild) return;
+    const next = !activeBuild.maintenance_public;
+    setShareLoading(true);
+    try {
+      await updateBuild.mutateAsync({ id: activeBuild.id, maintenance_public: next });
+      toast.success(next ? 'Service history is now on the share link' : 'Service history is private again');
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
   function shareUrl() {
     if (!activeBuild?.share_token) return '';
     return `${SHARE_BASE}/builds/share/${activeBuild.share_token}`;
@@ -719,6 +739,32 @@ export default function Builds() {
                 >
                   Disable
                 </button>
+              </div>
+
+              {/* Service history — private by default, published per build */}
+              <div className="pt-3 border-t border-border">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[12px] text-foreground">Service history on this link</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {activeBuild.maintenance_public
+                        ? `Visible: service, date, mileage and next-due. What you paid, where you went and your notes are never shared.`
+                        : 'Private. Your maintenance log stays out of the share page.'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleToggleMaintenancePublic}
+                    disabled={shareLoading}
+                    aria-pressed={activeBuild.maintenance_public}
+                    className="shrink-0 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-colors disabled:opacity-40"
+                    style={activeBuild.maintenance_public
+                      ? { background: '#c8a84b', color: '#000', borderColor: '#c8a84b' }
+                      : { color: '#c8a84b', borderColor: '#c8a84b', background: 'transparent' }
+                    }
+                  >
+                    {activeBuild.maintenance_public ? '✓ Public' : 'Private'}
+                  </button>
+                </div>
               </div>
 
               {/* Photo upload — premium only */}

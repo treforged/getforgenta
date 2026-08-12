@@ -12,6 +12,7 @@ import {
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarFund, CarMaintenanceLog } from '@/lib/types';
+import type { PublicMaintenanceEntry } from '@/lib/public-maintenance';
 import {
   validateReviewInput, validateReviewSet, findExclusiveReview, findReviewRowFor, applyReviewToSet,
   friendlyReviewWriteError,
@@ -1645,12 +1646,23 @@ export function usePublicBuild(shareToken: string | undefined) {
         },
       );
       if (!res.ok) return null;
-      return res.json() as Promise<{
-        build: CarBuild;
+      const json = await res.json();
+      // `maintenance*` were added 2026-08-12. A response from a not-yet-deployed
+      // function has neither, and the safe reading of a missing flag is private.
+      return {
+        ...json,
+        maintenancePublic: json.maintenancePublic === true,
+        maintenance: json.maintenance ?? [],
+      } as {
+        // The flag is reported once, as `maintenancePublic` — the Edge Function
+        // strips it from the build object, so the type must not claim it.
+        build: Omit<CarBuild, 'maintenance_public'>;
         phases: CarBuildPhase[];
         items: CarBuildItem[];
+        maintenancePublic: boolean;
+        maintenance: PublicMaintenanceEntry[];
         displayName: string | null;
-      }>;
+      };
     },
   });
 

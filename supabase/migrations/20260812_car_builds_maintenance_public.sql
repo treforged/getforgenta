@@ -1,0 +1,35 @@
+-- maintenance_public: does a shared build's service history travel with its link?
+--
+-- The switch is PER BUILD, not per log entry. Tre asked for "a maintenance log …
+-- which can be set as private or public to go with the share build link" — one
+-- switch that travels with the link. A per-entry switch would make the owner
+-- re-audit every row forever, and its failure mode is silent: forget to mark one
+-- entry private and it ships. Per build is one thing a person can hold in their
+-- head, and it matches how sharing already works (share_token is per build).
+--
+-- Default FALSE, deliberately. Builds that are ALREADY shared must not start
+-- publishing service history the moment this column exists. Publishing is an
+-- action the owner takes, never a migration side effect.
+alter table public.car_builds
+  add column if not exists maintenance_public boolean not null default false;
+
+-- ⚠️ NO anon policy is added to public.car_maintenance_logs, and that is the
+-- whole security design. 20260615_fix_public_rls.sql DROPPED the anon policies
+-- from car_builds / car_build_phases / car_build_items precisely because a
+-- policy predicated on `share_token is not null` let any holder of the anon key
+-- enumerate every shared build without knowing a single token. Granting anon a
+-- read on maintenance rows under the same shape would re-open that exact hole.
+--
+-- So car_maintenance_logs keeps ONE policy — "users manage own maintenance
+-- logs", auth.uid() = user_id — and anon reads zero rows through PostgREST in
+-- every case, shared or not. Public reads are served only by the `public-build`
+-- Edge Function, which validates the exact share token with the service role and
+-- returns maintenance rows only when maintenance_public is true.
+--
+-- ⚠️ The Edge Function's maintenance SELECT is a COLUMN ALLOWLIST, not `*`:
+-- service, service_date, odometer, next_due_date, next_due_odometer. cost,
+-- vendor and notes stay private even when the log is public — "the oil was
+-- changed at 92,400 miles" is the feature; "he paid $184 at Bob's Garage" is a
+-- different one nobody asked for. That list is pinned by a parity test
+-- (src/lib/__tests__/public-maintenance.test.ts) which reads the function's own
+-- source, so the two copies of the rule cannot drift apart quietly.
