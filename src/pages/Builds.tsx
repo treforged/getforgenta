@@ -18,6 +18,9 @@ import MaintenanceFormModal, { type MaintenanceFormValues, type MaintenanceTrans
 import PremiumGate from '@/components/shared/PremiumGate';
 import { currentOdometer } from '@/lib/car-maintenance';
 import type { CarBuild, CarBuildPhase, CarBuildItem, CarMaintenanceLog } from '@/lib/types';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import { BuildsSkeleton, BuildPhasesSkeleton } from '@/components/shared/PageSkeleton';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const SHARE_BASE = 'https://getforgenta.com';
 
@@ -620,13 +623,7 @@ export default function Builds() {
     return map;
   }, [displayPhases, displayItems]);
 
-  if (buildsLoading) {
-    return (
-      <div className="max-w-3xl mx-auto py-8 px-2 space-y-3">
-        {[1, 2, 3].map(i => <div key={i} className="h-10 bg-muted animate-pulse rounded" />)}
-      </div>
-    );
-  }
+  if (buildsLoading) return <BuildsSkeleton />;
 
   return (
     <div className="max-w-3xl mx-auto py-2 sm:py-4">
@@ -777,14 +774,27 @@ export default function Builds() {
       {/* Active build content */}
       {activeBuild && (
         <>
-          <BuildHeader build={activeBuild} phases={displayPhases} items={displayItems} />
-
+          {/* BuildHeader totals build cost and progress FROM phases and items, so it
+              belongs inside the same gate — outside it, it rendered $0 spent / 0%
+              complete on a fully-costed build for as long as the query took. */}
           {phasesLoading || itemsLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map(i => <div key={i} className="h-14 bg-muted animate-pulse rounded" />)}
-            </div>
+            <>
+              <div className="card-forged p-5 space-y-3">
+                <Skeleton className="h-4 w-40 bg-muted/50" />
+                <div className="grid grid-cols-3 gap-4">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="space-y-2">
+                      <Skeleton className="h-2.5 w-16 mx-auto bg-muted/50" />
+                      <Skeleton className="h-5 w-20 mx-auto bg-muted/50" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <BuildPhasesSkeleton />
+            </>
           ) : (
             <>
+              <BuildHeader build={activeBuild} phases={displayPhases} items={displayItems} />
               {displayPhases.map((ph, i) => {
                 const isPhaseTarget = dragOverPhaseId === ph.id && !isTouch;
                 return (
@@ -852,6 +862,7 @@ export default function Builds() {
 
           <BuildSummary phases={displayPhases} items={displayItems} />
 
+          <ErrorBoundary variant="widget" label="Maintenance Log">
           <MaintenanceLog
             logs={maintenanceLogs}
             transactions={transactions}
@@ -860,6 +871,7 @@ export default function Builds() {
             onEdit={log => { setEditingMaintenance(log); setMaintenanceOpen(true); }}
             onDelete={handleDeleteMaintenance}
           />
+          </ErrorBoundary>
         </>
       )}
 

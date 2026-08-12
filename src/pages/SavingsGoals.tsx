@@ -5,7 +5,8 @@ import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { useIsViewportBelow } from '@/hooks/use-mobile';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
+import { GoalsSkeleton } from '@/components/shared/PageSkeleton';
+import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts, type AccountRow } from '@/hooks/useSupabaseData';
@@ -336,8 +337,8 @@ function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
 }
 
 export default function SavingsGoals() {
-  const { data: goals, add, update, remove } = useSavingsGoals();
-  const { data: carFunds } = useCarFunds();
+  const { data: goals, add, update, remove, loading: goalsLoading } = useSavingsGoals();
+  const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules, update: updateRule } = useRecurringRules();
   const { data: profile } = useProfile();
@@ -447,6 +448,38 @@ export default function SavingsGoals() {
       .filter(r => (r.rule_type === 'transfer' || r.rule_type === 'investment') && r.active)
       .map(r => ({ value: r.id, label: `${r.name} — ${formatCurrency(r.amount, false)}/${r.frequency}` })),
   ], [rules]);
+
+  // The linked rules, the auto-end toggle and its provenance map are all part of
+  // what the user filled in, so they ride the draft alongside the text fields.
+  const draftValues = useMemo(
+    () => ({ form, selectedRuleIds, autoEnd, stampedRules }),
+    [form, selectedRuleIds, autoEnd, stampedRules],
+  );
+
+  const { restored: draftRestored, discard: discardDraft } = useFormDraft({
+    formKey: 'goals',
+    open: showForm,
+    editId,
+    values: draftValues,
+    enabled: !isDemo,
+    onRestore: useCallback((draft: FormDraft<typeof draftValues>) => {
+      setForm(draft.values.form);
+      setSelectedRuleIds(draft.values.selectedRuleIds);
+      setAutoEnd(draft.values.autoEnd);
+      setStampedRules(draft.values.stampedRules);
+      setEditId(draft.editId);
+      setShowForm(true);
+    }, []),
+  });
+
+  const handleDiscardDraft = useCallback(() => {
+    discardDraft();
+    setForm(emptyForm);
+    setSelectedRuleIds([]);
+    setAutoEnd(false);
+    setStampedRules({});
+    setEditId(null);
+  }, [discardDraft]);
 
   const openAdd = (goalType = 'Custom') => {
     setForm({ ...emptyForm, goal_type: goalType });
@@ -577,7 +610,11 @@ export default function SavingsGoals() {
     return fields;
   }, [form.linked_account, selectedRuleIds.length, accountOptions]);
 
-  if (accountsLoading) return <PageSkeleton />;
+  // The page's subject is `goals`, but the gate used to be on `accounts` alone —
+  // so between the two resolving, a signed-in user with goals was shown
+  // "No savings goals yet. Set a target. Build discipline." That reads as an
+  // answer, and it was the wrong one.
+  if (accountsLoading || goalsLoading || carFundsLoading) return <GoalsSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 overflow-x-hidden">
@@ -734,6 +771,8 @@ export default function SavingsGoals() {
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
+          draftRestored={draftRestored}
+          onDiscardDraft={handleDiscardDraft}
           onClose={() => setShowForm(false)}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Goal' : 'Add Goal'}

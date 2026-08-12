@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
+import { TransactionsSkeleton } from '@/components/shared/PageSkeleton';
+import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliations, usePaymentPlans, useCarFunds, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
@@ -24,6 +25,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, isPlanInProgress, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
 import type { Tables } from '@/integrations/supabase/types';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 
@@ -45,12 +47,12 @@ const emptyPlanForm = {
 export default function Transactions() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
-  const { data: transactions, add, update, remove } = useTransactions();
+  const { data: transactions, add, update, remove, loading: transactionsLoading } = useTransactions();
   const { data: accounts, loading: accountsLoading } = useAccounts();
-  const { data: rules, update: updateRule } = useRecurringRules();
+  const { data: rules, update: updateRule, loading: rulesLoading } = useRecurringRules();
   const { cardProjection, forecastFundingAccountId } = useCardProjectionContext();
   const { data: reconciliations } = useAccountReconciliations();
-  const { data: paymentPlans, add: addPlan, update: updatePlan, remove: removePlan } = usePaymentPlans();
+  const { data: paymentPlans, add: addPlan, update: updatePlan, remove: removePlan, loading: paymentPlansLoading } = usePaymentPlans();
   const { data: carFunds } = useCarFunds();
 
   const [showForm, setShowForm] = useState(false);
@@ -274,6 +276,25 @@ export default function Transactions() {
     return acc;
   }, [filtered, getSourceLabel]);
 
+  const { restored: draftRestored, discard: discardDraft } = useFormDraft({
+    formKey: 'transactions',
+    open: showForm,
+    editId,
+    values: form,
+    enabled: !isDemo,
+    onRestore: useCallback((draft: FormDraft<typeof emptyForm>) => {
+      setForm(draft.values);
+      setEditId(draft.editId);
+      setShowForm(true);
+    }, []),
+  });
+
+  const handleDiscardDraft = useCallback(() => {
+    discardDraft();
+    setForm(emptyForm);
+    setEditId(null);
+  }, [discardDraft]);
+
   const openAdd = () => { setForm(emptyForm); setEditId(null); setShowForm(true); };
 
   const openEditDirect = (t: EnrichedTransaction) => {
@@ -496,7 +517,12 @@ export default function Transactions() {
     { key: 'note', label: 'Note', type: 'text' as const, placeholder: 'What was this for?' },
   ], [paymentSourceOptions, editId]);
 
-  if (accountsLoading) return <PageSkeleton />;
+  // The ledger is `transactions`; the Payment Plans panel is `paymentPlans`; the
+  // scheduled rows are `rules`. None of those is `accounts`, which is all the
+  // gate used to wait for — so "No payment plans yet." showed up first.
+  if (accountsLoading || transactionsLoading || rulesLoading || paymentPlansLoading) {
+    return <TransactionsSkeleton />;
+  }
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 overflow-x-hidden">
@@ -594,7 +620,9 @@ export default function Transactions() {
   </div>
 </div>
 
-      {activeTab === 'bank' && <BankActivity />}
+      {activeTab === 'bank' && (
+        <ErrorBoundary variant="widget" label="Bank Activity"><BankActivity /></ErrorBoundary>
+      )}
 
       {activeTab === 'planning' && (<>
 
@@ -903,6 +931,8 @@ export default function Transactions() {
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
+          draftRestored={draftRestored}
+          onDiscardDraft={handleDiscardDraft}
           onClose={() => { setShowForm(false); setEditId(null); }}
           saving={add.isPending || update.isPending || updateRule.isPending}
           saveLabel={editId?.startsWith('rule:') ? 'Update Rule' : editId ? 'Update' : 'Add Transaction'}

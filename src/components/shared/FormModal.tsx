@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
-import { X, Info, Check, Loader2 } from 'lucide-react';
+import { X, Info, Check, Loader2, RotateCcw } from 'lucide-react';
 import DateScrollPicker from './DateScrollPicker';
 
 export type Field = {
@@ -25,10 +25,14 @@ type Props = {
   saving?: boolean;
   saveLabel?: string;
   notice?: string;
+  /** True when this form was reopened from a stored draft. */
+  draftRestored?: boolean;
+  /** Throw the restored draft away and start from a blank form. */
+  onDiscardDraft?: () => void;
   children?: ReactNode;
 };
 
-export default function FormModal({ title, fields, values, onChange, onSave, onClose, saving, saveLabel = 'Save', notice, children }: Props) {
+export default function FormModal({ title, fields, values, onChange, onSave, onClose, saving, saveLabel = 'Save', notice, draftRestored, onDiscardDraft, children }: Props) {
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
@@ -56,6 +60,30 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
 
         {/* Scrollable fields */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-6 space-y-3 pb-2 popup-scroll" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {draftRestored && (
+            <div
+              className="flex items-start gap-2 bg-success/8 border border-success/25 px-3 py-2.5"
+              style={{ borderRadius: 'var(--radius)' }}
+              role="status"
+              data-testid="draft-restored-notice"
+            >
+              <RotateCcw size={12} className="text-success mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] text-foreground leading-relaxed">
+                  We brought back what you had typed before you left.
+                </p>
+                {onDiscardDraft && (
+                  <button
+                    type="button"
+                    onClick={onDiscardDraft}
+                    className="text-[10px] font-semibold text-muted-foreground hover:text-foreground underline mt-0.5"
+                  >
+                    Start fresh instead
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           {notice && (
             <div className="flex items-start gap-2 bg-primary/8 border border-primary/20 px-3 py-2.5" style={{ borderRadius: 'var(--radius)' }}>
               <Info size={12} className="text-primary mt-0.5 shrink-0" />

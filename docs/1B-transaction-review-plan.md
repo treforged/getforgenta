@@ -18,7 +18,7 @@ no future session re-applies the old constraint.
 | Fact | Source | Value |
 |---|---|---|
 | Plaid ingestion | `_shared/sync-handler.ts` | **live**, cursor-based `/transactions/sync` |
-| Sync cadence | `cron.job` jobid 16 `plaid-daily-sync` | Mon/Wed/Fri/Sat 13:00 UTC |
+| Sync cadence | `cron.job` `plaid-daily-sync` | Every day 13:00 UTC (was Mon/Wed/Fri/Sat until 2026-08-11) |
 | `synced_transactions` (Tre) | live SQL | **571 rows**, 2026-01-17 → 2026-08-07, 5 pending |
 | Settled rows this month | live SQL | 24 |
 | `public.transactions` (Tre's ledger) | live SQL | **22 rows** |

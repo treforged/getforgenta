@@ -2,6 +2,14 @@
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
+
+// Mocked at the module boundary: these tests assert the boundary HANDS the
+// error over, not what the vendor SDK then does with it.
+const reportError = vi.fn();
+vi.mock('@/lib/monitoring', () => ({
+  reportError: (...args: unknown[]) => reportError(...args),
+}));
+
 import { ErrorBoundaryInner } from '../ErrorBoundary';
 
 // The bug this pins: "Try again" used to reset only the boundary's own state,
@@ -35,6 +43,7 @@ describe('ErrorBoundary retry', () => {
     queryClient = new QueryClient();
     reload = vi.fn<() => void>();
     shouldCrash = false;
+    reportError.mockClear();
     // React logs caught render errors; keep the test output readable.
     vi.spyOn(console, 'error').mockImplementation(() => {});
   });
@@ -74,6 +83,103 @@ describe('ErrorBoundary retry', () => {
     expect(reload).not.toHaveBeenCalled();
     fireEvent.click(reloadButton);
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('names what failed, so the fallback is not an anonymous apology', () => {
+    shouldCrash = true;
+    render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} label="Cash Flow Chart">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    expect(screen.getByText(/Cash Flow Chart couldn’t load/)).toBeTruthy();
+    // The technical detail is carried too — it is what a support conversation
+    // actually needs, and hiding it entirely helps nobody.
+    expect(screen.getByText('render crash')).toBeTruthy();
+  });
+
+  it('offers a way back when one is given, and none when it would be a dead button', () => {
+    const goHome = vi.fn<() => void>();
+    shouldCrash = true;
+    const view = render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} goHome={goHome} homeTo="/dashboard">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    fireEvent.click(screen.getByText('Back to dashboard'));
+    expect(goHome).toHaveBeenCalledTimes(1);
+
+    // A route that IS the destination passes no goHome; showing the button
+    // there would navigate to the page the user is already stuck on.
+    view.rerender(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload}>
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    expect(screen.queryByText('Back to dashboard')).toBeNull();
+    expect(screen.getByText('Try again')).toBeTruthy();
+  });
+
+  it('keeps a widget crash inside the widget', () => {
+    shouldCrash = true;
+    render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} variant="widget" label="Goal Progress">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    expect(screen.getByText(/Goal Progress couldn’t load/)).toBeTruthy();
+    // The promise the widget variant makes to the user.
+    expect(screen.getByText('The rest of this page still works.')).toBeTruthy();
+    // A widget must not offer navigation away from a page that still works.
+    expect(screen.queryByText('Back to dashboard')).toBeNull();
+    expect(screen.getByText('Try again')).toBeTruthy();
+  });
+
+  it('recovers a widget in place, leaving no fallback behind', () => {
+    shouldCrash = true;
+    render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} variant="widget" label="Goal Progress">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    shouldCrash = false;
+    fireEvent.click(screen.getByText('Try again'));
+    expect(screen.getByText('recovered content')).toBeTruthy();
+    expect(screen.queryByText(/couldn’t load/)).toBeNull();
+  });
+
+  // A boundary stops the error reaching window.onerror, which is exactly how
+  // the error tracker would otherwise have seen it. If these fail, the crashes
+  // users actually hit are the ones nobody ever hears about.
+  it('reports a caught error, naming the surface that broke', () => {
+    shouldCrash = true;
+    render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} label="Cash Flow Chart">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+
+    expect(reportError).toHaveBeenCalled();
+    const [error, context] = reportError.mock.calls[0];
+    expect((error as Error).message).toBe('render crash');
+    expect(context).toMatchObject({ label: 'Cash Flow Chart', source: 'ErrorBoundary/page' });
+    // The component stack is what turns "something threw" into "this component threw".
+    expect(String((context as { componentStack: string }).componentStack)).toContain('FlakyChild');
+  });
+
+  it('distinguishes a widget crash from a page crash in the report', () => {
+    shouldCrash = true;
+    render(
+      <ErrorBoundaryInner queryClient={queryClient} reload={reload} variant="widget" label="Goal Progress">
+        <FlakyChild />
+      </ErrorBoundaryInner>
+    );
+    expect(reportError.mock.calls[0][1]).toMatchObject({ source: 'ErrorBoundary/widget' });
+  });
+
+  it('does not report anything when nothing throws', () => {
+    renderBoundary(reload, queryClient);
+    expect(reportError).not.toHaveBeenCalled();
   });
 
   it('re-arms the soft retry after a successful recovery', () => {

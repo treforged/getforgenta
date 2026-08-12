@@ -76,3 +76,16 @@ __pycache__/
 # ONLY; the Tier-A test self-skips when it is absent (see forecast-engine.goldenTierA.test.ts).
 src/lib/__tests__/fixtures/forecast-inputs.real*.json
 
+
+# Weekly marketing counts — real business figures (signups, subscribers, reach) typed in
+# from free dashboards. This repo is PUBLIC, so the values stay local; the SCHEMA and a
+# fully invented example are committed as marketing/metrics/counts.example.csv, which is
+# what a fresh checkout needs to run marketing/scripts/marketing-report.mjs.
+marketing/metrics/counts.csv
+marketing/scripts/marketing-report.log
+
+# Raw audience-research dumps: hundreds of real Reddit posts with usernames, permalinks and
+# personal financial detail, pulled for analysis. This repo is PUBLIC, and republishing other
+# people's posts here is not ours to do. The aggregate counts and the conclusions are committed
+# as marketing/research/FINDINGS.md; re-run marketing/scripts/research/reddit-rss-pull.mjs for the corpus.
+marketing/research/raw/

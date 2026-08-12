@@ -12,6 +12,7 @@ import type { Tables } from '@/integrations/supabase/types';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
+import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { Link } from 'react-router';
 import MetricCard from '@/components/shared/MetricCard';
 import FormModal from '@/components/shared/FormModal';
@@ -20,6 +21,7 @@ import AkoyaFallbackPrompt from '@/components/shared/AkoyaFallbackPrompt';
 import AkoyaConnectButton from '@/components/shared/AkoyaConnectButton';
 import { AKOYA_INSTITUTIONS, findAkoyaInstitution, type AkoyaInstitution } from '@/config/akoya-institutions';
 import PremiumGate from '@/components/shared/PremiumGate';
+import { AccountsSkeleton } from '@/components/shared/PageSkeleton';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
@@ -91,18 +93,27 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
   other_liability: TrendingDown, other_asset: Wallet,
 };
 
-// Plaid sync runs Mon/Wed/Fri at 13:00 UTC (9 AM ET).
-const PLAID_SYNC_DAYS = new Set([1, 3, 5, 6]); // Mon, Wed, Fri, Sat UTC day-of-week
+// Plaid sync runs EVERY day at 13:00 UTC (9 AM EDT / 8 AM EST).
+// This mirrors the pg_cron job `plaid-daily-sync` ('0 13 * * *') —
+// see supabase/migrations/20260811_plaid_restore_daily_cron.sql. The two are one
+// rule written twice: if the cron changes and this does not, the freshness badge
+// below silently under-reports staleness on the days it thinks are skipped.
 const PLAID_SYNC_HOUR_UTC = 13;
 
+// The same rule said out loud for the user, in THEIR timezone. The caption used to
+// hardcode "Mon, Wed, Fri & Sat at 9 AM ET": wrong about the days since 2026-08-11,
+// and wrong about the hour every winter (13:00 UTC is 8 AM EST, not 9 AM).
+function formatDailySyncTime(): string {
+  const d = new Date();
+  d.setUTCHours(PLAID_SYNC_HOUR_UTC, 0, 0, 0);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', timeZoneName: 'short' });
+}
+
 function getLastScheduledSyncTime(from: Date): Date {
-  for (let i = 0; i <= 7; i++) {
-    const d = new Date(from);
-    d.setUTCDate(d.getUTCDate() - i);
-    d.setUTCHours(PLAID_SYNC_HOUR_UTC, 0, 0, 0);
-    if (PLAID_SYNC_DAYS.has(d.getUTCDay()) && d <= from) return d;
-  }
-  return new Date(from.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const d = new Date(from);
+  d.setUTCHours(PLAID_SYNC_HOUR_UTC, 0, 0, 0);
+  if (d > from) d.setUTCDate(d.getUTCDate() - 1);
+  return d;
 }
 
 function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale: boolean } {
@@ -137,9 +148,9 @@ export default function Accounts() {
   const { isPremium } = useSubscription();
   const { data: accounts, add, update, remove, loading } = useAccounts();
   const { data: debts, update: updateDebt, add: addDebt } = useDebts();
-  const { data: manualAssets } = useAssets();
-  const { data: manualLiabilities } = useLiabilities();
-  const { data: carFunds } = useCarFunds();
+  const { data: manualAssets, loading: assetsLoading } = useAssets();
+  const { data: manualLiabilities, loading: liabilitiesLoading } = useLiabilities();
+  const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { add: addReconciliation } = useAccountReconciliations();
   const { items: plaidItems, loading: plaidLoading, remove: removePlaidItem, invalidate: invalidatePlaid } = usePlaidItems();
   const { data: snapshots, loading: snapshotsLoading } = useNetWorthSnapshots();
@@ -337,6 +348,45 @@ export default function Accounts() {
     if (searchParams.get('new') === '1') openAdd(searchParams.get('type') ?? undefined);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Draft resistance ──────────────────────────────────────────────────────
+  // Everything that defines what the open form LOOKS like, not just its values:
+  // the four Plaid flags decide which fields are read-only, so a restore that
+  // dropped them would bring the text back into the wrong form.
+  const draftValues = useMemo(() => ({
+    form,
+    plaidLinked: editingPlaidLinked,
+    plaidLiability: editingPlaidLiability,
+    plaidAprSynced: editingPlaidAprSynced,
+    plaidMinSynced: editingPlaidMinSynced,
+  }), [form, editingPlaidLinked, editingPlaidLiability, editingPlaidAprSynced, editingPlaidMinSynced]);
+
+  const { restored: draftRestored, discard: discardDraft } = useFormDraft({
+    formKey: 'accounts',
+    open: showForm,
+    editId,
+    values: draftValues,
+    enabled: !isDemo,
+    onRestore: useCallback((draft: FormDraft<typeof draftValues>) => {
+      setForm(draft.values.form);
+      setEditingPlaidLinked(draft.values.plaidLinked);
+      setEditingPlaidLiability(draft.values.plaidLiability);
+      setEditingPlaidAprSynced(draft.values.plaidAprSynced);
+      setEditingPlaidMinSynced(draft.values.plaidMinSynced);
+      setEditId(draft.editId);
+      setShowForm(true);
+    }, []),
+  });
+
+  const handleDiscardDraft = useCallback(() => {
+    discardDraft();
+    setForm(emptyForm);
+    setEditId(null);
+    setEditingPlaidLinked(false);
+    setEditingPlaidLiability(false);
+    setEditingPlaidAprSynced(false);
+    setEditingPlaidMinSynced(false);
+  }, [discardDraft]);
+
   const openEdit = (a: AccountRow) => {
     const matchDebt = debts.find(d => d.name.toLowerCase() === a.name.toLowerCase());
     const plaidLiability = !!a.plaid_account_id && !!a.liability_synced_at;
@@ -495,6 +545,13 @@ export default function Accounts() {
       toast.error(err instanceof Error ? err.message : 'Unlink failed');
     }
   };
+
+  // Every figure in the summary block is an aggregate of accounts + manual assets +
+  // manual liabilities + vehicle loans. Gating on `accounts` alone used to paint
+  // eight confident $0.00 tiles and a "Current Net Worth $0.00" chart while the
+  // rest was still in flight. Wait for all four sources, or show none of them.
+  const summaryLoading = loading || assetsLoading || liabilitiesLoading || carFundsLoading;
+  if (summaryLoading) return <AccountsSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
@@ -765,8 +822,7 @@ export default function Accounts() {
 
       {/* Account List */}
       <div className="space-y-3">
-        {loading && <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">Loading accounts...</p></div>}
-        {!loading && filteredAccounts.length === 0 && (
+        {filteredAccounts.length === 0 && (
           <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">No accounts yet. Add one above.</p></div>
         )}
         {filteredAccounts.map(a => {
@@ -862,8 +918,8 @@ export default function Accounts() {
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-yellow-500'}`} />
                 {mostRecent
-                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs Mon, Wed, Fri & Sat at 9 AM ET`
-                  : 'Not yet synced · Syncs Mon, Wed, Fri & Sat at 9 AM ET'}
+                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs daily at ${formatDailySyncTime()}`
+                  : `Not yet synced · Syncs daily at ${formatDailySyncTime()}`}
               </div>
             );
           })()}
@@ -1095,6 +1151,8 @@ export default function Accounts() {
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
+          draftRestored={draftRestored}
+          onDiscardDraft={handleDiscardDraft}
           onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}

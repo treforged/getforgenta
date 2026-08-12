@@ -1,6 +1,6 @@
 ﻿import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link } from 'react-router';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
+import { ForecastSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
@@ -30,6 +30,7 @@ import { computeFloorProtection } from '@/lib/floor-protection';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { useForecastProjections } from '@/hooks/useForecastProjections';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
 
@@ -102,16 +103,25 @@ function ForecastTooltip({ active, payload, label }: ForecastTooltipProps) {
 export default function Forecast() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
-  const { data: debts } = useDebts();
-  const { data: goals } = useSavingsGoals();
-  const { data: carFunds } = useCarFunds();
+  const { data: debts, loading: debtsLoading } = useDebts();
+  const { data: goals, loading: goalsLoading } = useSavingsGoals();
+  const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { data: accounts, loading: accountsLoading } = useAccounts();
-  const { data: subs } = useSubscriptions();
-  const { data: budgetItems } = useBudgetItems();
-  const { data: profile } = useProfile();
-  const { data: rules } = useRecurringRules();
-  const { data: transactions } = useTransactions();
-  const { data: paymentPlans } = usePaymentPlans();
+  const { data: subs, loading: subsLoading } = useSubscriptions();
+  const { data: budgetItems, loading: budgetItemsLoading } = useBudgetItems();
+  const { data: profile, loading: profileLoading } = useProfile();
+  const { data: rules, loading: rulesLoading } = useRecurringRules();
+  const { data: transactions, loading: transactionsLoading } = useTransactions();
+  const { data: paymentPlans, loading: paymentPlansLoading } = usePaymentPlans();
+
+  // A 60-month projection is a single number built from ALL of these. Rendering
+  // it while any input is still empty does not show a partial forecast — it
+  // shows a confident, wrong one, and the chart animates from that wrong shape
+  // to the right one. Every source or none.
+  const forecastInputsLoading =
+    accountsLoading || debtsLoading || goalsLoading || carFundsLoading || subsLoading ||
+    budgetItemsLoading || profileLoading || rulesLoading || transactionsLoading ||
+    paymentPlansLoading;
 
   const {
     cardProjection: cardProjectionData,
@@ -348,7 +358,7 @@ export default function Forecast() {
   const freePreview = !isPremium && !isDemo;
   const displayData = freePreview ? filteredData.slice(0, 12) : filteredData;
 
-  if (accountsLoading) return <PageSkeleton />;
+  if (forecastInputsLoading) return <ForecastSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
@@ -858,6 +868,7 @@ export default function Forecast() {
       {viewMode === 'monthly' ? (
         <>
           {/* Net Worth Chart */}
+          <ErrorBoundary variant="widget" label="Net Worth & Assets Projection">
           <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
               <div>
@@ -900,6 +911,7 @@ export default function Forecast() {
               )}
             </ResponsiveContainer>
           </div>
+          </ErrorBoundary>
 
           {/* Premium upgrade CTA — free users only */}
           {freePreview && (
