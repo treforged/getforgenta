@@ -40,6 +40,19 @@ So the governing question before every write is not "does this work" but
   PITR and no automated backup**, and a bad migration is unrecoverable. A queue
   item that needs one is blocked, not attempted — say what the migration would
   have to do and stop there.
+  - **The one carve-out: a `cron.schedule` / `cron.unschedule` change, and
+    nothing else in the same statement.** Added 2026-08-12, after the 08-11
+    "put Plaid back on daily" item could not be completed without it. A schedule
+    string alters no table, touches no financial row, and is undone by one
+    statement — none of the three reasons above apply to it. It is allowed only
+    when **all** of these hold: the item explicitly asks for the cadence change;
+    the previous schedule string is written into the commit message and the
+    handoff **before** applying, so the undo is on record; the job's `command`
+    text is left byte-identical; and the same change is committed as a migration
+    file so a replay does not resurrect the old cadence. Anything else under
+    `supabase/migrations/` — a table, a column, an index, a constraint, a
+    policy, a grant — is still blocked outright, regardless of how additive it
+    looks.
 - **Never touch live rows.** Reading through the Supabase MCP to establish a
   fact is expected and encouraged. Writing, deleting, or "just fixing" a row is
   not, however obviously wrong the row looks.
@@ -79,8 +92,9 @@ can settle; only a genuine question of intent is worth a card.
 An unattended run cannot prove work happened by exiting 0. It has to show
 something:
 
-- `npx tsc --noEmit` clean, `npm test` green (**762 tests as of 2026-08-09** —
-  a lower number means you deleted coverage), `npm run lint` clean.
+- `npx tsc --noEmit` clean, `npm test` green (**892 tests across 115 files as of
+  2026-08-12**, measured on this branch — a lower number means you deleted
+  coverage), `npm run lint` clean.
 - Anything with a visible surface was **rendered and looked at**, not just
   compiled. A green build says it compiled.
 - Anything touching money maths has a test that would fail if the maths were
