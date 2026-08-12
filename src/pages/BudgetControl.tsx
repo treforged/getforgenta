@@ -3,7 +3,8 @@ import type { Json, Tables } from '@/integrations/supabase/types';
 import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router';
-import { PageSkeleton } from '@/components/shared/PageSkeleton';
+import { BudgetSkeleton } from '@/components/shared/PageSkeleton';
+import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import MetricCard from '@/components/shared/MetricCard';
@@ -182,7 +183,7 @@ export default function BudgetControl() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
-  const { data: profile, update: updateProfile } = useProfile();
+  const { data: profile, update: updateProfile, loading: profileLoading } = useProfile();
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules, add: addRule, update: updateRule, remove: removeRule, loading: rulesLoading } = useRecurringRules();
   const { data: savingsGoals, update: updateGoal } = useSavingsGoals();
@@ -706,6 +707,31 @@ export default function BudgetControl() {
     ...accounts.filter(a => a.active && ['checking', 'savings', 'high_yield_savings', 'business_checking', 'cash'].includes(a.account_type)).map(a => ({ value: a.id, label: a.name })),
   ], [accounts]);
 
+  // editCreatedAt rides along because it is the biweekly phase anchor the hint
+  // describes; losing it on restore would silently change what the hint claims.
+  const draftValues = useMemo(() => ({ form, editCreatedAt }), [form, editCreatedAt]);
+
+  const { restored: draftRestored, discard: discardDraft } = useFormDraft({
+    formKey: 'budget-rules',
+    open: showForm,
+    editId,
+    values: draftValues,
+    enabled: !isDemo,
+    onRestore: useCallback((draft: FormDraft<typeof draftValues>) => {
+      setForm(draft.values.form);
+      setEditCreatedAt(draft.values.editCreatedAt);
+      setEditId(draft.editId);
+      setShowForm(true);
+    }, []),
+  });
+
+  const handleDiscardDraft = useCallback(() => {
+    discardDraft();
+    setForm(emptyRuleForm);
+    setEditCreatedAt(null);
+    setEditId(null);
+  }, [discardDraft]);
+
   const openAdd = (type: string, category?: string) => {
     setForm({ ...emptyRuleForm, rule_type: type, category: category || 'Other' });
     setEditId(null);
@@ -1056,7 +1082,9 @@ export default function BudgetControl() {
 </div>
   );
 
-  if (accountsLoading || rulesLoading) return <PageSkeleton />;
+  // profile carries pay config, which every paycheck figure on this page derives
+  // from — without it the totals render against a default profile and then jump.
+  if (accountsLoading || rulesLoading || profileLoading) return <BudgetSkeleton />;
 
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-x-hidden">
@@ -1658,6 +1686,8 @@ export default function BudgetControl() {
           values={form}
           onChange={(k, v) => setForm(prev => ({ ...prev, [k]: v }))}
           onSave={handleSave}
+          draftRestored={draftRestored}
+          onDiscardDraft={handleDiscardDraft}
           onClose={() => { setShowForm(false); setEditId(null); }}
           saving={addRule.isPending || updateRule.isPending}
           saveLabel={editId ? 'Update Rule' : 'Add Rule'}
