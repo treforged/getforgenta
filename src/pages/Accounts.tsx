@@ -100,6 +100,15 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 // below silently under-reports staleness on the days it thinks are skipped.
 const PLAID_SYNC_HOUR_UTC = 13;
 
+// The same rule said out loud for the user, in THEIR timezone. The caption used to
+// hardcode "Mon, Wed, Fri & Sat at 9 AM ET": wrong about the days since 2026-08-11,
+// and wrong about the hour every winter (13:00 UTC is 8 AM EST, not 9 AM).
+function formatDailySyncTime(): string {
+  const d = new Date();
+  d.setUTCHours(PLAID_SYNC_HOUR_UTC, 0, 0, 0);
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', timeZoneName: 'short' });
+}
+
 function getLastScheduledSyncTime(from: Date): Date {
   const d = new Date(from);
   d.setUTCHours(PLAID_SYNC_HOUR_UTC, 0, 0, 0);
@@ -909,8 +918,8 @@ export default function Accounts() {
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-yellow-500'}`} />
                 {mostRecent
-                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs Mon, Wed, Fri & Sat at 9 AM ET`
-                  : 'Not yet synced · Syncs Mon, Wed, Fri & Sat at 9 AM ET'}
+                  ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs daily at ${formatDailySyncTime()}`
+                  : `Not yet synced · Syncs daily at ${formatDailySyncTime()}`}
               </div>
             );
           })()}

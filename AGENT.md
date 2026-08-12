@@ -49,7 +49,13 @@ So the governing question before every write is not "does this work" but
     the previous schedule string is written into the commit message and the
     handoff **before** applying, so the undo is on record; the job's `command`
     text is left byte-identical; and the same change is committed as a migration
-    file so a replay does not resurrect the old cadence. Anything else under
+    file so a replay does not resurrect the old cadence. **And every place that
+    states the cadence to a user or to the next reader changes in the same
+    commit** — the job name, the docstring, any staleness maths, and the copy on
+    the page. Added 2026-08-12 after the 08-11 restore fixed the cron and the
+    badge maths but left the Accounts page still telling customers it synced
+    Mon/Wed/Fri/Sat; a schedule nobody states correctly drifts invisibly, which
+    is exactly how the 05-13 change hid for three months. Anything else under
     `supabase/migrations/` — a table, a column, an index, a constraint, a
     policy, a grant — is still blocked outright, regardless of how additive it
     looks.
@@ -92,7 +98,7 @@ can settle; only a genuine question of intent is worth a card.
 An unattended run cannot prove work happened by exiting 0. It has to show
 something:
 
-- `npx tsc --noEmit` clean, `npm test` green (**922 tests across 117 files as of
+- `npx tsc --noEmit` clean, `npm test` green (**926 tests across 118 files as of
   2026-08-12**, measured on this branch — a lower number means you deleted
   coverage), `npm run lint` clean.
 - Anything with a visible surface was **rendered and looked at**, not just
