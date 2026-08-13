@@ -344,6 +344,28 @@ export default function BankActivity() {
    * the one the user never confirmed. Tre's `Fuel` rule ($65, biweekly) is exactly that shape. The
    * batch accept below multiplies the same write, which is what made fixing it non-optional.
    */
+  /**
+   * The writes accepting a PLAN or a VEHICLE suggestion performs — byte-identical to what the
+   * pickers below already write, deliberately. §1B Stage 6 added the suggestions, not a new kind of
+   * decision: a suggestion is the app filling in the dropdown the user would otherwise have opened,
+   * so if these two ever diverge from the picker the same charge would mean different things
+   * depending on how it was decided.
+   */
+  const acceptPlanInput = (txn: BankActivityRow, planId: string) => ({
+    synced_transaction_id: txn.id,
+    status: 'linked_plan' as const,
+    payment_plan_id: planId,
+    occurrence_month: monthOf(txn.date),
+  });
+
+  const acceptCarInput = (txn: BankActivityRow, carFundId: string, kind: CarChargeKind) => ({
+    synced_transaction_id: txn.id,
+    status: 'linked_car' as const,
+    car_fund_id: carFundId,
+    car_charge_kind: kind,
+    occurrence_month: monthOf(txn.date),
+  });
+
   const acceptRuleInput = (txn: BankActivityRow, rule: RuleRow) => ({
     synced_transaction_id: txn.id,
     status: 'linked_rule' as const,
@@ -433,6 +455,10 @@ export default function BankActivity() {
         const suggestion = queue.suggestions[txn.id];
         if (suggestion?.rule) {
           await save.mutateAsync(acceptRuleInput(txn, suggestion.rule));
+        } else if (suggestion?.plan) {
+          await save.mutateAsync(acceptPlanInput(txn, suggestion.plan.id));
+        } else if (suggestion?.carCharge) {
+          await save.mutateAsync(acceptCarInput(txn, suggestion.carCharge.carFundId, suggestion.carCharge.kind));
         } else if (suggestion?.ledgerTxn) {
           await save.mutateAsync({
             synced_transaction_id: txn.id,
@@ -670,7 +696,7 @@ export default function BankActivity() {
           // could not see the other rows' claims anyway.
           const pair = pairByLeg.get(txn.id) ?? null;
           const suggestion = queue.suggestions[txn.id] ?? {};
-          const hasSuggestion = !!(suggestion.rule || suggestion.ledgerTxn);
+          const hasSuggestion = !!(suggestion.rule || suggestion.plan || suggestion.carCharge || suggestion.ledgerTxn);
           const suggestionRejected = !!rejected[txn.id];
           const showSuggestion = hasSuggestion && !suggestionRejected;
           // The guard and the row it would write are ONE decision, made in one place. This file must
@@ -875,7 +901,32 @@ export default function BankActivity() {
                         <Link2 size={11} /> Confirm: {suggestion.rule.name}
                       </button>
                     )}
-                    {!pair && showSuggestion && !suggestion.rule && suggestion.ledgerTxn && (
+                    {/* §1B Stage 6. Both destinations already had a picker and no suggestion, so on
+                        2026-08-10 the app knew Discover's two `Paypal Pay in 4` charges were the
+                        Cold Air Intake and Exhaust instalments sitting in `payment_plans` on that
+                        same card, and still made the user find them in a dropdown. The write is the
+                        picker's own — see `acceptPlanInput` / `acceptCarInput`. */}
+                    {!pair && showSuggestion && suggestion.plan && (
+                      <button
+                        onClick={() => save.mutate(acceptPlanInput(txn, suggestion.plan!.id))}
+                        className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                      >
+                        <Link2 size={11} /> Confirm: {suggestion.plan.name}
+                      </button>
+                    )}
+                    {!pair && showSuggestion && suggestion.carCharge && (
+                      <button
+                        onClick={() => save.mutate(acceptCarInput(txn, suggestion.carCharge!.carFundId, suggestion.carCharge!.kind))}
+                        className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                      >
+                        {/* Names the OBLIGATION, not just the car. A vehicle bills a payment and an
+                            insurance premium every month and "Confirm: Civic" would not say which
+                            one the user just accounted for. */}
+                        <Link2 size={11} /> Confirm: {suggestion.carCharge.vehicleName}{' '}
+                        {suggestion.carCharge.kind === 'insurance' ? 'car insurance' : 'car payment'}
+                      </button>
+                    )}
+                    {!pair && showSuggestion && !suggestion.rule && !suggestion.plan && !suggestion.carCharge && suggestion.ledgerTxn && (
                       <button
                         onClick={() => save.mutate({
                           synced_transaction_id: txn.id,

@@ -28,8 +28,14 @@
 // must yield silence rather than a coin flip. This file raises the number of suggestions a user SEES,
 // not the number the matcher makes.
 
-import { matchOccurrence, matchCharge, normalizePaymentSource, type MatchableTransaction } from './transaction-matching';
-import { findExclusiveReview, isHandledReview, isLinkStatus } from './synced-transaction-review';
+import { matchRuleOnDates, matchCharge, normalizePaymentSource, type MatchableTransaction } from './transaction-matching';
+import { findExclusiveReview, isHandledReview, isLinkStatus, type CarChargeKind } from './synced-transaction-review';
+import { getRuleOccurrenceDatesInMonth } from './pay-schedule';
+import {
+  paymentPlanObligations, carChargeObligations, matchObligations,
+  type ChargeObligation, type ObligationPlan,
+} from './charge-obligations';
+import type { CarFund } from './types';
 
 /** `YYYY-MM` for a `YYYY-MM-DD`. */
 export const monthOf = (date: string) => date.slice(0, 7);
@@ -58,6 +64,14 @@ export interface QueueRule {
   frequency: string;
   rule_type: string;
   payment_source?: string | null;
+  /** Where an INCOME rule's money lands. See `MatchableRule.deposit_account` — without it no income
+   *  rule can match at all, because the rule editor leaves `payment_source` null on income. */
+  deposit_account?: string | null;
+  /** The three columns `getRuleOccurrenceDatesInMonth` needs to place a weekly/biweekly occurrence:
+   *  `created_at` supplies the biweekly phase anchor, the other two bound the schedule. */
+  start_date?: string | null;
+  end_date?: string | null;
+  created_at?: string | null;
   active?: boolean;
 }
 
@@ -75,10 +89,34 @@ export interface QueueReview {
   status: string;
 }
 
-/** What the app thinks one charge is, if it thinks anything. At most one of the two is set. */
-export interface ChargeSuggestion<R = QueueRule, T = QueueLedgerTxn> {
+/** A vehicle obligation a charge appears to settle — which car, and which of its two monthly bills. */
+export interface CarChargeSuggestion {
+  carFundId: string;
+  kind: CarChargeKind;
+  /** For the button's label. Read off the fund so a deleted vehicle cannot leave a blank badge. */
+  vehicleName: string;
+  /** The obligation's own amount, which for a loan payment is that month's real figure. */
+  amount: number;
+}
+
+/**
+ * What the app thinks one charge is, if it thinks anything. AT MOST ONE FIELD IS EVER SET.
+ *
+ * ⚠️ PRECEDENCE IS RULE → PLAN → VEHICLE → YOUR OWN ENTRY, and it is a real decision, not an
+ * accident of iteration order. The first three are OBLIGATIONS the app already projects, so
+ * confirming one retires a specific future outflow; the last only says the user typed the same
+ * charge in by hand. Where two would both fit, naming the obligation is the more useful answer and
+ * the one whose acceptance changes a projected number. Ties are vanishingly rare — they need two
+ * things of the same amount on the same account within days — and the fixed order at least makes
+ * them deterministic instead of dependent on which map was built first.
+ */
+export interface ChargeSuggestion<R = QueueRule, T = QueueLedgerTxn, P = ObligationPlan> {
   /** The rule this charge appears to settle, per the app's single definition of "matched". */
   rule?: R;
+  /** The payment plan whose instalment this charge appears to be. */
+  plan?: P;
+  /** The vehicle obligation this charge appears to settle. */
+  carCharge?: CarChargeSuggestion;
   /** A ledger row the user already entered by hand for this charge. */
   ledgerTxn?: T;
 }
@@ -117,10 +155,18 @@ export function isChargeHandled(chargeReviews: readonly QueueReview[]): boolean 
 /**
  * Rule suggestions for a whole set of charges, computed the only correct way round.
  *
- * `matchOccurrence` answers "which transaction settles THIS rule's occurrence", and its
- * one-candidate-only rule is what keeps it honest. So the index is built by asking every rule that
- * question and inverting the answer — never by scoring rules against a transaction, which would be a
- * second matcher with different ambiguity behaviour.
+ * The matcher answers "which transaction settles THIS rule's occurrence", and its one-candidate-only
+ * rule is what keeps it honest. So the index is built by asking every rule that question and
+ * inverting the answer — never by scoring rules against a transaction, which would be a second
+ * matcher with different ambiguity behaviour.
+ *
+ * ⚠️ EVERY FREQUENCY IS ASKED ABOUT, and that is the §1B Stage 6 change. This used to call
+ * `matchOccurrence`, which locates an occurrence from `due_day` alone and therefore SKIPS weekly and
+ * biweekly rules outright — `due_day` is a day of the WEEK there. The guard was right and the
+ * outcome was wrong: it is why Tre's weekly paycheck and his biweekly `Fuel` rule could never be
+ * suggested. `getRuleOccurrenceDatesInMonth` is the app's one definition of where a rule's
+ * occurrences land (phase-anchored for biweekly, bounded by `start_date`/`end_date`), so the real
+ * dates are generated and each is matched. No tolerance moved; the calendar did.
  *
  * ⚠️ `months` and `charges` are separate arguments ON PURPOSE. The months are the ones being shown;
  * the charges are the FULL synced history, because a bill due on the 1st can settle in the prior
@@ -133,29 +179,49 @@ export function buildRuleSuggestionIndex<R extends QueueRule>(
 ): Record<string, R> {
   const index: Record<string, R> = {};
   for (const month of months) {
+    const [year, monthNumber] = month.split('-').map(Number);
+    if (!year || !monthNumber) continue;
     for (const rule of rules) {
       // Same guard and same adapter as `BudgetControl.tsx:549`.
       if (typeof rule.due_day !== 'number') continue;
-      const match = matchOccurrence(
-        { ...rule, due_day: rule.due_day, payment_source: rule.payment_source ?? null },
-        month,
-        charges,
+      const dates = getRuleOccurrenceDatesInMonth(
+        {
+          frequency: rule.frequency,
+          due_day: rule.due_day,
+          due_month: rule.due_month ?? null,
+          start_date: rule.start_date ?? null,
+          end_date: rule.end_date ?? null,
+          created_at: rule.created_at ?? undefined,
+        },
+        year,
+        monthNumber - 1,
       );
       // First rule to claim a charge keeps it. A charge settling two rules is a data problem, and
       // silently showing the second rule would misattribute it.
-      if (match && !index[match.txn.id]) index[match.txn.id] = rule;
+      for (const match of matchRuleOnDates({ ...rule, due_day: rule.due_day, payment_source: rule.payment_source ?? null }, dates, charges)) {
+        if (!index[match.txn.id]) index[match.txn.id] = rule;
+      }
     }
   }
   return index;
 }
 
-export interface QueueInput<C extends QueueCharge, R extends QueueRule, T extends QueueLedgerTxn> {
+export interface QueueInput<C extends QueueCharge, R extends QueueRule, T extends QueueLedgerTxn, P extends ObligationPlan> {
   /** Every settled synced row, all months. */
   charges: readonly C[];
   /** Every review row already recorded, keyed by `synced_transaction_id`. */
   reviewsByCharge: Readonly<Record<string, readonly QueueReview[]>>;
   rules: readonly R[];
   ledger: readonly T[];
+  /** Payment plans, for the instalment suggestions. Absent means none are offered. */
+  plans?: readonly P[];
+  /** Car funds, for the loan-payment and insurance suggestions. */
+  carFunds?: readonly CarFund[];
+  /**
+   * The account a car charge falls back to when the fund names none — `loan_payment_account`'s
+   * documented null means "the generic liquid-cash pool". Same fallback as `capture-evidence.ts`.
+   */
+  fundingAccountId?: string | null;
   /**
    * Charges whose suggestion the user pressed "Not this" on THIS SESSION. Deliberately not
    * persisted (Tre, 2026-08-09) — a rejection has to land somewhere, and each destination writes its
@@ -164,11 +230,11 @@ export interface QueueInput<C extends QueueCharge, R extends QueueRule, T extend
   rejected?: Readonly<Record<string, true>>;
 }
 
-export interface ReviewQueue<C extends QueueCharge, R extends QueueRule, T extends QueueLedgerTxn> {
+export interface ReviewQueue<C extends QueueCharge, R extends QueueRule, T extends QueueLedgerTxn, P extends ObligationPlan = ObligationPlan> {
   /** Every charge with no terminal decision yet, suggestion-carrying first, then newest first. */
   needsDecision: C[];
   /** What the app thinks each charge is. Only ever populated for unhandled, unrejected charges. */
-  suggestions: Record<string, ChargeSuggestion<R, T>>;
+  suggestions: Record<string, ChargeSuggestion<R, T, P>>;
   /**
    * THE NUMBER THAT GETS BADGED: charges where the app has an answer and is waiting for a yes/no.
    * Never the count of unreviewed rows — see this file's header.
@@ -183,10 +249,13 @@ export interface ReviewQueue<C extends QueueCharge, R extends QueueRule, T exten
  * an unsuggested row is an open-ended chore; interleaving them by date buries the former in the
  * latter, which is the failure this whole slice exists to fix — just at a different scale.
  */
-export function buildReviewQueue<C extends QueueCharge, R extends QueueRule, T extends QueueLedgerTxn>(
-  input: QueueInput<C, R, T>,
-): ReviewQueue<C, R, T> {
-  const { charges, reviewsByCharge, rules, ledger, rejected = {} } = input;
+export function buildReviewQueue<C extends QueueCharge, R extends QueueRule, T extends QueueLedgerTxn, P extends ObligationPlan = ObligationPlan>(
+  input: QueueInput<C, R, T, P>,
+): ReviewQueue<C, R, T, P> {
+  const {
+    charges, reviewsByCharge, rules, ledger, rejected = {},
+    plans = [], carFunds = [], fundingAccountId = null,
+  } = input;
 
   const unhandled = charges.filter(c => !isChargeHandled(reviewsByCharge[c.id] ?? []));
 
@@ -205,7 +274,36 @@ export function buildReviewQueue<C extends QueueCharge, R extends QueueRule, T e
   const matchableLedger = asMatchableLedger(ledger);
   const ledgerById = new Map(ledger.map(l => [l.id, l]));
 
-  const suggestions: Record<string, ChargeSuggestion<R, T>> = {};
+  // §1B Stage 6 — the two destinations that had a picker and no suggestion. Both are matched from
+  // the OBLIGATION side, same as the rules above, so `matchCharge` is reused unchanged; see
+  // `charge-obligations.ts`. The month list is the same one the rules use, so a charge and the
+  // instalment it settles are always asked about together.
+  const obligationByChargeId = matchObligations(
+    [...paymentPlanObligations(plans), ...carChargeObligations(carFunds, months, fundingAccountId)],
+    matchableCharges,
+  );
+  const planById = new Map(plans.map(p => [p.id, p]));
+  const carFundById = new Map(carFunds.map(cf => [cf.id, cf]));
+
+  /** One obligation as the suggestion it renders, or null when the thing it names is gone. */
+  const asSuggestion = (obligation: ChargeObligation): ChargeSuggestion<R, T, P> | null => {
+    if (obligation.planId) {
+      const plan = planById.get(obligation.planId);
+      return plan ? { plan } : null;
+    }
+    const cf = obligation.carFundId ? carFundById.get(obligation.carFundId) : undefined;
+    if (!cf || !obligation.carChargeKind) return null;
+    return {
+      carCharge: {
+        carFundId: cf.id,
+        kind: obligation.carChargeKind,
+        vehicleName: cf.vehicle_name,
+        amount: Math.abs(Number(obligation.charge.amount)),
+      },
+    };
+  };
+
+  const suggestions: Record<string, ChargeSuggestion<R, T, P>> = {};
   /** Which unhandled charges claim each ledger row — the other half of the ambiguity guard, below. */
   const claimsByLedgerId = new Map<string, string[]>();
 
@@ -213,6 +311,13 @@ export function buildReviewQueue<C extends QueueCharge, R extends QueueRule, T e
     if (rejected[charge.id]) continue;
     const rule = ruleByChargeId[charge.id];
     if (rule) { suggestions[charge.id] = { rule }; continue; }
+    // Precedence, deliberate — see `ChargeSuggestion`. An obligation the app projects outranks a
+    // row the user typed in by hand.
+    const obligation = obligationByChargeId.get(charge.id);
+    if (obligation) {
+      const suggestion = asSuggestion(obligation);
+      if (suggestion) { suggestions[charge.id] = suggestion; continue; }
+    }
     const amount = Number(charge.amount);
     const hit = matchCharge(
       { accountId: charge.account_id, amount: Math.abs(amount), dueDate: charge.date, isInflow: amount < 0 },

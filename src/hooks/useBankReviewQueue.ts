@@ -11,11 +11,13 @@
 import { useMemo } from 'react';
 import {
   useAllSyncedTransactions, useSyncedTransactionReviewsQuery, useRecurringRules, useTransactions,
+  usePaymentPlans, useCarFunds, useProfile,
   type BankActivityRow, type RuleRow, type TransactionRow, type SyncedTransactionReviewRow,
 } from './useSupabaseData';
 import { buildReviewQueue, type ReviewQueue } from '@/lib/bank-activity-queue';
+import type { ObligationPlan } from '@/lib/charge-obligations';
 
-export type BankReviewQueue = ReviewQueue<BankActivityRow, RuleRow, TransactionRow>;
+export type BankReviewQueue = ReviewQueue<BankActivityRow, RuleRow, TransactionRow, ObligationPlan>;
 
 /** Module-level so the default argument is referentially stable — a fresh `{}` per render would
  *  invalidate the memo below on every render and re-match the whole history each time. */
@@ -53,24 +55,37 @@ export function useBankReviewQueue(
   const reviews = useSyncedTransactionReviewsQuery();
   const rules = useRecurringRules();
   const ledger = useTransactions();
+  const plans = usePaymentPlans();
+  const carFunds = useCarFunds();
+  const { data: profile } = useProfile();
 
   // `useRecurringRules`/`useTransactions` expose `loading`; the two raw `useQuery`s expose
-  // `isLoading`. Both are read rather than picking one, because a count computed from three of four
+  // `isLoading`. Both are read rather than picking one, because a count computed from some of the
   // inputs is a wrong count rendered confidently.
-  const isLoading = charges.isLoading || reviews.isLoading || rules.loading || ledger.loading;
+  //
+  // ⚠️ PLANS AND CAR FUNDS COUNT TOWARDS `isLoading` TOO, now that they produce suggestions. Leaving
+  // them out would render a settled-looking count that then grows once they land — the badge would
+  // be wrong in the one direction users notice.
+  const isLoading = charges.isLoading || reviews.isLoading || rules.loading || ledger.loading
+    || plans.loading || carFunds.loading;
 
   const reviewsByCharge = useMemo(
     () => groupReviewsByCharge(reviews.data ?? []),
     [reviews.data],
   );
 
-  const queue = useMemo(() => buildReviewQueue<BankActivityRow, RuleRow, TransactionRow>({
+  const fundingAccountId = profile?.default_deposit_account ?? null;
+
+  const queue = useMemo(() => buildReviewQueue<BankActivityRow, RuleRow, TransactionRow, ObligationPlan>({
     charges: charges.data ?? [],
     reviewsByCharge,
     rules: rules.data ?? [],
     ledger: ledger.data ?? [],
+    plans: plans.data ?? [],
+    carFunds: carFunds.data ?? [],
+    fundingAccountId,
     rejected,
-  }), [charges.data, reviewsByCharge, rules.data, ledger.data, rejected]);
+  }), [charges.data, reviewsByCharge, rules.data, ledger.data, plans.data, carFunds.data, fundingAccountId, rejected]);
 
   return { queue, reviewsByCharge, isLoading };
 }
