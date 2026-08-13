@@ -1,4 +1,8 @@
+import CountUp from '@/components/shared/CountUp';
 import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
+
+/** `$12,400` — the same formatting the total had before it animated. */
+const money = (n: number) => `$${n.toLocaleString()}`;
 
 const PHASE_COLORS = [
   '#c8a84b', '#ba4a4a', '#4a8cba', '#8a5ba3', '#3a8a5a',
@@ -45,7 +49,11 @@ export default function BuildHeader({ build, phases, items }: BuildHeaderProps) 
             Total Budget
           </div>
           <div className="text-4xl font-display font-bold tracking-wide leading-none" style={{ color: '#c8a84b' }}>
-            ${totalConfirmed.toLocaleString()}
+            {/* The biggest figure on the page, and the one the brief named:
+                it moves when an item is priced or a phase is hidden, so it
+                counts rather than jumping. The "+ TBD items" caveat below
+                stays outside the counter — it is not part of the number. */}
+            <CountUp value={totalConfirmed} format={money} />
           </div>
           {hasTbd && (
             <div className="text-[12px] font-mono text-muted-foreground mt-0.5">+ TBD items</div>
