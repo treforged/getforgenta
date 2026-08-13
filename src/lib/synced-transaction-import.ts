@@ -53,6 +53,23 @@ export interface ImportContext {
    */
   suggestionRejected?: boolean;
   /**
+   * §1B TRANSFER PAIRS — this charge is one LEG of a movement between two accounts the user owns.
+   *
+   * ⚠️ THIS REFUSAL OUTRANKS `suggestionRejected`, and that ordering is the whole point. Every other
+   * refusal here says "something else already describes this charge", and the user overruling it is
+   * a legitimate correction. This one says something different: a transfer leg is not an expense and
+   * not income, so there is NO ledger row that would be right. Importing the outflow books a
+   * transfer as spending; importing the inflow books it as income; importing both does each. That is
+   * not a double-count the user can resolve by choosing better — it is a category error, so the
+   * button is withheld rather than argued with.
+   *
+   * The pairing itself is derived and can be wrong, which is why this is a named input from a caller
+   * that has actually run `detectTransferPairs`, and why that detector refuses to pair on any
+   * ambiguity. A wrongly withheld button costs one un-imported row; a wrongly offered one puts money
+   * that never left the user's net worth into twelve surfaces.
+   */
+  isTransferLeg?: boolean;
+  /**
    * EVERY decision the user has already recorded about this charge — none, one, or several.
    *
    * ⚠️ A SET SINCE SPLIT LINK (Slice C), and it had to become one. A charge may now hold N link rows
@@ -91,6 +108,14 @@ const BLOCKING_STATUSES: ReadonlySet<string> =
 export function planLedgerImport(txn: SyncedTransactionForImport, ctx: ImportContext): ImportPlan {
   if (ctx.reviews?.some(r => BLOCKING_STATUSES.has(r.status))) {
     return { ok: false, reason: 'You have already dealt with this charge.' };
+  }
+
+  // Checked BEFORE the suggestion guard so that "Not this" cannot reach it. See `isTransferLeg`.
+  if (ctx.isTransferLeg) {
+    return {
+      ok: false,
+      reason: 'This is one half of a movement between your own accounts, so it is neither income nor spending.',
+    };
   }
 
   // THE double-count guard. Import exists only for charges nothing else in the app describes —

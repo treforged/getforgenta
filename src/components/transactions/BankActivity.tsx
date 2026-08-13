@@ -49,11 +49,12 @@ import {
   type BankActivityRow, type RuleRow, type SyncedTransactionReviewRow,
 } from '@/hooks/useSupabaseData';
 import { useBankReviewQueue } from '@/hooks/useBankReviewQueue';
-import { monthOf } from '@/lib/bank-activity-queue';
+import { monthOf, isChargeHandled } from '@/lib/bank-activity-queue';
+import { detectTransferPairs, indexPairsByLeg, describeTransfer, type TransferPair } from '@/lib/transfer-pair-detection';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { resolveRuleOccurrenceDate } from '@/lib/pay-schedule';
-import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks } from 'lucide-react';
+import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks, ArrowLeftRight } from 'lucide-react';
 
 /**
  * WHICH occurrence of a rule a charge on `chargeDate` settles — the month, and the day when the app
@@ -119,6 +120,17 @@ export default function BankActivity() {
   /** Two-step confirm for the batch accept — see `acceptAllSuggested`. */
   const [confirmingAcceptAll, setConfirmingAcceptAll] = useState(false);
   const [accepting, setAccepting] = useState(false);
+  /**
+   * §1B TRANSFER PAIRS — which detected movements the user has UNTICKED in the batch.
+   *
+   * ⚠️ STORED AS THE EXCEPTIONS, because the batch is PRE-CHECKED and that was a decision rather
+   * than a default (Tre did not specify; recorded here so it is not silently re-decided). A silently
+   * auto-applied version is indistinguishable from a bug the moment it mispairs — the rows would
+   * simply be gone, with nothing on screen that says why. Pre-checked and confirmed in one tap keeps
+   * it to one press while leaving a person a chance to look. Keyed by `TransferPair.key`.
+   */
+  const [untickedTransfers, setUntickedTransfers] = useState<Record<string, true>>({});
+  const [recordingTransfers, setRecordingTransfers] = useState(false);
 
   /**
    * Charges whose suggestion the user has overruled with "Not this".
@@ -154,6 +166,22 @@ export default function BankActivity() {
    */
   const { queue, reviewsByCharge: reviewsByTxn } = useBankReviewQueue(rejected);
 
+  /**
+   * §1B TRANSFER PAIRS — the movements between Tre's own accounts, derived over ALL history.
+   *
+   * ⚠️ NOT over the filtered rows. A movement's two legs can straddle a month boundary (the live
+   * $5,037.73 balance transfer posts 06-21 and 06-23) and its legs are on two different accounts by
+   * definition, so detecting inside the month or account filter would break exactly the pairs the
+   * filters are most likely to be pointed at. The filters then choose what is SHOWN; they never
+   * change what is TRUE about a row.
+   *
+   * Derived at read time and never persisted, for the same reason `matchOccurrence`'s answer is: the
+   * accounts and the synced set move under it, and a stored pair would need invalidating on every
+   * one of those. Only Tre's confirmation is stored, and only once he gives it.
+   */
+  const transferPairs = useMemo(() => detectTransferPairs(synced, accounts), [synced, accounts]);
+  const pairByLeg = useMemo(() => indexPairsByLeg(transferPairs), [transferPairs]);
+
   const monthOptions = useMemo(() => {
     const months = new Set(synced.map(t => monthOf(t.date)));
     return [...months].sort().reverse();
@@ -169,10 +197,45 @@ export default function BankActivity() {
    */
   const rows = useMemo(() => {
     const population = view === 'needs' ? queue.needsDecision : synced;
-    return population
+    const shown = population
       .filter(t => (filterMonth === 'all' || monthOf(t.date) === filterMonth))
       .filter(t => (filterAccount === 'all' || t.account_id === filterAccount));
-  }, [view, queue.needsDecision, synced, filterMonth, filterAccount]);
+
+    // ⚠️ ONE MOVEMENT, ONE ROW — but only when BOTH legs are on screen. The inflow leg is dropped in
+    // favour of the outflow, which is the leg that says where the money came from. When a filter has
+    // separated the two (an account filter always does, since the legs are on different accounts by
+    // definition) the surviving leg is kept and still renders as a transfer: hiding it would make a
+    // real bank row vanish from an account's own list, which is worse than showing one half of
+    // something and saying it is a half.
+    const onScreen = new Set(shown.map(t => t.id));
+    return shown.filter(t => {
+      const pair = pairByLeg.get(t.id);
+      if (!pair || t.id === pair.out.id) return true;
+      return !onScreen.has(pair.out.id);
+    });
+  }, [view, queue.needsDecision, synced, filterMonth, filterAccount, pairByLeg]);
+
+  /**
+   * The movements the pre-checked batch would record: on screen, still ticked, and still undecided.
+   *
+   * Scoped to what is visible for the same reason the "Accept all suggested" batch is — a button
+   * whose blast radius the user cannot see is a button they cannot check before pressing.
+   */
+  const recordableTransfers = useMemo(() => {
+    const seen = new Set<string>();
+    const out: TransferPair[] = [];
+    for (const t of rows) {
+      const pair = pairByLeg.get(t.id);
+      if (!pair || seen.has(pair.key) || untickedTransfers[pair.key]) continue;
+      // Already-decided legs are excluded: `needsDecision` has filtered them out of the queue view,
+      // and in the archive view a handled leg is history, not work. BOTH legs are checked, because
+      // recording a movement writes to both and a batch must never re-decide a decided row.
+      if (isChargeHandled(reviewsByTxn[pair.out.id] ?? []) || isChargeHandled(reviewsByTxn[pair.in.id] ?? [])) continue;
+      seen.add(pair.key);
+      out.push(pair);
+    }
+    return out;
+  }, [rows, pairByLeg, untickedTransfers, reviewsByTxn]);
 
   /**
    * The rows "Accept all suggested" would act on: what is ON SCREEN and carries a suggestion.
@@ -292,6 +355,60 @@ export default function BankActivity() {
     // Passing it would put the same category on two rows with no rule for which wins, which
     // `validateReviewSet` rejects outright (Tre, 2026-08-09).
   });
+
+  /**
+   * §1B TRANSFER PAIRS — record BOTH legs of one movement as dealt with.
+   *
+   * ⚠️ WHY `'ignored'` AND NOT A NEW `'transfer'` STATUS. `ReviewStatus` is mirrored by a CHECK
+   * constraint in the database, so a sixth value is a MIGRATION — and an unattended session may not
+   * apply one (`AGENT.md`), on a free-tier project with no PITR. `'ignored'` is not a workaround
+   * chosen for convenience either: it is the existing status meaning "nothing about this charge
+   * belongs in the ledger", which is exactly and literally true of a movement between two accounts
+   * the same person owns. Both balances already moved; no third record is owed.
+   *
+   * The pairing is not thrown away by using it — `detectTransferPairs` re-derives it on every read
+   * from the same rows, so the badge on a recorded leg still says "transfer", not "ignored". If a
+   * future change wants the fact stored, that is a migration and its own decision.
+   *
+   * BOTH legs, always. Recording one and leaving the other is the noise this slice exists to remove,
+   * only halved — and the surviving leg would still offer the import trap.
+   */
+  const recordTransfer = async (pair: TransferPair) => {
+    for (const leg of [pair.out, pair.in]) {
+      await save.mutateAsync({
+        synced_transaction_id: leg.id,
+        status: 'ignored',
+        // `save` writes every column including the nulls, so a label the user already corrected
+        // would be silently cleared if this were omitted. `'ignored'` may legitimately carry one.
+        category_override: findExclusiveReview(reviewsByTxn[leg.id] ?? [])?.category_override ?? null,
+      });
+    }
+  };
+
+  /**
+   * The pre-checked batch, confirmed in one tap.
+   *
+   * Sequential and stop-at-first-failure, for the same two reasons `acceptAllSuggested` is: `save` is
+   * find-then-write per charge, so parallel writes would race the read half against its own writes;
+   * and a batch that ploughs on through a failure leaves a partial result nobody can read back.
+   */
+  const recordAllTransfers = async () => {
+    setRecordingTransfers(true);
+    let done = 0;
+    try {
+      for (const pair of recordableTransfers) {
+        await recordTransfer(pair);
+        done++;
+      }
+      if (done > 0) toast.success(`Recorded ${done} ${done === 1 ? 'transfer' : 'transfers'} between your accounts`);
+    } catch {
+      // `save`'s own `onError` has already said what went wrong in the user's language; all this adds
+      // is how far the batch got, which that toast cannot know.
+      if (done > 0) toast.message(`Stopped after ${done} of ${recordableTransfers.length} — nothing else was changed`);
+    } finally {
+      setRecordingTransfers(false);
+    }
+  };
 
   /**
    * §1B Stage 5 — accept every suggestion currently on screen, in one press.
@@ -414,6 +531,61 @@ export default function BankActivity() {
         </span>
       </div>
 
+      {/* §1B TRANSFER PAIRS — the pre-checked batch.
+          Rendered as a LIST rather than a bare count because the whole reason it is not silent is
+          that a person has to be able to see what would be collapsed. Every line names both
+          accounts and the amount, and unticking one leaves both its rows in the queue. */}
+      {recordableTransfers.length > 0 && (
+        <div className="card-forged p-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <ArrowLeftRight size={13} className="text-primary mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs font-medium">
+                {recordableTransfers.length} {recordableTransfers.length === 1 ? 'movement' : 'movements'} between your own accounts
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Each of these is one movement your bank reported twice, once from each side. Money
+                that moves between accounts you own is neither income nor spending, so recording
+                these clears both rows and adds nothing to your ledger. Untick anything that is
+                really two separate payments.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-1 pl-5">
+            {recordableTransfers.map(pair => (
+              <label key={pair.key} className="flex items-center gap-2 text-[11px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={!untickedTransfers[pair.key]}
+                  onChange={() => setUntickedTransfers(u => {
+                    const next = { ...u };
+                    if (next[pair.key]) delete next[pair.key]; else next[pair.key] = true;
+                    return next;
+                  })}
+                  className="accent-primary"
+                />
+                <span className="font-display font-semibold whitespace-nowrap">{formatCurrency(pair.amount, false)}</span>
+                <span className="text-muted-foreground truncate">
+                  {describeTransfer(pair)} · {pair.out.date}
+                  {pair.paidCard ? ` · pays ${pair.paidCard.name}` : ''}
+                </span>
+              </label>
+            ))}
+          </div>
+          <button
+            onClick={recordAllTransfers}
+            disabled={recordingTransfers}
+            className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            <ArrowLeftRight size={12} />
+            {recordingTransfers
+              ? 'Recording…'
+              : `Record ${recordableTransfers.length} ${recordableTransfers.length === 1 ? 'transfer' : 'transfers'}`}
+          </button>
+        </div>
+      )}
+
       {/* Batch accept. Offered from two upward: with a single suggestion the row's own button is
           already right there, and a batch control for one row is a second way to do one thing. */}
       {view === 'needs' && acceptable.length > 1 && (
@@ -493,6 +665,10 @@ export default function BankActivity() {
           // the tab and the sidebar badge, so the three can never disagree about the same charge —
           // and the queue's cross-charge ambiguity guard (see `bank-activity-queue.ts`) applies to
           // what is rendered, which a per-row call could not see.
+          // §1B TRANSFER PAIRS — is this row half of one movement? Derived once, above; a per-row
+          // call would rebuild the whole cross-row ambiguity analysis for every row on screen and
+          // could not see the other rows' claims anyway.
+          const pair = pairByLeg.get(txn.id) ?? null;
           const suggestion = queue.suggestions[txn.id] ?? {};
           const hasSuggestion = !!(suggestion.rule || suggestion.ledgerTxn);
           const suggestionRejected = !!rejected[txn.id];
@@ -505,6 +681,11 @@ export default function BankActivity() {
             categoryOverride: exclusive?.category_override ?? null,
             hasSuggestion,
             suggestionRejected,
+            // THE TRAP THIS SLICE CLOSES. Pressing "Add to my ledger" on either leg books a movement
+            // between the user's own accounts as spending or as income; there is no third answer
+            // that would be right, so the button is withheld rather than argued with. The refusal
+            // lives in `planLedgerImport` and not in this file's conditionals, like every other one.
+            isTransferLeg: !!pair,
             // The whole set, not one row: a charge already linked to a rule must not also become a
             // ledger entry, and asking about a single review would read only part of the answer.
             reviews: chargeReviews,
@@ -522,38 +703,81 @@ export default function BankActivity() {
 
           return (
             <div key={txn.id} className="px-4 py-3 space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3 min-w-0">
-                  <span className="text-base leading-none w-5 text-center shrink-0 mt-0.5">
-                    {isInflow ? '💰' : (CATEGORY_EMOJI[category] ?? '📦')}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium truncate">{txn.merchant_name || txn.name || '—'}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {txn.date}
-                      {txn.account_id && accountName[txn.account_id] ? ` · ${accountName[txn.account_id]}` : ''}
-                    </p>
+              {/* ⚠️ A TRANSFER ROW SAYS WHERE THE MONEY WENT, and it is neither red nor green.
+                  Both banks describe only their own half ("Payment to Chase card ending in 56" /
+                  "Payment Thank You-Mobile"), and neither says where the money came from or landed —
+                  which is the only fact a person actually wants back from a transfer. Colouring it
+                  would be the same misattribution in another form: nothing was earned and nothing
+                  was spent, so an outflow-red row would be a claim the app cannot stand behind. */}
+              {pair ? (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="w-5 shrink-0 mt-0.5 flex justify-center text-primary"><ArrowLeftRight size={14} /></span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium truncate">{describeTransfer(pair)}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {pair.out.date}
+                        {pair.in.date !== pair.out.date ? ` → ${pair.in.date}` : ''}
+                        {' · '}moved between your accounts
+                      </p>
+                    </div>
                   </div>
+                  <span className="text-xs font-semibold font-display whitespace-nowrap text-foreground">
+                    {formatCurrency(pair.amount, false)}
+                  </span>
                 </div>
-                <span className={`text-xs font-semibold font-display whitespace-nowrap ${isInflow ? 'text-success' : 'text-destructive'}`}>
-                  {isInflow ? '+' : '-'}{formatCurrency(Math.abs(amount), false)}
-                </span>
-              </div>
+              ) : (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="text-base leading-none w-5 text-center shrink-0 mt-0.5">
+                      {isInflow ? '💰' : (CATEGORY_EMOJI[category] ?? '📦')}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium truncate">{txn.merchant_name || txn.name || '—'}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {txn.date}
+                        {txn.account_id && accountName[txn.account_id] ? ` · ${accountName[txn.account_id]}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-xs font-semibold font-display whitespace-nowrap ${isInflow ? 'text-success' : 'text-destructive'}`}>
+                    {isInflow ? '+' : '-'}{formatCurrency(Math.abs(amount), false)}
+                  </span>
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-2 pl-8">
-                <select
-                  value={category}
-                  onChange={e => setCategory.mutate({ syncedTransactionId: txn.id, category: e.target.value })}
-                  className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground"
-                  style={{ borderRadius: 'var(--radius)' }}
-                  aria-label="Category"
-                >
-                  {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                {/* ⚠️ NO CATEGORY PICKER ON A TRANSFER, and that is the attribution half of this
+                    slice rather than tidiness. Every option in that list is a kind of spending or
+                    earning, so any answer it could give about a movement between your own accounts
+                    is wrong — and today the row is indistinguishable from a purchase precisely
+                    because it is asked to pick one. Where the money landed on a card, what the row
+                    offers instead is that card's payment obligation. */}
+                {!pair && (
+                  <>
+                    <select
+                      value={category}
+                      onChange={e => setCategory.mutate({ syncedTransactionId: txn.id, category: e.target.value })}
+                      className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground"
+                      style={{ borderRadius: 'var(--radius)' }}
+                      aria-label="Category"
+                    >
+                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
 
-                {/* An unmapped provider category is uncategorised, not "Other". Saying "Other"
-                    asserts the charge is miscellaneous; the honest claim is that we do not know. */}
-                {isGuess && <span className="text-[10px] text-muted-foreground">uncategorised — pick one</span>}
+                    {/* An unmapped provider category is uncategorised, not "Other". Saying "Other"
+                        asserts the charge is miscellaneous; the honest claim is that we do not know. */}
+                    {isGuess && <span className="text-[10px] text-muted-foreground">uncategorised — pick one</span>}
+                  </>
+                )}
+
+                {pair && (
+                  <span className="text-[10px] text-muted-foreground">
+                    {pair.paidCard
+                      ? `pays ${pair.paidCard.name} — a card payment is not spending, so it takes no category`
+                      : 'not income and not spending — no category applies'}
+                  </span>
+                )}
 
                 {/* ONE BADGE PER DECISION. A charge that settles four obligations shows four, each
                     with its own undo — the point of split link is that the Water rider stops being
@@ -583,7 +807,12 @@ export default function BankActivity() {
                 {exclusiveHandled && exclusive ? (
                   <>
                     <span className="text-[10px] text-success bg-success/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
-                      {exclusive.status === 'ignored' ? 'ignored'
+                      {/* A recorded transfer leg carries `'ignored'` because that is the only
+                          existing status meaning "nothing about this belongs in the ledger" (see
+                          `recordTransfer`), but "ignored" is not what the user did — they told the
+                          app these two rows are one movement. The pairing is re-derived on every
+                          read, so the badge can say the true thing without storing a sixth status. */}
+                      {exclusive.status === 'ignored' ? (pair ? 'recorded · transfer' : 'ignored')
                         : exclusive.status === 'imported' ? 'added to ledger'
                           : 'linked · your entry'}
                     </span>
@@ -610,7 +839,33 @@ export default function BankActivity() {
                   </>
                 ) : (
                   <>
-                    {showSuggestion && suggestion.rule && (
+                    {/* §1B TRANSFER PAIRS — a paired row gets its own two actions and none of the
+                        single-charge ones below. "Which of your entries is this?" and "which bill
+                        does this pay?" are questions about a payment to someone else; asked of a
+                        movement between your own accounts they invite exactly the misattribution
+                        this slice removes. The one bill-shaped destination that IS meaningful is
+                        kept: Tre tracks three `transfer` rules (HYS, Emergency Fund, Owners
+                        Contribution) that describe these movements, and where the money landed on a
+                        card, that card's payment is what the row names. */}
+                    {pair && (
+                      <>
+                        <button
+                          onClick={() => { void recordTransfer(pair); }}
+                          className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
+                          title="Marks both rows dealt with. Adds nothing to your ledger."
+                        >
+                          <ArrowLeftRight size={11} /> Record — one movement
+                        </button>
+                        <button
+                          onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'rule' ? null : { id: txn.id, kind: 'rule' }))}
+                          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        >
+                          <Link2 size={11} /> {pair.paidCard ? `Link to a ${pair.paidCard.name} payment` : 'Link to a transfer you track'}
+                        </button>
+                      </>
+                    )}
+
+                    {!pair && showSuggestion && suggestion.rule && (
                       <button
                         // Same write the batch accept performs — one definition, so the two can
                         // never drift into recording a link differently. See `acceptRuleInput`.
@@ -620,7 +875,7 @@ export default function BankActivity() {
                         <Link2 size={11} /> Confirm: {suggestion.rule.name}
                       </button>
                     )}
-                    {showSuggestion && !suggestion.rule && suggestion.ledgerTxn && (
+                    {!pair && showSuggestion && !suggestion.rule && suggestion.ledgerTxn && (
                       <button
                         onClick={() => save.mutate({
                           synced_transaction_id: txn.id,
@@ -641,7 +896,7 @@ export default function BankActivity() {
                     {/* "Not this" is a RE-TARGET, not a dismissal (Tre, 2026-08-09). Rejecting the
                         guess opens the same three destinations a row with no suggestion gets, so the
                         rejection lands somewhere instead of just hiding a wrong answer. */}
-                    {showSuggestion && (
+                    {!pair && showSuggestion && (
                       <button
                         onClick={() => { setRejected(r => ({ ...r, [txn.id]: true })); setPicker(null); }}
                         className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
@@ -653,7 +908,7 @@ export default function BankActivity() {
                     {/* The pickers are offered on rows with NO suggestion too, not only after a
                         rejection: the matcher missing a link is the same user need as the matcher
                         getting it wrong, and the write is identical. */}
-                    {!showSuggestion && (
+                    {!pair && !showSuggestion && (
                       <>
                         <button
                           onClick={() => setPicker(p => (p?.id === txn.id && p.kind === 'rule' ? null : { id: txn.id, kind: 'rule' }))}
@@ -710,7 +965,10 @@ export default function BankActivity() {
 
                     {/* Also exclusive, and also contradictory once links exist — a charge cannot
                         both settle three bills and be nothing worth recording. */}
-                    {!hasLinks && (
+                    {/* Not offered on a transfer leg: "nothing worth recording" and "this is one
+                        movement between my accounts" are different statements, and the second one
+                        has its own button above that also clears the other leg. */}
+                    {!pair && !hasLinks && (
                       <button
                         onClick={() => save.mutate({ synced_transaction_id: txn.id, status: 'ignored' })}
                         className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
@@ -752,6 +1010,18 @@ export default function BankActivity() {
                         // No `category_override` — the label lives on the exclusive row. See the
                         // suggestion button above.
                       });
+                      // §1B TRANSFER PAIRS — naming what a movement was settles BOTH of its rows.
+                      // Linking only the leg on screen would leave the other one in the queue as an
+                      // orphan the user has already answered for, which is the noise this removes,
+                      // only halved. The partner gets the same `'ignored'` the batch writes.
+                      if (pair) {
+                        const partner = pair.out.id === txn.id ? pair.in : pair.out;
+                        save.mutate({
+                          synced_transaction_id: partner.id,
+                          status: 'ignored',
+                          category_override: findExclusiveReview(reviewsByTxn[partner.id] ?? [])?.category_override ?? null,
+                        });
+                      }
                       setPicker(null);
                     }}
                     className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground max-w-full"
