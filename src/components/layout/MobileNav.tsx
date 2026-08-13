@@ -10,6 +10,7 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
+import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 
 // The bottom bar is a 5-column grid: 4 primary tabs plus the "More" button.
 // Tabs and order are Tre's spec: dashboard, transactions, debt payoff, forecast, More.
@@ -49,6 +50,11 @@ export default function MobileNav() {
   const setShowMore = (open: boolean) => setMoreOpenedAt(open ? pathname : null);
 
   const moreActive = SECONDARY.some(i => pathname === i.to);
+
+  // §1B Stage 5 — see the identical block in `Sidebar.tsx`. NOT an unreviewed count; null while
+  // loading and null at zero. The mobile bar gets it too because a review queue only a desktop user
+  // can see is the same invisibility bug in a smaller window.
+  const reviewQueueCount = useBankReviewQueueCount();
 
   return (
     <>
@@ -165,6 +171,17 @@ export default function MobileNav() {
                   <item.icon size={20} strokeWidth={active ? 2.2 : 1.8} />
                   {item.highlight && !active && (
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full" />
+                  )}
+                  {/* A NUMBER, not a dot, and it goes over the Activity icon. The labels here are
+                      pinned short for 320px phones (see the block above), so the count cannot ride
+                      the label — and unlike the Debt dot, this one says how much is waiting. */}
+                  {item.to === '/transactions' && reviewQueueCount !== null && (
+                    <span
+                      className="absolute -top-1.5 -right-2.5 min-w-[16px] px-1 text-[9px] font-bold leading-[16px] text-primary-foreground bg-primary rounded-full text-center"
+                      aria-label={`${reviewQueueCount} bank charges awaiting your decision`}
+                    >
+                      {reviewQueueCount > 9 ? '9+' : reviewQueueCount}
+                    </span>
                   )}
                 </div>
                 <span className="truncate">{item.label}</span>

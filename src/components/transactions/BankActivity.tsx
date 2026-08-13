@@ -19,25 +19,41 @@
 // the input to discovering recurring rules at onboarding (§1C), so the vast majority of rows are
 // permanently unreviewed BY DESIGN. There is therefore no "N items need review" count, no badge,
 // and no nagging anywhere in this file, and nothing may read an unreviewed row as "did not happen".
+//
+// ⚠️ §1B STAGE 5 (2026-08-13) DID NOT OVERTURN THAT, AND THE DISTINCTION IS THE WHOLE DESIGN —
+// read `@/lib/bank-activity-queue`'s header before touching any count on this surface. Nothing here
+// counts unreviewed rows. What is counted and badged is SUGGESTIONS AWAITING A DECISION: charges
+// where the app already computed an answer and is waiting for a yes/no. The two are different sets
+// by an order of magnitude — 517 of 586 settled rows were unreviewed, and a handful carried a live
+// suggestion. A count of the former is a number nobody can drive to zero; a count of the latter is
+// the app admitting it has something to show, and driving it to zero is exactly what the user does.
+//
+// The bug that forced this: THIS TAB USED TO OPEN ON THE CURRENT CALENDAR MONTH. Verified in the
+// live app on 2026-08-13 — the matcher was fine (the Zelle from ARIANA on 2026-05-01 rendered
+// "Matches your entry on 2026-05-01" and linked correctly when clicked), but three correct
+// suggestions had sat unseen since May and June because they were behind a month dropdown nobody
+// opens. Nothing was double-counted; the cost was that a correct answer went unused for three
+// months, and each of those rows could have been turned into a genuine duplicate with "Add to my
+// ledger". So the entry point is now the DECISION QUEUE across all months, and the month select is
+// what it always should have been: a filter, not the door.
 
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/calculations';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { suggestCategory, hasCategorySuggestion, isValidCategory } from '@/lib/plaid-category-map';
-import { matchOccurrence, matchCharge, normalizePaymentSource, type MatchableTransaction } from '@/lib/transaction-matching';
 import {
   useAllSyncedTransactions, useSyncedTransactionReviews, useAccounts, useRecurringRules,
   useTransactions, usePaymentPlans, useCarFunds, isHandledReview, planLedgerImport,
   isLinkStatus, findExclusiveReview,
-  type BankActivityRow, type SyncedTransactionReviewRow, type TransactionRow, type RuleRow,
+  type BankActivityRow, type RuleRow, type SyncedTransactionReviewRow,
 } from '@/hooks/useSupabaseData';
+import { useBankReviewQueue } from '@/hooks/useBankReviewQueue';
+import { monthOf } from '@/lib/bank-activity-queue';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { resolveRuleOccurrenceDate } from '@/lib/pay-schedule';
-import { Link2, EyeOff, RotateCcw, Landmark, Plus, X } from 'lucide-react';
-
-/** `YYYY-MM` for a `YYYY-MM-DD`. */
-const monthOf = (date: string) => date.slice(0, 7);
+import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks } from 'lucide-react';
 
 /**
  * WHICH occurrence of a rule a charge on `chargeDate` settles — the month, and the day when the app
@@ -67,36 +83,14 @@ const LEDGER_PICKER_LIMIT = 40;
 const daysApart = (a: string, b: string) =>
   Math.abs(new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime()) / 86_400_000;
 
-interface RowSuggestion {
-  /** The rule this charge appears to settle, per the app's single definition of "matched". */
-  rule?: RuleRow;
-  /** A ledger row the user already entered by hand for this charge. */
-  ledgerTxn?: TransactionRow;
-}
-
 /**
- * Ledger rows in the shape the §1A matcher consumes.
+ * The two ways to read this tab.
  *
- * Reusing `matchCharge` rather than writing a second amount/date comparison is the whole point: the
- * app has ONE definition of when two money movements are the same event, and a parallel one here
- * could disagree with the badge and the capture gate about the same charge.
- *
- * `payment_source` needs `normalizePaymentSource` because the two tables disagree on a convention —
- * `transactions.payment_source` is `account:`-prefixed on every live row while
- * `recurring_rules.payment_source` is a bare uuid. That helper already accepts both; do not write a
- * second parser.
+ * `'needs'` is the DEFAULT and the reason this slice exists: everything still awaiting a decision,
+ * across all months, best answers first. `'all'` is the archive — what the bank reported, decided or
+ * not — and it is where the month filter earns its keep.
  */
-function asMatchable(txns: readonly TransactionRow[]): MatchableTransaction[] {
-  return txns.map(t => ({
-    id: t.id,
-    account_id: normalizePaymentSource(t.payment_source),
-    // Stage A's convention: OUTFLOW POSITIVE, inflow negative. The ledger stores a positive amount
-    // and puts direction in `type`, so it is re-signed here to match.
-    amount: t.type === 'income' ? -Math.abs(Number(t.amount)) : Math.abs(Number(t.amount)),
-    date: t.date,
-    pending: false,
-  }));
-}
+type ViewMode = 'needs' | 'all';
 
 export default function BankActivity() {
   const { data: synced = [], isLoading } = useAllSyncedTransactions();
@@ -109,12 +103,22 @@ export default function BankActivity() {
   const { data: paymentPlans } = usePaymentPlans();
   const { data: carFunds } = useCarFunds();
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  // Defaults to the current month. All history is available, but opening the tab on seven months of
-  // rows would present an archive as a workload.
-  const [filterMonth, setFilterMonth] = useState<string>(currentMonth);
+  /**
+   * ⚠️ `'all'`, NOT THE CURRENT MONTH, AND THIS ONE LINE IS THE BUG FIX.
+   *
+   * It used to default to `currentMonth`, with the reasoning that opening on months of rows would
+   * present an archive as a workload. That reasoning was right about the ARCHIVE and wrong about the
+   * QUEUE, and it made a correct answer about a May charge unreachable from June onward. The archive
+   * is now behind the "All activity" view, where the same reasoning still applies and this filter is
+   * the tool for it; the door is the decision queue, which is small by construction.
+   */
+  const [filterMonth, setFilterMonth] = useState<string>('all');
   const [filterAccount, setFilterAccount] = useState<string>('all');
+  const [view, setView] = useState<ViewMode>('needs');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  /** Two-step confirm for the batch accept — see `acceptAllSuggested`. */
+  const [confirmingAcceptAll, setConfirmingAcceptAll] = useState(false);
+  const [accepting, setAccepting] = useState(false);
 
   /**
    * Charges whose suggestion the user has overruled with "Not this".
@@ -148,56 +152,38 @@ export default function BankActivity() {
    * Safe to build BEFORE the migration: under today's `UNIQUE (synced_transaction_id)` every array
    * is length 1, so this renders identically until the constraint is relaxed.
    */
-  const reviewsByTxn = useMemo(() => {
-    const map: Record<string, SyncedTransactionReviewRow[]> = {};
-    reviews.forEach(r => { (map[r.synced_transaction_id] ??= []).push(r); });
-    return map;
-  }, [reviews]);
+  const { queue, reviewsByCharge: reviewsByTxn } = useBankReviewQueue(rejected);
 
   const monthOptions = useMemo(() => {
     const months = new Set(synced.map(t => monthOf(t.date)));
     return [...months].sort().reverse();
   }, [synced]);
 
+  /**
+   * The rows on screen.
+   *
+   * ⚠️ THE MONTH AND ACCOUNT FILTERS APPLY IN BOTH VIEWS, and that is deliberate — the queue is
+   * filterable, it is just not month-gated by default. What changes between views is only WHICH
+   * population is filtered: everything, or everything still awaiting a decision (already sorted
+   * suggestion-first by `buildReviewQueue`).
+   */
   const rows = useMemo(() => {
-    return synced
+    const population = view === 'needs' ? queue.needsDecision : synced;
+    return population
       .filter(t => (filterMonth === 'all' || monthOf(t.date) === filterMonth))
       .filter(t => (filterAccount === 'all' || t.account_id === filterAccount));
-  }, [synced, filterMonth, filterAccount]);
+  }, [view, queue.needsDecision, synced, filterMonth, filterAccount]);
 
   /**
-   * Rule suggestions, computed the only correct way round.
+   * The rows "Accept all suggested" would act on: what is ON SCREEN and carries a suggestion.
    *
-   * `matchOccurrence` answers "which transaction settles THIS rule's occurrence", and its
-   * one-candidate-only rule is what keeps it honest. So the index is built by asking every rule that
-   * question and inverting the answer — never by scoring rules against a transaction, which would be
-   * a second matcher with different ambiguity behaviour.
-   *
-   * It is matched against the FULL synced history, not the filtered rows: a bill due on the 1st can
-   * settle in the prior month, and matching within the visible slice would drop those.
+   * Scoped to the filtered list rather than the whole queue on purpose. A batch button that acts on
+   * rows the user cannot see is a button whose blast radius they cannot check before pressing it.
    */
-  const ruleByTxnId = useMemo(() => {
-    const months = new Set(rows.map(r => monthOf(r.date)));
-    const index: Record<string, RuleRow> = {};
-    for (const month of months) {
-      for (const rule of rules) {
-        // `due_day` is optional on `RuleRow` and required by the matcher — a rule without one has
-        // no locatable occurrence. Same guard and same adapter as `BudgetControl.tsx:549`.
-        if (typeof rule.due_day !== 'number') continue;
-        const match = matchOccurrence(
-          { ...rule, due_day: rule.due_day, payment_source: rule.payment_source ?? null },
-          month,
-          synced,
-        );
-        // First rule to claim a transaction keeps it. A charge settling two rules is a data
-        // problem, and silently showing the second rule would misattribute it.
-        if (match && !index[match.txn.id]) index[match.txn.id] = rule;
-      }
-    }
-    return index;
-  }, [rows, rules, synced]);
-
-  const ledgerMatchable = useMemo(() => asMatchable(ledger), [ledger]);
+  const acceptable = useMemo(
+    () => rows.filter(t => queue.suggestions[t.id]),
+    [rows, queue.suggestions],
+  );
 
   /** Rules a charge may be linked to by hand. An inactive rule describes nothing that still bills. */
   const pickableRules = useMemo(
@@ -285,16 +271,75 @@ export default function BankActivity() {
     return 'linked';
   };
 
-  const suggestionFor = (txn: BankActivityRow): RowSuggestion => {
-    const rule = ruleByTxnId[txn.id];
-    if (rule) return { rule };
-    const amount = Number(txn.amount);
-    const hit = matchCharge(
-      { accountId: txn.account_id, amount: Math.abs(amount), dueDate: txn.date, isInflow: amount < 0 },
-      ledgerMatchable,
-    );
-    const ledgerTxn = hit ? ledger.find(l => l.id === hit.txn.id) : undefined;
-    return ledgerTxn ? { ledgerTxn } : {};
+  /**
+   * The write that accepting a rule suggestion performs.
+   *
+   * ⚠️ `ruleOccurrence` USED TO BE MISSING HERE and it is a real fix, not a tidy-up. The picker path
+   * below always sent the occurrence; the one-click "Confirm: {rule}" button sent only `rule_id`, so
+   * accepting a suggested BIWEEKLY link recorded no day — and per this file's own `ruleOccurrence`
+   * doc, a month-wide link suppresses BOTH of that month's charges and over-raises projected cash by
+   * the one the user never confirmed. Tre's `Fuel` rule ($65, biweekly) is exactly that shape. The
+   * batch accept below multiplies the same write, which is what made fixing it non-optional.
+   */
+  const acceptRuleInput = (txn: BankActivityRow, rule: RuleRow) => ({
+    synced_transaction_id: txn.id,
+    status: 'linked_rule' as const,
+    rule_id: rule.id,
+    ...ruleOccurrence(rule, txn.date),
+    // ⚠️ NO `category_override`. It used to be carried forward here so that converting a
+    // `'categorized'` row into a link did not wipe the user's label — correct while a charge had ONE
+    // row, and wrong now: a link is a new row and the label stays on the exclusive one, untouched.
+    // Passing it would put the same category on two rows with no rule for which wins, which
+    // `validateReviewSet` rejects outright (Tre, 2026-08-09).
+  });
+
+  /**
+   * §1B Stage 5 — accept every suggestion currently on screen, in one press.
+   *
+   * ⚠️ THIS CANNOT CREATE MONEY, BY CONSTRUCTION. It only ever writes `linked_rule` and `linked_txn`
+   * review rows — annotations, exactly what the per-row buttons write. It never touches
+   * `planLedgerImport` and never presses "Add to my ledger", which is still the one control on this
+   * page that inserts into `public.transactions`. If a future edit makes this loop capable of an
+   * import, that is a new feature needing its own decision, not a batch of this one.
+   *
+   * Writes are SEQUENTIAL and STOP AT THE FIRST FAILURE. `save` is find-then-write per charge, so
+   * firing them in parallel would race the read half against its own writes; and a batch that
+   * ploughs on through a failing write would leave the user with a partial result and N toasts
+   * describing it. Every row it did write is individually undoable, which is what makes stopping
+   * safe rather than merely tidy.
+   */
+  const acceptAllSuggested = async () => {
+    setAccepting(true);
+    let done = 0;
+    try {
+      for (const txn of acceptable) {
+        const suggestion = queue.suggestions[txn.id];
+        if (suggestion?.rule) {
+          await save.mutateAsync(acceptRuleInput(txn, suggestion.rule));
+        } else if (suggestion?.ledgerTxn) {
+          await save.mutateAsync({
+            synced_transaction_id: txn.id,
+            status: 'linked_txn',
+            transaction_id: suggestion.ledgerTxn.id,
+            // KEPT, unlike the rule write: `linked_txn` is an EXCLUSIVE status, so it lands ON the
+            // exclusive row — the row that owns the category. `save` writes every column including
+            // the nulls, so omitting this would silently clear the user's label.
+            category_override: findExclusiveReview(reviewsByTxn[txn.id] ?? [])?.category_override ?? null,
+          });
+        } else {
+          continue;
+        }
+        done++;
+      }
+      if (done > 0) toast.success(`Linked ${done} ${done === 1 ? 'charge' : 'charges'}`);
+    } catch {
+      // `save`'s own `onError` has already said what went wrong in the user's language. All this
+      // adds is how far the batch got, which that toast cannot know.
+      if (done > 0) toast.message(`Stopped after ${done} of ${acceptable.length} — nothing else was changed`);
+    } finally {
+      setAccepting(false);
+      setConfirmingAcceptAll(false);
+    }
   };
 
   if (isLoading) {
@@ -318,7 +363,32 @@ export default function BankActivity() {
 
   return (
     <div className="space-y-4">
+      {/* THE ENTRY POINT. "Needs a decision" is first and default; the archive is the other tab.
+          Rendered as a two-button segment rather than a third dropdown because which population you
+          are looking at is not the same kind of choice as which month — burying it in a select is
+          how the month default hid a suggestion for three months in the first place. */}
       <div className="flex flex-wrap items-center gap-2">
+        <div className="inline-flex border border-border overflow-hidden" style={{ borderRadius: 'var(--radius)' }}>
+          {([
+            { id: 'needs' as const, label: 'Needs a decision' },
+            { id: 'all' as const, label: 'All activity' },
+          ]).map(v => (
+            <button
+              key={v.id}
+              onClick={() => { setView(v.id); setVisibleCount(PAGE_SIZE); setConfirmingAcceptAll(false); }}
+              className={`px-2.5 py-1 text-xs font-medium transition-colors ${
+                view === v.id ? 'bg-primary/15 text-primary' : 'bg-secondary text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {v.label}
+              {/* The count rides the tab it belongs to. No badge at zero — a "0" and a badge that
+                  failed to compute look identical, and there is nothing to say either way. */}
+              {v.id === 'needs' && queue.suggestedCount > 0 && (
+                <span className="ml-1.5 text-[10px] font-semibold text-primary">{queue.suggestedCount}</span>
+              )}
+            </button>
+          ))}
+        </div>
         <select
           value={filterMonth}
           onChange={e => { setFilterMonth(e.target.value); setVisibleCount(PAGE_SIZE); }}
@@ -338,20 +408,76 @@ export default function BankActivity() {
           {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
         <span className="text-xs text-muted-foreground">
-          {rows.length} settled {rows.length === 1 ? 'transaction' : 'transactions'}
+          {view === 'needs'
+            ? `${rows.length} awaiting a decision`
+            : `${rows.length} settled ${rows.length === 1 ? 'transaction' : 'transactions'}`}
         </span>
       </div>
 
+      {/* Batch accept. Offered from two upward: with a single suggestion the row's own button is
+          already right there, and a batch control for one row is a second way to do one thing. */}
+      {view === 'needs' && acceptable.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2">
+          {confirmingAcceptAll ? (
+            <>
+              <button
+                onClick={acceptAllSuggested}
+                disabled={accepting}
+                className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <ListChecks size={12} />
+                {accepting ? 'Linking…' : `Confirm — link ${acceptable.length}`}
+              </button>
+              <button
+                onClick={() => setConfirmingAcceptAll(false)}
+                disabled={accepting}
+                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              {/* Says what it will and will NOT do. "Accept all" on a financial app has to state
+                  that nothing is being added to the ledger, because that is the one thing on this
+                  page that would move every projected number. */}
+              <span className="text-[11px] text-muted-foreground">
+                Labels {acceptable.length} charges with what the app already matched them to. Adds
+                nothing to your ledger and changes no projected number. Each one stays undoable.
+              </span>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirmingAcceptAll(true)}
+              className="flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <ListChecks size={12} /> Accept all {acceptable.length} suggested
+            </button>
+          )}
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground leading-relaxed">
-        What your connected accounts actually reported. Linking a charge to a bill, a payment plan or
-        an entry you already made just labels it and changes no projected number. Only "Add to my
-        ledger" creates a new entry, and it is offered only where nothing you already track covers
-        the charge.
+        {view === 'needs'
+          ? 'Charges your bank reported that you have not decided on yet, newest first, with the ones the app already recognised at the top. This is not a chore list — most bank rows never need a decision, and the count above is only the ones the app has an answer for.'
+          : 'What your connected accounts actually reported, decided or not.'}
+        {' '}
+        Linking a charge to a bill, a payment plan or an entry you already made just labels it and
+        changes no projected number. Only "Add to my ledger" creates a new entry, and it is offered
+        only where nothing you already track covers the charge.
       </p>
 
       <div className="card-forged divide-y divide-border">
         {visible.length === 0 ? (
-          <div className="p-8 text-center"><p className="text-sm text-muted-foreground">Nothing settled in this period.</p></div>
+          // An empty queue is a GOOD state and says so; an empty archive slice is just an empty
+          // filter. Rendering the same neutral sentence for both would make "you are done" look
+          // like "nothing loaded".
+          <div className="p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              {view === 'needs'
+                ? 'Nothing is waiting on you here.'
+                : 'Nothing settled in this period.'}
+            </p>
+          </div>
         ) : visible.map(txn => {
           const chargeReviews = reviewsByTxn[txn.id] ?? [];
           // The at-most-one decision about the CHARGE ITSELF — ignored, imported, pointed at a
@@ -363,7 +489,11 @@ export default function BankActivity() {
           // correcting a label takes no position on whether the charge was dealt with.
           const exclusiveHandled = isHandledReview(exclusive);
           const handled = exclusiveHandled || hasLinks;
-          const suggestion = handled ? {} : suggestionFor(txn);
+          // From the shared queue, NOT recomputed here. One matcher run feeds the row, the count on
+          // the tab and the sidebar badge, so the three can never disagree about the same charge —
+          // and the queue's cross-charge ambiguity guard (see `bank-activity-queue.ts`) applies to
+          // what is rendered, which a per-row call could not see.
+          const suggestion = queue.suggestions[txn.id] ?? {};
           const hasSuggestion = !!(suggestion.rule || suggestion.ledgerTxn);
           const suggestionRejected = !!rejected[txn.id];
           const showSuggestion = hasSuggestion && !suggestionRejected;
@@ -482,17 +612,9 @@ export default function BankActivity() {
                   <>
                     {showSuggestion && suggestion.rule && (
                       <button
-                        onClick={() => save.mutate({
-                          synced_transaction_id: txn.id,
-                          status: 'linked_rule',
-                          rule_id: suggestion.rule!.id,
-                          // ⚠️ NO `category_override`. It used to be carried forward here so that
-                          // converting a `'categorized'` row into a link did not wipe the user's
-                          // label — correct while a charge had ONE row, and wrong now: a link is a
-                          // new row and the label stays on the exclusive one, untouched. Passing it
-                          // would put the same category on two rows with no rule for which wins,
-                          // which `validateReviewSet` rejects outright (Tre, 2026-08-09).
-                        })}
+                        // Same write the batch accept performs — one definition, so the two can
+                        // never drift into recording a link differently. See `acceptRuleInput`.
+                        onClick={() => save.mutate(acceptRuleInput(txn, suggestion.rule!))}
                         className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
                       >
                         <Link2 size={11} /> Confirm: {suggestion.rule.name}
