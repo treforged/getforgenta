@@ -50,7 +50,7 @@ import {
 } from '@/hooks/useSupabaseData';
 import { useBankReviewQueue } from '@/hooks/useBankReviewQueue';
 import { monthOf, isChargeHandled } from '@/lib/bank-activity-queue';
-import { detectTransferPairs, indexPairsByLeg, describeTransfer, type TransferPair } from '@/lib/transfer-pair-detection';
+import { detectTransferPairs, indexPairsByLeg, collapseTransferLegs, describeTransfer, type TransferPair } from '@/lib/transfer-pair-detection';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { resolveRuleOccurrenceDate } from '@/lib/pay-schedule';
@@ -201,18 +201,11 @@ export default function BankActivity() {
       .filter(t => (filterMonth === 'all' || monthOf(t.date) === filterMonth))
       .filter(t => (filterAccount === 'all' || t.account_id === filterAccount));
 
-    // ⚠️ ONE MOVEMENT, ONE ROW — but only when BOTH legs are on screen. The inflow leg is dropped in
-    // favour of the outflow, which is the leg that says where the money came from. When a filter has
-    // separated the two (an account filter always does, since the legs are on different accounts by
-    // definition) the surviving leg is kept and still renders as a transfer: hiding it would make a
-    // real bank row vanish from an account's own list, which is worse than showing one half of
-    // something and saying it is a half.
-    const onScreen = new Set(shown.map(t => t.id));
-    return shown.filter(t => {
-      const pair = pairByLeg.get(t.id);
-      if (!pair || t.id === pair.out.id) return true;
-      return !onScreen.has(pair.out.id);
-    });
+    // ⚠️ ONE MOVEMENT, ONE ROW — but only when BOTH legs are on screen. The rule and the reason it
+    // keeps a filtered-apart leg live with the detector, next to the pair shape it reads, and are
+    // covered there. Called LAST, on the already-filtered list: "on screen" means what survived the
+    // two filters above, not what exists.
+    return collapseTransferLegs(shown, pairByLeg);
   }, [view, queue.needsDecision, synced, filterMonth, filterAccount, pairByLeg]);
 
   /**

@@ -280,6 +280,38 @@ export function indexPairsByLeg(pairs: readonly TransferPair[]): Map<string, Tra
 }
 
 /**
+ * ONE MOVEMENT, ONE ROW — but only when BOTH legs are on screen.
+ *
+ * The inflow leg is dropped in favour of the outflow, which is the leg that says where the money
+ * came from. When a filter has separated the two the surviving leg is KEPT, and still renders as a
+ * transfer: an account filter always separates them, since the legs are on different accounts by
+ * definition, and hiding the survivor would make a real bank row vanish from that account's own
+ * list. Showing one half and saying it is a half is the lesser of those two.
+ *
+ * ⚠️ THE POPULATION IS THE ALREADY-FILTERED LIST, not the whole history. "On screen" is decided by
+ * what survived the month and account filters, so this must be called last, on `rows` as they will
+ * actually be rendered — called earlier it would collapse against legs the viewer cannot see, which
+ * is the vanishing row above.
+ *
+ * Lives here rather than inline in `BankActivity` because it is the rule the collapsed row rests on
+ * and it has an edge worth a test: the two legs are on different accounts BY CONSTRUCTION, so the
+ * filtered-apart case is not exotic, it is what every account filter does.
+ *
+ * Returns a new array; `shown` is not mutated.
+ */
+export function collapseTransferLegs<T extends { id: string }>(
+  shown: readonly T[],
+  pairByLeg: ReadonlyMap<string, TransferPair>,
+): T[] {
+  const onScreen = new Set(shown.map(t => t.id));
+  return shown.filter(t => {
+    const pair = pairByLeg.get(t.id);
+    if (!pair || t.id === pair.out.id) return true;
+    return !onScreen.has(pair.out.id);
+  });
+}
+
+/**
  * What one collapsed row says: what moved, from where, to where.
  *
  * Names the two accounts rather than the two merchant descriptions on purpose. The descriptions are
