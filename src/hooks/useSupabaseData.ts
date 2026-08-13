@@ -683,6 +683,32 @@ const asReviewInput = (row: SyncedTransactionReviewRow): ReviewInput => ({
   category_override: row.category_override,
 });
 
+/**
+ * READ-ONLY view of the same rows `useSyncedTransactionReviews` serves.
+ *
+ * Split out for the §1B Stage 5 review-queue count, which the sidebar and the mobile bar render on
+ * EVERY page: they need the data and none of the six mutations, and instantiating write handlers
+ * app-wide to render a number is the wrong shape. Same query key, so react-query serves both from
+ * one fetch and an invalidation from any write updates the badge too.
+ */
+export function useSyncedTransactionReviewsQuery() {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+  return useQuery({
+    queryKey: ['synced_transaction_reviews', isDemo ? 'demo' : user?.id],
+    enabled: isDemo || !!user,
+    queryFn: async (): Promise<SyncedTransactionReviewRow[]> => {
+      if (isDemo || !user) return [];
+      const { data, error } = await supabase
+        .from('synced_transaction_reviews')
+        .select('*')
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export function useSyncedTransactionReviews() {
   const { user } = useAuth();
   const { isDemo } = useDemo();

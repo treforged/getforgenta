@@ -7,6 +7,8 @@ import {
   totalsFromBreakdown,
   type NetWorthAccount,
 } from '@/lib/net-worth';
+import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
+import type { CarFund } from '@/lib/types';
 
 const account = (over: Partial<NetWorthAccount> = {}): NetWorthAccount => ({
   name: 'Checking',
@@ -176,7 +178,10 @@ describe('sharesDistinctiveToken', () => {
 });
 
 describe('buildNetWorthBreakdown — vehicle loans', () => {
-  const vehicle = { carFundId: 'cf1', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110 };
+  const vehicle = {
+    carFundId: 'cf1', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110,
+    linkedLoanAccountId: null,
+  };
 
   it('counts a financed car that has no account row', () => {
     // Tre's real case: the loan lives only in car_funds, so net worth used to
@@ -261,7 +266,10 @@ describe('buildNetWorthBreakdown — explicit link vs. name matching', () => {
   const fixedRateLoanAccount = account({
     id: 'acc-loan', name: 'FIXED RATE LOAN', account_type: 'auto_loan', balance: 16254.49,
   });
-  const c5Vehicle = { carFundId: 'cf-c5', vehicleName: '2004 Chevorlet C5', remainingBalance: 16530 };
+  const c5Vehicle = {
+    carFundId: 'cf-c5', vehicleName: '2004 Chevorlet C5', remainingBalance: 16530,
+    linkedLoanAccountId: null,
+  };
 
   it('does NOT dedupe this real pair by name alone — the gap the explicit link exists to close', () => {
     expect(sharesDistinctiveToken('FIXED RATE LOAN', '2004 Chevorlet C5')).toBe(false);
@@ -270,9 +278,9 @@ describe('buildNetWorthBreakdown — explicit link vs. name matching', () => {
     expect(totalsFromBreakdown(breakdown).totalLiabilities).toBeCloseTo(16254.49 + 16530, 6);
   });
 
-  it('dedupes the same pair once linkedAccountId points at the account, despite sharing no token', () => {
+  it('dedupes the same pair once linkedLoanAccountId points at the account, despite sharing no token', () => {
     const breakdown = buildNetWorthBreakdown(
-      [fixedRateLoanAccount], [], [], [{ ...c5Vehicle, linkedAccountId: 'acc-loan' }],
+      [fixedRateLoanAccount], [], [], [{ ...c5Vehicle, linkedLoanAccountId: 'acc-loan' }],
     );
     expect(breakdown.liabilities).toEqual([
       { id: 'live:acc-loan', name: 'FIXED RATE LOAN', type: 'Auto Loan', balance: 16254.49, isLive: true },
@@ -282,15 +290,15 @@ describe('buildNetWorthBreakdown — explicit link vs. name matching', () => {
 
   it('trusts the link even when the names would ALSO have token-matched', () => {
     const rav4Account = account({ id: 'acc-rav4', name: 'Auto Loan — RAV4', account_type: 'auto_loan', balance: 26500 });
-    const rav4Vehicle = { carFundId: 'cf-rav4', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110, linkedAccountId: 'acc-rav4' };
+    const rav4Vehicle = { carFundId: 'cf-rav4', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110, linkedLoanAccountId: 'acc-rav4' };
     const breakdown = buildNetWorthBreakdown([rav4Account], [], [], [rav4Vehicle]);
     expect(breakdown.liabilities.map(l => l.id)).toEqual(['live:acc-rav4']);
   });
 
   it('falls back to name matching for a second, unlinked vehicle loan in the same breakdown', () => {
     const rav4Account = account({ id: 'acc-rav4', name: 'Auto Loan — RAV4', account_type: 'auto_loan', balance: 26500 });
-    const linkedC5 = { ...c5Vehicle, linkedAccountId: 'acc-loan' };
-    const unlinkedRav4 = { carFundId: 'cf-rav4', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110 };
+    const linkedC5 = { ...c5Vehicle, linkedLoanAccountId: 'acc-loan' };
+    const unlinkedRav4 = { carFundId: 'cf-rav4', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110, linkedLoanAccountId: null };
     const breakdown = buildNetWorthBreakdown(
       [fixedRateLoanAccount, rav4Account], [], [], [linkedC5, unlinkedRav4],
     );
@@ -304,9 +312,56 @@ describe('buildNetWorthBreakdown — explicit link vs. name matching', () => {
     // car_funds balance vanish along with the account, or a closed loan overstates net worth.
     const inactiveLoanAccount = account({ ...fixedRateLoanAccount, active: false });
     const breakdown = buildNetWorthBreakdown(
-      [inactiveLoanAccount], [], [], [{ ...c5Vehicle, linkedAccountId: 'acc-loan' }],
+      [inactiveLoanAccount], [], [], [{ ...c5Vehicle, linkedLoanAccountId: 'acc-loan' }],
     );
     expect(breakdown.liabilities.map(l => l.id)).toEqual(['vehicle:cf-c5']);
     expect(totalsFromBreakdown(breakdown).totalLiabilities).toBeCloseTo(16530, 6);
+  });
+});
+
+describe('buildNetWorthBreakdown — end to end from a real car_funds row', () => {
+  // Every test above hand-builds the NetWorthVehicleLoan literal, which is exactly why they all
+  // passed while the shipped feature did nothing: `NetWorthVehicleLoan` called the field
+  // `linkedAccountId` while `getActiveCarLoanPayments` emits `linkedLoanAccountId`, and because the
+  // field was OPTIONAL, `CarLoanPaymentInfo` still satisfied the interface, tsc stayed green, and
+  // the value read `undefined` at runtime. So this one goes through the real producer — the same
+  // call every page makes — and asserts on the pair from Tre's own data.
+  const c5Fund: CarFund = {
+    id: 'cf-c5', user_id: 'u1', vehicle_name: '2004 Chevorlet C5',
+    target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0, saved_source: 'fixed',
+    saved_percent: 0, monthly_insurance: 0, expected_apr: 10, loan_term_months: 48,
+    phase: 'loan', loan_amount: 16000,
+    loan_start_date: '2026-06-22', payment_start_date: '2026-08-07', interest_start_date: '2026-08-07',
+    actual_monthly_payment: 0, linked_account: null, linked_rule_id: null, loan_payment_account: null,
+    linked_loan_account_id: 'acc-loan',
+    planned_purchase_date: null, gift_contribution: 0, lump_sum_payments: [],
+    insurance_start_date: null, created_at: '2026-01-01',
+  };
+  const fixedRateLoanAccount = account({
+    id: 'acc-loan', name: 'FIXED RATE LOAN', account_type: 'auto_loan', balance: 16254.49,
+  });
+  const asOf = new Date(2026, 7, 13); // 2026-08-13, the day this was found live
+
+  it('counts a linked loan ONCE when the loans come from getActiveCarLoanPayments', () => {
+    const vehicleLoans = getActiveCarLoanPayments([c5Fund], asOf);
+    expect(vehicleLoans).toHaveLength(1);
+    expect(vehicleLoans[0].remainingBalance).toBeGreaterThan(0);
+
+    const breakdown = buildNetWorthBreakdown([fixedRateLoanAccount], [], [], vehicleLoans);
+    expect(breakdown.liabilities).toEqual([
+      { id: 'live:acc-loan', name: 'FIXED RATE LOAN', type: 'Auto Loan', balance: 16254.49, isLive: true },
+    ]);
+    expect(totalsFromBreakdown(breakdown).totalLiabilities).toBeCloseTo(16254.49, 6);
+  });
+
+  it('still counts it twice when the user has not linked the account — the names share no token', () => {
+    // The control for the test above: without the link there is nothing to dedupe on, and that is
+    // the documented behaviour, not a second bug. If this one ever starts passing with ONE row, the
+    // name heuristic has been loosened and needs its own review.
+    const vehicleLoans = getActiveCarLoanPayments(
+      [{ ...c5Fund, linked_loan_account_id: null }], asOf,
+    );
+    const breakdown = buildNetWorthBreakdown([fixedRateLoanAccount], [], [], vehicleLoans);
+    expect(breakdown.liabilities.map(l => l.name)).toEqual(['FIXED RATE LOAN', '2004 Chevorlet C5']);
   });
 });

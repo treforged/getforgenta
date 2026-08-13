@@ -11,6 +11,7 @@ import { createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, mergeWithGe
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
 import BankActivity from '@/components/transactions/BankActivity';
+import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 import FormModal from '@/components/shared/FormModal';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Plus, Edit2, Trash2, Copy, Repeat, AlertTriangle, SlidersHorizontal, Crown, Download, CreditCard, ChevronDown, ChevronUp, Split } from 'lucide-react';
@@ -90,6 +91,9 @@ export default function Transactions() {
   // what WILL happen (hand-entered plus generated debt/plan/car-loan occurrences), bank activity is
   // what DID. Persisted like the other view toggles above, for the same reason.
   const [activeTab, setActiveTab] = usePersistedState<'planning' | 'bank'>('tre:transactions:tab', 'planning');
+  // Null while loading and null at zero — the tab renders no badge in both cases, because a "0" and
+  // a badge that failed to compute are indistinguishable to a user.
+  const reviewQueueCount = useBankReviewQueueCount();
 
   // Build account lookup map
   const accountMap = useMemo(() => {
@@ -580,20 +584,33 @@ export default function Transactions() {
     />
   </div>
 
-  {/* Tabs — planning stream vs what the bank reported */}
+  {/* Tabs — planning stream vs what the bank reported.
+      The Bank Activity tab carries the review-queue count: charges the app already has an answer
+      for and is waiting on. NOT a count of unreviewed rows — most rows are unreviewed by design and
+      always will be; see `@/lib/bank-activity-queue`. `useBankReviewQueueCount` returns null rather
+      than 0, so a quiet queue and a queue that has not loaded both render nothing. */}
   <div className="flex items-center gap-1 border-b border-border">
     {([
-      { id: 'planning' as const, label: 'Planning' },
-      { id: 'bank' as const, label: 'Bank Activity' },
+      { id: 'planning' as const, label: 'Planning', count: null as number | null },
+      { id: 'bank' as const, label: 'Bank Activity', count: reviewQueueCount },
     ]).map(t => (
       <button
         key={t.id}
         onClick={() => setActiveTab(t.id)}
-        className={`px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
+        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
           activeTab === t.id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
         }`}
       >
         {t.label}
+        {t.count !== null && (
+          <span
+            className="text-[10px] font-semibold bg-primary/15 text-primary px-1.5 py-0.5 leading-none"
+            style={{ borderRadius: 'var(--radius)' }}
+            title={`${t.count} bank ${t.count === 1 ? 'charge has' : 'charges have'} a suggested match waiting for you`}
+          >
+            {t.count}
+          </span>
+        )}
       </button>
     ))}
   </div>

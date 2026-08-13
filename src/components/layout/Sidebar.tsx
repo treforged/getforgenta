@@ -10,6 +10,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
+import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -32,6 +33,24 @@ export default function Sidebar() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const [collapsed, setCollapsed] = useState(false);
+
+  /**
+   * §1B Stage 5 — bank charges the app has a suggested match for and is waiting on.
+   *
+   * ⚠️ NOT a count of unreviewed rows. Most bank rows are unreviewed by design and always will be
+   * (Tre, 2026-08-08); badging that would be a number nobody can drive to zero. Read
+   * `@/lib/bank-activity-queue`'s header before changing what this means.
+   *
+   * ⚠️ THIS COSTS A REAL FETCH ON EVERY PAGE, and it is a deliberate trade. The rail renders app-wide,
+   * so the all-history synced-transaction query now runs everywhere rather than only on
+   * `/transactions`. That is the entire point: the suggestions already worked and were invisible
+   * because reaching them required already being on the page that hides them. react-query serves
+   * every consumer from one cache, so the tab badge and Bank Activity itself add nothing on top.
+   *
+   * Null while loading and null at zero — the badge simply is not rendered, because a "0" and a
+   * badge that failed to compute look identical.
+   */
+  const reviewQueueCount = useBankReviewQueueCount();
 
   // Brand link: dashboard if logged in, landing if demo/auth
   const brandTo = isDemo ? '/' : '/dashboard';
@@ -73,10 +92,14 @@ export default function Sidebar() {
           return true;
         }).map(item => {
           const active = pathname === item.to;
+          const badge = item.to === '/transactions' ? reviewQueueCount : null;
           return (
             <Link
               key={item.to}
               to={item.to}
+              title={badge !== null
+                ? `${badge} bank ${badge === 1 ? 'charge has' : 'charges have'} a suggested match waiting for you`
+                : undefined}
               className={cn(
                 "flex items-center gap-3 px-3 py-2 text-xs font-medium transition-colors duration-150 btn-press",
                 active
@@ -87,11 +110,27 @@ export default function Sidebar() {
               )}
               style={{ borderRadius: 'var(--radius)' }}
             >
-              <item.icon size={16} />
+              {/* Collapsed, the label is gone and a number would have nothing to attach to — so the
+                  badge degrades to a dot. Still says "there is something here", which is the whole
+                  job of this affordance. */}
+              <span className="relative shrink-0">
+                <item.icon size={16} />
+                {collapsed && badge !== null && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full" />
+                )}
+              </span>
               {!collapsed && (
                 <span className="flex items-center gap-1.5 flex-1 min-w-0">
                   <span className="truncate">{item.label}</span>
                   {item.highlight && !active && <Zap size={10} className="text-primary fill-primary shrink-0" />}
+                  {badge !== null && (
+                    <span
+                      className="ml-auto text-[10px] font-semibold bg-primary/15 text-primary px-1.5 py-0.5 leading-none shrink-0"
+                      style={{ borderRadius: 'var(--radius)' }}
+                    >
+                      {badge}
+                    </span>
+                  )}
                 </span>
               )}
             </Link>

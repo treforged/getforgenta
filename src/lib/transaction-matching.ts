@@ -59,12 +59,20 @@ export const AMOUNT_STRONG_TOLERANCE_ABS = 0.05;
 export const DATE_WINDOW_DAYS = 5;
 
 /**
- * Frequencies whose occurrence this matcher can locate from `due_day` alone.
+ * Frequencies whose occurrence THIS FUNCTION can locate from `due_day` alone.
  *
  * `weekly` and `biweekly` are excluded because `due_day` there is a day of WEEK, not a day of
  * month (`scheduling.ts:215`); reading it as a date would aim the window at an arbitrary day and
  * produce confident nonsense. `semi_monthly` is excluded because one `due_day` cannot describe its
  * two occurrences.
+ *
+ * ⚠️ THIS IS A LIMIT OF `matchOccurrence`, NOT OF THE MATCHER, and the difference matters. The
+ * guard is correct — refusing to read a weekday as a day of the month is the only honest thing to
+ * do here — but SKIPPING THE FREQUENCY was never the right outcome: it meant Tre's weekly paycheck
+ * (30 settled rows in 8 months) and his biweekly `Fuel` rule could never be suggested at all.
+ * `matchRuleOnDates` below is the way through: a caller that can generate the real occurrence dates
+ * (`pay-schedule.ts`'s `getRuleOccurrenceDatesInMonth`, the app's one definition of where a rule's
+ * occurrences land) hands them in and every frequency becomes matchable, with no tolerance loosened.
  */
 const MATCHABLE_FREQUENCIES = new Set(['monthly', 'yearly']);
 
@@ -82,6 +90,17 @@ export interface MatchableRule {
   rule_type: string;
   /** An `accounts.id`, bare or `account:`-prefixed. Null means unattributed. */
   payment_source: string | null;
+  /**
+   * Where an income rule's money LANDS — an `accounts.id`, bare or `account:`-prefixed.
+   *
+   * ⚠️ THIS IS WHY NO INCOME RULE COULD EVER MATCH. A bill names the account it is paid FROM in
+   * `payment_source`; a paycheck names the account it is paid INTO, and the rule editor writes that
+   * to `deposit_account` and leaves `payment_source` null (`BudgetControl.tsx:859`). Every income
+   * rule Tre has therefore hit `matchCharge`'s `if (!accountId) return null` guard on its first
+   * line — the weekly paycheck, 30 settled rows in 8 months, and the $1,100/mo from his girlfriend.
+   * `pay-schedule.ts:1255` already reads the two columns this way round for income.
+   */
+  deposit_account?: string | null;
   active?: boolean;
 }
 
@@ -116,8 +135,33 @@ export function normalizePaymentSource(src: string | null | undefined): string |
   return id || null;
 }
 
-/** Days from `a` to `b`, both `YYYY-MM-DD`. Built from parts to stay in local time, as sync-cutoff does. */
-function daysBetween(a: string, b: string): number {
+/**
+ * The `accounts.id` a rule's money moves through, or null if the rule names none.
+ *
+ * ⚠️ THE DEPOSIT FALLBACK IS ADDITIVE AND ONLY FOR INCOME. `payment_source` still wins wherever it
+ * is set, so no match that exists today can change; the fallback only reaches rules that had no
+ * account at all and therefore matched nothing. Restricting it to `rule_type = 'income'` is
+ * deliberate: on an expense rule `deposit_account` means "apply to / deposit into" — a transfer's
+ * destination, not the account the charge posts against — and reading it as the charge account
+ * would aim the window at the wrong side of the movement. `pay-schedule.ts:1255` makes the same
+ * split, preferring `deposit_account` for income; it is only a preference there because both
+ * columns can be set, and preferring it here would silently move existing matches.
+ */
+export function ruleChargeAccountId(rule: Pick<MatchableRule, 'rule_type' | 'payment_source' | 'deposit_account'>): string | null {
+  const source = normalizePaymentSource(rule.payment_source);
+  if (source) return source;
+  return rule.rule_type === 'income' ? normalizePaymentSource(rule.deposit_account) : null;
+}
+
+/**
+ * Days from `a` to `b`, both `YYYY-MM-DD`. Built from parts to stay in local time, as sync-cutoff does.
+ *
+ * Exported for `transfer-pair-detection.ts`, which asks the same "are these two dates close enough
+ * to be one event" question about a different pair of rows. `new Date('YYYY-MM-DD')` is UTC
+ * midnight and shifts a day in every US timezone, so a second implementation of this is a second
+ * chance to reintroduce that bug in a file nobody is looking at.
+ */
+export function daysBetween(a: string, b: string): number {
   const [ay, am, ad] = a.split('-').map(Number);
   const [by, bm, bd] = b.split('-').map(Number);
   return Math.round(
@@ -168,12 +212,56 @@ export function matchOccurrence(
     if (month !== (rule.due_month ?? 1)) return null;
   }
 
-  return matchCharge({
-    accountId: normalizePaymentSource(rule.payment_source),
+  return matchCharge(ruleOccurrenceCharge(rule, occurrenceDate(monthKey, rule.due_day)), txns);
+}
+
+/** One occurrence of a rule, in the shape `matchCharge` asks about. */
+function ruleOccurrenceCharge(rule: MatchableRule, dueDate: string): ChargeToMatch {
+  return {
+    accountId: ruleChargeAccountId(rule),
     amount: rule.amount,
-    dueDate: occurrenceDate(monthKey, rule.due_day),
+    dueDate,
     isInflow: rule.rule_type === 'income',
-  }, txns);
+  };
+}
+
+/** One of a rule's occurrences, and the settled transaction that corresponds to it. */
+export interface RuleOccurrenceMatch extends OccurrenceMatch {
+  /** The occurrence's own date, `YYYY-MM-DD` — which fill-up, which paycheck. */
+  occurrenceDate: string;
+}
+
+/**
+ * Every match among a rule's occurrences, one `matchCharge` call per date. §1B Stage 6.
+ *
+ * ⚠️ THE DATES COME FROM THE CALLER, and that is the whole point of the split. Locating a weekly or
+ * biweekly rule's occurrences is scheduling's job — `pay-schedule.ts`'s
+ * `getRuleOccurrenceDatesInMonth` is the app's ONE definition of where they land, phase-anchored for
+ * biweekly and bounded by `start_date`/`end_date` — and importing it here would drag its whole
+ * dependency tree (vehicle loans, confirmed capture) into what is deliberately a leaf module. So
+ * this file keeps the matching and borrows the calendar.
+ *
+ * ⚠️ NOTHING IS LOOSENED. Each date is an ordinary `matchCharge` call, so every gate and the
+ * one-candidate-only rule apply per occurrence exactly as before. Because matching runs from the
+ * OBLIGATION side, one occurrence can claim at most one charge — the mirror ambiguity that
+ * `bank-activity-queue.ts` guards against for ledger rows is structurally impossible here.
+ *
+ * A charge inside two occurrences' windows is possible in principle (a weekly rule's ±5 day windows
+ * are 11 days wide and 7 apart), and is handled by the caller keeping the first claim: both
+ * occurrences name the SAME rule, so the suggestion is the same either way.
+ */
+export function matchRuleOnDates(
+  rule: MatchableRule,
+  dates: readonly string[],
+  txns: readonly MatchableTransaction[],
+): RuleOccurrenceMatch[] {
+  if (rule.active === false) return [];
+  const matches: RuleOccurrenceMatch[] = [];
+  for (const occurrenceDate of dates) {
+    const match = matchCharge(ruleOccurrenceCharge(rule, occurrenceDate), txns);
+    if (match) matches.push({ ...match, occurrenceDate });
+  }
+  return matches;
 }
 
 /**

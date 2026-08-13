@@ -136,6 +136,29 @@ describe('planLedgerImport — the payment source and account label', () => {
   });
 });
 
+describe('planLedgerImport — a transfer leg is neither income nor spending', () => {
+  it('refuses a leg of a movement between the user\'s own accounts', () => {
+    const plan = planLedgerImport(txn(), ctx({ isTransferLeg: true }));
+    expect(plan.ok).toBe(false);
+    if (!plan.ok) expect(plan.reason).toMatch(/between your own accounts/i);
+  });
+
+  // ⚠️ THE ORDERING IS THE TEST. Every other refusal means "something already describes this", and
+  // "Not this" is the user's legitimate way to overrule that. A transfer leg is different in kind:
+  // no ledger row would be right, so importing the outflow books a transfer as spending and
+  // importing the inflow books it as income. `suggestionRejected` must not reach it.
+  it('stays refused even when the user pressed "Not this"', () => {
+    const plan = planLedgerImport(txn(), ctx({ isTransferLeg: true, hasSuggestion: true, suggestionRejected: true }));
+    expect(plan.ok).toBe(false);
+    if (!plan.ok) expect(plan.reason).toMatch(/between your own accounts/i);
+  });
+
+  it('leaves every other charge importable — the flag is opt-in, not a new default', () => {
+    expect(planLedgerImport(txn(), ctx()).ok).toBe(true);
+    expect(planLedgerImport(txn(), ctx({ isTransferLeg: false })).ok).toBe(true);
+  });
+});
+
 describe('planLedgerImport — the rest of the row', () => {
   it('falls back through merchant name to the raw descriptor', () => {
     const withMerchant = planLedgerImport(txn({ merchant_name: 'Acme', name: 'ACME #1' }), ctx());
