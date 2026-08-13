@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Plus, Pencil, Trash2, ChevronDown, Wrench, Receipt } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import CountUp from '@/components/shared/CountUp';
+import { fadeRise, staggerFor } from '@/lib/motion';
 import {
   currentOdometer,
   maintenanceStatus,
@@ -121,11 +124,15 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
           <div className="grid grid-cols-3 border-b border-border">
             <div className="px-4 py-3 border-r border-border">
               <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Total Spent</div>
-              <div className="font-mono text-sm text-foreground mt-0.5">{money(total)}</div>
+              <div className="font-mono text-sm text-foreground mt-0.5">
+                <CountUp value={total} format={money} decimals={2} />
+              </div>
             </div>
             <div className="px-4 py-3 border-r border-border">
               <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Last 12 Mo</div>
-              <div className="font-mono text-sm text-foreground mt-0.5">{money(last12)}</div>
+              <div className="font-mono text-sm text-foreground mt-0.5">
+                <CountUp value={last12} format={money} decimals={2} />
+              </div>
             </div>
             <div className="px-4 py-3">
               <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Odometer</div>
@@ -168,12 +175,30 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
               </div>
             </div>
           ) : (
-            ordered.map(log => {
-              const status = maintenanceStatus(log, ctx);
-              const due = dueSummary(log);
-              const linked = txByLog[log.id] ?? [];
-              return (
-                <div key={log.id} className="px-5 py-3 border-b border-border last:border-b-0">
+            /* Rows are the record of something the user just did, so they
+               arrive rather than appear. `layout="position"` is what makes a
+               delete read as the list closing up instead of the remaining rows
+               teleporting — and it is position-only on purpose: animating size
+               as well squashes and stretches the text inside a row while it
+               moves. Both the entry and the layout shift are transform-based,
+               so `<MotionConfig reducedMotion="user">` neutralises them for
+               anyone who asked for that, with no check needed here. */
+            <AnimatePresence>
+              {ordered.map((log, i) => {
+                const status = maintenanceStatus(log, ctx);
+                const due = dueSummary(log);
+                const linked = txByLog[log.id] ?? [];
+                return (
+                  <motion.div
+                    key={log.id}
+                    layout="position"
+                    variants={fadeRise}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    transition={{ delay: staggerFor(i, ordered.length) }}
+                    className="px-5 py-3 border-b border-border last:border-b-0"
+                  >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -220,9 +245,10 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
                       </button>
                     </div>
                   </div>
-                </div>
-              );
-            })
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           )}
         </>
       )}

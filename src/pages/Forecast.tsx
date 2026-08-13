@@ -20,6 +20,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   Bar, ComposedChart, ReferenceLine,
 } from 'recharts';
+import { motion } from 'framer-motion';
+import { MOTION_DURATION, EASE_OUT } from '@/lib/motion';
 import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown, ChevronRight, Plus } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
 import { exportForecastCsv } from '@/lib/exportCsv';
@@ -33,6 +35,27 @@ import { useForecastProjections } from '@/hooks/useForecastProjections';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
+
+/**
+ * How the forecast series draw themselves in.
+ *
+ * 🔬 **Checked rather than assumed, and it changed the plan.** recharts 3.10
+ * already draws these lines, and — via its `isAnimationActive: "auto"` default —
+ * it already reads `prefers-reduced-motion` itself and skips the draw when the
+ * user has asked for that (`recharts/util/usePrefersReducedMotion`). So there
+ * was no accessibility gap here to close, and **`isAnimationActive` is
+ * deliberately left unset**: pinning it to `true` would have hardcoded past the
+ * library's own reduced-motion handling and shipped exactly the regression this
+ * work exists to avoid.
+ *
+ * What is set is the timing, so the chart draws on the same clock as everything
+ * else in `lib/motion.ts` instead of recharts' 1500ms default, which reads as
+ * the page still loading.
+ */
+const CHART_DRAW = {
+  animationDuration: MOTION_DURATION.draw * 1000,
+  animationEasing: 'ease-out',
+} as const;
 
 function CalcDrawer({ open, onClose, title, lines, zIndex = 60 }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string; onClick?: () => void }[]; zIndex?: number }) {
   if (!open) return null;
@@ -869,7 +892,17 @@ export default function Forecast() {
         <>
           {/* Net Worth Chart */}
           <ErrorBoundary variant="widget" label="Net Worth & Assets Projection">
-          <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
+          {/* The card arrives, then the series draw inside it. Without this the
+              card snapped in fully-formed and the line animation read as a
+              glitch on something already present, rather than as the chart
+              building itself. Transform-based, so reduced motion drops it via
+              MotionConfig and the lines stop drawing via recharts' own `auto`. */}
+          <motion.div
+            className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: MOTION_DURATION.slow, ease: EASE_OUT }}
+          >
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4">
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Net Worth & Assets Projection</h3>
@@ -887,11 +920,11 @@ export default function Forecast() {
                   <Legend onClick={e => toggleSeries(e.dataKey as string)} formatter={(value, entry) => (
                     <span style={{ color: hiddenSeries.includes(entry.dataKey as string) ? '#555' : entry.color, cursor: 'pointer', fontSize: 10 }}>{value}</span>
                   )} wrapperStyle={{ fontSize: 10 }} />
-                  <Line type="monotone" dataKey="netWorth" name="Net Worth" stroke="hsl(47, 100%, 50%)" strokeWidth={2.5} dot={false} strokeOpacity={isVisible('netWorth') ? 1 : 0} />
-                  <Bar dataKey="totalAssets" name="Assets" fill="hsl(142, 71%, 45%)" opacity={isVisible('totalAssets') ? 0.3 : 0} />
-                  <Bar dataKey="totalLiabilities" name="Liabilities" fill="hsl(0, 84%, 60%)" opacity={isVisible('totalLiabilities') ? 0.3 : 0} />
-                  <Line type="monotone" dataKey="retirementBalance" name="Retirement" stroke="hsl(262, 83%, 58%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('retirementBalance') ? 1 : 0} />
-                  <Line type="monotone" dataKey="endingCash" name="Ending Cash" stroke="hsl(199, 89%, 48%)" strokeWidth={1.5} dot={false} strokeDasharray="5 5" strokeOpacity={isVisible('endingCash') ? 1 : 0} />
+                  <Line {...CHART_DRAW} type="monotone" dataKey="netWorth" name="Net Worth" stroke="hsl(47, 100%, 50%)" strokeWidth={2.5} dot={false} strokeOpacity={isVisible('netWorth') ? 1 : 0} />
+                  <Bar {...CHART_DRAW} dataKey="totalAssets" name="Assets" fill="hsl(142, 71%, 45%)" opacity={isVisible('totalAssets') ? 0.3 : 0} />
+                  <Bar {...CHART_DRAW} dataKey="totalLiabilities" name="Liabilities" fill="hsl(0, 84%, 60%)" opacity={isVisible('totalLiabilities') ? 0.3 : 0} />
+                  <Line {...CHART_DRAW} type="monotone" dataKey="retirementBalance" name="Retirement" stroke="hsl(262, 83%, 58%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('retirementBalance') ? 1 : 0} />
+                  <Line {...CHART_DRAW} type="monotone" dataKey="endingCash" name="Ending Cash" stroke="hsl(199, 89%, 48%)" strokeWidth={1.5} dot={false} strokeDasharray="5 5" strokeOpacity={isVisible('endingCash') ? 1 : 0} />
                 </ComposedChart>
               ) : (
                 <LineChart data={displayData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -902,15 +935,15 @@ export default function Forecast() {
                   <Legend onClick={e => toggleSeries(e.dataKey as string)} formatter={(value, entry) => (
                     <span style={{ color: hiddenSeries.includes(entry.dataKey as string) ? '#555' : entry.color, cursor: 'pointer', fontSize: 10 }}>{value}</span>
                   )} wrapperStyle={{ fontSize: 10 }} />
-                  <Line type="monotone" dataKey="netWorth" name="Net Worth" stroke="hsl(47, 100%, 50%)" strokeWidth={2.5} dot={false} strokeOpacity={isVisible('netWorth') ? 1 : 0} />
-                  <Line type="monotone" dataKey="investmentBalance" name="Investments" stroke="hsl(142, 71%, 45%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('investmentBalance') ? 1 : 0} />
-                  <Line type="monotone" dataKey="retirementBalance" name="Retirement" stroke="hsl(262, 83%, 58%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('retirementBalance') ? 1 : 0} />
-                  <Line type="monotone" dataKey="savingsBalance" name="Savings" stroke="hsl(199, 89%, 48%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('savingsBalance') ? 1 : 0} />
-                  <Line type="monotone" dataKey="endingCash" name="Ending Cash" stroke="hsl(30, 100%, 50%)" strokeWidth={1.5} dot={false} strokeDasharray="5 5" strokeOpacity={isVisible('endingCash') ? 1 : 0} />
+                  <Line {...CHART_DRAW} type="monotone" dataKey="netWorth" name="Net Worth" stroke="hsl(47, 100%, 50%)" strokeWidth={2.5} dot={false} strokeOpacity={isVisible('netWorth') ? 1 : 0} />
+                  <Line {...CHART_DRAW} type="monotone" dataKey="investmentBalance" name="Investments" stroke="hsl(142, 71%, 45%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('investmentBalance') ? 1 : 0} />
+                  <Line {...CHART_DRAW} type="monotone" dataKey="retirementBalance" name="Retirement" stroke="hsl(262, 83%, 58%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('retirementBalance') ? 1 : 0} />
+                  <Line {...CHART_DRAW} type="monotone" dataKey="savingsBalance" name="Savings" stroke="hsl(199, 89%, 48%)" strokeWidth={1.5} dot={false} strokeOpacity={isVisible('savingsBalance') ? 1 : 0} />
+                  <Line {...CHART_DRAW} type="monotone" dataKey="endingCash" name="Ending Cash" stroke="hsl(30, 100%, 50%)" strokeWidth={1.5} dot={false} strokeDasharray="5 5" strokeOpacity={isVisible('endingCash') ? 1 : 0} />
                 </LineChart>
               )}
             </ResponsiveContainer>
-          </div>
+          </motion.div>
           </ErrorBoundary>
 
           {/* Premium upgrade CTA — free users only */}

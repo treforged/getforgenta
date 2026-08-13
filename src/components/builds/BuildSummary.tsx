@@ -1,4 +1,8 @@
+import CountUp from '@/components/shared/CountUp';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
+
+/** `$12,400` — the same formatting the totals had before they animated. */
+const money = (n: number) => `$${n.toLocaleString()}`;
 
 interface BuildSummaryProps {
   phases: CarBuildPhase[];
@@ -21,7 +25,9 @@ export default function BuildSummary({ phases, items }: BuildSummaryProps) {
           Grand Total (active phases)
         </span>
         <span className="font-mono text-base font-medium" style={{ color: '#c8a84b' }}>
-          ${grandTotal.toLocaleString()}{hasTbd ? ' + TBD' : ''}
+          {/* "+ TBD" stays outside the counter: it is not part of the number,
+              and interpolating toward a caveat is meaningless. */}
+          <CountUp value={grandTotal} format={money} />{hasTbd ? ' + TBD' : ''}
         </span>
       </div>
       <div className="flex justify-between items-center px-5 py-[13px] border-b border-border">
@@ -29,7 +35,7 @@ export default function BuildSummary({ phases, items }: BuildSummaryProps) {
           Spent (marked complete)
         </span>
         <span className="font-mono text-sm" style={{ color: '#3a8a5a' }}>
-          ${spent.toLocaleString()}
+          <CountUp value={spent} format={money} />
         </span>
       </div>
       <div className="flex justify-between items-center px-5 py-[13px]">
@@ -37,7 +43,7 @@ export default function BuildSummary({ phases, items }: BuildSummaryProps) {
           Remaining
         </span>
         <span className="font-mono text-sm text-foreground">
-          ${remaining.toLocaleString()}{hasTbd ? ' + TBD' : ''}
+          <CountUp value={remaining} format={money} />{hasTbd ? ' + TBD' : ''}
         </span>
       </div>
     </div>
