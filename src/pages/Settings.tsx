@@ -19,6 +19,7 @@ interface TrustedDevice {
 }
 import { LinkedAccounts } from '@/components/settings/LinkedAccounts';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
+import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
 import { getDayName } from '@/lib/scheduling';
 import { supabase } from '@/integrations/supabase/client';
 import { tracedInvoke } from '@/lib/tracer';
@@ -462,6 +463,11 @@ export default function SettingsPage() {
           </button>
         </div>
       </div>
+
+      {/* §1B Stage 7A — merchant memory. THE one place these are edited and switched off, which is
+          the whole promise of the feature: a decision the app applies everywhere has to be
+          reversible somewhere obvious. Renders nothing at all until something has been learned. */}
+      <MerchantRulesSettings />
 
       {/* Profile */}
       <div className="card-forged p-5 space-y-4">
