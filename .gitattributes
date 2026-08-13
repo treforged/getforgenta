@@ -7,3 +7,27 @@
 # lockfiles). Files stay tracked - this only affects dependency-graph scanning.
 backups/** linguist-generated=true
 backups/** linguist-vendored=true
+
+# THE HANDOFF LOG IS APPEND-ONLY AT THE TOP, WHICH MAKES IT A CONFLICT MACHINE.
+#
+# Every session writes its entry at line 3. Two branches that touched completely
+# unrelated code therefore collide on the same line, every single time, and the
+# "conflict" is never a disagreement — both entries are correct and both belong.
+# It has cost a manual resolution on branch after branch, most recently on
+# job/6112c0af, whose PR GitHub refused as CONFLICTING when all three of its
+# checks were green and `handoff.md` was the ONLY file in conflict.
+#
+# `union` is git's built-in driver for exactly this shape: it keeps both sides'
+# lines instead of raising a conflict nobody would ever resolve any other way.
+# Nothing is lost, because nothing was ever in dispute.
+#
+# This is the rule tre-forged-conductor already runs, ported here after it proved
+# itself there. It needs no local git config — `union` is built in, so a fresh
+# clone is protected the moment it checks this file out.
+#
+# NOTE it does not apply to AGENT.md, and deliberately. That file is EDITED IN
+# PLACE (test-count floors, rules being tightened), so two branches changing the
+# same number is a real disagreement, and `union` would silently keep both — a
+# file claiming two different test floors is worse than a conflict that stops
+# and asks. Union is only ever right for a log that is appended to.
+handoff.md merge=union
