@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  detectTransferPairs, indexPairsByLeg, describeTransfer,
+  detectTransferPairs, indexPairsByLeg, collapseTransferLegs, describeTransfer,
   TRANSFER_DATE_WINDOW_DAYS,
   type PairableTransfer, type PairableAccount,
 } from '../transfer-pair-detection';
@@ -245,5 +245,67 @@ describe('the shapes the UI reads', () => {
     ], ACCOUNTS);
     expect(pairsFromStrings).toHaveLength(1);
     expect(pairsFromStrings[0].amount).toBeCloseTo(45, 2);
+  });
+});
+
+// The claim the card was closed on — "a pair shows as ONE row" — and the one edge that makes it more
+// than a de-duplication: a filter can separate the two legs, and then collapsing would delete a real
+// bank row from the only list it appears in. The account filter does that EVERY time, because the
+// legs are on different accounts by construction.
+describe('collapseTransferLegs — one movement, one row, without losing a row', () => {
+  const LEGS = [
+    txn({ id: 'o', account_id: CHECKING.id, amount: 941.01, date: '2026-08-10', category: 'LOAN_PAYMENTS' }),
+    txn({ id: 'i', account_id: CARD.id, amount: -941.01, date: '2026-08-07', category: 'INCOME' }),
+  ];
+  const index = indexPairsByLeg(detectTransferPairs(LEGS, ACCOUNTS));
+
+  it('drops the inflow leg when both are on screen, keeping the one that says where the money came from', () => {
+    const kept = collapseTransferLegs(LEGS, index);
+    expect(kept.map(t => t.id)).toEqual(['o']);
+  });
+
+  it('collapses regardless of the order the two legs arrive in', () => {
+    const kept = collapseTransferLegs([LEGS[1], LEGS[0]], index);
+    expect(kept.map(t => t.id)).toEqual(['o']);
+  });
+
+  it('KEEPS a lone inflow leg when a filter has taken the outflow off screen', () => {
+    // What an account filter on Prime Visa produces. Dropping this row would make a real bank row
+    // vanish from the only account whose list it belongs to.
+    const kept = collapseTransferLegs([LEGS[1]], index);
+    expect(kept.map(t => t.id)).toEqual(['i']);
+  });
+
+  it('keeps a lone outflow leg, which was never the one at risk', () => {
+    expect(collapseTransferLegs([LEGS[0]], index).map(t => t.id)).toEqual(['o']);
+  });
+
+  it('leaves unpaired rows completely alone', () => {
+    const ordinary = [
+      txn({ id: 'x', account_id: CHECKING.id, amount: 12.5, date: '2026-08-10' }),
+      txn({ id: 'y', account_id: CARD.id, amount: 60, date: '2026-08-11' }),
+    ];
+    expect(collapseTransferLegs(ordinary, index).map(t => t.id)).toEqual(['x', 'y']);
+  });
+
+  it('collapses each movement independently when several are on screen', () => {
+    const many = [
+      txn({ id: 'o1', account_id: CHECKING.id, amount: 10, date: '2026-01-05' }),
+      txn({ id: 'i1', account_id: SAVINGS.id, amount: -10, date: '2026-01-05', category: 'TRANSFER_IN' }),
+      txn({ id: 'o2', account_id: CHECKING.id, amount: 20, date: '2026-03-05' }),
+      txn({ id: 'i2', account_id: SAVINGS.id, amount: -20, date: '2026-03-05', category: 'TRANSFER_IN' }),
+    ];
+    const kept = collapseTransferLegs(many, indexPairsByLeg(detectTransferPairs(many, ACCOUNTS)));
+    expect(kept.map(t => t.id)).toEqual(['o1', 'o2']);
+  });
+
+  it('does not mutate the list it was given', () => {
+    const shown = [...LEGS];
+    collapseTransferLegs(shown, index);
+    expect(shown.map(t => t.id)).toEqual(['o', 'i']);
+  });
+
+  it('is a no-op against an empty index, so a detector that found nothing hides nothing', () => {
+    expect(collapseTransferLegs(LEGS, new Map()).map(t => t.id)).toEqual(['o', 'i']);
   });
 });
