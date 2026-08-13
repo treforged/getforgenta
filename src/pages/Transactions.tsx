@@ -24,6 +24,9 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, isPlanInProgress, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
+import { scanForDuplicateTransactions } from '@/lib/duplicate-transaction-detection';
+import { useDismissedDuplicates } from '@/hooks/useDismissedDuplicates';
+import DuplicateTransactionWarning from '@/components/shared/DuplicateTransactionWarning';
 import type { Tables } from '@/integrations/supabase/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
@@ -227,6 +230,38 @@ export default function Transactions() {
       return true;
     });
   }, [allTransactions, filterMonth, filterType, filterCategory, filterSource]);
+
+  // A hand-entered row the app also generates charges its month twice — Tre's Sep 2026 car payment
+  // is the live case. Scanned off the RAW ledger plus the three generators, not off `allTransactions`
+  // (which already interleaves both halves), so the pairing sees exactly what it must compare.
+  const { dismissed: dismissedDuplicates, dismiss: dismissDuplicate } = useDismissedDuplicates();
+  const duplicateCollisions = useMemo(() => scanForDuplicateTransactions({
+    transactions,
+    rules,
+    accounts,
+    paymentPlans,
+    carFunds: carFunds ?? [],
+    dismissed: dismissedDuplicates,
+  }), [transactions, rules, accounts, paymentPlans, carFunds, dismissedDuplicates]);
+
+  // Follow the month filter, so the panel talks about the ledger on screen. "All Time" shows every
+  // collision — the whole point is that a duplicate in a month nobody is looking at is the one that
+  // moves the forecast.
+  const visibleDuplicates = useMemo(
+    () => (filterMonth === 'all'
+      ? duplicateCollisions
+      : duplicateCollisions.filter(c => c.monthKey === filterMonth)),
+    [duplicateCollisions, filterMonth],
+  );
+
+  const handleDeleteDuplicate = useCallback(async (manualId: string) => {
+    try {
+      await remove.mutateAsync(manualId);
+      toast.success('Manual row deleted — the generated payment still stands.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not delete that transaction.');
+    }
+  }, [remove]);
 
   // Build month options as a fixed current-month-forward window (matches the projection
   // horizon used everywhere else in the app), not from distinct months actually present in
@@ -811,6 +846,12 @@ export default function Transactions() {
           {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
+
+      <DuplicateTransactionWarning
+        collisions={visibleDuplicates}
+        onDelete={handleDeleteDuplicate}
+        onDismiss={dismissDuplicate}
+      />
 
       <div className="grid grid-cols-3 gap-3">
         <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Income</p><p className="text-sm font-display font-bold text-success">{formatCurrency(totals.income, false)}</p></div>
