@@ -51,6 +51,7 @@ import {
 import { useBankReviewQueue } from '@/hooks/useBankReviewQueue';
 import { monthOf, isChargeHandled } from '@/lib/bank-activity-queue';
 import { detectTransferPairs, indexPairsByLeg, collapseTransferLegs, describeTransfer, type TransferPair } from '@/lib/transfer-pair-detection';
+import MerchantMemoryPanel from './MerchantMemoryPanel';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { resolveRuleOccurrenceDate } from '@/lib/pay-schedule';
@@ -549,6 +550,11 @@ export default function BankActivity() {
             : `${rows.length} settled ${rows.length === 1 ? 'transaction' : 'transactions'}`}
         </span>
       </div>
+
+      {/* §1B MERCHANT MEMORY — the categories the user already decided, applied to the backlog.
+          Above the transfer batch because it is the cheaper decision of the two: it labels rows and
+          nothing else, where recording a transfer takes a position on what a movement WAS. */}
+      <MerchantMemoryPanel setCategory={setCategory} />
 
       {/* §1B TRANSFER PAIRS — the pre-checked batch.
           Rendered as a LIST rather than a bare count because the whole reason it is not silent is

@@ -30,6 +30,7 @@ import { useTransactions, useSyncedTransactions, useSyncedTransactionReviews } f
 import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { matchOccurrence } from '@/lib/transaction-matching';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
+import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
@@ -1588,6 +1589,11 @@ export default function BudgetControl() {
             Transfers ({transferRules.length})
           </TabsTrigger>
         </TabsList>
+
+        {/* §1B Stage 7B — rules the bank has been contradicting for months. Above the tabs rather
+            than inside one because a drifting rule can be in any of them, and the whole point is
+            that it has gone unnoticed; putting it behind the right tab would keep it unnoticed. */}
+        <RuleDriftPanel />
 
         <TabsContent value="income">
           <div className="card-forged p-5 space-y-2">
