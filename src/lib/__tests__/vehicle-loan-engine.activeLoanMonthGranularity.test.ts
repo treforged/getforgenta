@@ -19,7 +19,7 @@ function makeCarFund(overrides: Partial<CarFund>): CarFund {
     down_payment_goal: 0, current_saved: 0, saved_source: 'fixed', saved_percent: 0, monthly_insurance: 0, expected_apr: 10,
     loan_term_months: 48, phase: 'loan', loan_amount: 16000,
     loan_start_date: '2026-06-22', payment_start_date: '2026-08-07', interest_start_date: '2026-08-07',
-    actual_monthly_payment: 0, linked_account: null, linked_rule_id: null, loan_payment_account: null,
+    actual_monthly_payment: 0, linked_account: null, linked_rule_id: null, loan_payment_account: null, linked_loan_account_id: null,
     planned_purchase_date: null, gift_contribution: 0, lump_sum_payments: [], insurance_start_date: null, created_at: '2026-01-01',
     ...overrides,
   };
@@ -55,5 +55,15 @@ describe('getActiveCarLoanPayments — calendar-month granularity', () => {
     expect(fromDay1).toBeGreaterThan(0);
     expect(fromDay1).toBeCloseTo(fromDay15, 2);
     expect(fromDay1).toBeCloseTo(fromDay28, 2);
+  });
+
+  it('passes linked_loan_account_id through as linkedLoanAccountId, so net worth can dedupe by identity', () => {
+    const linked = getActiveCarLoanPayments(
+      [makeCarFund({ linked_loan_account_id: 'acc-1' })], new Date(2026, 7, 1),
+    );
+    expect(linked[0].linkedLoanAccountId).toBe('acc-1');
+
+    const unlinked = getActiveCarLoanPayments([makeCarFund({})], new Date(2026, 7, 1));
+    expect(unlinked[0].linkedLoanAccountId).toBeNull();
   });
 });

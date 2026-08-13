@@ -34,9 +34,33 @@
  * twice — once as an `auto_loan` account *or manual liability row* and once as a
  * `car_funds` loan, with *different* balances (the demo RAV4 is $26,500 vs
  * $27,110) — the row the user already maintains wins and the matching
- * `car_funds` loan is dropped. See
- * {@link sharesDistinctiveToken} for how "matching" is decided and what it
- * trades off.
+ * `car_funds` loan is dropped.
+ *
+ * "Matching" is decided two ways, tried in order:
+ *
+ *  1. `car_funds.linked_loan_account_id`, an explicit FK to the `accounts` row
+ *     this loan IS (set from the Vehicles page). When present it is trusted
+ *     outright — no name comparison, no fallback — because it is a fact the
+ *     user stated, not a guess.
+ *  2. {@link sharesDistinctiveToken}, a name-matching heuristic, for rows the
+ *     user has not linked. It is strict (two names must share a distinctive
+ *     word) because a false positive silently drops real debt from net worth,
+ *     but it can still miss real pairs — e.g. "FIXED RATE LOAN" vs "2004
+ *     Chevorlet C5" share no token and were double-counted in Tre's own data
+ *     until the account was linked explicitly (2026-08-13). That failure mode
+ *     is exactly what step 1 exists to close; it is not a hole to patch with a
+ *     cleverer heuristic, because there is no name heuristic that cannot be
+ *     fooled by an unrelated pair of names that happen to share a word or an
+ *     actual pair that happens not to.
+ *
+ * Snapshot history is deliberately NOT backfilled when linking an account
+ * changes what a loan matches (Tre, 2026-08-13, same call as the mortgage
+ * widening above): `net_worth_snapshots` is a log of what was actually
+ * computed on each date, and every prior surface here has kept that log
+ * intact through a rule change rather than rewriting history to what the
+ * corrected rule would have produced. The newly-linked pair therefore shows
+ * as a real step down in liabilities on the date it was linked — expected,
+ * and the same shape of change a user creating any account link produces.
  */
 
 /** Account types that reduce net worth. Everything else is an asset. */
@@ -124,6 +148,9 @@ export interface NetWorthVehicleLoan {
   carFundId: string;
   vehicleName: string;
   remainingBalance: number;
+  /** `car_funds.linked_loan_account_id`, when the user explicitly linked this loan to an
+   * `accounts` row. Preferred over {@link sharesDistinctiveToken} — see buildNetWorthBreakdown. */
+  linkedAccountId?: string | null;
 }
 
 export interface NetWorthBreakdown {
@@ -251,10 +278,20 @@ export function buildNetWorthBreakdown(
     ...liveLiabilityAccounts.filter(a => a.account_type === 'auto_loan').map(a => a.name),
     ...manualLiabilityRows.map(l => l.name),
   ];
+  // Only a *live* account can be the other half of an explicit link — an inactive account
+  // already counts on neither side, so a car_funds loan linked to one must fall through and be
+  // added from here instead of silently vanishing along with it.
+  const liveLiabilityAccountIds = new Set(
+    liveLiabilityAccounts.map(a => a.id).filter((id): id is string => !!id),
+  );
 
   const vehicleLoanRows: NetWorthLiabilityRow[] = vehicleLoans
     .filter(v => Number(v.remainingBalance) > 0)
-    .filter(v => !existingLiabilityNames.some(name => sharesDistinctiveToken(name, v.vehicleName)))
+    .filter(v =>
+      v.linkedAccountId
+        ? !liveLiabilityAccountIds.has(v.linkedAccountId)
+        : !existingLiabilityNames.some(name => sharesDistinctiveToken(name, v.vehicleName)),
+    )
     .map(v => ({
       id: `vehicle:${v.carFundId}`,
       name: v.vehicleName,

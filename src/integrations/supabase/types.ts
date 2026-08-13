@@ -538,6 +538,7 @@ export type Database = {
           insurance_start_date: string | null
           interest_start_date: string | null
           linked_account: string | null
+          linked_loan_account_id: string | null
           linked_rule_id: string | null
           loan_amount: number
           loan_payment_account: string | null
@@ -567,6 +568,7 @@ export type Database = {
           insurance_start_date?: string | null
           interest_start_date?: string | null
           linked_account?: string | null
+          linked_loan_account_id?: string | null
           linked_rule_id?: string | null
           loan_amount?: number
           loan_payment_account?: string | null
@@ -596,6 +598,7 @@ export type Database = {
           insurance_start_date?: string | null
           interest_start_date?: string | null
           linked_account?: string | null
+          linked_loan_account_id?: string | null
           linked_rule_id?: string | null
           loan_amount?: number
           loan_payment_account?: string | null
@@ -618,6 +621,13 @@ export type Database = {
           {
             foreignKeyName: "car_funds_linked_account_fkey"
             columns: ["linked_account"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "car_funds_linked_loan_account_id_fkey"
+            columns: ["linked_loan_account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
             referencedColumns: ["id"]

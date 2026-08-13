@@ -77,6 +77,11 @@ export type CarFund = {
    * linked_account, which is only ever the down-payment savings account. Null means the payment
    * comes from the generic liquid-cash pool (today's default behavior, unchanged). */
   loan_payment_account: string | null;
+  /** The `accounts` row (account_type `'auto_loan'`) that IS this vehicle's loan liability, when
+   * the user also tracks it as a live account. Net worth prefers this over name matching to decide
+   * whether to drop the amortized `car_funds` balance — see `sharesDistinctiveToken` in
+   * `net-worth.ts`. Null means unlinked; the token heuristic is the only fallback. */
+  linked_loan_account_id: string | null;
   planned_purchase_date: string | null;
   gift_contribution: number;
   lump_sum_payments: { id: string; date: string; amount: number; label?: string }[];

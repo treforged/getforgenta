@@ -17,7 +17,7 @@ const makeCarFund = (o: Partial<CarFund> = {}): CarFund => ({
   monthly_insurance: 0, expected_apr: 6, loan_term_months: 60, phase: 'saving',
   loan_amount: 0, loan_start_date: null, payment_start_date: null, interest_start_date: null,
   insurance_start_date: null, actual_monthly_payment: 0, linked_account: null, linked_rule_id: null,
-  loan_payment_account: null, planned_purchase_date: null, gift_contribution: 6700,
+  loan_payment_account: null, linked_loan_account_id: null, planned_purchase_date: null, gift_contribution: 6700,
   lump_sum_payments: [], ...o,
 });
 
