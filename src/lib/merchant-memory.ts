@@ -275,6 +275,43 @@ export function planRetroactivePass(
   return { writes, byMerchant };
 }
 
+/** One charge a rule edit in Settings would re-label, and what it said before. */
+export interface MerchantRelabel {
+  chargeId: string;
+  previousCategory: Category;
+}
+
+/**
+ * What changing a merchant's category in Settings would rewrite.
+ *
+ * ⚠️ ONLY CHARGES THAT ALREADY CARRY A CATEGORY, and that is the whole point of this function
+ * existing rather than the caller looping. Editing a rule means "I labelled this merchant wrong";
+ * it must not become a SECOND, unannounced bulk write over the un-categorised backlog, which has its
+ * own panel, its own confirm and its own undo (`planRetroactivePass`). The guard that used to live
+ * in the component tested the RULE rather than the CHARGE, so it was true on every iteration and
+ * skipped nothing — the exact bulk write the split was written to prevent. Keeping the decision here
+ * means a test can hold it.
+ *
+ * Charges already labelled with the target category are left out: a write that changes nothing is
+ * still a write, and it inflates the count the user is shown.
+ */
+export function planMerchantRelabel(
+  charges: readonly MerchantCharge[],
+  reviewsByCharge: Readonly<Record<string, readonly MerchantReview[]>>,
+  key: string,
+  category: Category,
+): MerchantRelabel[] {
+  const out: MerchantRelabel[] = [];
+  for (const charge of charges) {
+    if (normalizeMerchant(merchantLabel(charge)) !== key) continue;
+    const recorded = recordedCategory(reviewsByCharge[charge.id] ?? []);
+    if (!recorded) continue;
+    if (recorded.category === category) continue;
+    out.push({ chargeId: charge.id, previousCategory: recorded.category });
+  }
+  return out;
+}
+
 /**
  * The writes that undo a pass, in the order they should be made.
  *

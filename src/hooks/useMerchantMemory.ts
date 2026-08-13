@@ -39,6 +39,11 @@ export interface MerchantMemory {
   rules: Record<string, MerchantRule>;
   /** What applying them to the backlog would do right now. */
   pass: RetroPass;
+  /**
+   * Every review row, keyed by charge. Exposed so a caller can ask what a CHARGE already says
+   * rather than inferring it from the rule — the distinction the Settings re-label depends on.
+   */
+  reviewsByCharge: Record<string, MerchantReview[]>;
   suppressed: Record<string, true>;
   setSuppressed: (key: string, off: boolean) => void;
   isLoading: boolean;
@@ -73,6 +78,7 @@ export function useMerchantMemory(): MerchantMemory {
   return {
     rules,
     pass,
+    reviewsByCharge,
     suppressed,
     setSuppressed,
     // Both queries, because a pass that counts 4 and then grows to 181 once the reviews land is

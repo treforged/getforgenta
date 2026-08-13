@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizeMerchant, deriveMerchantRules, merchantRuleFor, planRetroactivePass, planRetroactiveUndo,
+  planMerchantRelabel,
   type MerchantCharge, type MerchantReview,
 } from '../merchant-memory';
 
@@ -147,5 +148,54 @@ describe('planRetroactivePass', () => {
     const after = { ...reviews } as Record<string, MerchantReview[]>;
     for (const w of pass.writes) after[w.chargeId] = categorized(w.category, '2026-06-01T00:00:00Z');
     expect(planRetroactivePass(charges, after, deriveMerchantRules(charges, after)).writes).toEqual([]);
+  });
+});
+
+describe('planMerchantRelabel', () => {
+  const charges = [
+    charge('a', 'Corner Cafe'),
+    charge('b', 'Corner Cafe'),
+    charge('c', 'Corner Cafe 9999999999'),
+    charge('d', 'Other Shop'),
+  ];
+
+  it('re-labels ONLY the charges that already carry a category', () => {
+    // The regression this exists for: the Settings guard compared the RULE, so it was true on every
+    // iteration and one dropdown change bulk-wrote the whole un-categorised backlog with no undo.
+    const reviews = { a: categorized('Dining'), d: categorized('Dining') };
+    const plan = planMerchantRelabel(charges, reviews, 'CORNER CAFE', 'Travel');
+    expect(plan).toEqual([{ chargeId: 'a', previousCategory: 'Dining' }]);
+  });
+
+  it('covers every reference-number variant of the merchant that carries a category', () => {
+    const reviews = { a: categorized('Dining'), c: categorized('Dining') };
+    expect(planMerchantRelabel(charges, reviews, 'CORNER CAFE', 'Travel').map(w => w.chargeId))
+      .toEqual(['a', 'c']);
+  });
+
+  it('records the previous category so the change reverses', () => {
+    const reviews = { a: categorized('Dining'), c: categorized('Shopping') };
+    expect(planMerchantRelabel(charges, reviews, 'CORNER CAFE', 'Travel')).toEqual([
+      { chargeId: 'a', previousCategory: 'Dining' },
+      { chargeId: 'c', previousCategory: 'Shopping' },
+    ]);
+  });
+
+  it('writes nothing when the charges already say what the edit says', () => {
+    const reviews = { a: categorized('Dining'), c: categorized('Dining') };
+    expect(planMerchantRelabel(charges, reviews, 'CORNER CAFE', 'Dining')).toEqual([]);
+  });
+
+  it('never touches another merchant', () => {
+    const reviews = { a: categorized('Dining'), d: categorized('Dining') };
+    expect(planMerchantRelabel(charges, reviews, 'CORNER CAFE', 'Travel').map(w => w.chargeId))
+      .not.toContain('d');
+  });
+
+  it('ignores a category recorded on a LINK row, exactly as the deriver does', () => {
+    // A link row may carry a stale override (Tre, 2026-08-09); it is not the charge's answer, so a
+    // re-label must not treat it as one and must not write over it.
+    const reviews = { a: [{ status: 'linked_rule', category_override: 'Dining', updated_at: '2026-01-01T00:00:00Z' }] };
+    expect(planMerchantRelabel(charges, reviews, 'CORNER CAFE', 'Travel')).toEqual([]);
   });
 });
