@@ -21,6 +21,7 @@ import {
   Bar, ComposedChart, ReferenceLine,
 } from 'recharts';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
 import { MOTION_DURATION, EASE_OUT } from '@/lib/motion';
 import { Settings2, List, BarChart3, TrendingUp, CreditCard, Info, X, FileDown, Crown, ChevronRight, Plus } from 'lucide-react';
 import { exportForecastPdf, type ForecastRow } from '@/lib/exportPdf';
@@ -32,6 +33,9 @@ import { computeFloorProtection } from '@/lib/floor-protection';
 import { calculateForecast, type ForecastInputs } from '@/lib/forecast-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { useForecastProjections } from '@/hooks/useForecastProjections';
+import { scanForDuplicateTransactions, GENERATOR_LABEL } from '@/lib/duplicate-transaction-detection';
+import { useDismissedDuplicates } from '@/hooks/useDismissedDuplicates';
+import DuplicateTransactionWarning from '@/components/shared/DuplicateTransactionWarning';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 
 const RETIRE_TYPES_FORECAST = ['401k', 'roth_ira', 'ira', 'brokerage', 'hsa'];
@@ -134,7 +138,7 @@ export default function Forecast() {
   const { data: budgetItems, loading: budgetItemsLoading } = useBudgetItems();
   const { data: profile, loading: profileLoading } = useProfile();
   const { data: rules, loading: rulesLoading } = useRecurringRules();
-  const { data: transactions, loading: transactionsLoading } = useTransactions();
+  const { data: transactions, remove: removeTransaction, loading: transactionsLoading } = useTransactions();
   const { data: paymentPlans, loading: paymentPlansLoading } = usePaymentPlans();
 
   // A 60-month projection is a single number built from ALL of these. Rendering
@@ -189,6 +193,37 @@ export default function Forecast() {
     planExpensesByMonth,
     annualFederalWithheldFromBudget,
   } = useForecastProjections();
+
+  // A month charged twice by a hand-entered copy of a generated payment is a forecast bug the
+  // forecast itself cannot see — it just reports the lower cash and, on Tre's data, trips the
+  // "Cash below safe minimum" milestone in Sep 2026. Same scan, same dismissals, as /transactions.
+  const { dismissed: dismissedDuplicates, dismiss: dismissDuplicate } = useDismissedDuplicates();
+  const duplicateCollisions = useMemo(() => scanForDuplicateTransactions({
+    transactions,
+    rules,
+    accounts,
+    paymentPlans,
+    carFunds: carFunds ?? [],
+    dismissed: dismissedDuplicates,
+  }), [transactions, rules, accounts, paymentPlans, carFunds, dismissedDuplicates]);
+
+  const duplicatesByMonth = useMemo(() => {
+    const map = new Map<string, typeof duplicateCollisions>();
+    for (const c of duplicateCollisions) {
+      const list = map.get(c.monthKey);
+      if (list) list.push(c); else map.set(c.monthKey, [c]);
+    }
+    return map;
+  }, [duplicateCollisions]);
+
+  const handleDeleteDuplicate = useCallback(async (manualId: string) => {
+    try {
+      await removeTransaction.mutateAsync(manualId);
+      toast.success('Manual row deleted — the generated payment still stands.');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not delete that transaction.');
+    }
+  }, [removeTransaction]);
 
   // Live tax refund preview for the assumptions panel UI — always computed so it shows even when disabled
   const taxRefundPreview = useMemo(() => {
@@ -976,6 +1011,13 @@ export default function Forecast() {
                 <span className="text-[9px] text-muted-foreground/60 block">1× = one-time purchase or income</span>
               </div>
             </div>
+            <DuplicateTransactionWarning
+              collisions={duplicateCollisions}
+              onDelete={handleDeleteDuplicate}
+              onDismiss={dismissDuplicate}
+              title="A month below is counted twice"
+              className="mb-3"
+            />
             {/* Column headers */}
             <div className="grid grid-cols-[5rem_1fr_1fr_1fr] border-b border-border pb-1.5 mb-0.5 text-[9px] text-muted-foreground uppercase tracking-wider font-medium">
               <div className="px-1">Month</div>
@@ -985,6 +1027,12 @@ export default function Forecast() {
             </div>
             {/* Rows */}
             {displayData.map((row, i) => {
+              // `row.month` is a display label ("Sep 2026"), so the key is rebuilt from the absolute
+              // offset instead of parsed back out of it — the same arithmetic the drawer uses below.
+              const rowAbsoluteI = filterYear === 'all' ? i : getCalendarYearMonthRange(parseInt(filterYear, 10))[0] + i;
+              const rowMonthDate = new Date(new Date().getFullYear(), new Date().getMonth() + rowAbsoluteI, 1);
+              const rowMonthKey = `${rowMonthDate.getFullYear()}-${String(rowMonthDate.getMonth() + 1).padStart(2, '0')}`;
+              const rowDuplicates = duplicatesByMonth.get(rowMonthKey) ?? [];
               const openDrawer = () => {
                 const isCurrentMonth = i === 0 && (filterYear === 'all' || filterYear === '1');
                 const paychecksPerYear = payConfig?.frequency === 'biweekly' ? 26 : payConfig?.frequency === 'monthly' ? 12 : 52;
@@ -1000,6 +1048,14 @@ export default function Forecast() {
                 setCalcDrawer({
                   title: `${row.month} Breakdown`,
                   lines: [
+                    // First, because every figure under it is wrong by this amount. No delete
+                    // button here on purpose: the drawer is a list of numbers, and a one-tap
+                    // irreversible delete does not belong inside one — the panel above the table
+                    // owns the fix.
+                    ...rowDuplicates.flatMap(c => [
+                      { label: `⚠ Counted twice: "${c.manual.note || c.manual.category || 'your manual row'}" (${c.manual.date}) also comes from the ${GENERATOR_LABEL[c.generated.kind]}`, value: formatCurrency(c.amount, true) },
+                      { label: '  Every figure below is short by that amount. Fix it in the banner above the Monthly Breakdown table.', value: '' },
+                    ]),
                     ...(isCurrentMonth ? [{ label: '⏱ Reflects remaining of month — settled transactions excluded', value: '' }] : []),
                     ...(row.isRaiseMonth ? [{ label: `⬆ Raise applied — new ${freqLabel} paycheck: ${formatCurrency(perPaycheck, true)}`, value: '' }] : []),
                     ...((row.promotionNewSalary ?? 0) > 0 ? [{ label: `💼 Promotion applied — new annual salary: ${formatCurrency(row.promotionNewSalary, true)}`, value: '' }] : []),
@@ -1192,8 +1248,7 @@ export default function Forecast() {
               // hint the reduced income reads like a missing paycheck (Tre, 2026-07-21). Count the
               // received ones (date on/before syncCutoffDate — the same cutoff the income filter uses)
               // and label the row so the split is self-explanatory.
-              const absoluteRowI = filterYear === 'all' ? i : getCalendarYearMonthRange(parseInt(filterYear, 10))[0] + i;
-              const isCurrentMonthRow = absoluteRowI === 0;
+              const isCurrentMonthRow = rowAbsoluteI === 0;
               const receivedThisMonth = isCurrentMonthRow && syncCutoffDate
                 ? getPaychecksInMonth(payConfig, new Date().getFullYear(), new Date().getMonth()).filter(p => {
                     const ps = `${p.date.getFullYear()}-${String(p.date.getMonth() + 1).padStart(2, '0')}-${String(p.date.getDate()).padStart(2, '0')}`;
@@ -1213,8 +1268,13 @@ export default function Forecast() {
                       {row.floorBreachedByOneTime && <div className="text-[8px] text-amber-400 leading-tight font-normal">one-time</div>}
                     </div>
                   </div>
-                  {(hasCC || hasOneTime || hasCarLump || showRemainingHint) && (
+                  {(hasCC || hasOneTime || hasCarLump || showRemainingHint || rowDuplicates.length > 0) && (
                     <div className="px-1 pb-1.5 flex flex-wrap gap-1">
+                      {rowDuplicates.length > 0 && (
+                        <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-amber-500/10 text-amber-500 border border-amber-500/30 whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }} title="A transaction you entered by hand duplicates a payment this app already generates, so this month is counted twice.">
+                          ⚠ counted twice {formatCurrency(rowDuplicates.reduce((s, c) => s + c.amount, 0), false)}
+                        </span>
+                      )}
                       {showRemainingHint && (
                         <span className="text-[10px] sm:text-xs px-1.5 py-0.5 bg-secondary text-muted-foreground border border-border whitespace-nowrap" style={{ borderRadius: 'var(--radius)' }} title="Paychecks already received this month are included in Current Cash, not in +Income. Tap the row for the full breakdown.">
                           ⏱ rest of month · {receivedThisMonth} paycheck{receivedThisMonth > 1 ? 's' : ''} received
