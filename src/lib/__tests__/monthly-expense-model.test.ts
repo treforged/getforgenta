@@ -60,6 +60,7 @@ function carFund(over: Partial<CarFund>): CarFund {
     linked_account: null,
     linked_rule_id: null,
     loan_payment_account: null,
+    linked_loan_account_id: null,
     planned_purchase_date: null,
     gift_contribution: 0,
     lump_sum_payments: [],

@@ -16,7 +16,7 @@ function makeSavingPhaseCarFund(): CarFund {
     gift_contribution: 6700, monthly_insurance: 77, expected_apr: 10.18, loan_term_months: 48,
     phase: 'saving', loan_amount: 0, loan_start_date: null,
     payment_start_date: '2026-08-07', interest_start_date: null, actual_monthly_payment: 0,
-    linked_account: 'acct-1', linked_rule_id: null, loan_payment_account: 'acct-1', insurance_start_date: null,
+    linked_account: 'acct-1', linked_rule_id: null, loan_payment_account: 'acct-1', linked_loan_account_id: null, insurance_start_date: null,
     planned_purchase_date: '2026-06-21',
     lump_sum_payments: [
       { id: 'l1', date: '2028-01-15', amount: 500 },

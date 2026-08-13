@@ -152,6 +152,9 @@ export interface CarLoanPaymentInfo {
   payoffDate: string;
   remainingBalance: number;
   isDeferredInterest: boolean;
+  /** The `accounts` row this loan is also tracked as, if the user linked one — passed straight
+   * through so net worth can dedupe by identity instead of matching names. */
+  linkedLoanAccountId: string | null;
   /** Interest portion of THIS month's regular payment. Read straight off the amortization row
    * rather than re-derived, so the expense model and the loan schedule cannot disagree.
    * `interest + principal === payment`; on a deferred-interest month `interest` is 0. */
@@ -336,6 +339,7 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
       isDeferredInterest: proj.isDeferredInterest,
       interest: currentInterest,
       principal: currentPrincipal,
+      linkedLoanAccountId: cf.linked_loan_account_id ?? null,
     });
   }
 
