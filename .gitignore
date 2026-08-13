@@ -89,3 +89,16 @@ marketing/scripts/marketing-report.log
 # people's posts here is not ours to do. The aggregate counts and the conclusions are committed
 # as marketing/research/FINDINGS.md; re-run marketing/scripts/research/reddit-rss-pull.mjs for the corpus.
 marketing/research/raw/
+
+# One-off measurement probes. Both read absolute paths on this machine — probe-chunks
+# compares dist/ against a scratch clone at C:/Users/tvonh/Desktop/gf-before — so they
+# do not run anywhere else and would be dead weight in a fresh checkout. The tools that
+# survived the session and DO run from the repo root are committed:
+# scripts/measure-bundle-delta.mjs and scripts/capture-motion-evidence.mjs.
+scripts/probe-*.mjs
+
+# Playwright's own per-page trace videos, named page@<hash>.webm. Every evidence run
+# drops one per context, ~900 kB each, and they are duplicates of the named before/
+# after clips that are committed alongside them. The named clips are the evidence; these
+# are the raw tape. Ten of them was 9 MB on one afternoon's capture.
+handoff/evidence/**/page@*.webm
