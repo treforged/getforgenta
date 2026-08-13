@@ -61,6 +61,15 @@
  * corrected rule would have produced. The newly-linked pair therefore shows
  * as a real step down in liabilities on the date it was linked — expected,
  * and the same shape of change a user creating any account link produces.
+ *
+ * Re-checked 2026-08-13 after the link turned out to have been inert for a day,
+ * since a day of wrong live numbers is exactly the thing that would reopen it.
+ * It does not: `useNetWorthSnapshotRecorder` writes at most one row per seven
+ * days, the last row is `2026-08-11` and the next is not due until `2026-08-18`,
+ * so **the broken window produced no snapshot rows to correct**. The 08-11 row
+ * also predates the link existing in the database at all, making it a faithful
+ * record of the pre-link rule rather than a casualty of the bug. Decision stands
+ * unchanged, now on evidence rather than on principle alone.
  */
 
 /** Account types that reduce net worth. Everything else is an asset. */
@@ -143,14 +152,23 @@ export interface NetWorthLiabilityRow {
  * `vehicle-loan-engine`, so callers pass `getActiveCarLoanPayments(carFunds)`
  * straight through — deliberately no adapter, so the liability shown here is the
  * exact number the Vehicles page shows and the two can never drift.
+ *
+ * Because there is no adapter, every field name here must be spelled exactly as
+ * `CarLoanPaymentInfo` spells it, and none of them may be optional. An optional
+ * field is structurally satisfied by an object that does not have it at all, so
+ * a name that drifts apart compiles clean and reads `undefined` forever — which
+ * is precisely what happened to `linkedAccountId` vs `linkedLoanAccountId`
+ * (PR #97, merged and inert for a day; fixed 2026-08-13). Required fields make
+ * that class of drift a `tsc` error instead.
  */
 export interface NetWorthVehicleLoan {
   carFundId: string;
   vehicleName: string;
   remainingBalance: number;
   /** `car_funds.linked_loan_account_id`, when the user explicitly linked this loan to an
-   * `accounts` row. Preferred over {@link sharesDistinctiveToken} — see buildNetWorthBreakdown. */
-  linkedAccountId?: string | null;
+   * `accounts` row; `null` when they have not. Preferred over {@link sharesDistinctiveToken} —
+   * see buildNetWorthBreakdown. Required, not optional: see the note above. */
+  linkedLoanAccountId: string | null;
 }
 
 export interface NetWorthBreakdown {
@@ -288,8 +306,8 @@ export function buildNetWorthBreakdown(
   const vehicleLoanRows: NetWorthLiabilityRow[] = vehicleLoans
     .filter(v => Number(v.remainingBalance) > 0)
     .filter(v =>
-      v.linkedAccountId
-        ? !liveLiabilityAccountIds.has(v.linkedAccountId)
+      v.linkedLoanAccountId
+        ? !liveLiabilityAccountIds.has(v.linkedLoanAccountId)
         : !existingLiabilityNames.some(name => sharesDistinctiveToken(name, v.vehicleName)),
     )
     .map(v => ({
