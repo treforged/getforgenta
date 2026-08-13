@@ -19,6 +19,7 @@ import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { CarFund, CarFundSavedSource } from '@/lib/types';
+import { isLiabilityAccountType } from '@/lib/net-worth';
 import type { Json } from '@/integrations/supabase/types';
 
 const toMonthly = (amount: number, freq: string) =>
@@ -38,7 +39,7 @@ const emptySavingForm = {
 const emptyLoanForm = {
   vehicle_name: '', loan_amount: '', expected_apr: '', loan_term_months: '60',
   loan_start_date: '', payment_start_date: '', interest_start_date: '', actual_monthly_payment: '',
-  monthly_insurance: '', loan_payment_account: '', insurance_start_date: '',
+  monthly_insurance: '', loan_payment_account: '', insurance_start_date: '', linked_loan_account_id: '',
 };
 
 function addMonthsStr(dateStr: string, n: number): string {
@@ -706,8 +707,12 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
   );
 }
 
-function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
-  { cf: CarFund; accountOptions: { value: string; label: string }[]; onConfirm: (fields: Partial<CarFund>) => void; onClose: () => void }) {
+function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions, onConfirm, onClose }:
+  {
+    cf: CarFund; accountOptions: { value: string; label: string }[];
+    autoLoanAccountOptions: { value: string; label: string }[];
+    onConfirm: (fields: Partial<CarFund>) => void; onClose: () => void;
+  }) {
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0];
   // getLoanPrincipal — same formula the saving-phase projection uses (Forecast.tsx/
@@ -723,6 +728,7 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
     actual_monthly_payment: '',
     loan_payment_account: cf.loan_payment_account ?? '',
     insurance_start_date: cf.insurance_start_date ?? '',
+    linked_loan_account_id: cf.linked_loan_account_id ?? '',
   });
 
   const scheduledPmt = useMemo(() => {
@@ -757,6 +763,7 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
       actual_monthly_payment: parseFloat(form.actual_monthly_payment) || 0,
       loan_payment_account: form.loan_payment_account || null,
       insurance_start_date: form.insurance_start_date || null,
+      linked_loan_account_id: form.linked_loan_account_id || null,
     });
   };
 
@@ -810,6 +817,20 @@ function BuyItDialog({ cf, accountOptions, onConfirm, onClose }:
               style={{ borderRadius: 'var(--radius)' }}
             >
               {accountOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">
+              Linked Loan Account <span className="text-muted-foreground/60">(same loan tracked as an account? link it so net worth doesn't count it twice)</span>
+            </label>
+            <select
+              value={form.linked_loan_account_id}
+              onChange={e => setForm(prev => ({ ...prev, linked_loan_account_id: e.target.value }))}
+              className="w-full bg-secondary border border-border px-3 py-1.5 text-xs"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              {autoLoanAccountOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
             </select>
           </div>
 
@@ -897,6 +918,17 @@ export default function Vehicles() {
   const accountOptions = useMemo(() => [
     { value: '', label: 'None (Manual)' },
     ...accounts.filter(a => a.active).map(a => ({
+      value: a.id,
+      label: `${a.name} (${a.account_type.replace(/_/g, ' ')})`,
+    })),
+  ], [accounts]);
+
+  // Restricted to liability-type accounts: this is the "this account IS the same loan" link net
+  // worth uses to dedupe (net-worth.ts), so offering a checking or savings account here would
+  // just be a confusing way to under-count debt.
+  const autoLoanAccountOptions = useMemo(() => [
+    { value: '', label: 'None (dedupe by name instead)' },
+    ...accounts.filter(a => a.active && isLiabilityAccountType(a.account_type)).map(a => ({
       value: a.id,
       label: `${a.name} (${a.account_type.replace(/_/g, ' ')})`,
     })),
@@ -1016,6 +1048,7 @@ export default function Vehicles() {
       monthly_insurance: String(cf.monthly_insurance),
       loan_payment_account: cf.loan_payment_account ?? '',
       insurance_start_date: cf.insurance_start_date ?? '',
+      linked_loan_account_id: cf.linked_loan_account_id ?? '',
     });
     setEditId(cf.id); setShowLoanForm(true);
   };
@@ -1111,6 +1144,7 @@ export default function Vehicles() {
       monthly_insurance: parseFloat(loanForm.monthly_insurance) || 0,
       loan_payment_account: loanForm.loan_payment_account || null,
       insurance_start_date: loanForm.insurance_start_date || null,
+      linked_loan_account_id: loanForm.linked_loan_account_id || null,
       phase: 'loan' as const,
     };
     // Only zero out saving-phase identity fields when creating a brand-new direct loan (no
@@ -1376,7 +1410,10 @@ export default function Vehicles() {
       )}
 
       {buyItFor && (
-        <BuyItDialog cf={buyItFor} accountOptions={accountOptions} onConfirm={handleBuyIt} onClose={() => setBuyItFor(null)} />
+        <BuyItDialog
+          cf={buyItFor} accountOptions={accountOptions} autoLoanAccountOptions={autoLoanAccountOptions}
+          onConfirm={handleBuyIt} onClose={() => setBuyItFor(null)}
+        />
       )}
 
       {showSavingForm && (
@@ -1416,6 +1453,7 @@ export default function Vehicles() {
             { key: 'monthly_insurance', label: 'Monthly Insurance', type: 'number', placeholder: '180', step: '0.01' },
             { key: 'insurance_start_date', label: 'Insurance Start Date (if different from loan start)', type: 'date' },
             { key: 'loan_payment_account', label: 'Monthly Payment Account', type: 'select', options: accountOptions },
+            { key: 'linked_loan_account_id', label: 'Linked Loan Account (net worth dedup)', type: 'select', options: autoLoanAccountOptions },
           ]}
           values={loanForm}
           onChange={(k, v) => setLoanForm(prev => ({ ...prev, [k]: v }))}

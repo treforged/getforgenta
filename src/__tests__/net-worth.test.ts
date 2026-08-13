@@ -251,3 +251,62 @@ describe('buildNetWorthBreakdown — vehicle loans', () => {
     );
   });
 });
+
+describe('buildNetWorthBreakdown — explicit link vs. name matching', () => {
+  // Tre's real data (2026-08-13): 'FIXED RATE LOAN' reduces to distinctive tokens
+  // {fixed, rate} and '2004 Chevorlet C5' reduces to {chevorlet} — "loan" is a
+  // stopword, "2004" has no letters, and "c5" is under the 3-char floor. No
+  // shared token, so sharesDistinctiveToken alone left this double-counted:
+  // net worth read -42,337 instead of -25,807.
+  const fixedRateLoanAccount = account({
+    id: 'acc-loan', name: 'FIXED RATE LOAN', account_type: 'auto_loan', balance: 16254.49,
+  });
+  const c5Vehicle = { carFundId: 'cf-c5', vehicleName: '2004 Chevorlet C5', remainingBalance: 16530 };
+
+  it('does NOT dedupe this real pair by name alone — the gap the explicit link exists to close', () => {
+    expect(sharesDistinctiveToken('FIXED RATE LOAN', '2004 Chevorlet C5')).toBe(false);
+    const breakdown = buildNetWorthBreakdown([fixedRateLoanAccount], [], [], [c5Vehicle]);
+    expect(breakdown.liabilities.map(l => l.name)).toEqual(['FIXED RATE LOAN', '2004 Chevorlet C5']);
+    expect(totalsFromBreakdown(breakdown).totalLiabilities).toBeCloseTo(16254.49 + 16530, 6);
+  });
+
+  it('dedupes the same pair once linkedAccountId points at the account, despite sharing no token', () => {
+    const breakdown = buildNetWorthBreakdown(
+      [fixedRateLoanAccount], [], [], [{ ...c5Vehicle, linkedAccountId: 'acc-loan' }],
+    );
+    expect(breakdown.liabilities).toEqual([
+      { id: 'live:acc-loan', name: 'FIXED RATE LOAN', type: 'Auto Loan', balance: 16254.49, isLive: true },
+    ]);
+    expect(totalsFromBreakdown(breakdown).totalLiabilities).toBeCloseTo(16254.49, 6);
+  });
+
+  it('trusts the link even when the names would ALSO have token-matched', () => {
+    const rav4Account = account({ id: 'acc-rav4', name: 'Auto Loan — RAV4', account_type: 'auto_loan', balance: 26500 });
+    const rav4Vehicle = { carFundId: 'cf-rav4', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110, linkedAccountId: 'acc-rav4' };
+    const breakdown = buildNetWorthBreakdown([rav4Account], [], [], [rav4Vehicle]);
+    expect(breakdown.liabilities.map(l => l.id)).toEqual(['live:acc-rav4']);
+  });
+
+  it('falls back to name matching for a second, unlinked vehicle loan in the same breakdown', () => {
+    const rav4Account = account({ id: 'acc-rav4', name: 'Auto Loan — RAV4', account_type: 'auto_loan', balance: 26500 });
+    const linkedC5 = { ...c5Vehicle, linkedAccountId: 'acc-loan' };
+    const unlinkedRav4 = { carFundId: 'cf-rav4', vehicleName: 'Toyota RAV4 (Owned)', remainingBalance: 27110 };
+    const breakdown = buildNetWorthBreakdown(
+      [fixedRateLoanAccount, rav4Account], [], [], [linkedC5, unlinkedRav4],
+    );
+    // The linked C5 is dropped by id; the unlinked RAV4 is dropped by the RAV4 account's name —
+    // neither car fund double-counts, and neither dedupe path had to touch the other's data.
+    expect(breakdown.liabilities.map(l => l.id)).toEqual(['live:acc-loan', 'live:acc-rav4']);
+  });
+
+  it('does not silently drop the loan when its linked account goes inactive', () => {
+    // Inactive accounts count on neither side (module rule) — a stale link must not make the
+    // car_funds balance vanish along with the account, or a closed loan overstates net worth.
+    const inactiveLoanAccount = account({ ...fixedRateLoanAccount, active: false });
+    const breakdown = buildNetWorthBreakdown(
+      [inactiveLoanAccount], [], [], [{ ...c5Vehicle, linkedAccountId: 'acc-loan' }],
+    );
+    expect(breakdown.liabilities.map(l => l.id)).toEqual(['vehicle:cf-c5']);
+    expect(totalsFromBreakdown(breakdown).totalLiabilities).toBeCloseTo(16530, 6);
+  });
+});
