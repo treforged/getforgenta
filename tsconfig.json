@@ -15,7 +15,20 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "baseUrl": ".",
+
+    // TypeScript 7 readiness. Both lines below are no-ops for TS 5.9.3 (verified:
+    // tsc --noEmit reports 0 errors either way) and are what TS 7.0.2 requires.
+    // See handoff/2026-08-12-typescript-7-evaluation.md.
+    //
+    // 1. `baseUrl` was REMOVED in TS 7 ("error TS5102: Option 'baseUrl' has been
+    //    removed"). It is not needed here: `paths` is already written relative to
+    //    this file, which is how TS resolves it without a baseUrl.
+    // 2. TS 7 does not pick up @types/node ambiently the way TS 5 did, so the
+    //    node-reading tests lose `node:fs`, `node:path` and `__dirname`. Naming
+    //    it is the compiler's own suggested fix. This NARROWS ambient types
+    //    rather than loosening a check: excluding a global can only produce more
+    //    errors, never hide one, and it produces none.
+    "types": ["node"],
     "paths": {
       "@/*": ["./src/*"]
     }
