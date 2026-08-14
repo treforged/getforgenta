@@ -38,7 +38,7 @@ describe('friendlyReviewWriteError', () => {
     expect(message).not.toMatch(/synced_transaction_reviews/);
   });
 
-  it('recognises the violation by message alone when no code is present', () => {
+  it('recognizes the violation by message alone when no code is present', () => {
     expect(
       friendlyReviewWriteError({
         message: 'duplicate key value violates unique constraint "synced_transaction_reviews_one_rule_link"',

@@ -68,7 +68,7 @@ class ErrorBoundaryInner extends Component<InnerProps, State> {
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error('Page render error:', this.props.label ?? 'unlabelled', error.message, info.componentStack);
+    console.error('Page render error:', this.props.label ?? 'unlabeled', error.message, info.componentStack);
 
     // A boundary's whole job is to stop the error reaching the window — which
     // also stops the error tracker's window.onerror hook from ever seeing it.

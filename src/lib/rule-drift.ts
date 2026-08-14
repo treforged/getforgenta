@@ -5,8 +5,16 @@
 //                               2,082.82 / 2,117.82 / 2,079.48 across 2026-02…2026-08 (avg 2,085.21)
 //   Electricity rule $100    ·  Duke Energy billed 123.52 / 99.69 / 111.91 / 141.84 / 169.52 /
 //                               197.93 across 2026-03…2026-08 (avg 140.74, last three 169.76)
-// Together that is roughly $250/month the budget cannot see, which is a large part of why the rules
-// project +879/mo while the actuals run -1,327.
+//
+// ⚠️ ONLY ONE OF THOSE TWO IS REAL DRIFT, AND FINDING THAT OUT IS WHY `bundleExplainsBetter` EXISTS.
+// Tre, 2026-08-13: "my base rent, internet, water, and home ring system are included in my monthly
+// rent charge. electricity is the only separate thing." Four rules — Rent 1,915, Internet 85, Smart
+// Home 40, Water/Sewer/Trash 30 — share one account and one due day and TOGETHER model that single
+// Invitationhomes charge, summing 2,070 against an actual 2,085. The bundle is already right to
+// within ~$15. Reporting Rent alone as "$1,915 should be $2,085" was therefore an invitation to
+// press a button that leaves the other three rules in place and overstates housing by $155/month —
+// on the surface built to make the budget MORE truthful. The real total the budget cannot see is
+// about $85/mo, essentially all of it Electricity, not the ~$250 first claimed.
 //
 // ⚠️ CORRECTION TO THE PREMISE THIS WAS ASKED UNDER, AND IT CHANGED THE DESIGN.
 // The card said "the matches are already computed, so this is presentation over existing work."
@@ -62,6 +70,8 @@ export interface DriftRule {
   payment_source?: string | null;
   deposit_account?: string | null;
   active?: boolean;
+  /** Day of the month. Used ONLY to group a bundle — see {@link bundleExplainsBetter}. */
+  due_day?: number | null;
 }
 
 /** The fields of a settled `synced_transactions` row the drift detector reads. */
@@ -114,6 +124,75 @@ const mean = (values: readonly number[]) => values.reduce((a, b) => a + b, 0) / 
 /** Round to cents, so a recommendation is a number a person could type into the rule. */
 const cents = (value: number) => Math.round(value * 100) / 100;
 
+/** A set of rules that are billed together as one charge, and what they come to. */
+export interface RuleBundle {
+  total: number;
+  ruleIds: string[];
+  ruleNames: string[];
+}
+
+/**
+ * The bundle this rule belongs to, when several rules together explain the charge BETTER than this
+ * rule alone — otherwise null.
+ *
+ * ⚠️ THIS IS THE GUARD AGAINST THE WORST THING THIS FILE COULD DO. Drift identifies by merchant and
+ * would otherwise assume one rule per charge. Tre's landlord bills base rent, internet, water and
+ * the smart-home system as a SINGLE Invitationhomes debit, and he models it as four rules that sum
+ * to 2,070 against an actual 2,085 — correct to within $15. Reported per-rule, that reads as "Rent
+ * is $170 low", and accepting it leaves the other three rules untouched and overstates housing by
+ * $155/month. A one-tap accept must never be able to do that.
+ *
+ * The app already knows charges can be bundled — split link exists for exactly this, and
+ * `synced-transaction-review.ts`'s own header cites this very charge. This is the same fact reaching
+ * the detector.
+ *
+ * GROUPING is same charge account + same direction + monthly + same `due_day`: rules paid from one
+ * account on one day are what a bundled debit looks like from the rules' side. The TEST is simply
+ * whether the bundle lands closer to what the bank actually billed than the single rule does. That
+ * is deliberately not a tolerance anyone has to tune — either the sum explains the charge better or
+ * it does not, and when it does, this file has nothing safe to say about the rule on its own.
+ */
+export function bundleExplainsBetter(
+  rule: DriftRule,
+  siblings: readonly DriftRule[],
+  observedAmount: number,
+): RuleBundle | null {
+  const accountId = ruleChargeAccountId({
+    rule_type: rule.rule_type,
+    payment_source: rule.payment_source ?? null,
+    deposit_account: rule.deposit_account ?? null,
+  });
+  if (!accountId) return null;
+
+  const members = siblings.filter(s => {
+    if (s.active === false) return false;
+    if (s.frequency !== 'monthly') return false;
+    // Direction must match: an income rule and an expense rule are never one debit.
+    if ((s.rule_type === 'income') !== (rule.rule_type === 'income')) return false;
+    if ((s.due_day ?? null) !== (rule.due_day ?? null)) return false;
+    const sid = ruleChargeAccountId({
+      rule_type: s.rule_type,
+      payment_source: s.payment_source ?? null,
+      deposit_account: s.deposit_account ?? null,
+    });
+    return sid === accountId;
+  });
+
+  // The rule itself must be in the group, and a "bundle" of one is just the rule.
+  if (members.length < 2) return null;
+  if (!members.some(m => m.id === rule.id)) return null;
+
+  const total = cents(members.reduce((sum, m) => sum + Math.abs(Number(m.amount) || 0), 0));
+  const ruleAmount = Math.abs(Number(rule.amount));
+  if (Math.abs(total - observedAmount) >= Math.abs(ruleAmount - observedAmount)) return null;
+
+  return {
+    total,
+    ruleIds: members.map(m => m.id),
+    ruleNames: members.map(m => m.name),
+  };
+}
+
 /**
  * The drift for one rule, or null.
  *
@@ -139,11 +218,20 @@ const cents = (value: number) => Math.round(value * 100) / 100;
 export function detectRuleDrift(
   rule: DriftRule,
   charges: readonly DriftCharge[],
+  /** Every rule, so a bundled charge can be recognised. Omitted = no bundle check (old behaviour). */
+  siblings: readonly DriftRule[] = [],
 ): RuleDrift | null {
   if (rule.active === false) return null;
   // Monthly only in v1. A weekly or biweekly rule's "month" is two or four billings, so the
   // once-a-month identification rule does not describe it and averaging would compare unlike things.
   if (rule.frequency !== 'monthly') return null;
+  // ⚠️ A MERCHANT DOES NOT BILL YOU FOR A TRANSFER OR AN INVESTMENT. Seen live on 2026-08-13: the
+  // panel told Tre "Roth IRA has billed about $140.74 for 6 months" — those are Duke Energy's power
+  // bills, and the card offered to rewrite a $100/mo Roth IRA contribution to $170. `investment` and
+  // `transfer` rules move money between the user's OWN accounts on a schedule they choose; there is
+  // no merchant on the other end whose price could drift, so any merchant matching one is a
+  // coincidence of amount. Three of the seven cards on screen were this.
+  if (rule.rule_type !== 'expense' && rule.rule_type !== 'income') return null;
 
   // `RuleRow` leaves both columns optional while the matcher's contract is `string | null`; the two
   // mean the same thing here and the adapter says so once rather than at every call site.
@@ -235,6 +323,15 @@ export function detectRuleDrift(
   if (qualifying.length !== 1) return null;
 
   const drift = qualifying[0];
+
+  // ⚠️ SILENCE, NOT A BUNDLE CARD, WHEN SEVERAL RULES SHARE THIS CHARGE. Reporting the bundle was
+  // considered and rejected for v1: the accept button writes ONE rule's amount, so a card the user
+  // cannot act on is an interruption without a remedy, and splitting ~$15 across four rules is a
+  // decision only the user can make. Saying nothing leaves a budget that is already correct to
+  // within $15 alone; saying something risks a press that puts it $155 wrong. Same instinct as the
+  // two-qualifying-merchants rule above.
+  if (bundleExplainsBetter(rule, siblings, drift.observedAmount)) return null;
+
   const delta = cents(drift.observedAmount - drift.ruleAmount);
   // Worth interrupting for? Both gates, so a big percentage of a tiny rule and a rounding error on a
   // large one are both left alone.
@@ -256,10 +353,37 @@ export function detectAllRuleDrift(
 ): RuleDrift[] {
   const out: RuleDrift[] = [];
   for (const rule of rules) {
-    const drift = detectRuleDrift(rule, charges);
+    // The whole list goes in as siblings: a rule can only be recognised as part of a bundle by
+    // looking at the others, and this is the one call site that has them all.
+    const drift = detectRuleDrift(rule, charges, rules);
     if (drift) out.push(drift);
   }
-  return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  // ⚠️ THE MIRROR AMBIGUITY, AND IT IS THE ONE THAT ACTUALLY BIT. `detectRuleDrift` guards the
+  // ambiguity it can see from where it stands — two merchants competing for ONE rule is silence.
+  // It cannot see the other direction, because it is called once per rule and never learns that the
+  // merchant it just claimed was claimed by four others too. Live on 2026-08-13, Duke Energy was
+  // claimed by Electricity, Internet, Roth IRA, Robinhood Contributions and Owners Contribution;
+  // Banner Life by Water/Sewer/Trash, Phone Bill to Mom and Smart Home. Seven cards, every one
+  // wrong, each with a one-tap accept writing a number into a rule that feeds every forecast.
+  //
+  // ⚠️ THIS IS THE SAME BUG THE BANK-ACTIVITY QUEUE FOUND AND FIXED ON THE SAME DAY — three
+  // identical CFX tolls each confidently claiming the one $10 ledger entry, because `matchCharge`
+  // guards candidates and not claimants. Two surfaces, one blind spot, and it is worth naming so the
+  // third one does not repeat it.
+  //
+  // A contested merchant yields silence for EVERY claimant, including the one that happens to be
+  // right. That is a real loss — Electricity genuinely has drifted — and it is still the correct
+  // trade while the tiebreaker is amount: two rules of $100 on one account cannot be told apart by
+  // arithmetic. The principled fix is to prefer a rule the user has already LINKED to that merchant
+  // in `synced_transaction_reviews`, which is recorded fact rather than a guess; until that is
+  // wired in, saying nothing beats naming the wrong rule.
+  const claimants = new Map<string, number>();
+  for (const drift of out) claimants.set(drift.merchantKey, (claimants.get(drift.merchantKey) ?? 0) + 1);
+
+  return out
+    .filter(drift => claimants.get(drift.merchantKey) === 1)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 }
 
 /**

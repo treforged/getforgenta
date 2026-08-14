@@ -32,7 +32,7 @@ export function useNetWorthSnapshotRecorder(): void {
     [accounts, manualAssets, manualLiabilities, vehicleLoans],
   );
 
-  // One attempt per mount, mirroring the original page behaviour.
+  // One attempt per mount, mirroring the original page behavior.
   const attempted = useRef(false);
 
   useEffect(() => {

@@ -17,14 +17,14 @@
 //   - "forget this merchant" is expressible (clear the overrides that formed it) rather than being
 //     a second, contradicting record.
 //
-// The cost is that a rule cannot exist without at least one categorised charge, which is exactly
+// The cost is that a rule cannot exist without at least one categorized charge, which is exactly
 // what "learn a merchant ONCE" means anyway.
 //
 // ⚠️ THIS IS NOT THE MERCHANT-NAME HEURISTIC `plaid-category-map.ts` FORBIDS, and the difference is
 // the whole reason this file is allowed to exist. That file's warning ("DO NOT improve this with
 // merchant-name heuristics") is about GUESSING a category from a name — fuzzy scoring, token
 // similarity, a lookup table of what "CHEWY" probably is. Nothing here guesses. The key is exact
-// string equality after a documented normalisation, and the category is one the user typed. A wrong
+// string equality after a documented normalization, and the category is one the user typed. A wrong
 // answer here is the user's own previous answer, which is the one thing they can actually correct.
 // §1A rejected fuzzy scoring for the same reason (`transaction-matching.ts:26-28`); this obeys it.
 
@@ -72,7 +72,7 @@ const TRAILING_TOKEN = /\s+[#*xX]{0,4}[0-9][0-9#*xX-]{2,}\s*$/;
  * collapse every unnamed charge onto one rule.
  *
  * ⚠️ NEVER RETURNS AN EMPTY KEY EVEN WHEN STRIPPING WOULD PRODUCE ONE. A merchant genuinely called
- * `76` or `7-11` would otherwise normalise away to nothing and then match every other nameless row.
+ * `76` or `7-11` would otherwise normalize away to nothing and then match every other nameless row.
  * Stripping is undone rather than allowed to empty the key.
  */
 export function normalizeMerchant(raw: string | null | undefined): string | null {
@@ -102,7 +102,7 @@ export function merchantLabel(charge: MerchantCharge): string {
 
 /** One remembered decision: this merchant means this category. */
 export interface MerchantRule {
-  /** The normalised key. Exact equality is the whole matching rule. */
+  /** The normalized key. Exact equality is the whole matching rule. */
   key: string;
   /** The most recent raw name seen for this key, for display. */
   label: string;
@@ -114,7 +114,7 @@ export interface MerchantRule {
   /**
    * How many of those disagree with `category`.
    *
-   * Surfaced rather than hidden: a merchant the user has labelled two different ways is a merchant
+   * Surfaced rather than hidden: a merchant the user has labeled two different ways is a merchant
    * where "learn once" is the wrong model (a Costco run can be Groceries or Shopping), and the
    * Settings list says so instead of quietly picking.
    */
@@ -229,7 +229,7 @@ export interface RetroPass {
 }
 
 /**
- * What applying every merchant rule to the un-categorised backlog would do.
+ * What applying every merchant rule to the un-categorized backlog would do.
  *
  * ⚠️ IT NEVER OVERWRITES A CATEGORY THE USER ALREADY SET, on any charge, for any reason. That is the
  * one rule that makes a bulk write over eight months of history safe to offer at all: every charge
@@ -241,7 +241,7 @@ export interface RetroPass {
  * "Add to my ledger", this is an annotation: no projected number moves.
  *
  * DECIDED (Tre did not specify; recorded so it is not silently re-decided): the pass runs over the
- * WHOLE backlog rather than the current month. Leaving eight months uncategorised to avoid one bulk
+ * WHOLE backlog rather than the current month. Leaving eight months uncategorized to avoid one bulk
  * action is the wrong trade — the backlog is the reason the feature exists — and the single undo is
  * what pays for it.
  */
@@ -273,6 +273,43 @@ export function planRetroactivePass(
 
   const byMerchant = [...counts.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
   return { writes, byMerchant };
+}
+
+/** One charge a rule edit in Settings would re-label, and what it said before. */
+export interface MerchantRelabel {
+  chargeId: string;
+  previousCategory: Category;
+}
+
+/**
+ * What changing a merchant's category in Settings would rewrite.
+ *
+ * ⚠️ ONLY CHARGES THAT ALREADY CARRY A CATEGORY, and that is the whole point of this function
+ * existing rather than the caller looping. Editing a rule means "I labeled this merchant wrong";
+ * it must not become a SECOND, unannounced bulk write over the un-categorized backlog, which has its
+ * own panel, its own confirm and its own undo (`planRetroactivePass`). The guard that used to live
+ * in the component tested the RULE rather than the CHARGE, so it was true on every iteration and
+ * skipped nothing — the exact bulk write the split was written to prevent. Keeping the decision here
+ * means a test can hold it.
+ *
+ * Charges already labeled with the target category are left out: a write that changes nothing is
+ * still a write, and it inflates the count the user is shown.
+ */
+export function planMerchantRelabel(
+  charges: readonly MerchantCharge[],
+  reviewsByCharge: Readonly<Record<string, readonly MerchantReview[]>>,
+  key: string,
+  category: Category,
+): MerchantRelabel[] {
+  const out: MerchantRelabel[] = [];
+  for (const charge of charges) {
+    if (normalizeMerchant(merchantLabel(charge)) !== key) continue;
+    const recorded = recordedCategory(reviewsByCharge[charge.id] ?? []);
+    if (!recorded) continue;
+    if (recorded.category === category) continue;
+    out.push({ chargeId: charge.id, previousCategory: recorded.category });
+  }
+  return out;
 }
 
 /**

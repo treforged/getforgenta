@@ -22,7 +22,7 @@ export type CarChargeAccountSource = { loan_payment_account: string | null };
  *
  * Returning `undefined` — rather than `{ hasTxnCoverage: false, matched: false }` — when there are
  * no rows to consult is deliberate: it makes the no-transactions path provably identical to
- * pre-Stage-C behaviour at the type level, so a caller that has not been wired up yet and a user
+ * pre-Stage-C behavior at the type level, so a caller that has not been wired up yet and a user
  * whose backfill has not landed take the exact same branch of `isCapturedInBalance`.
  *
  * `amount` must be the REGULAR payment with lump sums excluded (`getActiveCarLoanPayments` already

@@ -58,7 +58,7 @@ export type PlanConversionIntent =
 /**
  * The plan form's category select is built from `CATEGORIES`, which excludes `Income` and knows
  * nothing about synthetic labels like `Balance Adjustment`. A value outside that list would render
- * the select blank, so an unrecognised category falls back to the form's own default rather than
+ * the select blank, so an unrecognized category falls back to the form's own default rather than
  * being silently written through.
  */
 const DEFAULT_PLAN_CATEGORY = 'Shopping';

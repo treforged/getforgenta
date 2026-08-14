@@ -62,7 +62,7 @@ const confirming = (ruleId: string, month: string) =>
   buildConfirmedOccurrences([{ status: 'linked_rule', rule_id: ruleId, occurrence_month: month }]);
 
 describe('useCardProjection — §1B Stage 4A confirmed rule occurrences', () => {
-  it('omitting confirmedOccurrences is identical to an empty set (pre-Stage-4 behaviour)', () => {
+  it('omitting confirmedOccurrences is identical to an empty set (pre-Stage-4 behavior)', () => {
     expect(run().month0.chain.expenses).toBeCloseTo(run(new Set<string>()).month0.chain.expenses, 2);
   });
 

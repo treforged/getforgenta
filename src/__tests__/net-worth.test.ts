@@ -244,7 +244,7 @@ describe('buildNetWorthBreakdown — vehicle loans', () => {
     expect(totalsFromBreakdown(breakdown).totalLiabilities).toBe(26500);
   });
 
-  it('stays identical to the old behaviour when there are no vehicle loans', () => {
+  it('stays identical to the old behavior when there are no vehicle loans', () => {
     const accts = [
       account({ id: 'a1', name: 'Checking', balance: 2000 }),
       account({ id: 'a2', name: 'Auto Loan — RAV4', account_type: 'auto_loan', balance: 26500 }),
@@ -356,7 +356,7 @@ describe('buildNetWorthBreakdown — end to end from a real car_funds row', () =
 
   it('still counts it twice when the user has not linked the account — the names share no token', () => {
     // The control for the test above: without the link there is nothing to dedupe on, and that is
-    // the documented behaviour, not a second bug. If this one ever starts passing with ONE row, the
+    // the documented behavior, not a second bug. If this one ever starts passing with ONE row, the
     // name heuristic has been loosened and needs its own review.
     const vehicleLoans = getActiveCarLoanPayments(
       [{ ...c5Fund, linked_loan_account_id: null }], asOf,

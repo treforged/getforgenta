@@ -560,7 +560,7 @@ export function projectCardVariable(
       payment = bal <= 0 ? 0 : Math.min(availablePayment, bal + newPurchases + fallbackInterest);
       interest = fallbackInterest;
       bal = startBal + newPurchases + interest - payment;
-      if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behaviour
+      if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behavior
     }
     if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
     totalInterest += interest;

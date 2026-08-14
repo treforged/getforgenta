@@ -67,7 +67,7 @@ export const TRANSFER_DATE_WINDOW_DAYS = 3;
  *
  * `INCOME` is deliberately ABSENT even though Plaid tags Tre's real $941.01 Prime Visa autopay
  * credit with it. That pair is kept by the credit-card rule below instead, which is structural and
- * does not depend on the provider having labelled a card payment correctly. Adding `INCOME` here
+ * does not depend on the provider having labeled a card payment correctly. Adding `INCOME` here
  * would additionally let a paycheck pair with any equal outflow that week.
  */
 export const TRANSFER_CATEGORIES: ReadonlySet<string> = new Set([

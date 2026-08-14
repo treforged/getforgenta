@@ -158,7 +158,7 @@ export default function DateScrollPicker({ value, onChange }: { value: string; o
   // Changing month or year can strand the selected day past the end of the new
   // month (Jan 31 → Feb). That clamp used to be a write-back effect reacting to
   // its own state; it now happens in the two handlers that can cause it, which
-  // is the only way to reach an out-of-range day. Behaviour is unchanged: the
+  // is the only way to reach an out-of-range day. Behavior is unchanged: the
   // clamp is still sticky, so Jan 31 → Feb → Mar lands on the 28th.
   const selectMonth = (m: number) => {
     setMo(m);

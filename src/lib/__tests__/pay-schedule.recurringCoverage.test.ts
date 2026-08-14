@@ -14,7 +14,7 @@
 // moment anything asks this function about a future month, which is exactly the shape of "does the
 // Transactions tab cover all 60 months" — see `transactions-horizon-coverage.test.ts`.
 //
-// These pin the CORRECT behaviour and are expected to fail until the three branches gain the same
+// These pin the CORRECT behavior and are expected to fail until the three branches gain the same
 // `end_date` guard biweekly already has.
 
 import { describe, it, expect } from 'vitest';

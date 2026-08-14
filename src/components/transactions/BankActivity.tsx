@@ -68,7 +68,7 @@ import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks, ArrowLeftRight
  *
  * A monthly rule has exactly one occurrence a month, so for the overwhelming majority of links this
  * stores the same information twice and changes nothing. The date resolves to null — and the link
- * keeps today's month-wide behaviour — only when the rule bills nothing in the charge's month.
+ * keeps today's month-wide behavior — only when the rule bills nothing in the charge's month.
  */
 const ruleOccurrence = (rule: RuleRow, chargeDate: string) => ({
   occurrence_month: monthOf(chargeDate),
@@ -655,7 +655,7 @@ export default function BankActivity() {
 
       <p className="text-xs text-muted-foreground leading-relaxed">
         {view === 'needs'
-          ? 'Charges your bank reported that you have not decided on yet, newest first, with the ones the app already recognised at the top. This is not a chore list — most bank rows never need a decision, and the count above is only the ones the app has an answer for.'
+          ? 'Charges your bank reported that you have not decided on yet, newest first, with the ones the app already recognized at the top. This is not a chore list — most bank rows never need a decision, and the count above is only the ones the app has an answer for.'
           : 'What your connected accounts actually reported, decided or not.'}
         {' '}
         Linking a charge to a bill, a payment plan or an entry you already made just labels it and
@@ -678,7 +678,7 @@ export default function BankActivity() {
         ) : visible.map(txn => {
           const chargeReviews = reviewsByTxn[txn.id] ?? [];
           // The at-most-one decision about the CHARGE ITSELF — ignored, imported, pointed at a
-          // ledger entry, or merely relabelled. It is also the only row that may carry a category.
+          // ledger entry, or merely relabeled. It is also the only row that may carry a category.
           const exclusive = findExclusiveReview(chargeReviews);
           const links = chargeReviews.filter(r => isLinkStatus(r.status));
           const hasLinks = links.length > 0;
@@ -790,9 +790,9 @@ export default function BankActivity() {
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
 
-                    {/* An unmapped provider category is uncategorised, not "Other". Saying "Other"
+                    {/* An unmapped provider category is uncategorized, not "Other". Saying "Other"
                         asserts the charge is miscellaneous; the honest claim is that we do not know. */}
-                    {isGuess && <span className="text-[10px] text-muted-foreground">uncategorised — pick one</span>}
+                    {isGuess && <span className="text-[10px] text-muted-foreground">uncategorized — pick one</span>}
                   </>
                 )}
 

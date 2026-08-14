@@ -525,7 +525,7 @@ export default function Dashboard() {
     // old `expensesAllIn + totalDebtPayments`, so cashFlow, savingsRate and Annual Savings do not
     // move by a cent — the same dollars, split into two truthful buckets instead of one blurred
     // one. Any future edit that breaks that identity is changing what the user is owed, not how
-    // it is labelled.
+    // it is labeled.
     const expenses = expenseModel.expenses;
     const debtService = expenseModel.principal + totalDebtPayments;
     const totalDebt = debts.reduce((s, d) => s + Number(d.balance || 0), 0);

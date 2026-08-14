@@ -938,7 +938,7 @@ export default function Accounts() {
           </p>
 
           {/* Manual escape hatch. Plaid only reports a connectivity error code
-              when it recognises the failure — a user who gives up on a stalled
+              when it recognizes the failure — a user who gives up on a stalled
               login exits cleanly, and would otherwise never be offered Akoya. */}
           {isPremium && !akoyaFallback && plaidItems.length < 10 && (
             <details className="text-xs text-muted-foreground">

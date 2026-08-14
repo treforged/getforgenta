@@ -158,7 +158,7 @@ export function isChargeHandled(chargeReviews: readonly QueueReview[]): boolean 
  * The matcher answers "which transaction settles THIS rule's occurrence", and its one-candidate-only
  * rule is what keeps it honest. So the index is built by asking every rule that question and
  * inverting the answer — never by scoring rules against a transaction, which would be a second
- * matcher with different ambiguity behaviour.
+ * matcher with different ambiguity behavior.
  *
  * ⚠️ EVERY FREQUENCY IS ASKED ABOUT, and that is the §1B Stage 6 change. This used to call
  * `matchOccurrence`, which locates an occurrence from `due_day` alone and therefore SKIPS weekly and

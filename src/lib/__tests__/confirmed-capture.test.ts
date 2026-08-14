@@ -1,6 +1,6 @@
 // §1B Stage 4 part A — a confirmed rule link suppresses that bill's month-0 occurrence.
 //
-// These tests pin the DECISIONS, not just the behaviour: which statuses count as a confirmation,
+// These tests pin the DECISIONS, not just the behavior: which statuses count as a confirmation,
 // that a degraded (rule deleted) review is skipped rather than throwing, and that the suppression
 // can never reach a real ledger row or a different month.
 
@@ -107,7 +107,7 @@ describe('buildConfirmedOccurrences — a charge split across several rules', ()
     // The biweekly one suppresses exactly its own occurrence and leaves the other fortnight alone.
     expect(isRuleOccurrenceConfirmed(RULE, '2026-08-14', confirmed)).toBe(true);
     expect(isRuleOccurrenceConfirmed(RULE, '2026-08-28', confirmed)).toBe(false);
-    // The month-keyed one keeps its legacy whole-month behaviour, unaffected by its neighbour.
+    // The month-keyed one keeps its legacy whole-month behavior, unaffected by its neighbour.
     expect(isRuleOccurrenceConfirmed(OTHER_RULE, '2026-08-28', confirmed)).toBe(true);
   });
 

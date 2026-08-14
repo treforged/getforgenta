@@ -1,4 +1,4 @@
-// §1B Stage 7A — "You have categorised these merchants before. Apply it to the N charges that have
+// §1B Stage 7A — "You have categorized these merchants before. Apply it to the N charges that have
 // no category yet?" — with ONE undo for the whole pass.
 //
 // ⚠️ IT IS ONE TAP AND IT IS NEVER SILENT, which is the same call `detectTransferPairs`' batch made
@@ -42,7 +42,7 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
         // Recorded as it goes, so the undo only ever offers to reverse what actually landed.
         done.writes.push(write);
       }
-      toast.success(`Categorised ${done.writes.length} ${done.writes.length === 1 ? 'charge' : 'charges'} from merchants you have labelled before`);
+      toast.success(`Categorized ${done.writes.length} ${done.writes.length === 1 ? 'charge' : 'charges'} from merchants you have labeled before`);
     } catch {
       if (done.writes.length > 0) {
         toast.message(`Stopped after ${done.writes.length} of ${snapshot.writes.length} — the rest were left alone`);
@@ -63,7 +63,7 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
         await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
         undone++;
       }
-      toast.success(`Undone — ${undone} ${undone === 1 ? 'charge is' : 'charges are'} uncategorised again`);
+      toast.success(`Undone — ${undone} ${undone === 1 ? 'charge is' : 'charges are'} uncategorized again`);
     } catch {
       toast.message(`Undid ${undone} of ${applied.writes.length} — the rest are unchanged`);
     } finally {
@@ -79,7 +79,7 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
       <div className="card-forged p-3 flex flex-wrap items-center gap-2">
         <Tag size={13} className="text-primary shrink-0" />
         <p className="text-xs font-medium">
-          {applied.writes.length} {applied.writes.length === 1 ? 'charge' : 'charges'} categorised from what you had already decided.
+          {applied.writes.length} {applied.writes.length === 1 ? 'charge' : 'charges'} categorized from what you had already decided.
         </p>
         <button
           onClick={undo}
@@ -104,7 +104,7 @@ export default function MerchantMemoryPanel({ setCategory }: MerchantMemoryPanel
         <Tag size={13} className="text-primary mt-0.5 shrink-0" />
         <div className="min-w-0">
           <p className="text-xs font-medium">
-            {pass.writes.length} {pass.writes.length === 1 ? 'charge' : 'charges'} from merchants you have already categorised
+            {pass.writes.length} {pass.writes.length === 1 ? 'charge' : 'charges'} from merchants you have already categorized
           </p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             You picked a category for each of these merchants once. These charges never got one.

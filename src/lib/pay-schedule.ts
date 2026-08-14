@@ -1207,7 +1207,7 @@ export function getRuleOccurrenceDatesInMonth(
  * passed is the likelier one to have been settled.
  *
  * Returns null when the rule bills nothing that month, in which case the caller stores no date and
- * the link keeps the legacy month-wide behaviour — which for a monthly rule is identical anyway.
+ * the link keeps the legacy month-wide behavior — which for a monthly rule is identical anyway.
  */
 export function resolveRuleOccurrenceDate(
   rule: Pick<RuleRow, 'frequency' | 'due_day' | 'due_month' | 'start_date'>,

@@ -67,7 +67,7 @@ describe('ContentTransition — the loading guard survives the wrapper', () => {
     // cross-fade — the alternative needs both states absolutely positioned in
     // one box and breaks the moment content is a different height from its
     // skeleton. If someone switches this to a synchronous swap, this test is
-    // where the behaviour change gets noticed.
+    // where the behavior change gets noticed.
     expect(await screen.findByText('content')).toBeTruthy();
     expect(screen.queryByText('skeleton')).toBeNull();
   });
