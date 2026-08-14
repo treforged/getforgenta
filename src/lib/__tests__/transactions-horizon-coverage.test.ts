@@ -90,3 +90,56 @@ describe('createDebtPaymentTransactions — horizon coverage', () => {
     expect(rows[0].date.startsWith('2026-08')).toBe(true);
   });
 });
+
+// 2026-08-13 — THE GAP THE HEADER DESCRIBES IS NOW CLOSED AT THE PAGE LEVEL, and this is the build
+// the audit scoped itself not to do. `mergeWithGeneratedTransactions` is UNCHANGED (the
+// characterization tests above still pass and still must); `Transactions.tsx` now calls
+// `mergeWithGeneratedTransactionsForHorizon`, which layers future months on top for that one
+// consumer. The engines keep the current-month function — they project future months themselves,
+// and handing them generated occurrences twice was the whole reason not to widen it in place.
+import { mergeWithGeneratedTransactionsForHorizon } from '../pay-schedule';
+
+describe('mergeWithGeneratedTransactionsForHorizon', () => {
+  it('generates rule occurrences in future months, not only the current one', () => {
+    const merged = mergeWithGeneratedTransactionsForHorizon([], [rule()], [], 4);
+    const months = new Set(merged.filter(t => t.isGenerated).map(t => t.date.slice(0, 7)));
+    expect(months.size).toBe(4);
+  });
+
+  it('is exactly the current-month merge when the horizon is 1', () => {
+    const horizon = mergeWithGeneratedTransactionsForHorizon([], [rule()], [], 1);
+    const current = mergeWithGeneratedTransactions([], [rule()], []);
+    expect(horizon).toEqual(current);
+  });
+
+  it('never generates into past months', () => {
+    const now = new Date();
+    const thisMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const merged = mergeWithGeneratedTransactionsForHorizon([], [rule()], [], 6);
+    for (const t of merged.filter(t => t.isGenerated)) {
+      expect(t.date.slice(0, 7) >= thisMonth).toBe(true);
+    }
+  });
+
+  it('a real future row substitutes its generated twin — same date, note and amount', () => {
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const nextMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+    const r = rule({ due_day: 15 });
+    const twin = {
+      id: 'real-1', date: `${nextMonth}-15`, type: 'expense' as const,
+      amount: Number(r.amount), category: 'Bills', note: r.name, payment_source: '',
+    };
+    const merged = mergeWithGeneratedTransactionsForHorizon([twin], [r], [], 3);
+    const inNextMonth = merged.filter(t => t.date.startsWith(nextMonth) && t.note === r.name);
+    expect(inNextMonth).toHaveLength(1);
+    expect(inNextMonth[0].isGenerated).toBeUndefined();
+  });
+
+  it('an income rule reaches future months — the shape Tre asked for by name', () => {
+    const income = rule({ id: 'inc', name: 'Paycheck', rule_type: 'income', due_day: 5 });
+    const merged = mergeWithGeneratedTransactionsForHorizon([], [income], [], 3);
+    const futureIncome = merged.filter(t => t.isGenerated && t.type === 'income');
+    expect(futureIncome.length).toBeGreaterThanOrEqual(2);
+  });
+});

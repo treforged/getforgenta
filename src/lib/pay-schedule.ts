@@ -1306,6 +1306,49 @@ export function mergeWithGeneratedTransactions(
 }
 
 /**
+ * Merge real transactions with generated rule occurrences over a FORWARD horizon of months —
+ * the ledger-view variant of {@link mergeWithGeneratedTransactions}.
+ *
+ * ⚠️ A SECOND FUNCTION, NOT A WIDER FIRST ONE, AND THAT IS THE POINT. `mergeWithGeneratedTransactions`
+ * has ten callers, and the engines among them (forecast-engine, useForecastEngineInputs,
+ * CreditCardEngine) project future months THEMSELVES — widening the shared function would hand them
+ * every future occurrence twice. This one exists for exactly one consumer, the Transactions tab,
+ * whose month filter has offered 60 months (`PROJECTION_MONTHS`) since the #86 audit while the rows
+ * it rendered came from a current-month-only merge — so picking any other month showed only
+ * hand-entered transactions and quietly implied the rules stopped billing. Tre, 2026-08-13: "income
+ * rules and changes need to show in each month of transactions tab as well. that include the
+ * future. same as the budget control plans."
+ *
+ * FUTURE months only, never past ones. A past month's real rows came from the bank; generating rule
+ * occurrences beside them would double-count every bill that actually settled — the dedupe key
+ * below is exact `date:note:amount` and a real bank row matches none of those. The past is what
+ * happened; the future is what the rules say will happen; the current month is the seam and keeps
+ * {@link mergeWithGeneratedTransactions}'s substitution rule unchanged.
+ */
+export function mergeWithGeneratedTransactionsForHorizon(
+  realTransactions: EnrichedTransaction[],
+  rules: RuleRow[],
+  accounts: AccountRow[],
+  monthsAhead: number,
+): EnrichedTransaction[] {
+  const merged = mergeWithGeneratedTransactions(realTransactions, rules, accounts);
+
+  const now = new Date();
+  // Real rows ANYWHERE forward may substitute a generated twin — a manual future entry is the user
+  // already describing that occurrence, and rendering both is the duplicate-warning bug again.
+  const realKeys = new Set(realTransactions.map(t => `${t.date}:${t.note}:${t.amount}`));
+
+  const future: EnrichedTransaction[] = [];
+  for (let offset = 1; offset < monthsAhead; offset++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    for (const g of generateMonthTransactionsFromRules(rules, accounts, d.getFullYear(), d.getMonth())) {
+      if (!realKeys.has(`${g.date}:${g.note}:${g.amount}`)) future.push(g);
+    }
+  }
+  return [...merged, ...future];
+}
+
+/**
  * Create virtual debt payment transaction entries from recommendation results.
  * These are injected into the transaction stream so all current-month helpers see them.
  */

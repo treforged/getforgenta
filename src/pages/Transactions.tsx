@@ -7,7 +7,7 @@ import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliati
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { PROJECTION_MONTHS } from '@/lib/credit-card-engine';
-import { createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactions, type EnrichedTransaction } from '@/lib/pay-schedule';
+import { createDebtPaymentTransactions, mergeDebtPaymentsIntoStream, mergeWithGeneratedTransactionsForHorizon, type EnrichedTransaction } from '@/lib/pay-schedule';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
 import BankActivity from '@/components/transactions/BankActivity';
@@ -111,9 +111,12 @@ export default function Transactions() {
     return src;
   }, [accountMap]);
 
-  // Base transaction stream (real + generated recurring) shared across pages
+  // Base transaction stream: real + generated recurring, over the SAME horizon the month filter
+  // offers. This page used the current-month-only merge until 2026-08-13, so every future month in
+  // the dropdown showed only hand-entered rows — see mergeWithGeneratedTransactionsForHorizon for
+  // why this is a separate function and the engines keep the current-month one.
   const baseTxns: EnrichedTransaction[] = useMemo(() => {
-    return mergeWithGeneratedTransactions(transactions, rules, accounts)
+    return mergeWithGeneratedTransactionsForHorizon(transactions, rules, accounts, PROJECTION_MONTHS)
       .map(t => ({ ...t, isGenerated: Boolean(t.isGenerated), isDebtPayment: false }));
   }, [transactions, rules, accounts]);
 
