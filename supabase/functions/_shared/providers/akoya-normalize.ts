@@ -148,6 +148,10 @@ export function normalizeAkoyaAccounts(payload: unknown): NormalizedAccount[] {
       // Akoya returns rate and payment detail inline with the account, so a
       // successful call means liability data was as available as it gets.
       liabilityDataAvailable: accountType === "credit_card",
+      // FDX has no per-rate balance breakdown, so Akoya can never seed tranches. Empty rather
+      // than absent: "the provider offered none" is the honest reading, and persistAccount
+      // leaves the column untouched on an empty seed.
+      balanceTranches: [],
     });
   }
 
