@@ -173,7 +173,10 @@ export default function DebtPayoff() {
       <div className="flex items-start sm:items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Debt Payoff Planner</h1>
+            {/* Section label, not a hero: the hero number on the cards tab outranks the page
+                title (DIRECTION.md rule 2). Still an h1 — demoting the type must not demote the
+                document outline or the screen-reader landmark. */}
+            <h1 className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Debt Payoff Planner</h1>
             <p className="text-xs text-muted-foreground mt-0.5 truncate">Eliminate debt with realistic, due-date-aware projections</p>
           </div>
           <InstructionsModal pageTitle="Debt Payoff Guide" sections={[

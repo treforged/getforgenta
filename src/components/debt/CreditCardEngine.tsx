@@ -3,10 +3,14 @@ import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
   buildCardData, projectCard, projectCardVariable, m0MinDueSettled,
   simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS,
-  openCreditLimitAtMonth,
+  openCreditLimitAtMonth, getPlanInterestNextMonth,
 } from '@/lib/credit-card-engine';
+import { getStrategyPayoffOrder, payoffOrderAsOf } from '@/lib/debt-payoff-order';
 import { cardStartMonthOffset } from '@/lib/card-start-date';
 import UtilizationPanel from './UtilizationPanel';
+import DebtHero from './DebtHero';
+import AvalancheOrderList from './AvalancheOrderList';
+import CardRateLine from './CardRateLine';
 import {
   buildPayConfig, getNormalizedMonthNetIncome, getPrePaycheckNextMonthBills, getMinSafeCash,
   getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
@@ -18,7 +22,6 @@ import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMon
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { ordinal } from '@/lib/ordinal';
-import { parseTranches, promoExpiryWarnings } from '@/lib/balance-tranches';
 import { type Month0Result } from '@/hooks/useCardProjection';
 import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X } from 'lucide-react';
@@ -119,7 +122,7 @@ const PAYMENT_MODE_TIPS = {
 
 export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
   const { update: updateDebt, add: addDebt } = useDebts();
-  const { forecastInputsBundle } = useCardProjectionContext();
+  const { forecastInputsBundle, debtCashConverged } = useCardProjectionContext();
   const { update: updateAccount } = useAccounts();
   const { update: updateProfile } = useProfile();
   const { items: plaidItems } = usePlaidItems();
@@ -1036,6 +1039,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     // them only forced redundant re-projections.
   }, [cards, paymentMode, variableSim, overrideData, overrides, perCardPayments, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest]);
 
+  // Hero figures. "Now" is the interest charged this month; "at plan" is next month's under the
+  // recommended payments, and is ABSENT (null) rather than $0 when no converged plan exists to
+  // read it off (getPlanInterestNextMonth). payoffOrder is marginal-rate ranked exactly as
+  // generateRecommendations sorts — never re-sorted by flat APR here (see debt-payoff-order.ts).
+  const interestThisMonth = useMemo(() => projections.reduce((s, p) => s + p.projectedInterestThisMonth, 0), [projections]);
+  const interestAtPlan = useMemo(() => getPlanInterestNextMonth(projections, debtCashConverged), [projections, debtCashConverged]);
+  const payoffOrder = useMemo(() => getStrategyPayoffOrder(cards, strategy, payoffOrderAsOf()), [cards, strategy]);
+
   // Cumulative PASS-3 surplus routed to each card — the shared step3-display adjustment, so
   // accordion/chart balances match the Forecast month popup and CSV export. Display-only:
   // raw sim balances (projections) stay the model; payoff detection and ETA are untouched.
@@ -1267,6 +1278,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   return (
     <TooltipProvider delayDuration={200}>
       <div className="space-y-4 sm:space-y-5">
+        <DebtHero interestThisMonth={interestThisMonth} interestAtPlan={interestAtPlan} />
+
         {/* Debt Payoff Trajectory Chart */}
         {debtChartData.length > 0 && (
           <div className="card-forged p-3 sm:p-5 min-w-0 overflow-x-hidden">
@@ -1357,7 +1370,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
             <div>
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Monthly Interest</p>
-              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(projections.reduce((s, p) => s + p.projectedInterestThisMonth, 0), true)}</p>
+              <p className="text-lg sm:text-xl font-display font-bold mt-0.5 text-destructive">{formatCurrency(interestThisMonth, true)}</p>
             </div>
             <div className="col-span-2 sm:col-span-1 sm:col-start-2 lg:col-start-auto">
               <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Payoff ETA</p>
@@ -1509,6 +1522,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             )}
           </div>
         </div>
+
+        <AvalancheOrderList entries={payoffOrder} strategy={strategy} />
 
         {/* Recommendation Panel */}
         <div className="card-forged p-3 sm:p-5">
@@ -1760,30 +1775,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] sm:text-xs text-muted-foreground">
-                        {proj.card.apr}% APR · Limit {formatCurrency(proj.card.creditLimit, false)} · Utilization {proj.utilizationNow.toFixed(1)}%
-                        {proj.card.dueDay && <span> · <CalendarDays size={10} className="inline" /> Due {ordinal(proj.card.dueDay)}</span>}
-                      </p>
-                      {/* A promo balance with an expiry is a dated event, not a smooth line — say
-                          the date, the money, and the paydown that beats it. Read straight off the
-                          account row; the projection engine also accrues per-tranche and reprices
-                          at this cliff (credit-card-engine.ts), so the warning and the sim agree. */}
-                      {(() => {
-                        const acct = accounts.find(a => a.id === proj.card.id);
-                        const warnings = promoExpiryWarnings(
-                          parseTranches(acct?.balance_tranches),
-                          Number(acct?.apr ?? proj.card.apr),
-                          new Date().toISOString().slice(0, 10),
-                        );
-                        return warnings.map(w => (
-                          <p key={w.promoEndDate + w.label} className="text-[11px] sm:text-xs text-gold mt-0.5">
-                            ⚠ {formatCurrency(w.balance, false)} at {w.promoApr}% reprices to {w.standardApr}% on{' '}
-                            {new Date(`${w.promoEndDate}T12:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            {' '}(+{formatCurrency(w.extraMonthlyInterest, false)}/mo) — clearing it first needs{' '}
-                            {formatCurrency(w.requiredMonthlyPaydown, false)}/mo for {w.monthsRemaining} months
-                          </p>
-                        ));
-                      })()}
+                      {/* Flat APR + the marginal rate that actually ranks the card, + promo warnings. */}
+                      <CardRateLine
+                        card={proj.card}
+                        utilizationNow={proj.utilizationNow}
+                        account={accounts.find(a => a.id === proj.card.id)}
+                      />
                       <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive'}`}>
                         {formatCurrency(Math.max(0, proj.card.balance), false)}
                       </p>
