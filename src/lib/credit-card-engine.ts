@@ -2316,7 +2316,7 @@ export function generateRecommendations(
         rec.reason = payingFull ? 'Pay Full Balance'
           : payingStatement ? 'Pay Statement Balance'
           : strategy === 'avalanche'
-          ? `Highest APR (${card.apr}%)`
+          ? `Highest APR (${recApr(card)}%)`
           : `Smallest balance (${formatCurrency(card.balance, false)})`;
         remaining -= extra;
       }

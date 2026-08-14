@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { simulateVariablePayoff, projectCardVariable, buildCardData, type CardData } from '../credit-card-engine';
+import { simulateVariablePayoff, projectCardVariable, buildCardData, generateRecommendations, type CardData } from '../credit-card-engine';
 import type { BalanceTranche } from '../balance-tranches';
 import type { AccountRow } from '@/hooks/useSupabaseData';
 
@@ -427,5 +427,23 @@ describe('buildCardData — balance_tranches plumbing', () => {
   it('gives a card with no (or unusable) balance_tranches an empty list, never undefined shapes', () => {
     expect(buildCardData([account({ balance_tranches: null })], [], [], [])[0].tranches).toEqual([]);
     expect(buildCardData([account({ balance_tranches: [{ balance: -5, apr: 3 }] })], [], [], [])[0].tranches).toEqual([]);
+  });
+});
+
+describe('generateRecommendations — the avalanche label names the rate that ranked the card', () => {
+  // X's standard APR (10%) is below Y's (20%), but X carries a 29.99% tranche, so its MARGINAL
+  // rate ranks it first. The reason string must print that 29.99 — printing card.apr would show
+  // a rate below the one that beat Y, which reads like the sort is broken.
+  it('prints the marginal rate on a tranche card, card.apr on a plain one', () => {
+    const cards = [
+      makeCard({ id: 'X', name: 'Tranche card', balance: 6000, apr: 10,
+        tranches: [tranche({ id: 'hi', label: 'Cash advance', balance: 5000, apr: 29.99 })] }),
+      makeCard({ id: 'Y', name: 'Plain card', balance: 3000, apr: 20 }),
+    ];
+    const { recommendations } = generateRecommendations(cards, 10000, 0, 'avalanche', 0, 0);
+    const x = recommendations.find(r => r.cardId === 'X')!;
+    const y = recommendations.find(r => r.cardId === 'Y')!;
+    expect(x.reason).toBe('Highest APR (29.99%)');
+    expect(y.reason).toBe('Highest APR (20%)');
   });
 });
