@@ -19,7 +19,7 @@ import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/da
 import { useTransactions, useDebts, useSavingsGoals, useCarFunds, useAccounts, useProfile, useRecurringRules, useAssets, useLiabilities, usePaymentPlans, useSyncedTransactionReviews, type AccountRow } from '@/hooks/useSupabaseData';
 import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { usePlaidItems } from '@/hooks/usePlaidItems';
-import { generateScheduledEvents, getUpcomingEvents, formatDateShort, type ScheduledEvent } from '@/lib/scheduling';
+import { generateScheduledEvents, getUpcomingEvents, formatDateShort, PROJECTION_MONTHS, type ScheduledEvent } from '@/lib/scheduling';
 import { toScheduledObligations } from '@/lib/upcoming-obligations';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
@@ -57,13 +57,17 @@ import {
   PieChart, Pie, Cell,
 } from 'recharts';
 import MonthlyBudgetSnapshot from '@/components/dashboard/MonthlyBudgetSnapshot';
+import DashboardHero from '@/components/dashboard/DashboardHero';
+import StatChipRow from '@/components/dashboard/StatChipRow';
+import { buildDashboardChips, CHIP_WIDGET_IDS, type ChipWidgetId } from '@/lib/dashboard-chips';
+import CalcDrawer from '@/components/shared/CalcDrawer';
+import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
-  Plus, ArrowUpRight, DollarSign, CreditCard,
-  TrendingUp, PiggyBank, Landmark, Percent, Wallet, Repeat,
-  CalendarDays, AlertTriangle, Info, X, Car, Shield, Check, FileDown, LayoutDashboard,
+  Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
+  X, Car, Shield, Check, FileDown, LayoutDashboard,
 } from 'lucide-react';
 import { exportDashboardPdf } from '@/lib/exportPdf';
 import { Link, useNavigate } from 'react-router';
@@ -141,93 +145,6 @@ interface DashboardGoalEntry {
   name: string;
   current_amount: number;
   target_amount: number;
-}
-
-function CalcDrawer({
-  open,
-  onClose,
-  title,
-  lines,
-}: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  lines: { label: string; value: string; op?: string }[];
-}) {
-  if (!open) return null;
-
-  return (
-    <div
-      className="fixed inset-0 z-60 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
-      onClick={onClose}
-    >
-      <div
-        className="card-forged p-4 sm:p-6 w-full max-w-sm sm:max-w-md space-y-3 max-h-[75vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="font-display font-semibold text-sm flex items-center gap-2">
-            <Info size={14} className="text-primary" /> {title}
-          </h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
-            <X size={16} />
-          </button>
-        </div>
-
-        <p className="text-xs text-muted-foreground uppercase tracking-wider">
-          Calculation Breakdown
-        </p>
-
-        <div className="space-y-2 pt-2">
-          {lines.map((l, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0"
-            >
-              <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                {l.op && <span className="text-primary font-bold">{l.op}</span>}
-                {l.label}
-              </span>
-              <span className="text-xs font-display font-bold text-foreground">
-                {l.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ClickableMetric({
-  to,
-  onClick,
-  children,
-  tooltip,
-}: {
-  to?: string;
-  onClick?: () => void;
-  children: React.ReactNode;
-  tooltip: string;
-}) {
-  const navigate = useNavigate();
-  return (
-    <div
-      className="relative group cursor-pointer transition-all duration-200 hover:ring-1 hover:ring-primary/40 active:scale-[0.99] h-full"
-      style={{ borderRadius: 'var(--radius)' }}
-      onClick={() => {
-        if (onClick) onClick();
-        else if (to) navigate(to);
-      }}
-      title={tooltip}
-    >
-      {children}
-      <div className="absolute bottom-2 right-2 opacity-30 group-hover:opacity-100 transition-opacity">
-        <Info size={12} className="text-primary" />
-      </div>
-    </div>
-  );
 }
 
 export default function Dashboard() {
@@ -682,6 +599,58 @@ export default function Dashboard() {
   );
 
 
+  // ─── Hero (slice 2) ───────────────────────────────────────────────────────
+  // Both hero numbers were already computed on this page and neither was rendered. Nothing
+  // below re-derives either: the payoff month is picked from the readings the engine
+  // published (see lib/payoff-summary.ts, which copies /debt's resolution order verbatim),
+  // and the floor is the same `forecastFloor0` the drawer and the donut already use.
+
+  const heroPayoff = useMemo(
+    () => selectRevolvingPayoff({
+      simRevolvingPayoffMonth: cardProjection?.simRevolvingPayoffMonth ?? null,
+      forecastRevolvingPayoffMonth: cardProjection?.forecastRevolvingPayoffMonth ?? null,
+      forecastAdjustedRevolvingBalances: cardProjection?.forecastAdjustedRevolvingBalances ?? null,
+      cardIds: cardProjection?.simCards.map(c => c.id) ?? [],
+      months: PROJECTION_MONTHS,
+    }),
+    [cardProjection],
+  );
+
+  // The engine's own month-0 revolving balance, not the raw card balance: a card paid in
+  // full every cycle owes money but revolves none, and so has no payoff month at all.
+  const revolvingDebtNow = useMemo(() => {
+    if (!cardProjection) return accountSummary.ccDebt;
+    let total = 0;
+    cardProjection.monthlyRevolvingBalances.forEach(bals => {
+      total += Math.max(0, bals[0] ?? 0);
+    });
+    return total;
+  }, [cardProjection, accountSummary.ccDebt]);
+
+  // Same comparison `openMonthEndCalc`'s "cash is above safety threshold" line makes —
+  // PRE-debt-payment when the engine is driving, because the engine caps its debt payments
+  // at the floor and a post-payment figure would read ~$0 above the floor by construction.
+  // Null (never 0) when there is nothing to read: an unknown floor and a met floor must not
+  // render identically.
+  const cashAboveFloor = useMemo(() => {
+    if (accounts.length === 0) return null;
+    const cash = cardProjection?.month0 ? cardProjection.month0.chain.cashPreDebt : monthEndCash;
+    if (!Number.isFinite(cash) || !Number.isFinite(forecastFloor0.monthMinSafe)) return null;
+    return cash - forecastFloor0.monthMinSafe;
+  }, [accounts.length, cardProjection, monthEndCash, forecastFloor0.monthMinSafe]);
+
+  const heroState = useMemo(
+    () => selectDashboardHero({
+      hasAccounts: accounts.length > 0,
+      revolvingDebt: revolvingDebtNow,
+      cardBalance: accountSummary.ccDebt,
+      payoff: heroPayoff,
+      cashAboveFloor,
+      projectionReady: cardProjection != null,
+    }),
+    [accounts.length, revolvingDebtNow, accountSummary.ccDebt, heroPayoff, cashAboveFloor, cardProjection],
+  );
+
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
 
   const categoryData = useMemo(
@@ -959,6 +928,42 @@ export default function Dashboard() {
     setCalcDrawer({ title: 'Cash Floor', lines });
   };
 
+  // ─── Stat chips (slice 2) ─────────────────────────────────────────────────
+  // The three 4-cell MetricCard grids demote to ONE horizontally scrollable chip row.
+  // Every figure those grids carried is still here, still taps through to the same drawer
+  // or page, and still respects `useDashboardLayout`: each of the three widget ids keeps
+  // owning its own chips, so hiding one drops exactly its four, and reordering them
+  // reorders the groups. The combined row renders at whichever of the three is visible
+  // FIRST, and the other two render nothing — one row on screen, three levers behind it.
+
+  const chipsByWidget = buildDashboardChips({
+    rulesLoading, goalsLoading,
+    paycheckNet, nextPayday,
+    billsThisWeek: { total: upcomingBillsWeek.reduce((s, e) => s + e.amount, 0), count: upcomingBillsWeek.length },
+    billsThisMonth: { total: upcomingBillsMonth.reduce((s, e) => s + e.amount, 0), count: upcomingBillsMonth.length },
+    monthEndCash,
+    liquidCash: accountSummary.liquidCash,
+    income: summary.income,
+    expenses: summary.expenses,
+    debtService: summary.debtService,
+    netWorth: accountSummary.netWorth,
+    totalAssets: accountSummary.totalAssets,
+    savingsRate: summary.savingsRate,
+    cashFlow: summary.cashFlow,
+    utilization,
+    ccDebt: accountSummary.ccDebt,
+    ccLimit: accountSummary.ccLimit,
+    totalSaved: summary.totalSaved,
+    goalCount: goals.length,
+    openMonthEndCalc, openLiquidCashCalc, openIncomeCalc, openExpenseCalc, openNetWorthCalc,
+  });
+
+  const isChipWidget = (id: WidgetId): id is ChipWidgetId =>
+    (CHIP_WIDGET_IDS as readonly WidgetId[]).includes(id);
+  const visibleChipWidgets = visibleWidgets.filter(isChipWidget);
+  const chipRowAnchor = visibleChipWidgets[0] ?? null;
+  const allChips = visibleChipWidgets.flatMap(id => chipsByWidget[id]);
+
   // ─── Widget renderer ──────────────────────────────────────────────────────
 
   const renderWidget = (id: WidgetId) => {
@@ -995,67 +1000,12 @@ export default function Dashboard() {
           </div>
         );
 
+      // The three demoted grids. Only the first visible one paints the combined row; the
+      // other two are deliberately empty so the page shows ONE chip row, not three.
       case 'schedule_cards':
-        return rulesLoading ? (
-          <ScheduleSkeleton key="schedule_cards" />
-        ) : (
-          <div key="schedule_cards" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <ClickableMetric to="/budget" tooltip="Next scheduled paycheck from your pay setup">
-              <MetricCard label="Next Paycheck" value={formatCurrency(paycheckNet, false)} sub={nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} accent="success" icon={CalendarDays} />
-            </ClickableMetric>
-            <ClickableMetric to="/transactions" tooltip="Total bills due in the next 7 days">
-              <MetricCard label="Bills This Week" value={formatCurrency(upcomingBillsWeek.reduce((s, e) => s + e.amount, 0), false)} sub={`${upcomingBillsWeek.length} upcoming`} accent={upcomingBillsWeek.length > 0 ? 'crimson' : 'silver'} icon={AlertTriangle} />
-            </ClickableMetric>
-            <ClickableMetric to="/transactions" tooltip="All bills scheduled this month">
-              <MetricCard label="Bills This Month" value={formatCurrency(upcomingBillsMonth.reduce((s, e) => s + e.amount, 0), false)} sub={`${upcomingBillsMonth.length} scheduled`} accent="silver" icon={Repeat} />
-            </ClickableMetric>
-            <ClickableMetric onClick={openMonthEndCalc} tooltip="Click to see how this is calculated">
-              <MetricCard label="Month-End Cash" value={formatCurrency(monthEndCash, false)} sub="After all scheduled items" accent={monthEndCash >= 0 ? 'success' : 'crimson'} icon={Wallet} />
-            </ClickableMetric>
-          </div>
-        );
-
       case 'financial_health':
-        return (
-          <div key="financial_health" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <ClickableMetric onClick={openLiquidCashCalc} tooltip="View liquid cash breakdown">
-              <MetricCard label="Liquid Cash" value={formatCurrency(accountSummary.liquidCash, false)} accent="success" icon={DollarSign} />
-            </ClickableMetric>
-            <ClickableMetric onClick={openIncomeCalc} tooltip="How income is calculated">
-              <MetricCard label="Monthly Income" value={summary.income > 0 ? formatCurrency(summary.income, false) : '—'} accent="success" icon={TrendingUp} />
-            </ClickableMetric>
-            <ClickableMetric onClick={openExpenseCalc} tooltip="How expenses are calculated">
-              <MetricCard label="Monthly Expenses" value={summary.expenses > 0 ? formatCurrency(summary.expenses, false) : '—'} sub="spending only" accent="crimson" icon={CreditCard} />
-            </ClickableMetric>
-            {/* Option B: principal repaid gets its own tile instead of inflating the expense one.
-                Same drawer — the two figures are halves of one chain and are read together. */}
-            <ClickableMetric onClick={openExpenseCalc} tooltip="Debt principal repaid this month — not spending">
-              <MetricCard label="Debt Service" value={summary.debtService > 0 ? formatCurrency(summary.debtService, false) : '—'} sub="principal repaid" accent="gold" icon={Landmark} />
-            </ClickableMetric>
-          </div>
-        );
-
       case 'wealth_overview':
-        return (
-          <div key="wealth_overview" className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <ClickableMetric onClick={openNetWorthCalc} tooltip="How net worth is calculated">
-              <MetricCard label="Net Worth" value={formatCurrency(accountSummary.netWorth, false)} accent={accountSummary.netWorth >= 0 ? 'gold' : 'crimson'} icon={Wallet} sub={`${formatCurrency(accountSummary.totalAssets, false)} assets`} />
-            </ClickableMetric>
-            <ClickableMetric to="/budget" tooltip="Savings rate = (income − expenses − debt service) / income">
-              <MetricCard label="Savings Rate" value={summary.income > 0 ? `${summary.savingsRate.toFixed(1)}%` : '—'} accent={summary.savingsRate >= 0 ? 'gold' : 'crimson'} icon={Percent} sub={summary.income > 0 ? `${formatCurrency(summary.cashFlow, false)} net / mo` : '—'} />
-            </ClickableMetric>
-            <ClickableMetric to="/debt" tooltip="Credit card balances / total limits">
-              <MetricCard label="Credit Utilization" value={`${utilization.toFixed(1)}%`} accent={utilization > 30 ? 'crimson' : 'success'} sub={`${formatCurrency(accountSummary.ccDebt, false)} / ${formatCurrency(accountSummary.ccLimit, false)}`} icon={CreditCard} />
-            </ClickableMetric>
-            {goalsLoading ? (
-              <MetricSkeleton />
-            ) : (
-              <ClickableMetric to="/goals" tooltip="Total saved across all goals">
-                <MetricCard label="Total Saved" value={formatCurrency(summary.totalSaved, false)} accent="success" sub={`${goals.length} goals`} icon={PiggyBank} />
-              </ClickableMetric>
-            )}
-          </div>
-        );
+        return id === chipRowAnchor ? <StatChipRow key="stat_chips" chips={allChips} /> : null;
 
       case 'car_goal':
         if (!carGoalData) return null;
@@ -1387,18 +1337,20 @@ export default function Dashboard() {
       {!isDemo && <SubscriptionExpiryBanner />}
 
       {!isDemo && showSecurityBanner && (
-        <div className="flex items-start justify-between gap-3 bg-amber-500/8 border border-amber-500/25 px-4 py-3" style={{ borderRadius: 'var(--radius)' }}>
+        /* Tokens, not raw palette classes. `text-gold` is the warning tone this codebase
+           actually has — `text-warning` generates no rule at all (see BalanceTrancheEditor). */
+        <div className="flex items-start justify-between gap-3 bg-secondary border border-border px-4 py-3" style={{ borderRadius: 'var(--radius)' }}>
           <div className="flex items-start gap-3">
-            <Shield size={15} className="text-amber-500 mt-0.5 shrink-0" />
+            <Shield size={15} className="text-gold mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-semibold text-amber-600">Your account has no two-factor protection</p>
+              <p className="text-xs font-semibold text-gold">Your account has no two-factor protection</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Adding 2FA takes under a minute and significantly reduces the risk of unauthorized access.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Link to="/settings#security" className="flex items-center gap-1.5 bg-amber-500 text-white px-3 py-1.5 text-xs font-semibold hover:bg-amber-600 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
+            <Link to="/settings#security" className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-semibold hover:bg-primary/90 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
               <Shield size={10} /> Secure my account
             </Link>
             <button onClick={() => setShowSecurityBanner(false)} className="text-muted-foreground hover:text-foreground transition-colors p-1">
@@ -1412,17 +1364,19 @@ export default function Dashboard() {
         <OnboardingChecklist profile={profile} accounts={accounts} debts={debts} goals={goals} plaidItems={plaidItems} />
       )}
 
-      {/* Header */}
+      {/* Header. Demoted to the section-label style: the hero number below is the biggest
+          thing on the page, and the <h1> outranking it was the old shape, not a bug here. */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-row items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Command Center</h1>
+              <h1 className="text-xs uppercase tracking-wider text-muted-foreground">Command Center</h1>
               <InstructionsModal
                 pageTitle="Dashboard Guide"
                 sections={[
                   { title: 'What is this page?', body: 'The Command Center gives you a real-time snapshot of your financial health — income, expenses, net worth, savings, debt, and upcoming bills for the current month.' },
-                  { title: 'KPI Cards', body: 'Click any metric card to see exactly how it is calculated, including which accounts and transactions are included.' },
+                  { title: 'The headline number', body: 'The top of the page shows the month your credit card debt clears, and how much cash sits above your safety floor. If either has no reading yet, the page says so rather than showing a zero.' },
+                  { title: 'Stat chips', body: 'The scrolling row of chips carries the supporting numbers. Tap any chip to see exactly how it is calculated, including which accounts and transactions are included.' },
                   { title: 'Projected Month-End Cash', body: 'Shows your expected cash position at month end: current liquid cash + remaining paychecks − remaining expenses − debt payments. Must stay above your cash floor.' },
                   { title: 'Cash Flow Chart', body: 'Displays the last 6 months of income vs expenses with net cash flow trend line.' },
                   { title: 'Customize Dashboard', body: 'Click the Customize button to show/hide widgets and use the up/down arrows to reorder them. Layout is saved to your account.' },
@@ -1430,18 +1384,20 @@ export default function Dashboard() {
                 ]}
               />
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Your financial control system &bull; {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            <p className="text-[11px] text-muted-foreground/80 mt-0.5">
+              {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          {/* One compact row on every width. The labels stay — collapsing to bare icons
+              would take the affordance away, and these are the page's only actions. */}
+          <div className="flex flex-row items-center gap-1.5 shrink-0">
             <button
               onClick={() => setCustomizing(true)}
-              className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-2 text-xs font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors"
+              className="flex items-center justify-center gap-1.5 bg-secondary border border-border px-2.5 py-1.5 text-[11px] font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              <LayoutDashboard size={13} /> Customize
+              <LayoutDashboard size={12} /> Customize
             </button>
 
             {(isPremium || isDemo) && (
@@ -1461,23 +1417,28 @@ export default function Dashboard() {
                     ccDebt: accountSummary.ccDebt ?? 0,
                   })
                 }
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-2 text-xs font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors"
+                className="flex items-center justify-center gap-1.5 bg-secondary border border-border px-2.5 py-1.5 text-[11px] font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors"
                 style={{ borderRadius: 'var(--radius)' }}
               >
-                <FileDown size={13} /> PDF
+                <FileDown size={12} /> PDF
               </button>
             )}
 
             <Link
               to="/transactions"
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors"
+              className="flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-semibold btn-press hover:bg-primary/90 transition-colors"
               style={{ borderRadius: 'var(--radius)' }}
             >
-              <Plus size={14} /> Add Transaction
+              <Plus size={13} /> Add
+              <span className="sr-only"> Transaction</span>
             </Link>
           </div>
         </div>
       </div>
+
+      {/* The hero. Fixed at the top: NOT a `useDashboardLayout` widget, so it is neither
+          reorderable nor hideable — it is the one thing the page is for. */}
+      <DashboardHero state={heroState} onFloorClick={openFloorCalc} />
 
       {isDemo && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
