@@ -430,11 +430,18 @@ export function detectAllRuleDrift(
   const linked = linkedRulesByMerchant(charges, links);
   const kept: RuleDrift[] = [];
   for (const [merchantKey, rivals] of claimants) {
-    if (rivals.length === 1) { kept.push(rivals[0]); continue; }
-    // Contested. The user's own recorded links decide it, and ONLY if they decide it outright —
-    // two linked rivals is still a coin flip, and silence is the house answer to a coin flip.
-    const byLink = rivals.filter(r => linked.get(merchantKey)?.has(r.ruleId));
-    if (byLink.length === 1) kept.push(byLink[0]);
+    // ⚠️ A LINK IS AN EXCLUSION AS WELL AS A TIEBREAK, and the live panel proved the order these
+    // bite in. While Electricity's rule was wrong, it and Internet both claimed Duke Energy —
+    // contested, tiebroken below. The moment Electricity's rule was CORRECTED, it stopped
+    // drifting, stopped being a claimant, and Internet was left claiming Duke Energy alone —
+    // "unambiguous", and dead wrong, on the very panel that had just been fixed. So the link cuts
+    // the other way first: a merchant the user has linked to some rule can never evidence a
+    // DIFFERENT rule, whether or not the rule it belongs to is drifting.
+    const owners = linked.get(merchantKey);
+    const eligible = owners ? rivals.filter(r => owners.has(r.ruleId)) : rivals;
+    if (eligible.length === 1) { kept.push(eligible[0]); continue; }
+    // Still contested (no links, or several linked rivals): silence. Two of anything is a coin
+    // flip, and a one-tap accept on a coin flip writes the wrong number into a forecast input.
   }
 
   return kept.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));

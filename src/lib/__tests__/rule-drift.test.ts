@@ -278,6 +278,15 @@ describe('linked-rule tiebreak', () => {
     const map = linkedRulesByMerchant(bills, [link('Power Co-2', 'power')]);
     expect([...(map.get(normalizeMerchant('Power Co')!) ?? [])]).toEqual(['power']);
   });
+  it('a merchant linked to one rule can never evidence a different rule, even uncontested', () => {
+    // The live case, third layer of the same bug: once Electricity was corrected it stopped
+    // drifting, leaving Internet the SOLE claimant of Duke Energy - "unambiguous" and wrong. The
+    // link is an exclusion, not just a tiebreak.
+    const power = rule({ id: 'power', name: 'Power', amount: 170, due_day: 1 });   // correct now
+    const net = rule({ id: 'net', name: 'Internet', amount: 100, due_day: 15 });   // wrong claimant
+    const bills = charges('Power Co', [['2026-06-04', 165], ['2026-07-05', 170], ['2026-08-06', 175]]);
+    const links = [{ synced_transaction_id: 'Power Co-0', status: 'linked_rule', rule_id: 'power' }];
+    expect(detectAllRuleDrift([power, net], bills, links)).toEqual([]);
+  });
 });
-
 
