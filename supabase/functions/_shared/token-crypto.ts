@@ -24,8 +24,14 @@ function base64Encode(bytes: Uint8Array): string {
   return btoa(String.fromCharCode(...bytes));
 }
 
-function base64Decode(value: string): Uint8Array {
-  return Uint8Array.from(atob(value), (c) => c.charCodeAt(0));
+// Returns Uint8Array<ArrayBuffer> explicitly: `Uint8Array.from` types its backing store as
+// ArrayBufferLike (which admits SharedArrayBuffer), and WebCrypto's BufferSource requires a
+// plain ArrayBuffer — `new Uint8Array(n)` guarantees one. Behavior identical.
+function base64Decode(value: string): Uint8Array<ArrayBuffer> {
+  const raw = atob(value);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return bytes;
 }
 
 async function getKey(): Promise<CryptoKey> {

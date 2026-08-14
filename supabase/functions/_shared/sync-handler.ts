@@ -100,8 +100,12 @@ async function releaseLock(db: SupabaseClient, connectionId: string): Promise<vo
  * Select-then-update-or-insert rather than upsert: the unique index on
  * (user_id, plaid_account_id) is partial, which PostgREST's ON CONFLICT cannot
  * target. Carried over from the original implementation.
+ *
+ * Exported for src/lib/__tests__/sync-handler-wiring.test.ts — the header's database
+ * policy lives in THIS function's wiring of the pure policies, and the wiring is what
+ * those tests pin (the policies themselves have their own suites).
  */
-async function persistAccount(
+export async function persistAccount(
   db: SupabaseClient,
   userId: string,
   connection: FinancialConnection,
