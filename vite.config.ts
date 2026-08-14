@@ -6,6 +6,13 @@ import path from "path";
 export default defineConfig(({ mode }) => ({
   test: {
     exclude: [...configDefaults.exclude, "backups/**"],
+    alias: {
+      // Runtime half of the esm.sh bridge (types: src/types/esm-sh-supabase.d.ts).
+      // Lets vitest import supabase/functions/_shared/sync-handler.ts, whose Deno-style
+      // URL import resolves to the SAME package installed locally. Test-only: the app
+      // build never sees this specifier.
+      "https://esm.sh/@supabase/supabase-js@2": "@supabase/supabase-js",
+    },
   },
   server: {
     host: "::",
