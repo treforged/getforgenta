@@ -11,6 +11,7 @@
  * equally to every provider.
  */
 
+import { tranchesFromPlaidAprs } from "./balance-tranche-seed.ts";
 import {
   type AccountType,
   type FinancialConnection,
@@ -149,6 +150,7 @@ export const plaidProvider: FinancialProvider = {
         apr: accountType === "credit_card" ? parseAprFromName(name) : null,
         minPayment: null,
         liabilityDataAvailable: false,
+        balanceTranches: [],
       };
     });
 
@@ -192,6 +194,9 @@ export const plaidProvider: FinancialProvider = {
         const purchaseApr = ((liab.aprs ?? []) as Record<string, unknown>[])
           .find((a) => a.apr_type === "purchase_apr");
         if (purchaseApr) card.apr = parseFloat(purchaseApr.apr_percentage as string);
+        // The REST of aprs[] — balance transfer, cash advance, promo — each with its own balance.
+        // Only a seed; persistAccount decides whether it is allowed anywhere near the column.
+        card.balanceTranches = tranchesFromPlaidAprs(liab.aprs);
         if (liab.credit_limit != null) card.creditLimit = Number(liab.credit_limit);
         if (liab.minimum_payment_amount != null) {
           card.minPayment = Number(liab.minimum_payment_amount);

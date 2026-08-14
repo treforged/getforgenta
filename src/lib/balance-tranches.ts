@@ -11,11 +11,15 @@
 // rate — what a tranche reprices to when its promo ends, and what the remainder (balance minus all
 // tranches) pays. Null/absent tranches = single-APR card = the pre-existing behavior, untouched.
 //
-// ⚠️ ENGINE INTEGRATION IS DELIBERATELY NOT HERE YET. `credit-card-engine.ts` models one APR per
-// card through its whole payment cascade; threading tranches through it is a rewrite of its
-// interest accrual and allocation steps and must be its own change with its own golden tests.
-// What this module gives correctly today: the true current interest split, the repriced rate for
-// any future month, and the dated warning — the facts every surface can already show honestly.
+// ENGINE INTEGRATION IS DONE (handoff item 3, golden tests in
+// `__tests__/credit-card-engine.tranches.test.ts`). `credit-card-engine.ts` walks a per-card
+// LEDGER of tranche balances alongside its own balance walk: interest accrues per tranche at its
+// own rate (repriced at the cliff), payment is allocated by `allocatePaymentAcrossTranches` below,
+// and avalanche ordering ranks on the resulting MARGINAL rate. This module stays pure and stays
+// the single source of that arithmetic — the engine must never grow a second allocator.
+//
+// The parity rule that integration is held to: a card with no tranches produces numbers identical
+// to the pre-tranche engine, to the cent. Keep it that way.
 
 /** One sub-balance at its own rate. */
 export interface BalanceTranche {

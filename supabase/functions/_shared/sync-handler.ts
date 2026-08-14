@@ -19,10 +19,14 @@
  *   - account_type is never overwritten after insert (preserves user correction)
  *   - min_payment is never overwritten when the user marked it manual
  *   - min_payment falls back to an estimate when the provider omits it
+ *   - apr is never overwritten when the stored value did not come from the provider
+ *   - balance_tranches is SEEDED ONLY when empty, and never carries a promo_end_date
  */
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "./cors.ts";
+import { resolveAprOnSync } from "./providers/apr-sync-policy.ts";
+import { shouldSeedTranches } from "./providers/balance-tranche-seed.ts";
 import {
   type FinancialConnection,
   getProvider,
@@ -106,7 +110,7 @@ async function persistAccount(
 ): Promise<void> {
   const { data: existing } = await db
     .from("accounts")
-    .select("id, apr, credit_limit, min_payment_is_manual")
+    .select("id, apr, apr_plaid_synced, credit_limit, min_payment_is_manual, balance_tranches")
     .eq("user_id", userId)
     .eq("plaid_account_id", account.providerAccountId)
     .maybeSingle();
@@ -129,18 +133,32 @@ async function persistAccount(
       account_type: account.accountType,
       credit_limit: account.creditLimit,
       apr: account.apr,
+      // MUST be recorded on insert. `apr_plaid_synced` is what later syncs read to tell a
+      // provider-owned rate from a hand-typed one; leaving it null on a row whose apr came
+      // straight from Plaid would make the very next sync misread it as manual and freeze it.
+      ...(account.apr != null ? { apr_plaid_synced: true } : {}),
       min_payment: account.minPayment,
       plaid_account_id: account.providerAccountId,
       ...(account.liabilityDataAvailable ? { liability_synced_at: now } : {}),
+      // A brand-new row has no user tranches to protect, so the same rule reduces to "seed if the
+      // provider gave us anything". Omitted entirely on an empty seed, leaving the column null.
+      ...(shouldSeedTranches(null, account.balanceTranches)
+        ? { balance_tranches: account.balanceTranches }
+        : {}),
     });
     if (error) console.error(`Account insert failed for ${account.providerAccountId}:`, error.message);
     return;
   }
 
   // Preserve values the provider didn't return, and never clobber a manual
-  // minimum payment or a user's account_type correction.
+  // minimum payment, a manual APR, or a user's account_type correction.
   const minIsManual = existing.min_payment_is_manual === true;
-  const effectiveApr = account.apr ?? existing.apr ?? null;
+  const aprDecision = resolveAprOnSync(
+    account.apr,
+    existing.apr != null ? Number(existing.apr) : null,
+    (existing.apr_plaid_synced as boolean | null) ?? null,
+  );
+  const effectiveApr = aprDecision.apr;
   const effectiveLimit = account.creditLimit ?? existing.credit_limit ?? null;
 
   const update: Record<string, unknown> = {
@@ -149,8 +167,20 @@ async function persistAccount(
     credit_limit: effectiveLimit,
   };
 
-  if (account.apr != null) update.apr_plaid_synced = true;
+  if (aprDecision.markPlaidSynced) update.apr_plaid_synced = true;
+  if (aprDecision.keptManual) {
+    console.log(
+      `Kept manual APR ${effectiveApr} on ${account.providerAccountId}; ` +
+        `${connection.provider} offered ${account.apr}`,
+    );
+  }
   if (account.liabilityDataAvailable) update.liability_synced_at = now;
+
+  // Tranches are seeded, never merged. `update` is built key-by-key, so on any other outcome the
+  // column is simply not in the payload and the user's rows are not touched at all.
+  if (shouldSeedTranches(existing.balance_tranches, account.balanceTranches)) {
+    update.balance_tranches = account.balanceTranches;
+  }
 
   if (!minIsManual) {
     if (account.minPayment != null) {

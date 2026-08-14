@@ -21,6 +21,8 @@ import AkoyaFallbackPrompt from '@/components/shared/AkoyaFallbackPrompt';
 import AkoyaConnectButton from '@/components/shared/AkoyaConnectButton';
 import { AKOYA_INSTITUTIONS, findAkoyaInstitution, type AkoyaInstitution } from '@/config/akoya-institutions';
 import PremiumGate from '@/components/shared/PremiumGate';
+import BalanceTrancheEditor from '@/components/shared/BalanceTrancheEditor';
+import { tranchesToRows, rowsToTranches, type TrancheFormRow } from '@/lib/tranche-form';
 import { AccountsSkeleton } from '@/components/shared/PageSkeleton';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
@@ -161,6 +163,9 @@ export default function Accounts() {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  // Tranches are structured rows, not a flat string field, so they live beside `form` rather than
+  // inside it — and ride along in the draft below so a restore brings them back too.
+  const [trancheRows, setTrancheRows] = useState<TrancheFormRow[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string; isLinked: boolean } | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'assets' | 'liabilities'>('all');
   const [matchEntries, setMatchEntries] = useState<MatchEntry[]>([]);
@@ -337,7 +342,7 @@ export default function Accounts() {
   const [editingPlaidAprSynced, setEditingPlaidAprSynced] = useState(false);
   const [editingPlaidMinSynced, setEditingPlaidMinSynced] = useState(false);
 
-  const openAdd = (preType?: string) => { setForm({ ...emptyForm, account_type: preType ?? '' }); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
+  const openAdd = (preType?: string) => { setForm({ ...emptyForm, account_type: preType ?? '' }); setTrancheRows([]); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); setShowForm(true); };
 
   // Deep-link command: /accounts?new=1 opens the add-account form on arrival.
   // openAdd sets seven pieces of form state at once, so this is a one-shot mount
@@ -354,11 +359,12 @@ export default function Accounts() {
   // dropped them would bring the text back into the wrong form.
   const draftValues = useMemo(() => ({
     form,
+    trancheRows,
     plaidLinked: editingPlaidLinked,
     plaidLiability: editingPlaidLiability,
     plaidAprSynced: editingPlaidAprSynced,
     plaidMinSynced: editingPlaidMinSynced,
-  }), [form, editingPlaidLinked, editingPlaidLiability, editingPlaidAprSynced, editingPlaidMinSynced]);
+  }), [form, trancheRows, editingPlaidLinked, editingPlaidLiability, editingPlaidAprSynced, editingPlaidMinSynced]);
 
   const { restored: draftRestored, discard: discardDraft } = useFormDraft({
     formKey: 'accounts',
@@ -368,6 +374,8 @@ export default function Accounts() {
     enabled: !isDemo,
     onRestore: useCallback((draft: FormDraft<typeof draftValues>) => {
       setForm(draft.values.form);
+      // Drafts written before rate tiers existed have no `trancheRows` key.
+      setTrancheRows(draft.values.trancheRows ?? []);
       setEditingPlaidLinked(draft.values.plaidLinked);
       setEditingPlaidLiability(draft.values.plaidLiability);
       setEditingPlaidAprSynced(draft.values.plaidAprSynced);
@@ -380,6 +388,7 @@ export default function Accounts() {
   const handleDiscardDraft = useCallback(() => {
     discardDraft();
     setForm(emptyForm);
+    setTrancheRows([]);
     setEditId(null);
     setEditingPlaidLinked(false);
     setEditingPlaidLiability(false);
@@ -415,6 +424,7 @@ export default function Accounts() {
       apr_start_date: a.apr_start_date || '',
       card_start_date: a.card_start_date || '',
     });
+    setTrancheRows(tranchesToRows(a.balance_tranches));
     setEditingPlaidLinked(!!a.plaid_account_id);
     setEditingPlaidLiability(plaidLiability);
     setEditingPlaidAprSynced(!!a.apr_plaid_synced);
@@ -431,6 +441,13 @@ export default function Accounts() {
     if (isNaN(resolvedBalance)) { toast.error('A valid balance is required'); return; }
     const dueDayRaw = parseInt(form.payment_due_day);
     const dueDayVal = form.account_type === 'credit_card' && !isNaN(dueDayRaw) && dueDayRaw >= 1 && dueDayRaw <= 28 ? dueDayRaw : null;
+    // Rate tiers are credit-card only. A row the validator rejects blocks the save rather than
+    // being dropped on the way to the column — a silently binned tier reads as a saved one.
+    const { tranches, invalidRows } = rowsToTranches(form.account_type === 'credit_card' ? trancheRows : []);
+    if (invalidRows.length > 0) {
+      toast.error(`Rate tier ${invalidRows.join(', ')} needs a balance above $0 and an APR — fill it in or remove it`);
+      return;
+    }
     const payload: Partial<Tables<'accounts'>> & { name: string } = {
       name: form.name, account_type: form.account_type, institution: form.institution,
       credit_limit: parseFloat(form.credit_limit) || null, apr: parseFloat(form.apr) || null,
@@ -439,6 +456,9 @@ export default function Accounts() {
       ...(form.account_type === 'credit_card' ? {
         payment_due_day: dueDayVal,
         card_start_date: form.card_start_date || null,
+        // Null, not [], when there are no tiers — a single-APR card, which is what every reader
+        // treats as "no tranches" (see balance-tranches.ts).
+        balance_tranches: tranches,
       } : {}),
       apr_start_date: LOAN_TYPES.includes(form.account_type) && form.apr_start_date ? form.apr_start_date : null,
     };
@@ -1153,11 +1173,15 @@ export default function Accounts() {
           onSave={handleSave}
           draftRestored={draftRestored}
           onDiscardDraft={handleDiscardDraft}
-          onClose={() => { setShowForm(false); setEditId(null); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); }}
+          onClose={() => { setShowForm(false); setEditId(null); setTrancheRows([]); setEditingPlaidLinked(false); setEditingPlaidLiability(false); setEditingPlaidAprSynced(false); setEditingPlaidMinSynced(false); }}
           saving={add.isPending || update.isPending}
           saveLabel={editId ? 'Update Account' : 'Add Account'}
           notice={editingPlaidLinked ? `Balance, name, and institution are managed by Plaid.${editingPlaidLiability ? ` Credit limit is synced from Plaid.${editingPlaidAprSynced ? ' APR is synced from Plaid.' : ' APR was not returned by Plaid — you can edit it.'}${editingPlaidMinSynced ? ' Minimum payment is synced from Plaid.' : ' Minimum payment was not returned by Plaid — you can edit it.'}` : ''} Notes and payment due day are always editable.` : undefined}
-        />
+        >
+          {form.account_type === 'credit_card' && (
+            <BalanceTrancheEditor rows={trancheRows} onChange={setTrancheRows} accountBalance={form.balance} />
+          )}
+        </FormModal>
       )}
     </div>
   );

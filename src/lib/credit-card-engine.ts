@@ -10,6 +10,10 @@ import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
 import { FLOOR_CUSHION_DOLLARS } from './floor-protection';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
 import { cardStartMonthOffset } from './card-start-date';
+import {
+  parseTranches, trancheInterestBreakdown, allocatePaymentAcrossTranches,
+  type BalanceTranche,
+} from './balance-tranches';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
@@ -60,6 +64,15 @@ export type CardData = {
    * month 0 is unaffected. See m0MinDueSettled.
    */
   m0MinSettled?: boolean;
+  /**
+   * Sub-balances carrying their OWN rates (accounts.balance_tranches — see balance-tranches.ts for
+   * the shape and the real case that motivated it). `apr` above stays the STANDARD rate: what the
+   * untranched remainder pays, and what a tranche reprices to when its promo_end_date passes.
+   *
+   * Absent or empty = single-APR card = the pre-tranche engine, to the cent (the parity rule —
+   * every tranche-aware helper short-circuits back to the original expression on this path).
+   */
+  tranches?: BalanceTranche[];
 };
 
 export type CardMonthRow = {
@@ -183,6 +196,146 @@ export function revolvingMinDue(card: CardData, revOwed: number): number {
   // says this IS what's due, so the formula must never re-inflate it (manual $0 stays $0).
   if (card.minPaymentIsManual) return Math.min(contractRevMin, revOwed);
   return Math.min(Math.max(contractRevMin, calcMinPayment(revOwed, card.apr)), revOwed);
+}
+
+// ─── Multi-rate cards (balance tranches) ──────────────────────────────────────────────────────
+//
+// A card can hold sub-balances at DIFFERENT rates, and a promo rate can EXPIRE (the real case:
+// Discover's $5,037.73 at 7.99% until 2028-01-04 against a 16.6% standard rate). The engine walks
+// a per-card LEDGER of tranche balances alongside its own `balances` walk: the tranche sum is a
+// decomposition of the card's revolving balance, and the untranched REMAINDER — new purchases,
+// remainder interest, anything the ledger doesn't claim — is implicit (balance minus tranche sum)
+// and pays the standard rate. Allocation is balance-tranches.ts's own CARD Act §164 allocator;
+// this file must never grow a second one.
+//
+// THE PARITY RULE: a card with no tranches must produce numbers identical to the pre-tranche
+// engine, to the cent. Every helper below therefore short-circuits an empty ledger back to the
+// ORIGINAL expression rather than routing through the (mathematically equal, but
+// float-associativity-different) breakdown path.
+
+/** Local YYYY-MM-DD. Deliberately not toISOString(), which shifts the day in +UTC zones. */
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * The date a projection month is judged at for repricing: its LAST day. A promo expiring anywhere
+ * inside a month therefore reprices for that whole month — the conservative direction, and it puts
+ * the interest step-up in the month it actually happens rather than a month late.
+ */
+export function monthEndAsOf(from: Date, offset: number): string {
+  return isoDay(new Date(from.getFullYear(), from.getMonth() + offset + 1, 0));
+}
+
+/** A ledger entry paired with its index in card.tranches, so results map back unambiguously. */
+interface LiveTranche { index: number; tranche: BalanceTranche }
+
+/**
+ * The card's tranches carrying their LIVE ledger balances, exhausted ones dropped.
+ *
+ * Two deliberate details. Ids are replaced with positional ones (`t0`, `t1`, …) because
+ * accounts.balance_tranches ids are free text and may be blank or duplicated, while
+ * allocatePaymentAcrossTranches returns its result keyed by id. And zero-balance entries are
+ * dropped BEFORE the module sees them: trancheInterestBreakdown skips zero-usable lines, so a
+ * zero entry in the middle would shift every later line out of alignment with its tranche.
+ * (Clamping against a too-small balance is safe — it only ever zeroes a SUFFIX, so the surviving
+ * lines stay a prefix of this array.)
+ */
+function liveTranches(card: CardData, bals: readonly number[]): LiveTranche[] {
+  const defs = card.tranches;
+  if (!defs || defs.length === 0) return [];
+  const out: LiveTranche[] = [];
+  for (let i = 0; i < defs.length; i++) {
+    const balance = bals[i] ?? 0;
+    if (balance <= 0.005) continue;
+    out.push({ index: i, tranche: { ...defs[i], id: `t${i}`, balance } });
+  }
+  return out;
+}
+
+/**
+ * One month's interest on a card's revolving balance, per tranche at its own rate (repriced to the
+ * standard rate once its promo_end_date has passed as of `asOf`) plus the remainder at the
+ * standard rate.
+ *
+ * `total` is the card's charge; `lineInterest` (index-aligned with card.tranches) is what to accrue
+ * into the ledger so a promo tranche compounds at its own rate. They can disagree by a cent —
+ * `total` rounds the sum, `lineInterest` rounds each line — and that cent lands in the implicit
+ * remainder, which is where standard-rate money belongs anyway.
+ */
+export function trancheInterestFor(
+  card: CardData, bals: readonly number[], revBal: number, asOf: string,
+): { total: number; lineInterest: number[] } {
+  const zeros = (card.tranches ?? []).map(() => 0);
+  if (revBal <= 0) return { total: 0, lineInterest: zeros };
+  const live = liveTranches(card, bals);
+  // PARITY: the original single-APR expression, character for character.
+  if (live.length === 0) {
+    return { total: Math.round(revBal * (card.apr / 100 / 12) * 100) / 100, lineInterest: zeros };
+  }
+  const breakdown = trancheInterestBreakdown(revBal, live.map(l => l.tranche), card.apr, asOf);
+  const lineInterest = [...zeros];
+  breakdown.lines.forEach((line, i) => {
+    const idx = live[i]?.index;
+    if (idx !== undefined) lineInterest[idx] = Math.round(line.monthlyInterest * 100) / 100;
+  });
+  return { total: Math.round(breakdown.totalMonthlyInterest * 100) / 100, lineInterest };
+}
+
+/**
+ * The rate the NEXT dollar paid to this card actually saves. Payment goes to the highest-APR
+ * bucket first (CARD Act §164), so on a multi-rate card the marginal rate is the highest rate among
+ * the OUTSTANDING buckets as of `asOf` — which can sit far above the account's standard APR, and is
+ * what avalanche ordering has to compare. No tranches ⇒ exactly card.apr, so single-rate cards
+ * never reorder.
+ */
+export function marginalApr(
+  card: CardData, bals: readonly number[], revBal: number, asOf: string,
+): number {
+  const live = liveTranches(card, bals);
+  if (live.length === 0 || revBal <= 0) return card.apr;
+  const breakdown = trancheInterestBreakdown(revBal, live.map(l => l.tranche), card.apr, asOf);
+  let max = breakdown.remainderBalance > 0.005 ? card.apr : -Infinity;
+  for (const line of breakdown.lines) max = Math.max(max, line.apr);
+  return isFinite(max) ? max : card.apr;
+}
+
+/**
+ * Apply a revolving payment to the ledger and return a NEW ledger. The allocation itself is
+ * balance-tranches.ts's allocatePaymentAcrossTranches (CARD Act §164, rates resolved as of `asOf`);
+ * this only maps its result back onto the ledger. `revBal` is the post-interest, pre-payment
+ * revolving balance the payment is made against.
+ */
+export function applyTranchePayment(
+  card: CardData, bals: readonly number[], revBal: number, payment: number, asOf: string,
+): number[] {
+  const next = [...bals];
+  const live = liveTranches(card, bals);
+  if (live.length === 0 || payment <= 0) return next;
+  const alloc = allocatePaymentAcrossTranches(
+    payment, revBal, live.map(l => l.tranche), card.apr, asOf,
+  );
+  for (const l of live) {
+    const paid = alloc.get(l.tranche.id) ?? 0;
+    if (paid <= 0) continue;
+    next[l.index] = Math.max(0, Math.round((next[l.index] - paid) * 100) / 100);
+  }
+  return next;
+}
+
+/**
+ * Clamp the ledger to a revolving balance, in LISTED order — balance-tranches.ts's own rule that
+ * the honest reading of tranches summing past the balance is that the later entries are stale.
+ * This is how the engine's card-level moves (sub-dollar dust clearing, a payoff, a cash-floor
+ * shortfall) reach the ledger, so the tranche sum can never claim more than the card owes.
+ */
+export function clampTranches(bals: readonly number[], revBal: number): number[] {
+  let left = Math.max(0, revBal);
+  return bals.map(b => {
+    const keep = Math.round(Math.max(0, Math.min(b, left)) * 100) / 100;
+    left = Math.round((left - keep) * 100) / 100;
+    return keep;
+  });
 }
 
 /**
@@ -344,6 +497,9 @@ export function buildCardData(
       statementBalancePhase, statementBalance,
       installmentBalance: Math.max(0, Number(acct.installment_balance) || 0),
       installmentMonthlyPayment: Math.max(0, Number(acct.installment_monthly_payment) || 0),
+      // Multi-rate sub-balances. parseTranches drops anything malformed, so a card with no
+      // (or unusable) balance_tranches gets [] and keeps the single-APR path exactly.
+      tranches: parseTranches(acct.balance_tranches),
     };
   });
 }
@@ -359,6 +515,11 @@ export function projectCard(card: CardData, months = PROJECTION_MONTHS): CardPro
   const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
   // Grace period: true when last payment covered full statement balance, so new purchases don't accrue interest
   let inGrace = card.paymentPreference === 'statement' && (card.statementBalancePhase || card.statementBalance != null || card.balance <= card.monthlyNewPurchases + 0.01);
+  // Partial grace: the statement money a grace card could NOT cover. Only this accrues, at the
+  // standard rate — see the grace update below.
+  let graceUnpaid = 0;
+  // Live per-tranche balances (index-aligned with card.tranches); empty for a single-APR card.
+  let ledger = (card.tranches ?? []).map(t => t.balance);
   // Billing cycle deferred payment: autopay card charges in month m are paid in month m+1.
   let prevMonthPurchases = 0;
 
@@ -386,16 +547,45 @@ export function projectCard(card: CardData, months = PROJECTION_MONTHS): CardPro
 
     // Interest accrues only on the revolving (non-installment) portion.
     const revBal = Math.max(0, bal - instBal);
-    const interest = (card.paymentPreference === 'statement' && inGrace)
-      ? 0
-      : Math.round(revBal * monthlyRate * 100) / 100;
+    const asOf = monthEndAsOf(d, 0);
+    // Grace card: nothing accrues while the statement is being covered in full, and only the
+    // shortfall accrues when it isn't (partial grace). Otherwise every tranche accrues at its own
+    // rate — repriced to card.apr once its promo has expired as of `asOf` — and the untranched
+    // remainder at card.apr. Identical to the old flat calc for a card with no tranches.
+    // In grace ⇒ nothing accrues (unchanged). Out of grace but carrying an uncovered statement ⇒
+    // ONLY that shortfall accrues, at the standard rate (partial grace). Otherwise the full
+    // revolving balance accrues, per tranche.
+    const inGraceRegime = card.paymentPreference === 'statement' && (inGrace || graceUnpaid > 0);
+    const accrual = inGraceRegime
+      ? {
+          total: inGrace ? 0 : Math.round(Math.min(graceUnpaid, revBal) * monthlyRate * 100) / 100,
+          lineInterest: ledger.map(() => 0),
+        }
+      : trancheInterestFor(card, ledger, revBal, asOf);
+    const interest = accrual.total;
+    ledger = ledger.map((b, i) => Math.round((b + accrual.lineInterest[i]) * 100) / 100);
     // Installment mandatory payment (reduces both total balance and installment balance).
     const instPay = instBal > 0 && (card.installmentMonthlyPayment ?? 0) > 0
       ? Math.min(card.installmentMonthlyPayment!, instBal) : 0;
     const payment = bal <= 0 ? 0 : Math.min(card.targetPayment, bal + newPurchases + interest - instPay);
-    if (card.paymentPreference === 'statement') inGrace = payment >= startBal - instBal + interest - 0.01;
+    if (card.paymentPreference === 'statement') {
+      // Partial-ISB grace: the old model was grace-or-nothing — cover the whole statement or pay
+      // interest on the ENTIRE balance next cycle. When available cash covers most of a statement,
+      // what actually accrues is the shortfall, at the standard rate; a card that was in grace and
+      // paid SOME of its statement therefore carries that shortfall and accrues on it alone. A card
+      // that was never in grace is untouched: full-balance interest, exactly as before.
+      const dueThisCycle = startBal - instBal + interest;
+      const covered = payment >= dueThisCycle - 0.01;
+      const wasPartial = inGrace || graceUnpaid > 0;
+      graceUnpaid = covered ? 0 : (wasPartial ? Math.max(0, Math.round((dueThisCycle - payment) * 100) / 100) : 0);
+      inGrace = covered;
+    }
     instBal = Math.max(0, instBal - instPay);
     bal = startBal + newPurchases + interest - payment - instPay;
+    ledger = clampTranches(
+      applyTranchePayment(card, ledger, revBal + interest + newPurchases, payment, asOf),
+      Math.max(0, bal - instBal),
+    );
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment, endBalance: Math.round(bal * 100) / 100, utilization });
@@ -485,6 +675,11 @@ export function projectCardVariable(
   const monthlyRate = card.apr / 100 / 12;
   const simMonths = Math.max(months, 360); // run far past display window so payoffMonth is found even when sim gives 0 payments early on
   let inGrace = card.paymentPreference === 'statement' && (card.statementBalancePhase || card.statementBalance != null || card.balance <= card.monthlyNewPurchases + 0.01);
+  // Partial grace / tranche ledger — see projectCard, same model. Both only affect the fallback
+  // branch below (no sim ground truth); when the engine supplies trueInterestByMonth its numbers
+  // win, and they are computed from the same two models inside simulateVariablePayoff.
+  let graceUnpaid = 0;
+  let ledger = (card.tranches ?? []).map(t => t.balance);
 
   for (let m = 1; m <= simMonths; m++) {
     const hasPref = card.autopayFullBalance || card.paymentPreference !== null;
@@ -548,9 +743,19 @@ export function projectCardVariable(
         : Math.max(0, Math.round((trueEndBal - startBal - newPurchases + payment) * 100) / 100);
       bal = Math.round(trueEndBal * 100) / 100;
     } else {
-      const fallbackInterest = (card.paymentPreference === 'statement' && inGrace)
-        ? 0
-        : Math.round(Math.max(0, bal) * monthlyRate * 100) / 100;
+      const asOf = monthEndAsOf(d, 0);
+      // Same two models as projectCard: partial grace (only the uncovered statement money accrues,
+      // at the standard rate) and per-tranche accrual repriced as of this month's end. A card with
+      // no tranches and full grace lands on the original two expressions exactly.
+      const inGraceRegime = card.paymentPreference === 'statement' && (inGrace || graceUnpaid > 0);
+      const accrual = inGraceRegime
+        ? {
+            total: inGrace ? 0 : Math.round(Math.min(graceUnpaid, Math.max(0, bal)) * monthlyRate * 100) / 100,
+            lineInterest: ledger.map(() => 0),
+          }
+        : trancheInterestFor(card, ledger, Math.max(0, bal), asOf);
+      const fallbackInterest = accrual.total;
+      ledger = ledger.map((b, i) => Math.round((b + accrual.lineInterest[i]) * 100) / 100);
       // Past the sim window, a cycling statement card uses purchases as the payment proxy
       // (the card pays its balance in full each cycle). Without this, minPayment=0 causes
       // 300+ months of compounding interest on the cycling balance → inflated totalInterest.
@@ -561,8 +766,21 @@ export function projectCardVariable(
       interest = fallbackInterest;
       bal = startBal + newPurchases + interest - payment;
       if (bal > 0 && bal < 1) bal = 0; // clear sub-dollar dust to match sim behavior
+      ledger = applyTranchePayment(card, ledger, Math.max(0, startBal) + interest + newPurchases, payment, asOf);
     }
-    if (card.paymentPreference === 'statement') inGrace = payment >= startBal + interest - 0.01;
+    // A ground-truth month walks no ledger of its own (the sim already did, and its interest is
+    // what gets displayed) — clamping keeps the ledger from ever claiming more than the card owes.
+    ledger = clampTranches(ledger, Math.max(0, bal));
+    if (card.paymentPreference === 'statement') {
+      // Partial-ISB grace — see projectCard. inGrace itself keeps its exact old meaning (it also
+      // drives payoffMonth below, which must still mean "interest-free from here"); the shortfall
+      // rides alongside in graceUnpaid.
+      const dueThisCycle = startBal + interest;
+      const covered = payment >= dueThisCycle - 0.01;
+      const wasPartial = inGrace || graceUnpaid > 0;
+      graceUnpaid = covered ? 0 : (wasPartial ? Math.max(0, Math.round((dueThisCycle - payment) * 100) / 100) : 0);
+      inGrace = covered;
+    }
     totalInterest += interest;
     const utilization = card.creditLimit > 0 ? (Math.max(0, bal) / card.creditLimit) * 100 : 0;
     if (m <= months) rows.push({ month: m, label, startBalance: Math.round(startBal * 100) / 100, newPurchases, interest, payment: Math.round(payment * 100) / 100, endBalance: Math.round(bal * 100) / 100, utilization });
@@ -937,14 +1155,30 @@ export function simulateVariablePayoff(
   const graceMap = new Map<string, boolean>(
     cards.map(c => [c.id, c.paymentPreference === 'statement' && (c.statementBalancePhase || c.statementBalance != null || c.balance <= c.monthlyNewPurchases + 0.01)]),
   );
+  // Partial-ISB grace: the statement/interest-saving money a grace card could NOT cover. The old
+  // model was grace-or-nothing — cover the whole ISB or lose grace and pay interest on the ENTIRE
+  // balance next cycle. The real case is neither (Tre's ISB is $2,845 and available cash covers
+  // most of it): what accrues is the shortfall, at the card's STANDARD rate, which is also what
+  // makes a statement card's MARGINAL rate real for avalanche ordering. A card that was never in
+  // grace is untouched — it keeps paying interest on its whole balance, exactly as before.
+  const graceUnpaid = new Map<string, number>(cards.map(c => [c.id, 0]));
+  // Live per-tranche balances per card (index-aligned with card.tranches), walked month by month
+  // alongside `balances`. MUST stay function-local for the same reason cyclingBacklog does —
+  // useCardProjection.ts calls this function up to 5 times per render.
+  const trancheBals = new Map<string, number[]>(
+    cards.map(c => [c.id, (c.tranches ?? []).map(t => t.balance)]),
+  );
 
   // Manual interest-saving balance (CardData.statementBalance): the user-entered amount due
-  // at the card's next due date. Modeled as a synthetic payment pin on top of the real
-  // balance walk: months before the due month pay $0 (that cycle's statement was already
-  // paid before today), the due month pays exactly the entered amount, and every later month
-  // reverts to normal statement-preference behavior (the unbilled remainder becomes the next
-  // statement). The due month is month 0 when the card's due day hasn't passed yet this
-  // month, else month 1. A user override on the same card/month wins over the synthetic pin.
+  // at the card's next due date. Months before the due month pay $0 (that cycle's statement
+  // was already paid before today — a synthetic $0 pin); the due month pays the entered
+  // amount CAPPED BY THE CASH THE MONTH ACTUALLY HAS above the floor (a front-of-cascade
+  // target, see isbTargetThisMonth — mirrors generateRecommendations' min(ms, remaining));
+  // any uncovered remainder accrues at the standard rate via graceUnpaid (partial-ISB model).
+  // Every later month reverts to normal statement-preference behavior (the unbilled remainder
+  // becomes the next statement). The due month is month 0 when the card's due day hasn't
+  // passed yet this month, else 1. A user override on the same card/month wins over the
+  // synthetic behavior and stays unconditional (an explicit command, not a reported bill).
   const manualStatementByCard = new Map<string, { dueMonth: number; amount: number }>();
   for (const c of cards) {
     if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) continue;
@@ -986,6 +1220,34 @@ export function simulateVariablePayoff(
     // End-of-month ISO date for SimulatedDebtPayment records
     const payDate = new Date(now.getFullYear(), now.getMonth() + m + 1, 0);
     const payDateStr = payDate.toISOString().split('T')[0];
+    // The date this month's rates are resolved at (last day of the month — see monthEndAsOf).
+    // Kept separate from payDateStr, which is UTC-formatted for the transaction records.
+    const trancheAsOf = monthEndAsOf(now, m);
+
+    /**
+     * This cycle's interest on a revolving card, and the per-tranche split to accrue into the
+     * ledger. Called TWICE per month with identical inputs — once by the pinned-override mirror
+     * (which must not mutate anything) and once by Step 3 (which also accrues) — so it lives in
+     * one place and the two can never drift.
+     */
+    const revolvingInterestFor = (card: CardData): { interest: number; lineInterest: number[] } => {
+      const bal = balances.get(card.id) ?? 0;
+      const instBal = installmentBals.get(card.id) ?? 0;
+      // Interest accrues only on the revolving (non-installment) portion.
+      const revBal = Math.max(0, bal - instBal);
+      const inGrace = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
+      const unpaid = graceUnpaid.get(card.id) ?? 0;
+      if (inGrace || (card.paymentPreference === 'statement' && unpaid > 0)) {
+        // In grace: nothing accrues (unchanged). Out of grace carrying an uncovered statement:
+        // ONLY that shortfall accrues, at the standard rate — the partial-ISB case.
+        return {
+          interest: inGrace ? 0 : Math.round(Math.min(unpaid, revBal) * (card.apr / 100 / 12) * 100) / 100,
+          lineInterest: [],
+        };
+      }
+      const accrual = trancheInterestFor(card, trancheBals.get(card.id) ?? [], revBal, trancheAsOf);
+      return { interest: accrual.total, lineInterest: accrual.lineInterest };
+    };
 
     // Per-card CC purchases this month.
     // Month 0 = 0: live card.balance already includes today's purchases.
@@ -1077,14 +1339,24 @@ export function simulateVariablePayoff(
     // ── Pinned payment overrides (paymentOverridesByMonth) ─────────────────────────
     // Resolve each of this month's overrides into concrete cash shares up front so both
     // allocation pools can deduct the pinned spend before sizing (see the param JSDoc).
-    // The revolving-interest mirror below matches Step 3's formula exactly — balances, graceMap,
-    // and installmentBals are not mutated between here and Step 3 — and owedCycle matches
+    // The revolving-interest mirror below matches Step 3's calc exactly — it IS the same function
+    // (revolvingInterestFor), and balances, graceMap, graceUnpaid, trancheBals and installmentBals
+    // are not mutated between here and Step 3 — and owedCycle matches
     // Step 2's owedByCard (paidOffDeferredPurchases isn't mutated until Step 2's payment loop).
     //   step5Share     — cash the pin consumes from the Step-5 pool (revolving cascade for a
     //                    debt card; backlog cascade for a cycling card).
     //   mandatoryShare — cash the pin consumes from the Step-2 cycling mandatory pool
     //                    (always 0 for a revolving card).
     const pinnedThisMonth = new Map<string, { step5Share: number; mandatoryShare: number }>();
+    // Due-month manual-ISB cards, card id → the Step-5 cascade share the ISB asks for (the
+    // entered amount, clamped at what the card owes, minus the mandatory installment due — the
+    // exact number the old synthetic pin paid). Unlike a user override, the ISB is an obligation
+    // the user REPORTED, not a payment they COMMANDED: it funds ahead of every discretionary
+    // extra but is capped by the cash the month actually has above the floor, exactly as the
+    // live recommendation already caps it (generateRecommendations' min(ms, remaining)). The
+    // uncovered remainder flows into graceUnpaid below and accrues at the card's standard rate —
+    // the partial-ISB model — instead of the payment draining cash through the floor.
+    const isbTargetThisMonth = new Map<string, number>();
     if (paymentOverridesByMonth || manualStatementByCard.size > 0) {
       for (const card of cards) {
         const userRaw = paymentOverridesByMonth?.[card.id]?.[m];
@@ -1108,18 +1380,23 @@ export function simulateVariablePayoff(
         } else {
           const bal = balances.get(card.id) ?? 0;
           const instBal = installmentBals.get(card.id) ?? 0;
-          const inGrace = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
-          const interest = inGrace ? 0 : Math.round(Math.max(0, bal - instBal) * (card.apr / 100 / 12) * 100) / 100;
+          const { interest } = revolvingInterestFor(card);
           const owed = bal + interest + cardPurchasesThisMonth(card);
           const pin = Math.round(Math.min(pinFloor, owed) * 100) / 100;
           // The pin is the card's TOTAL payment; the mandatory installment share (paid via
           // installmentCashCost, Step 2.5) comes out first and can't be pinned away.
           const instDue = Math.round(upfrontDueFor(card, instBal) * 100) / 100
             + Math.round((installmentChargeByMonth?.[m]?.[card.id] ?? 0) * 100) / 100;
-          pinnedThisMonth.set(card.id, {
-            mandatoryShare: 0,
-            step5Share: Math.max(0, Math.round((pin - instDue) * 100) / 100),
-          });
+          const step5Share = Math.max(0, Math.round((pin - instDue) * 100) / 100);
+          if (userRaw === undefined && ms !== undefined && m === ms.dueMonth) {
+            // Synthetic due-month ISB on a revolving card: cash-constrained cascade target,
+            // not a pin (see isbTargetThisMonth above). Pre-due months ($0 — statement already
+            // paid) and user overrides stay pinned; so does the paid-off branch above, where a
+            // due-month ISB on an already-cycling card keeps the old unconditional behavior.
+            isbTargetThisMonth.set(card.id, step5Share);
+          } else {
+            pinnedThisMonth.set(card.id, { mandatoryShare: 0, step5Share });
+          }
         }
       }
     }
@@ -1181,6 +1458,12 @@ export function simulateVariablePayoff(
         const revBal = Math.max(0, bal - instBal);
         const instMinPay = upfrontDueFor(c, instBal);
         if (pin) return s + pin.step5Share + instMinPay;
+        // A due-month ISB card reserves its full ISB target, exactly as the old pin did — the
+        // statement money outranks the cycling pool whenever the month can afford it. The
+        // reservation only shrinks the pool (max(0, …) below); it never forces the payment,
+        // which Step 5 still caps at the cash the month actually has.
+        const isbT = isbTargetThisMonth.get(c.id);
+        if (isbT !== undefined) return s + isbT + instMinPay;
         // Q11: settled cards have no month-0 revolving min to reserve (cycle already paid).
         const revMin = (m === 0 && c.m0MinSettled) ? 0 : revolvingMinDue(c, revBal);
         return s + revMin + instMinPay;
@@ -1378,15 +1661,18 @@ export function simulateVariablePayoff(
     // For statement-balance preference cards in grace period (last payment covered
     // the full statement balance), new purchases carry without accruing interest —
     // matching real credit card grace period behavior.
+    // A multi-rate card additionally accrues each tranche's own interest into its ledger here, so
+    // a promo tranche compounds at ITS rate until it reprices (revolvingInterestFor resolves the
+    // rates as of trancheAsOf). The untranched remainder is implicit — balance minus tranche sum —
+    // so its share of the interest needs no bookkeeping.
     const interestMap = new Map<string, number>();
     for (const card of debtCards) {
-      const bal = balances.get(card.id) ?? 0;
-      const inGrace = card.paymentPreference === 'statement' && (graceMap.get(card.id) ?? false);
-      // Interest accrues only on the revolving (non-installment) portion.
-      const instBal = installmentBals.get(card.id) ?? 0;
-      const effectiveBal = Math.max(0, bal - instBal);
-      const interest = inGrace ? 0 : Math.round(effectiveBal * (card.apr / 100 / 12) * 100) / 100;
+      const { interest, lineInterest } = revolvingInterestFor(card);
       interestMap.set(card.id, interest);
+      if (lineInterest.some(v => v > 0)) {
+        const ledger = trancheBals.get(card.id) ?? [];
+        trancheBals.set(card.id, ledger.map((b, i) => Math.round((b + (lineInterest[i] ?? 0)) * 100) / 100));
+      }
     }
 
     // ── Step 4 — Balance before payment = startBal + interest + purchases ──
@@ -1408,6 +1694,12 @@ export function simulateVariablePayoff(
     // startBal+interest (avoid prepaying new purchases); backlog cards have no purchases mixed
     // in to begin with, so their full backlog amount is always the target.
     const cascadeTarget = (card: CardData): number => {
+      // Due-month manual ISB: the target is exactly the entered amount (installment-adjusted,
+      // see isbTargetThisMonth) — never the whole statement-cycle carry-over. The unbilled
+      // remainder is not yet due, so the cascade must not pay past it; a shortfall below it is
+      // what graceUnpaid carries.
+      const isbT = isbTargetThisMonth.get(card.id);
+      if (isbT !== undefined) return isbT;
       if (balBeforePayment.has(card.id)) {
         // Cascade targets only the revolving (non-installment) portion — the installment
         // payment is already handled as a mandatory deduction in Step 2.5/Step 6.
@@ -1529,13 +1821,29 @@ export function simulateVariablePayoff(
       // which point they transition to paidOffCards (cycling mode). No priority boost. Backlog
       // cards (cycling cards carrying unpaid debt) compete in this SAME combined priority list —
       // this is the literal "next card in line gets the extra cash" cascade.
+      //
+      // Avalanche sorts on the MARGINAL rate, not the account's stated APR: the next dollar paid to
+      // a multi-rate card lands on its highest-APR bucket (CARD Act §164), which can sit well above
+      // card.apr — so a card whose standard rate is low but which carries an expensive tranche
+      // belongs ahead of cards it used to sort behind. Identical to `b.apr - a.apr` for every card
+      // without tranches, which is every card until one is entered.
+      const avalancheApr = (c: CardData): number => marginalApr(
+        c, trancheBals.get(c.id) ?? [],
+        Math.max(0, owedForCard(c.id) - (installmentBals.get(c.id) ?? 0)), trancheAsOf,
+      );
       const strategyOrder = [...debtCards, ...backlogCards]
         .filter(c => !pinnedThisMonth.has(c.id)) // pinned cards sit outside the cascade entirely
-        .sort((a, b) =>
-          strategy === 'avalanche'
-            ? b.apr - a.apr
-            : owedForCard(a.id) - owedForCard(b.id)
-        );
+        .sort((a, b) => {
+          // A due-month ISB card outranks every discretionary extra — its statement money is
+          // due THIS month, so it collects cascade cash before avalanche/snowball surplus does.
+          // It never outranks contract minimums: Step 5a pays every card's minimum first.
+          const aIsb = isbTargetThisMonth.has(a.id) ? 1 : 0;
+          const bIsb = isbTargetThisMonth.has(b.id) ? 1 : 0;
+          if (aIsb !== bIsb) return bIsb - aIsb;
+          return strategy === 'avalanche'
+            ? avalancheApr(b) - avalancheApr(a)
+            : owedForCard(a.id) - owedForCard(b.id);
+        });
 
       // ── Step 5a — Pay minimums ─────────────────────────────
       let remaining = availableCash;
@@ -1670,20 +1978,45 @@ export function simulateVariablePayoff(
         if (interestArr && interestArr.length > 0) interestArr[interestArr.length - 1] = interest;
       }
 
+      // Tranche ledger: this cycle's payment goes to the highest-APR bucket first (CARD Act §164,
+      // via balance-tranches.ts's allocator), then the ledger is clamped to what the card actually
+      // still owes — which is how the engine's own card-level moves (sub-dollar dust clearing, the
+      // payoff/cycling transition above, a cash-floor shortfall) reach it. No-op without tranches.
+      if ((card.tranches?.length ?? 0) > 0) {
+        const ledger = trancheBals.get(card.id) ?? [];
+        const revBeforePay = Math.max(0, Math.round((bbp - startInstBal) * 100) / 100);
+        const endBalNow = balances.get(card.id) ?? 0;
+        const instAfterPay = Math.max(0, Math.round((startInstBal - upfrontInstPay) * 100) / 100);
+        trancheBals.set(card.id, clampTranches(
+          applyTranchePayment(card, ledger, revBeforePay, pay, trancheAsOf),
+          Math.max(0, Math.round((endBalNow - instAfterPay) * 100) / 100),
+        ));
+      }
+
       // Update grace state: grace applies next month if the revolving carry-over
       // (startBal minus installment portion, plus interest) was fully covered by the
       // revolving cascade payment. installmentBals still holds the start-of-month value.
+      // Partial-ISB grace (see graceUnpaid): a card that WAS in the grace regime and covered only
+      // part of its statement stays there carrying the shortfall, and only the shortfall accrues
+      // next cycle. graceMap itself keeps its exact old meaning — fully covered, nothing accrues.
       if (card.paymentPreference === 'statement') {
         const ms = manualStatementByCard.get(card.id);
+        const dueThisCycle = (ms && m === ms.dueMonth)
+          // Paying the user-entered interest-saving amount is by definition what keeps the
+          // card interest-free — the unbilled remainder is not yet due and can't break grace.
+          ? ms.amount
+          : Math.round((startBal - startInstBal + interest) * 100) / 100;
         if (ms && m < ms.dueMonth) {
           // Statement already paid this cycle (due day passed before today) — grace persists.
           graceMap.set(card.id, true);
-        } else if (ms && m === ms.dueMonth) {
-          // Paying the user-entered interest-saving amount is by definition what keeps the
-          // card interest-free — the unbilled remainder is not yet due and can't break grace.
-          graceMap.set(card.id, pay >= ms.amount - 0.01);
+          graceUnpaid.set(card.id, 0);
         } else {
-          graceMap.set(card.id, pay >= startBal - startInstBal + interest - 0.01);
+          const covered = pay >= dueThisCycle - 0.01;
+          const wasInRegime = (graceMap.get(card.id) ?? false) || (graceUnpaid.get(card.id) ?? 0) > 0;
+          graceMap.set(card.id, covered);
+          graceUnpaid.set(card.id, covered || !wasInRegime
+            ? 0
+            : Math.max(0, Math.round((dueThisCycle - pay) * 100) / 100));
         }
       }
 
@@ -1962,8 +2295,14 @@ export function generateRecommendations(
 
   // Pure strategy sort — no preference-card priority. Full/statement positive-balance
   // cards compete under normal avalanche/snowball until their balance reaches zero.
+  // Avalanche ranks on the marginal rate for the same reason the simulation does (see its Step 5b):
+  // the next dollar paid to a multi-rate card lands on its highest-APR bucket. Equals card.apr for
+  // every card without tranches.
+  const recAsOf = isoDay(new Date());
+  const recApr = (c: CardData): number =>
+    marginalApr(c, (c.tranches ?? []).map(t => t.balance), Math.max(0, c.balance), recAsOf);
   const sorted = [...revolvingCards].sort((a, b) =>
-    strategy === 'avalanche' ? b.apr - a.apr : a.balance - b.balance
+    strategy === 'avalanche' ? recApr(b) - recApr(a) : a.balance - b.balance
   );
 
   for (const card of sorted) {
@@ -2013,7 +2352,7 @@ export function generateRecommendations(
         rec.reason = payingFull ? 'Pay Full Balance'
           : payingStatement ? 'Pay Statement Balance'
           : strategy === 'avalanche'
-          ? `Highest APR (${card.apr}%)`
+          ? `Highest APR (${recApr(card)}%)`
           : `Smallest balance (${formatCurrency(card.balance, false)})`;
         remaining -= extra;
       }

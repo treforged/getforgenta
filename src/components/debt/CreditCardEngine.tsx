@@ -1766,8 +1766,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       </p>
                       {/* A promo balance with an expiry is a dated event, not a smooth line — say
                           the date, the money, and the paydown that beats it. Read straight off the
-                          account row; the projection engine still models one APR per card (see
-                          balance-tranches.ts for why that integration is its own change). */}
+                          account row; the projection engine also accrues per-tranche and reprices
+                          at this cliff (credit-card-engine.ts), so the warning and the sim agree. */}
                       {(() => {
                         const acct = accounts.find(a => a.id === proj.card.id);
                         const warnings = promoExpiryWarnings(
@@ -1776,7 +1776,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                           new Date().toISOString().slice(0, 10),
                         );
                         return warnings.map(w => (
-                          <p key={w.promoEndDate + w.label} className="text-[11px] sm:text-xs text-warning mt-0.5">
+                          <p key={w.promoEndDate + w.label} className="text-[11px] sm:text-xs text-gold mt-0.5">
                             ⚠ {formatCurrency(w.balance, false)} at {w.promoApr}% reprices to {w.standardApr}% on{' '}
                             {new Date(`${w.promoEndDate}T12:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
                             {' '}(+{formatCurrency(w.extraMonthlyInterest, false)}/mo) — clearing it first needs{' '}

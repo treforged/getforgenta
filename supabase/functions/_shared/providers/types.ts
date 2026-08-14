@@ -47,6 +47,20 @@ export interface FinancialConnection {
 }
 
 /**
+ * One sub-balance of a credit card sitting at its own rate, as seeded from provider data.
+ *
+ * Shaped to satisfy `parseTranches` in src/lib/balance-tranches.ts. `promo_end_date` is
+ * deliberately ABSENT from this type: no aggregator supplies a promo end date, so it is a
+ * user-entered field and a sync must never be able to write, clear or overwrite one.
+ */
+export interface SeededTranche {
+  id: string;
+  label: string;
+  balance: number;
+  apr: number;
+}
+
+/**
  * One account as the rest of the app understands it.
  *
  * `liabilityDataAvailable` records whether the provider was actually asked for
@@ -62,6 +76,14 @@ export interface NormalizedAccount {
   apr: number | null;
   minPayment: number | null;
   liabilityDataAvailable: boolean;
+  /**
+   * Sub-balances the provider reports at their OWN rates (balance transfer, cash advance, promo).
+   * Empty when the provider gave none — which is the common case and is not a failure.
+   *
+   * A SEED ONLY. Database policy decides whether it may be written, and it never may when the
+   * account already has tranches, because those are the user's. See persistAccount.
+   */
+  balanceTranches: SeededTranche[];
 }
 
 /**
