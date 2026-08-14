@@ -6,6 +6,7 @@ import {
   openCreditLimitAtMonth,
 } from '@/lib/credit-card-engine';
 import { cardStartMonthOffset } from '@/lib/card-start-date';
+import UtilizationPanel from './UtilizationPanel';
 import {
   buildPayConfig, getNormalizedMonthNetIncome, getPrePaycheckNextMonthBills, getMinSafeCash,
   getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
@@ -1133,6 +1134,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const totalLimit = openCardsNow.reduce((s, c) => s + c.creditLimit, 0);
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
 
+  // Read-only comparison order for UtilizationPanel — same rule generateRecommendations
+  // uses for the 'avalanche' strategy (highest APR first among cards with a balance).
+  const avalancheOrder = useMemo(
+    () => [...cards].filter(c => c.balance > 0).sort((a, b) => b.apr - a.apr).map(c => c.id),
+    [cards],
+  );
+
   const syncDebtAndAccount = (card: CardData, updates: { min_payment?: number; target_payment?: number }) => {
     const matchDebt = debts.find(d => d.name.toLowerCase() === card.name.toLowerCase());
     if (matchDebt) {
@@ -1389,6 +1397,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
           </div>
         </div>
+
+        <UtilizationPanel cards={cards} avalancheOrder={avalancheOrder} />
 
         {/* Strategy + Controls */}
         <div className="card-forged p-3 sm:p-4 space-y-3 sm:space-y-4">
