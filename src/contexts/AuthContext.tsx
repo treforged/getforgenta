@@ -10,9 +10,16 @@ import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { useDemo } from '@/contexts/DemoContext';
 import { clearAllFormDrafts } from '@/hooks/useFormDraft';
+import { isDeviceTrusted } from '@/lib/trusted-device';
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000;    // 10 minutes
 const IDLE_WARNING_MS =  8 * 60 * 1000;    // warn at 8 minutes
+// On a device the user has explicitly trusted (the same grant that skips 2FA, verified against
+// `profiles.trusted_devices`), the leash is 12 hours instead of 10 minutes. The 10-minute default
+// is a shared-computer defense; on the user's own machine it signed Tre out three times in one
+// working day (2026-08-13). Untrusted devices are unchanged.
+const TRUSTED_IDLE_TIMEOUT_MS = 12 * 60 * 60 * 1000;
+const TRUSTED_IDLE_WARNING_MS = TRUSTED_IDLE_TIMEOUT_MS - 2 * 60 * 1000;
 const IDLE_CHECK_INTERVAL_MS = 30 * 1000;  // check every 30 seconds
 const LAST_ACTIVITY_KEY = 'forged:last_activity';
 const REVIEWER_EMAIL = 'reviewer@getforgenta.com';
@@ -317,6 +324,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return Date.now() - (stored ? parseInt(stored, 10) : Date.now());
   }, []);
 
+  // Whether THIS device carries the user's trust grant. Starts false, so an untrusted device
+  // never sees the long leash even for the moment the check is in flight — failing closed is the
+  // whole point of the default.
+  const trustedRef = useRef(false);
+
+  useEffect(() => {
+    trustedRef.current = false;
+    if (!user || isDemo) return;
+    let cancelled = false;
+    isDeviceTrusted(user.id).then(trusted => {
+      if (!cancelled) trustedRef.current = trusted;
+    });
+    return () => { cancelled = true; };
+  }, [user, isDemo]);
+
   useEffect(() => {
     // Native apps use PIN/biometric lock for security — no idle timeout needed.
     if (!user || isDemo || Capacitor.isNativePlatform()) return;
@@ -327,12 +349,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const checkIdle = () => {
+      // Resolved per check rather than captured once: trust can finish resolving, or be revoked
+      // in Settings, while this interval is already running.
+      const timeoutMs = trustedRef.current ? TRUSTED_IDLE_TIMEOUT_MS : IDLE_TIMEOUT_MS;
+      const warningMs = trustedRef.current ? TRUSTED_IDLE_WARNING_MS : IDLE_WARNING_MS;
       const idleMs = getIdleMs();
-      if (idleMs >= IDLE_TIMEOUT_MS) {
-        toast.info('You were signed out due to 10 minutes of inactivity.');
+      if (idleMs >= timeoutMs) {
+        toast.info(trustedRef.current
+          ? 'You were signed out after 12 hours of inactivity.'
+          : 'You were signed out due to 10 minutes of inactivity.');
         localStorage.removeItem(LAST_ACTIVITY_KEY);
         signOutWithBroadcast();
-      } else if (idleMs >= IDLE_WARNING_MS && !warnedRef.current) {
+      } else if (idleMs >= warningMs && !warnedRef.current) {
         warnedRef.current = true;
         toast.warning('Your session will expire in 2 minutes due to inactivity.');
       }

@@ -11,10 +11,13 @@ import { Browser } from '@capacitor/browser';
 import { AuthSession } from '@/lib/auth-session';
 import { useDemo } from '@/contexts/DemoContext';
 import { trackSignUp } from '@/lib/analytics';
+import { getTrustedDeviceId, isDeviceTrusted, TRUSTED_DEVICE_KEY, type TrustedDevice } from '@/lib/trusted-device';
 
 import ForgentaLogo from '@/components/shared/ForgentaLogo';
 
-const TRUSTED_DEVICE_KEY = 'forgenta:trusted_device_id';
+// The key, the record shape and the trust test live in `@/lib/trusted-device` now — the idle
+// timeout in AuthContext reads the same grant, and two spellings of the key have already shipped
+// once. `checkDeviceTrusted` below stays as the wrapper Auth's flow calls.
 
 /**
  * How long the OAuth popup may stay open before we tell the user it has stalled.
@@ -24,13 +27,6 @@ const TRUSTED_DEVICE_KEY = 'forgenta:trusted_device_id';
  * sign-in; a user who is simply slow can still finish and the normal close path takes over.
  */
 const OAUTH_POPUP_TIMEOUT_MS = 90_000;
-
-interface TrustedDevice {
-  device_id: string;
-  name: string;
-  trusted_at: string;
-  last_seen: string;
-}
 
 function getDeviceName(): string {
   const ua = navigator.userAgent;
@@ -42,22 +38,10 @@ function getDeviceName(): string {
   return 'Browser';
 }
 
-async function checkDeviceTrusted(userId: string): Promise<boolean> {
-  const deviceId = localStorage.getItem(TRUSTED_DEVICE_KEY);
-  if (!deviceId) return false;
-  try {
-    const { data } = await supabase.from('profiles').select('trusted_devices').eq('user_id', userId).single();
-    const devices = (data?.trusted_devices as TrustedDevice[] | null) ?? [];
-    const device = devices.find(d => d.device_id === deviceId);
-    if (!device) return false;
-    return Date.now() - new Date(device.trusted_at).getTime() < 30 * 24 * 60 * 60 * 1000;
-  } catch {
-    return false;
-  }
-}
+const checkDeviceTrusted = isDeviceTrusted;
 
 async function updateDeviceLastSeen(userId: string): Promise<void> {
-  const deviceId = localStorage.getItem(TRUSTED_DEVICE_KEY);
+  const deviceId = getTrustedDeviceId();
   if (!deviceId) return;
   try {
     const { data: pd } = await supabase.from('profiles').select('trusted_devices').eq('user_id', userId).single();

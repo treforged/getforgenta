@@ -27,6 +27,7 @@ import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { emailChangeSchema, passwordChangeSchema } from '@/lib/schemas';
+import { getTrustedDeviceId, TRUSTED_DEVICE_KEY } from '@/lib/trusted-device';
 import {
   Elements,
   PaymentElement,
@@ -369,8 +370,10 @@ export default function SettingsPage() {
       const updated = trustedDevices.filter(d => d.device_id !== deviceId);
       await supabase.from('profiles').update({ trusted_devices: updated as unknown as Json }).eq('user_id', user!.id);
       setTrustedDevices(updated);
-      if (localStorage.getItem('forged:trusted_device_id') === deviceId) {
-        localStorage.removeItem('forged:trusted_device_id');
+      // Shared key — this used to read `forged:trusted_device_id` while Auth wrote `forgenta:`,
+      // so revoking the current device never cleared its local pointer.
+      if (getTrustedDeviceId() === deviceId) {
+        localStorage.removeItem(TRUSTED_DEVICE_KEY);
       }
       toast.success('Device revoked');
     } catch {
@@ -555,7 +558,7 @@ export default function SettingsPage() {
             ) : (
               <div className="space-y-2">
                 {trustedDevices.map(device => {
-                  const isCurrentDevice = (() => { try { return localStorage.getItem('forged:trusted_device_id') === device.device_id; } catch { return false; } })();
+                  const isCurrentDevice = getTrustedDeviceId() === device.device_id;
                   // Deliberate render-time clock read: trusted-device expiry is a 30-day
                   // threshold, so no realistic re-render can straddle it and flip the badge.
                   // eslint-disable-next-line react-hooks/purity
