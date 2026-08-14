@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { generateRecommendations, type CardData } from '../credit-card-engine';
-import { getStrategyPayoffOrder, cardMarginalApr, payoffOrderAsOf } from '../debt-payoff-order';
+import { getStrategyPayoffOrder, cardMarginalApr, payoffOrderAsOf, utilizationComparisonOrder } from '../debt-payoff-order';
 import type { BalanceTranche } from '../balance-tranches';
 
 // The /debt build list prints "#1, #2, #3" in the order the engine actually pays the cards.
@@ -125,5 +125,33 @@ describe('payoffOrderAsOf', () => {
     // 2026-08-14 21:30 local: toISOString() would roll this to the 15th in any negative offset.
     expect(payoffOrderAsOf(new Date(2026, 7, 14, 21, 30))).toBe('2026-08-14');
     expect(payoffOrderAsOf(new Date(2026, 0, 5, 3, 0))).toBe('2026-01-05');
+  });
+});
+
+describe('utilizationComparisonOrder (UtilizationPanel)', () => {
+  it('ranks on the marginal rate, not the flat APR, for the same tranche fixture', () => {
+    const cards = trancheFixture();
+    expect(utilizationComparisonOrder(cards, ASOF)).toEqual(['X', 'Y', 'Z']);
+    // The flat-APR order this must NOT be — the 88d8ac6d bug class the panel carried.
+    expect(utilizationComparisonOrder(cards, ASOF)).not.toEqual(
+      [...cards].sort((a, b) => b.apr - a.apr).map(c => c.id),
+    );
+  });
+
+  it('keeps cycling (autopay-full) cards in the order — the panel positions them via indexOf', () => {
+    const cards = [
+      ...trancheFixture(),
+      makeCard({ id: 'C', name: 'Cycling card', balance: 900, apr: 25, autopayFullBalance: true }),
+    ];
+    const order = utilizationComparisonOrder(cards, ASOF);
+    expect(order).toContain('C');
+    expect(order).toEqual(['X', 'C', 'Y', 'Z']);
+    // getStrategyPayoffOrder deliberately excludes it; this wider population must not.
+    expect(getStrategyPayoffOrder(cards, 'avalanche', ASOF).map(o => o.cardId)).not.toContain('C');
+  });
+
+  it('drops zero-balance cards — nothing to compare', () => {
+    const cards = [...trancheFixture(), makeCard({ id: 'E', name: 'Empty', balance: 0, apr: 30 })];
+    expect(utilizationComparisonOrder(cards, ASOF)).not.toContain('E');
   });
 });

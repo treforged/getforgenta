@@ -5,7 +5,7 @@ import {
   simulateVariablePayoff, CardData, CardProjection, CC_DEFAULT_CATEGORIES, PROJECTION_MONTHS,
   openCreditLimitAtMonth, getPlanInterestNextMonth,
 } from '@/lib/credit-card-engine';
-import { getStrategyPayoffOrder, payoffOrderAsOf } from '@/lib/debt-payoff-order';
+import { getStrategyPayoffOrder, payoffOrderAsOf, utilizationComparisonOrder } from '@/lib/debt-payoff-order';
 import { cardStartMonthOffset } from '@/lib/card-start-date';
 import UtilizationPanel from './UtilizationPanel';
 import DebtHero from './DebtHero';
@@ -1146,12 +1146,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const totalLimit = openCardsNow.reduce((s, c) => s + c.creditLimit, 0);
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
 
-  // Read-only comparison order for UtilizationPanel — same rule generateRecommendations
-  // uses for the 'avalanche' strategy (highest APR first among cards with a balance).
-  const avalancheOrder = useMemo(
-    () => [...cards].filter(c => c.balance > 0).sort((a, b) => b.apr - a.apr).map(c => c.id),
-    [cards],
-  );
+  // Read-only comparison order for UtilizationPanel — ranked on the MARGINAL rate, the same
+  // expression generateRecommendations sorts avalanche on. A flat `card.apr` sort here
+  // printed a different order than the engine pays whenever a tranche card's marginal rate
+  // crossed another card's headline rate — the 88d8ac6d bug class. Population and ranking
+  // are pinned by utilizationComparisonOrder's own tests (debt-payoff-order.test.ts).
+  const avalancheOrder = useMemo(() => utilizationComparisonOrder(cards, payoffOrderAsOf()), [cards]);
 
   const syncDebtAndAccount = (card: CardData, updates: { min_payment?: number; target_payment?: number }) => {
     const matchDebt = debts.find(d => d.name.toLowerCase() === card.name.toLowerCase());

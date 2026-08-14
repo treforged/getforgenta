@@ -62,3 +62,18 @@ export function getStrategyPayoffOrder(
       strategy === 'avalanche' ? b.marginalApr - a.marginalApr : a.balance - b.balance
     ));
 }
+
+/**
+ * Comparison order for UtilizationPanel: every card carrying a balance — cycling
+ * (autopay-full) cards included, because the panel positions rows via `indexOf` and a
+ * missing id would silently drop a card from the comparison. Ranked on the marginal rate
+ * exactly as avalanche pays; the population is deliberately WIDER than
+ * `getStrategyPayoffOrder`'s, which only lists the cards the strategy is paying off.
+ */
+export function utilizationComparisonOrder(cards: readonly CardData[], asOf: string): string[] {
+  return cards
+    .filter(c => c.balance > 0)
+    .map(c => ({ id: c.id, marginal: cardMarginalApr(c, asOf) }))
+    .sort((a, b) => b.marginal - a.marginal)
+    .map(c => c.id);
+}
