@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -58,6 +58,7 @@ export type Database = {
           apr_plaid_synced: boolean | null
           apr_start_date: string | null
           apy_rate: number | null
+          balance_tranches: Json | null
           balance: number
           card_start_date: string | null
           connection_id: string | null
@@ -90,6 +91,7 @@ export type Database = {
           apr_plaid_synced?: boolean | null
           apr_start_date?: string | null
           apy_rate?: number | null
+          balance_tranches?: Json | null
           balance?: number
           card_start_date?: string | null
           connection_id?: string | null
@@ -122,6 +124,7 @@ export type Database = {
           apr_plaid_synced?: boolean | null
           apr_start_date?: string | null
           apy_rate?: number | null
+          balance_tranches?: Json | null
           balance?: number
           card_start_date?: string | null
           connection_id?: string | null
@@ -2144,3 +2147,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+

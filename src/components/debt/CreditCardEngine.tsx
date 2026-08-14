@@ -18,6 +18,7 @@ import { generateScheduledEvents, countWeekdayInMonth, countRuleOccurrencesInMon
 import { getTotalCarLoanMonthly } from '@/lib/vehicle-loan-engine';
 import { cumulativeSurplusesByCard, adjustedDisplayBalance } from '@/lib/step3-display';
 import { ordinal } from '@/lib/ordinal';
+import { parseTranches, promoExpiryWarnings } from '@/lib/balance-tranches';
 import { type Month0Result } from '@/hooks/useCardProjection';
 import { type PaymentPlan, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import { ChevronDown, ChevronUp, CreditCard, AlertTriangle, TrendingDown, Info, Zap, Target, Edit2, Check, CheckCircle2, RotateCcw, Wallet, ShieldCheck, CalendarDays, X } from 'lucide-react';
@@ -1763,6 +1764,26 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         {proj.card.apr}% APR · Limit {formatCurrency(proj.card.creditLimit, false)} · Utilization {proj.utilizationNow.toFixed(1)}%
                         {proj.card.dueDay && <span> · <CalendarDays size={10} className="inline" /> Due {ordinal(proj.card.dueDay)}</span>}
                       </p>
+                      {/* A promo balance with an expiry is a dated event, not a smooth line — say
+                          the date, the money, and the paydown that beats it. Read straight off the
+                          account row; the projection engine still models one APR per card (see
+                          balance-tranches.ts for why that integration is its own change). */}
+                      {(() => {
+                        const acct = accounts.find(a => a.id === proj.card.id);
+                        const warnings = promoExpiryWarnings(
+                          parseTranches(acct?.balance_tranches),
+                          Number(acct?.apr ?? proj.card.apr),
+                          new Date().toISOString().slice(0, 10),
+                        );
+                        return warnings.map(w => (
+                          <p key={w.promoEndDate + w.label} className="text-[11px] sm:text-xs text-warning mt-0.5">
+                            ⚠ {formatCurrency(w.balance, false)} at {w.promoApr}% reprices to {w.standardApr}% on{' '}
+                            {new Date(`${w.promoEndDate}T12:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {' '}(+{formatCurrency(w.extraMonthlyInterest, false)}/mo) — clearing it first needs{' '}
+                            {formatCurrency(w.requiredMonthlyPaydown, false)}/mo for {w.monthsRemaining} months
+                          </p>
+                        ));
+                      })()}
                       <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive'}`}>
                         {formatCurrency(Math.max(0, proj.card.balance), false)}
                       </p>
