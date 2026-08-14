@@ -46,34 +46,23 @@ import {
   useAllSyncedTransactions, useSyncedTransactionReviews, useAccounts, useRecurringRules,
   useTransactions, usePaymentPlans, useCarFunds, isHandledReview, planLedgerImport,
   isLinkStatus, findExclusiveReview,
-  type BankActivityRow, type RuleRow, type SyncedTransactionReviewRow,
+  type SyncedTransactionReviewRow,
 } from '@/hooks/useSupabaseData';
 import { useBankReviewQueue } from '@/hooks/useBankReviewQueue';
 import { monthOf, isChargeHandled } from '@/lib/bank-activity-queue';
 import { detectTransferPairs, indexPairsByLeg, collapseTransferLegs, describeTransfer, type TransferPair } from '@/lib/transfer-pair-detection';
 import MerchantMemoryPanel from './MerchantMemoryPanel';
+import DecisionDeck from './DecisionDeck';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
-import { resolveRuleOccurrenceDate } from '@/lib/pay-schedule';
-import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks, ArrowLeftRight } from 'lucide-react';
-
-/**
- * WHICH occurrence of a rule a charge on `chargeDate` settles — the month, and the day when the app
- * can name one.
- *
- * ⚠️ THE DAY IS WHAT MAKES A BIWEEKLY LINK HONEST. Keyed on the month alone, confirming one of a
- * biweekly rule's two charges in a month suppressed BOTH, over-raising projected cash by the amount
- * of the one the user never confirmed. Tre's `Fuel` rule ($65, biweekly) already carries two July
- * links, so this is a live shape, not a hypothetical.
- *
- * A monthly rule has exactly one occurrence a month, so for the overwhelming majority of links this
- * stores the same information twice and changes nothing. The date resolves to null — and the link
- * keeps today's month-wide behavior — only when the rule bills nothing in the charge's month.
- */
-const ruleOccurrence = (rule: RuleRow, chargeDate: string) => ({
-  occurrence_month: monthOf(chargeDate),
-  occurrence_date: resolveRuleOccurrenceDate(rule, chargeDate),
-});
+import { buildDeck } from '@/lib/decision-deck';
+// The rows every decision writes. LIFTED OUT of this file (2026-08-14) so the Decision Deck writes
+// the SAME ones rather than a second copy that drifts — see `review-write-inputs.ts`. Behaviour is
+// unchanged on this path: they are the identical builders, at the identical call sites.
+import {
+  ruleOccurrence, acceptRuleInput, acceptPlanInput, acceptCarInput, acceptLedgerTxnInput,
+} from '@/lib/review-write-inputs';
+import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks, ArrowLeftRight, Layers } from 'lucide-react';
 
 /** How many rows render before the "show more" cut. All history is browsable; not all at once. */
 const PAGE_SIZE = 100;
@@ -166,6 +155,29 @@ export default function BankActivity() {
    * is length 1, so this renders identically until the constraint is relaxed.
    */
   const { queue, reviewsByCharge: reviewsByTxn } = useBankReviewQueue(rejected);
+
+  /**
+   * THE DECISION DECK — the queue's default DECIDING surface (`design/DIRECTION.md`, "one decision
+   * per screen"). The list below is not replaced: it is the BROWSE fallback, one tap away from the
+   * deck and still the whole archive.
+   *
+   * ⚠️ A PASSTHROUGH OVER THE SAME QUEUE. `buildDeck` attaches each charge's suggestion and changes
+   * nothing about the order, so the deck asks in exactly the sequence the list shows.
+   */
+  const deckCards = useMemo(() => buildDeck(queue), [queue]);
+  /**
+   * `'unopened'` means the user has not touched the deck either way, and it is the only state in
+   * which the deck opens ITSELF — that is what "default surface" means. Closing it records
+   * `'closed'`, which sticks for the visit; the door below reopens it as `'open'`.
+   *
+   * ⚠️ DERIVED IN RENDER, NOT SET FROM AN EFFECT. An effect that opened the deck on arrival would
+   * fire again on the render after the user closed it (the queue is still non-empty), leaving them
+   * unable to reach the list at all — and `react-hooks/set-state-in-effect` rejects the shape
+   * outright.
+   */
+  const [deckIntent, setDeckIntent] = useState<'unopened' | 'open' | 'closed'>('unopened');
+  const deckOpen = deckIntent === 'open'
+    || (deckIntent === 'unopened' && !isLoading && deckCards.length > 0);
 
   /**
    * §1B TRANSFER PAIRS — the movements between Tre's own accounts, derived over ALL history.
@@ -329,50 +341,6 @@ export default function BankActivity() {
   };
 
   /**
-   * The write that accepting a rule suggestion performs.
-   *
-   * ⚠️ `ruleOccurrence` USED TO BE MISSING HERE and it is a real fix, not a tidy-up. The picker path
-   * below always sent the occurrence; the one-click "Confirm: {rule}" button sent only `rule_id`, so
-   * accepting a suggested BIWEEKLY link recorded no day — and per this file's own `ruleOccurrence`
-   * doc, a month-wide link suppresses BOTH of that month's charges and over-raises projected cash by
-   * the one the user never confirmed. Tre's `Fuel` rule ($65, biweekly) is exactly that shape. The
-   * batch accept below multiplies the same write, which is what made fixing it non-optional.
-   */
-  /**
-   * The writes accepting a PLAN or a VEHICLE suggestion performs — byte-identical to what the
-   * pickers below already write, deliberately. §1B Stage 6 added the suggestions, not a new kind of
-   * decision: a suggestion is the app filling in the dropdown the user would otherwise have opened,
-   * so if these two ever diverge from the picker the same charge would mean different things
-   * depending on how it was decided.
-   */
-  const acceptPlanInput = (txn: BankActivityRow, planId: string) => ({
-    synced_transaction_id: txn.id,
-    status: 'linked_plan' as const,
-    payment_plan_id: planId,
-    occurrence_month: monthOf(txn.date),
-  });
-
-  const acceptCarInput = (txn: BankActivityRow, carFundId: string, kind: CarChargeKind) => ({
-    synced_transaction_id: txn.id,
-    status: 'linked_car' as const,
-    car_fund_id: carFundId,
-    car_charge_kind: kind,
-    occurrence_month: monthOf(txn.date),
-  });
-
-  const acceptRuleInput = (txn: BankActivityRow, rule: RuleRow) => ({
-    synced_transaction_id: txn.id,
-    status: 'linked_rule' as const,
-    rule_id: rule.id,
-    ...ruleOccurrence(rule, txn.date),
-    // ⚠️ NO `category_override`. It used to be carried forward here so that converting a
-    // `'categorized'` row into a link did not wipe the user's label — correct while a charge had ONE
-    // row, and wrong now: a link is a new row and the label stays on the exclusive one, untouched.
-    // Passing it would put the same category on two rows with no rule for which wins, which
-    // `validateReviewSet` rejects outright (Tre, 2026-08-09).
-  });
-
-  /**
    * §1B TRANSFER PAIRS — record BOTH legs of one movement as dealt with.
    *
    * ⚠️ WHY `'ignored'` AND NOT A NEW `'transfer'` STATUS. `ReviewStatus` is mirrored by a CHECK
@@ -454,15 +422,14 @@ export default function BankActivity() {
         } else if (suggestion?.carCharge) {
           await save.mutateAsync(acceptCarInput(txn, suggestion.carCharge.carFundId, suggestion.carCharge.kind));
         } else if (suggestion?.ledgerTxn) {
-          await save.mutateAsync({
-            synced_transaction_id: txn.id,
-            status: 'linked_txn',
-            transaction_id: suggestion.ledgerTxn.id,
-            // KEPT, unlike the rule write: `linked_txn` is an EXCLUSIVE status, so it lands ON the
-            // exclusive row — the row that owns the category. `save` writes every column including
-            // the nulls, so omitting this would silently clear the user's label.
-            category_override: findExclusiveReview(reviewsByTxn[txn.id] ?? [])?.category_override ?? null,
-          });
+          // KEPT, unlike the rule write: `linked_txn` is an EXCLUSIVE status, so it lands ON the
+          // exclusive row — the row that owns the category. `save` writes every column including
+          // the nulls, so omitting this would silently clear the user's label.
+          await save.mutateAsync(acceptLedgerTxnInput(
+            txn,
+            suggestion.ledgerTxn.id,
+            findExclusiveReview(reviewsByTxn[txn.id] ?? [])?.category_override ?? null,
+          ));
         } else {
           continue;
         }
@@ -550,6 +517,47 @@ export default function BankActivity() {
             : `${rows.length} settled ${rows.length === 1 ? 'transaction' : 'transactions'}`}
         </span>
       </div>
+
+      {/* THE DECISION DECK's door. It opens itself on arrival when there is something to decide, so
+          this is the way BACK IN after the user has browsed — and, when there is nothing waiting, a
+          plain sentence saying so.
+
+          ⚠️ NEVER A ZERO-COUNT DECK. "0 waiting" and a deck that failed to build look identical, and
+          there is nothing to decide either way, so no deck is offered and no number is drawn. */}
+      {deckCards.length > 0 ? (
+        <button
+          onClick={() => setDeckIntent('open')}
+          className="w-full flex items-center justify-between gap-3 card-forged px-4 py-3 text-left hover:border-primary/40 transition-colors"
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            <Layers size={14} className="text-primary shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-xs font-medium">Decide one at a time</span>
+              <span className="block text-[11px] text-muted-foreground">
+                {deckCards.length} {deckCards.length === 1 ? 'charge' : 'charges'}, one per card, in
+                the order the app thinks is most useful.
+              </span>
+            </span>
+          </span>
+          <span className="text-xs font-semibold text-primary whitespace-nowrap">Start</span>
+        </button>
+      ) : (
+        <p className="text-xs text-muted-foreground">Nothing needs a decision.</p>
+      )}
+
+      {deckOpen && (
+        <DecisionDeck
+          cards={deckCards}
+          accountName={accountName}
+          reviewsByCharge={reviewsByTxn}
+          // The parent's own mutations, passed down rather than re-instantiated: one write path per
+          // decision, however the user made it. See `DecisionDeck.tsx`'s header.
+          save={save}
+          setCategory={setCategory}
+          remove={remove}
+          onClose={() => setDeckIntent('closed')}
+        />
+      )}
 
       {/* §1B MERCHANT MEMORY — the categories the user already decided, applied to the backlog.
           Above the transfer batch because it is the cheaper decision of the two: it labels rows and
@@ -927,16 +935,13 @@ export default function BankActivity() {
                     )}
                     {!pair && showSuggestion && !suggestion.rule && !suggestion.plan && !suggestion.carCharge && suggestion.ledgerTxn && (
                       <button
-                        onClick={() => save.mutate({
-                          synced_transaction_id: txn.id,
-                          status: 'linked_txn',
-                          transaction_id: suggestion.ledgerTxn!.id,
-                          // KEPT, unlike the link writes above, and the difference is the point:
-                          // `linked_txn` is an EXCLUSIVE status, so it lands ON the exclusive row —
-                          // the row that owns the category. `save` writes every column including
-                          // the nulls, so omitting this would silently clear the user's label.
-                          category_override: exclusive?.category_override ?? null,
-                        })}
+                        // KEPT, unlike the link writes above, and the difference is the point:
+                        // `linked_txn` is an EXCLUSIVE status, so it lands ON the exclusive row —
+                        // the row that owns the category. `save` writes every column including the
+                        // nulls, so omitting this would silently clear the user's label.
+                        onClick={() => save.mutate(
+                          acceptLedgerTxnInput(txn, suggestion.ledgerTxn!.id, exclusive?.category_override ?? null),
+                        )}
                         className="flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium"
                       >
                         <Link2 size={11} /> Matches your entry on {suggestion.ledgerTxn.date}
