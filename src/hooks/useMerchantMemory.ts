@@ -35,7 +35,7 @@ function readSuppressed(): Record<string, true> {
 }
 
 export interface MerchantMemory {
-  /** Every rule the user's own decisions imply, keyed by normalised merchant. Includes suppressed. */
+  /** Every rule the user's own decisions imply, keyed by normalized merchant. Includes suppressed. */
   rules: Record<string, MerchantRule>;
   /** What applying them to the backlog would do right now. */
   pass: RetroPass;

@@ -837,7 +837,7 @@ export default function BudgetControl() {
     fields.push({ key: 'category', label: 'Category', type: 'select', options: CATEGORIES.map(c => ({ value: c, label: c })) });
     
     // On a biweekly rule this existing field is doing a second job — it is the phase anchor
-    // `resolveBiweeklyAnchor` already prefers — so it is relabelled to say what it actually
+    // `resolveBiweeklyAnchor` already prefers — so it is relabeled to say what it actually
     // controls and captioned with the cycle the engine will run. No new column, no new input.
     const isBiweekly = form.frequency === 'biweekly';
     const startDateLabel = isBiweekly
@@ -1475,7 +1475,7 @@ export default function BudgetControl() {
       <div className="grid grid-cols-2 gap-3">
         <div className="cursor-pointer" onClick={openMonthlySpendCalc}>
           {/* "planned" is load-bearing (§2.4 step 10): totalCharges is the sum of the budget RULES,
-              not of anything that happened. Unlabelled it reads as an actual and gets compared to
+              not of anything that happened. Unlabeled it reads as an actual and gets compared to
               the Dashboard's MONTHLY EXPENSES, which is a different question entirely. */}
           <MetricCard label="Monthly Spend" sub="planned (from rules)" value={formatCurrency(totalCharges, false)} accent="crimson" icon={TrendingDown} clickHint />
         </div>

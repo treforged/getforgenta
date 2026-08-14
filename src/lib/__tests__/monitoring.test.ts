@@ -60,9 +60,9 @@ describe('reportError', () => {
   });
 
   it('falls back to the error message when the boundary has no label', async () => {
-    reportError(new Error('unlabelled boom'));
+    reportError(new Error('unlabeled boom'));
     await vi.waitFor(() => expect(recordError).toHaveBeenCalledTimes(1));
-    expect(recordError.mock.calls[0][1]).toBe('unlabelled boom');
+    expect(recordError.mock.calls[0][1]).toBe('unlabeled boom');
   });
 
   it('truncates a runaway component stack', async () => {

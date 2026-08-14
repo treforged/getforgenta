@@ -21,7 +21,7 @@
 // scheduling.ts) already exists and drives Forecast/Dashboard/Debt Payoff — it is simply never
 // called from Transactions.tsx.
 //
-// These tests characterize the CURRENT behaviour (they pass today) so the gap is pinned down and
+// These tests characterize the CURRENT behavior (they pass today) so the gap is pinned down and
 // visible in the diff, rather than fixed silently — wiring the 60-month engine into the ledger view
 // is a build, which this task was explicitly scoped not to do.
 

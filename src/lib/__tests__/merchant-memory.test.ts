@@ -47,7 +47,7 @@ describe('normalizeMerchant', () => {
 });
 
 describe('deriveMerchantRules', () => {
-  it('learns a merchant from one categorised charge', () => {
+  it('learns a merchant from one categorized charge', () => {
     const rules = deriveMerchantRules(
       [charge('a', 'Corner Cafe'), charge('b', 'Corner Cafe')],
       { a: categorized('Dining') },
@@ -108,7 +108,7 @@ describe('planRetroactivePass', () => {
   ];
   const reviews = { a: categorized('Dining') };
 
-  it('labels every un-categorised charge of a learned merchant, and counts them', () => {
+  it('labels every un-categorized charge of a learned merchant, and counts them', () => {
     const rules = deriveMerchantRules(charges, reviews);
     const pass = planRetroactivePass(charges, reviews, rules);
     expect(pass.writes.map(w => w.chargeId)).toEqual(['b', 'c']);
@@ -161,7 +161,7 @@ describe('planMerchantRelabel', () => {
 
   it('re-labels ONLY the charges that already carry a category', () => {
     // The regression this exists for: the Settings guard compared the RULE, so it was true on every
-    // iteration and one dropdown change bulk-wrote the whole un-categorised backlog with no undo.
+    // iteration and one dropdown change bulk-wrote the whole un-categorized backlog with no undo.
     const reviews = { a: categorized('Dining'), d: categorized('Dining') };
     const plan = planMerchantRelabel(charges, reviews, 'CORNER CAFE', 'Travel');
     expect(plan).toEqual([{ chargeId: 'a', previousCategory: 'Dining' }]);

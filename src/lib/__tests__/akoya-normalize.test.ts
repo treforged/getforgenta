@@ -1,10 +1,10 @@
 /**
- * Akoya response normalisation.
+ * Akoya response normalization.
  *
  * The FDX payload shape is the highest-risk part of the integration: it is a
  * category-keyed union, institutions populate different balance fields, and we
  * only had two of the six category keys confirmed in Akoya's docs. These tests
- * pin down the behaviour we rely on, including for categories we've never seen.
+ * pin down the behavior we rely on, including for categories we've never seen.
  */
 
 import { describe, expect, it, vi } from 'vitest';

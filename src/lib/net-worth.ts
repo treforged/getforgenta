@@ -18,7 +18,7 @@
  *
  * Rules: an account is a liability iff its type is in
  * {@link LIABILITY_ACCOUNT_TYPES}; every other active account is an asset (the
- * historic "everything else is an asset" behaviour, kept so an unmapped or new
+ * historic "everything else is an asset" behavior, kept so an unmapped or new
  * account type is never silently dropped). Inactive accounts count on neither
  * side. Manual rows are added unless their name already matches a live account
  * on the same side, case-insensitively.

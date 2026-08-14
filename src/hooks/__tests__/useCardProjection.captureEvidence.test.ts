@@ -8,7 +8,7 @@
 // for anyone whose loan simply has not been debited yet.
 //
 // The three cases below are the whole contract:
-//   - no transactions        → byte-identical to the old behaviour (the number-neutrality guard)
+//   - no transactions        → byte-identical to the old behavior (the number-neutrality guard)
 //   - covered but unmatched  → charge STAYS in month 0, overriding the date heuristic  ← moves a number
 //   - matched                → charge is dropped, now on evidence rather than arithmetic
 //

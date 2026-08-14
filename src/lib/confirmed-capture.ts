@@ -17,7 +17,7 @@
 // UNSAFE direction, unlike most gates here. Three things hold it down, and all three are load-bearing:
 //
 //   1. It fires ONLY on an explicit user confirmation. Absence of a review changes nothing, so
-//      every bill nobody has touched keeps exactly its pre-Stage-4 behaviour.
+//      every bill nobody has touched keeps exactly its pre-Stage-4 behavior.
 //   2. The confirmable rows are SETTLED ONLY. `BankActivity.tsx` excludes pending rows from the
 //      list, so a pending debit cannot be linked in the first place — the same rule that makes
 //      `hasCoverage` skip pending rows, enforced one layer earlier by not offering the button.
@@ -86,7 +86,7 @@ function occurrenceKey(ruleId: string, scope: string): string {
  * ⚠️ ONE KEY PER REVIEW, never both. A row carrying an `occurrence_date` contributes ONLY its date
  * key — adding its month key too would restore the exact bug the column was added to fix, because
  * the month key suppresses every occurrence of that rule in the month. A row without one
- * contributes only its month key, which is the pre-migration behaviour byte for byte.
+ * contributes only its month key, which is the pre-migration behavior byte for byte.
  */
 export function buildConfirmedOccurrences(
   reviews: readonly RuleOccurrenceReview[] | null | undefined,

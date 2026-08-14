@@ -343,7 +343,7 @@ export function matchCharge(
  * window and Plaid's cursor is opaque, so the observed min/max settled date per account is the
  * only honest signal available. It UNDER-claims — a sparse account with one transaction covers
  * almost nothing — and under-claiming just falls back to the date heuristic, which is the
- * pre-Stage-C behaviour. Do not "improve" this by dropping the lower bound or by counting a
+ * pre-Stage-C behavior. Do not "improve" this by dropping the lower bound or by counting a
  * single row as a range; both trade a safe fallback for a confident assertion.
  *
  * The whole window (`± DATE_WINDOW_DAYS`) must be observed, not merely the due date, because a
@@ -376,7 +376,7 @@ export function hasCoverage(
  * What settled transactions say about one charge, in the shape `isCapturedInBalance` consumes.
  *
  * The two booleans are not redundant. "No match" alone is ambiguous between "this did not happen"
- * and "we have not looked yet", and those demand opposite behaviour from a capture gate — which is
+ * and "we have not looked yet", and those demand opposite behavior from a capture gate — which is
  * precisely the distinction the pre-§1A date heuristic could never make.
  */
 export function buildCaptureEvidence(

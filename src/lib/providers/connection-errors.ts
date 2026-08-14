@@ -3,7 +3,7 @@
  * Akoya fallback is worth offering.
  *
  * Plaid surfaces these only through the onExit callback, and only when the
- * failure is one Plaid itself recognises. A user who gives up on a stalled
+ * failure is one Plaid itself recognizes. A user who gives up on a stalled
  * Fidelity login exits with no error at all, which is why the Accounts page
  * also offers a manual "trouble connecting?" route rather than relying on
  * detection alone.

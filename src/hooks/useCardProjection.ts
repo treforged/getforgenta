@@ -63,7 +63,7 @@ export interface UseCardProjectionParams {
   syncedTransactions?: readonly MatchableTransaction[];
   /** §1B Stage 4A: rule occurrences the user confirmed a bank transaction already paid, from
    * `buildConfirmedOccurrences`. Optional and undefaulted — omitting it must be byte-identical to
-   * pre-Stage-4 behaviour, which is what lets the fixture harness and every existing test keep
+   * pre-Stage-4 behavior, which is what lets the fixture harness and every existing test keep
    * calling this hook unchanged. CardProjectionContext supplies the live one.
    *
    * ⚠️ This hook builds its OWN `forecastMonthEvents`, separate from the one in

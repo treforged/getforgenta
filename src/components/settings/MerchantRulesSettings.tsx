@@ -28,6 +28,9 @@ export default function MerchantRulesSettings() {
   const { rules, reviewsByCharge, suppressed, setSuppressed, isLoading } = useMerchantMemory();
   const { data: synced = [] } = useAllSyncedTransactions();
   const { setCategory } = useSyncedTransactionReviews();
+  /** `busyKey` means "a write is in flight" and gates every control; this is the undo's stand-in
+   *  for a merchant key, chosen so it can never collide with a real normalized merchant. */
+  const WRITE_IN_FLIGHT = '__undo__';
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [applied, setApplied] = useState<AppliedRelabel | null>(null);
 
@@ -38,7 +41,7 @@ export default function MerchantRulesSettings() {
    *
    * ⚠️ ONLY THE ONES THAT CARRY ONE, and the decision about WHICH ones is `planMerchantRelabel`'s,
    * not this component's — the guard that used to live here compared the RULE and so skipped
-   * nothing, turning one dropdown change into a silent bulk write over the un-categorised backlog.
+   * nothing, turning one dropdown change into a silent bulk write over the un-categorized backlog.
    * That backlog has its own panel on Bank Activity, with its own confirm and its own undo.
    *
    * What the plan returns is each charge's PREVIOUS category, so this edit is reversible too: the
@@ -47,7 +50,7 @@ export default function MerchantRulesSettings() {
   const relabel = async (key: string, label: string, category: Category) => {
     const plan = planMerchantRelabel(synced, reviewsByCharge, key, category);
     if (plan.length === 0) {
-      toast.message(`${label} is already ${category} on every charge you have labelled`);
+      toast.message(`${label} is already ${category} on every charge you have labeled`);
       return;
     }
     setBusyKey(key);
@@ -58,7 +61,7 @@ export default function MerchantRulesSettings() {
         // Recorded as it goes, so the undo only offers to reverse what actually landed.
         done.push(write);
       }
-      toast.success(`${done.length} ${done.length === 1 ? 'charge' : 'charges'} re-labelled ${category}`);
+      toast.success(`${done.length} ${done.length === 1 ? 'charge' : 'charges'} re-labeled ${category}`);
     } catch {
       if (done.length > 0) toast.message(`Stopped after ${done.length} — the rest are unchanged`);
     } finally {
@@ -69,7 +72,11 @@ export default function MerchantRulesSettings() {
 
   const undoRelabel = async () => {
     if (!applied) return;
-    setBusyKey(applied.label);
+    // A sentinel, not a merchant key: this used to set `applied.label`, which is a DISPLAY name and
+    // never equals a `rule.key`, so the old `busyKey === rule.key` guard matched nothing and every
+    // dropdown stayed live through the whole undo. Nothing compares against this value now — it
+    // only has to be non-null — but it must not read like a key anyone could match on.
+    setBusyKey(WRITE_IN_FLIGHT);
     let undone = 0;
     try {
       // Reversed, so a stopped undo unwinds the most recent write first.
@@ -95,11 +102,11 @@ export default function MerchantRulesSettings() {
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">Merchant memory</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">
-            When you categorise a bank charge, the app remembers it for that merchant and stops
-            asking. Change one here and every charge of that merchant you have already labelled moves
+            When you categorize a bank charge, the app remembers it for that merchant and stops
+            asking. Change one here and every charge of that merchant you have already labeled moves
             with it — charges with no category yet are left alone, and undo puts a change back.
             Switching a merchant off leaves those labels exactly as they are — it only stops new
-            charges being labelled automatically, and it applies on this device.
+            charges being labeled automatically, and it applies on this device.
           </p>
         </div>
       </div>
@@ -110,7 +117,7 @@ export default function MerchantRulesSettings() {
         <div className="flex flex-wrap items-center gap-2 pl-6">
           <p className="text-[11px] text-muted-foreground">
             {applied.writes.length} {applied.writes.length === 1 ? 'charge' : 'charges'} of{' '}
-            <span className="text-foreground font-medium">{applied.label}</span> re-labelled {applied.category}.
+            <span className="text-foreground font-medium">{applied.label}</span> re-labeled {applied.category}.
           </p>
           <button
             onClick={undoRelabel}
@@ -134,9 +141,14 @@ export default function MerchantRulesSettings() {
           {list.map(rule => (
             <div key={rule.key} className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium truncate max-w-[180px]" title={rule.key}>{rule.label}</span>
+              {/* EVERY select locks while ANY write is in flight, not just this merchant's.
+                  Disabling only the row being written left the others live, so a second dropdown
+                  change during a pass overwrote `applied` and the first pass silently lost its
+                  undo — two write loops interleaving over months of history with no way back.
+                  Same guard the undo button above already uses. */}
               <select
                 value={rule.category}
-                disabled={busyKey === rule.key}
+                disabled={busyKey !== null}
                 onChange={e => relabel(rule.key, rule.label, e.target.value as Category)}
                 className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground disabled:opacity-60"
                 style={{ borderRadius: 'var(--radius)' }}
@@ -155,10 +167,10 @@ export default function MerchantRulesSettings() {
               </label>
               <span className="text-[10px] text-muted-foreground">
                 from {rule.decidedCount} {rule.decidedCount === 1 ? 'charge' : 'charges'}
-                {/* A merchant you have labelled two ways is one where "learn once" is the wrong
+                {/* A merchant you have labeled two ways is one where "learn once" is the wrong
                     model — a warehouse run can be Groceries or Shopping. Say so rather than
                     quietly picking the newest and looking confident about it. */}
-                {rule.conflictingCount > 0 && ` · ${rule.conflictingCount} labelled differently`}
+                {rule.conflictingCount > 0 && ` · ${rule.conflictingCount} labeled differently`}
               </span>
             </div>
           ))}

@@ -2,7 +2,7 @@
 //
 // The single most important guarantee here is the FIRST describe block: with no rows, the function
 // must return `undefined` rather than `{hasTxnCoverage:false, matched:false}`. Those two values
-// take the same branch of `isCapturedInBalance` today, so a test that only checked behaviour would
+// take the same branch of `isCapturedInBalance` today, so a test that only checked behavior would
 // pass either way — but `undefined` is what makes "this user has no synced transactions" and "this
 // caller was never wired up" provably identical to pre-Stage-C at the type level, and it is the
 // reason part 2 could ship number-neutral. Asserting the value, not just the effect, is deliberate.

@@ -1,6 +1,6 @@
 // §1B SPLIT LINK Slice A — the rules ABOUT A SET of decisions on one charge.
 //
-// These pin the DECISIONS, not just the behaviour. Every rule here mirrors a partial unique index
+// These pin the DECISIONS, not just the behavior. Every rule here mirrors a partial unique index
 // the migration will add (Slice C), so if one of these ever loosens, the database will start
 // rejecting writes with a constraint name the user cannot act on instead.
 
@@ -84,7 +84,7 @@ describe('validateReviewInput — one row names one thing', () => {
     })).toBe('A plan link needs a payment plan');
   });
 
-  // Slice A changes NO per-row behaviour for the rows the app writes today.
+  // Slice A changes NO per-row behavior for the rows the app writes today.
   it('still accepts a plain rule link, and one carrying a category the way the app writes it now', () => {
     expect(validateReviewInput(ruleLink())).toBeNull();
     expect(validateReviewInput(ruleLink({ category_override: 'Rent' }))).toBeNull();

@@ -19,7 +19,7 @@
 
 import { CATEGORIES, type Category } from './types';
 
-/** Where anything unrecognised lands. A real app category, so no downstream code special-cases it. */
+/** Where anything unrecognized lands. A real app category, so no downstream code special-cases it. */
 export const FALLBACK_CATEGORY: Category = 'Other';
 
 /**
@@ -28,7 +28,7 @@ export const FALLBACK_CATEGORY: Category = 'Other';
  * Keyed on the NORMALISED form (see `normalizeProviderCategory`) so one entry serves both provider
  * vocabularies: Plaid's PFC primary (`FOOD_AND_DRINK`) and the legacy `category[0]` string
  * (`"Food and Drink"`) that `providers/plaid.ts:100` still falls back to on older items. The two
- * spellings collapse onto the same key, which is the whole reason for normalising rather than
+ * spellings collapse onto the same key, which is the whole reason for normalizing rather than
  * matching literals.
  */
 const PROVIDER_CATEGORY_MAP: Readonly<Record<string, Category>> = {
@@ -98,7 +98,7 @@ export function normalizeProviderCategory(raw: string | null | undefined): strin
  *
  * Never throws and never returns null: a suggestion the UI has to null-check would grow a second
  * "unknown" state next to `'Other'`, and there is no useful difference between "the provider said
- * nothing" and "the provider said something we do not recognise" — both mean the user should look.
+ * nothing" and "the provider said something we do not recognize" — both mean the user should look.
  */
 export function suggestCategory(providerCategory: string | null | undefined): Category {
   const key = normalizeProviderCategory(providerCategory);
@@ -110,7 +110,7 @@ export function suggestCategory(providerCategory: string | null | undefined): Ca
  * Whether `suggestCategory` had an actual opinion, as opposed to falling back.
  *
  * The UI uses this to phrase itself honestly — a mapped guess can be shown as "suggested", while a
- * fallback should read as "uncategorised" rather than asserting the transaction is miscellaneous.
+ * fallback should read as "uncategorized" rather than asserting the transaction is miscellaneous.
  * Note a provider category that legitimately maps to `'Other'` (a transfer) is still an opinion.
  */
 export function hasCategorySuggestion(providerCategory: string | null | undefined): boolean {

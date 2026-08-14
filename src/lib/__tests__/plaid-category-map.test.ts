@@ -23,7 +23,7 @@ const LIVE_CATEGORIES = [
 
 describe('normalizeProviderCategory', () => {
   it('collapses the two provider vocabularies onto one key', () => {
-    // The whole reason normalisation exists: plaid.ts:100 falls back to the legacy title-case
+    // The whole reason normalization exists: plaid.ts:100 falls back to the legacy title-case
     // `category[0]` on older items, so both spellings reach this map.
     expect(normalizeProviderCategory('Food and Drink')).toBe('FOOD_AND_DRINK');
     expect(normalizeProviderCategory('FOOD_AND_DRINK')).toBe('FOOD_AND_DRINK');
@@ -98,7 +98,7 @@ describe('suggestCategory', () => {
 describe('hasCategorySuggestion', () => {
   it('distinguishes a real opinion from a fallback', () => {
     // Both yield 'Other', but only one is the provider actually telling us something. The UI
-    // phrases these differently: "suggested" vs "uncategorised".
+    // phrases these differently: "suggested" vs "uncategorized".
     expect(suggestCategory('TRANSFER_IN')).toBe('Other');
     expect(hasCategorySuggestion('TRANSFER_IN')).toBe(true);
 

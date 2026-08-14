@@ -25,7 +25,7 @@ describe('classifyPlaidExit', () => {
 
   it('catches unlisted members of the INSTITUTION_ERROR family', () => {
     // Plaid adds codes over time; the whole family is connectivity-shaped, so
-    // an unrecognised one should still surface the fallback.
+    // an unrecognized one should still surface the fallback.
     expect(classifyPlaidExit({
       error_code: 'SOME_FUTURE_CODE',
       error_type: 'INSTITUTION_ERROR',

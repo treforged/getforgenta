@@ -61,7 +61,7 @@ const shiftDays = (dateOnly: string, days: number): string => {
 export function resolveSyncCutoffDate(basis: SyncCutoffBasis): string {
   // `||`, not `??`: demo fixtures carry `updated_at: ''` and an empty timestamp is absent, not a
   // date. Parsing one yields NaN and a cutoff of "NaN-NaN-NaN", which compares as capturing
-  // nothing — a silent, whole-surface behaviour change from one empty string.
+  // nothing — a silent, whole-surface behavior change from one empty string.
   const raw = basis.lastSyncedAt || basis.balanceUpdatedAt || null;
   const anchor = raw ? toDateOnly(raw) : basis.today;
   return anchor > basis.today ? basis.today : anchor;
@@ -91,7 +91,7 @@ export interface CaptureEvidence {
  * touches debits only and never the income gates that share that date.
  *
  * §1A Stage C DEMOTES the date heuristic from the rule to the fallback. `evidence` is optional so
- * call sites can be wired one at a time, and omitting it is exactly the pre-Stage-C behaviour.
+ * call sites can be wired one at a time, and omitting it is exactly the pre-Stage-C behavior.
  *
  * - Matched → captured. A settled transaction is the fact the heuristic was approximating.
  * - Covered, unmatched → NOT captured. The charge genuinely has not hit, however old it is. This

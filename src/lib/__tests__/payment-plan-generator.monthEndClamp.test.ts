@@ -10,7 +10,7 @@
 // generator in this file that still does it the old way, so a plan that starts on the 29th/30th/31st
 // skips whichever short month it lands on and drifts for every payment after.
 //
-// This pins the CORRECT (clamped) behaviour and is expected to fail until `getPaymentDates` gets the
+// This pins the CORRECT (clamped) behavior and is expected to fail until `getPaymentDates` gets the
 // same per-month cursor treatment as the recurring-rule generators.
 
 import { describe, it, expect } from 'vitest';

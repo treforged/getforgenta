@@ -284,7 +284,7 @@ describe('the other generators', () => {
   it('stays quiet when the stream SUBSTITUTES the rule occurrence rather than adding to it', () => {
     // mergeWithGeneratedTransactions drops a generated occurrence whose date+note+amount equals a
     // real row's — the real row replaces it, nothing is double-counted, and warning here would flag
-    // the app's own working behaviour as a bug.
+    // the app's own working behavior as a bug.
     const found = scanForDuplicateTransactions({
       ...emptyScan,
       rules: [rule],
