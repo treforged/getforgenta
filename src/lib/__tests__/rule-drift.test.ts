@@ -1,9 +1,9 @@
-// §1B Stage 7B — rule drift. Synthetic values only (AGENT.md: nothing derived from real data).
+﻿// Â§1B Stage 7B â€” rule drift. Synthetic values only (AGENT.md: nothing derived from real data).
 //
 // The two shapes these are built around are the REAL failures, restated with invented numbers:
 // a rent-sized bill drifting a few percent above a stale rule, and a utility that has doubled.
 import { describe, it, expect } from 'vitest';
-import { detectRuleDrift, detectAllRuleDrift, describeDrift, type DriftRule, type DriftCharge } from '../rule-drift';
+import { detectRuleDrift, detectAllRuleDrift, describeDrift, bundleExplainsBetter, type DriftRule, type DriftCharge } from '../rule-drift';
 
 const ACCT = 'acct-1';
 
@@ -34,7 +34,7 @@ describe('detectRuleDrift', () => {
     expect(drift!.merchantLabel).toBe('Landlord Co');
     expect(drift!.months).toHaveLength(6);
     expect(drift!.averageAmount).toBe(1113.33);
-    // The recommendation is the LAST THREE, not the whole run — see `observedAmount`.
+    // The recommendation is the LAST THREE, not the whole run â€” see `observedAmount`.
     expect(drift!.observedAmount).toBe(1116.67);
     expect(drift!.delta).toBe(116.67);
   });
@@ -105,7 +105,7 @@ describe('detectRuleDrift', () => {
     expect(detectRuleDrift(rule(), refunds)).toBeNull();
   });
 
-  it('excludes a bill far BELOW the rule — that is a different bill, not drift', () => {
+  it('excludes a bill far BELOW the rule â€” that is a different bill, not drift', () => {
     const small = STEADY.map(([d, a]) => [d, a / 4] as [string, number]);
     expect(detectRuleDrift(rule(), charges('Small Co', small))).toBeNull();
   });
@@ -162,3 +162,61 @@ describe('detectAllRuleDrift', () => {
     expect(detectAllRuleDrift([rule()], charges('Landlord Co', onTarget))).toEqual([]);
   });
 });
+
+// Bundle guard. Synthetic, but the SHAPE is the real failure (Tre, 2026-08-13): a landlord bills
+// base rent, internet, water and a smart-home system as ONE debit, and the user models it as four
+// rules that already sum to about what the bank charges. Reported per-rule that reads as "the big
+// one is low", and accepting it leaves the other three in place and overstates the total.
+describe('bundleExplainsBetter â€” several rules, one charge', () => {
+  const BUNDLE: DriftRule[] = [
+    rule({ id: 'r1', name: 'Housing', amount: 1000, due_day: 1 }),
+    rule({ id: 'r2', name: 'Net', amount: 50, due_day: 1 }),
+    rule({ id: 'r3', name: 'Water', amount: 30, due_day: 1 }),
+    rule({ id: 'r4', name: 'Home', amount: 20, due_day: 1 }),
+  ];
+
+  it('says nothing about one member when the bundle explains the charge better', () => {
+    // Bundle totals 1100 against a 1116.67 recent average â€” off by 16.67. The Housing rule alone is
+    // off by 116.67, which is what the panel would have offered to "correct".
+    expect(detectRuleDrift(BUNDLE[0], charges('Landlord Co', STEADY), BUNDLE)).toBeNull();
+  });
+
+  it('still reports it when the siblings are not passed â€” the guard needs them', () => {
+    expect(detectRuleDrift(BUNDLE[0], charges('Landlord Co', STEADY))).not.toBeNull();
+  });
+
+  it('identifies the bundle and its total', () => {
+    const b = bundleExplainsBetter(BUNDLE[0], BUNDLE, 1116.67);
+    expect(b).not.toBeNull();
+    expect(b!.total).toBe(1100);
+    expect(b!.ruleNames).toEqual(['Housing', 'Net', 'Water', 'Home']);
+  });
+
+  it('does NOT suppress a genuinely separate bill billed on the same day', () => {
+    // The one that must survive: a utility on the same account and day, whose own rule explains its
+    // charge far better than the housing bundle does.
+    const power = rule({ id: 'p1', name: 'Power', amount: 100, due_day: 1 });
+    const POWER: [string, number][] = [
+      ['2026-06-04', 165], ['2026-07-05', 170], ['2026-08-06', 175],
+    ];
+    const drift = detectRuleDrift(power, charges('Power Co', POWER), [...BUNDLE, power]);
+    expect(drift).not.toBeNull();
+    expect(drift!.observedAmount).toBe(170);
+    expect(drift!.delta).toBe(70);
+  });
+
+  it('does not bundle rules due on different days', () => {
+    const apart = BUNDLE.map((r, i) => ({ ...r, due_day: i + 1 }));
+    expect(bundleExplainsBetter(apart[0], apart, 1116.67)).toBeNull();
+  });
+
+  it('does not bundle an income rule with an expense rule', () => {
+    const income = rule({ id: 'i1', name: 'Paycheck', amount: 100, due_day: 1, rule_type: 'income', deposit_account: ACCT });
+    expect(bundleExplainsBetter(BUNDLE[0], [...BUNDLE.slice(0, 1), income], 1116.67)).toBeNull();
+  });
+
+  it('a bundle of one is just the rule, and never suppresses it', () => {
+    expect(bundleExplainsBetter(BUNDLE[0], [BUNDLE[0]], 1116.67)).toBeNull();
+  });
+});
+
