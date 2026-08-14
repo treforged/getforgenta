@@ -225,6 +225,13 @@ export function detectRuleDrift(
   // Monthly only in v1. A weekly or biweekly rule's "month" is two or four billings, so the
   // once-a-month identification rule does not describe it and averaging would compare unlike things.
   if (rule.frequency !== 'monthly') return null;
+  // ⚠️ A MERCHANT DOES NOT BILL YOU FOR A TRANSFER OR AN INVESTMENT. Seen live on 2026-08-13: the
+  // panel told Tre "Roth IRA has billed about $140.74 for 6 months" — those are Duke Energy's power
+  // bills, and the card offered to rewrite a $100/mo Roth IRA contribution to $170. `investment` and
+  // `transfer` rules move money between the user's OWN accounts on a schedule they choose; there is
+  // no merchant on the other end whose price could drift, so any merchant matching one is a
+  // coincidence of amount. Three of the seven cards on screen were this.
+  if (rule.rule_type !== 'expense' && rule.rule_type !== 'income') return null;
 
   // `RuleRow` leaves both columns optional while the matcher's contract is `string | null`; the two
   // mean the same thing here and the adapter says so once rather than at every call site.
@@ -351,7 +358,32 @@ export function detectAllRuleDrift(
     const drift = detectRuleDrift(rule, charges, rules);
     if (drift) out.push(drift);
   }
-  return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+  // ⚠️ THE MIRROR AMBIGUITY, AND IT IS THE ONE THAT ACTUALLY BIT. `detectRuleDrift` guards the
+  // ambiguity it can see from where it stands — two merchants competing for ONE rule is silence.
+  // It cannot see the other direction, because it is called once per rule and never learns that the
+  // merchant it just claimed was claimed by four others too. Live on 2026-08-13, Duke Energy was
+  // claimed by Electricity, Internet, Roth IRA, Robinhood Contributions and Owners Contribution;
+  // Banner Life by Water/Sewer/Trash, Phone Bill to Mom and Smart Home. Seven cards, every one
+  // wrong, each with a one-tap accept writing a number into a rule that feeds every forecast.
+  //
+  // ⚠️ THIS IS THE SAME BUG THE BANK-ACTIVITY QUEUE FOUND AND FIXED ON THE SAME DAY — three
+  // identical CFX tolls each confidently claiming the one $10 ledger entry, because `matchCharge`
+  // guards candidates and not claimants. Two surfaces, one blind spot, and it is worth naming so the
+  // third one does not repeat it.
+  //
+  // A contested merchant yields silence for EVERY claimant, including the one that happens to be
+  // right. That is a real loss — Electricity genuinely has drifted — and it is still the correct
+  // trade while the tiebreaker is amount: two rules of $100 on one account cannot be told apart by
+  // arithmetic. The principled fix is to prefer a rule the user has already LINKED to that merchant
+  // in `synced_transaction_reviews`, which is recorded fact rather than a guess; until that is
+  // wired in, saying nothing beats naming the wrong rule.
+  const claimants = new Map<string, number>();
+  for (const drift of out) claimants.set(drift.merchantKey, (claimants.get(drift.merchantKey) ?? 0) + 1);
+
+  return out
+    .filter(drift => claimants.get(drift.merchantKey) === 1)
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 }
 
 /**

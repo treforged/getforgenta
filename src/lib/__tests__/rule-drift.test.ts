@@ -220,3 +220,32 @@ describe('bundleExplainsBetter â€” several rules, one charge', () => {
   });
 });
 
+
+// The mirror ambiguity, and the rule types that have no merchant. Both seen live 2026-08-13:
+// one power company was claimed by five different rules, three of which were an investment
+// contribution, a brokerage contribution and an owner draw.
+describe('one merchant, several rules', () => {
+  it('says nothing when two rules both claim the same merchant', () => {
+    const a = rule({ id: 'a', name: 'Power', amount: 100, due_day: 1 });
+    const b = rule({ id: 'b', name: 'Internet', amount: 100, due_day: 1 });
+    const bills = charges('Power Co', [['2026-06-04', 165], ['2026-07-05', 170], ['2026-08-06', 175]]);
+    // Each is a confident single-merchant match on its own...
+    expect(detectRuleDrift(a, bills)).not.toBeNull();
+    expect(detectRuleDrift(b, bills)).not.toBeNull();
+    // ...and together they are a coin flip, so neither is reported.
+    expect(detectAllRuleDrift([a, b], bills)).toEqual([]);
+  });
+
+  it('still reports when only one rule claims the merchant', () => {
+    const only = rule({ id: 'a', name: 'Power', amount: 100, due_day: 1 });
+    const bills = charges('Power Co', [['2026-06-04', 165], ['2026-07-05', 170], ['2026-08-06', 175]]);
+    expect(detectAllRuleDrift([only], bills)).toHaveLength(1);
+  });
+
+  it('ignores investment and transfer rules — no merchant bills you for those', () => {
+    const bills = charges('Power Co', [['2026-06-04', 165], ['2026-07-05', 170], ['2026-08-06', 175]]);
+    for (const kind of ['investment', 'transfer'] as const) {
+      expect(detectRuleDrift(rule({ id: kind, name: 'Contribution', amount: 100, rule_type: kind }), bills)).toBeNull();
+    }
+  });
+});
