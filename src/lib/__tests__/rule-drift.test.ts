@@ -3,7 +3,8 @@
 // The two shapes these are built around are the REAL failures, restated with invented numbers:
 // a rent-sized bill drifting a few percent above a stale rule, and a utility that has doubled.
 import { describe, it, expect } from 'vitest';
-import { detectRuleDrift, detectAllRuleDrift, describeDrift, bundleExplainsBetter, type DriftRule, type DriftCharge } from '../rule-drift';
+import { detectRuleDrift, detectAllRuleDrift, describeDrift, bundleExplainsBetter, linkedRulesByMerchant, type DriftRule, type DriftCharge } from '../rule-drift';
+import { normalizeMerchant } from '../merchant-memory';
 
 const ACCT = 'acct-1';
 
@@ -249,3 +250,34 @@ describe('one merchant, several rules', () => {
     }
   });
 });
+
+// The tiebreak. A contested merchant is silence UNLESS the user has already said, on Bank Activity,
+// which rule that merchant settles — that is a recorded decision, not a guess about a name.
+describe('linked-rule tiebreak', () => {
+  const bills = charges('Power Co', [['2026-06-04', 165], ['2026-07-05', 170], ['2026-08-06', 175]]);
+  const a = rule({ id: 'power', name: 'Power', amount: 100, due_day: 1 });
+  const b = rule({ id: 'net', name: 'Internet', amount: 100, due_day: 15 });
+  const link = (id: string, ruleId: string) => ({ synced_transaction_id: id, status: 'linked_rule', rule_id: ruleId });
+
+  it('names the linked rule and drops its rivals', () => {
+    const got = detectAllRuleDrift([a, b], bills, [link('Power Co-0', 'power')]);
+    expect(got).toHaveLength(1);
+    expect(got[0].ruleId).toBe('power');
+  });
+
+  it('stays silent when BOTH rivals are linked — still a coin flip', () => {
+    expect(detectAllRuleDrift([a, b], bills, [link('Power Co-0', 'power'), link('Power Co-1', 'net')])).toEqual([]);
+  });
+
+  it('ignores links that are not linked_rule', () => {
+    const ignored = { synced_transaction_id: 'Power Co-0', status: 'ignored', rule_id: 'power' };
+    expect(detectAllRuleDrift([a, b], bills, [ignored])).toEqual([]);
+  });
+
+  it('maps a link to its merchant, not just its charge', () => {
+    const map = linkedRulesByMerchant(bills, [link('Power Co-2', 'power')]);
+    expect([...(map.get(normalizeMerchant('Power Co')!) ?? [])]).toEqual(['power']);
+  });
+});
+
+

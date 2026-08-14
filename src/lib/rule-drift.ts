@@ -124,6 +124,18 @@ const mean = (values: readonly number[]) => values.reduce((a, b) => a + b, 0) / 
 /** Round to cents, so a recommendation is a number a person could type into the rule. */
 const cents = (value: number) => Math.round(value * 100) / 100;
 
+/**
+ * A decision the user already recorded on Bank Activity: "this charge settles that rule."
+ *
+ * The fields of a `synced_transaction_reviews` row this module reads. Only `linked_rule` rows carry
+ * a rule, and only those are consulted.
+ */
+export interface DriftRuleLink {
+  synced_transaction_id: string;
+  status: string;
+  rule_id?: string | null;
+}
+
 /** A set of rules that are billed together as one charge, and what they come to. */
 export interface RuleBundle {
   total: number;
@@ -347,9 +359,39 @@ export function detectRuleDrift(
  * them matters — not alphabetically and not by percentage, which would put a $12 subscription above
  * a $178 rent gap.
  */
+export function linkedRulesByMerchant(
+  charges: readonly DriftCharge[],
+  links: readonly DriftRuleLink[],
+): Map<string, Set<string>> {
+  const merchantOfCharge = new Map<string, string>();
+  for (const charge of charges) {
+    const key = normalizeMerchant((charge.merchant_name || charge.name || '').trim());
+    if (key) merchantOfCharge.set(charge.id, key);
+  }
+  const out = new Map<string, Set<string>>();
+  for (const link of links) {
+    if (link.status !== 'linked_rule' || !link.rule_id) continue;
+    const key = merchantOfCharge.get(link.synced_transaction_id);
+    if (!key) continue;
+    const set = out.get(key) ?? new Set<string>();
+    set.add(link.rule_id);
+    out.set(key, set);
+  }
+  return out;
+}
+
 export function detectAllRuleDrift(
   rules: readonly DriftRule[],
   charges: readonly DriftCharge[],
+  /**
+   * `synced_transaction_reviews` rows. THE TIEBREAKER FOR A CONTESTED MERCHANT, and the reason it is
+   * allowed to break a tie at all: a `linked_rule` row is the user saying "this charge settles that
+   * rule" in their own words. It is recorded fact, not a heuristic, so preferring it is not the
+   * merchant-name guessing `plaid-category-map.ts` forbids.
+   *
+   * Omitted = no tiebreak, and a contested merchant stays silent.
+   */
+  links: readonly DriftRuleLink[] = [],
 ): RuleDrift[] {
   const out: RuleDrift[] = [];
   for (const rule of rules) {
@@ -378,12 +420,24 @@ export function detectAllRuleDrift(
   // arithmetic. The principled fix is to prefer a rule the user has already LINKED to that merchant
   // in `synced_transaction_reviews`, which is recorded fact rather than a guess; until that is
   // wired in, saying nothing beats naming the wrong rule.
-  const claimants = new Map<string, number>();
-  for (const drift of out) claimants.set(drift.merchantKey, (claimants.get(drift.merchantKey) ?? 0) + 1);
+  const claimants = new Map<string, RuleDrift[]>();
+  for (const drift of out) {
+    const list = claimants.get(drift.merchantKey) ?? [];
+    list.push(drift);
+    claimants.set(drift.merchantKey, list);
+  }
 
-  return out
-    .filter(drift => claimants.get(drift.merchantKey) === 1)
-    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  const linked = linkedRulesByMerchant(charges, links);
+  const kept: RuleDrift[] = [];
+  for (const [merchantKey, rivals] of claimants) {
+    if (rivals.length === 1) { kept.push(rivals[0]); continue; }
+    // Contested. The user's own recorded links decide it, and ONLY if they decide it outright —
+    // two linked rivals is still a coin flip, and silence is the house answer to a coin flip.
+    const byLink = rivals.filter(r => linked.get(merchantKey)?.has(r.ruleId));
+    if (byLink.length === 1) kept.push(byLink[0]);
+  }
+
+  return kept.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 }
 
 /**

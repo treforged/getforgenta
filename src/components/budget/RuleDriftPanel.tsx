@@ -10,17 +10,21 @@
 // and the honest failure mode of forgetting a dismissal is that the app asks once more next time.
 import { useMemo, useState } from 'react';
 import { TrendingUp, X } from 'lucide-react';
-import { useAllSyncedTransactions, useRecurringRules } from '@/hooks/useSupabaseData';
+import { useAllSyncedTransactions, useRecurringRules, useSyncedTransactionReviews } from '@/hooks/useSupabaseData';
 import { detectAllRuleDrift, describeDrift, type RuleDrift } from '@/lib/rule-drift';
 import { formatCurrency } from '@/lib/calculations';
 
 export default function RuleDriftPanel() {
   const { data: synced = [] } = useAllSyncedTransactions();
   const { data: rules = [], update } = useRecurringRules();
+  // The user's own "this charge settles that rule" decisions, used ONLY to break a tie when several
+  // rules claim one merchant. Without them a contested merchant is silence — which is safe, and on
+  // real data was silencing a genuine drift the user had already told the app the answer to.
+  const { data: reviews = [] } = useSyncedTransactionReviews();
   const [dismissed, setDismissed] = useState<Record<string, true>>({});
   const [applying, setApplying] = useState<string | null>(null);
 
-  const drifts = useMemo(() => detectAllRuleDrift(rules, synced), [rules, synced]);
+  const drifts = useMemo(() => detectAllRuleDrift(rules, synced, reviews), [rules, synced, reviews]);
   const shown = drifts.filter(d => !dismissed[d.ruleId]);
 
   if (shown.length === 0) return null;
