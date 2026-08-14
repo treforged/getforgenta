@@ -1170,12 +1170,15 @@ export function simulateVariablePayoff(
   );
 
   // Manual interest-saving balance (CardData.statementBalance): the user-entered amount due
-  // at the card's next due date. Modeled as a synthetic payment pin on top of the real
-  // balance walk: months before the due month pay $0 (that cycle's statement was already
-  // paid before today), the due month pays exactly the entered amount, and every later month
-  // reverts to normal statement-preference behavior (the unbilled remainder becomes the next
-  // statement). The due month is month 0 when the card's due day hasn't passed yet this
-  // month, else month 1. A user override on the same card/month wins over the synthetic pin.
+  // at the card's next due date. Months before the due month pay $0 (that cycle's statement
+  // was already paid before today — a synthetic $0 pin); the due month pays the entered
+  // amount CAPPED BY THE CASH THE MONTH ACTUALLY HAS above the floor (a front-of-cascade
+  // target, see isbTargetThisMonth — mirrors generateRecommendations' min(ms, remaining));
+  // any uncovered remainder accrues at the standard rate via graceUnpaid (partial-ISB model).
+  // Every later month reverts to normal statement-preference behavior (the unbilled remainder
+  // becomes the next statement). The due month is month 0 when the card's due day hasn't
+  // passed yet this month, else 1. A user override on the same card/month wins over the
+  // synthetic behavior and stays unconditional (an explicit command, not a reported bill).
   const manualStatementByCard = new Map<string, { dueMonth: number; amount: number }>();
   for (const c of cards) {
     if (c.paymentPreference !== 'statement' || c.statementBalance == null || c.balance <= 0) continue;
@@ -1345,6 +1348,15 @@ export function simulateVariablePayoff(
     //   mandatoryShare — cash the pin consumes from the Step-2 cycling mandatory pool
     //                    (always 0 for a revolving card).
     const pinnedThisMonth = new Map<string, { step5Share: number; mandatoryShare: number }>();
+    // Due-month manual-ISB cards, card id → the Step-5 cascade share the ISB asks for (the
+    // entered amount, clamped at what the card owes, minus the mandatory installment due — the
+    // exact number the old synthetic pin paid). Unlike a user override, the ISB is an obligation
+    // the user REPORTED, not a payment they COMMANDED: it funds ahead of every discretionary
+    // extra but is capped by the cash the month actually has above the floor, exactly as the
+    // live recommendation already caps it (generateRecommendations' min(ms, remaining)). The
+    // uncovered remainder flows into graceUnpaid below and accrues at the card's standard rate —
+    // the partial-ISB model — instead of the payment draining cash through the floor.
+    const isbTargetThisMonth = new Map<string, number>();
     if (paymentOverridesByMonth || manualStatementByCard.size > 0) {
       for (const card of cards) {
         const userRaw = paymentOverridesByMonth?.[card.id]?.[m];
@@ -1375,10 +1387,16 @@ export function simulateVariablePayoff(
           // installmentCashCost, Step 2.5) comes out first and can't be pinned away.
           const instDue = Math.round(upfrontDueFor(card, instBal) * 100) / 100
             + Math.round((installmentChargeByMonth?.[m]?.[card.id] ?? 0) * 100) / 100;
-          pinnedThisMonth.set(card.id, {
-            mandatoryShare: 0,
-            step5Share: Math.max(0, Math.round((pin - instDue) * 100) / 100),
-          });
+          const step5Share = Math.max(0, Math.round((pin - instDue) * 100) / 100);
+          if (userRaw === undefined && ms !== undefined && m === ms.dueMonth) {
+            // Synthetic due-month ISB on a revolving card: cash-constrained cascade target,
+            // not a pin (see isbTargetThisMonth above). Pre-due months ($0 — statement already
+            // paid) and user overrides stay pinned; so does the paid-off branch above, where a
+            // due-month ISB on an already-cycling card keeps the old unconditional behavior.
+            isbTargetThisMonth.set(card.id, step5Share);
+          } else {
+            pinnedThisMonth.set(card.id, { mandatoryShare: 0, step5Share });
+          }
         }
       }
     }
@@ -1440,6 +1458,12 @@ export function simulateVariablePayoff(
         const revBal = Math.max(0, bal - instBal);
         const instMinPay = upfrontDueFor(c, instBal);
         if (pin) return s + pin.step5Share + instMinPay;
+        // A due-month ISB card reserves its full ISB target, exactly as the old pin did — the
+        // statement money outranks the cycling pool whenever the month can afford it. The
+        // reservation only shrinks the pool (max(0, …) below); it never forces the payment,
+        // which Step 5 still caps at the cash the month actually has.
+        const isbT = isbTargetThisMonth.get(c.id);
+        if (isbT !== undefined) return s + isbT + instMinPay;
         // Q11: settled cards have no month-0 revolving min to reserve (cycle already paid).
         const revMin = (m === 0 && c.m0MinSettled) ? 0 : revolvingMinDue(c, revBal);
         return s + revMin + instMinPay;
@@ -1670,6 +1694,12 @@ export function simulateVariablePayoff(
     // startBal+interest (avoid prepaying new purchases); backlog cards have no purchases mixed
     // in to begin with, so their full backlog amount is always the target.
     const cascadeTarget = (card: CardData): number => {
+      // Due-month manual ISB: the target is exactly the entered amount (installment-adjusted,
+      // see isbTargetThisMonth) — never the whole statement-cycle carry-over. The unbilled
+      // remainder is not yet due, so the cascade must not pay past it; a shortfall below it is
+      // what graceUnpaid carries.
+      const isbT = isbTargetThisMonth.get(card.id);
+      if (isbT !== undefined) return isbT;
       if (balBeforePayment.has(card.id)) {
         // Cascade targets only the revolving (non-installment) portion — the installment
         // payment is already handled as a mandatory deduction in Step 2.5/Step 6.
@@ -1803,11 +1833,17 @@ export function simulateVariablePayoff(
       );
       const strategyOrder = [...debtCards, ...backlogCards]
         .filter(c => !pinnedThisMonth.has(c.id)) // pinned cards sit outside the cascade entirely
-        .sort((a, b) =>
-          strategy === 'avalanche'
+        .sort((a, b) => {
+          // A due-month ISB card outranks every discretionary extra — its statement money is
+          // due THIS month, so it collects cascade cash before avalanche/snowball surplus does.
+          // It never outranks contract minimums: Step 5a pays every card's minimum first.
+          const aIsb = isbTargetThisMonth.has(a.id) ? 1 : 0;
+          const bIsb = isbTargetThisMonth.has(b.id) ? 1 : 0;
+          if (aIsb !== bIsb) return bIsb - aIsb;
+          return strategy === 'avalanche'
             ? avalancheApr(b) - avalancheApr(a)
-            : owedForCard(a.id) - owedForCard(b.id)
-        );
+            : owedForCard(a.id) - owedForCard(b.id);
+        });
 
       // ── Step 5a — Pay minimums ─────────────────────────────
       let remaining = availableCash;
