@@ -9,7 +9,6 @@ import CategoryIcon from '@/components/shared/CategoryIcon';
 import PremiumGate from '@/components/shared/PremiumGate';
 import AccountUpdateReminder from '@/components/shared/AccountUpdateReminder';
 import FounderNoteModal from '@/components/shared/FounderNoteModal';
-import OnboardingWizard from '@/components/onboarding/OnboardingWizard';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
 import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
@@ -150,7 +149,6 @@ interface DashboardGoalEntry {
 export default function Dashboard() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
-  const isReviewer = user?.email === 'reviewer@getforgenta.com';
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
 
@@ -183,7 +181,6 @@ export default function Dashboard() {
   const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: { label: string; value: string; op?: string }[] } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
-  const [wizardVisible, setWizardVisible] = useState(false);
   const onboardingInitRef = useRef(false);
 
   useEffect(() => {
@@ -203,32 +200,24 @@ export default function Dashboard() {
     if (isDemo || profileLoading || debtsLoading || goalsLoading || acctLoading || onboardingInitRef.current) return;
     onboardingInitRef.current = true;
     const alreadySeenThisSession = sessionStorage.getItem(FOUNDER_NOTE_KEY) === '1';
-    // One-shot onboarding decision, latched by onboardingInitRef so it runs once
+    // One-shot founder-note decision, latched by onboardingInitRef so it runs once
     // per mount. It waits on four async queries (profile/debts/goals/accounts)
     // and reads sessionStorage, so it can be decided neither during render nor in
     // a lazy initializer — the inputs simply do not exist yet at mount.
+    //
+    // The onboarding wizard used to be the other branch here. It retired on 2026-08-14:
+    // /onboarding is the single flow now (it gained this modal's bank-connect step), the
+    // route gate sends anyone unfinished there, and what remains on this page is the
+    // checklist nudge below.
     if (profile?.founder_note_seen === false && !alreadySeenThisSession) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFounderNoteVisible(true);
-    } else if (
-      profile?.onboarding_completed === false &&
-      !sessionStorage.getItem('forged:onboarding_wizard_dismissed') &&
-      (isReviewer || (accounts.length === 0 && debts.length === 0 && goals.length === 0))
-    ) {
-      setWizardVisible(true);
     }
-  }, [isDemo, profileLoading, debtsLoading, goalsLoading, acctLoading, profile, accounts, debts, goals, isReviewer]);
+  }, [isDemo, profileLoading, debtsLoading, goalsLoading, acctLoading, profile]);
 
   const handleFounderNoteDismiss = () => {
     sessionStorage.setItem(FOUNDER_NOTE_KEY, '1');
     setFounderNoteVisible(false);
-    if (
-      profile?.onboarding_completed === false &&
-      !sessionStorage.getItem('forged:onboarding_wizard_dismissed') &&
-      (isReviewer || (accounts.length === 0 && debts.length === 0 && goals.length === 0))
-    ) {
-      setWizardVisible(true);
-    }
   };
 
   const essentialLoading = txnLoading || acctLoading || profileLoading;
@@ -1331,7 +1320,6 @@ export default function Dashboard() {
   return (
     <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
       {founderNoteVisible && <FounderNoteModal onDismiss={handleFounderNoteDismiss} />}
-      {wizardVisible && <OnboardingWizard onComplete={() => setWizardVisible(false)} onDismiss={() => setWizardVisible(false)} />}
       {!isDemo && <AppTour variant="new-user" />}
       <AccountUpdateReminder />
       {!isDemo && <SubscriptionExpiryBanner />}

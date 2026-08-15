@@ -6,6 +6,7 @@ import { MotionConfig } from 'framer-motion';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import BlackScreenDebug from "@/components/debug/BlackScreenDebug";
@@ -86,14 +87,23 @@ function PageLoader() {
   );
 }
 
+function GateNotice({ label }: { label: string }) {
+  return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-sm text-muted-foreground animate-pulse">{label}</span></div>;
+}
+
 function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.ReactNode; skipOnboardingCheck?: boolean }) {
   const { user, loading } = useAuth();
   const { isDemo } = useDemo();
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-sm text-muted-foreground animate-pulse">Authenticating…</span></div>;
+  // `profiles.onboarding_completed` is the store, with the old localStorage key as a cache and a
+  // migration source (src/lib/onboarding-state.ts). A device that already holds the key answers
+  // immediately; everyone else waits for one small query rather than being bounced into a wizard
+  // they finished on another device. `unknown` — the profile could not be read — never gates.
+  const onboarding = useOnboardingStatus();
+  if (loading) return <GateNotice label="Authenticating…" />;
   if (!user && !isDemo) return <Navigate to="/auth" replace />;
   if (!skipOnboardingCheck && user && !isDemo) {
-    const done = localStorage.getItem(`forged:onboarding_done_${user.id}`);
-    if (!done) return <Navigate to="/onboarding" replace />;
+    if (onboarding.status === 'pending') return <GateNotice label="Loading your setup…" />;
+    if (onboarding.status === 'needs-onboarding') return <Navigate to="/onboarding" replace />;
   }
   return <>{children}</>;
 }

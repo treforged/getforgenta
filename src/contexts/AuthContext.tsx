@@ -181,6 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStorage.removeItem('forged:onboarding_wizard_dismissed');
     sessionStorage.removeItem('forged:onboarding_step');
     qc.removeQueries({ queryKey: ['profile'] });
+    // The route gate caches its own read of onboarding_completed (useOnboardingStatus). Without
+    // this the reviewer's freshly-reset account would still be waved past /onboarding on the cached
+    // `true` from before the reset.
+    qc.removeQueries({ queryKey: ['onboarding-completed'] });
   }, [qc]);
 
   // ── Auth state listener ──────────────────────────────────────────────────
