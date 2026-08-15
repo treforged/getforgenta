@@ -171,15 +171,24 @@ export default function RulesFromHistoryDeck({ proposals, onClose }: RulesFromHi
           headline={added > 0
             ? `${added} ${added === 1 ? 'rule' : 'rules'} added to your budget`
             : 'No rules were added'}
-          lines={added > 0 ? (
+          lines={(
             <>
-              {state.decisions.map(accepted => <p key={accepted.ruleId}>{accepted.name}</p>)}
-              <p className="text-[10px]">
-                You can change the name, amount or day of any of them in Budget.
-              </p>
+              {added > 0 ? (
+                <>
+                  {state.decisions.map(accepted => <p key={accepted.ruleId}>{accepted.name}</p>)}
+                  <p className="text-[10px]">
+                    You can change the name, amount or day of any of them in Budget.
+                  </p>
+                </>
+              ) : (
+                <p>Your history is still there — nothing was skipped permanently.</p>
+              )}
+              {/* ⚠️ A HALF-FAILED BATCH SAYS SO HERE. `acceptAll` finishes the run, so the card that
+                  would have carried the error is gone by the time it exists — without this the
+                  headline reads "1 rule added" and a run where two writes were lost is
+                  indistinguishable from a clean one. */}
+              {error && <p className="text-destructive" role="alert">{error}</p>}
             </>
-          ) : (
-            <p>Your history is still there — nothing was skipped permanently.</p>
           )}
           onUndo={added > 0 && !undone ? undoAll : undefined}
           busy={busy}
