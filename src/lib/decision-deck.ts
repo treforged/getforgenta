@@ -80,26 +80,34 @@ export interface DeckDecision {
   previousCategory: string | null;
 }
 
-/** Where a run has got to. Immutable — every transition returns a new object. */
-export interface DeckState {
+/**
+ * Where a run has got to. Immutable — every transition returns a new object.
+ *
+ * ⚠️ GENERIC OVER WHAT A DECISION IS, so the sequencing is written once. The charge deck records a
+ * `DeckDecision`; the rules-from-history deck (`rules-deck.ts`) records an accepted rule. Both are
+ * "one item per screen, N of M, undo the run", and a second copy of that arithmetic is the thing
+ * `design/REDESIGN-PLAN.md` decision 5 calls a review-blocker. `DeckDecision` stays the default so
+ * every existing call site reads exactly as it did.
+ */
+export interface DeckState<D = DeckDecision> {
   /** Index of the card on screen. Equal to `total` once the run is finished. */
   index: number;
   /** Fixed when the run opens. See this file's header. */
   total: number;
-  decisions: readonly DeckDecision[];
+  decisions: readonly D[];
 }
 
-export function initialDeckState(cards: readonly unknown[]): DeckState {
+export function initialDeckState<D = DeckDecision>(cards: readonly unknown[]): DeckState<D> {
   return { index: 0, total: cards.length, decisions: [] };
 }
 
 /** Move to the next card without recording anything. This is what Skip does. */
-export function advanceDeck(state: DeckState): DeckState {
+export function advanceDeck<D>(state: DeckState<D>): DeckState<D> {
   return { ...state, index: Math.min(state.index + 1, state.total) };
 }
 
 /** Record what the user just decided and move on, in one transition. */
-export function recordDeckDecision(state: DeckState, decision: DeckDecision): DeckState {
+export function recordDeckDecision<D>(state: DeckState<D>, decision: D): DeckState<D> {
   return {
     ...state,
     index: Math.min(state.index + 1, state.total),
@@ -107,8 +115,15 @@ export function recordDeckDecision(state: DeckState, decision: DeckDecision): De
   };
 }
 
-export function isDeckComplete(state: DeckState): boolean {
+export function isDeckComplete<D>(state: DeckState<D>): boolean {
   return state.index >= state.total;
+}
+
+/** "N of M", and how full the bar is. Named so `DeckShell` can take it as one prop. */
+export interface DeckProgress {
+  position: number;
+  total: number;
+  percent: number;
 }
 
 /**
@@ -118,7 +133,7 @@ export function isDeckComplete(state: DeckState): boolean {
  * progress bar that failed to compute look identical, and there is no run to report on anyway — the
  * caller renders the honest empty state instead.
  */
-export function deckProgress(state: DeckState): { position: number; total: number; percent: number } | null {
+export function deckProgress<D>(state: DeckState<D>): DeckProgress | null {
   if (state.total === 0) return null;
   return {
     // Pinned to the last card at the end: a finished run reads "4 of 4", not "5 of 4".

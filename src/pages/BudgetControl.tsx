@@ -31,6 +31,7 @@ import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { matchOccurrence } from '@/lib/transaction-matching';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
+import RulesFoundCard from '@/components/rules/RulesFoundCard';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
@@ -1447,6 +1448,11 @@ export default function BudgetControl() {
       </div>
         </>}
       </div>
+
+      {/* The rules the bank history implies, for a user who has linked something since setting up.
+          Renders NOTHING when there is nothing to offer — never a "0 patterns" card, and never a
+          badge: it is an offer that sits on the page the rules live on, not a nag. */}
+      <RulesFoundCard />
 
       {/* KPI Summary + Remaining Cash On Hand */}
       <div className="space-y-3">

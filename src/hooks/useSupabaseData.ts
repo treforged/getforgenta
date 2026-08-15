@@ -136,15 +136,33 @@ export function useRecurringRules() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: Omit<TablesInsert<'recurring_rules'>, 'user_id'>) => {
+    /**
+     * ⚠️ RETURNS THE NEW ROW'S ID, and `quiet` suppresses only the toast — both for the
+     * rules-from-history deck (`components/rules/RulesFromHistoryDeck.tsx`), which accepts several
+     * proposals in one press and offers ONE undo for the run. The undo deletes exactly the rules
+     * that run created, so it needs their ids as they land; and one success toast per rule would
+     * bury the run's own summary under a stack of five. Neither changes what is written, and every
+     * existing caller ignores the return value and passes no flag, so both are additive.
+     */
+    mutationFn: async ({ quiet: _quiet, ...item }: Omit<TablesInsert<'recurring_rules'>, 'user_id'> & { quiet?: boolean }): Promise<string> => {
       if (isDemo || !user) throw new Error('Demo mode');
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
       }
-      const { error } = await supabase.from('recurring_rules').insert(sanitizePayload({ ...item, user_id: user.id }));
+      const { data, error } = await supabase.from('recurring_rules')
+        .insert(sanitizePayload({ ...item, user_id: user.id }))
+        .select('id')
+        .single();
       if (error) throw error;
+      // A write that reports success without the row it claims to have made is the silent failure
+      // this house keeps getting bitten by — the undo would then have nothing to delete.
+      if (!data?.id) throw new Error('The rule was not saved — the database returned no row.');
+      return data.id;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['recurring_rules'] }); toast.success('Recurring rule added'); },
+    onSuccess: (_id, variables) => {
+      qc.invalidateQueries({ queryKey: ['recurring_rules'] });
+      if (!variables.quiet) toast.success('Recurring rule added');
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   const update = useMutation({

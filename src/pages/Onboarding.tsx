@@ -23,6 +23,7 @@ import {
   writeOnboardingCache,
 } from '@/lib/onboarding-state';
 import BankConnectStep, { BankLinkedHint } from '@/components/onboarding/BankConnectStep';
+import RulesFoundCard from '@/components/rules/RulesFoundCard';
 import PremiumUpsellStep from '@/components/onboarding/PremiumUpsellStep';
 import DebtsStep from '@/components/onboarding/DebtsStep';
 import GoalsStep from '@/components/onboarding/GoalsStep';
@@ -385,11 +386,28 @@ export default function Onboarding() {
 
           {/* ── Bank connect (premium) ── */}
           {step === 'bank' && (
-            <BankConnectStep
-              linked={bankLinked}
-              onLinked={() => { setBankLinked(true); next(); }}
-              onSkip={next}
-            />
+            <div className="space-y-4">
+              <BankConnectStep
+                linked={bankLinked}
+                // Stays on this step once the link lands, rather than moving on immediately: the
+                // first sync is what the patterns deck reads, and it arrives a moment later. The
+                // card below appears if and when it finds something, and never otherwise.
+                onLinked={() => setBankLinked(true)}
+                onSkip={next}
+              />
+              {bankLinked && (
+                <>
+                  <RulesFoundCard />
+                  <button
+                    onClick={next}
+                    className="w-full flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-2.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  >
+                    Continue setup <ChevronRight size={13} />
+                  </button>
+                </>
+              )}
+            </div>
           )}
 
           {/* ── Premium pitch (free — the slot premium spends on Plaid) ── */}
