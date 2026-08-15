@@ -231,7 +231,7 @@ function GoalLumpSumPanel({
               <div key={yr}>
                 <div className="flex justify-between text-[10px] mb-0.5">
                   <span className="text-muted-foreground">{yr} Roth IRA</span>
-                  <span className={over ? 'text-destructive font-semibold' : warn ? 'text-amber-400' : 'text-muted-foreground'}>
+                  <span className={over ? 'text-destructive font-semibold' : warn ? 'text-gold' : 'text-muted-foreground'}>
                     {formatCurrency(total, false)} / {formatCurrency(ROTH_IRA_LIMIT, false)}{over ? ' ⚠ over!' : ''}
                   </span>
                 </div>

@@ -68,8 +68,8 @@ export default function SubscriptionExpiryBanner() {
   const urgent = daysLeft <= 3;
   const bannerCls = urgent
     ? 'border-destructive/40 bg-destructive/5'
-    : 'border-amber-500/30 bg-amber-500/5';
-  const iconCls = urgent ? 'text-destructive' : 'text-amber-500';
+    : 'border-gold/30 bg-gold/5';
+  const iconCls = urgent ? 'text-destructive' : 'text-gold';
 
   const expiryLabel =
     daysLeft === 0
