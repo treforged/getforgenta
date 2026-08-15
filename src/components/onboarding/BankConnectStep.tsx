@@ -40,7 +40,9 @@ export default function BankConnectStep({
 
       {linked ? (
         <div className="flex items-center gap-2 bg-success/10 border border-success/30 px-3 py-2.5 text-xs text-success font-medium" style={{ borderRadius: 'var(--radius)' }}>
-          <Check size={12} /> Bank connected — continuing…
+          {/* Says what is true and no more: the link succeeded. Whether the first sync has landed
+              is a separate question, and the step below it answers that one honestly. */}
+          <Check size={12} /> Bank connected
         </div>
       ) : (
         <div className="space-y-2">

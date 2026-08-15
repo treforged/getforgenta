@@ -20,7 +20,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { X, RotateCcw, ListChecks, PartyPopper } from 'lucide-react';
+import DeckShell from '@/components/shared/DeckShell';
+import DeckEndCard from '@/components/shared/DeckEndCard';
 import { CATEGORIES, type Category } from '@/lib/types';
 import { isValidCategory } from '@/lib/plaid-category-map';
 import { findExclusiveReview, type ReviewInput } from '@/lib/synced-transaction-review';
@@ -231,81 +232,38 @@ export default function DecisionDeck({
   }, [chips, complete, onAccept, onCategory, onClose, onSkip]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Decide your bank charges"
-      data-testid="decision-deck"
+    <DeckShell
+      label="Decide your bank charges"
+      progress={progress}
+      complete={complete}
+      onClose={onClose}
+      closeLabel="Browse all"
+      testId="decision-deck"
+      hint={card ? 'Swipe right to confirm, left to skip — or use ← → and 1-9 for the categories.' : undefined}
     >
-      <div className="mx-auto w-full max-w-md px-4 pt-4 pb-10 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">
-            {complete ? 'Done' : `${progress?.position ?? 0} of ${progress?.total ?? 0}`}
-          </p>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-          >
-            <ListChecks size={12} /> Browse all <X size={12} />
-          </button>
-        </div>
-
-        {/* The thin gold bar. Rendered only when there is a real reading — an empty deck has no run
-            to report on and gets the honest empty state below instead of a 0% track. */}
-        {progress && (
-          <div className="h-0.5 w-full bg-secondary" style={{ borderRadius: 'var(--radius)' }}>
-            <div
-              className="h-full bg-primary transition-[width] duration-200"
-              style={{ width: `${complete ? 100 : progress.percent}%` }}
-              data-testid="decision-deck-progress"
-            />
-          </div>
-        )}
-
         {!card || complete ? (
-          <div className="card-forged p-6 space-y-4 text-center">
-            <PartyPopper size={20} className="mx-auto text-primary" />
-            {/* Never a confident zero: a run that decided nothing says so in words rather than
-                rendering "0 decided" as though that were an achievement. */}
-            <p className="text-sm font-medium">
-              {summary.total > 0
-                ? `${summary.total} ${summary.total === 1 ? 'charge' : 'charges'} decided`
-                : 'Nothing was decided this time'}
-            </p>
-            {summary.total > 0 && (
-              <div className="space-y-0.5 text-xs text-muted-foreground">
+          <DeckEndCard
+            // Never a confident zero: a run that decided nothing says so in words rather than
+            // rendering "0 decided" as though that were an achievement.
+            headline={summary.total > 0
+              ? `${summary.total} ${summary.total === 1 ? 'charge' : 'charges'} decided`
+              : 'Nothing was decided this time'}
+            lines={summary.total > 0 ? (
+              <>
                 {summary.accepted > 0 && <p>{summary.accepted} linked to what the app already matched</p>}
                 {summary.categorized > 0 && <p>{summary.categorized} given a category</p>}
                 {summary.ignored > 0 && <p>{summary.ignored} ignored</p>}
                 <p className="text-[10px]">
                   Nothing was added to your ledger and no projected number moved.
                 </p>
-              </div>
-            )}
-            {summary.total > 0 && !undone && (
-              <button
-                onClick={() => { void undoAll(); }}
-                disabled={busy}
-                className="w-full flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-2.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors disabled:opacity-60"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                <RotateCcw size={12} /> {busy ? 'Undoing…' : 'Undo all'}
-              </button>
-            )}
-            {undone && (
-              <p className="text-xs text-muted-foreground">
-                Reversed. These charges are waiting on you again.
-              </p>
-            )}
-            <button
-              onClick={onClose}
-              className="w-full bg-primary text-primary-foreground px-3 py-2.5 text-xs font-semibold"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Back to your bank activity
-            </button>
-          </div>
+              </>
+            ) : undefined}
+            onUndo={summary.total > 0 && !undone ? () => { void undoAll(); } : undefined}
+            busy={busy}
+            undoneNote={undone ? 'Reversed. These charges are waiting on you again.' : undefined}
+            onDone={onClose}
+            doneLabel="Back to your bank activity"
+          />
         ) : (
           <DecisionDeckCard
             // Keyed on the charge, so React builds a new card rather than re-animating the old one.
@@ -326,13 +284,6 @@ export default function DecisionDeck({
             onIgnore={onIgnore}
           />
         )}
-
-        {!complete && card && (
-          <p className="text-[10px] text-muted-foreground text-center">
-            Swipe right to confirm, left to skip — or use ← → and 1-9 for the categories.
-          </p>
-        )}
-      </div>
-    </div>
+    </DeckShell>
   );
 }
