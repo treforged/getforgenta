@@ -360,7 +360,7 @@ export default function NativePaywall() {
       )}
 
       {isAndroid && redeemPhase === 'manual-restore' && (
-        <div className="border border-amber-500/30 rounded-lg p-4 space-y-2.5 bg-amber-500/5">
+        <div className="border border-gold/30 rounded-lg p-4 space-y-2.5 bg-gold/5">
           <p className="text-xs font-semibold">Almost there — one more step</p>
           <p className="text-[11px] text-muted-foreground">
             Your Play Store redemption was successful but Premium hasn't synced yet. Tap below to pull in your subscription.

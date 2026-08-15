@@ -66,14 +66,14 @@ export default function DuplicateTransactionWarning({
 
   return (
     <div
-      className={`border border-amber-500/40 bg-amber-500/10 p-3 sm:p-4 ${className}`}
+      className={`border border-gold/40 bg-gold/10 p-3 sm:p-4 ${className}`}
       style={{ borderRadius: 'var(--radius)' }}
       role="alert"
     >
       <div className="flex items-start gap-2 mb-2">
-        <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+        <AlertTriangle size={14} className="text-gold shrink-0 mt-0.5" />
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+          <p className="text-xs font-semibold text-gold">
             {title}
             {collisions.length > 1 ? ` — ${collisions.length} months` : ''}
           </p>

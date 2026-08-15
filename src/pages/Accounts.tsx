@@ -619,7 +619,7 @@ export default function Accounts() {
             )}
 
             {plaidSyncResult.accounts.some(a => a.type === 'credit_card' && !a.liability_synced) && (
-              <p className="text-[10px] text-amber-500 text-center leading-relaxed">
+              <p className="text-[10px] text-gold text-center leading-relaxed">
                 Card details (APR, limit, min) not available from this bank. Use Re-link in the Linked Banks section to retry.
               </p>
             )}
@@ -652,7 +652,7 @@ export default function Accounts() {
               </div>
             </div>
             {deleteConfirm.isLinked && (
-              <div className="bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-400 space-y-1" style={{ borderRadius: 'var(--radius)' }}>
+              <div className="bg-gold/10 border border-gold/30 px-3 py-2.5 text-xs text-gold space-y-1" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="font-semibold">This account is linked to Plaid.</p>
                 <p>Deleting it will disconnect the Plaid sync. It will no longer pull balance or transaction updates.</p>
               </div>
@@ -936,7 +936,7 @@ export default function Accounts() {
               .at(-1);
             return (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-gold'}`} />
                 {mostRecent
                   ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs daily at ${formatDailySyncTime()}`
                   : `Not yet synced · Syncs daily at ${formatDailySyncTime()}`}
@@ -1025,7 +1025,7 @@ export default function Accounts() {
                             const { text, isStale } = formatSyncStatus(item.last_synced_at);
                             return (
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />}
+                                {isStale && <span className="w-1.5 h-1.5 rounded-full bg-gold shrink-0 inline-block" />}
                                 {text}
                               </p>
                             );
@@ -1062,9 +1062,9 @@ export default function Accounts() {
                       </button>
                     </div>
                     {needsRelink && (
-                      <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2">
+                      <div className="flex items-center justify-between gap-3 bg-gold/10 border border-gold/20 rounded px-3 py-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <RefreshCw size={12} className="text-amber-500 shrink-0" />
+                          <RefreshCw size={12} className="text-gold shrink-0" />
                           <p className="text-xs text-muted-foreground">
                             {neverSynced || noAccounts
                               ? 'Sync pulled no accounts — re-link to try again.'

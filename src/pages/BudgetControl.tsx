@@ -8,6 +8,7 @@ import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import MetricCard from '@/components/shared/MetricCard';
+import CalcDrawer from '@/components/shared/CalcDrawer';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
@@ -152,32 +153,6 @@ function migrateOldDeductions(profile: Partial<Tables<'profiles'>>): PaycheckDed
   ].filter(d => d.val > 0);
   if (vals.length === 0) return null;
   return vals.map(d => ({ id: d.id, label: d.label, value: d.val, mode: d.mode as 'flat' | 'pct', preTax: d.preTax }));
-}
-
-// ── Calc detail drawer ────────────────────────────────────────────────────────
-function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
-  if (!open) return null;
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backgroundColor: 'hsl(var(--background) / 0.85)' }} onClick={onClose}>
-      <div className="card-forged p-6 w-full max-w-md space-y-3 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Info size={14} className="text-primary" /> {title}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
-        </div>
-        <div className="space-y-2 pt-2">
-          {lines.map((l, i) => (
-            <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
-              <span className="text-sm sm:text-base text-muted-foreground flex items-center gap-1.5">
-                {l.op && <span className="text-primary font-bold">{l.op}</span>}
-                {l.label}
-              </span>
-              <span className="text-sm sm:text-base font-display font-bold text-foreground">{l.value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function BudgetControl() {
@@ -1055,7 +1030,7 @@ export default function BudgetControl() {
             className={`text-[9px] px-1.5 py-0.5 border font-medium shrink-0 ${
               isFixedRule(r)
                 ? 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
-                : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                : 'bg-gold/10 text-gold border-gold/30 hover:bg-gold/20'
             }`}
             style={{ borderRadius: 'var(--radius)' }}
           >

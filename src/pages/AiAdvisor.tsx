@@ -140,7 +140,7 @@ function ScoreRing({ score, size = 88 }: { score: number; size?: number }) {
 function InsightCard({ insight }: { insight: Insight }) {
   const cfg = {
     positive: { Icon: CheckCircle2, border: 'border-green-500/25', bg: 'bg-green-500/8', label: 'text-green-400' },
-    warning:  { Icon: AlertTriangle, border: 'border-amber-500/25', bg: 'bg-amber-500/8', label: 'text-amber-400' },
+    warning:  { Icon: AlertTriangle, border: 'border-gold/25', bg: 'bg-gold/8', label: 'text-gold' },
     action:   { Icon: ChevronRight,  border: 'border-primary/20',   bg: 'bg-primary/6',   label: 'text-primary' },
   }[insight.type] ?? { Icon: ChevronRight, border: 'border-border/50', bg: 'bg-secondary/50', label: 'text-muted-foreground' };
 
@@ -433,7 +433,7 @@ function ConsentGate({
                 <span>Your prompts, chat messages, and relevant financial context (income, expenses, debts, savings goals) are sent to an AI model to generate responses.</span>
               </li>
               <li className="flex gap-2">
-                <span className="text-amber-400 shrink-0 mt-0.5">•</span>
+                <span className="text-gold shrink-0 mt-0.5">•</span>
                 <span><strong className="text-foreground">AI responses may be inaccurate, incomplete, or outdated.</strong> They are not financial, legal, tax, or investment advice. You are responsible for all financial decisions you make.</span>
               </li>
               <li className="flex gap-2">
