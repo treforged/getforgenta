@@ -911,10 +911,10 @@ export default function Transactions() {
           const canConvertToPlan = (isPremium || isDemo)
             && planDraftFromTransaction(t, { paymentSource: normalizeSource(t.payment_source) }).ok;
           return (
-            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-amber-500/40' : ''}`}>
+            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-gold/40' : ''}`}>
               <div className="flex items-center gap-3">
                 {isRecon
-                  ? <SlidersHorizontal size={14} className="text-amber-500" />
+                  ? <SlidersHorizontal size={14} className="text-gold" />
                   : <span className="text-base leading-none w-5 text-center shrink-0">{t.isDebtPayment ? '💳' : t.isCarLoanPayment ? '🚗' : t.type === 'income' ? '💰' : (CATEGORY_EMOJI[t.category] ?? '📦')}</span>
                 }
                 <div>
@@ -927,7 +927,7 @@ export default function Transactions() {
                     {pauseSavings && t.ruleId && savingsRuleIdsForBadge.has(t.ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
-                    {isRecon && <span className="text-[9px] text-amber-600 bg-amber-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
+                    {isRecon && <span className="text-[9px] text-gold bg-gold/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
                     {sourceMissing && <span className="text-destructive" aria-label="Linked account not found"><AlertTriangle size={10} /></span>}
                   </div>
                   <p className="text-xs text-muted-foreground">
