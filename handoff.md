@@ -1,5 +1,21 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-18 (segmented control) — **`3ae9199a` on `redesign/integration`, still all local: every panel selector in the app is now ONE oval segmented control.** Tre, verbatim: *"make the top navigation for tab sections, ovals like copilot and monarch do, its the better more premium design."* Gates: **tsc 0, 1546 passed / 18 skipped across 169**, build exit 0.
+>
+> **The style is defined ONCE in `src/index.css`: `seg-track`, `seg-item`, `seg-item-active`.** Five surfaces rendered panel selectors and they did NOT agree — Activity used an underline (`border-b-2 -mb-px`), while Dashboard, Debt Payoff, Accounts and the Garage each repeated the same bordered-button string inline. **Twelve buttons, two visual answers, no shared name.** Now one, and a new surface gets it by naming the class.
+>
+> ⚠️ **THE ROUND CORNER IS THE ONE EXCEPTION TO THE APP'S SQUARE `var(--radius)`, AND IT IS SCOPED ON PURPOSE.** Everything that HOLDS content — `card-forged`, inputs, modals — stays forged and square. Only this control, which holds nothing and exists to be pressed, goes fully round. **The chart range pickers (1Y/2Y/3Y/5Y) were deliberately left square** — they pick a range, not a panel. Do not spread `rounded-full` outward from here; the comment block in `index.css` says so at the definition.
+>
+> ⚠️ **THE TRACK SCROLLS, IT DOES NOT WRAP, AND THAT REPLACED A REAL MOBILE BEHAVIOUR.** Debt Payoff's five segments were `flex-col sm:flex-row` — they **stacked vertically on a phone**, reading as five unrelated buttons rather than one control. They now scroll horizontally inside the track. **Measured under the 390px clamp: the track clamps to 344px, right edge 362, scrolls internally (scrollWidth 772 > clientWidth), and ZERO elements outside the track and the charts exceed 392px.** The page never gains a scrollbar. The Bank Activity count badge went round too and flips to `bg-primary-foreground/20` on the active segment — on a filled gold oval the old `text-primary` badge would have been gold on gold.
+>
+> **🔬 LIVE-VERIFIED SIGNED IN on all four surfaces** (computed `border-radius: 9999px`, correct segment active, no page overflow): Activity (Budget Control | Planning | Bank Activity), Debt Payoff (5), Dashboard (2), Garage (3). **All three classes verified present in the BUILT stylesheet** (`dist/assets/index-*.css`) including the WebKit scrollbar rule, not just in source.
+>
+> ⬜ **Not yet re-checked after this change:** the Accounts sub-pill track inside the Dashboard's Accounts panel was converted and typechecks, but the browser probe read the OUTER track on that page — worth one look. Nothing else on the NEXT list moved.
+>
+> **⬜ NEXT, unchanged:** the inner spacing pass (Settings / Activity / Goals); the Settings merchant-memory reshape; Tre's review + ship decision; Slice 6 global store→category learning (ATTENDED); light mode; the small flagged items. ⚠️ Also still open from the entry below: **Tre has not said whether Budget Control should be the panel the page OPENS on** — it is first in the row but a fresh user still lands on Planning, one constant in `src/lib/activity-tab.ts`.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-18 (tab order) — **`f62551d1` on `redesign/integration`, still all local: the Activity row is `Budget Control | Planning | Bank Activity`.** Tre, verbatim: *"move budget control as the first tab of transactions"*. Gates: **tsc 0, 1546 passed / 18 skipped across 169** (+1), build exit 0.
 >
 > ⚠️ **ORDER ONLY, AND THE SEPARATION IS DELIBERATE.** The panel a user with nothing stored LANDS on is still **Planning** — `ACTIVITY_TAB_FALLBACK` is **not** `ACTIVITY_TABS[0]`, and a new test asserts that, so reordering the row can never silently change which panel opens for everyone. Tre asked for position, not for the landing panel; **if he wants Budget Control to be what opens, it is that one constant in `src/lib/activity-tab.ts` and the test line that pins it.** Live-verified signed in: row order renders, a cleared `tre:transactions:tab` still opens on Planning, `/budget` still lands on the Budget Control panel with the URL stripped clean.
