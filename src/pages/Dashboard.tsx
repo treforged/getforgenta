@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
@@ -1456,6 +1457,7 @@ export default function Dashboard() {
               <Plus size={13} /> Add
               <span className="sr-only"> Transaction</span>
             </Link>
+            <SurfaceGuide surface="dashboard" />
           </div>
         </div>
       </div>
@@ -1467,7 +1469,7 @@ export default function Dashboard() {
           The panel row is styled exactly like the Garage's (`Vehicles.tsx`). Two entries, so it
           stays one line even at 320px. */}
       <div className="stack-row">
-      <PanelBar surface="dashboard" panel={activeTab}>
+      <PanelBar>
         <button onClick={() => setActiveTab('overview')}
           className={`seg-item btn-press ${activeTab === 'overview' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>

@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import { TransactionsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
@@ -601,7 +602,9 @@ export default function Transactions() {
     <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">
       Activity
     </h1>
-
+    <div className="ml-auto">
+      <SurfaceGuide surface="transactions" />
+    </div>
   </div>
 
   {/* Tabs — planning stream vs what the bank reported.
@@ -609,7 +612,7 @@ export default function Transactions() {
       for and is waiting on. NOT a count of unreviewed rows — most rows are unreviewed by design and
       always will be; see `@/lib/bank-activity-queue`. `useBankReviewQueueCount` returns null rather
       than 0, so a quiet queue and a queue that has not loaded both render nothing. */}
-  <PanelBar surface="transactions" panel={activeTab}>
+  <PanelBar>
     {([
       // Budget Control leads (Tre, 2026-08-18: "move budget control as the first tab of
       // transactions") — the rules are what every other number on this page derives from, so it

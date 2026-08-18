@@ -39,7 +39,7 @@ function PreferencesModal({
       />
 
       <div
-        className="relative w-full max-w-md bg-card border border-border shadow-xl flex flex-col max-h-[85vh]"
+        className="relative w-full max-w-md bg-card border border-border shadow-xl flex flex-col max-h-full"
         style={{ borderRadius: 'var(--radius)' }}
       >
         {/* Header */}

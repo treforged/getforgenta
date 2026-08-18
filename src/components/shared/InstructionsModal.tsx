@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { BookOpen, X, Info, BarChart2 } from 'lucide-react';
 
-type Section = { title: string; body: string };
+type Section = { title: string; body: string; group?: string };
 
 type Props = {
   pageTitle: string;
@@ -24,13 +24,13 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))' }}
+          className="modal-overlay z-50"
+          style={{ background: 'rgba(0,0,0,0.85)' }}
           onClick={() => setOpen(false)}
         >
           <div
             className="card-forged w-full max-w-lg flex flex-col"
-            style={{ maxHeight: 'min(85vh, calc(100dvh - 2rem))' }}
+            style={{ maxHeight: '100%' }}
             onClick={e => e.stopPropagation()}
           >
             {/* Sticky header — always visible */}
@@ -52,6 +52,13 @@ export default function InstructionsModal({ pageTitle, sections }: Props) {
             <div className="overflow-y-auto px-4 sm:px-6 py-4 space-y-4">
               {sections.map((s, i) => (
                 <div key={i}>
+                  {/* A group heading only where the group CHANGES, so a combined guide reads
+                      as one document with parts rather than as a label repeated per block. */}
+                  {s.group && s.group !== sections[i - 1]?.group && (
+                    <p className="text-[10px] uppercase tracking-wider text-primary font-semibold mb-2 mt-2 first:mt-0">
+                      {s.group}
+                    </p>
+                  )}
                   <h3 className="text-xs font-semibold text-foreground mb-1">{s.title}</h3>
                   <p className="text-[11px] text-muted-foreground leading-relaxed">{s.body}</p>
                 </div>

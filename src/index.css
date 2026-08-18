@@ -150,6 +150,27 @@
    390px, and a wrapped selector reads as two rows of unrelated buttons. It
    scrolls horizontally inside its own box, so the PAGE never gains a scrollbar
    — the same rule the wide tables follow. */
+/* Every full-screen popup sits inside this.
+
+   The padding is symmetric and INCLUDES the safe areas, and the card inside is capped at
+   `max-h-full` rather than a viewport fraction. That pairing is the whole fix: the old
+   shape was 1rem of padding around a card capped at 85-90vh, which on a short screen adds
+   up to more than the viewport, so the card was clipped instead of scrolled — and a
+   one-sided `padding-top: max(1rem, env(safe-area-inset-top))` pushed it off centre on
+   top of that. Here the card can never be taller than the box it is centred in, so the
+   gap above and below is always equal and its own body does the scrolling. */
+@utility modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: calc(1rem + env(safe-area-inset-top));
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  padding-left: calc(1rem + env(safe-area-inset-left));
+  padding-right: calc(1rem + env(safe-area-inset-right));
+}
+
 @utility seg-track {
   @apply flex items-center gap-1 p-1 border border-border bg-secondary/50;
   @apply max-w-full overflow-x-auto;

@@ -1701,8 +1701,8 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           );
         };
         return (
-        <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center p-4" onClick={() => { setShowCatalog(false); setCustomLabel(''); }}>
-          <div className="card-forged p-5 w-full max-w-md space-y-4 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay bg-background/80 z-50" onClick={() => { setShowCatalog(false); setCustomLabel(''); }}>
+          <div className="card-forged p-5 w-full max-w-md space-y-4 max-h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h2 className="font-display font-semibold text-sm">Add Deduction</h2>
               <button onClick={() => { setShowCatalog(false); setCustomLabel(''); }} className="icon-btn text-muted-foreground hover:text-foreground"><X size={16} /></button>

@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Link, useSearchParams } from 'react-router';
@@ -1276,7 +1277,8 @@ export default function Vehicles() {
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Every vehicle from saving to payoff — and every build</p>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          <SurfaceGuide surface="garage" />
           {activeTab === 'saving' && (
             <button onClick={openAddSaving} className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
               <Plus size={12} /> Add Vehicle Goal
@@ -1321,7 +1323,7 @@ export default function Vehicles() {
       {/* The pill row and the panels it switches are ONE group (`stack-row`): a control row
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
-      <PanelBar surface="garage" panel={activeTab}>
+      <PanelBar>
         <button onClick={() => setActiveTab('saving')}
           className={`seg-item btn-press ${activeTab === 'saving' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
