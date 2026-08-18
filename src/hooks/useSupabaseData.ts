@@ -1484,6 +1484,37 @@ export function useCarBuildPhases(buildId: string | null) {
 }
 
 // ─── Car Build Items ─────────────────────────────────────
+/**
+ * Every build item the user owns, across all builds — read-only.
+ *
+ * ⚠️ SEPARATE FROM `useCarBuildItems(buildId)` ON PURPOSE. That one is the Garage's editor and is
+ * scoped to the build being edited; this one exists because Bank Activity has to offer a charge a
+ * destination without knowing which build it belongs to. Read-only by construction: the only thing
+ * outside the Garage that touches a build item is the `car_build_item_id` stamp on a ledger row,
+ * and that is written on the TRANSACTION, never here.
+ */
+export function useAllCarBuildItems() {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+
+  const query = useQuery({
+    queryKey: ['car_build_items', 'all', isDemo ? 'demo' : user?.id],
+    enabled: isDemo || !!user,
+    queryFn: async () => {
+      if (isDemo || !user) return demoCarBuildItems;
+      const { data, error } = await supabase
+        .from('car_build_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('sort_order');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error };
+}
+
 export function useCarBuildItems(buildId: string | null) {
   const { user } = useAuth();
   const { isDemo } = useDemo();

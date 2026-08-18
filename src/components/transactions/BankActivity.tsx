@@ -53,6 +53,12 @@ import { monthOf, isChargeHandled } from '@/lib/bank-activity-queue';
 import { detectTransferPairs, indexPairsByLeg, collapseTransferLegs, describeTransfer, type TransferPair } from '@/lib/transfer-pair-detection';
 import MerchantMemoryPanel from './MerchantMemoryPanel';
 import DecisionDeck from './DecisionDeck';
+import LinkPicker from './LinkPicker';
+import { useAllCarBuildItems } from '@/hooks/useSupabaseData';
+import {
+  pickableRules as buildPickableRules, pickablePlans as buildPickablePlans,
+  pickableCarCharges as buildPickableCarCharges, nearestLedgerOptions, amountLabel,
+} from '@/lib/review-link-options';
 import type { CarChargeKind } from '@/lib/synced-transaction-review';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { buildDeck } from '@/lib/decision-deck';
@@ -66,13 +72,6 @@ import { Link2, EyeOff, RotateCcw, Landmark, Plus, X, ListChecks, ArrowLeftRight
 
 /** How many rows render before the "show more" cut. All history is browsable; not all at once. */
 const PAGE_SIZE = 100;
-
-/** How many ledger entries the "link to a different entry" picker offers, nearest dates first. */
-const LEDGER_PICKER_LIMIT = 40;
-
-/** Days between two `YYYY-MM-DD` dates, for ordering the ledger picker around the charge. */
-const daysApart = (a: string, b: string) =>
-  Math.abs(new Date(`${a}T00:00:00`).getTime() - new Date(`${b}T00:00:00`).getTime()) / 86_400_000;
 
 /**
  * The two ways to read this tab.
@@ -91,6 +90,24 @@ export default function BankActivity() {
   const { data: accounts } = useAccounts();
   const { data: rules } = useRecurringRules();
   const { data: ledger } = useTransactions();
+  const { data: buildItems } = useAllCarBuildItems();
+
+  /**
+   * Build parts a charge may be recorded AS — the ones with no ledger entry yet.
+   *
+   * ⚠️ AN ITEM THAT ALREADY HAS AN ENTRY IS NOT OFFERED. Stamping a second transaction on it
+   * would leave the Garage choosing between two rows for one part with no rule for which wins, and
+   * the item edit panel reads exactly one (`transactions.find(t => t.car_build_item_id === id)`).
+   */
+  const unpaidBuildItems = useMemo(() => {
+    const paid = new Set(ledger.map(t => t.car_build_item_id).filter(Boolean));
+    return buildItems
+      .filter(b => !paid.has(b.id))
+      .map(b => ({
+        value: b.id,
+        label: b.price != null ? amountLabel(b.name, b.price) : b.name,
+      }));
+  }, [buildItems, ledger]);
   const { data: paymentPlans } = usePaymentPlans();
   const { data: carFunds } = useCarFunds();
 
@@ -254,11 +271,8 @@ export default function BankActivity() {
     [rows, queue.suggestions],
   );
 
-  /** Rules a charge may be linked to by hand. An inactive rule describes nothing that still bills. */
-  const pickableRules = useMemo(
-    () => rules.filter(r => r.active).slice().sort((a, b) => a.name.localeCompare(b.name)),
-    [rules],
-  );
+  /** Rules a charge may be linked to by hand — see `review-link-options.ts` for why active only. */
+  const pickableRules = useMemo(() => buildPickableRules(rules), [rules]);
 
   /**
    * §1B Stage 4C — payment plans a charge may be linked to. Active only, same reasoning as the
@@ -269,10 +283,7 @@ export default function BankActivity() {
    * and never as a ledger row — so before this existed, the only honest thing a user could do with a
    * BNPL/Plan-It charge was ignore it.
    */
-  const pickablePlans = useMemo(
-    () => paymentPlans.filter(p => p.active).slice().sort((a, b) => a.name.localeCompare(b.name)),
-    [paymentPlans],
-  );
+  const pickablePlans = useMemo(() => buildPickablePlans(paymentPlans), [paymentPlans]);
 
   /**
    * §1B Stage 4B — the vehicle charges a bank row may be linked to.
@@ -289,28 +300,7 @@ export default function BankActivity() {
    * already excludes lump sums, and it yields nothing at all for a loan that has not started or has
    * paid off — which is exactly the set of payments a charge could be settling.
    */
-  const pickableCarCharges = useMemo(() => {
-    const options: { value: string; label: string }[] = [];
-    const active = getActiveCarLoanPayments(carFunds);
-    for (const p of active) {
-      options.push({
-        value: `${p.carFundId}:loan_payment`,
-        label: `${p.vehicleName} · car payment · ${formatCurrency(p.payment, false)}`,
-      });
-    }
-    // Insurance is an OWNERSHIP cost, not a financing one — it outlives the loan and is anchored to
-    // `insurance_start_date ?? loan_start_date`, so it is listed off the fund's own premium rather
-    // than off the payment list above. A vehicle with no premium recorded bills nothing to link to.
-    for (const cf of carFunds) {
-      const premium = Number(cf.monthly_insurance || 0);
-      if (cf.phase !== 'loan' || premium <= 0) continue;
-      options.push({
-        value: `${cf.id}:insurance`,
-        label: `${cf.vehicle_name} · car insurance · ${formatCurrency(premium, false)}`,
-      });
-    }
-    return options;
-  }, [carFunds]);
+  const pickableCarCharges = useMemo(() => buildPickableCarCharges(carFunds), [carFunds]);
 
   /**
    * What one link badge says.
@@ -552,6 +542,10 @@ export default function BankActivity() {
           reviewsByCharge={reviewsByTxn}
           // The queue's own rules, so a remembered link can only ever name one the queue also saw.
           rules={rules}
+          // The other three destinations, so the deck's pickers offer exactly what the list's do.
+          paymentPlans={paymentPlans}
+          carFunds={carFunds}
+          ledger={ledger}
           // The parent's own mutations, passed down rather than re-instantiated: one write path per
           // decision, however the user made it. See `DecisionDeck.tsx`'s header.
           save={save}
@@ -1017,6 +1011,37 @@ export default function BankActivity() {
                             <Plus size={11} /> Add to my ledger
                           </button>
                         )}
+                        {/* … AND SAY WHAT IT WAS FOR. Tre, 2026-08-18, on the Lowered Empire
+                            steering wheel: *"why cant i choose to connect to an existing
+                            transaction?"* — there was no entry to connect it to, because the
+                            purchase had never been recorded.
+
+                            ⚠️ A BUILD ITEM IS NOT ONE OF THE FOUR LINK DESTINATIONS, deliberately.
+                            Those all point at something that BILLS; a build part is a purchase, so
+                            the honest shape is the one the ledger already has — the charge becomes
+                            a real entry and that entry carries `car_build_item_id`, the column the
+                            Garage already reads. No new review status and no migration, and the
+                            item shows as paid because both surfaces read the same row.
+
+                            ⚠️ Only items that DO NOT already have a ledger entry are offered.
+                            Stamping a second row on one would leave the Garage picking between two
+                            entries for one part with no rule for which wins. */}
+                        {plan?.ok && unpaidBuildItems.length > 0 && (
+                          <LinkPicker
+                            options={unpaidBuildItems}
+                            placeholder="…or add it as a build part"
+                            ariaLabel="Add this charge to your ledger as a car build part"
+                            onPick={value => importToLedger.mutate({
+                              syncedTransactionId: txn.id,
+                              // ⚠️ CATEGORY FORCED TO 'Car', and that is not the importer guessing.
+                              // Picking a build item IS the user asserting the charge is a car part;
+                              // leaving it under whatever the provider category mapped to would file
+                              // a wheel as Shopping in the very budget the Garage is meant to feed.
+                              draft: { ...plan.draft, category: 'Car', car_build_item_id: value },
+                            })}
+                            className="bg-secondary border border-border px-1.5 py-0.5 text-[11px] text-foreground max-w-full"
+                          />
+                        )}
                       </>
                     )}
 
@@ -1053,24 +1078,22 @@ export default function BankActivity() {
                   "link another". They close only on a terminal exclusive decision. */}
               {openPicker === 'rule' && !exclusiveHandled && (
                 <div className="pl-8">
-                  <select
-                    defaultValue=""
-                    onChange={e => {
-                      if (!e.target.value) return;
-                      const picked = pickableRules.find(r => r.id === e.target.value);
+                  <LinkPicker
+                    options={pickableRules.map(r => ({ value: r.id, label: amountLabel(r.name, r.amount) }))}
+                    placeholder="Which bill does this pay?"
+                    ariaLabel="Link this charge to a bill"
+                    onPick={value => {
+                      const picked = pickableRules.find(r => r.id === value);
                       if (!picked) return;
-                      save.mutate({
-                        synced_transaction_id: txn.id,
-                        status: 'linked_rule',
-                        rule_id: picked.id,
-                        ...ruleOccurrence(picked, txn.date),
-                        // No `category_override` — the label lives on the exclusive row. See the
-                        // suggestion button above.
-                      });
+                      save.mutate(acceptRuleInput(txn, picked));
                       // §1B TRANSFER PAIRS — naming what a movement was settles BOTH of its rows.
                       // Linking only the leg on screen would leave the other one in the queue as an
                       // orphan the user has already answered for, which is the noise this removes,
                       // only halved. The partner gets the same `'ignored'` the batch writes.
+                      //
+                      // ⚠️ THIS STAYS AT THE CALL SITE, not inside `LinkPicker`. It is a fact about
+                      // this LIST's transfer-pair model, not about linking a charge to a bill, and
+                      // burying it in the shared picker would perform it on every surface.
                       if (pair) {
                         const partner = pair.out.id === txn.id ? pair.in : pair.out;
                         save.mutate({
@@ -1081,113 +1104,50 @@ export default function BankActivity() {
                       }
                       setPicker(null);
                     }}
-                    className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground max-w-full"
-                    style={{ borderRadius: 'var(--radius)' }}
-                    aria-label="Link this charge to a bill"
-                  >
-                    <option value="">Which bill does this pay?</option>
-                    {pickableRules.map(r => (
-                      <option key={r.id} value={r.id}>{r.name} · {formatCurrency(Math.abs(Number(r.amount)), false)}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
               )}
 
               {openPicker === 'plan' && !exclusiveHandled && (
                 <div className="pl-8">
-                  <select
-                    defaultValue=""
-                    onChange={e => {
-                      if (!e.target.value) return;
-                      save.mutate({
-                        synced_transaction_id: txn.id,
-                        status: 'linked_plan',
-                        payment_plan_id: e.target.value,
-                        // A plan bills every month, so the link needs the month it settles for the
-                        // same reason a rule link does. No `category_override` — see above.
-                        occurrence_month: monthOf(txn.date),
-                      });
-                      setPicker(null);
-                    }}
-                    className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground max-w-full"
-                    style={{ borderRadius: 'var(--radius)' }}
-                    aria-label="Link this charge to a payment plan"
-                  >
-                    <option value="">Which plan does this pay?</option>
-                    {pickablePlans.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} · {formatCurrency(Math.abs(Number(p.payment_amount)), false)}
-                      </option>
-                    ))}
-                  </select>
+                  <LinkPicker
+                    options={pickablePlans.map(p => ({ value: p.id, label: amountLabel(p.name, p.payment_amount) }))}
+                    placeholder="Which plan does this pay?"
+                    ariaLabel="Link this charge to a payment plan"
+                    onPick={value => { save.mutate(acceptPlanInput(txn, value)); setPicker(null); }}
+                  />
                 </div>
               )}
 
               {openPicker === 'car' && !exclusiveHandled && (
                 <div className="pl-8">
-                  <select
-                    defaultValue=""
-                    onChange={e => {
-                      if (!e.target.value) return;
-                      // `<fundId>:<kind>` — one option value carrying both halves of the decision,
-                      // because a vehicle and a charge kind are only meaningful together and two
-                      // selects would let a user submit half of one.
-                      const [carFundId, kind] = e.target.value.split(':');
-                      save.mutate({
-                        synced_transaction_id: txn.id,
-                        status: 'linked_car',
-                        car_fund_id: carFundId,
-                        car_charge_kind: kind as CarChargeKind,
-                        // A car payment and its insurance both bill every month, so the link needs
-                        // the month it settles for the same reason a rule or plan link does. No
-                        // `category_override` — see above.
-                        occurrence_month: monthOf(txn.date),
-                      });
+                  <LinkPicker
+                    options={pickableCarCharges}
+                    placeholder="Which vehicle charge is this?"
+                    ariaLabel="Link this charge to a vehicle charge"
+                    onPick={value => {
+                      // `<fundId>:<kind>` — see `pickableCarCharges` for why one value carries both.
+                      const [carFundId, kind] = value.split(':');
+                      save.mutate(acceptCarInput(txn, carFundId, kind as CarChargeKind));
                       setPicker(null);
                     }}
-                    className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground max-w-full"
-                    style={{ borderRadius: 'var(--radius)' }}
-                    aria-label="Link this charge to a vehicle charge"
-                  >
-                    <option value="">Which vehicle charge is this?</option>
-                    {pickableCarCharges.map(o => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
               )}
 
               {openPicker === 'txn' && !handled && (
                 <div className="pl-8">
-                  <select
-                    defaultValue=""
-                    onChange={e => {
-                      if (!e.target.value) return;
-                      save.mutate({
-                        synced_transaction_id: txn.id,
-                        status: 'linked_txn',
-                        transaction_id: e.target.value,
-                        // Kept: `linked_txn` is exclusive and lands on the row owning the category.
-                        category_override: exclusive?.category_override ?? null,
-                      });
+                  <LinkPicker
+                    options={nearestLedgerOptions(ledger, txn.date)}
+                    placeholder="Which of your entries is this?"
+                    ariaLabel="Link this charge to an entry you already made"
+                    onPick={value => {
+                      // The category is KEPT: `linked_txn` is exclusive and lands on the row that
+                      // owns the label, so dropping it would wipe one the user set.
+                      save.mutate(acceptLedgerTxnInput(txn, value, exclusive?.category_override ?? null));
                       setPicker(null);
                     }}
-                    className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground max-w-full"
-                    style={{ borderRadius: 'var(--radius)' }}
-                    aria-label="Link this charge to an entry you already made"
-                  >
-                    <option value="">Which of your entries is this?</option>
-                    {/* Nearest dates first: the entry a bank charge belongs to is almost always
-                        within days of it, and the ledger spans months. */}
-                    {[...ledger]
-                      .sort((a, b) => daysApart(a.date, txn.date) - daysApart(b.date, txn.date))
-                      .slice(0, LEDGER_PICKER_LIMIT)
-                      .map(l => (
-                        <option key={l.id} value={l.id}>
-                          {l.date} · {l.category} · {formatCurrency(Math.abs(Number(l.amount)), false)}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </div>
               )}
             </div>

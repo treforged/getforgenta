@@ -24,20 +24,27 @@ import DeckShell from '@/components/shared/DeckShell';
 import DeckEndCard from '@/components/shared/DeckEndCard';
 import { type Category } from '@/lib/types';
 import { isValidCategory } from '@/lib/plaid-category-map';
-import { findExclusiveReview, type ReviewInput } from '@/lib/synced-transaction-review';
+import { findExclusiveReview, type ReviewInput, type CarChargeKind } from '@/lib/synced-transaction-review';
 import type { BankActivityRow, RuleRow, TransactionRow, SyncedTransactionReviewRow } from '@/hooks/useSupabaseData';
 import type { ObligationPlan } from '@/lib/charge-obligations';
 import { useMerchantMemory } from '@/hooks/useMerchantMemory';
 import { merchantRuleFor, merchantLabel } from '@/lib/merchant-memory';
 import { linkSuggestionFor } from '@/lib/merchant-link-memory';
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
-import { planSuggestionAccept, ignoreInput, acceptRuleInput } from '@/lib/review-write-inputs';
+import {
+  planSuggestionAccept, ignoreInput, acceptRuleInput, acceptPlanInput, acceptCarInput,
+  acceptLedgerTxnInput,
+} from '@/lib/review-write-inputs';
+import {
+  pickableRules as buildPickableRules, pickablePlans as buildPickablePlans,
+  pickableCarCharges as buildPickableCarCharges, nearestLedgerOptions, amountLabel,
+} from '@/lib/review-link-options';
 import {
   initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress, planDeckUndo,
   deckSummary, deckChipRow, remainingCategories,
   type DeckCard, type DeckDecision,
 } from '@/lib/decision-deck';
-import DecisionDeckCard from './DecisionDeckCard';
+import DecisionDeckCard, { type DeckLinkKind, type DeckLinkOptions } from './DecisionDeckCard';
 
 export type BankDeckCard = DeckCard<BankActivityRow, RuleRow, TransactionRow, ObligationPlan>;
 
@@ -59,6 +66,14 @@ export interface DecisionDeckProps {
   save: { mutateAsync: (input: ReviewInput) => Promise<unknown> };
   setCategory: { mutateAsync: (v: { syncedTransactionId: string; category: string | null }) => Promise<unknown> };
   remove: { mutateAsync: (syncedTransactionId: string) => Promise<unknown> };
+  /**
+   * The other three things a charge can be linked to, so the deck's pickers offer exactly what the
+   * list's do. Passed in for the same reason `rules` is: the deck must never be able to offer a
+   * destination the surface it is a view of would not.
+   */
+  paymentPlans: readonly { id: string; name: string; active?: boolean | null; payment_amount: number | string }[];
+  carFunds: readonly Parameters<typeof buildPickableCarCharges>[0][number][];
+  ledger: readonly { id: string; date: string; category: string; amount: number | string }[];
   /** "Browse all" — hands the user back to the list, which is never replaced or removed. */
   onClose: () => void;
 }
@@ -83,7 +98,8 @@ const errorMessage = (e: unknown): string =>
   e instanceof Error && e.message ? e.message : 'Something went wrong.';
 
 export default function DecisionDeck({
-  cards, accountName, reviewsByCharge, rules, save, setCategory, remove, onClose,
+  cards, accountName, reviewsByCharge, rules, paymentPlans, carFunds, ledger,
+  save, setCategory, remove, onClose,
 }: DecisionDeckProps) {
   // Snapshotted, deliberately — see this file's header. The prop may shrink under us as writes land.
   const [deck] = useState<readonly BankDeckCard[]>(cards);
@@ -212,6 +228,73 @@ export default function DecisionDeck({
     });
   }, [card, busy, currentCategoryOf, decide, save]);
 
+  /**
+   * What this charge could be linked to. Computed from the SAME selectors the list uses, so the two
+   * surfaces cannot offer different destinations for the same charge.
+   *
+   * The ledger list is ordered around THIS card's date, which is why it is inside the memo on
+   * `card` rather than computed once for the run.
+   */
+  const linkOptions = useMemo<DeckLinkOptions>(() => {
+    if (!card) return { rule: [], plan: [], car: [], txn: [] };
+    return {
+      rule: buildPickableRules(rules).map(r => ({ value: r.id, label: amountLabel(r.name, r.amount) })),
+      plan: buildPickablePlans(paymentPlans).map(p => ({ value: p.id, label: amountLabel(p.name, p.payment_amount) })),
+      car: buildPickableCarCharges(carFunds),
+      txn: nearestLedgerOptions(ledger, card.charge.date),
+    };
+  }, [card, rules, paymentPlans, carFunds, ledger]);
+
+  /**
+   * One manual link — Tre, 2026-08-18: *"why cant i choose to connect to an existing transaction?"*
+   *
+   * ⚠️ EVERY ROW HERE IS BUILT BY `review-write-inputs.ts`, exactly as the list's pickers build
+   * theirs. This file constructs no `save`-shaped object of its own; see the header.
+   *
+   * ⚠️ THE LIST'S TRANSFER-PAIR SIDE EFFECT IS NOT REPRODUCED. Linking a leg of a transfer pair
+   * in the list also ignores its partner, which is a fact about that surface's pair model rather
+   * than about linking; performing it from here would decide a SECOND charge the user was never
+   * shown, and the deck's contract is one card, one decision. The partner stays in the queue and
+   * gets its own card.
+   */
+  const onLink = useCallback((kind: DeckLinkKind, value: string) => {
+    if (!card || busy) return;
+    const charge = card.charge;
+    const previousCategory = currentCategoryOf(charge.id);
+    let input: ReviewInput | null;
+    let detail: string;
+    if (kind === 'rule') {
+      const picked = rules.find(r => r.id === value);
+      if (!picked) return;
+      input = acceptRuleInput(charge, picked);
+      detail = picked.name;
+    } else if (kind === 'plan') {
+      const picked = paymentPlans.find(p => p.id === value);
+      if (!picked) return;
+      input = acceptPlanInput(charge, value);
+      detail = picked.name;
+    } else if (kind === 'car') {
+      // `<fundId>:<kind>` — one value carrying both halves, see `pickableCarCharges`.
+      const [carFundId, chargeKind] = value.split(':');
+      if (!carFundId || !chargeKind) return;
+      input = acceptCarInput(charge, carFundId, chargeKind as CarChargeKind);
+      detail = linkOptions.car.find(o => o.value === value)?.label ?? 'vehicle charge';
+    } else {
+      // The category is KEPT: `linked_txn` IS the exclusive row, so dropping it would wipe a label.
+      input = acceptLedgerTxnInput(charge, value, previousCategory);
+      detail = linkOptions.txn.find(o => o.value === value)?.label ?? 'your entry';
+    }
+    if (!input) return;
+    const write = input;
+    void decide(() => save.mutateAsync(write), {
+      chargeId: charge.id,
+      kind: 'accepted',
+      merchantLabel: merchantLabel(charge) || '—',
+      detail,
+      previousCategory,
+    });
+  }, [card, busy, currentCategoryOf, decide, linkOptions, paymentPlans, rules, save]);
+
   /** Skip writes NOTHING. The charge stays in the queue, which is the honest record of a non-answer. */
   const onSkip = useCallback(() => {
     if (busy) return;
@@ -325,6 +408,8 @@ export default function DecisionDeck({
             onCategory={onCategory}
             onSkip={onSkip}
             onIgnore={onIgnore}
+          linkOptions={linkOptions}
+          onLink={onLink}
           />
         )}
     </DeckShell>

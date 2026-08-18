@@ -18,6 +18,8 @@ import { motion, type PanInfo } from 'framer-motion';
 import { EyeOff, Check, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import type { Category } from '@/lib/types';
+import LinkPicker from './LinkPicker';
+import type { LinkOption } from '@/lib/review-link-options';
 
 /**
  * How far a drag must travel before it counts as a decision, in px.
@@ -68,11 +70,39 @@ export interface DecisionDeckCardProps {
   onCategory: (category: Category) => void;
   onSkip: () => void;
   onIgnore: () => void;
+  /**
+   * The destinations this charge could be linked to, already selected and ordered by
+   * `review-link-options.ts` — the list's pickers read the same functions.
+   *
+   * ⚠️ A KIND WITH NO OPTIONS IS NOT RENDERED. An empty picker asserts a destination the user
+   * does not have, which is the rule the list already follows for plans and vehicle charges.
+   */
+  linkOptions: DeckLinkOptions;
+  /** Perform one link. The write is built by `review-write-inputs.ts`, never here. */
+  onLink: (kind: DeckLinkKind, value: string) => void;
 }
+
+/** The four things a charge can be linked to. Deliberately NOT five — see the note by the row. */
+export type DeckLinkKind = 'rule' | 'txn' | 'plan' | 'car';
+
+export type DeckLinkOptions = Readonly<Record<DeckLinkKind, readonly LinkOption[]>>;
+
+/**
+ * The four pickers, in the order the queue itself ranks a suggestion: a bill, then a plan, then a
+ * vehicle charge, then an entry you already made. Same precedence as `planSuggestionAccept`, so the
+ * manual route reads in the same order as the automatic one.
+ */
+const LINK_KINDS: readonly { kind: DeckLinkKind; placeholder: string; ariaLabel: string }[] = [
+  { kind: 'rule', placeholder: 'A bill…', ariaLabel: 'Link this charge to a bill' },
+  { kind: 'plan', placeholder: 'A payment plan…', ariaLabel: 'Link this charge to a payment plan' },
+  { kind: 'car', placeholder: 'A vehicle charge…', ariaLabel: 'Link this charge to a vehicle charge' },
+  { kind: 'txn', placeholder: 'An entry I already made…', ariaLabel: 'Link this charge to an entry you already made' },
+];
 
 export default function DecisionDeckCard({
   merchantLabel, amount, date, accountLabel, suggestionLabel, suggestionNote = null, chips,
   moreChips = [], currentCategory, busy, error, reducedMotion, onAccept, onCategory, onSkip, onIgnore,
+  linkOptions, onLink,
 }: DecisionDeckCardProps) {
   const isInflow = amount < 0;
   // Collapsed per card. The card is keyed on the charge in `DecisionDeck.tsx`, so opening the full
@@ -217,6 +247,42 @@ export default function DecisionDeckCard({
             </div>
           )}
         </div>
+
+        {/*
+          "OR CONNECT IT TO SOMETHING" — Tre, 2026-08-18: *"why cant i choose to connect to an
+          existing transaction?"* The deck could previously only CONFIRM a link the app had already
+          worked out; with no suggestion, a charge that was plainly one of his own entries had
+          nowhere to go but a category. These are the list's own four pickers, over the list's own
+          candidate lists (`review-link-options.ts`), writing the list's own rows
+          (`review-write-inputs.ts`).
+
+          ⚠️ "ADD TO MY LEDGER" IS STILL NOT HERE, and that is not an oversight. It is the one
+          control on this surface that CREATES money, it is gated by `planLedgerImport` rather than
+          by any component's conditionals, and the deck's whole premise is that every action on a
+          card is an annotation that moves no projected number. A charge that wants importing is
+          skipped and dealt with in the list.
+
+          ⚠️ A kind with no options is not rendered — an empty picker asserts a destination the
+          user does not have.
+        */}
+        {LINK_KINDS.some(k => linkOptions[k.kind].length > 0) && (
+          <div className="space-y-1.5">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Or connect it to something</p>
+            <div className="flex flex-wrap gap-1.5">
+              {LINK_KINDS.map(k => linkOptions[k.kind].length > 0 && (
+                <LinkPicker
+                  key={k.kind}
+                  options={linkOptions[k.kind]}
+                  placeholder={k.placeholder}
+                  ariaLabel={k.ariaLabel}
+                  disabled={busy}
+                  onPick={value => onLink(k.kind, value)}
+                  className="bg-secondary border border-border px-2.5 py-2 text-xs text-foreground max-w-full disabled:opacity-60"
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <button

@@ -10,7 +10,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import DecisionDeck, { type BankDeckCard } from '../DecisionDeck';
-import { acceptRuleInput, ignoreInput } from '@/lib/review-write-inputs';
+import { acceptRuleInput, ignoreInput, acceptLedgerTxnInput } from '@/lib/review-write-inputs';
 
 vi.mock('@/hooks/useMerchantMemory', () => ({
   useMerchantMemory: () => ({
@@ -60,6 +60,9 @@ function setup(overrides: Partial<React.ComponentProps<typeof DecisionDeck>> = {
       accountName={{ 'acct-1': 'Prime Visa' }}
       reviewsByCharge={{}}
       rules={[rentRule]}
+      paymentPlans={[]}
+      carFunds={[]}
+      ledger={[]}
       save={save}
       setCategory={setCategory}
       remove={remove}
@@ -249,5 +252,67 @@ describe('the end screen', () => {
     setup({ cards: [] });
     expect(screen.queryByTestId('decision-deck-progress')).toBeNull();
     expect(screen.getByText('Nothing was decided this time')).toBeTruthy();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE MANUAL PICKERS — Tre, 2026-08-18: "why cant i choose to connect to an existing transaction?"
+//
+// Before this the deck could only CONFIRM a link the app had already worked out, so a charge with
+// no suggestion had nowhere to go but a category. These pin the same rule as the accept tests: the
+// row a picker writes must be the row `review-write-inputs.ts` builds, not one assembled here.
+describe('DecisionDeck — linking by hand', () => {
+  const entry = { id: 'txn-9', date: '2026-08-18', category: 'Groceries', amount: 42.5 };
+
+  it('links to an entry the user already made, through the shared write builder', async () => {
+    const { save } = setup({ ledger: [entry] });
+    // Card 1 carries a suggestion; the picker matters on the card that does not, so skip to it.
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    const picker = await screen.findByLabelText('Link this charge to an entry you already made');
+    fireEvent.change(picker, { target: { value: 'txn-9' } });
+    await waitFor(() => expect(save.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(save.mutateAsync).toHaveBeenCalledWith(
+      acceptLedgerTxnInput({ id: 'c2', date: '2026-08-18' }, 'txn-9', null),
+    );
+  });
+
+  it('links to a bill through the same builder the list uses', async () => {
+    const { save } = setup({ ledger: [entry] });
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    const picker = await screen.findByLabelText('Link this charge to a bill');
+    fireEvent.change(picker, { target: { value: 'rule-1' } });
+    await waitFor(() => expect(save.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(save.mutateAsync).toHaveBeenCalledWith(
+      acceptRuleInput({ id: 'c2', date: '2026-08-18' }, rentRule),
+    );
+  });
+
+  // An empty picker asserts a destination the user does not have. The list already follows this
+  // rule for plans and vehicle charges; the deck must not invent a looser one.
+  it('renders no picker for a kind with nothing to pick', () => {
+    setup({ ledger: [] });
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    expect(screen.queryByLabelText('Link this charge to an entry you already made')).toBeNull();
+    expect(screen.queryByLabelText('Link this charge to a payment plan')).toBeNull();
+    expect(screen.queryByLabelText('Link this charge to a vehicle charge')).toBeNull();
+  });
+
+  // The one control that CREATES money is gated by `planLedgerImport` and belongs to the list. The
+  // deck's premise is that every action on a card moves no projected number.
+  it('never offers "Add to my ledger"', () => {
+    setup({ ledger: [entry] });
+    expect(screen.queryByText(/Add to my ledger/i)).toBeNull();
+  });
+
+  // A failed link must not slide the card forward — the same contract the accept path has.
+  it('stays on the card and says so when the link fails to save', async () => {
+    const save = { mutateAsync: vi.fn().mockRejectedValue(new Error('offline')) };
+    setup({ ledger: [entry], save });
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    const picker = await screen.findByLabelText('Link this charge to an entry you already made');
+    fireEvent.change(picker, { target: { value: 'txn-9' } });
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain('Not recorded');
+    expect(alert.textContent).toContain('still waiting on you');
   });
 });
