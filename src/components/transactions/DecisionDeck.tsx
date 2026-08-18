@@ -22,7 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import DeckShell from '@/components/shared/DeckShell';
 import DeckEndCard from '@/components/shared/DeckEndCard';
-import { CATEGORIES, type Category } from '@/lib/types';
+import { type Category } from '@/lib/types';
 import { isValidCategory } from '@/lib/plaid-category-map';
 import { findExclusiveReview, type ReviewInput } from '@/lib/synced-transaction-review';
 import type { BankActivityRow, RuleRow, TransactionRow, SyncedTransactionReviewRow } from '@/hooks/useSupabaseData';
@@ -34,7 +34,7 @@ import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
 import { planSuggestionAccept, ignoreInput, acceptRuleInput } from '@/lib/review-write-inputs';
 import {
   initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress, planDeckUndo,
-  deckSummary, orderCategoryChips, taughtCategoryOrder, chargeDirection,
+  deckSummary, deckChipRow,
   type DeckCard, type DeckDecision,
 } from '@/lib/decision-deck';
 import DecisionDeckCard from './DecisionDeckCard';
@@ -112,10 +112,10 @@ export default function DecisionDeck({
 
   const chips = useMemo<Category[]>(() => {
     if (!card) return [];
-    const taught = taughtCategoryOrder(merchantRules, merchantRuleFor(card.charge, merchantRules, suppressed));
-    // Direction REORDERS the row, never filters it — see `orderCategoryChips`. Before this, `Income`
-    // sat 25th of 26 against a nine-chip cap, so a paycheck card could not offer it at all.
-    return orderCategoryChips(taught, CATEGORIES, undefined, chargeDirection(card.charge.amount));
+    // This merchant's own answer, then the direction, then the frequency order — see `deckChipRow`.
+    // The direction has to sit AHEAD of the frequency order, not behind it: behind it, a user who
+    // has taught nine categories fills the row before `Income` is reached, which is what Tre saw.
+    return deckChipRow(merchantRules, merchantRuleFor(card.charge, merchantRules, suppressed), card.charge.amount);
   }, [card, merchantRules, suppressed]);
 
   /**

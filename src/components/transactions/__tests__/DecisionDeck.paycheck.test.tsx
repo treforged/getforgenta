@@ -41,9 +41,30 @@ function payrollLinkMemory(count = 22, ruleId = PAYCHECK_ID) {
 
 const linkRules = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
 
+/**
+ * The categories THIS USER has taught, and there have to be nine of them.
+ *
+ * ⚠️ AN EMPTY `rules: {}` IS WHY THIS FILE PASSED WHILE THE APP STILL HID THE CHIP. The taught
+ * order leads the row and a user who has taught `CHIP_LIMIT` categories fills it on their own —
+ * Tre had taught exactly nine, so the paycheck card he opened on 2026-08-18 showed `Other, Gas,
+ * Groceries, …` and no `Income`, with this test green. A fixture of nobody's data proves nothing
+ * about the person using the app.
+ */
+const taughtRules = vi.hoisted(() => {
+  const of = (key: string, category: string, decidedCount: number) =>
+    ({ key, label: key, category, decidedAt: null, decidedCount, conflictingCount: 0 });
+  return {
+    current: {
+      m1: of('m1', 'Other', 90), m2: of('m2', 'Gas', 80), m3: of('m3', 'Groceries', 70),
+      m4: of('m4', 'Travel', 60), m5: of('m5', 'Bills', 50), m6: of('m6', 'Business', 40),
+      m7: of('m7', 'Car', 30), m8: of('m8', 'Dining', 20), m9: of('m9', 'Entertainment', 10),
+    } as Record<string, unknown>,
+  };
+});
+
 vi.mock('@/hooks/useMerchantMemory', () => ({
   useMerchantMemory: () => ({
-    rules: {}, linkRules: linkRules.current, pass: { writes: [], byMerchant: [] },
+    rules: taughtRules.current, linkRules: linkRules.current, pass: { writes: [], byMerchant: [] },
     reviewsByCharge: {}, suppressed: {}, setSuppressed: () => {}, isLoading: false,
   }),
 }));

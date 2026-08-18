@@ -21,7 +21,7 @@ import { isValidCategory } from './plaid-category-map';
 import type { ReviewQueue, ChargeSuggestion, QueueCharge, QueueRule, QueueLedgerTxn } from './bank-activity-queue';
 import type { ObligationPlan } from './charge-obligations';
 import type { MerchantRule } from './merchant-memory';
-import type { Category } from './types';
+import { CATEGORIES, type Category } from './types';
 
 /**
  * How many category chips a card offers.
@@ -264,6 +264,38 @@ export function orderCategoryChips(
 ): Category[] {
   const leading = direction === 'in' ? MONEY_IN_CATEGORIES : [];
   return dedupe([...taught, ...leading, ...common].filter(isValidCategory)).slice(0, limit);
+}
+
+/**
+ * The chip row for ONE deck card: the merchant's own remembered answer, then the direction's
+ * categories, then the rest of what the user has taught, then the app's common list.
+ *
+ * ⚠️ WHY THIS EXISTS ON TOP OF `orderCategoryChips`. The direction lead shipped as a prefix sitting
+ * BEHIND the whole taught order, and `taughtCategoryOrder` returns every category the user has ever
+ * taught, sorted by how often. Tre had taught nine — exactly `CHIP_LIMIT` — so the row was full
+ * before the lead was reached and `Income` was STILL unreachable on his paycheck card, observed
+ * live on 2026-08-18 with the fix in the build. A fix that only works for a user who has taught the
+ * app almost nothing is not a fix for the person who has been using it.
+ *
+ * The principle the old order was protecting is narrower than the code was. What outranks the
+ * direction is the user's answer about THIS MERCHANT — their own previous decision about this row,
+ * which is why a correction must not look like it did not take. Their overall spending FREQUENCY is
+ * not an answer about this charge, and it is what was burying the lead. So the merchant's own
+ * category is pinned first, the direction follows it, and the frequency order comes after both.
+ *
+ * Nothing is filtered: past the cap the full list still follows, exactly as before.
+ */
+export function deckChipRow(
+  rules: Readonly<Record<string, MerchantRule>>,
+  merchantRule: MerchantRule | null,
+  amount: number | string | null | undefined,
+  common: readonly string[] = CATEGORIES,
+  limit: number = CHIP_LIMIT,
+): Category[] {
+  const taught = taughtCategoryOrder(rules, merchantRule);
+  const own = merchantRule ? [merchantRule.category] : [];
+  const leading = chargeDirection(amount) === 'in' ? MONEY_IN_CATEGORIES : [];
+  return orderCategoryChips([...own, ...leading, ...taught], common, limit);
 }
 
 const dedupe = (values: readonly string[]): Category[] => {

@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildDeck, initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress,
   planDeckUndo, orderCategoryChips, taughtCategoryOrder, deckSummary, CHIP_LIMIT,
-  chargeDirection, MONEY_IN_CATEGORIES,
+  chargeDirection, MONEY_IN_CATEGORIES, deckChipRow,
   type DeckDecision,
 } from '../decision-deck';
 import { buildReviewQueue, type ReviewQueue } from '../bank-activity-queue';
@@ -273,5 +273,66 @@ describe('orderCategoryChips — direction', () => {
 
   it('still caps at the limit with the inflow categories in front', () => {
     expect(orderCategoryChips([], CATEGORIES, 3, 'in')).toEqual(MONEY_IN_CATEGORIES.slice(0, 3));
+  });
+});
+
+// The direction lead shipped and STILL did not reach the user it was written for.
+//
+// Observed live on 2026-08-18, signed in, with `fa766cfb` in the build: card 1 of Tre's own run —
+// the $815.75 payroll deposit — offered `Other, Gas, Groceries, Travel, Bills, Business, Car,
+// Dining, Entertainment` and no `Income`. The lead was correct and unreachable: it sits BEHIND the
+// whole taught order, `taughtCategoryOrder` returns every category the user has ever taught sorted
+// by frequency, and Tre had taught nine — exactly the nine-chip cap. Every test above passed
+// because every one of them used a taught list of length 0 or 1.
+//
+// These tests therefore run against a NINE-category taught list and the REAL `CATEGORIES`: a
+// smaller fixture passes while the shipped row still hides the chip.
+describe('deckChipRow — the row a real user actually sees', () => {
+  const merchant = (key: string, category: string, decidedCount: number): MerchantRule => ({
+    key, label: key, category: category as MerchantRule['category'], decidedAt: null, decidedCount,
+    conflictingCount: 0,
+  });
+
+  /** Tre's own taught set on 2026-08-18, in his own frequency order. */
+  const TAUGHT: Readonly<Record<string, MerchantRule>> = {
+    m1: merchant('m1', 'Other', 90), m2: merchant('m2', 'Gas', 80),
+    m3: merchant('m3', 'Groceries', 70), m4: merchant('m4', 'Travel', 60),
+    m5: merchant('m5', 'Bills', 50), m6: merchant('m6', 'Business', 40),
+    m7: merchant('m7', 'Car', 30), m8: merchant('m8', 'Dining', 20),
+    m9: merchant('m9', 'Entertainment', 10),
+  };
+
+  it('offers Income on a paycheck card even when the taught list already fills the cap', () => {
+    const chips = deckChipRow(TAUGHT, null, -815.75);
+    expect(chips).toContain('Income');
+    expect(chips[0]).toBe('Income');
+    // The bite: the row as it shipped — the lead behind the whole taught order — cannot reach it.
+    expect(orderCategoryChips(taughtCategoryOrder(TAUGHT, null), CATEGORIES, CHIP_LIMIT, 'in'))
+      .not.toContain('Income');
+  });
+
+  it('still pins what the user taught about THIS merchant, ahead of the direction', () => {
+    // A correction has to look like it took. `Shopping` is a refund the user already filed here.
+    const chips = deckChipRow(TAUGHT, merchant('REI', 'Shopping', 3), -42);
+    expect(chips[0]).toBe('Shopping');
+    expect(chips[1]).toBe('Income');
+  });
+
+  it('leaves an expense card exactly as it was', () => {
+    expect(deckChipRow(TAUGHT, null, 42))
+      .toEqual(orderCategoryChips(taughtCategoryOrder(TAUGHT, null), CATEGORIES, CHIP_LIMIT));
+  });
+
+  it('reorders and never filters — the taught order still follows the direction', () => {
+    const chips = deckChipRow(TAUGHT, null, -815.75);
+    expect(chips).toHaveLength(CHIP_LIMIT);
+    // Income, Business, Savings, Investing, then the frequency order minus what was already used.
+    expect(chips.slice(0, 4)).toEqual([...MONEY_IN_CATEGORIES]);
+    expect(chips.slice(4)).toEqual(['Other', 'Gas', 'Groceries', 'Travel', 'Bills']);
+  });
+
+  it('reads an absent amount as no direction rather than as an expense', () => {
+    expect(deckChipRow(TAUGHT, null, null))
+      .toEqual(orderCategoryChips(taughtCategoryOrder(TAUGHT, null), CATEGORIES, CHIP_LIMIT));
   });
 });
