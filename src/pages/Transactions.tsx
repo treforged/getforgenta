@@ -573,7 +573,7 @@ export default function Transactions() {
   {/* Title Row */}
   <div className="flex items-center gap-3">
     <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">
-      Transactions
+      Activity
     </h1>
 
     <InstructionsModal

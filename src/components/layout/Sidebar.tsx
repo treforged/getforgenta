@@ -17,7 +17,11 @@ const navItems = [
   // how many separate tabs". The rail lost the row; the surface lost nothing.
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/budget', icon: Sliders, label: 'Budget Control' },
-  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
+  // 'Activity', not 'Transactions' — one name for the surface at every width (Tre, 2026-08-18:
+  // "why does transactions change to activity with smaller width. just keep it as activity all the
+  // time"). The rail used to keep the long name so the vocabulary stayed discoverable; a label that
+  // renames itself on a resize is worse than a short one.
+  { to: '/transactions', icon: ArrowLeftRight, label: 'Activity' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
   { to: '/vehicles', icon: Car, label: 'Garage' },
   { to: '/goals', icon: PiggyBank, label: 'Goals' },

@@ -18,8 +18,11 @@ import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 // five columns leave 66.8px of text width on a 390px phone (63.8px at 375, 52.8px at 320),
 // and "Transactions" renders 83.3px — it would truncate to "Transacti…" on EVERY phone.
 // "Activity" is 49.1px and fits even a 320px SE; it is also the label Apple Card, Venmo
-// and Robinhood use for the same surface. The full name is kept on the desktop rail and
-// in the More panel, so the app's vocabulary is still discoverable.
+// and Robinhood use for the same surface.
+// ⚠️ 2026-08-18: "Activity" is now the surface's name EVERYWHERE — the desktop rail and the page's
+// own <h1> say it too (Tre: "why does transactions change to activity with smaller width. just keep
+// it as activity all the time"). The old trade kept the long name on desktop for discoverability
+// and bought a label that renamed itself on a resize, which reads as two different pages.
 const PRIMARY = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Home' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Activity' },

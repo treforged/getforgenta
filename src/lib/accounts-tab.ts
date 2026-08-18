@@ -19,7 +19,14 @@
  * link said something we do not recognise" both have to leave the user's own remembered panel alone.
  */
 
-export const ACCOUNTS_TABS = ['balances', 'networth', 'banks'] as const;
+/**
+ * ⚠️ THERE IS NO `networth` PANEL ANY MORE (Tre, 2026-08-18: "leave the net worth chart at the top
+ * with the other key numbers. just make it a little smaller"). The chart moved into the summary
+ * card, above the pills, where it is visible on every panel — so the panel it used to live behind
+ * has nothing left in it. An old `?panel=networth` link therefore resolves to null and leaves the
+ * user's remembered panel alone, which is right: the thing it was pointing at is already on screen.
+ */
+export const ACCOUNTS_TABS = ['balances', 'banks'] as const;
 
 export type AccountsTab = (typeof ACCOUNTS_TABS)[number];
 
