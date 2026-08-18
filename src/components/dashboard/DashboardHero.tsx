@@ -26,7 +26,7 @@ const EMPTY_COPY: Record<HeroEmptyReason, { label: string; title: string; body: 
     label: 'Your debt-free date',
     title: 'Nothing to read yet',
     body: 'Connect a bank or add an account and your debt-free date lands here.',
-    action: { to: '/accounts', label: 'Add an account' },
+    action: { to: '/dashboard?tab=accounts', label: 'Add an account' },
   },
   projecting: {
     label: 'Your debt-free date',

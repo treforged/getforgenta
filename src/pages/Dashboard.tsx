@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
 import InstructionsModal from '@/components/shared/InstructionsModal';
@@ -66,16 +66,22 @@ import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendation
 import { useWidgetSync } from '@/hooks/useWidgetSync';
 import {
   Plus, ArrowUpRight, TrendingUp, Percent, Wallet, Repeat,
-  X, Car, Shield, Check, FileDown, LayoutDashboard,
+  X, Car, Shield, Check, FileDown, LayoutDashboard, Building2,
 } from 'lucide-react';
 import { exportDashboardPdf } from '@/lib/exportPdf';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
 import { widgetLabel, type WidgetId } from '@/lib/dashboard-widgets';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+// LAZY, not a plain import. Accounts was its own route chunk until today; importing it statically
+// folded ~40 kB of it into the Dashboard's chunk, i.e. every Overview paint paid for a panel most
+// visits never open. The split is what keeps the merge free.
+const Accounts = lazy(() => import('@/pages/Accounts'));
+import { usePersistedState } from '@/hooks/usePersistedState';
+import { dashboardTabFromSearch, type DashboardTab } from '@/lib/dashboard-tab';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
 // straight in the map would execute the widget's data-mapping during the
@@ -151,6 +157,26 @@ export default function Dashboard() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
+
+  /**
+   * Two panels instead of two tabs — the same shell the Garage uses for `Builds`, for the reason
+   * Tre gave on 2026-08-18: *"we need to reduce how many separate tabs. especially on mobile. they
+   * can have sections within tabs."* Accounts stopped being a route and became this page's second
+   * panel; `/accounts` redirects here naming it.
+   *
+   * The panel persists so the page reopens where the user left it, and a `?tab=` link overrides it
+   * ONCE and is then stripped — see `dashboard-tab.ts` for why an unknown value must not default.
+   */
+  const [activeTab, setActiveTab] = usePersistedState<DashboardTab>('tre:dashboard:activeTab', 'overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const askedTab = dashboardTabFromSearch(searchParams);
+  useEffect(() => {
+    if (!askedTab) return;
+    setActiveTab(askedTab);
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    setSearchParams(next, { replace: true });
+  }, [askedTab, searchParams, setSearchParams, setActiveTab]);
 
   const { data: transactions, loading: txnLoading } = useTransactions();
   const { data: accounts, loading: acctLoading } = useAccounts();
@@ -1424,6 +1450,35 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* The panel row, styled exactly like the Garage's (`Vehicles.tsx`). Two entries, so it
+          stays one line even at 320px. */}
+      <div className="flex gap-2">
+        <button onClick={() => setActiveTab('overview')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'overview' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <LayoutDashboard size={13} /> Overview
+        </button>
+        <button onClick={() => setActiveTab('accounts')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'accounts' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Building2 size={13} /> Accounts
+        </button>
+      </div>
+
+      {/*
+        ⚠️ RENDERED, NOT LINKED TO — and `Accounts` is unchanged apart from an `embedded` prop that
+        drops its duplicate <h1>. It owns its three sub-panels, its Add Account button and every
+        write it ever made, so hosting it here is a change of shell and nothing else. It is mounted
+        only on its own panel, so the Dashboard does not pay for its nine queries while a user is
+        looking at the Overview — the same trade the Garage makes for `Builds`.
+      */}
+      {activeTab === 'accounts' && (
+        <Suspense fallback={<div className="h-64" />}>
+          <Accounts embedded />
+        </Suspense>
+      )}
+
+      {activeTab === 'overview' && (<>
       {/* The hero. Fixed at the top: NOT a `useDashboardLayout` widget, so it is neither
           reorderable nor hideable — it is the one thing the page is for. */}
       <DashboardHero state={heroState} onFloorClick={openFloorCalc} />
@@ -1447,7 +1502,7 @@ export default function Dashboard() {
               { label: 'Forecast', desc: '60-month sim. Debt payoff adjusts monthly so end cash never sits idle — it goes straight to debt.', path: '/forecast' },
               { label: 'Transactions', desc: 'One-time income (tax refund, bonus) and expenses update cash flow and feed the debt engine.', path: '/transactions' },
               { label: 'Savings & Car Fund', desc: 'Goals track toward specific targets. The car fund models the full purchase: down payment + loan.', path: '/goals' },
-              { label: 'Accounts', desc: 'Net worth history, assets/liabilities breakdown, and all account balances in one place.', path: '/accounts' },
+              { label: 'Accounts', desc: 'Net worth history, assets/liabilities breakdown, and all account balances in one place.', path: '/dashboard?tab=accounts' },
             ].map(f => (
               <Link key={f.path} to={f.path} className="group flex gap-2.5 p-3 bg-secondary/40 hover:bg-secondary/70 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="min-w-0">
@@ -1472,6 +1527,7 @@ export default function Dashboard() {
           <Widget id={id} render={renderWidget} />
         </ErrorBoundary>
       ))}
+      </>)}
 
       {/* Customizer panel */}
       {isCustomizing && (

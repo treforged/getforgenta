@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark, PiggyBank,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight,
-  Sliders, TrendingUp, Building2, Home, Sparkles, Zap, Car,
+  Sliders, TrendingUp, Home, Sparkles, Zap, Car,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -13,8 +13,9 @@ import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 
 const navItems = [
+  // Accounts is a PANEL of the Dashboard now, not a row here — Tre, 2026-08-18: "we need to reduce
+  // how many separate tabs". The rail lost the row; the surface lost nothing.
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/accounts', icon: Building2, label: 'Accounts' },
   { to: '/budget', icon: Sliders, label: 'Budget Control' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },

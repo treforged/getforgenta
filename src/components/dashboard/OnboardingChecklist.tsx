@@ -62,7 +62,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
       key: 'accounts',
       label: 'Connect a bank account',
       description: 'Link via Plaid or add an account manually',
-      path: '/accounts',
+      path: '/dashboard?tab=accounts',
       autoDone: plaidItems.length > 0 || accounts.length > 0,
     },
     {

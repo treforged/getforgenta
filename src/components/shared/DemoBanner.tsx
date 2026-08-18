@@ -3,7 +3,6 @@ import { useDemo } from '@/contexts/DemoContext';
 
 const routeDescriptions: Record<string, string> = {
   '/dashboard':    'Overview of all accounts, cash flow, and net worth in one place',
-  '/accounts':     'Every account — checking, savings, credit cards, investments — tracked together',
   '/budget':       'Recurring rules power the forecast: income, bills, transfers, subscriptions',
   '/transactions': 'One-time income and expenses feed directly into the debt payoff engine',
   '/debt':         'Avalanche engine computes the fastest payoff path using every dollar above your cash floor',

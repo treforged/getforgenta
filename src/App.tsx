@@ -19,6 +19,7 @@ import Analytics from "@/components/shared/Analytics";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import FeatureInDevelopment from "@/components/shared/FeatureInDevelopment";
 import { AI_ADVISOR_ENABLED, ERROR_TEST_ENABLED } from "@/lib/feature-flags";
+import { ACCOUNTS_PANEL_PARAM, isAccountsTab } from "@/lib/accounts-tab";
 import { Sparkles } from "lucide-react";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
@@ -35,7 +36,6 @@ const PremiumSuccess = lazy(() => import("@/pages/PremiumSuccess"));
 const PremiumCancel = lazy(() => import("@/pages/PremiumCancel"));
 const BudgetControl = lazy(() => import("@/pages/BudgetControl"));
 const Forecast = lazy(() => import("@/pages/Forecast"));
-const Accounts = lazy(() => import("@/pages/Accounts"));
 const Legal = lazy(() => import("@/pages/Legal"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const AiAdvisor = lazy(() => import("@/pages/AiAdvisor"));
@@ -108,6 +108,23 @@ function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.Rea
   return <>{children}</>;
 }
 
+/**
+ * `/accounts` is no longer a page — it is the Dashboard's second panel (2026-08-18). This is a
+ * component and not a bare <Navigate> because the old URL carries LIVE COMMANDS that a fixed
+ * destination would drop: `/accounts?new=1&type=checking` opens the add-account form on arrival
+ * (`Accounts.tsx`), and `?tab=networth` named a sub-panel. The whole query string rides along; the
+ * sub-panel key is translated to `panel=` because the Dashboard's own selector owns `tab=`.
+ */
+function AccountsRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const askedPanel = params.get('tab');
+  params.delete('tab');
+  if (isAccountsTab(askedPanel)) params.set(ACCOUNTS_PANEL_PARAM, askedPanel);
+  params.set('tab', 'accounts');
+  return <Navigate to={`/dashboard?${params.toString()}`} replace />;
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -131,7 +148,6 @@ function AppRoutes() {
           the only honest options at that level. */}
       <Route element={<ProtectedRoute><ErrorBoundary label="The app" homeTo={null}><DashboardLayout /></ErrorBoundary></ProtectedRoute>}>
         <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Dashboard" homeTo={null}><Dashboard /></ErrorBoundary></Suspense>} />
-        <Route path="/accounts" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Accounts"><Accounts /></ErrorBoundary></Suspense>} />
         <Route path="/budget" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Budget Control"><BudgetControl /></ErrorBoundary></Suspense>} />
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Transactions"><Transactions /></ErrorBoundary></Suspense>} />
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Debt Payoff"><DebtPayoff /></ErrorBoundary></Suspense>} />
@@ -141,7 +157,8 @@ function AppRoutes() {
             bookmark and in-app link working and names the panel it meant — see `garage-tab.ts`. */}
         <Route path="/builds" element={<Navigate to="/vehicles?tab=builds" replace />} />
         <Route path="/garage" element={<Navigate to="/vehicles" replace />} />
-        <Route path="/net-worth" element={<Navigate to="/accounts" replace />} />
+        <Route path="/accounts" element={<AccountsRedirect />} />
+        <Route path="/net-worth" element={<Navigate to="/dashboard?tab=accounts" replace />} />
         <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Forecast"><Forecast /></ErrorBoundary></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Settings"><SettingsPage /></ErrorBoundary></Suspense>} />
         <Route path="/ai" element={AI_ADVISOR_ENABLED

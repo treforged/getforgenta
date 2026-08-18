@@ -83,7 +83,8 @@ describe('DashboardHero — no data', () => {
     expect(screen.getByText('Nothing to read yet')).toBeTruthy();
     expect(screen.getByText('Connect a bank or add an account and your debt-free date lands here.')).toBeTruthy();
     const action = screen.getByRole('link', { name: /Add an account/ });
-    expect(action.getAttribute('href')).toBe('/accounts');
+    // Accounts is this page's own second panel now — not a route to leave for and come back from.
+    expect(action.getAttribute('href')).toBe('/dashboard?tab=accounts');
     // Nothing in the empty hero may look like a reading.
     expect(container.textContent).not.toMatch(/\$/);
     expect(container.querySelector('.text-5xl')).toBeNull();

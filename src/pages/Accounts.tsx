@@ -25,7 +25,7 @@ import BalanceTrancheEditor from '@/components/shared/BalanceTrancheEditor';
 import { tranchesToRows, rowsToTranches, type TrancheFormRow } from '@/lib/tranche-form';
 import { AccountsSkeleton } from '@/components/shared/PageSkeleton';
 import { usePersistedState } from '@/hooks/usePersistedState';
-import { accountsTabFromSearch, type AccountsTab } from '@/lib/accounts-tab';
+import { accountsTabFromSearch, ACCOUNTS_PANEL_PARAM, type AccountsTab } from '@/lib/accounts-tab';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
@@ -147,7 +147,18 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
 const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', min_payment_is_manual: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
-export default function Accounts() {
+/**
+ * ⚠️ ACCOUNTS IS NOT A ROUTE ANY MORE. It is the Dashboard's second panel (Tre, 2026-08-18: "we
+ * need to reduce how many separate tabs. especially on mobile. they can have sections within
+ * tabs."), hosted the way the Garage hosts `Builds` — rendered, not linked to, and mounted only on
+ * its own panel so its nine queries do not run while the user is looking at the Overview.
+ *
+ * `embedded` suppresses ONLY the page <h1> and its subtitle, because the Dashboard already carries
+ * a page heading and two of them is the thing the merge was meant to remove. Everything else — the
+ * Add Account button, the three sub-panels, every modal — is untouched; those ARE the "sections
+ * within tabs" that were asked for.
+ */
+export default function Accounts({ embedded = false }: { embedded?: boolean } = {}) {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: accounts, add, update, remove, loading } = useAccounts();
@@ -180,7 +191,7 @@ export default function Accounts() {
     if (!askedTab) return;
     setActiveTab(askedTab);
     const next = new URLSearchParams(searchParams);
-    next.delete('tab');
+    next.delete(ACCOUNTS_PANEL_PARAM);
     setSearchParams(next, { replace: true });
   }, [askedTab, searchParams, setSearchParams, setActiveTab]);
   const [showForm, setShowForm] = useState(false);
@@ -597,7 +608,7 @@ export default function Accounts() {
   if (summaryLoading) return <AccountsSkeleton />;
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
+    <div className={embedded ? 'space-y-8 overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden'}>
       {/* Plaid link success overlay */}
       {plaidSyncResult && !plaidSyncing && (
         <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
@@ -711,7 +722,7 @@ export default function Accounts() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Accounts</h1>
+            {!embedded && <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Accounts</h1>}
             <InstructionsModal pageTitle="Accounts Guide" sections={[
               { title: 'What is this page?', body: 'Accounts is the centralized source of truth for all your financial balances — checking, savings, investments, retirement, credit cards, and loans.' },
               { title: 'How it connects', body: 'Account balances drive net worth, liquid cash calculations, debt payoff recommendations, and payment source availability across the entire app.' },
@@ -719,7 +730,7 @@ export default function Accounts() {
               { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
             ]} />
           </div>
-          <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>
+          {!embedded && <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>}
         </div>
         <button onClick={() => openAdd()} className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
           <Plus size={14} /> Add Account
