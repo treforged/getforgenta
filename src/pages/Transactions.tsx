@@ -620,9 +620,14 @@ export default function Transactions() {
       than 0, so a quiet queue and a queue that has not loaded both render nothing. */}
   <div className="flex items-center gap-1 border-b border-border">
     {([
+      // Budget Control leads (Tre, 2026-08-18: "move budget control as the first tab of
+      // transactions") — the rules are what every other number on this page derives from, so it
+      // reads left to right as cause then effect: the rules, what they project, what the bank did.
+      // ⚠️ ORDER ONLY. The panel a user with nothing stored LANDS on is still Planning
+      // (`ACTIVITY_TAB_FALLBACK`); first pill and default panel are deliberately separate here.
+      { id: 'budget' as const, label: 'Budget Control', count: null as number | null },
       { id: 'planning' as const, label: 'Planning', count: null as number | null },
       { id: 'bank' as const, label: 'Bank Activity', count: reviewQueueCount },
-      { id: 'budget' as const, label: 'Budget Control', count: null as number | null },
     ]).map(t => (
       <button
         key={t.id}

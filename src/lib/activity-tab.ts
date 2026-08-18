@@ -22,11 +22,21 @@
  * link said something we do not recognise" must both leave the user's own remembered panel alone.
  */
 
-export const ACTIVITY_TABS = ['planning', 'bank', 'budget'] as const;
+/**
+ * ⚠️ THIS ARRAY IS THE RENDER ORDER, AND IT IS NOT THE DEFAULT. Budget Control leads the row (Tre,
+ * 2026-08-18: "move budget control as the first tab of transactions") because the rules are what
+ * every other number on the surface derives from. A user with nothing stored still LANDS on
+ * `ACTIVITY_TAB_FALLBACK` — see below; the two are separate on purpose, so changing which pill is
+ * first never silently changes which panel opens.
+ */
+export const ACTIVITY_TABS = ['budget', 'planning', 'bank'] as const;
 
 export type ActivityTab = (typeof ACTIVITY_TABS)[number];
 
-/** The panel a stored value or a URL means, or `'planning'` when it means nothing we know. */
+/**
+ * Where a user with nothing stored lands, and where an unrecognised value heals to. NOT
+ * `ACTIVITY_TABS[0]` — deliberately, so the row can be reordered without moving the landing panel.
+ */
 export const ACTIVITY_TAB_FALLBACK: ActivityTab = 'planning';
 
 export function isActivityTab(value: string | null | undefined): value is ActivityTab {

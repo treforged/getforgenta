@@ -5,14 +5,22 @@
 import { describe, it, expect } from 'vitest';
 import {
   ACTIVITY_TABS,
+  ACTIVITY_TAB_FALLBACK,
   activityTabFromSearch,
   effectiveActivityTab,
   isActivityTab,
 } from '@/lib/activity-tab';
 
 describe('activity-tab', () => {
-  it('names exactly the three panels the page renders', () => {
-    expect([...ACTIVITY_TABS]).toEqual(['planning', 'bank', 'budget']);
+  it('names exactly the three panels the page renders, in the order the row shows them', () => {
+    expect([...ACTIVITY_TABS]).toEqual(['budget', 'planning', 'bank']);
+  });
+
+  it('does not land a fresh user on whichever pill happens to be first', () => {
+    // Would-fail: defining the fallback as ACTIVITY_TABS[0] makes reordering the row silently
+    // change which panel opens for everyone with nothing stored. The two are separate on purpose.
+    expect(ACTIVITY_TAB_FALLBACK).toBe('planning');
+    expect(ACTIVITY_TAB_FALLBACK).not.toBe(ACTIVITY_TABS[0]);
   });
 
   it('reads a panel a link asks for, from a string or a URLSearchParams', () => {
