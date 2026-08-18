@@ -172,3 +172,29 @@ describe('the deck and a paycheck', () => {
     expect(screen.queryByText(/times before/i)).toBeNull();
   });
 });
+
+// Tre, 2026-08-18, looking at the same card: "why is income or subscription not even an option".
+// `Income` was one symptom of the ordering; this is the general defect. Nine chips led by nine
+// taught categories means the deck could only ever offer a category he had ALREADY used, and there
+// was no affordance anywhere on the card to reach the rest of the app's list.
+describe('the deck and a category the user has never used', () => {
+  it('cannot offer Subscriptions in the nine, and offers a way to reach it', async () => {
+    const { setCategory } = setup();
+    // Not in the row: the nine are Income-led and then his own taught order.
+    expect(screen.queryByRole('button', { name: /Subscriptions/ })).toBeNull();
+
+    // The way out, and it names how many are left rather than hiding the size of the list.
+    fireEvent.click(await screen.findByRole('button', { name: /more/i }));
+
+    const subs = await screen.findByRole('button', { name: /Subscriptions/ });
+    fireEvent.click(subs);
+    await waitFor(() => expect(setCategory.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(JSON.stringify(setCategory.mutateAsync.mock.calls[0][0])).toContain('Subscriptions');
+  });
+
+  it('opens collapsed on every card, so the deck stays one decision and not a wall', async () => {
+    setup();
+    expect(await screen.findByRole('button', { name: /more/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Subscriptions/ })).toBeNull();
+  });
+});

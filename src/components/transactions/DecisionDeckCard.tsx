@@ -13,8 +13,9 @@
 // (`primary`) on the primary action only. Laid out for 390px first — everything below the amount is
 // in the lower two thirds of the screen, where a thumb reaches.
 
+import { useState } from 'react';
 import { motion, type PanInfo } from 'framer-motion';
-import { EyeOff, Check, ChevronRight, AlertTriangle } from 'lucide-react';
+import { EyeOff, Check, ChevronRight, ChevronDown, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import type { Category } from '@/lib/types';
 
@@ -48,6 +49,15 @@ export interface DecisionDeckCardProps {
    */
   suggestionNote?: string | null;
   chips: readonly Category[];
+  /**
+   * Everything the nine-chip row could not fit, behind a "More" toggle.
+   *
+   * ⚠️ WITHOUT THIS THE DECK CAN ONLY OFFER WHAT THE USER HAS ALREADY USED. The row leads with
+   * their taught categories, so nine taught categories fill it outright and a category they have
+   * never picked cannot appear — Tre, 2026-08-18, on a card offering neither `Income` nor
+   * `Subscriptions`. These carry no digit: the shortcut contract is `1`–`9` and it stays that way.
+   */
+  moreChips: readonly Category[];
   /** The category the charge already carries, so the chip row can show which one is current. */
   currentCategory: string | null;
   busy: boolean;
@@ -62,9 +72,13 @@ export interface DecisionDeckCardProps {
 
 export default function DecisionDeckCard({
   merchantLabel, amount, date, accountLabel, suggestionLabel, suggestionNote = null, chips,
-  currentCategory, busy, error, reducedMotion, onAccept, onCategory, onSkip, onIgnore,
+  moreChips = [], currentCategory, busy, error, reducedMotion, onAccept, onCategory, onSkip, onIgnore,
 }: DecisionDeckCardProps) {
   const isInflow = amount < 0;
+  // Collapsed per card. The card is keyed on the charge in `DecisionDeck.tsx`, so opening the full
+  // list on one charge does not leave it open on the next — the row's first nine are still the
+  // answer nearly every time, and an always-expanded list is the wall of choices the deck replaced.
+  const [showAll, setShowAll] = useState(false);
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
     if (busy) return;
@@ -169,7 +183,39 @@ export default function DecisionDeckCard({
                 {chip}
               </button>
             ))}
+            {/* The way out of the nine. Present whenever anything is left, and it names the count so
+                the user knows the list has an end. */}
+            {moreChips.length > 0 && !showAll && (
+              <button
+                onClick={() => setShowAll(true)}
+                disabled={busy}
+                className="flex items-center gap-1 border border-dashed border-border bg-transparent px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-60"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                <ChevronDown size={12} />
+                {moreChips.length} more
+              </button>
+            )}
           </div>
+          {showAll && moreChips.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {moreChips.map(chip => (
+                <button
+                  key={chip}
+                  onClick={() => onCategory(chip)}
+                  disabled={busy}
+                  className={`border px-2.5 py-2 text-xs font-medium transition-colors disabled:opacity-60 ${
+                    currentCategory === chip
+                      ? 'border-primary/40 text-primary bg-primary/10'
+                      : 'border-border bg-secondary text-foreground hover:border-primary/40'
+                  }`}
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">

@@ -34,7 +34,7 @@ import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
 import { planSuggestionAccept, ignoreInput, acceptRuleInput } from '@/lib/review-write-inputs';
 import {
   initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress, planDeckUndo,
-  deckSummary, deckChipRow,
+  deckSummary, deckChipRow, remainingCategories,
   type DeckCard, type DeckDecision,
 } from '@/lib/decision-deck';
 import DecisionDeckCard from './DecisionDeckCard';
@@ -117,6 +117,15 @@ export default function DecisionDeck({
     // has taught nine categories fills the row before `Income` is reached, which is what Tre saw.
     return deckChipRow(merchantRules, merchantRuleFor(card.charge, merchantRules, suppressed), card.charge.amount);
   }, [card, merchantRules, suppressed]);
+
+  /**
+   * The rest of the list, behind the card's "More" toggle.
+   *
+   * The nine chips are a shortlist, not the menu. Without this the deck could only ever offer a
+   * category the user had already used, because their taught categories lead the row and nine of
+   * them fill it — see `remainingCategories`.
+   */
+  const moreChips = useMemo<Category[]>(() => remainingCategories(chips), [chips]);
 
   /**
    * The rule this MERCHANT keeps getting linked to, when the matcher had nothing to say about this
@@ -307,6 +316,7 @@ export default function DecisionDeck({
             suggestionLabel={suggestionLabel}
             suggestionNote={suggestionNote}
             chips={chips}
+            moreChips={moreChips}
             currentCategory={currentCategoryOf(card.charge.id)}
             busy={busy}
             error={error}

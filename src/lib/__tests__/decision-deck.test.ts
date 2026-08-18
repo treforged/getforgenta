@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildDeck, initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress,
   planDeckUndo, orderCategoryChips, taughtCategoryOrder, deckSummary, CHIP_LIMIT,
-  chargeDirection, MONEY_IN_CATEGORIES, deckChipRow,
+  chargeDirection, MONEY_IN_CATEGORIES, deckChipRow, remainingCategories,
   type DeckDecision,
 } from '../decision-deck';
 import { buildReviewQueue, type ReviewQueue } from '../bank-activity-queue';
@@ -334,5 +334,29 @@ describe('deckChipRow — the row a real user actually sees', () => {
   it('reads an absent amount as no direction rather than as an expense', () => {
     expect(deckChipRow(TAUGHT, null, null))
       .toEqual(orderCategoryChips(taughtCategoryOrder(TAUGHT, null), CATEGORIES, CHIP_LIMIT));
+  });
+});
+
+// A nine-chip row plus a nine-category taught set means the app can only ever offer what the user
+// has ALREADY used. Tre, 2026-08-18, on the same paycheck card: "why is income or subscription not
+// even an option". `Income` was one symptom; the general defect is that `Subscriptions`, `Rent`,
+// `Utilities`, `Insurance`, `Health`, `Shopping` and `Debt Payments` were unreachable in the deck
+// full stop, with no affordance anywhere on the card to reach them.
+describe('remainingCategories — the rest of the list has to be reachable', () => {
+  it('offers every category the chip row could not fit', () => {
+    const chips = deckChipRow({}, null, 42);
+    const more = remainingCategories(chips);
+    expect(more).toContain('Subscriptions');
+    // Together they are the whole list, once: nothing is unreachable and nothing is offered twice.
+    expect([...chips, ...more].sort()).toEqual([...CATEGORIES].sort());
+  });
+
+  it('says nothing is left when the row already holds everything', () => {
+    expect(remainingCategories(CATEGORIES)).toEqual([]);
+  });
+
+  it('keeps the app\'s own order, so the overflow is not a shuffled pile', () => {
+    const more = remainingCategories(['Bills', 'Rent']);
+    expect(more[0]).toBe('Mortgage');
   });
 });

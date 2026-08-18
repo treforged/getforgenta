@@ -298,6 +298,30 @@ export function deckChipRow(
   return orderCategoryChips([...own, ...leading, ...taught], common, limit);
 }
 
+/**
+ * Everything the chip row could not fit, in the app's own order.
+ *
+ * ⚠️ WHY THE ROW NEEDS AN OVERFLOW AT ALL. The cap is nine and the row leads with what the user
+ * has taught, so a user who has taught nine categories fills it entirely with their own history —
+ * and then the deck can only ever offer a category they have ALREADY used. Tre hit this on
+ * 2026-08-18: "why is income or subscription not even an option". `Subscriptions`, `Rent`,
+ * `Utilities`, `Insurance`, `Health`, `Shopping` and `Debt Payments` were not buried, they were
+ * unreachable, and a deck that cannot express a new answer quietly teaches the user to give a wrong
+ * one.
+ *
+ * `chips` and this list are disjoint and together they are the whole of `common`, so nothing is
+ * offered twice and nothing is out of reach. The nine keep their `1`–`9` digits; these deliberately
+ * have none, because the shortcut contract is nine keys and a tenth digit nobody can see is worse
+ * than no shortcut.
+ */
+export function remainingCategories(
+  chips: readonly string[],
+  common: readonly string[] = CATEGORIES,
+): Category[] {
+  const shown = new Set(chips);
+  return dedupe(common.filter(category => !shown.has(category)));
+}
+
 const dedupe = (values: readonly string[]): Category[] => {
   const seen = new Set<string>();
   const out: Category[] = [];
