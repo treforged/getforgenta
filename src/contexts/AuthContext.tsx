@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { useNavigate, useLocation } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
+import { resetActivityTabForSignIn } from '@/lib/activity-tab';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { toast } from 'sonner';
@@ -223,6 +224,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? resetReviewerAccount(session.user.id)
           : Promise.resolve();
         if (locationRef.current === '/auth') {
+          // ⚠️ INSIDE the `/auth` branch on purpose. Signing in begins a new session and should
+          // open on the rules (Tre, 2026-08-18); a restored session or a re-fired SIGNED_IN is NOT
+          // a sign-in and must leave the panel the user last chose exactly where it was.
+          resetActivityTabForSignIn();
           reviewerResetPromise
             .then(() => supabase.auth.mfa.getAuthenticatorAssuranceLevel())
             .then(({ data: aal }) => {

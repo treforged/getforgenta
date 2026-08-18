@@ -623,8 +623,9 @@ export default function Transactions() {
       // Budget Control leads (Tre, 2026-08-18: "move budget control as the first tab of
       // transactions") — the rules are what every other number on this page derives from, so it
       // reads left to right as cause then effect: the rules, what they project, what the bank did.
-      // ⚠️ ORDER ONLY. The panel a user with nothing stored LANDS on is still Planning
-      // (`ACTIVITY_TAB_FALLBACK`); first pill and default panel are deliberately separate here.
+      // A fresh SIGN-IN also lands here (`resetActivityTabForSignIn`, called from AuthContext);
+      // within a session the panel is remembered. Tre, 2026-08-18: "it should land in whatever page
+      // the user looked at last, on sign in it should be budget control though."
       { id: 'budget' as const, label: 'Budget Control', count: null as number | null },
       { id: 'planning' as const, label: 'Planning', count: null as number | null },
       { id: 'bank' as const, label: 'Bank Activity', count: reviewQueueCount },

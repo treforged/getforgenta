@@ -34,10 +34,32 @@ export const ACTIVITY_TABS = ['budget', 'planning', 'bank'] as const;
 export type ActivityTab = (typeof ACTIVITY_TABS)[number];
 
 /**
- * Where a user with nothing stored lands, and where an unrecognised value heals to. NOT
- * `ACTIVITY_TABS[0]` — deliberately, so the row can be reordered without moving the landing panel.
+ * Where a fresh sign-in lands, where a user with nothing stored lands, and where an unrecognised
+ * value heals to. Tre, 2026-08-18: *"for the activity, it should land in whatever page the user
+ * looked at last, on sign in it should be budget control though."*
  */
-export const ACTIVITY_TAB_FALLBACK: ActivityTab = 'planning';
+export const ACTIVITY_TAB_FALLBACK: ActivityTab = 'budget';
+
+/** The one spelling of the key. Exported so the sign-in reset cannot drift from the reader. */
+export const ACTIVITY_TAB_STORAGE_KEY = 'tre:transactions:tab';
+
+/**
+ * Put the Activity surface back on Budget Control for a NEW SIGN-IN — not for a navigation, not
+ * for a token refresh, not for a restored session. "Land where you left off" and "start on the
+ * rules" are both true and they answer different questions: the persisted panel is the memory of a
+ * session, and signing in begins a new one.
+ *
+ * ⚠️ Writes JSON because `usePersistedState` reads JSON; a bare string would fail its parse and be
+ * discarded, which would look like the reset silently not happening.
+ */
+export function resetActivityTabForSignIn(storage: Pick<Storage, 'setItem'> = localStorage): void {
+  try {
+    storage.setItem(ACTIVITY_TAB_STORAGE_KEY, JSON.stringify(ACTIVITY_TAB_FALLBACK));
+  } catch {
+    // A full or blocked localStorage must never break a sign-in. The user simply lands on
+    // whatever panel they last used, which is the next-best answer rather than a broken one.
+  }
+}
 
 export function isActivityTab(value: string | null | undefined): value is ActivityTab {
   return typeof value === 'string' && (ACTIVITY_TABS as readonly string[]).includes(value);
