@@ -1,5 +1,13 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-18 (tab order) — **`f62551d1` on `redesign/integration`, still all local: the Activity row is `Budget Control | Planning | Bank Activity`.** Tre, verbatim: *"move budget control as the first tab of transactions"*. Gates: **tsc 0, 1546 passed / 18 skipped across 169** (+1), build exit 0.
+>
+> ⚠️ **ORDER ONLY, AND THE SEPARATION IS DELIBERATE.** The panel a user with nothing stored LANDS on is still **Planning** — `ACTIVITY_TAB_FALLBACK` is **not** `ACTIVITY_TABS[0]`, and a new test asserts that, so reordering the row can never silently change which panel opens for everyone. Tre asked for position, not for the landing panel; **if he wants Budget Control to be what opens, it is that one constant in `src/lib/activity-tab.ts` and the test line that pins it.** Live-verified signed in: row order renders, a cleared `tre:transactions:tab` still opens on Planning, `/budget` still lands on the Budget Control panel with the URL stripped clean.
+>
+> **⬜ NEXT is unchanged from the entry below** — the inner spacing pass (Settings / Activity / Goals), then the Settings merchant-memory reshape, then Tre's review + ship decision, then Slice 6 (ATTENDED), light mode, the small flagged items.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-18 (one fewer tab, again) — **ONE COMMIT ON `redesign/integration`, STILL ALL LOCAL: `9bdcf369` — Budget Control is the THIRD PANEL of Activity, not a tab of its own.** Gates on the committed tree: **tsc 0, 1545 passed / 18 skipped across 169 files** (was 1539 + 6 new), **build exit 0**. Backup at `backups/2026-08-18_activity-budget-merge/`.
 >
 > **⚠️ THE RECON CHANGED THE DESIGN AND THE COMMIT SAYS SO.** The brief said to copy `ad39ed1f` (Accounts hosted inside Dashboard). That would have been wrong here: `Transactions` **already owns a two-panel selector** (Planning | Bank Activity, `tre:transactions:tab`, since §1B), so nesting a second row would have put **two stacked pill rows** on one page — more chrome than it had, the opposite of "reduce how many separate tabs". Budget Control became a **third value of the selector that already existed**: one row, three panels, no second storage key, no `embedded` shell around a nested row, no `panel=` translation. The collision question the Accounts slice hit does not exist here — **neither page reads the query string at all**, so `?tab=` was free.
