@@ -174,6 +174,24 @@
   border-radius: 9999px;
 }
 
+/* The count that rides a segment.
+
+   ⚠️ IT MUST FLIP WITH THE SEGMENT, and this utility exists because two of the three
+   call sites did not. Tre, 2026-08-18: "when there is a notification for a section,
+   the number becomes invisible when you select it so the spacing looks off." A badge
+   pinned to `text-primary` is GOLD ON GOLD once its segment becomes the filled oval —
+   the digits vanish while the badge keeps its width, which is exactly the gap he saw.
+   Defined once here so a fourth call site cannot spell it a fourth way. */
+@utility seg-badge {
+  @apply ml-1 px-1.5 py-0.5 text-[10px] font-semibold leading-none;
+  @apply bg-primary/15 text-primary;
+  border-radius: 9999px;
+}
+
+@utility seg-badge-active {
+  @apply bg-primary-foreground/20 text-primary-foreground;
+}
+
 /* The filled oval. `bg-primary` + `text-primary-foreground` rather than a tinted
    outline, because the whole point of the reference designs is that the active
    segment is a SOLID shape you can find without reading. */

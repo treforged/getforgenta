@@ -893,14 +893,14 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           className={`seg-item btn-press ${effectiveTab === 'balances' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Wallet size={13} /> Balances
-          {activeAccounts.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{activeAccounts.length}</span>}
+          {activeAccounts.length > 0 && <span className={`seg-badge ${effectiveTab === 'balances' ? 'seg-badge-active' : ''}`}>{activeAccounts.length}</span>}
         </button>
         {!isDemo && (
           <button onClick={() => setActiveTab('banks')}
             className={`seg-item btn-press ${effectiveTab === 'banks' ? 'seg-item-active' : ''}`}
             style={{ borderRadius: 'var(--radius)' }}>
             <Link2 size={13} /> Linked Banks
-            {plaidItems.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{plaidItems.length}</span>}
+            {plaidItems.length > 0 && <span className={`seg-badge ${effectiveTab === 'banks' ? 'seg-badge-active' : ''}`}>{plaidItems.length}</span>}
           </button>
         )}
       </div>

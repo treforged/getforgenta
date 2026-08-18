@@ -640,10 +640,7 @@ export default function Transactions() {
         {t.label}
         {t.count !== null && (
           <span
-            className={`text-[10px] font-semibold px-1.5 py-0.5 leading-none ${
-              activeTab === t.id ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary'
-            }`}
-            style={{ borderRadius: '9999px' }}
+            className={`seg-badge ${activeTab === t.id ? 'seg-badge-active' : ''}`}
             title={`${t.count} bank ${t.count === 1 ? 'charge has' : 'charges have'} a suggested match waiting for you`}
           >
             {t.count}
