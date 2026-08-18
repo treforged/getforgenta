@@ -87,6 +87,12 @@ export interface QueueLedgerTxn {
 /** The one field of a review row the queue reads. */
 export interface QueueReview {
   status: string;
+  /**
+   * Optional so a caller testing pure status behaviour can omit it, but it is READ: a
+   * `'categorized'` row is only a terminal decision when it actually carries a label. See
+   * `isChargeHandled`.
+   */
+  category_override?: string | null;
 }
 
 /** A vehicle obligation a charge appears to settle — which car, and which of its two monthly bills. */
@@ -144,12 +150,29 @@ export function asMatchableLedger(txns: readonly QueueLedgerTxn[]): MatchableTra
 /**
  * Has the user made a TERMINAL decision about this whole charge?
  *
- * `'categorized'` is deliberately not one: correcting a label takes no position on whether the
- * charge was dealt with. A charge holding any link is handled — it settles something.
+ * A charge holding any link is handled — it settles something.
+ *
+ * ⚠️ A `'categorized'` row COUNTS, but only when it carries a label — Tre, 2026-08-18, after
+ * reporting that the Decision Deck "is not saving each item". It was saving: every chip press
+ * landed in `synced_transaction_reviews` as `'categorized'` + `category_override`. What it was not
+ * doing was letting the charge leave the queue, so a charge he had just answered came back as the
+ * next card. From the deck's seat the chip IS the answer to the card's one question, and a to-do
+ * that cannot be driven down is not a to-do.
+ *
+ * ⚠️ THIS REVERSES THE 2026-08-09 READING, DELIBERATELY AND ONLY HERE. `isHandledReview` is
+ * unchanged, which is the whole point: `BankActivity.tsx` uses THAT to decide whether to hide a
+ * charge's actions, so a labelled charge still offers every link, import and ignore it did before.
+ * What changed is only what the QUEUE asks about. Labelling stops being a decision that leaves the
+ * question open, and stays a decision you can revise.
+ *
+ * ⚠️ A `'categorized'` row with a NULL override is still not handled. That row means the user
+ * CLEARED a label, which answers nothing — and it is also the shape a future writer would produce
+ * by accident, so it must not silently retire a charge.
  */
 export function isChargeHandled(chargeReviews: readonly QueueReview[]): boolean {
   const exclusive = findExclusiveReview(chargeReviews);
-  return isHandledReview(exclusive) || chargeReviews.some(r => isLinkStatus(r.status));
+  const labelled = exclusive?.status === 'categorized' && !!exclusive.category_override;
+  return isHandledReview(exclusive) || labelled || chargeReviews.some(r => isLinkStatus(r.status));
 }
 
 /**

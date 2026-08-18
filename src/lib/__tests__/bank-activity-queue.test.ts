@@ -27,10 +27,20 @@ describe('isChargeHandled', () => {
     }
   });
 
-  it('does NOT treat a category correction as a decision about the charge', () => {
-    // Relabelling takes no position on whether the charge was dealt with. If this ever flips,
-    // fixing a wrong category would silently remove a row from the queue.
+  // Tre, 2026-08-18, after reporting the Decision Deck "is not saving each item": in the deck the
+  // chip IS the answer to the card's one question, and a charge that comes straight back as the
+  // next card reads as a lost write. `isHandledReview` is deliberately NOT changed alongside this,
+  // so `BankActivity` still offers every action on a labelled charge — only the QUEUE stops asking.
+  it('treats a charge that carries a LABEL as decided', () => {
+    expect(isChargeHandled([{ status: 'categorized', category_override: 'Personal' }])).toBe(true);
+  });
+
+  it('does NOT treat a CLEARED label as a decision — that row answers nothing', () => {
+    // A `'categorized'` row with no override means the user removed a label. It is also the shape
+    // an accidental write would produce, so it must never silently retire a charge.
     expect(isChargeHandled([{ status: 'categorized' }])).toBe(false);
+    expect(isChargeHandled([{ status: 'categorized', category_override: null }])).toBe(false);
+    expect(isChargeHandled([{ status: 'categorized', category_override: '' }])).toBe(false);
   });
 
   it('treats no rows at all as unreviewed, which is not handled', () => {
