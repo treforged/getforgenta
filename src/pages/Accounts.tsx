@@ -24,6 +24,8 @@ import PremiumGate from '@/components/shared/PremiumGate';
 import BalanceTrancheEditor from '@/components/shared/BalanceTrancheEditor';
 import { tranchesToRows, rowsToTranches, type TrancheFormRow } from '@/lib/tranche-form';
 import { AccountsSkeleton } from '@/components/shared/PageSkeleton';
+import { usePersistedState } from '@/hooks/usePersistedState';
+import { accountsTabFromSearch, type AccountsTab } from '@/lib/accounts-tab';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
@@ -159,7 +161,28 @@ export default function Accounts() {
   // Keeps the Net Worth History chart below fed with fresh points.
   useNetWorthSnapshotRecorder();
   const qc = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  /**
+   * Three panels instead of one scroll — the same shell the Garage uses (`garage-tab.ts`), for the
+   * same reason: this page answers three different questions (what do I have, where is it going,
+   * which banks feed it) and stacking them made the third one a scroll nobody reached.
+   *
+   * The tab persists so the page reopens where the user left it, and a `?tab=` link overrides it
+   * ONCE and is then stripped — see `accounts-tab.ts` for why an unknown value must not default.
+   */
+  const [activeTab, setActiveTab] = usePersistedState<AccountsTab>('tre:accounts:activeTab', 'balances');
+  // Demo has no Linked Banks panel to show, so a persisted 'banks' would open the page on nothing.
+  // Resolving it here rather than writing over the stored value keeps the real user's tab intact
+  // when they leave the demo.
+  const effectiveTab: AccountsTab = isDemo && activeTab === 'banks' ? 'balances' : activeTab;
+  const askedTab = accountsTabFromSearch(searchParams);
+  useEffect(() => {
+    if (!askedTab) return;
+    setActiveTab(askedTab);
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    setSearchParams(next, { replace: true });
+  }, [askedTab, searchParams, setSearchParams, setActiveTab]);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -778,7 +801,33 @@ export default function Accounts() {
         </div>
       </div>
 
-      {/* Net Worth History Chart — 2nd position */}
+      {/* Panel switcher — Garage-style pills. The summary numbers above stay put on every panel:
+          they are the page's hero and hiding them behind a tab would make the answer depend on
+          which tab you happened to be on. */}
+      <div className="flex gap-2 overflow-x-auto">
+        <button onClick={() => setActiveTab('balances')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press shrink-0 ${effectiveTab === 'balances' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Wallet size={13} /> Balances
+          {activeAccounts.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{activeAccounts.length}</span>}
+        </button>
+        <button onClick={() => setActiveTab('networth')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press shrink-0 ${effectiveTab === 'networth' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <TrendingUp size={13} /> Net Worth
+        </button>
+        {!isDemo && (
+          <button onClick={() => setActiveTab('banks')}
+            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press shrink-0 ${effectiveTab === 'banks' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+            style={{ borderRadius: 'var(--radius)' }}>
+            <Link2 size={13} /> Linked Banks
+            {plaidItems.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{plaidItems.length}</span>}
+          </button>
+        )}
+      </div>
+
+      {/* Net Worth History Chart */}
+      {effectiveTab === 'networth' && (
       <div className="card-forged p-5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">
           {snapshots.length > 1 ? 'Net Worth History' : 'Current Net Worth'}
@@ -831,7 +880,10 @@ export default function Accounts() {
         )}
       </div>
 
+      )}
+
       {/* Filter */}
+      {effectiveTab === 'balances' && (
       <div className="flex gap-2">
         {(['all', 'assets', 'liabilities'] as const).map(t => (
           <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
@@ -840,7 +892,10 @@ export default function Accounts() {
         ))}
       </div>
 
+      )}
+
       {/* Account List */}
+      {effectiveTab === 'balances' && (
       <div className="space-y-3">
         {filteredAccounts.length === 0 && (
           <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">No accounts yet. Add one above.</p></div>
@@ -902,8 +957,10 @@ export default function Accounts() {
         })}
       </div>
 
+      )}
+
       {/* ── Linked Banks (Plaid, with Akoya as a fallback) ───────────────── */}
-      {!isDemo && (
+      {effectiveTab === 'banks' && !isDemo && (
         <div className="card-forged p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
