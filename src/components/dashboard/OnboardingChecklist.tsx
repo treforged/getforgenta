@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import type { AccountRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { PlaidItem } from '@/hooks/usePlaidItems';
+import ReferenceAccountButton from '@/components/shared/ReferenceAccountButton';
 
 interface Props {
   profile: Partial<Tables<'profiles'>>;
@@ -174,6 +175,12 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
             )}
           </div>
         ))}
+      </div>
+
+      {/* The other half of the demo's move off `/auth` (2026-08-18): someone who skipped the wizard
+          only ever meets setup here, so the reference account has to be reachable here too. */}
+      <div className="flex justify-end pt-0.5">
+        <ReferenceAccountButton variant="inline" />
       </div>
     </div>
   );

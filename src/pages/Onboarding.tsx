@@ -23,7 +23,13 @@ import {
   readOnboardingCache,
   writeOnboardingCache,
 } from '@/lib/onboarding-state';
+import {
+  clearOnboardingDraft,
+  readOnboardingDraft,
+  writeOnboardingDraft,
+} from '@/lib/onboarding-draft';
 import BankConnectStep, { BankLinkedHint } from '@/components/onboarding/BankConnectStep';
+import ReferenceAccountButton from '@/components/shared/ReferenceAccountButton';
 import RulesFoundCard from '@/components/rules/RulesFoundCard';
 import PremiumUpsellStep from '@/components/onboarding/PremiumUpsellStep';
 import DebtsStep from '@/components/onboarding/DebtsStep';
@@ -122,10 +128,14 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [step, setStep] = useState<Step>('welcome');
-  const [data, setData] = useState<OnboardingData>({
+  // A draft is only ever this user's own unsent answers (`onboarding-draft.ts`), and it wins over
+  // the metadata prefill: what they typed beats what the identity provider guessed. Read once, in
+  // the initializer — `ProtectedRoute` has already resolved auth by the time this mounts.
+  const [data, setData] = useState<OnboardingData>(() => ({
     ...DEFAULT_DATA,
     displayName: getInitialDisplayName(user?.user_metadata),
-  });
+    ...(readOnboardingDraft<OnboardingData>(user?.id) ?? {}),
+  }));
   const [saving, setSaving] = useState(false);
   const [bankLinked, setBankLinked] = useState(false);
 
@@ -177,6 +187,13 @@ export default function Onboarding() {
   const update = useCallback(<K extends keyof OnboardingData>(key: K, val: OnboardingData[K]) => {
     setData(prev => ({ ...prev, [key]: val }));
   }, []);
+
+  // Persisted from an effect, not from `update`, so the write stays out of the state updater —
+  // React may run that twice. The first pass writes back exactly what it read, so a draft is never
+  // clobbered by the mount that restored it.
+  useEffect(() => {
+    writeOnboardingDraft(user?.id, data);
+  }, [data, user?.id]);
 
   const next = () => {
     const idx = steps.indexOf(step);
@@ -313,6 +330,9 @@ export default function Onboarding() {
       // here on its stale copy.
       writeOnboardingCache(user!.id);
       qc.setQueryData(onboardingQueryKey(user!.id), true);
+      // The answers are on the server now; the draft is spent. Cleared here and not in `finally`,
+      // so a throw on the way up leaves the input intact for the retry.
+      clearOnboardingDraft();
       if (failed.length > 0) {
         toast.error(`Profile saved, but we couldn't add: ${failed.join(', ')}. You can add these from the app.`);
       } else {
@@ -338,6 +358,8 @@ export default function Onboarding() {
       return;
     }
     qc.setQueryData(onboardingQueryKey(user.id), true);
+    // Skipping is a decision, not an interruption — the half-filled draft should not reappear.
+    clearOnboardingDraft();
     navigate('/dashboard');
   };
 
@@ -389,6 +411,10 @@ export default function Onboarding() {
                 <FieldLabel>What should we call you?</FieldLabel>
                 <Input value={data.displayName} onChange={v => update('displayName', v)} placeholder="Your name" />
               </div>
+              {/* The demo's entry, moved here off `/auth` (2026-08-18). Setup is the one moment a
+                  filled-in account answers a real question — "what am I building towards?" — and
+                  the flag is in-memory, so nothing typed above is lost by looking. */}
+              <ReferenceAccountButton />
             </div>
           )}
 
