@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import { TransactionsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import InstructionsModal from '@/components/shared/InstructionsModal';
@@ -20,7 +20,7 @@ import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, isPlanInProgress, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
@@ -30,6 +30,14 @@ import { useDismissedDuplicates } from '@/hooks/useDismissedDuplicates';
 import DuplicateTransactionWarning from '@/components/shared/DuplicateTransactionWarning';
 import type { Tables } from '@/integrations/supabase/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import { activityTabFromSearch, effectiveActivityTab, type ActivityTab } from '@/lib/activity-tab';
+
+// LAZY, not a plain import. Budget Control was its own route chunk until today; importing it
+// statically here would fold it into the Activity chunk, so every visit to the planning ledger —
+// by far the common one — would pay for a panel it never opens. Same trade, and the same measured
+// reason, as `Accounts` inside `Dashboard`. Read the chunk sizes out of the build before changing
+// this back.
+const BudgetControl = lazy(() => import('@/pages/BudgetControl'));
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 
@@ -90,7 +98,25 @@ export default function Transactions() {
   // §1B — Planning vs Bank Activity. The two streams are never interleaved: this page's rows are
   // what WILL happen (hand-entered plus generated debt/plan/car-loan occurrences), bank activity is
   // what DID. Persisted like the other view toggles above, for the same reason.
-  const [activeTab, setActiveTab] = usePersistedState<'planning' | 'bank'>('tre:transactions:tab', 'planning');
+  //
+  // ⚠️ AND SINCE 2026-08-18, Budget Control is the THIRD value of this same selector rather than a
+  // tab of its own (Tre: "we need to reduce how many separate tabs"). It is one row of three, not
+  // an outer row wrapping this one — see `activity-tab.ts` for why nesting was rejected. The key is
+  // unchanged, so every stored 'planning'/'bank' keeps working; `effectiveActivityTab` heals
+  // anything else rather than rendering an empty surface.
+  const [storedTab, setActiveTab] = usePersistedState<ActivityTab>('tre:transactions:tab', 'planning');
+  const activeTab = effectiveActivityTab(storedTab);
+  // A link may name a panel — `/budget` redirects here saying `?tab=budget`. Honoured ONCE and then
+  // stripped, after which the user's own remembered panel takes over again. Identical to Dashboard.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const askedTab = activityTabFromSearch(searchParams);
+  useEffect(() => {
+    if (!askedTab) return;
+    setActiveTab(askedTab);
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    setSearchParams(next, { replace: true });
+  }, [askedTab, searchParams, setSearchParams, setActiveTab]);
   // Null while loading and null at zero — the tab renders no badge in both cases, because a "0" and
   // a badge that failed to compute are indistinguishable to a user.
   const reviewQueueCount = useBankReviewQueueCount();
@@ -596,6 +622,7 @@ export default function Transactions() {
     {([
       { id: 'planning' as const, label: 'Planning', count: null as number | null },
       { id: 'bank' as const, label: 'Bank Activity', count: reviewQueueCount },
+      { id: 'budget' as const, label: 'Budget Control', count: null as number | null },
     ]).map(t => (
       <button
         key={t.id}
@@ -677,6 +704,16 @@ export default function Transactions() {
 
       {activeTab === 'bank' && (
         <ErrorBoundary variant="widget" label="Bank Activity"><BankActivity /></ErrorBoundary>
+      )}
+
+      {/* ⚠️ RENDERED, NOT LINKED TO — and `BudgetControl` is unchanged apart from an `embedded` prop
+          that suppresses only its own <h1>/subtitle and page padding, because this page already
+          carries both. Mounted only while its own panel is selected, so its profile/rules/accounts
+          queries never run while the user is on the planning ledger. */}
+      {activeTab === 'budget' && (
+        <Suspense fallback={<div className="h-64" />}>
+          <ErrorBoundary variant="widget" label="Budget Control"><BudgetControl embedded /></ErrorBoundary>
+        </Suspense>
       )}
 
       {activeTab === 'planning' && (<>

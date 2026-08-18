@@ -3,8 +3,10 @@ import { useDemo } from '@/contexts/DemoContext';
 
 const routeDescriptions: Record<string, string> = {
   '/dashboard':    'Overview of all accounts, cash flow, and net worth in one place',
-  '/budget':       'Recurring rules power the forecast: income, bills, transfers, subscriptions',
-  '/transactions': 'One-time income and expenses feed directly into the debt payoff engine',
+  // ⚠️ Keyed on the PATH, so a page that stops rendering silently loses its line with no error.
+  // `/budget` became `/transactions?tab=budget` on 2026-08-18 and the two surfaces are now one, so
+  // this line covers both — the demo is the sales surface and must not go quiet on it.
+  '/transactions': 'One-time entries and the recurring rules behind every projection, in one place',
   '/debt':         'Avalanche engine computes the fastest payoff path using every dollar above your cash floor',
   '/goals':        'Goals track progress and link to real account balances automatically',
   '/forecast':     '60-month projection: debt payoff, savings growth, and cash flow in one view',

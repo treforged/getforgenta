@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import {
-  LayoutDashboard, ArrowLeftRight, Sliders, Landmark,
+  LayoutDashboard, ArrowLeftRight, Landmark,
   MoreHorizontal, PiggyBank, TrendingUp,
   Settings, Crown, LogOut, Home, X, Sparkles, Car,
 } from 'lucide-react';
@@ -33,8 +33,9 @@ const PRIMARY = [
 // Accounts left this list on 2026-08-18: it is a panel of the Dashboard, which is already the
 // first PRIMARY tab. Five entries here instead of six — the "reduce how many separate tabs,
 // especially on mobile" ask, and the More grid is two columns so it loses a half-row.
+// Budget Control left it the same day for the same reason: it is the third panel of Activity,
+// which is already a PRIMARY tab. Four entries — the More grid is two columns, so it loses a row.
 const SECONDARY = [
-  { to: '/budget', icon: Sliders, label: 'Budget Control' },
   { to: '/vehicles', icon: Car, label: 'Garage' },
   ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
   { to: '/goals', icon: PiggyBank, label: 'Goals' },

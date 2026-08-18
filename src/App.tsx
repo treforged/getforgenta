@@ -34,7 +34,6 @@ const SettingsPage = lazy(() => import("@/pages/Settings"));
 const Premium = lazy(() => import("@/pages/Premium"));
 const PremiumSuccess = lazy(() => import("@/pages/PremiumSuccess"));
 const PremiumCancel = lazy(() => import("@/pages/PremiumCancel"));
-const BudgetControl = lazy(() => import("@/pages/BudgetControl"));
 const Forecast = lazy(() => import("@/pages/Forecast"));
 const Legal = lazy(() => import("@/pages/Legal"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
@@ -125,6 +124,23 @@ function AccountsRedirect() {
   return <Navigate to={`/dashboard?${params.toString()}`} replace />;
 }
 
+/**
+ * `/budget` is no longer a page — it is the third panel of the Activity surface (2026-08-18). A
+ * component and not a bare <Navigate> so the whole query string rides along, the same reason
+ * `AccountsRedirect` is one; nothing writes a `?tab=` at `/budget` today, but a redirect that
+ * silently drops the query string is the defect that only shows up the first time something does.
+ *
+ * ⚠️ THE SIX IN-APP LINKS STILL POINT AT `/budget` ON PURPOSE, and two tests assert that literal
+ * href (`DashboardHero.test.tsx`, `ForecastHero.test.tsx`). Repointing them would leave this
+ * redirect — the thing every existing bookmark lands on — covered by nothing.
+ */
+function BudgetRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('tab', 'budget');
+  return <Navigate to={`/transactions?${params.toString()}`} replace />;
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -148,7 +164,7 @@ function AppRoutes() {
           the only honest options at that level. */}
       <Route element={<ProtectedRoute><ErrorBoundary label="The app" homeTo={null}><DashboardLayout /></ErrorBoundary></ProtectedRoute>}>
         <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Dashboard" homeTo={null}><Dashboard /></ErrorBoundary></Suspense>} />
-        <Route path="/budget" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Budget Control"><BudgetControl /></ErrorBoundary></Suspense>} />
+        <Route path="/budget" element={<BudgetRedirect />} />
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Transactions"><Transactions /></ErrorBoundary></Suspense>} />
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Debt Payoff"><DebtPayoff /></ErrorBoundary></Suspense>} />
         <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Savings Goals"><SavingsGoals /></ErrorBoundary></Suspense>} />
@@ -209,7 +225,8 @@ function AppRoutes() {
           </ErrorBoundary>
         } />
       )}
-      <Route path="/subscriptions" element={<Navigate to="/budget" replace />} />
+      {/* Straight to the destination, not through /budget — a redirect into a redirect. */}
+      <Route path="/subscriptions" element={<Navigate to="/transactions?tab=budget" replace />} />
       <Route path="/car-fund" element={<Navigate to="/goals" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

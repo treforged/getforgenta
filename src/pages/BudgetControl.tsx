@@ -156,7 +156,15 @@ function migrateOldDeductions(profile: Partial<Tables<'profiles'>>): PaycheckDed
   return vals.map(d => ({ id: d.id, label: d.label, value: d.val, mode: d.mode as 'flat' | 'pct', preTax: d.preTax }));
 }
 
-export default function BudgetControl() {
+/**
+ * ⚠️ Budget Control is a PANEL of the Activity surface since 2026-08-18, not a route of its own
+ * (Tre: "we need to reduce how many separate tabs"). `/budget` redirects to `/transactions?tab=budget`.
+ *
+ * `embedded` suppresses ONLY the page <h1>, its subtitle and the outer page padding, because the
+ * host already carries all three. Everything else — the guide modal, every control, every modal —
+ * comes across untouched. Same prop, same scope, as `Accounts` inside `Dashboard`.
+ */
+export default function BudgetControl({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
@@ -1064,12 +1072,14 @@ export default function BudgetControl() {
   if (accountsLoading || rulesLoading || profileLoading) return <BudgetSkeleton />;
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
+    <div className={embedded ? 'stack-section overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden'}>
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-3">
-        <div className="min-w-0">
-          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Budget Control</h1>
-          <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">Your single source of truth for income, expenses, and automation</p>
-        </div>
+        {!embedded && (
+          <div className="min-w-0">
+            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Budget Control</h1>
+            <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">Your single source of truth for income, expenses, and automation</p>
+          </div>
+        )}
         <InstructionsModal pageTitle="Budget Control Guide" sections={[
           { title: 'What is this page?', body: 'Budget Control is your hub for managing all recurring financial rules — income, fixed expenses, variable spending, debt payments, and transfers. It feeds the Dashboard, Forecast, and Transactions.' },
           { title: 'Income & Taxes', body: 'Set your gross income, pay frequency, tax rate, and payday at the top. Changes auto-save and automatically sync your income rule to match.' },

@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark, PiggyBank,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight,
-  Sliders, TrendingUp, Home, Sparkles, Zap, Car,
+  TrendingUp, Home, Sparkles, Zap, Car,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -16,7 +16,9 @@ const navItems = [
   // Accounts is a PANEL of the Dashboard now, not a row here — Tre, 2026-08-18: "we need to reduce
   // how many separate tabs". The rail lost the row; the surface lost nothing.
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/budget', icon: Sliders, label: 'Budget Control' },
+  // Budget Control is a PANEL of Activity now, for the same reason and on the same day. `/budget`
+  // still resolves — it redirects to `/transactions?tab=budget` — so every bookmark and every
+  // in-app link keeps landing; what it stopped being is a row of its own.
   // 'Activity', not 'Transactions' — one name for the surface at every width (Tre, 2026-08-18:
   // "why does transactions change to activity with smaller width. just keep it as activity all the
   // time"). The rail used to keep the long name so the vocabulary stayed discoverable; a label that
