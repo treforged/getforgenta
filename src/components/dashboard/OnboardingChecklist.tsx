@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { onboardingQueryKey } from '@/hooks/useOnboardingStatus';
+import { markOnboardingComplete } from '@/lib/onboarding-state';
 import { supabase } from '@/integrations/supabase/client';
 import type { Tables } from '@/integrations/supabase/types';
 import type { AccountRow, DebtRow } from '@/hooks/useSupabaseData';
@@ -31,6 +34,7 @@ async function markChecklistDone(userId: string, key: ChecklistKey, existing: Re
 
 export default function OnboardingChecklist({ profile, accounts, debts, goals, plaidItems }: Props) {
   const { user } = useAuth();
+  const qc = useQueryClient();
   const [visible, setVisible] = useState(true);
   const markedRef = useRef(false);
   const [overrides, setOverrides] = useState<Record<ChecklistKey, boolean>>({
@@ -58,7 +62,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
       key: 'accounts',
       label: 'Connect a bank account',
       description: 'Link via Plaid or add an account manually',
-      path: '/accounts',
+      path: '/dashboard?tab=accounts',
       autoDone: plaidItems.length > 0 || accounts.length > 0,
     },
     {
@@ -97,18 +101,25 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
     await markChecklistDone(user.id, key, flags);
   };
 
-  // When all items are checked, mark onboarding complete then fade out
+  // When all items are checked, mark onboarding complete then fade out.
+  //
+  // The write goes through the shared store (src/lib/onboarding-state.ts) so this agrees with the
+  // /onboarding route and the route gate, and its result is CHECKED: the old version ignored it,
+  // so a failed update quietly hid the checklist and left the account marked unfinished. If the
+  // write fails the checklist stays put — completed, still visible, and retried the next time this
+  // mounts (the latch is released) rather than vanishing on a write that never landed.
   useEffect(() => {
     if (!allDone || markedRef.current || !user) return;
     markedRef.current = true;
-    supabase
-      .from('profiles')
-      .update({ onboarding_completed: true })
-      .eq('user_id', user.id)
-      .then(() => {
-        setTimeout(() => setVisible(false), 1200);
-      });
-  }, [allDone, user]);
+    markOnboardingComplete(user.id).then(({ ok }) => {
+      if (!ok) {
+        markedRef.current = false;
+        return;
+      }
+      qc.setQueryData(onboardingQueryKey(user.id), true);
+      setTimeout(() => setVisible(false), 1200);
+    });
+  }, [allDone, user, qc]);
 
   if (!visible) return null;
 

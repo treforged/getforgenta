@@ -1,0 +1,253 @@
+/**
+ * Every guide in the app, keyed by the panel it explains.
+ *
+ * ## Why this exists
+ *
+ * There were 8 `InstructionsModal` call sites, one per PAGE, written when a page was one
+ * thing. Pages now host panels, so the guide stopped matching what was on screen: `/debt`
+ * had ONE guide covering 5 panels, the Garage ONE covering 3, while `/dashboard` and
+ * `/transactions` rendered TWO guide buttons at once because a hosted panel brought its own.
+ *
+ * Placement drifted for the same reason. The button trailed each page's `<h1>`, so its x
+ * was a function of title length — measured at 96 / 118 / 123 / 162 / 271 / 391 px across
+ * the six surfaces. That is the "make it symmetrical" complaint in numbers.
+ *
+ * Both halves are fixed by the same move: the guide is **content addressed by panel** and
+ * **placed by `PanelGuide`**, pinned to the right of the panel row on every surface. A page
+ * no longer decides either.
+ *
+ * ## The rules
+ *
+ * - A key is `surface:panel`. The panel value is the page's OWN state value (`activeTab`),
+ *   never a re-spelling of it, so the two cannot drift apart.
+ * - `resolveGuide` NEVER returns nothing. An unknown panel falls back to the surface's own
+ *   default, because a missing Guide button reads as a bug and a general guide does not.
+ * - Copy is lifted VERBATIM from the page guides it replaces wherever a panel maps onto the
+ *   old page. This file re-homed the guides; it did not rewrite them.
+ */
+
+export interface GuideSection {
+  title: string;
+  body: string;
+}
+
+export interface PageGuide {
+  /** Shown in the modal header and the button's tooltip. */
+  title: string;
+  sections: GuideSection[];
+}
+
+/** The surfaces that own a panel row. `garage` is the page still filed as `Vehicles.tsx`. */
+export type GuideSurface =
+  | 'dashboard'
+  | 'accounts'
+  | 'transactions'
+  | 'debt'
+  | 'forecast'
+  | 'garage';
+
+export type GuideKey = `${GuideSurface}:${string}`;
+
+export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
+  // ── Dashboard ───────────────────────────────────────────────────────────────────────
+  'dashboard:overview': {
+    title: 'Dashboard Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'The Command Center gives you a real-time snapshot of your financial health — income, expenses, net worth, savings, debt, and upcoming bills for the current month.' },
+      { title: 'The headline number', body: 'The top of the page shows the month your credit card debt clears, and how much cash sits above your safety floor. The curve under it is that same plan drawn out: where your balance is today and the shape of it falling to zero. If either number has no reading yet, the page says so rather than showing a zero.' },
+      { title: 'Stat chips', body: 'The scrolling row of chips carries the supporting numbers. Tap any chip to see exactly how it is calculated, including which accounts and transactions are included.' },
+      { title: 'Projected Month-End Cash', body: 'Shows your expected cash position at month end: current liquid cash + remaining paychecks − remaining expenses − debt payments. Must stay above your cash floor.' },
+      { title: 'Cash Flow Chart', body: 'Displays the last 6 months of income vs expenses with net cash flow trend line.' },
+      { title: 'Customize Dashboard', body: 'Click the Customize button to show/hide widgets and use the up/down arrows to reorder them. Layout is saved to your account.' },
+      { title: 'How edits affect this page', body: 'Changes to Accounts, Budget Control rules, or Debt Payoff recommendations instantly update all dashboard metrics.' },
+    ],
+  },
+  'dashboard:accounts': {
+    title: 'Accounts Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Accounts is the centralized source of truth for all your financial balances — checking, savings, investments, retirement, credit cards, and loans.' },
+      { title: 'How it connects', body: 'Account balances drive net worth, liquid cash calculations, debt payoff recommendations, and payment source availability across the entire app.' },
+      { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
+      { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
+    ],
+  },
+
+  // ── Accounts (its own panel row, hosted inside the Dashboard) ───────────────────────
+  'accounts:balances': {
+    title: 'Balances Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Every account you hold, with the balance each one currently reports. This is the source of truth the rest of the app reads — net worth, liquid cash, debt payoff and payment sources all come from here.' },
+      { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
+      { title: 'Cards you have not opened yet', body: 'A card with a future start date is one you have PLANNED. It stays out of this month\'s payment recommendations, the debt tab count and the liabilities breakdown until that date arrives — but it is still listed here, because an account list is not a claim about what you owe.' },
+      { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
+    ],
+  },
+  'accounts:banks': {
+    title: 'Bank Connections Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'The banks you have connected, when each last synced, and the accounts each connection brought in. Balances and transactions refresh on a daily schedule.' },
+      { title: 'Stale connections', body: 'A connection that has not synced on schedule is badged here. Most fix themselves on the next run; one that keeps failing usually needs you to re-authenticate with the bank.' },
+      { title: 'A manual edit is never overwritten', body: 'Where you have set a value by hand — an APR, a minimum payment — a sync will not replace it with the bank\'s figure. Your number wins.' },
+      { title: 'Disconnecting', body: 'Removing a connection stops future syncs and leaves the accounts and history already imported in place. Nothing you have categorised is deleted.' },
+    ],
+  },
+
+  // ── Activity ────────────────────────────────────────────────────────────────────────
+  'transactions:budget': {
+    title: 'Budget Control Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Budget Control is your hub for managing all recurring financial rules — income, fixed expenses, variable spending, debt payments, and transfers. It feeds the Dashboard, Forecast, and Transactions.' },
+      { title: 'Income & Taxes', body: 'Set your gross income, pay frequency, tax rate, and payday at the top. Changes auto-save and automatically sync your income rule to match.' },
+      { title: 'Budget Allocation Bar', body: 'Shows how your take-home is distributed across categories for the current month only. Colors: Red=Fixed, Orange=Variable, Blue=Debt, Purple=Transfers, Green=Remaining.' },
+      { title: 'Remaining Cash On Hand', body: 'Uses only the selected funding account\'s live balance plus remaining income minus remaining expenses and remaining debt payments for the rest of the current month. All values come from Transactions as the single source of truth — no double counting with Budget Control rules.' },
+      { title: 'How rules work', body: 'Rules auto-generate transactions. Weekly rules create 4-5 entries/month, monthly once, yearly once in the due month. Start dates control when rules activate.' },
+      { title: 'One-Time Transactions', body: 'One-time manual transactions from Transactions are factored into Remaining Cash and debt recommendations. Future one-time purchases reduce available repayment cash.' },
+    ],
+  },
+  'transactions:planning': {
+    title: 'Planning Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Planning shows your complete ledger — real transactions you enter plus auto-generated ones from your Budget Control recurring rules and debt payoff plan.' },
+      { title: 'Generated vs Real', body: 'Entries with badges (recurring, debt payment) are auto-generated from rules. Edit the occurrence to override just that instance, or edit the rule to change all future occurrences.' },
+      { title: 'Filters', body: 'Filter by type (income/expense), category, or payment source to find specific entries.' },
+      { title: 'How it affects the rest', body: 'Transactions feed the Dashboard monthly totals, Forecast projections, and spending breakdowns.' },
+    ],
+  },
+  'transactions:bank': {
+    title: 'Bank Activity Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'What your bank actually reported, as it came in. Nothing here is a projection — these are real charges, and this is where you tell the app what they were.' },
+      { title: 'The count on the tab', body: 'It counts charges the app already has an answer for and is waiting on you to confirm. It is NOT a count of everything uncategorised: most rows never need a decision, and the history imported when you first connected a bank is deliberately left out of it.' },
+      { title: 'Sort it one card at a time', body: 'Open the deck and you get one charge per screen — the suggested category ready to accept, the categories you use most as chips, and skip. Teaching it a merchant once re-ranks every future charge from that merchant.' },
+      { title: 'A suggestion is a first draft', body: 'The category shown is the app\'s best guess, never a claim. Correcting it is the point — your correction beats the guess for that merchant from then on.' },
+      { title: 'Nothing is silent', body: 'Every batch you accept can be undone in one press, and skipping writes nothing at all.' },
+    ],
+  },
+
+  // ── Debt ────────────────────────────────────────────────────────────────────────────
+  'debt:cards': {
+    title: 'Credit Card Payoff Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'The Debt Payoff Planner runs a full 60-month simulation with real monthly interest, minimum payments, and optional payment plan charges. It tells you exactly when each card is paid off and how much interest you will pay.' },
+      { title: 'Strategies', body: 'Avalanche pays the highest-APR card first to minimize total interest. Snowball pays the smallest balance first for early momentum. Both always cover every card\'s minimum first, then put the remaining available cash toward the priority card.' },
+      { title: 'Statement vs. revolving cards', body: 'Cards set to "pay in full" clear their full balance each month — new purchases are included in the payment. Revolving cards carry a balance month-to-month and accrue interest. The engine handles both correctly and never over-pays a statement card.' },
+      { title: 'Payment plans on cards', body: 'Installment plans (Amazon, Apple Pay Later, etc.) linked to a credit card are added as monthly charges to that card — they are not deducted from your cash directly. The engine factors these charges into each card\'s projected balance and interest each month.' },
+      { title: 'Due dates', body: 'Each card can have a due date. The engine estimates how much cash you will have by that date — accounting for scheduled income and expenses — so it knows exactly what is safe to pay without dropping below your floor before the next paycheck.' },
+      { title: 'Est. Liquid Cash & Safe to Pay', body: 'Liquid Cash = your funding account balance + Transactions income scheduled before the due date. Safe to Pay = Liquid Cash − Safe Minimum − other cards\' autopay amounts. Budget Control income is not separately counted — Transactions is the source of truth to prevent double-counting.' },
+      { title: 'Minimum payment priority', body: 'All minimums across every card are covered first. Only after every minimum is met does the engine allocate the extra available amount to the strategy\'s priority card.' },
+      { title: 'Recommended Safe Minimum', body: 'The greater of your cash floor setting and estimated next-month bills due before your next paycheck. This prevents your account from going negative between pay periods.' },
+      { title: 'Cards you have not opened yet', body: 'A card with a future start date is not asked to be paid, is not counted in the tab badge, and is not in the utilization figure — it does not exist yet. The utilization panel names it underneath, so you can see it was left out on purpose rather than lost.' },
+      { title: 'Overrides & reset', body: 'Click any monthly payment cell to manually set an amount. Use "Revert" to restore the engine\'s recommendation for that month. "Reset & Recalculate" clears all manual overrides and recalculates from scratch — only needed after manual adjustments.' },
+    ],
+  },
+  'debt:auto': {
+    title: 'Auto Loan Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Every auto loan you owe on, with its balance, rate and payoff date from a full amortization — principal and interest split out month by month.' },
+      { title: 'It is not in the card payoff date', body: 'The Dashboard\'s "credit cards paid off" date comes from the revolving engine, which never sees a loan. A car loan usually outlives it, and the Dashboard says so rather than implying you are done.' },
+      { title: 'Extra payments', body: 'Anything above the scheduled payment goes to principal and pulls the payoff date in. The schedule re-amortizes from the new balance.' },
+      { title: 'Connected loans', body: 'When a loan account is linked to a connected bank, the bank\'s balance is the one used and the pair is only counted once. A typed balance is a starting point until then.' },
+    ],
+  },
+  'debt:mortgage': {
+    title: 'Mortgage Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Your mortgage balance, rate and full amortization to payoff, alongside the rest of what you owe.' },
+      { title: 'It is not in the card payoff date', body: 'The Dashboard\'s "credit cards paid off" date covers revolving debt only. A mortgage runs on its own schedule and is deliberately excluded from it.' },
+      { title: 'Extra payments', body: 'Extra toward principal shortens the schedule and cuts total interest. The projection re-amortizes so you can see what each extra payment is worth.' },
+      { title: 'Escrow', body: 'Enter the principal-and-interest payment. Taxes and insurance collected in escrow belong in Budget Control as their own expense rules, so they are not counted twice.' },
+    ],
+  },
+  'debt:student': {
+    title: 'Student Loan Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Student loan balances with rate, payment and payoff date. Multiple loans are listed separately, so you can see which one is actually costing you.' },
+      { title: 'It is not in the card payoff date', body: 'The Dashboard\'s "credit cards paid off" date covers revolving debt only. Student loans run past it on their own schedule.' },
+      { title: 'Rate matters more than balance', body: 'The avalanche logic on the cards panel applies here too: the highest rate costs the most per dollar, whatever the balance next to it says.' },
+    ],
+  },
+  'debt:other': {
+    title: 'Other Debt Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Anything you owe that is not a card, a car, a house or a degree — personal loans, medical debt, money owed to a person.' },
+      { title: 'Why it still belongs here', body: 'A liability left off the books quietly overstates your net worth. Adding it here puts it into net worth, the liabilities breakdown and the forecast.' },
+      { title: 'No rate?', body: 'A debt with no interest still has a payment and a payoff date. Leave the rate empty rather than guessing one — a made-up rate produces a made-up interest figure.' },
+    ],
+  },
+
+  // ── Forecast ────────────────────────────────────────────────────────────────────────
+  'forecast:forecast': {
+    title: 'Forecast Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'The Forecast projects your cash, debt, investments, and net worth across 60 months using your live accounts, recurring rules, debt payoff plan, savings goals, vehicle funds, and one-time transactions.' },
+      { title: 'Three-stage engine', body: 'Each month runs in three stages. Stage 1 applies income and all baseline expenses. Stage 2 looks ahead to known large expenses — holding back extra debt payments early so a future month never falls below your safe floor. Stage 3 takes any cash still above the floor and automatically redirects it to your highest-priority credit card debt.' },
+      { title: 'Automatic surplus routing', body: 'When your projected end cash exceeds the Safe Minimum, that surplus is automatically sent to credit card debt — on top of your regular planned payment. Months where surplus fully routed will show end cash pinned near the floor. The CC badge shows the full payment for the month, not just the planned amount.' },
+      { title: 'CC payment badge', body: 'The CC badge (e.g. CC $1,318) shows the total cash that goes to credit cards that month — your regular revolving payment plus any surplus automatically added. It rises above the Debt Payoff plan amount in months where extra cash is available above the floor.' },
+      { title: 'Look-ahead protection & save-up months', body: 'When a known large expense is coming (car purchase, one-time cost), the engine stops routing surplus to debt in earlier months and lets cash accumulate instead. Regular minimums are always paid — only the extra surplus is held back. You will see end cash stay above the floor in those months.' },
+      { title: 'Payment plans on cards', body: 'Buy-now-pay-later or installment plans linked to a credit card (e.g. Amazon) are charged to that card each month — they do not reduce your cash balance directly. The CC payment covers them. Months with active plans show higher card charges and the engine factors them into the revolving balance projection.' },
+      { title: 'Card balance popup', body: 'Tapping a month row shows each card\'s projected balance for that month. Revolving cards (Discover, Prime Visa) show the full balance including that month\'s purchases and payment plan charges. The popup tracks the actual balance — not just the carry-over — so it matches what you would see on your statement.' },
+      { title: 'Savings & liquid cash', body: 'End Cash reflects only checking and cash accounts — savings, HYSA, and investments are excluded so the engine does not treat them as available for debt payments. Those balances still grow in the Net Worth projection.' },
+      { title: 'Cash safety floor', body: 'End Cash enforces the Safe Minimum = max(your cash floor setting, estimated next-month bills due before your next paycheck). Debt payments automatically decrease to stay above this floor. Minimums are always paid first.' },
+      { title: 'Charts & legends', body: 'Click any legend item to toggle that data series on or off. Preferences are saved — no refresh needed.' },
+    ],
+  },
+  'forecast:goals': {
+    title: 'Savings Goals Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Track progress toward your financial goals — emergency fund, vacation, down payment, or retirement. Link goals to real accounts for automatic balance sync.' },
+      { title: 'Linked Accounts', body: 'When linked to an account, the goal\'s "current saved" automatically reflects that account balance. "Available after bills" shows the realistic amount after subtracting scheduled outflows.' },
+      { title: 'Target Date', body: 'Set a target date to see estimated completion. The chart projects growth based on your monthly contribution.' },
+      { title: 'Vehicles', body: 'Tracking a car purchase? Use the Garage tab for down payment goals and full loan amortization.' },
+    ],
+  },
+
+  // ── Garage ──────────────────────────────────────────────────────────────────────────
+  'garage:saving': {
+    title: 'Saving For A Car Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'The saving phase: track your down payment goal and preview what the loan would cost before you commit to it.' },
+      { title: 'Planned Purchase Date', body: 'Set the month you plan to buy. In the Forecast, saving contributions stop that month, the down payment is shown as an outflow, and the projected loan payment starts the following month. Estimated values are used until you hit "I bought it."' },
+      { title: 'Linked Account', body: 'Link your savings account to auto-pull the current balance as your down payment progress. When linked, "Current Saved" in the form is skipped — the live balance is used instead.' },
+      { title: 'Transfer Rule', body: 'Link a recurring transfer rule to auto-sync the monthly contribution amount for the estimated completion date.' },
+      { title: 'I bought it', body: 'Hit "I bought it" to enter your real loan amount, APR, start date, first payment date, and interest start date. If you clicked by accident, use the undo button on the loan card.' },
+    ],
+  },
+  'garage:loan': {
+    title: 'Car Loan Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'The loan phase: your real loan terms and full amortization to payoff, month by month.' },
+      { title: 'Connected loans', body: 'When the loan is linked to a connected bank account, the bank\'s balance is the one used and the pair is only counted once. A typed balance is a starting point until then.' },
+      { title: 'Undo Purchase', body: 'The undo button (↩) on a loan card reverts back to saving phase. Click once to see "Confirm?", click again to revert. Your saving-phase details are preserved.' },
+      { title: 'Connects to Forecast', body: 'Active loan payments appear as "Car Loan Payments" in the Forecast drawer. Projected loans for saving-phase vehicles appear as "Est. Car Loan (projected)" starting the month after the planned purchase date.' },
+      { title: 'Not in the card payoff date', body: 'The Dashboard\'s "credit cards paid off" date comes from the revolving engine and does not include this loan. The Dashboard says so underneath rather than implying the loan is gone.' },
+    ],
+  },
+  'garage:builds': {
+    title: 'Builds Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'The build thread for a car: every part planned, bought or fitted, with what it cost and what the whole build is up to.' },
+      { title: 'Planned vs spent', body: 'A part carries a planned cost until you record what you actually paid. The summary shows both, so an estimate is never mistaken for a receipt.' },
+      { title: 'Recording a part from a real charge', body: 'In Bank Activity, a charge can be recorded straight onto a build. The amount comes from the bank, so the build total is receipts rather than memory.' },
+      { title: 'Maintenance log', body: 'Servicing is tracked separately from the build — what was done, when, and what it cost, with a 12-month running total.' },
+    ],
+  },
+};
+
+/** Where an unrecognised panel lands. One entry per surface, and every one exists above. */
+const SURFACE_FALLBACK: Record<GuideSurface, GuideKey> = {
+  dashboard: 'dashboard:overview',
+  accounts: 'accounts:balances',
+  transactions: 'transactions:planning',
+  debt: 'debt:cards',
+  forecast: 'forecast:forecast',
+  garage: 'garage:saving',
+};
+
+/**
+ * The guide for a panel. Never returns nothing: an unrecognised panel falls back to the
+ * surface's own default, because a page that suddenly has no Guide button reads as a bug
+ * and a slightly-too-general guide does not.
+ */
+export function resolveGuide(surface: GuideSurface, panel: string): PageGuide {
+  return PAGE_GUIDES[`${surface}:${panel}`] ?? PAGE_GUIDES[SURFACE_FALLBACK[surface]];
+}

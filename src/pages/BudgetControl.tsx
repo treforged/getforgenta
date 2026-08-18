@@ -5,9 +5,9 @@ import { usePersistedState } from '@/hooks/usePersistedState';
 import { Link } from 'react-router';
 import { BudgetSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import MetricCard from '@/components/shared/MetricCard';
+import CalcDrawer from '@/components/shared/CalcDrawer';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
@@ -31,6 +31,7 @@ import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { matchOccurrence } from '@/lib/transaction-matching';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
 import RuleDriftPanel from '@/components/budget/RuleDriftPanel';
+import RulesFoundCard from '@/components/rules/RulesFoundCard';
 
 const emptyRuleForm = {
   name: '', amount: '', rule_type: 'expense', frequency: 'monthly',
@@ -154,33 +155,15 @@ function migrateOldDeductions(profile: Partial<Tables<'profiles'>>): PaycheckDed
   return vals.map(d => ({ id: d.id, label: d.label, value: d.val, mode: d.mode as 'flat' | 'pct', preTax: d.preTax }));
 }
 
-// ── Calc detail drawer ────────────────────────────────────────────────────────
-function CalcDrawer({ open, onClose, title, lines }: { open: boolean; onClose: () => void; title: string; lines: { label: string; value: string; op?: string }[] }) {
-  if (!open) return null;
-  return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backgroundColor: 'hsl(var(--background) / 0.85)' }} onClick={onClose}>
-      <div className="card-forged p-6 w-full max-w-md space-y-3 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h2 className="font-display font-semibold text-sm flex items-center gap-2"><Info size={14} className="text-primary" /> {title}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"><X size={16} /></button>
-        </div>
-        <div className="space-y-2 pt-2">
-          {lines.map((l, i) => (
-            <div key={i} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
-              <span className="text-sm sm:text-base text-muted-foreground flex items-center gap-1.5">
-                {l.op && <span className="text-primary font-bold">{l.op}</span>}
-                {l.label}
-              </span>
-              <span className="text-sm sm:text-base font-display font-bold text-foreground">{l.value}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function BudgetControl() {
+/**
+ * ⚠️ Budget Control is a PANEL of the Activity surface since 2026-08-18, not a route of its own
+ * (Tre: "we need to reduce how many separate tabs"). `/budget` redirects to `/transactions?tab=budget`.
+ *
+ * `embedded` suppresses ONLY the page <h1>, its subtitle and the outer page padding, because the
+ * host already carries all three. Everything else — the guide modal, every control, every modal —
+ * comes across untouched. Same prop, same scope, as `Accounts` inside `Dashboard`.
+ */
+export default function BudgetControl({ embedded = false }: { embedded?: boolean } = {}) {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
@@ -1055,7 +1038,7 @@ export default function BudgetControl() {
             className={`text-[9px] px-1.5 py-0.5 border font-medium shrink-0 ${
               isFixedRule(r)
                 ? 'bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20'
-                : 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/20'
+                : 'bg-gold/10 text-gold border-gold/30 hover:bg-gold/20'
             }`}
             style={{ borderRadius: 'var(--radius)' }}
           >
@@ -1088,20 +1071,14 @@ export default function BudgetControl() {
   if (accountsLoading || rulesLoading || profileLoading) return <BudgetSkeleton />;
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 sm:space-y-8 overflow-x-hidden">
+    <div className={embedded ? 'stack-section overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden'}>
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-3">
-        <div className="min-w-0">
-          <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Budget Control</h1>
-          <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">Your single source of truth for income, expenses, and automation</p>
-        </div>
-        <InstructionsModal pageTitle="Budget Control Guide" sections={[
-          { title: 'What is this page?', body: 'Budget Control is your hub for managing all recurring financial rules — income, fixed expenses, variable spending, debt payments, and transfers. It feeds the Dashboard, Forecast, and Transactions.' },
-          { title: 'Income & Taxes', body: 'Set your gross income, pay frequency, tax rate, and payday at the top. Changes auto-save and automatically sync your income rule to match.' },
-          { title: 'Budget Allocation Bar', body: 'Shows how your take-home is distributed across categories for the current month only. Colors: Red=Fixed, Orange=Variable, Blue=Debt, Purple=Transfers, Green=Remaining.' },
-          { title: 'Remaining Cash On Hand', body: 'Uses only the selected funding account\'s live balance plus remaining income minus remaining expenses and remaining debt payments for the rest of the current month. All values come from Transactions as the single source of truth — no double counting with Budget Control rules.' },
-          { title: 'How rules work', body: 'Rules auto-generate transactions. Weekly rules create 4-5 entries/month, monthly once, yearly once in the due month. Start dates control when rules activate.' },
-          { title: 'One-Time Transactions', body: 'One-time manual transactions from Transactions are factored into Remaining Cash and debt recommendations. Future one-time purchases reduce available repayment cash.' },
-        ]} />
+        {!embedded && (
+          <div className="min-w-0">
+            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Budget Control</h1>
+            <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">Your single source of truth for income, expenses, and automation</p>
+          </div>
+        )}
       </div>
 
       {isDemo && (
@@ -1447,6 +1424,11 @@ export default function BudgetControl() {
       </div>
         </>}
       </div>
+
+      {/* The rules the bank history implies, for a user who has linked something since setting up.
+          Renders NOTHING when there is nothing to offer — never a "0 patterns" card, and never a
+          badge: it is an offer that sits on the page the rules live on, not a nag. */}
+      <RulesFoundCard />
 
       {/* KPI Summary + Remaining Cash On Hand */}
       <div className="space-y-3">

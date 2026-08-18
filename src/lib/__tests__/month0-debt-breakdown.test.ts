@@ -231,3 +231,56 @@ describe('buildMonth0DebtBreakdown', () => {
     expect(result.recommendations[0]).toMatchObject({ color: '#888', dueDay: null });
   });
 });
+
+describe('buildMonth0DebtBreakdown — a card the user has not opened yet', () => {
+  // The real leak: Venture X (card_start_date 2026-12-20) and Apple Card (2028-02-28) were
+  // listed in "Recommended This Month" badged `priority` at $0. A card that does not exist
+  // yet cannot receive a payment this month.
+  it('does not recommend a payment on a card whose start date has not arrived', () => {
+    const cards = [
+      card({ id: 'a', name: 'Discover' }),
+      card({ id: 'b', name: 'Venture X', balance: 0, minPayment: 0, startDate: '2026-12-20' }),
+    ];
+    const result = buildMonth0DebtBreakdown({
+      month0: month0([
+        { id: 'a', name: 'Discover', payment: 300, maxPayment: 300 },
+        { id: 'b', name: 'Venture X', payment: 0, maxPayment: 0 },
+      ], 300),
+      simCards: cards,
+      debtStrategy: 'avalanche',
+      syncCutoffDate: CUTOFF,
+      now: NOW,
+    });
+    expect(result.recommendations.map(r => r.cardName)).toEqual(['Discover']);
+  });
+
+  it('recommends the same card once its start month has arrived', () => {
+    const cards = [card({ id: 'b', name: 'Venture X', startDate: '2026-08-20' })];
+    const result = buildMonth0DebtBreakdown({
+      month0: month0([{ id: 'b', name: 'Venture X', payment: 120, maxPayment: 120 }], 120),
+      simCards: cards,
+      debtStrategy: 'avalanche',
+      syncCutoffDate: CUTOFF,
+      now: NOW, // same month as the start date — open
+    });
+    expect(result.recommendations.map(r => r.cardName)).toEqual(['Venture X']);
+  });
+
+  it('keeps an unopened card out of minimums due and the autopay total', () => {
+    // Both would read $0 for a $0-balance card anyway; pinned so a future card that carries
+    // a projected balance or projected purchases cannot leak in through a second door.
+    const cards = [
+      card({ id: 'b', name: 'Apple Card', balance: 900, minPayment: 40, startDate: '2028-02-28' }),
+      card({ id: 'c', name: 'Future Cycler', balance: 0, autopayFullBalance: true, monthlyNewPurchases: 500, startDate: '2028-02-28' }),
+    ];
+    const result = buildMonth0DebtBreakdown({
+      month0: month0([], 0),
+      simCards: cards,
+      debtStrategy: 'avalanche',
+      syncCutoffDate: CUTOFF,
+      now: NOW,
+    });
+    expect(result.totalMinimumsDue).toBe(0);
+    expect(result.autopayTotal).toBe(0);
+  });
+});

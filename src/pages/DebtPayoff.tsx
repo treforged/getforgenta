@@ -1,3 +1,4 @@
+import PanelBar from '@/components/shared/PanelBar';
 import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router';
 import { DebtSkeleton } from '@/components/shared/PageSkeleton';
@@ -5,7 +6,6 @@ import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulateDebtPayoff } from '@/lib/calculations';
 import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations, useSavingsGoals, useCarFunds, usePaymentPlans } from '@/hooks/useSupabaseData';
 import FormModal from '@/components/shared/FormModal';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
@@ -13,6 +13,7 @@ import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduled
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import { isCardOpenAsOf } from '@/lib/card-start-date';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -155,7 +156,15 @@ export default function DebtPayoff() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
-  const hasCreditCards = accounts?.some(a => a.account_type === 'credit_card' && a.active) ?? false;
+  // `active` is not the flag for "has this card been opened yet" — `card_start_date` is, and
+  // `isCardOpenAsOf` is its only predicate. A planned card is `active = true` with a future
+  // start date, and counting it made the tab badge claim cards the panels below correctly
+  // refuse to list.
+  const openCreditCards = useMemo(
+    () => (accounts ?? []).filter(a => a.account_type === 'credit_card' && a.active && isCardOpenAsOf(a, new Date())),
+    [accounts],
+  );
+  const hasCreditCards = openCreditCards.length > 0;
 
   const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds), [carFunds]);
   const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
@@ -169,24 +178,16 @@ export default function DebtPayoff() {
   }
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       <div className="flex items-start sm:items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Debt Payoff Planner</h1>
+            {/* Section label, not a hero: the hero number on the cards tab outranks the page
+                title (DIRECTION.md rule 2). Still an h1 — demoting the type must not demote the
+                document outline or the screen-reader landmark. */}
+            <h1 className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Debt Payoff Planner</h1>
             <p className="text-xs text-muted-foreground mt-0.5 truncate">Eliminate debt with realistic, due-date-aware projections</p>
           </div>
-          <InstructionsModal pageTitle="Debt Payoff Guide" sections={[
-            { title: 'What is this page?', body: 'The Debt Payoff Planner runs a full 60-month simulation with real monthly interest, minimum payments, and optional payment plan charges. It tells you exactly when each card is paid off and how much interest you will pay.' },
-            { title: 'Strategies', body: 'Avalanche pays the highest-APR card first to minimize total interest. Snowball pays the smallest balance first for early momentum. Both always cover every card\'s minimum first, then put the remaining available cash toward the priority card.' },
-            { title: 'Statement vs. revolving cards', body: 'Cards set to "pay in full" clear their full balance each month — new purchases are included in the payment. Revolving cards carry a balance month-to-month and accrue interest. The engine handles both correctly and never over-pays a statement card.' },
-            { title: 'Payment plans on cards', body: 'Installment plans (Amazon, Apple Pay Later, etc.) linked to a credit card are added as monthly charges to that card — they are not deducted from your cash directly. The engine factors these charges into each card\'s projected balance and interest each month.' },
-            { title: 'Due dates', body: 'Each card can have a due date. The engine estimates how much cash you will have by that date — accounting for scheduled income and expenses — so it knows exactly what is safe to pay without dropping below your floor before the next paycheck.' },
-            { title: 'Est. Liquid Cash & Safe to Pay', body: 'Liquid Cash = your funding account balance + Transactions income scheduled before the due date. Safe to Pay = Liquid Cash − Safe Minimum − other cards\' autopay amounts. Budget Control income is not separately counted — Transactions is the source of truth to prevent double-counting.' },
-            { title: 'Minimum payment priority', body: 'All minimums across every card are covered first. Only after every minimum is met does the engine allocate the extra available amount to the strategy\'s priority card.' },
-            { title: 'Recommended Safe Minimum', body: 'The greater of your cash floor setting and estimated next-month bills due before your next paycheck. This prevents your account from going negative between pay periods.' },
-            { title: 'Overrides & reset', body: 'Click any monthly payment cell to manually set an amount. Use "Revert" to restore the engine\'s recommendation for that month. "Reset & Recalculate" clears all manual overrides and recalculates from scratch — only needed after manual adjustments.' },
-          ]} />
         </div>
         <Link
           to={`/accounts?new=1&type=${
@@ -232,34 +233,37 @@ export default function DebtPayoff() {
         </div>
       )}
 
+      {/* The tab row and the panels it switches are ONE group (`stack-row`): a control row
+          belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
+      <div className="stack-row">
       {/* Tabs */}
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <PanelBar surface="debt" panel={activeTab}>
         <button onClick={() => setActiveTab('cards')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'cards' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{accounts?.filter(a => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
+          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className={`seg-badge ${activeTab === 'cards' ? 'seg-badge-active' : ''}`}>{openCreditCards.length}</span>}
         </button>
         <button onClick={() => setActiveTab('auto')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'auto' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'auto' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{activeAutoLoans.length}</span>}
+          <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className={`seg-badge ${activeTab === 'auto' ? 'seg-badge-active' : ''}`}>{activeAutoLoans.length}</span>}
         </button>
         <button onClick={() => setActiveTab('mortgage')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'mortgage' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'mortgage' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Landmark size={13} /> Mortgage {mortgageDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{mortgageDebts.length}</span>}
+          <Landmark size={13} /> Mortgage {mortgageDebts.length > 0 && <span className={`seg-badge ${activeTab === 'mortgage' ? 'seg-badge-active' : ''}`}>{mortgageDebts.length}</span>}
         </button>
         <button onClick={() => setActiveTab('student')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'student' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'student' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{studentDebts.length}</span>}
+          <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className={`seg-badge ${activeTab === 'student' ? 'seg-badge-active' : ''}`}>{studentDebts.length}</span>}
         </button>
         <button onClick={() => setActiveTab('other')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'other' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'other' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{otherDebts.length}</span>}
+          <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className={`seg-badge ${activeTab === 'other' ? 'seg-badge-active' : ''}`}>{otherDebts.length}</span>}
         </button>
-      </div>
+      </PanelBar>
 
       {activeTab === 'cards' && (
         <div className="flex items-center justify-between p-3 bg-secondary border border-border" style={{ borderRadius: 'var(--radius)' }}>
@@ -300,6 +304,9 @@ export default function DebtPayoff() {
                 interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
                 actualMonthlyPayment: cf.actual_monthly_payment,
                 lumpSumPayments: cf.lump_sum_payments ?? [],
+                // Live balance from the linked account, when there is one — so this page cannot
+                // disagree with /vehicles or the forecast about what is owed.
+                currentBalance: cf.current_balance_override ?? null,
               });
               const payoffFmt = new Date(proj.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
               return (
@@ -599,6 +606,8 @@ export default function DebtPayoff() {
           </div>
         </div>
       )}
+
+      </div>
 
       {showForm && (
         <FormModal

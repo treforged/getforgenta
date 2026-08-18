@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
+import PanelBar from '@/components/shared/PanelBar';
+import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import { TransactionsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliations, usePaymentPlans, useCarFunds, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -20,7 +20,7 @@ import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, isPlanInProgress, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
@@ -30,6 +30,14 @@ import { useDismissedDuplicates } from '@/hooks/useDismissedDuplicates';
 import DuplicateTransactionWarning from '@/components/shared/DuplicateTransactionWarning';
 import type { Tables } from '@/integrations/supabase/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import { activityTabFromSearch, effectiveActivityTab, type ActivityTab } from '@/lib/activity-tab';
+
+// LAZY, not a plain import. Budget Control was its own route chunk until today; importing it
+// statically here would fold it into the Activity chunk, so every visit to the planning ledger —
+// by far the common one — would pay for a panel it never opens. Same trade, and the same measured
+// reason, as `Accounts` inside `Dashboard`. Read the chunk sizes out of the build before changing
+// this back.
+const BudgetControl = lazy(() => import('@/pages/BudgetControl'));
 
 const ALL_CATEGORIES = ['Income', ...CATEGORIES.filter(c => c !== 'Income')];
 
@@ -90,7 +98,25 @@ export default function Transactions() {
   // §1B — Planning vs Bank Activity. The two streams are never interleaved: this page's rows are
   // what WILL happen (hand-entered plus generated debt/plan/car-loan occurrences), bank activity is
   // what DID. Persisted like the other view toggles above, for the same reason.
-  const [activeTab, setActiveTab] = usePersistedState<'planning' | 'bank'>('tre:transactions:tab', 'planning');
+  //
+  // ⚠️ AND SINCE 2026-08-18, Budget Control is the THIRD value of this same selector rather than a
+  // tab of its own (Tre: "we need to reduce how many separate tabs"). It is one row of three, not
+  // an outer row wrapping this one — see `activity-tab.ts` for why nesting was rejected. The key is
+  // unchanged, so every stored 'planning'/'bank' keeps working; `effectiveActivityTab` heals
+  // anything else rather than rendering an empty surface.
+  const [storedTab, setActiveTab] = usePersistedState<ActivityTab>('tre:transactions:tab', 'planning');
+  const activeTab = effectiveActivityTab(storedTab);
+  // A link may name a panel — `/budget` redirects here saying `?tab=budget`. Honoured ONCE and then
+  // stripped, after which the user's own remembered panel takes over again. Identical to Dashboard.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const askedTab = activityTabFromSearch(searchParams);
+  useEffect(() => {
+    if (!askedTab) return;
+    setActiveTab(askedTab);
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    setSearchParams(next, { replace: true });
+  }, [askedTab, searchParams, setSearchParams, setActiveTab]);
   // Null while loading and null at zero — the tab renders no badge in both cases, because a "0" and
   // a badge that failed to compute are indistinguishable to a user.
   const reviewQueueCount = useBankReviewQueueCount();
@@ -567,24 +593,15 @@ export default function Transactions() {
   }
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {/* Header */}
 <div className="space-y-3">
   {/* Title Row */}
   <div className="flex items-center gap-3">
     <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">
-      Transactions
+      Activity
     </h1>
 
-    <InstructionsModal
-      pageTitle="Transactions Guide"
-      sections={[
-        { title: 'What is this page?', body: 'Transactions shows your complete ledger — real transactions you enter plus auto-generated ones from your Budget Control recurring rules and debt payoff plan.' },
-        { title: 'Generated vs Real', body: 'Entries with badges (recurring, debt payment) are auto-generated from rules. Edit the occurrence to override just that instance, or edit the rule to change all future occurrences.' },
-        { title: 'Filters', body: 'Filter by type (income/expense), category, or payment source to find specific entries.' },
-        { title: 'How it affects the rest', body: 'Transactions feed the Dashboard monthly totals, Forecast projections, and spending breakdowns.' },
-      ]}
-    />
   </div>
 
   {/* Tabs — planning stream vs what the bank reported.
@@ -592,23 +609,29 @@ export default function Transactions() {
       for and is waiting on. NOT a count of unreviewed rows — most rows are unreviewed by design and
       always will be; see `@/lib/bank-activity-queue`. `useBankReviewQueueCount` returns null rather
       than 0, so a quiet queue and a queue that has not loaded both render nothing. */}
-  <div className="flex items-center gap-1 border-b border-border">
+  <PanelBar surface="transactions" panel={activeTab}>
     {([
+      // Budget Control leads (Tre, 2026-08-18: "move budget control as the first tab of
+      // transactions") — the rules are what every other number on this page derives from, so it
+      // reads left to right as cause then effect: the rules, what they project, what the bank did.
+      // A fresh SIGN-IN also lands here (`resetActivityTabForSignIn`, called from AuthContext);
+      // within a session the panel is remembered. Tre, 2026-08-18: "it should land in whatever page
+      // the user looked at last, on sign in it should be budget control though."
+      { id: 'budget' as const, label: 'Budget Control', count: null as number | null },
       { id: 'planning' as const, label: 'Planning', count: null as number | null },
       { id: 'bank' as const, label: 'Bank Activity', count: reviewQueueCount },
     ]).map(t => (
       <button
         key={t.id}
         onClick={() => setActiveTab(t.id)}
-        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
-          activeTab === t.id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-        }`}
+        className={`seg-item btn-press ${activeTab === t.id ? 'seg-item-active' : ''}`}
+        role="tab"
+        aria-selected={activeTab === t.id}
       >
         {t.label}
         {t.count !== null && (
           <span
-            className="text-[10px] font-semibold bg-primary/15 text-primary px-1.5 py-0.5 leading-none"
-            style={{ borderRadius: 'var(--radius)' }}
+            className={`seg-badge ${activeTab === t.id ? 'seg-badge-active' : ''}`}
             title={`${t.count} bank ${t.count === 1 ? 'charge has' : 'charges have'} a suggested match waiting for you`}
           >
             {t.count}
@@ -616,7 +639,7 @@ export default function Transactions() {
         )}
       </button>
     ))}
-  </div>
+  </PanelBar>
 
   {/* Action Buttons — export and manual entry belong to the planning ledger only */}
   <div className={`flex flex-col gap-2 sm:flex-row sm:flex-wrap ${activeTab === 'planning' ? '' : 'hidden'}`}>
@@ -677,6 +700,16 @@ export default function Transactions() {
 
       {activeTab === 'bank' && (
         <ErrorBoundary variant="widget" label="Bank Activity"><BankActivity /></ErrorBoundary>
+      )}
+
+      {/* ⚠️ RENDERED, NOT LINKED TO — and `BudgetControl` is unchanged apart from an `embedded` prop
+          that suppresses only its own <h1>/subtitle and page padding, because this page already
+          carries both. Mounted only while its own panel is selected, so its profile/rules/accounts
+          queries never run while the user is on the planning ledger. */}
+      {activeTab === 'budget' && (
+        <Suspense fallback={<div className="h-64" />}>
+          <ErrorBoundary variant="widget" label="Budget Control"><BudgetControl embedded /></ErrorBoundary>
+        </Suspense>
       )}
 
       {activeTab === 'planning' && (<>
@@ -911,10 +944,10 @@ export default function Transactions() {
           const canConvertToPlan = (isPremium || isDemo)
             && planDraftFromTransaction(t, { paymentSource: normalizeSource(t.payment_source) }).ok;
           return (
-            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-amber-500/40' : ''}`}>
+            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-gold/40' : ''}`}>
               <div className="flex items-center gap-3">
                 {isRecon
-                  ? <SlidersHorizontal size={14} className="text-amber-500" />
+                  ? <SlidersHorizontal size={14} className="text-gold" />
                   : <span className="text-base leading-none w-5 text-center shrink-0">{t.isDebtPayment ? '💳' : t.isCarLoanPayment ? '🚗' : t.type === 'income' ? '💰' : (CATEGORY_EMOJI[t.category] ?? '📦')}</span>
                 }
                 <div>
@@ -927,7 +960,7 @@ export default function Transactions() {
                     {pauseSavings && t.ruleId && savingsRuleIdsForBadge.has(t.ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
-                    {isRecon && <span className="text-[9px] text-amber-600 bg-amber-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
+                    {isRecon && <span className="text-[9px] text-gold bg-gold/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
                     {sourceMissing && <span className="text-destructive" aria-label="Linked account not found"><AlertTriangle size={10} /></span>}
                   </div>
                   <p className="text-xs text-muted-foreground">

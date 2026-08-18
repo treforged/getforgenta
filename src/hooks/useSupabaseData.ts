@@ -1,13 +1,16 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { toast } from 'sonner';
+import { applyLinkedLoanBalances } from '@/lib/vehicle-loan-link';
 import { sanitizePayload } from '@/lib/sanitize';
 import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
   demoNetWorthSnapshots, demoCarBuilds, demoCarBuildPhases, demoCarBuildItems,
   demoCarMaintenanceLogs,
+  demoSyncedTransactions, demoAccounts, demoRecurringRules,
 } from '@/lib/demo-data';
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
@@ -21,20 +24,6 @@ import {
 import type { LedgerDraft } from '@/lib/synced-transaction-import';
 
 // ─── Accounts (Centralized) ──────────────────────────────
-// FIX #13: Demo accounts now have realistic balances that produce
-// meaningful forecast projections. Checking balance supports the
-// cash floor while showing debt payoff in action.
-const demoAccounts = [
-  { id: 'd1', user_id: 'demo', name: 'Chase Checking', account_type: 'checking', institution: 'Chase', balance: 2800, credit_limit: null, apr: null, active: true, notes: 'Primary checking', created_at: '', updated_at: '' },
-  { id: 'd2', user_id: 'demo', name: 'Alliant Checking', account_type: 'checking', institution: 'Alliant', balance: 1000, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'd3', user_id: 'demo', name: 'Marcus HYS', account_type: 'high_yield_savings', institution: 'Marcus', balance: 5800, credit_limit: null, apr: 4.5, active: true, notes: 'Emergency fund', created_at: '', updated_at: '' },
-  { id: 'd4', user_id: 'demo', name: 'Fidelity 401k', account_type: '401k', institution: 'Fidelity', balance: 8500, credit_limit: null, apr: null, active: true, notes: 'Employer match 4%', created_at: '', updated_at: '' },
-  { id: 'd5', user_id: 'demo', name: 'Roth IRA', account_type: 'roth_ira', institution: 'Fidelity', balance: 4200, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'd6', user_id: 'demo', name: 'Robinhood', account_type: 'brokerage', institution: 'Robinhood', balance: 2000, credit_limit: null, apr: null, active: true, notes: 'Index funds', created_at: '', updated_at: '' },
-  { id: 'd7', user_id: 'demo', name: 'Chase Sapphire', account_type: 'credit_card', institution: 'Chase', balance: 8500, credit_limit: 12000, apr: 22.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 15, payment_preference: 'statement' },
-  { id: 'd8', user_id: 'demo', name: 'Discover It', account_type: 'credit_card', institution: 'Discover', balance: 4200, credit_limit: 7500, apr: 18.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 22, payment_preference: 'full' },
-  { id: 'd9', user_id: 'demo', name: 'Cash', account_type: 'cash', institution: '', balance: 300, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
-];
 
 
 export type AccountRow = Partial<Tables<'accounts'>> & {
@@ -85,36 +74,6 @@ export function useAccounts() {
   return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
 }
 
-// ─── Recurring Rules ─────────────────────────────────────
-// FIX #14: Demo recurring rules now cover a full realistic budget with
-// all rule types (income, expense, transfer, investment) so the forecast
-// shows meaningful projections. Amounts are consistent with the demo
-// profile's weekly_gross_income of $1875 @ 22% tax.
-const demoRecurringRules = [
-  // Income — $1875/week gross @ 22% tax = $1462.50 net per paycheck
-  { id: 'r1', user_id: 'demo', name: 'Weekly Paycheck', amount: 1462.50, rule_type: 'income', frequency: 'weekly', due_day: 5, due_month: null, start_date: '2026-01-03', end_date: null, category: 'Other', payment_source: null, deposit_account: 'd1', active: true, notes: 'Friday deposits', created_at: '', updated_at: '' },
-  // Fixed expenses
-  { id: 'r2', user_id: 'demo', name: 'Rent', amount: 1600, rule_type: 'expense', frequency: 'monthly', due_day: 1, due_month: null, start_date: '2026-01-01', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r3', user_id: 'demo', name: 'Utilities', amount: 200, rule_type: 'expense', frequency: 'monthly', due_day: 15, due_month: null, start_date: '2026-01-15', end_date: null, category: 'Bills', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r4', user_id: 'demo', name: 'Car Insurance', amount: 280, rule_type: 'expense', frequency: 'monthly', due_day: 14, due_month: null, start_date: '2026-01-14', end_date: null, category: 'Car', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  // Variable expenses
-  { id: 'r10', user_id: 'demo', name: 'Groceries', amount: 80, rule_type: 'expense', frequency: 'weekly', due_day: 6, due_month: null, start_date: '2026-01-06', end_date: null, category: 'Groceries', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r11', user_id: 'demo', name: 'Gas', amount: 55, rule_type: 'expense', frequency: 'weekly', due_day: 3, due_month: null, start_date: '2026-01-03', end_date: null, category: 'Gas', payment_source: 'd1', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r12', user_id: 'demo', name: 'Dining Out', amount: 120, rule_type: 'expense', frequency: 'monthly', due_day: 20, due_month: null, start_date: '2026-01-20', end_date: null, category: 'Dining', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  // Subscriptions
-  { id: 'r5', user_id: 'demo', name: 'Amazon Prime', amount: 139, rule_type: 'expense', frequency: 'yearly', due_day: 15, due_month: 3, start_date: '2026-03-15', end_date: null, category: 'Subscriptions', payment_source: 'd7', deposit_account: null, active: true, notes: 'Annual renewal', created_at: '', updated_at: '' },
-  { id: 'r13', user_id: 'demo', name: 'Streaming + Gym', amount: 85, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'd7', deposit_account: null, active: true, notes: '', created_at: '', updated_at: '' },
-  // Transfers — savings and investments
-  { id: 'r6', user_id: 'demo', name: 'Emergency Fund', amount: 300, rule_type: 'transfer', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Savings', payment_source: 'd1', deposit_account: 'd3', active: true, notes: 'HYS contribution', created_at: '', updated_at: '' },
-  { id: 'r7', user_id: 'demo', name: '401k Contribution', amount: 375, rule_type: 'investment', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Investing', payment_source: 'd1', deposit_account: 'd4', active: true, notes: 'Pre-tax', created_at: '', updated_at: '' },
-  { id: 'r8', user_id: 'demo', name: 'Roth IRA', amount: 250, rule_type: 'investment', frequency: 'monthly', due_day: 10, due_month: null, start_date: '2026-01-10', end_date: null, category: 'Investing', payment_source: 'd1', deposit_account: 'd5', active: true, notes: '', created_at: '', updated_at: '' },
-  { id: 'r9', user_id: 'demo', name: 'Brokerage', amount: 200, rule_type: 'investment', frequency: 'monthly', due_day: 10, due_month: null, start_date: '2026-01-10', end_date: null, category: 'Investing', payment_source: 'd1', deposit_account: 'd6', active: true, notes: 'Index funds', created_at: '', updated_at: '' },
-  // Non-paycheck income — demonstrates Bug 2 fix (non-paycheck income included in simulation)
-  { id: 'dr-roommate', user_id: 'demo', name: 'Roommate Contribution', amount: 900, rule_type: 'income', frequency: 'monthly', due_day: 1, due_month: null, start_date: '2026-01-01', end_date: null, category: 'Other', payment_source: null, deposit_account: 'd1', active: true, notes: 'Monthly rent split', created_at: '', updated_at: '' },
-  // Explicit CC purchase rules — ensures monthlyNewPurchases is realistic for each card
-  { id: 'dr-cc1', user_id: 'demo', name: 'Monthly Expenses', amount: 450, rule_type: 'expense', frequency: 'monthly', due_day: 5, due_month: null, start_date: '2026-01-05', end_date: null, category: 'Groceries', payment_source: 'account:d7', deposit_account: null, active: true, notes: 'Groceries & dining on Sapphire', created_at: '', updated_at: '' },
-  { id: 'dr-cc2', user_id: 'demo', name: 'Subscriptions', amount: 85, rule_type: 'expense', frequency: 'monthly', due_day: 4, due_month: null, start_date: '2026-01-04', end_date: null, category: 'Subscriptions', payment_source: 'account:d8', deposit_account: null, active: true, notes: 'Streaming & services on Discover', created_at: '', updated_at: '' },
-];
 
 export type RuleRow = Partial<Tables<'recurring_rules'>> & {
   id: string; name: string; amount: number; rule_type: string; frequency: string; active: boolean;
@@ -136,15 +95,33 @@ export function useRecurringRules() {
     },
   });
   const add = useMutation({
-    mutationFn: async (item: Omit<TablesInsert<'recurring_rules'>, 'user_id'>) => {
+    /**
+     * ⚠️ RETURNS THE NEW ROW'S ID, and `quiet` suppresses only the toast — both for the
+     * rules-from-history deck (`components/rules/RulesFromHistoryDeck.tsx`), which accepts several
+     * proposals in one press and offers ONE undo for the run. The undo deletes exactly the rules
+     * that run created, so it needs their ids as they land; and one success toast per rule would
+     * bury the run's own summary under a stack of five. Neither changes what is written, and every
+     * existing caller ignores the return value and passes no flag, so both are additive.
+     */
+    mutationFn: async ({ quiet: _quiet, ...item }: Omit<TablesInsert<'recurring_rules'>, 'user_id'> & { quiet?: boolean }): Promise<string> => {
       if (isDemo || !user) throw new Error('Demo mode');
       if (item.start_date && item.end_date && item.end_date < item.start_date) {
         throw new Error('End Date cannot be before Start Date');
       }
-      const { error } = await supabase.from('recurring_rules').insert(sanitizePayload({ ...item, user_id: user.id }));
+      const { data, error } = await supabase.from('recurring_rules')
+        .insert(sanitizePayload({ ...item, user_id: user.id }))
+        .select('id')
+        .single();
       if (error) throw error;
+      // A write that reports success without the row it claims to have made is the silent failure
+      // this house keeps getting bitten by — the undo would then have nothing to delete.
+      if (!data?.id) throw new Error('The rule was not saved — the database returned no row.');
+      return data.id;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['recurring_rules'] }); toast.success('Recurring rule added'); },
+    onSuccess: (_id, variables) => {
+      qc.invalidateQueries({ queryKey: ['recurring_rules'] });
+      if (!variables.quiet) toast.success('Recurring rule added');
+    },
     onError: (e: Error) => toast.error(e.message),
   });
   const update = useMutation({
@@ -415,6 +392,13 @@ export function useCarFunds() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const qc = useQueryClient();
+  // A vehicle loan the user linked to a connected account is amortized from the BANK's
+  // outstanding principal, not from the figure typed at activation, which nothing ever
+  // re-anchors and which therefore drifts monotonically. Resolved here, once, at the data
+  // layer — so every consumer of a CarFund gets the corrected projection with no signature
+  // change and `getActiveCarLoanPayments` never needs an `accounts` argument it cannot get
+  // from its pure callers. See `vehicle-loan-link.ts`.
+  const { data: accountsForLoanLink } = useAccounts();
   const query = useQuery({
     queryKey: ['car_funds', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
@@ -437,7 +421,12 @@ export function useCarFunds() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_funds'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('car_funds').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      // `current_balance_override` is resolved, not stored — there is no such column. A caller
+      // that spreads a whole CarFund into this mutation would otherwise send it and get a
+      // schema error, so it is stripped here rather than depending on every call site.
+      const { current_balance_override: _resolved, ...storable } =
+        item as Partial<Tables<'car_funds'>> & { current_balance_override?: number | null };
+      const { error } = await supabase.from('car_funds').update(sanitizePayload(storable)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_funds'] }); toast.success('Vehicle updated'); },
@@ -452,7 +441,11 @@ export function useCarFunds() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_funds'] }); toast.success('Vehicle deleted'); },
     onError: (e) => toast.error(e.message),
   });
-  return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
+  const data = useMemo(
+    () => applyLinkedLoanBalances(query.data ?? [], accountsForLoanLink),
+    [query.data, accountsForLoanLink],
+  );
+  return { data, loading: query.isLoading, error: query.error, add, update, remove };
 }
 
 // ─── Lump Sum Transfers ───────────────────────────────────
@@ -582,8 +575,13 @@ const SYNCED_TXN_MAX_PAGES = 50;
  * and unreviewed means nothing at all. With all history in scope most rows are permanently
  * unreviewed by design, so no caller may read it as "this did not happen".
  *
- * Demo mode returns nothing — there is no aggregator behind demo data, and inventing bank rows
- * would put fabricated "your bank says" claims on fixtures.
+ * ⚠️ DEMO SERVES A FIXTURE FEED (`demoSyncedTransactions`), REVERSING AN EARLIER DECISION. This
+ * used to return `[]`, on the reasoning that inventing bank rows would put fabricated "your bank
+ * says" claims on fixtures. That reasoning protects a REAL user and does not reach demo: every
+ * other row demo serves is fabricated already, the banner says so on every screen, and the absence
+ * was not neutral — it rendered the Decision Deck and the patterns card structurally empty on the
+ * one surface `design/DIRECTION.md` calls the sales surface. The fixture's own header carries what
+ * has to stay true of it.
  */
 export function useAllSyncedTransactions() {
   const { user } = useAuth();
@@ -592,7 +590,8 @@ export function useAllSyncedTransactions() {
     queryKey: ['synced_transactions', 'all', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<BankActivityRow[]> => {
-      if (isDemo || !user) return [];
+      if (isDemo) return demoSyncedTransactions;
+      if (!user) return [];
       const rows: BankActivityRow[] = [];
       for (let page = 0; page < SYNCED_TXN_MAX_PAGES; page++) {
         const from = page * SYNCED_TXN_PAGE_SIZE;
@@ -1485,6 +1484,37 @@ export function useCarBuildPhases(buildId: string | null) {
 }
 
 // ─── Car Build Items ─────────────────────────────────────
+/**
+ * Every build item the user owns, across all builds — read-only.
+ *
+ * ⚠️ SEPARATE FROM `useCarBuildItems(buildId)` ON PURPOSE. That one is the Garage's editor and is
+ * scoped to the build being edited; this one exists because Bank Activity has to offer a charge a
+ * destination without knowing which build it belongs to. Read-only by construction: the only thing
+ * outside the Garage that touches a build item is the `car_build_item_id` stamp on a ledger row,
+ * and that is written on the TRANSACTION, never here.
+ */
+export function useAllCarBuildItems() {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+
+  const query = useQuery({
+    queryKey: ['car_build_items', 'all', isDemo ? 'demo' : user?.id],
+    enabled: isDemo || !!user,
+    queryFn: async () => {
+      if (isDemo || !user) return demoCarBuildItems;
+      const { data, error } = await supabase
+        .from('car_build_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('sort_order');
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  return { data: query.data ?? [], loading: query.isLoading, error: query.error };
+}
+
 export function useCarBuildItems(buildId: string | null) {
   const { user } = useAuth();
   const { isDemo } = useDemo();

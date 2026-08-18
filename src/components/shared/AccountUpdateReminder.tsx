@@ -38,10 +38,10 @@ export default function AccountUpdateReminder() {
 
   return (
     <div 
-      className="mb-4 p-4 border-2 border-amber-500/50 bg-amber-500/10 flex items-start gap-3"
+      className="mb-4 p-4 border-2 border-gold/50 bg-gold/10 flex items-start gap-3"
       style={{ borderRadius: 'var(--radius)' }}
     >
-      <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+      <AlertTriangle className="text-gold shrink-0 mt-0.5" size={20} />
       <div className="flex-1 min-w-0">
         <h3 className="font-semibold text-sm mb-1">Update Your Account Balances</h3>
         <p className="text-xs text-muted-foreground">

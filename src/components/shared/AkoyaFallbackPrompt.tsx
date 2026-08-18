@@ -22,9 +22,9 @@ export default function AkoyaFallbackPrompt({
   if (!institution) return null;
 
   return (
-    <div className="flex items-start justify-between gap-3 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2.5">
+    <div className="flex items-start justify-between gap-3 bg-gold/10 border border-gold/20 rounded px-3 py-2.5">
       <div className="flex items-start gap-2 min-w-0">
-        <AlertTriangle size={13} className="text-amber-500 shrink-0 mt-0.5" />
+        <AlertTriangle size={13} className="text-gold shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground leading-relaxed">
           We're temporarily unable to connect through Plaid. You can continue by
           connecting {institution.displayName} through Akoya.

@@ -78,10 +78,21 @@ export type CarFund = {
    * comes from the generic liquid-cash pool (today's default behavior, unchanged). */
   loan_payment_account: string | null;
   /** The `accounts` row (account_type `'auto_loan'`) that IS this vehicle's loan liability, when
-   * the user also tracks it as a live account. Net worth prefers this over name matching to decide
-   * whether to drop the amortized `car_funds` balance — see `sharesDistinctiveToken` in
-   * `net-worth.ts`. Null means unlinked; the token heuristic is the only fallback. */
+   * the user also tracks it as a live account. Three surfaces read it, and they are not the same
+   * rule: net worth prefers it over name matching to decide whether to drop the amortized
+   * `car_funds` balance (`sharesDistinctiveToken` in `net-worth.ts`); the amortization re-anchors
+   * to the linked account's live balance instead of the typed `loan_amount`; and the forecast
+   * drops the ACCOUNT row so the pair is not itemised twice (`vehicle-loan-link.ts` records why
+   * the survivor differs between those last two). Null means unlinked; the token heuristic is the
+   * only fallback, and it exists only for net worth. */
   linked_loan_account_id: string | null;
+  /** NOT a database column — a resolved field, filled in at the data layer by
+   * `applyLinkedLoanBalances` (`vehicle-loan-link.ts`) from the live balance of
+   * `linked_loan_account_id`'s account. When present it is the real outstanding principal and
+   * the amortization re-anchors to it from the first unpaid month forward; when absent the
+   * schedule runs off `loan_amount` as it always has. Optional because most rows have no link
+   * and because it must never be written back to `car_funds`. */
+  current_balance_override?: number | null;
   planned_purchase_date: string | null;
   gift_contribution: number;
   lump_sum_payments: { id: string; date: string; amount: number; label?: string }[];

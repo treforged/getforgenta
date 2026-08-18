@@ -1,5 +1,7 @@
 export interface CardStartDateAccount {
-  id: string;
+  /** Optional: `isCardOpenAsOf` never reads it, and callers with id-less account shapes
+   * (net-worth's manual rows) must still be able to ask whether a card is open. */
+  id?: string;
   account_type?: string | null;
   card_start_date?: string | null;
   name?: string | null;
@@ -66,4 +68,24 @@ export function getCardStartDateViolation(
     return `${label} doesn't start until ${startLabel}. Pick a later date or a different payment source.`;
   }
   return null;
+}
+
+/**
+ * The CardData-shaped sibling of {@link isCardOpenAsOf}, for the simulation's own card
+ * objects (which carry `startDate` and no `account_type` — every one of them is a card).
+ *
+ * This is deliberately NOT a second spelling of the flag: both predicates are
+ * {@link cardStartMonthOffset} at month 0, so the account row and the sim card can never
+ * disagree about whether a card exists yet.
+ *
+ * ⚠️ Use it at the RECOMMENDATION / DISPLAY layer only. The simulation is supposed to
+ * model a future card turning on (see `cardStartMonths` in credit-card-engine.ts), and
+ * filtering it out of the projection would delete that. What a card that does not exist
+ * yet cannot do is receive a payment THIS month, or owe a balance today.
+ */
+export function isSimCardOpenAsOf(
+  card: { startDate?: string | null },
+  asOf: Date,
+): boolean {
+  return cardStartMonthOffset(card.startDate, asOf) === 0;
 }

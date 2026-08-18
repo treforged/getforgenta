@@ -1,7 +1,7 @@
+import PanelBar from '@/components/shared/PanelBar';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
 import { useAccounts, useAssets, useDebts, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, useCarFunds, type AccountRow } from '@/hooks/useSupabaseData';
@@ -24,6 +24,8 @@ import PremiumGate from '@/components/shared/PremiumGate';
 import BalanceTrancheEditor from '@/components/shared/BalanceTrancheEditor';
 import { tranchesToRows, rowsToTranches, type TrancheFormRow } from '@/lib/tranche-form';
 import { AccountsSkeleton } from '@/components/shared/PageSkeleton';
+import { usePersistedState } from '@/hooks/usePersistedState';
+import { accountsTabFromSearch, isAccountsTab, ACCOUNTS_PANEL_PARAM, type AccountsTab } from '@/lib/accounts-tab';
 import {
   Building2, Plus, Edit2, Trash2, Wallet, TrendingUp, TrendingDown,
   CreditCard, PiggyBank, Landmark, DollarSign, Eye, EyeOff,
@@ -145,7 +147,18 @@ function formatSyncStatus(lastSyncedAt: string | null): { text: string; isStale:
 const emptyForm = { name: '', account_type: '', institution: '', balance: '', credit_limit: '', apr: '', notes: '', min_payment: '', min_payment_is_manual: '', apy_rate: '', payment_due_day: '', apr_start_date: '', card_start_date: '' };
 const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savings'];
 
-export default function Accounts() {
+/**
+ * ⚠️ ACCOUNTS IS NOT A ROUTE ANY MORE. It is the Dashboard's second panel (Tre, 2026-08-18: "we
+ * need to reduce how many separate tabs. especially on mobile. they can have sections within
+ * tabs."), hosted the way the Garage hosts `Builds` — rendered, not linked to, and mounted only on
+ * its own panel so its nine queries do not run while the user is looking at the Overview.
+ *
+ * `embedded` suppresses ONLY the page <h1> and its subtitle, because the Dashboard already carries
+ * a page heading and two of them is the thing the merge was meant to remove. Everything else — the
+ * Add Account button, the three sub-panels, every modal — is untouched; those ARE the "sections
+ * within tabs" that were asked for.
+ */
+export default function Accounts({ embedded = false }: { embedded?: boolean } = {}) {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { data: accounts, add, update, remove, loading } = useAccounts();
@@ -159,7 +172,32 @@ export default function Accounts() {
   // Keeps the Net Worth History chart below fed with fresh points.
   useNetWorthSnapshotRecorder();
   const qc = useQueryClient();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  /**
+   * Three panels instead of one scroll — the same shell the Garage uses (`garage-tab.ts`), for the
+   * same reason: this page answers three different questions (what do I have, where is it going,
+   * which banks feed it) and stacking them made the third one a scroll nobody reached.
+   *
+   * The tab persists so the page reopens where the user left it, and a `?tab=` link overrides it
+   * ONCE and is then stripped — see `accounts-tab.ts` for why an unknown value must not default.
+   */
+  const [activeTab, setActiveTab] = usePersistedState<AccountsTab>('tre:accounts:activeTab', 'balances');
+  // Two ways a stored value can point at nothing, both resolved here rather than by writing over
+  // it — so the real user's panel survives leaving the demo, and nobody's localStorage needs a
+  // migration. (1) Demo has no Linked Banks panel. (2) `networth` was retired on 2026-08-18 when
+  // the chart moved up into the summary card, so anyone who left the page on it has a stale value.
+  const effectiveTab: AccountsTab =
+    !isAccountsTab(activeTab) ? 'balances'
+    : isDemo && activeTab === 'banks' ? 'balances'
+    : activeTab;
+  const askedTab = accountsTabFromSearch(searchParams);
+  useEffect(() => {
+    if (!askedTab) return;
+    setActiveTab(askedTab);
+    const next = new URLSearchParams(searchParams);
+    next.delete(ACCOUNTS_PANEL_PARAM);
+    setSearchParams(next, { replace: true });
+  }, [askedTab, searchParams, setSearchParams, setActiveTab]);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -574,7 +612,7 @@ export default function Accounts() {
   if (summaryLoading) return <AccountsSkeleton />;
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
+    <div className={embedded ? 'stack-section overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden'}>
       {/* Plaid link success overlay */}
       {plaidSyncResult && !plaidSyncing && (
         <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
@@ -619,7 +657,7 @@ export default function Accounts() {
             )}
 
             {plaidSyncResult.accounts.some(a => a.type === 'credit_card' && !a.liability_synced) && (
-              <p className="text-[10px] text-amber-500 text-center leading-relaxed">
+              <p className="text-[10px] text-gold text-center leading-relaxed">
                 Card details (APR, limit, min) not available from this bank. Use Re-link in the Linked Banks section to retry.
               </p>
             )}
@@ -652,7 +690,7 @@ export default function Accounts() {
               </div>
             </div>
             {deleteConfirm.isLinked && (
-              <div className="bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-400 space-y-1" style={{ borderRadius: 'var(--radius)' }}>
+              <div className="bg-gold/10 border border-gold/30 px-3 py-2.5 text-xs text-gold space-y-1" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="font-semibold">This account is linked to Plaid.</p>
                 <p>Deleting it will disconnect the Plaid sync. It will no longer pull balance or transaction updates.</p>
               </div>
@@ -685,18 +723,17 @@ export default function Accounts() {
           <p className="text-xs text-muted-foreground">Exchanging token and syncing balances</p>
         </div>
       )}
+      {/* Group A — the action row and the summary card it sits above. `stack-row`, not a
+          section gap: embedding this page dropped the <h1> but left the row's band, so two
+          small controls were eating ~108px of the fold. A control row belongs to its content
+          (vertical-rhythm block in `src/index.css`). */}
+      <div className="stack-row">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Accounts</h1>
-            <InstructionsModal pageTitle="Accounts Guide" sections={[
-              { title: 'What is this page?', body: 'Accounts is the centralized source of truth for all your financial balances — checking, savings, investments, retirement, credit cards, and loans.' },
-              { title: 'How it connects', body: 'Account balances drive net worth, liquid cash calculations, debt payoff recommendations, and payment source availability across the entire app.' },
-              { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
-              { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
-            ]} />
+            {!embedded && <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Accounts</h1>}
           </div>
-          <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>
+          {!embedded && <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>}
         </div>
         <button onClick={() => openAdd()} className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
           <Plus size={14} /> Add Account
@@ -776,71 +813,106 @@ export default function Accounts() {
             <p className="text-sm sm:text-base font-display font-bold mt-0.5 text-destructive">{formatCurrency(summary.ccDebt, false)}</p>
           </div>
         </div>
+
+        {/*
+          ⚠️ THE CHART LIVES UP HERE WITH THE NUMBERS, NOT BEHIND A PILL (Tre, 2026-08-18: "leave
+          the net worth chart at the top with the other key numbers. just make it a little
+          smaller"). It is the same reading as the Net Worth figure directly above it — one over
+          time, one right now — and splitting them across a tab made the trend something you had to
+          go and look for. Height 220 -> 140 so it reads as the supporting line for those numbers
+          rather than as its own section; the empty and loading states shrank to match, and every
+          one of them still SAYS what is missing instead of drawing a flat line at zero.
+        */}
+        <div className="border-t border-border/40" />
+        <div>
+          <h3 className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            {snapshots.length > 1 ? 'Net Worth History' : 'Current Net Worth'}
+          </h3>
+          {snapshotsLoading ? (
+            <div className="h-[140px] flex items-end gap-2 px-2 pb-4 animate-pulse">
+              {[40, 55, 48, 62, 70, 58, 75, 80].map((h, i) => (
+                <div key={i} className="flex-1 bg-muted/40 rounded-sm" style={{ height: `${h}%` }} />
+              ))}
+            </div>
+          ) : netWorthTrend.length <= 1 ? (
+            <div className="flex flex-col items-center justify-center h-[140px] text-center">
+              <Wallet size={20} className="text-primary mb-2" />
+              <p className="text-xs text-muted-foreground max-w-md">
+                {snapshots.length > 0
+                  ? 'First snapshot saved — the trend line fills in over the coming weeks.'
+                  : 'The trend line appears once monthly snapshots are saved. See Forecast for projected trends.'}
+              </p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={140}>
+              <LineChart data={netWorthTrend} margin={{ left: 0, right: 8, top: 5, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fontSize: 9, fill: 'hsl(240, 4%, 46%)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={Math.max(0, Math.ceil(netWorthTrend.length / 6) - 1)}
+                  height={18}
+                />
+                <YAxis
+                  width={44}
+                  tick={{ fontSize: 9, fill: 'hsl(240, 4%, 46%)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={formatYAxisTick}
+                />
+                <Tooltip content={<NWTooltip />} />
+                <Line
+                  dataKey="value"
+                  stroke="hsl(43, 56%, 52%)"
+                  strokeWidth={2}
+                  dot={{ r: 2.5, fill: 'hsl(43, 56%, 52%)', strokeWidth: 0 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
 
-      {/* Net Worth History Chart — 2nd position */}
-      <div className="card-forged p-5">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">
-          {snapshots.length > 1 ? 'Net Worth History' : 'Current Net Worth'}
-        </h3>
-        {snapshotsLoading ? (
-          <div className="h-[200px] flex items-end gap-2 px-2 pb-4 animate-pulse">
-            {[40, 55, 48, 62, 70, 58, 75, 80].map((h, i) => (
-              <div key={i} className="flex-1 bg-muted/40 rounded-sm" style={{ height: `${h}%` }} />
-            ))}
-          </div>
-        ) : netWorthTrend.length <= 1 ? (
-          <div className="flex flex-col items-center justify-center h-[160px] text-center">
-            <Wallet size={24} className="text-primary mb-3" />
-            <p className="text-2xl font-display font-bold text-primary whitespace-nowrap">{formatCurrency(summary.netWorth, false)}</p>
-            <p className="text-xs text-muted-foreground mt-2">
-              {snapshots.length > 0
-                ? 'First snapshot saved — chart will populate over the coming weeks.'
-                : 'Historical chart appears once monthly snapshots are saved. See Forecast for projected trends.'}
-            </p>
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={netWorthTrend} margin={{ left: 0, right: 8, top: 5, bottom: 24 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />
-              <XAxis
-                dataKey="month"
-                tick={{ fontSize: 10, fill: 'hsl(240, 4%, 46%)' }}
-                axisLine={false}
-                tickLine={false}
-                interval={Math.max(0, Math.ceil(netWorthTrend.length / 8) - 1)}
-                angle={-35}
-                textAnchor="end"
-                height={48}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: 'hsl(240, 4%, 46%)' }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={formatYAxisTick}
-              />
-              <Tooltip content={<NWTooltip />} />
-              <Line
-                dataKey="value"
-                stroke="hsl(43, 56%, 52%)"
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: 'hsl(43, 56%, 52%)', strokeWidth: 0 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
       </div>
+
+      {/* Group B — the panel pills, the filter row and the list they govern. Same rule. */}
+      <div className="stack-row">
+      {/* Panel switcher — Garage-style pills. The summary numbers above stay put on every panel:
+          they are the page's hero and hiding them behind a tab would make the answer depend on
+          which tab you happened to be on. */}
+      <PanelBar surface="accounts" panel={effectiveTab}>
+        <button onClick={() => setActiveTab('balances')}
+          className={`seg-item btn-press ${effectiveTab === 'balances' ? 'seg-item-active' : ''}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Wallet size={13} /> Balances
+          {activeAccounts.length > 0 && <span className={`seg-badge ${effectiveTab === 'balances' ? 'seg-badge-active' : ''}`}>{activeAccounts.length}</span>}
+        </button>
+        {!isDemo && (
+          <button onClick={() => setActiveTab('banks')}
+            className={`seg-item btn-press ${effectiveTab === 'banks' ? 'seg-item-active' : ''}`}
+            style={{ borderRadius: 'var(--radius)' }}>
+            <Link2 size={13} /> Linked Banks
+            {plaidItems.length > 0 && <span className={`seg-badge ${effectiveTab === 'banks' ? 'seg-badge-active' : ''}`}>{plaidItems.length}</span>}
+          </button>
+        )}
+      </PanelBar>
 
       {/* Filter */}
+      {effectiveTab === 'balances' && (
       <div className="flex gap-2">
         {(['all', 'assets', 'liabilities'] as const).map(t => (
-          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
+          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : ''}`} style={{ borderRadius: 'var(--radius)' }}>
             {t === 'all' ? 'All Accounts' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
 
+      )}
+
       {/* Account List */}
+      {effectiveTab === 'balances' && (
       <div className="space-y-3">
         {filteredAccounts.length === 0 && (
           <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">No accounts yet. Add one above.</p></div>
@@ -902,8 +974,10 @@ export default function Accounts() {
         })}
       </div>
 
+      )}
+
       {/* ── Linked Banks (Plaid, with Akoya as a fallback) ───────────────── */}
-      {!isDemo && (
+      {effectiveTab === 'banks' && !isDemo && (
         <div className="card-forged p-4 sm:p-5 space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
@@ -936,7 +1010,7 @@ export default function Accounts() {
               .at(-1);
             return (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-gold'}`} />
                 {mostRecent
                   ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs daily at ${formatDailySyncTime()}`
                   : `Not yet synced · Syncs daily at ${formatDailySyncTime()}`}
@@ -1025,7 +1099,7 @@ export default function Accounts() {
                             const { text, isStale } = formatSyncStatus(item.last_synced_at);
                             return (
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                {isStale && <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 inline-block" />}
+                                {isStale && <span className="w-1.5 h-1.5 rounded-full bg-gold shrink-0 inline-block" />}
                                 {text}
                               </p>
                             );
@@ -1062,9 +1136,9 @@ export default function Accounts() {
                       </button>
                     </div>
                     {needsRelink && (
-                      <div className="flex items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/20 rounded px-3 py-2">
+                      <div className="flex items-center justify-between gap-3 bg-gold/10 border border-gold/20 rounded px-3 py-2">
                         <div className="flex items-center gap-2 min-w-0">
-                          <RefreshCw size={12} className="text-amber-500 shrink-0" />
+                          <RefreshCw size={12} className="text-gold shrink-0" />
                           <p className="text-xs text-muted-foreground">
                             {neverSynced || noAccounts
                               ? 'Sync pulled no accounts — re-link to try again.'
@@ -1086,6 +1160,8 @@ export default function Accounts() {
           )}
         </div>
       )}
+
+      </div>
 
       {/* ── Account Match Modal ─────────────────────────────────────────── */}
       {showMatchModal && (

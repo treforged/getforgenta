@@ -414,7 +414,7 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="py-4 lg:py-6 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-2xl mx-auto stack-section overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <SettingsIcon size={18} className="text-primary" />
@@ -574,7 +574,7 @@ export default function SettingsPage() {
                             </span>
                           )}
                           {isExpired && (
-                            <span className="text-[9px] px-1 py-0.5 bg-amber-500/15 text-amber-600 border border-amber-500/30 shrink-0" style={{ borderRadius: 'var(--radius)' }}>
+                            <span className="text-[9px] px-1 py-0.5 bg-gold/15 text-gold border border-gold/30 shrink-0" style={{ borderRadius: 'var(--radius)' }}>
                               Expired
                             </span>
                           )}
@@ -828,12 +828,12 @@ export default function SettingsPage() {
                     What gets deleted and what we keep
                   </Link>
                   {hasMobileSub && (
-                    <div className="mt-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-600" style={{ borderRadius: 'var(--radius)' }}>
-                      <Crown size={13} className="mt-0.5 shrink-0 text-amber-500" />
+                    <div className="mt-2 flex items-start gap-2 bg-gold/10 border border-gold/30 px-3 py-2.5 text-xs text-gold" style={{ borderRadius: 'var(--radius)' }}>
+                      <Crown size={13} className="mt-0.5 shrink-0 text-gold" />
                       <span>
                         You have an active <strong>{storeLabel} subscription</strong>. Cancel it first to avoid further charges, then return here to delete your account.
                         <br />
-                        <span className="text-amber-500/80 mt-1 block">{storeSteps}</span>
+                        <span className="text-gold/80 mt-1 block">{storeSteps}</span>
                       </span>
                     </div>
                   )}
@@ -863,8 +863,8 @@ export default function SettingsPage() {
 
               {/* Subscription cancellation notice */}
               {isPremium && (
-                <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-600" style={{ borderRadius: 'var(--radius)' }}>
-                  <Crown size={13} className="mt-0.5 shrink-0 text-amber-500" />
+                <div className="flex items-start gap-2 bg-gold/10 border border-gold/30 px-3 py-2.5 text-xs text-gold" style={{ borderRadius: 'var(--radius)' }}>
+                  <Crown size={13} className="mt-0.5 shrink-0 text-gold" />
                   <span>
                     Your <strong>Premium subscription will be cancelled immediately</strong> with no refund. You will lose access to all premium features upon deletion.
                   </span>
@@ -1015,7 +1015,7 @@ export default function SettingsPage() {
 
               {/* Embedded payment method update (Stripe Elements) */}
               {setupClientSecret && (
-                <div className="border border-border rounded-lg overflow-hidden p-4 space-y-3">
+                <div className="card-forged overflow-hidden p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium">Update payment method</span>
                     <button onClick={() => setSetupClientSecret(null)} className="text-muted-foreground hover:text-foreground p-2 -mr-1 min-w-[44px] min-h-[44px] flex items-center justify-center">

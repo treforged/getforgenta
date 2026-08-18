@@ -11,10 +11,11 @@
 import { useMemo } from 'react';
 import {
   useAllSyncedTransactions, useSyncedTransactionReviewsQuery, useRecurringRules, useTransactions,
-  usePaymentPlans, useCarFunds, useProfile,
+  usePaymentPlans, useCarFunds, useProfile, useAccounts,
   type BankActivityRow, type RuleRow, type TransactionRow, type SyncedTransactionReviewRow,
 } from './useSupabaseData';
 import { buildReviewQueue, type ReviewQueue } from '@/lib/bank-activity-queue';
+import { accountLinkDays, scopeQueueToLinkedHistory } from '@/lib/link-day-scope';
 import type { ObligationPlan } from '@/lib/charge-obligations';
 
 export type BankReviewQueue = ReviewQueue<BankActivityRow, RuleRow, TransactionRow, ObligationPlan>;
@@ -57,6 +58,7 @@ export function useBankReviewQueue(
   const ledger = useTransactions();
   const plans = usePaymentPlans();
   const carFunds = useCarFunds();
+  const accounts = useAccounts();
   const { data: profile } = useProfile();
 
   // `useRecurringRules`/`useTransactions` expose `loading`; the two raw `useQuery`s expose
@@ -66,8 +68,11 @@ export function useBankReviewQueue(
   // ⚠️ PLANS AND CAR FUNDS COUNT TOWARDS `isLoading` TOO, now that they produce suggestions. Leaving
   // them out would render a settled-looking count that then grows once they land — the badge would
   // be wrong in the one direction users notice.
+  //
+  // ⚠️ ACCOUNTS COUNT TOO, for the same reason: they carry the link days, and a queue built before
+  // they land would show the whole imported history for a moment and then quietly shrink.
   const isLoading = charges.isLoading || reviews.isLoading || rules.loading || ledger.loading
-    || plans.loading || carFunds.loading;
+    || plans.loading || carFunds.loading || accounts.loading;
 
   const reviewsByCharge = useMemo(
     () => groupReviewsByCharge(reviews.data ?? []),
@@ -76,16 +81,30 @@ export function useBankReviewQueue(
 
   const fundingAccountId = profile?.default_deposit_account ?? null;
 
-  const queue = useMemo(() => buildReviewQueue<BankActivityRow, RuleRow, TransactionRow, ObligationPlan>({
-    charges: charges.data ?? [],
-    reviewsByCharge,
-    rules: rules.data ?? [],
-    ledger: ledger.data ?? [],
-    plans: plans.data ?? [],
-    carFunds: carFunds.data ?? [],
-    fundingAccountId,
-    rejected,
-  }), [charges.data, reviewsByCharge, rules.data, ledger.data, plans.data, carFunds.data, fundingAccountId, rejected]);
+  /**
+   * ⚠️ HISTORY THAT ARRIVED WITH A LINK IS NOT A TO-DO — see `link-day-scope.ts`.
+   *
+   * The queue is still BUILT from the full history, because a bill due on the 1st can settle in the
+   * prior month and filtering the matcher's corpus would drop those. What is scoped is the output:
+   * which charges are put in front of the user and which are counted. Everything before an account's
+   * link day stays one tap away under "All activity" on Bank Activity, and accounts whose link day
+   * cannot be read are untouched.
+   */
+  const linkDays = useMemo(() => accountLinkDays(accounts.data ?? []), [accounts.data]);
+
+  const queue = useMemo(() => scopeQueueToLinkedHistory(
+    buildReviewQueue<BankActivityRow, RuleRow, TransactionRow, ObligationPlan>({
+      charges: charges.data ?? [],
+      reviewsByCharge,
+      rules: rules.data ?? [],
+      ledger: ledger.data ?? [],
+      plans: plans.data ?? [],
+      carFunds: carFunds.data ?? [],
+      fundingAccountId,
+      rejected,
+    }),
+    linkDays,
+  ), [charges.data, reviewsByCharge, rules.data, ledger.data, plans.data, carFunds.data, fundingAccountId, rejected, linkDays]);
 
   return { queue, reviewsByCharge, isLoading };
 }

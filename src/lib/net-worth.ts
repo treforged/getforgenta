@@ -71,6 +71,7 @@
  * record of the pre-link rule rather than a casualty of the bug. Decision stands
  * unchanged, now on evidence rather than on principle alone.
  */
+import { isCardOpenAsOf } from './card-start-date';
 
 /** Account types that reduce net worth. Everything else is an asset. */
 export const LIABILITY_ACCOUNT_TYPES = [
@@ -115,6 +116,10 @@ export interface NetWorthAccount {
   account_type: string;
   balance: Money;
   active: boolean;
+  /** `accounts.card_start_date` — a credit card the user has PLANNED but not opened yet.
+   * Optional so callers that never carry cards (tests, snapshots of asset-only sets) still
+   * satisfy the shape; when present and in the future the card is not a liability yet. */
+  card_start_date?: string | null;
 }
 
 export interface NetWorthManualAsset {
@@ -242,8 +247,15 @@ export function buildNetWorthBreakdown(
   manualAssets: readonly NetWorthManualAsset[],
   manualLiabilities: readonly NetWorthManualLiability[],
   vehicleLoans: readonly NetWorthVehicleLoan[] = [],
+  /** Injectable for tests; defaults to now. Only reads whether a card has been opened yet. */
+  asOf: Date = new Date(),
 ): NetWorthBreakdown {
-  const active = accounts.filter(a => a.active);
+  // `active` alone is not "does this account exist" for a credit card: a card the user has
+  // planned carries `active = true` with a future `card_start_date`, and it was rendering as a
+  // $0 liability row for a card that has not been opened. `isCardOpenAsOf` is the one predicate
+  // for that — it passes every non-card straight through, so nothing else here changes, and the
+  // TOTALS are untouched either way because an unopened card's balance is $0.
+  const active = accounts.filter(a => a.active && isCardOpenAsOf(a, asOf));
   const liveAssetAccounts = active.filter(a => !isLiabilityAccountType(a.account_type));
   const liveLiabilityAccounts = active.filter(a => isLiabilityAccountType(a.account_type));
 
@@ -329,6 +341,21 @@ export function totalsFromBreakdown({ assets, liabilities }: NetWorthBreakdown):
   const totalAssets = assets.reduce((sum, a) => sum + a.value, 0);
   const totalLiabilities = liabilities.reduce((sum, l) => sum + l.balance, 0);
   return { totalAssets, totalLiabilities, netWorth: totalAssets - totalLiabilities };
+}
+
+/**
+ * Outstanding debt that is NOT a credit card — loans, mortgages, manual liabilities.
+ *
+ * Exists so the Dashboard hero can tell "your cards clear in Jul 2028" apart from "you are
+ * debt free": the revolving engine projects cards only, and an auto loan running past that
+ * date makes the unqualified claim false. Reads the breakdown's own `type`, which is
+ * {@link ACCOUNT_TYPE_GROUP}'s label, so a new liability account type is counted here the
+ * day it is added rather than being silently treated as a card.
+ */
+export function nonCardLiabilityTotal({ liabilities }: NetWorthBreakdown): number {
+  return liabilities
+    .filter(l => l.type !== ACCOUNT_TYPE_GROUP.credit_card)
+    .reduce((sum, l) => sum + Math.max(0, l.balance), 0);
 }
 
 /** Total assets, liabilities and net worth across live accounts plus manual rows. */

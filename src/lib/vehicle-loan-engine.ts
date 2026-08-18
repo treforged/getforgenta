@@ -20,6 +20,15 @@ export interface LoanInput {
   interestStartDate: string;
   actualMonthlyPayment: number;
   lumpSumPayments?: LumpSumPayment[];
+  /** Today's real outstanding principal, when a connected `accounts` row supplies one (see
+   * `vehicle-loan-link.ts`). The schedule then SPLICES rather than rebuilds: rows already paid
+   * stay exactly as they were computed from `loanAmount` — they are the only record of what was
+   * actually paid, so `interestPaidToDate` and `monthsElapsed` stay truthful — and the balance is
+   * reset to this figure at the first not-yet-paid row, so everything forward projects off the
+   * bank's number. Rebuilding the whole schedule from the live balance would zero the history
+   * instead, which is taking information away. Undefined/null means "no reading": amortize from
+   * `loanAmount` exactly as before. */
+  currentBalance?: number | null;
 }
 
 export interface LoanMonthRow {
@@ -70,7 +79,7 @@ export function calculateScheduledPayment(loanAmount: number, apr: number, termM
 }
 
 export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanProjection {
-  const { loanAmount, apr, termMonths, loanStartDate, paymentStartDate, interestStartDate, actualMonthlyPayment, lumpSumPayments } = input;
+  const { loanAmount, apr, termMonths, loanStartDate, paymentStartDate, interestStartDate, actualMonthlyPayment, lumpSumPayments, currentBalance } = input;
   const r = apr / 100 / 12;
   const scheduled = calculateScheduledPayment(loanAmount, apr, termMonths);
   const effectivePmt = actualMonthlyPayment > 0 ? actualMonthlyPayment : scheduled;
@@ -83,7 +92,21 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
   const schedule: LoanMonthRow[] = [];
   let balance = loanAmount;
 
+  // Hoisted above the loop because the splice below needs to know which row is the first
+  // not-yet-paid one; it is clamped to the schedule's length afterwards, as it always was.
+  const monthsElapsedRaw = Math.max(0, monthsBetween(paymentStartDate, todayStr));
+  const hasLiveBalance = currentBalance != null && Number.isFinite(currentBalance);
+  /** The first row whose payment has not happened yet. Re-anchoring here (rather than at row 1)
+   * is what keeps the paid history truthful — see `LoanInput.currentBalance`. */
+  const spliceAtMonth = hasLiveBalance ? monthsElapsedRaw + 1 : null;
+
   for (let month = 1; month <= termMonths + 24 && balance > 0.005; month++) {
+    if (spliceAtMonth !== null && month === spliceAtMonth) {
+      balance = Number(currentBalance);
+      // A settled loan must end the schedule, not push a zero-balance row. The loop's own
+      // condition cannot catch this because the reset happens after it was evaluated.
+      if (balance <= 0.005) break;
+    }
     const rowDate = addMonths(paymentStartDate, month - 1);
     const deferred = rowDate < interestStartDate;
     const interest = deferred ? 0 : Math.round(balance * r * 100) / 100;
@@ -120,11 +143,17 @@ export function buildAmortizationSchedule(input: LoanInput, asOf?: Date): LoanPr
   const totalInterest = schedule.reduce((s, r) => s + r.interest, 0);
   const totalPaid = schedule.reduce((s, r) => s + r.payment, 0);
 
-  // months elapsed since payment_start_date as of today
-  let monthsElapsed = Math.max(0, monthsBetween(paymentStartDate, todayStr));
-  monthsElapsed = Math.min(monthsElapsed, schedule.length);
+  // months elapsed since payment_start_date as of today (raw value hoisted above the loop)
+  const monthsElapsed = Math.min(monthsElapsedRaw, schedule.length);
 
-  const remainingBalance = monthsElapsed > 0 ? (schedule[monthsElapsed - 1]?.endBalance ?? loanAmount) : loanAmount;
+  // What is owed right now is the opening balance of the first not-yet-paid row — which is
+  // where the live-balance splice lands, so a linked loan reports the bank's figure exactly.
+  // For an unlinked loan this is identical to the previous expression by construction: a row's
+  // startBalance IS the previous row's endBalance.
+  const remainingBalance =
+    schedule[monthsElapsed]?.startBalance
+    ?? (hasLiveBalance ? Number(currentBalance) : undefined)
+    ?? (monthsElapsed > 0 ? (schedule[monthsElapsed - 1]?.endBalance ?? loanAmount) : loanAmount);
   const interestPaidToDate = schedule.slice(0, monthsElapsed).reduce((s, r) => s + r.interest, 0);
   const monthsRemaining = Math.max(0, schedule.length - monthsElapsed);
 
@@ -310,6 +339,11 @@ export function getActiveCarLoanPayments(carFunds: CarFund[], asOf?: Date): CarL
       interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
       actualMonthlyPayment: cf.actual_monthly_payment,
       lumpSumPayments: cf.lump_sum_payments ?? [],
+      // Resolved onto the CarFund at the data layer (`applyLinkedLoanBalances`), deliberately
+      // NOT by giving this function an `accounts` parameter: it has ~12 call sites including
+      // pure libs (monthly-expense-model, charge-obligations, pay-schedule) that have no
+      // accounts to hand it. One seam, at the boundary.
+      currentBalance: cf.current_balance_override ?? null,
     }, today);
 
     if (proj.remainingBalance <= 0) continue;
@@ -384,6 +418,9 @@ export function generateCarLoanTransactions(carFunds: CarFund[]): CarLoanTransac
       interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
       actualMonthlyPayment: cf.phase === 'loan' ? cf.actual_monthly_payment : 0,
       lumpSumPayments: cf.lump_sum_payments ?? [],
+      // Only an active loan can have a live balance to re-anchor to; a saving-phase fund is a
+      // projection of a loan that does not exist yet.
+      currentBalance: cf.phase === 'loan' ? (cf.current_balance_override ?? null) : null,
     });
 
     proj.schedule.forEach((row, i) => {

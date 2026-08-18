@@ -33,6 +33,22 @@ export interface LedgerDraft {
   note: string;
   payment_source: string;
   origin: 'synced';
+  /**
+   * The car build item this purchase was FOR, when the user said so — Tre, 2026-08-18, on the
+   * Lowered Empire steering wheel: *"why cant i choose to connect to an existing transaction?"*
+   *
+   * ⚠️ A BUILD ITEM IS NOT A LINK DESTINATION, and this is why it does not need to be. The four
+   * review link kinds all point at something that BILLS — a rule, a plan, a vehicle charge, an
+   * entry — and a build part bills nothing; it is a purchase. So the honest shape is the one the
+   * ledger already has: the charge becomes a real entry, and that entry carries the build item, on
+   * the column `transactions.car_build_item_id` the Garage already reads. No new review status, no
+   * migration, and the Garage shows the item as paid because it is looking at the same row.
+   *
+   * Undefined on every ordinary import; `planLedgerImport` never sets it. It is attached at the
+   * call site by the picker, because "this was a build part" is the user's assertion, not the
+   * importer's inference.
+   */
+  car_build_item_id?: string | null;
 }
 
 export interface ImportContext {

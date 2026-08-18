@@ -6,9 +6,11 @@ import { MotionConfig } from 'framer-motion';
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import BlackScreenDebug from "@/components/debug/BlackScreenDebug";
+import { captureReferral } from "@/lib/referral";
 import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +20,7 @@ import Analytics from "@/components/shared/Analytics";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import FeatureInDevelopment from "@/components/shared/FeatureInDevelopment";
 import { AI_ADVISOR_ENABLED, ERROR_TEST_ENABLED } from "@/lib/feature-flags";
+import { ACCOUNTS_PANEL_PARAM, isAccountsTab } from "@/lib/accounts-tab";
 import { Sparkles } from "lucide-react";
 import Landing from "@/pages/Landing";
 import NotFound from "@/pages/NotFound";
@@ -27,14 +30,11 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 
 const Transactions = lazy(() => import("@/pages/Transactions"));
 const DebtPayoff = lazy(() => import("@/pages/DebtPayoff"));
-const SavingsGoals = lazy(() => import("@/pages/SavingsGoals"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const Premium = lazy(() => import("@/pages/Premium"));
 const PremiumSuccess = lazy(() => import("@/pages/PremiumSuccess"));
 const PremiumCancel = lazy(() => import("@/pages/PremiumCancel"));
-const BudgetControl = lazy(() => import("@/pages/BudgetControl"));
 const Forecast = lazy(() => import("@/pages/Forecast"));
-const Accounts = lazy(() => import("@/pages/Accounts"));
 const Legal = lazy(() => import("@/pages/Legal"));
 const Onboarding = lazy(() => import("@/pages/Onboarding"));
 const AiAdvisor = lazy(() => import("@/pages/AiAdvisor"));
@@ -86,16 +86,75 @@ function PageLoader() {
   );
 }
 
+function GateNotice({ label }: { label: string }) {
+  return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-sm text-muted-foreground animate-pulse">{label}</span></div>;
+}
+
 function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.ReactNode; skipOnboardingCheck?: boolean }) {
   const { user, loading } = useAuth();
   const { isDemo } = useDemo();
-  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><span className="text-sm text-muted-foreground animate-pulse">Authenticating…</span></div>;
+  // `profiles.onboarding_completed` is the store, with the old localStorage key as a cache and a
+  // migration source (src/lib/onboarding-state.ts). A device that already holds the key answers
+  // immediately; everyone else waits for one small query rather than being bounced into a wizard
+  // they finished on another device. `unknown` — the profile could not be read — never gates.
+  const onboarding = useOnboardingStatus();
+  if (loading) return <GateNotice label="Authenticating…" />;
   if (!user && !isDemo) return <Navigate to="/auth" replace />;
   if (!skipOnboardingCheck && user && !isDemo) {
-    const done = localStorage.getItem(`forged:onboarding_done_${user.id}`);
-    if (!done) return <Navigate to="/onboarding" replace />;
+    if (onboarding.status === 'pending') return <GateNotice label="Loading your setup…" />;
+    if (onboarding.status === 'needs-onboarding') return <Navigate to="/onboarding" replace />;
   }
   return <>{children}</>;
+}
+
+/**
+ * `/accounts` is no longer a page — it is the Dashboard's second panel (2026-08-18). This is a
+ * component and not a bare <Navigate> because the old URL carries LIVE COMMANDS that a fixed
+ * destination would drop: `/accounts?new=1&type=checking` opens the add-account form on arrival
+ * (`Accounts.tsx`), and `?tab=networth` named a sub-panel. The whole query string rides along; the
+ * sub-panel key is translated to `panel=` because the Dashboard's own selector owns `tab=`.
+ */
+function AccountsRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  const askedPanel = params.get('tab');
+  params.delete('tab');
+  if (isAccountsTab(askedPanel)) params.set(ACCOUNTS_PANEL_PARAM, askedPanel);
+  params.set('tab', 'accounts');
+  return <Navigate to={`/dashboard?${params.toString()}`} replace />;
+}
+
+/**
+ * `/budget` is no longer a page — it is the third panel of the Activity surface (2026-08-18). A
+ * component and not a bare <Navigate> so the whole query string rides along, the same reason
+ * `AccountsRedirect` is one; nothing writes a `?tab=` at `/budget` today, but a redirect that
+ * silently drops the query string is the defect that only shows up the first time something does.
+ *
+ * ⚠️ THE SIX IN-APP LINKS STILL POINT AT `/budget` ON PURPOSE, and two tests assert that literal
+ * href (`DashboardHero.test.tsx`, `ForecastHero.test.tsx`). Repointing them would leave this
+ * redirect — the thing every existing bookmark lands on — covered by nothing.
+ */
+function BudgetRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('tab', 'budget');
+  return <Navigate to={`/transactions?${params.toString()}`} replace />;
+}
+
+/**
+ * `/goals` is no longer a page — it is the Forecast's second panel (Tre, 2026-08-18: "well add
+ * goals to forecast then."). A component and not a bare <Navigate> so the whole query string rides
+ * along, the same reason `AccountsRedirect` and `BudgetRedirect` are components.
+ *
+ * ⚠️ THE IN-APP LINKS STILL POINT AT `/goals` ON PURPOSE — the Dashboard chips, two goal cards
+ * and `OnboardingChecklist` all do. Repointing them would leave this redirect, which is what every
+ * existing bookmark and the `/car-fund` alias land on, covered by nothing. Same call as `/budget`.
+ */
+function GoalsRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('tab', 'goals');
+  return <Navigate to={`/forecast?${params.toString()}`} replace />;
 }
 
 function ScrollToTop() {
@@ -108,10 +167,28 @@ function ScrollToTop() {
   return null;
 }
 
+/**
+ * Records `?ref=` from whatever URL the visitor actually arrived on.
+ *
+ * ⚠️ THIS RUNS ON EVERY ROUTE ON PURPOSE. The capture used to sit inside `Landing`, so a shared
+ * link that pointed anywhere but the home page attributed nothing. It is also the half of the
+ * referral chain that was silently broken until 2026-08-18 — see the header of `@/lib/referral`.
+ * `captureReferral` is first-capture-wins and validates the code, so running it on every navigation
+ * is idempotent and cannot be used to overwrite a pending attribution.
+ */
+function CaptureReferral() {
+  const { search } = useLocation();
+  useEffect(() => {
+    captureReferral(search);
+  }, [search]);
+  return null;
+}
+
 function AppRoutes() {
   return (
     <>
       <ScrollToTop />
+      <CaptureReferral />
       <Routes>
       <Route path="/" element={<ErrorBoundary label="Home" homeTo={null}><Landing /></ErrorBoundary>} />
       <Route path="/auth" element={<ErrorBoundary label="Sign in" homeTo="/"><Suspense fallback={<PageLoader />}><Auth /></Suspense></ErrorBoundary>} />
@@ -121,14 +198,17 @@ function AppRoutes() {
           the only honest options at that level. */}
       <Route element={<ProtectedRoute><ErrorBoundary label="The app" homeTo={null}><DashboardLayout /></ErrorBoundary></ProtectedRoute>}>
         <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Dashboard" homeTo={null}><Dashboard /></ErrorBoundary></Suspense>} />
-        <Route path="/accounts" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Accounts"><Accounts /></ErrorBoundary></Suspense>} />
-        <Route path="/budget" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Budget Control"><BudgetControl /></ErrorBoundary></Suspense>} />
+        <Route path="/budget" element={<BudgetRedirect />} />
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Transactions"><Transactions /></ErrorBoundary></Suspense>} />
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Debt Payoff"><DebtPayoff /></ErrorBoundary></Suspense>} />
-        <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Savings Goals"><SavingsGoals /></ErrorBoundary></Suspense>} />
-        <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Vehicles"><Vehicles /></ErrorBoundary></Suspense>} />
-        <Route path="/builds" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Builds"><Builds /></ErrorBoundary></Suspense>} />
-        <Route path="/net-worth" element={<Navigate to="/accounts" replace />} />
+        <Route path="/goals" element={<GoalsRedirect />} />
+        <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Garage"><Vehicles /></ErrorBoundary></Suspense>} />
+        {/* Builds is a PANEL of the Garage now, not a route. The redirect keeps every existing
+            bookmark and in-app link working and names the panel it meant — see `garage-tab.ts`. */}
+        <Route path="/builds" element={<Navigate to="/vehicles?tab=builds" replace />} />
+        <Route path="/garage" element={<Navigate to="/vehicles" replace />} />
+        <Route path="/accounts" element={<AccountsRedirect />} />
+        <Route path="/net-worth" element={<Navigate to="/dashboard?tab=accounts" replace />} />
         <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Forecast"><Forecast /></ErrorBoundary></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Settings"><SettingsPage /></ErrorBoundary></Suspense>} />
         <Route path="/ai" element={AI_ADVISOR_ENABLED
@@ -179,7 +259,8 @@ function AppRoutes() {
           </ErrorBoundary>
         } />
       )}
-      <Route path="/subscriptions" element={<Navigate to="/budget" replace />} />
+      {/* Straight to the destination, not through /budget — a redirect into a redirect. */}
+      <Route path="/subscriptions" element={<Navigate to="/transactions?tab=budget" replace />} />
       <Route path="/car-fund" element={<Navigate to="/goals" replace />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

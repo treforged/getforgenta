@@ -1,8 +1,8 @@
 import { Link, useLocation } from 'react-router';
 import {
-  LayoutDashboard, ArrowLeftRight, Landmark, PiggyBank,
+  LayoutDashboard, ArrowLeftRight, Landmark,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight,
-  Sliders, TrendingUp, Building2, Home, Sparkles, Zap, Car, Wrench,
+  TrendingUp, Home, Sparkles, Zap, Car,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -13,14 +13,23 @@ import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 
 const navItems = [
+  // Accounts is a PANEL of the Dashboard now, not a row here — Tre, 2026-08-18: "we need to reduce
+  // how many separate tabs". The rail lost the row; the surface lost nothing.
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/accounts', icon: Building2, label: 'Accounts' },
-  { to: '/budget', icon: Sliders, label: 'Budget Control' },
-  { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
+  // Budget Control is a PANEL of Activity now, for the same reason and on the same day. `/budget`
+  // still resolves — it redirects to `/transactions?tab=budget` — so every bookmark and every
+  // in-app link keeps landing; what it stopped being is a row of its own.
+  // 'Activity', not 'Transactions' — one name for the surface at every width (Tre, 2026-08-18:
+  // "why does transactions change to activity with smaller width. just keep it as activity all the
+  // time"). The rail used to keep the long name so the vocabulary stayed discoverable; a label that
+  // renames itself on a resize is worse than a short one.
+  { to: '/transactions', icon: ArrowLeftRight, label: 'Activity' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
-  { to: '/vehicles', icon: Car, label: 'Vehicles' },
-  { to: '/builds', icon: Wrench, label: 'Builds' },
-  { to: '/goals', icon: PiggyBank, label: 'Goals' },
+  { to: '/vehicles', icon: Car, label: 'Garage' },
+  // Goals is a PANEL of the Forecast now, for the same reason and by the same route as Accounts and
+  // Budget Control (Tre, 2026-08-18: "well add goals to forecast then."). `/goals` still resolves —
+  // it redirects to `/forecast?tab=goals` — so every bookmark and every in-app link keeps landing;
+  // what it stopped being is a row of its own.
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
   { to: '/settings', icon: Settings, label: 'Settings' },
@@ -73,7 +82,7 @@ export default function Sidebar() {
             />
             <span className="font-display font-bold text-sm tracking-tight text-primary">FORGENTA</span>
             {isDemo && (
-              <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1 py-0.5 rounded shrink-0">Demo</span>
+              <span className="text-[9px] font-bold uppercase tracking-wider text-gold bg-gold/10 px-1 py-0.5 rounded shrink-0">Demo</span>
             )}
           </Link>
         )}

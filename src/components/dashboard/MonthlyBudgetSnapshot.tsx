@@ -35,7 +35,7 @@ const TONE_CLASS: Record<SnapshotRowTone, string> = {
 
 function rowValueClass(row: SnapshotRow): string {
   if (row.tone === 'subtotal') return row.value >= 0 ? 'text-primary' : 'text-destructive';
-  if (row.key === 'expenses') return 'text-orange-400';
+  if (row.key === 'expenses') return 'text-gold';
   return TONE_CLASS[row.tone];
 }
 
@@ -180,7 +180,7 @@ export default function MonthlyBudgetSnapshot({ snapshot, onFloorClick }: Props)
                   </span>
                 </div>
                 {row.note && (
-                  <p className="text-[10px] text-amber-400 pl-5 pb-2">
+                  <p className="text-[10px] text-gold pl-5 pb-2">
                     {row.note}
                   </p>
                 )}

@@ -132,6 +132,113 @@
   border-radius: var(--radius);
 }
 
+/* ── Segmented control ────────────────────────────────────────────────────────
+   ONE answer for every panel selector in the app. Tre, 2026-08-18: *"make the
+   top navigation for tab sections, ovals like copilot and monarch do, its the
+   better more premium design."* Both references do the same thing — a recessed
+   track with the ACTIVE segment as a filled oval — and both are read as premium
+   for the same reason: the row states which of a small set you are in, once,
+   instead of underlining a word and hoping the difference reads.
+
+   ⚠️ THESE ARE THE ONE EXCEPTION TO THE APP'S SQUARE `var(--radius)` CORNERS,
+   and that is deliberate rather than a drift. Everything that HOLDS content
+   (`card-forged`, inputs, modals) stays forged and square; only this control,
+   which holds no content and exists to be pressed, goes fully round. Do not
+   spread `rounded-full` outward from here.
+
+   ⚠️ THE TRACK SCROLLS, IT DOES NOT WRAP. Five segments (Debt Payoff) do not fit
+   390px, and a wrapped selector reads as two rows of unrelated buttons. It
+   scrolls horizontally inside its own box, so the PAGE never gains a scrollbar
+   — the same rule the wide tables follow. */
+@utility seg-track {
+  @apply flex items-center gap-1 p-1 border border-border bg-secondary/50;
+  @apply max-w-full overflow-x-auto;
+  border-radius: 9999px;
+  scrollbar-width: none;
+  /* CENTRED IN ITS SURFACE — Tre, 2026-08-18: "center the section selectors in each tab."
+     ⚠️ Centred with `width: fit-content` + auto margins, NOT with `justify-content: center`.
+     This is a scroll container: with `justify-content: center` an overflowing track centres its
+     content and the browser then makes the START unreachable — the first segment is clipped off
+     the left edge with no way to scroll back to it. Auto margins centre the BOX and leave the
+     content flowing from its start, so a track wider than the page (Debt Payoff's five segments,
+     measured 772px at a 390px clamp) still scrolls from segment one. */
+  width: fit-content;
+  margin-inline: auto;
+}
+
+@utility seg-item {
+  @apply flex shrink-0 items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap;
+  @apply text-muted-foreground transition-colors duration-150;
+  @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60;
+  @apply hover:text-foreground;
+  border-radius: 9999px;
+}
+
+/* The count that rides a segment.
+
+   ⚠️ IT MUST FLIP WITH THE SEGMENT, and this utility exists because two of the three
+   call sites did not. Tre, 2026-08-18: "when there is a notification for a section,
+   the number becomes invisible when you select it so the spacing looks off." A badge
+   pinned to `text-primary` is GOLD ON GOLD once its segment becomes the filled oval —
+   the digits vanish while the badge keeps its width, which is exactly the gap he saw.
+   Defined once here so a fourth call site cannot spell it a fourth way. */
+@utility seg-badge {
+  @apply ml-1 px-1.5 py-0.5 text-[10px] font-semibold leading-none;
+  @apply bg-primary/15 text-primary;
+  border-radius: 9999px;
+}
+
+@utility seg-badge-active {
+  @apply bg-primary-foreground/20 text-primary-foreground;
+}
+
+/* The filled oval. `bg-primary` + `text-primary-foreground` rather than a tinted
+   outline, because the whole point of the reference designs is that the active
+   segment is a SOLID shape you can find without reading. */
+@utility seg-item-active {
+  @apply bg-primary text-primary-foreground;
+  @apply hover:text-primary-foreground;
+}
+
+/* ── Vertical rhythm ──────────────────────────────────────────────────────────
+   Even spacing is not one number. `space-y-8` on a page root puts the SAME 2rem
+   between a hero and the body as between two one-line control rows, which is
+   where the app's dead space came from (measured 2026-08-18: the Accounts panel
+   spent 108px of a 253px band on three rows totalling 109px of content).
+
+   Three steps, chosen by what the element IS, never by how it looks:
+
+     stack-section  1.5rem   between major regions — header block, hero, body
+     stack-block    1rem     between sibling cards/widgets inside one region
+     stack-row      0.75rem  a control/nav/filter row and the thing it controls
+
+   The section step is 1.5rem because that is the TIGHT end of what the app was
+   already doing, not the average: measured 2026-08-18, the same relationship got
+   23px on the Garage, 27px on Debt/Goals/Settings/Activity and 36px on
+   Dashboard/Budget/Forecast. Levelling up would have added dead space to four
+   surfaces to fix three.
+
+   The rule that decides the ambiguous cases: A CONTROL ROW BELONGS TO THE
+   CONTENT BELOW IT. Pills, filters and toolbars take a `section` gap above and
+   a `row` gap below, so they read as a label on their content rather than as a
+   region of their own.
+
+   This is spacing only. Nothing here removes information — see
+   rules/common/deciding-for-tre.md: move it, demote it, link to it, but the
+   page that had the answer still has it.
+   ──────────────────────────────────────────────────────────────────────────── */
+@utility stack-section {
+  & > * + * { margin-top: 1.5rem; }
+}
+
+@utility stack-block {
+  & > * + * { margin-top: 1rem; }
+}
+
+@utility stack-row {
+  & > * + * { margin-top: 0.75rem; }
+}
+
 @utility btn-press {
   @apply active:scale-[0.98] transition-transform duration-75;
   @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background;
@@ -174,6 +281,12 @@
 @utility icon-btn {
   /* 44px minimum tap target for icon-only buttons */
   @apply flex items-center justify-center min-h-[44px] min-w-[44px];
+}
+
+@layer utilities {
+  /* Companion to `seg-track`: `scrollbar-width: none` covers Firefox, this covers
+     WebKit/Blink. A visible scrollbar under a pill row reads as a broken control. */
+  .seg-track::-webkit-scrollbar { display: none; }
 }
 
 @layer utilities {

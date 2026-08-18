@@ -9,7 +9,7 @@ import type { ConfirmedOccurrences } from './confirmed-capture';
 import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
 import { FLOOR_CUSHION_DOLLARS } from './floor-protection';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
-import { cardStartMonthOffset } from './card-start-date';
+import { cardStartMonthOffset, isSimCardOpenAsOf } from './card-start-date';
 import {
   parseTranches, trancheInterestBreakdown, allocatePaymentAcrossTranches,
   type BalanceTranche,
@@ -2173,8 +2173,15 @@ export function generateRecommendations(
   // Preference cards = zero-balance cycling cards only (balance <= 0 encoded in autopayFullBalance).
   // Positive-balance full/statement cards compete under normal strategy in revolvingCards —
   // the preference only kicks in once the balance reaches zero (cycling mode going forward).
-  const preferenceCards = cards.filter(c => c.autopayFullBalance);
-  const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
+  // ⚠️ A card whose card_start_date has not arrived is NOT a zero-balance cycling card — it is a
+  // card that does not exist yet, and it lands in this bucket for the wrong reason: the bucket is
+  // keyed on `autopayFullBalance`, which encodes balance <= 0. It cannot receive a payment this
+  // month, so it is held out of BOTH recommendation buckets. The simulation below still models it
+  // turning on (cardStartMonths) — this filter is the recommendation layer only.
+  const recNow = new Date();
+  const payableCards = cards.filter(c => isSimCardOpenAsOf(c, recNow));
+  const preferenceCards = payableCards.filter(c => c.autopayFullBalance);
+  const revolvingCards = payableCards.filter(c => !c.autopayFullBalance && c.balance > 0);
 
   // Manual interest-saving balance: this month's obligation is $0 when the card's due day
   // has already passed (that statement was paid before today), else exactly the entered
@@ -2556,6 +2563,36 @@ export function getMonthlyDebtBreakdown(
  * different cash floor, save-up reserve and income window, so it reported different payments than
  * /debt for the same card. Do not add new callers.
  */
+/** Index of NEXT month's row in a CardProjection's `months` (index 0 is this month, `month: 1`). */
+const NEXT_MONTH_ROW = 1;
+
+/**
+ * Total interest every card will charge NEXT month under the recommended-payment plan already on
+ * screen — the "at plan" half of /debt's hero. Read-only: it sums interest the simulation has
+ * already computed and decides nothing itself.
+ *
+ * `planConverged` is the caller's debt-cash convergence flag (CardProjectionContext's
+ * `debtCashConverged`). Returns **null, never 0**, when there is no plan to read off — the
+ * convergence did not settle, there are no projections, or a projection has no next-month row.
+ * A confident $0 and "we could not read this" must never look the same (DIRECTION.md rule 3), so
+ * the hero renders the absence instead of a number.
+ */
+export function getPlanInterestNextMonth(
+  projections: readonly CardProjection[],
+  planConverged: boolean,
+): number | null {
+  if (!planConverged || projections.length === 0) return null;
+  let total = 0;
+  for (const p of projections) {
+    const next = p.months[NEXT_MONTH_ROW];
+    // month numbers are 1-indexed, so the next-month row is `month: 2`. A projection that stops
+    // short (or is shaped differently than the walk that produced it) has no reading to give.
+    if (!next || next.month !== NEXT_MONTH_ROW + 1 || !Number.isFinite(next.interest)) return null;
+    total += next.interest;
+  }
+  return Math.round(total * 100) / 100;
+}
+
 export function getCurrentMonthDebtRecommendations(
   accounts: AccountRow[],
   transactions: EnrichedTransaction[],

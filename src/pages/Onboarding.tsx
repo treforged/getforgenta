@@ -1,21 +1,58 @@
-import { useState, useCallback, useEffect } from 'react';
+// The ONE onboarding flow.
+//
+// Until 2026-08-14 there were three overlapping surfaces: this route (7 manual steps, gated by a
+// localStorage key, no way to link a bank), a modal wizard on the Dashboard (gated by
+// `profiles.onboarding_completed`, WITH bank connect for premium), and the Dashboard checklist.
+// Finishing one left the others convinced you had never started. The modal's steps now live here —
+// bank connect first for premium, its upsell pre-step for free — the modal is deleted, and
+// completion is recorded in one place (`src/lib/onboarding-state.ts`). The checklist stays: it is a
+// nudge, not a flow, and it reads the same store.
+
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/hooks/useSubscription';
+import { onboardingQueryKey } from '@/hooks/useOnboardingStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
+import { readReferral, clearReferral, resolveReferrerForSignup } from '@/lib/referral';
 import {
-  DollarSign, CreditCard, PiggyBank, Target, ChevronRight,
-  ChevronLeft, Check, Crown, Zap, BarChart3, Shield, Loader2, Car, Fingerprint,
+  markOnboardingComplete,
+  readOnboardingCache,
+  writeOnboardingCache,
+} from '@/lib/onboarding-state';
+import BankConnectStep, { BankLinkedHint } from '@/components/onboarding/BankConnectStep';
+import RulesFoundCard from '@/components/rules/RulesFoundCard';
+import PremiumUpsellStep from '@/components/onboarding/PremiumUpsellStep';
+import DebtsStep from '@/components/onboarding/DebtsStep';
+import GoalsStep from '@/components/onboarding/GoalsStep';
+import { FieldLabel, Input, Select } from '@/components/onboarding/fields';
+import { totalDebtOf, type DebtEntry, type GoalEntry } from '@/components/onboarding/types';
+import {
+  DollarSign, PiggyBank, ChevronRight,
+  ChevronLeft, Check, Crown, Zap, BarChart3, Shield, Loader2, Fingerprint,
 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 
-type Step = 'welcome' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
+type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
 
-const STEPS: Step[] = ['welcome', 'income', 'expenses', 'debts', 'savings', 'goals', 'finish'];
+/** The steps that ask for numbers by hand — the ones a linked bank makes optional. */
+const MANUAL_STEPS: Step[] = ['income', 'expenses', 'debts', 'savings', 'goals'];
+
+/**
+ * Premium gets bank connect where free gets the premium pitch: linking is what premium buys, so the
+ * two tiers see the same slot answered differently rather than a different-length flow.
+ */
+function buildSteps(isPremium: boolean): Step[] {
+  return ['welcome', isPremium ? 'bank' : 'premium', ...MANUAL_STEPS, 'finish'];
+}
 
 const STEP_LABELS: Record<Step, string> = {
   welcome:  'Welcome',
+  bank:     'Bank',
+  premium:  'Premium',
   income:   'Income',
   expenses: 'Expenses',
   debts:    'Debts',
@@ -23,30 +60,6 @@ const STEP_LABELS: Record<Step, string> = {
   goals:    'Goals',
   finish:   'Your Plan',
 };
-
-const GOAL_TYPES = ['Emergency Fund', 'Vacation', 'Down Payment', 'Car Fund', 'Retirement', 'Custom'] as const;
-type GoalType = typeof GOAL_TYPES[number];
-
-interface DebtEntry {
-  name: string;
-  balance: string;
-  apr: string;
-  minPayment: string;
-  creditLimit: string;
-  dueDate: string;
-}
-
-interface GoalEntry {
-  name: string;
-  targetAmount: string;
-  goalType: GoalType;
-  // Car Fund fields
-  targetPrice: string;
-  taxFees: string;
-  monthlyInsurance: string;
-  expectedApr: string;
-  loanTermMonths: string;
-}
 
 interface OnboardingData {
   displayName: string;
@@ -63,18 +76,6 @@ interface OnboardingData {
   goals: GoalEntry[];
 }
 
-const emptyDebt = (): DebtEntry => ({ name: '', balance: '', apr: '', minPayment: '', creditLimit: '', dueDate: '' });
-const emptyGoal = (type: GoalType = 'Custom'): GoalEntry => ({
-  name: type === 'Custom' ? '' : type,
-  targetAmount: '',
-  goalType: type,
-  targetPrice: '',
-  taxFees: '',
-  monthlyInsurance: '',
-  expectedApr: '',
-  loanTermMonths: '60',
-});
-
 const DEFAULT_DATA: OnboardingData = {
   displayName: '',
   weeklyGross: '',
@@ -90,13 +91,13 @@ const DEFAULT_DATA: OnboardingData = {
   goals: [],
 };
 
-function StepProgress({ step }: { step: Step }) {
-  const idx = STEPS.indexOf(step);
-  const pct = (idx / (STEPS.length - 1)) * 100;
+function StepProgress({ step, steps }: { step: Step; steps: Step[] }) {
+  const idx = steps.indexOf(step);
+  const pct = (idx / (steps.length - 1)) * 100;
   return (
     <div className="space-y-2">
       <div className="flex justify-between text-[10px] text-muted-foreground overflow-hidden">
-        {STEPS.slice(0, -1).map((s, i) => (
+        {steps.slice(0, -1).map((s, i) => (
           <span key={s} className={`truncate ${i <= idx ? 'text-primary font-medium' : ''}`}>{STEP_LABELS[s]}</span>
         ))}
       </div>
@@ -104,46 +105,6 @@ function StepProgress({ step }: { step: Step }) {
         <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
     </div>
-  );
-}
-
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="text-[10px] text-muted-foreground uppercase tracking-wider">{children}</label>;
-}
-
-function Input({ value, onChange, onBlur, placeholder, type = 'text', prefix }: {
-  value: string; onChange: (v: string) => void; onBlur?: () => void; placeholder?: string;
-  type?: string; prefix?: string;
-}) {
-  return (
-    <div className="relative">
-      {prefix && (
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{prefix}</span>
-      )}
-      <input
-        type={type}
-        inputMode={type === 'number' ? 'decimal' : undefined}
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onBlur={onBlur}
-        placeholder={placeholder}
-        className={`w-full bg-secondary border border-border py-2.5 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring ${prefix ? 'pl-7 pr-3' : 'px-3'}`}
-        style={{ borderRadius: 'var(--radius)' }}
-      />
-    </div>
-  );
-}
-
-function Select({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
-  return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="w-full bg-secondary border border-border px-3 py-2.5 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring"
-      style={{ borderRadius: 'var(--radius)' }}
-    >
-      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-    </select>
   );
 }
 
@@ -157,13 +118,18 @@ function getInitialDisplayName(meta: Record<string, unknown> | undefined): strin
 
 export default function Onboarding() {
   const { user } = useAuth();
+  const { isPremium } = useSubscription();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [step, setStep] = useState<Step>('welcome');
   const [data, setData] = useState<OnboardingData>({
     ...DEFAULT_DATA,
     displayName: getInitialDisplayName(user?.user_metadata),
   });
   const [saving, setSaving] = useState(false);
+  const [bankLinked, setBankLinked] = useState(false);
+
+  const steps = useMemo(() => buildSteps(isPremium), [isPremium]);
 
   // Signal Swift cover that a post-auth page has mounted (same flag as Dashboard).
   // New users land here after OAuth sign-up; without this the cover waits the full
@@ -173,32 +139,53 @@ export default function Onboarding() {
     return () => { window.__forgenta_dashboard_ready = false; };
   }, []);
 
-  // Auto-skip for existing accounts that already have profile data
+  // Auto-skip for accounts that are already set up. Three ways that can be true, in order of
+  // certainty: this device remembers, the profile flag says so, or the account predates the flag
+  // entirely and has profile data (display_name is the tell). The last two are migrations — they
+  // write the completion back through the single store so this is the last time we have to guess.
+  //
+  // A FAILED read is not a "no": it leaves the user in the wizard, which they can skip in one tap,
+  // rather than either trapping them or waving through someone who never onboarded.
   useEffect(() => {
     if (!user) return;
-    const flag = localStorage.getItem(`forged:onboarding_done_${user.id}`);
-    if (flag) { navigate('/dashboard', { replace: true }); return; }
-    supabase.from('profiles').select('display_name').eq('user_id', user.id).maybeSingle()
-      .then(({ data }) => {
-        if (data?.display_name) {
-          localStorage.setItem(`forged:onboarding_done_${user.id}`, '1');
-          navigate('/dashboard', { replace: true });
+    let cancelled = false;
+    const leave = () => { if (!cancelled) navigate('/dashboard', { replace: true }); };
+
+    if (readOnboardingCache(user.id)) { leave(); return; }
+
+    supabase.from('profiles').select('onboarding_completed, display_name').eq('user_id', user.id).maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        if (data.onboarding_completed) {
+          writeOnboardingCache(user.id);
+          qc.setQueryData(onboardingQueryKey(user.id), true);
+          leave();
+          return;
+        }
+        if (data.display_name) {
+          markOnboardingComplete(user.id).then(({ ok }) => {
+            if (!ok || cancelled) return;
+            qc.setQueryData(onboardingQueryKey(user.id), true);
+            leave();
+          });
         }
       });
-  }, [user, navigate]);
+
+    return () => { cancelled = true; };
+  }, [user, navigate, qc]);
 
   const update = useCallback(<K extends keyof OnboardingData>(key: K, val: OnboardingData[K]) => {
     setData(prev => ({ ...prev, [key]: val }));
   }, []);
 
   const next = () => {
-    const idx = STEPS.indexOf(step);
-    if (idx < STEPS.length - 1) setStep(STEPS[idx + 1]);
+    const idx = steps.indexOf(step);
+    if (idx < steps.length - 1) setStep(steps[idx + 1]);
   };
 
   const back = () => {
-    const idx = STEPS.indexOf(step);
-    if (idx > 0) setStep(STEPS[idx - 1]);
+    const idx = steps.indexOf(step);
+    if (idx > 0) setStep(steps[idx - 1]);
   };
 
   const handleFinish = async () => {
@@ -220,8 +207,17 @@ export default function Onboarding() {
       // the others and a retry cannot duplicate the rows that already landed.
       const failed: string[] = [];
 
-      const refCode = sessionStorage.getItem('forged:ref') || null;
+      // ⚠️ THIS READ WAS THE BROKEN HALF OF THE REFERRAL CHAIN UNTIL 2026-08-18. It asked
+      // sessionStorage for `forged:ref`; the capture in `Landing` wrote `forgenta:ref`. Nothing
+      // ever wrote the key this line read, so `referred_by` was never populated for anybody —
+      // 46 profiles, 0 referrers, measured. Both halves now go through `@/lib/referral`, which
+      // owns the one key, and `resolveReferrerForSignup` drops a user's own code.
+      const refCode = resolveReferrerForSignup(readReferral(), user?.id);
+      // `onboarding_completed` rides along with the profile write rather than being a second call:
+      // it is the same row, the write is idempotent, and a separate call could fail on its own and
+      // leave a finished setup marked unfinished (or worse, the reverse).
       const { error: profileError } = await supabase.from('profiles').update({
+        onboarding_completed: true,
         display_name: cleanDisplayName,
         weekly_gross_income: wg,
         gross_income: gross,
@@ -231,7 +227,9 @@ export default function Onboarding() {
         ...(refCode ? { referred_by: refCode } : {}),
       }).eq('user_id', user!.id);
       if (profileError) throw profileError;
-      if (refCode) sessionStorage.removeItem('forged:ref');
+      // Cleared only after the profile write above succeeded (it throws on error), so a failed
+      // setup that the user retries does not lose the attribution on the first attempt.
+      if (refCode) clearReferral();
 
       const expenses = [
         { label: 'Rent / Mortgage', amount: data.monthlyRent, category: 'Housing' },
@@ -310,7 +308,11 @@ export default function Onboarding() {
         if (error) failed.push('car funds');
       }
 
-      localStorage.setItem(`forged:onboarding_done_${user!.id}`, '1');
+      // Only reached once the profile write above landed, so the cache can never claim a setup that
+      // did not save. The query cache is primed too, or the route gate would bounce us straight back
+      // here on its stale copy.
+      writeOnboardingCache(user!.id);
+      qc.setQueryData(onboardingQueryKey(user!.id), true);
       if (failed.length > 0) {
         toast.error(`Profile saved, but we couldn't add: ${failed.join(', ')}. You can add these from the app.`);
       } else {
@@ -324,8 +326,18 @@ export default function Onboarding() {
     }
   };
 
-  const skip = () => {
-    localStorage.setItem(`forged:onboarding_done_${user?.id}`, '1');
+  // Skip-all. An empty budget is the user's right, so this exits with nothing entered — but it is a
+  // real write, and if it fails we say so and stay put rather than pretending setup is done.
+  const skip = async () => {
+    if (!user) { navigate('/dashboard'); return; }
+    setSaving(true);
+    const { ok } = await markOnboardingComplete(user.id);
+    setSaving(false);
+    if (!ok) {
+      toast.error("We couldn't save that. Please try again.");
+      return;
+    }
+    qc.setQueryData(onboardingQueryKey(user.id), true);
     navigate('/dashboard');
   };
 
@@ -336,26 +348,15 @@ export default function Onboarding() {
     return (gross * (1 - tr / 100)).toFixed(0);
   }, [data.weeklyGross, data.taxRate, data.paycheckFrequency]);
 
-  const totalDebt = data.debts.reduce((s, d) => s + (parseFloat(d.balance) || 0), 0);
+  const totalDebt = totalDebtOf(data.debts);
   const totalExpenses = [data.monthlyRent, data.monthlyUtilities, data.monthlyGroceries, data.monthlySubscriptions]
     .reduce((s, v) => s + (parseFloat(v) || 0), 0);
   const net = parseFloat(monthly()) - totalExpenses;
 
-  const updateDebt = (i: number, field: keyof DebtEntry, val: string) => {
-    update('debts', data.debts.map((d, j) => j === i ? { ...d, [field]: val } : d));
-  };
-
-  const updateGoal = (i: number, field: keyof GoalEntry, val: string) => {
-    const updated = data.goals.map((g, j) => {
-      if (j !== i) return g;
-      const next = { ...g, [field]: val };
-      if (field === 'goalType' && val !== 'Custom') {
-        next.name = val;
-      }
-      return next;
-    });
-    update('goals', updated);
-  };
+  // A linked bank turns the manual steps into an offer instead of a demand. It never removes them:
+  // the sync has not run yet, free users have no bank, and a head start is still worth having.
+  const hintFor = (what: string) => (bankLinked ? <BankLinkedHint what={what} /> : null);
+  const showSkipToPlan = bankLinked && MANUAL_STEPS.includes(step);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
@@ -368,7 +369,7 @@ export default function Onboarding() {
           </p>
         </div>
 
-        {step !== 'finish' && <StepProgress step={step} />}
+        {step !== 'finish' && <StepProgress step={step} steps={steps} />}
 
         <div className="card-forged p-5 space-y-5">
 
@@ -391,6 +392,37 @@ export default function Onboarding() {
             </div>
           )}
 
+          {/* ── Bank connect (premium) ── */}
+          {step === 'bank' && (
+            <div className="space-y-4">
+              <BankConnectStep
+                linked={bankLinked}
+                // Stays on this step once the link lands, rather than moving on immediately: the
+                // first sync is what the patterns deck reads, and it arrives a moment later. The
+                // card below appears if and when it finds something, and never otherwise.
+                onLinked={() => setBankLinked(true)}
+                onSkip={next}
+              />
+              {bankLinked && (
+                <>
+                  <RulesFoundCard />
+                  <button
+                    onClick={next}
+                    className="w-full flex items-center justify-center gap-1.5 bg-secondary border border-border px-3 py-2.5 text-xs font-medium hover:border-primary/40 hover:text-primary transition-colors"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  >
+                    Continue setup <ChevronRight size={13} />
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Premium pitch (free — the slot premium spends on Plaid) ── */}
+          {step === 'premium' && (
+            <PremiumUpsellStep onUpgrade={() => navigate('/premium')} onDecline={next} />
+          )}
+
           {/* ── Income ── */}
           {step === 'income' && (
             <div className="space-y-4">
@@ -398,6 +430,7 @@ export default function Onboarding() {
                 <DollarSign size={15} className="text-primary" />
                 <h2 className="font-display font-semibold text-sm">Income & Paycheck</h2>
               </div>
+              {hintFor('your paychecks')}
               <div className="space-y-1">
                 <FieldLabel>Pay Frequency</FieldLabel>
                 <Select
@@ -436,6 +469,7 @@ export default function Onboarding() {
                 <BarChart3 size={15} className="text-primary" />
                 <h2 className="font-display font-semibold text-sm">Monthly Expenses</h2>
               </div>
+              {hintFor('your recurring bills')}
               <p className="text-[10px] text-muted-foreground">Approximate is fine — you can adjust later in Budget Control.</p>
               {[
                 { label: 'Rent / Mortgage', key: 'monthlyRent' as const },
@@ -465,64 +499,13 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* ── Debts ── */}
+          {/* -- Debts -- */}
           {step === 'debts' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <CreditCard size={15} className="text-primary" />
-                <h2 className="font-display font-semibold text-sm">Credit Cards & Loans</h2>
-              </div>
-              <p className="text-[10px] text-muted-foreground">Add any debts you're paying down. Skip if none.</p>
-              {data.debts.map((d, i) => (
-                <div key={i} className="space-y-3 p-3 bg-secondary/40 border border-border" style={{ borderRadius: 'var(--radius)' }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-medium text-muted-foreground uppercase">Debt {i + 1}</span>
-                    <button onClick={() => update('debts', data.debts.filter((_, j) => j !== i))}
-                      className="text-[10px] text-destructive hover:underline">Remove</button>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[9px] text-muted-foreground uppercase">Card / loan name</span>
-                    <Input value={d.name} onChange={v => updateDebt(i, 'name', v)} placeholder="e.g. Chase Sapphire, Student Loan" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-muted-foreground uppercase">Current balance</span>
-                      <Input value={d.balance} onChange={v => updateDebt(i, 'balance', v)} placeholder="0" type="number" prefix="$" />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-muted-foreground uppercase">APR %</span>
-                      <Input value={d.apr} onChange={v => updateDebt(i, 'apr', v)} placeholder="0.0" type="number" />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-muted-foreground uppercase">Min. payment</span>
-                      <Input value={d.minPayment} onChange={v => updateDebt(i, 'minPayment', v)} placeholder="0" type="number" prefix="$" />
-                    </div>
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-muted-foreground uppercase">Credit limit</span>
-                      <Input value={d.creditLimit} onChange={v => updateDebt(i, 'creditLimit', v)} placeholder="0" type="number" prefix="$" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-[9px] text-muted-foreground uppercase">Payment due date (day of month)</span>
-                    <Input value={d.dueDate} onChange={v => updateDebt(i, 'dueDate', v)} placeholder="e.g. 15" type="number" />
-                    <p className="text-[9px] text-muted-foreground">You can link this to an account in Accounts for payment reminders.</p>
-                  </div>
-                </div>
-              ))}
-              <button
-                onClick={() => update('debts', [...data.debts, emptyDebt()])}
-                className="w-full py-2.5 text-xs font-medium border border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                + Add a debt
-              </button>
-              {totalDebt > 0 && (
-                <div className="bg-secondary/40 px-3 py-2 text-xs flex justify-between" style={{ borderRadius: 'var(--radius)' }}>
-                  <span className="text-muted-foreground">Total debt</span>
-                  <span className="font-semibold text-destructive">${totalDebt.toLocaleString()}</span>
-                </div>
-              )}
-            </div>
+            <DebtsStep
+              debts={data.debts}
+              onChange={rows => update('debts', rows)}
+              hint={hintFor('your card balances')}
+            />
           )}
 
           {/* ── Savings ── */}
@@ -532,6 +515,7 @@ export default function Onboarding() {
                 <PiggyBank size={15} className="text-primary" />
                 <h2 className="font-display font-semibold text-sm">Savings Account</h2>
               </div>
+              {hintFor('your savings balance')}
               <p className="text-[10px] text-muted-foreground">Your current savings balance. We'll track APY growth automatically.</p>
               <div className="space-y-1">
                 <FieldLabel>Current savings balance</FieldLabel>
@@ -554,91 +538,11 @@ export default function Onboarding() {
 
           {/* ── Goals ── */}
           {step === 'goals' && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Target size={15} className="text-primary" />
-                <h2 className="font-display font-semibold text-sm">Financial Goals</h2>
-              </div>
-              <p className="text-[10px] text-muted-foreground">What are you saving for? Add up to 3 goals. Skip if none yet.</p>
-              {data.goals.map((g, i) => {
-                const isCarFund = g.goalType === 'Car Fund';
-                return (
-                  <div key={i} className="space-y-3 p-3 bg-secondary/40 border border-border" style={{ borderRadius: 'var(--radius)' }}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        {isCarFund ? <Car size={12} className="text-primary" /> : <Target size={12} className="text-primary" />}
-                        <span className="text-[10px] font-medium text-muted-foreground uppercase">Goal {i + 1}</span>
-                      </div>
-                      <button onClick={() => update('goals', data.goals.filter((_, j) => j !== i))}
-                        className="text-[10px] text-destructive hover:underline">Remove</button>
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-muted-foreground uppercase">Goal type</span>
-                      <Select
-                        value={g.goalType}
-                        onChange={v => updateGoal(i, 'goalType', v)}
-                        options={GOAL_TYPES.map(t => ({ value: t, label: t }))}
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-[9px] text-muted-foreground uppercase">{isCarFund ? 'Vehicle name' : 'Goal name'}</span>
-                      <Input
-                        value={g.name}
-                        onChange={v => updateGoal(i, 'name', v)}
-                        placeholder={isCarFund ? 'e.g. Porsche Cayman, Honda Civic' : 'e.g. Emergency Fund, Europe Trip'}
-                      />
-                    </div>
-
-                    {isCarFund ? (
-                      <>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <span className="text-[9px] text-muted-foreground uppercase">Vehicle price</span>
-                            <Input value={g.targetPrice} onChange={v => updateGoal(i, 'targetPrice', v)} placeholder="30000" type="number" prefix="$" />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[9px] text-muted-foreground uppercase">Tax & fees</span>
-                            <Input value={g.taxFees} onChange={v => updateGoal(i, 'taxFees', v)} placeholder="3000" type="number" prefix="$" />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[9px] text-muted-foreground uppercase">Down payment goal</span>
-                            <Input value={g.targetAmount} onChange={v => updateGoal(i, 'targetAmount', v)} placeholder="5000" type="number" prefix="$" />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[9px] text-muted-foreground uppercase">Monthly insurance</span>
-                            <Input value={g.monthlyInsurance} onChange={v => updateGoal(i, 'monthlyInsurance', v)} placeholder="200" type="number" prefix="$" />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[9px] text-muted-foreground uppercase">Expected loan APR %</span>
-                            <Input value={g.expectedApr} onChange={v => updateGoal(i, 'expectedApr', v)} placeholder="5.9" type="number" />
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-[9px] text-muted-foreground uppercase">Loan term (months)</span>
-                            <Input value={g.loanTermMonths} onChange={v => updateGoal(i, 'loanTermMonths', v)} placeholder="60" type="number" />
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="space-y-1">
-                        <span className="text-[9px] text-muted-foreground uppercase">Target amount</span>
-                        <Input value={g.targetAmount} onChange={v => updateGoal(i, 'targetAmount', v)} placeholder="0" type="number" prefix="$" />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {data.goals.length < 3 && (
-                <button
-                  onClick={() => update('goals', [...data.goals, emptyGoal()])}
-                  className="w-full py-2.5 text-xs font-medium border border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
-                  style={{ borderRadius: 'var(--radius)' }}
-                >
-                  + Add a goal
-                </button>
-              )}
-            </div>
+            <GoalsStep
+              goals={data.goals}
+              onChange={rows => update('goals', rows)}
+              hint={hintFor('what you already put aside')}
+            />
           )}
 
           {/* ── Finish ── */}
@@ -735,22 +639,34 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Navigation */}
-          {step !== 'finish' && (
-            <div className="flex items-center justify-between pt-1">
-              <button
-                onClick={step === 'welcome' ? skip : back}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {step === 'welcome' ? 'Skip setup →' : <><ChevronLeft size={14} /> Back</>}
-              </button>
-              <button
-                onClick={next}
-                className="flex items-center gap-1.5 bg-primary text-primary-foreground px-5 py-2.5 text-xs font-semibold btn-press"
-                style={{ borderRadius: 'var(--radius)' }}
-              >
-                {step === 'goals' ? 'See your plan' : 'Continue'} <ChevronRight size={13} />
-              </button>
+          {/* Navigation. The bank and premium steps carry their own buttons — a second "Continue"
+              under them would race the Plaid handoff and the upgrade tap. */}
+          {step !== 'finish' && step !== 'bank' && step !== 'premium' && (
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={step === 'welcome' ? skip : back}
+                  disabled={step === 'welcome' && saving}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {step === 'welcome' ? 'Skip setup →' : <><ChevronLeft size={14} /> Back</>}
+                </button>
+                <button
+                  onClick={next}
+                  className="flex items-center gap-1.5 bg-primary text-primary-foreground px-5 py-2.5 text-xs font-semibold btn-press"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  {step === 'goals' ? 'See your plan' : 'Continue'} <ChevronRight size={13} />
+                </button>
+              </div>
+              {showSkipToPlan && (
+                <button
+                  onClick={() => setStep('finish')}
+                  className="w-full text-center text-[10px] text-muted-foreground hover:text-foreground transition-colors py-1"
+                >
+                  Skip the rest — read it from my bank →
+                </button>
+              )}
             </div>
           )}
         </div>
