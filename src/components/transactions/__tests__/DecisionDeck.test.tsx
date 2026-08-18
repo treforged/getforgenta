@@ -63,6 +63,10 @@ function setup(overrides: Partial<React.ComponentProps<typeof DecisionDeck>> = {
       paymentPlans={[]}
       carFunds={[]}
       ledger={[]}
+      buildItems={[]}
+      importToLedger={{ mutateAsync: vi.fn().mockResolvedValue({ id: 'ledger-1' }) }}
+      undoImport={{ mutateAsync: vi.fn().mockResolvedValue(undefined) }}
+      transferLegIds={new Set()}
       save={save}
       setCategory={setCategory}
       remove={remove}
@@ -314,5 +318,75 @@ describe('DecisionDeck — linking by hand', () => {
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toContain('Not recorded');
     expect(alert.textContent).toContain('still waiting on you');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// THE ONE ACTION ON A CARD THAT CREATES MONEY — Tre authorised it on 2026-08-18 ("yes for build
+// part recording"). Everything else the deck does is an annotation; this inserts a ledger row that
+// twelve surfaces then count, so what these pin is not that it works but that it cannot go wrong
+// quietly: the gate is the shared one, the end screen counts it apart, and the undo takes the money
+// back BEFORE it makes the charge importable again.
+describe('DecisionDeck — recording a build part', () => {
+  const part = { value: 'item-1', label: 'Steering Wheel · $220' };
+
+  it('inserts the row `planLedgerImport` built, filed under Car and carrying the build item', async () => {
+    const importToLedger = { mutateAsync: vi.fn().mockResolvedValue({ id: 'ledger-1' }) };
+    setup({ buildItems: [part], importToLedger });
+    // Card 1 carries a suggestion, so the app already describes it and the picker is withheld
+    // there. Skip to the card the app has no answer for — exactly Tre's steering-wheel case.
+    expect(screen.queryByLabelText('Record this charge as a car build part')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    const picker = await screen.findByLabelText('Record this charge as a car build part');
+    fireEvent.change(picker, { target: { value: 'item-1' } });
+    await waitFor(() => expect(importToLedger.mutateAsync).toHaveBeenCalledTimes(1));
+    const arg = importToLedger.mutateAsync.mock.calls[0][0];
+    expect(arg.syncedTransactionId).toBe('c2');
+    expect(arg.draft.car_build_item_id).toBe('item-1');
+    expect(arg.draft.category).toBe('Car');
+    expect(arg.draft.origin).toBe('synced');
+    expect(Math.abs(arg.draft.amount)).toBe(42.5);
+  });
+
+  // A charge the app already describes must not become a second copy of the same spending. The
+  // refusal lives in `planLedgerImport`, and this proves the deck actually asks it.
+  it('withholds the picker on a charge the app already has an answer for', () => {
+    setup({ buildItems: [part] });
+    expect(screen.queryByLabelText('Record this charge as a car build part')).toBeNull();
+  });
+
+  // Importing a leg books a movement between the user's own accounts as spending or as income, and
+  // there is no third answer that would be right.
+  it('withholds the picker on a transfer leg', () => {
+    setup({ buildItems: [part], transferLegIds: new Set(['c1', 'c2']) });
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    expect(screen.queryByLabelText('Record this charge as a car build part')).toBeNull();
+  });
+
+  it('says on the end screen that money was involved, apart from the annotations', async () => {
+    setup({ buildItems: [part] });
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    fireEvent.change(await screen.findByLabelText('Record this charge as a car build part'), {
+      target: { value: 'item-1' },
+    });
+    expect(await screen.findByText(/1 added to your ledger as a build part/)).toBeTruthy();
+  });
+
+  // THE LOAD-BEARING ONE. Undone the other way round, the charge is unreviewed — importable again
+  // — while its ledger entry survives: the same spending counted twice.
+  it('undo deletes the ledger row BEFORE it makes the charge importable again', async () => {
+    const order: string[] = [];
+    const importToLedger = { mutateAsync: vi.fn().mockResolvedValue({ id: 'ledger-1' }) };
+    const undoImport = { mutateAsync: vi.fn(async () => { order.push('deleteTransaction'); }) };
+    const remove = { mutateAsync: vi.fn(async () => { order.push('removeReviews'); }) };
+    setup({ buildItems: [part], importToLedger, undoImport, remove });
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    fireEvent.change(await screen.findByLabelText('Record this charge as a car build part'), {
+      target: { value: 'item-1' },
+    });
+    const undo = await screen.findByRole('button', { name: /Undo/i });
+    fireEvent.click(undo);
+    await waitFor(() => expect(undoImport.mutateAsync).toHaveBeenCalledWith('ledger-1'));
+    expect(order).toEqual(['deleteTransaction', 'removeReviews']);
   });
 });

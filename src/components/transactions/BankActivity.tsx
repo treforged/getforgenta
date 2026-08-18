@@ -211,6 +211,8 @@ export default function BankActivity() {
    */
   const transferPairs = useMemo(() => detectTransferPairs(synced, accounts), [synced, accounts]);
   const pairByLeg = useMemo(() => indexPairsByLeg(transferPairs), [transferPairs]);
+  /** Just the ids, for the deck: `planLedgerImport` refuses a transfer leg, but only if told. */
+  const transferLegIds = useMemo(() => new Set(pairByLeg.keys()), [pairByLeg]);
 
   const monthOptions = useMemo(() => {
     const months = new Set(synced.map(t => monthOf(t.date)));
@@ -546,6 +548,14 @@ export default function BankActivity() {
           paymentPlans={paymentPlans}
           carFunds={carFunds}
           ledger={ledger}
+          // The build parts and the two money mutations — the deck's one exception to
+          // "no control here creates money", authorised by Tre on 2026-08-18.
+          buildItems={unpaidBuildItems}
+          importToLedger={importToLedger}
+          undoImport={undoImport}
+          // Cross-row analysis, computed once here. `planLedgerImport` refuses a transfer leg, but
+          // only if it is told which charges are legs.
+          transferLegIds={transferLegIds}
           // The parent's own mutations, passed down rather than re-instantiated: one write path per
           // decision, however the user made it. See `DecisionDeck.tsx`'s header.
           save={save}

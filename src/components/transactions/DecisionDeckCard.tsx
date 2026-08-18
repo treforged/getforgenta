@@ -80,6 +80,13 @@ export interface DecisionDeckCardProps {
   linkOptions: DeckLinkOptions;
   /** Perform one link. The write is built by `review-write-inputs.ts`, never here. */
   onLink: (kind: DeckLinkKind, value: string) => void;
+  /**
+   * Car build parts with no ledger entry yet, EMPTY unless `planLedgerImport` says this charge may
+   * become one. The parent does that gating, so this component never decides importability.
+   */
+  buildItems: readonly LinkOption[];
+  /** Record this charge as that build part. ⚠️ The one control here that creates money. */
+  onBuildPart: (buildItemId: string) => void;
 }
 
 /** The four things a charge can be linked to. Deliberately NOT five — see the note by the row. */
@@ -102,7 +109,7 @@ const LINK_KINDS: readonly { kind: DeckLinkKind; placeholder: string; ariaLabel:
 export default function DecisionDeckCard({
   merchantLabel, amount, date, accountLabel, suggestionLabel, suggestionNote = null, chips,
   moreChips = [], currentCategory, busy, error, reducedMotion, onAccept, onCategory, onSkip, onIgnore,
-  linkOptions, onLink,
+  linkOptions, onLink, buildItems, onBuildPart,
 }: DecisionDeckCardProps) {
   const isInflow = amount < 0;
   // Collapsed per card. The card is keyed on the charge in `DecisionDeck.tsx`, so opening the full
@@ -281,6 +288,37 @@ export default function DecisionDeckCard({
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/*
+          THE ONE CONTROL ON A CARD THAT CREATES MONEY, and it is here because Tre said so on
+          2026-08-18 when asked directly. The deck's rule is that every action is an annotation that
+          moves no projected number, and this is the deliberate exception: a build part is a
+          purchase the USER is asserting they already made, not a projection the app is inventing,
+          and without it the Garage's build ledger is unreachable from the surface where the charges
+          actually arrive.
+
+          ⚠️ It is separated from the links above by its own label, because "this charge WAS my
+          steering wheel" adds a row to the ledger and "this charge paid my rent rule" does not.
+          ⚠️ The parent empties `buildItems` unless `planLedgerImport` says yes, so this renders
+          nothing on a charge the app already describes or on a transfer leg.
+        */}
+        {buildItems.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Or record it as a build part</p>
+            <LinkPicker
+              options={buildItems}
+              placeholder="Which part was this?"
+              ariaLabel="Record this charge as a car build part"
+              disabled={busy}
+              onPick={onBuildPart}
+              className="bg-secondary border border-border px-2.5 py-2 text-xs text-foreground max-w-full disabled:opacity-60"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              This one does add an entry to your ledger, filed under Car, and marks the part as
+              bought. Everything else on this card only labels the charge.
+            </p>
           </div>
         )}
 

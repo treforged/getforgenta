@@ -27,6 +27,8 @@ import { isValidCategory } from '@/lib/plaid-category-map';
 import { findExclusiveReview, type ReviewInput, type CarChargeKind } from '@/lib/synced-transaction-review';
 import type { BankActivityRow, RuleRow, TransactionRow, SyncedTransactionReviewRow } from '@/hooks/useSupabaseData';
 import type { ObligationPlan } from '@/lib/charge-obligations';
+import { planLedgerImport, type LedgerDraft } from '@/hooks/useSupabaseData';
+import type { LinkOption } from '@/lib/review-link-options';
 import { useMerchantMemory } from '@/hooks/useMerchantMemory';
 import { merchantRuleFor, merchantLabel } from '@/lib/merchant-memory';
 import { linkSuggestionFor } from '@/lib/merchant-link-memory';
@@ -74,6 +76,30 @@ export interface DecisionDeckProps {
   paymentPlans: readonly { id: string; name: string; active?: boolean | null; payment_amount: number | string }[];
   carFunds: readonly Parameters<typeof buildPickableCarCharges>[0][number][];
   ledger: readonly { id: string; date: string; category: string; amount: number | string }[];
+  /**
+   * Build parts with no ledger entry yet, and the mutations that record one.
+   *
+   * ⚠️ THIS IS THE DECK'S ONE EXCEPTION TO "NO CONTROL HERE CREATES MONEY", and it is Tre's,
+   * made explicitly on 2026-08-18 after being asked. The rule earned its place because the deck
+   * moves fast and an import is irreversible-looking; a build part is the case where the user is
+   * ASSERTING a purchase they already made rather than the app inventing a projection, and the
+   * alternative was leaving the Garage's whole build ledger unreachable from the surface where the
+   * charges actually appear. The gate is still `planLedgerImport` and not a conditional in this
+   * file, the end screen counts imports separately, and `planDeckUndo` deletes the ledger row
+   * before the reviews.
+   */
+  buildItems: readonly LinkOption[];
+  importToLedger: { mutateAsync: (v: { syncedTransactionId: string; draft: LedgerDraft }) => Promise<unknown> };
+  undoImport: { mutateAsync: (transactionId: string) => Promise<unknown> };
+  /**
+   * Charges that are one leg of a transfer between the user's own accounts.
+   *
+   * ⚠️ PASSED IN, NEVER RE-DERIVED. Importing a transfer leg books a movement between the user's
+   * own accounts as spending or income and there is no third answer that would be right, so
+   * `planLedgerImport` refuses it — but only if it is told. The pair analysis is cross-row and lives
+   * in the list; computing a second version here is how the two would come to disagree.
+   */
+  transferLegIds: ReadonlySet<string>;
   /** "Browse all" — hands the user back to the list, which is never replaced or removed. */
   onClose: () => void;
 }
@@ -99,7 +125,7 @@ const errorMessage = (e: unknown): string =>
 
 export default function DecisionDeck({
   cards, accountName, reviewsByCharge, rules, paymentPlans, carFunds, ledger,
-  save, setCategory, remove, onClose,
+  buildItems, transferLegIds, save, setCategory, remove, importToLedger, undoImport, onClose,
 }: DecisionDeckProps) {
   // Snapshotted, deliberately — see this file's header. The prop may shrink under us as writes land.
   const [deck] = useState<readonly BankDeckCard[]>(cards);
@@ -295,6 +321,69 @@ export default function DecisionDeck({
     });
   }, [card, busy, currentCategoryOf, decide, linkOptions, paymentPlans, rules, save]);
 
+  /**
+   * Whether THIS card may become a ledger entry, and the exact row it would insert.
+   *
+   * ⚠️ THE GATE IS `planLedgerImport`, NOT A CONDITIONAL HERE — the same rule the list follows.
+   * It refuses a charge the app already describes (a live suggestion the user has not overruled, any
+   * link, an existing terminal decision) and it refuses a transfer leg outright. The deck has no
+   * "Not this" button, so `suggestionRejected` is false by construction: in practice the build-part
+   * picker appears only on a card the app has NO answer for, which is exactly the case Tre hit.
+   */
+  const importPlan = useMemo(() => {
+    if (!card) return null;
+    const chargeReviews = reviewsByCharge[card.charge.id] ?? [];
+    const suggestion = card.suggestion;
+    return planLedgerImport(card.charge, {
+      accountName: card.charge.account_id ? accountName[card.charge.account_id] : null,
+      categoryOverride: findExclusiveReview(chargeReviews)?.category_override ?? null,
+      hasSuggestion: !!(suggestion?.rule || suggestion?.plan || suggestion?.carCharge || suggestion?.ledgerTxn),
+      suggestionRejected: false,
+      isTransferLeg: transferLegIds.has(card.charge.id),
+      reviews: chargeReviews,
+    });
+  }, [card, accountName, reviewsByCharge, transferLegIds]);
+
+  /**
+   * Record this charge as a car build part — Tre, 2026-08-18, asked for this in the deck too.
+   *
+   * ⚠️ THE ONLY ACTION ON A CARD THAT CREATES MONEY. It inserts the row `planLedgerImport` built,
+   * plus the build item and `'Car'`; the decision is recorded as `'imported'` carrying the new
+   * transaction's id, so the end screen can count it apart and the undo can delete it.
+   */
+  const onBuildPart = useCallback((buildItemId: string) => {
+    if (!card || busy || !importPlan?.ok) return;
+    const charge = card.charge;
+    const previousCategory = currentCategoryOf(charge.id);
+    const label = buildItems.find(b => b.value === buildItemId)?.label ?? 'build part';
+    setBusy(true);
+    setError(null);
+    void (async () => {
+      try {
+        // The mutation returns the inserted row so the undo has something to delete. A decision
+        // recorded without it would be an import this run could never take back.
+        const created = await importToLedger.mutateAsync({
+          syncedTransactionId: charge.id,
+          // ⚠️ `'Car'` is not the importer guessing — picking a build item IS the assertion that
+          // the charge is a car part. See the identical note at the list's own call site.
+          draft: { ...importPlan.draft, category: 'Car', car_build_item_id: buildItemId },
+        });
+        setState(current => recordDeckDecision(current, {
+          chargeId: charge.id,
+          kind: 'imported',
+          merchantLabel: merchantLabel(charge) || '—',
+          detail: label,
+          previousCategory,
+          importedTransactionId: (created as { id?: string } | undefined)?.id ?? null,
+        }));
+      } catch (e) {
+        setError(`Not recorded — ${errorMessage(e)} This charge is still waiting on you.`);
+      } finally {
+        setBusy(false);
+      }
+    })();
+  }, [card, busy, importPlan, buildItems, currentCategoryOf, importToLedger]);
+
   /** Skip writes NOTHING. The charge stays in the queue, which is the honest record of a non-answer. */
   const onSkip = useCallback(() => {
     if (busy) return;
@@ -315,7 +404,10 @@ export default function DecisionDeck({
     let done = 0;
     try {
       for (const step of steps) {
-        if (step.write === 'removeReviews') await remove.mutateAsync(step.chargeId);
+        // ⚠️ The ledger row goes before its charge's reviews — see `planDeckUndo`. An import undone
+        // the other way round leaves spending counted twice AND the charge importable again.
+        if (step.write === 'deleteTransaction') await undoImport.mutateAsync(step.transactionId);
+        else if (step.write === 'removeReviews') await remove.mutateAsync(step.chargeId);
         else await setCategory.mutateAsync({ syncedTransactionId: step.chargeId, category: step.category });
         done++;
       }
@@ -327,7 +419,7 @@ export default function DecisionDeck({
     } finally {
       setBusy(false);
     }
-  }, [remove, setCategory, state.decisions, summary.total]);
+  }, [remove, setCategory, undoImport, state.decisions, summary.total]);
 
   /**
    * Keyboard: ← skip, → accept, 1-9 pick a chip, Esc back to the list.
@@ -377,6 +469,12 @@ export default function DecisionDeck({
                 {summary.accepted > 0 && <p>{summary.accepted} linked to what the app already matched</p>}
                 {summary.categorized > 0 && <p>{summary.categorized} given a category</p>}
                 {summary.ignored > 0 && <p>{summary.ignored} ignored</p>}
+                {/* ⚠️ SAID SEPARATELY BECAUSE IT IS THE ONLY LINE THAT MOVED MONEY. Folding imports
+                    into "linked" would let a run that added real spending read as a run that only
+                    labelled things, which is the one summary a user must not be given. */}
+                {summary.imported > 0 && (
+                  <p>{summary.imported} added to your ledger as a build part</p>
+                )}
                 <p className="text-[10px]">
                   Nothing was added to your ledger and no projected number moved.
                 </p>
@@ -410,6 +508,8 @@ export default function DecisionDeck({
             onIgnore={onIgnore}
           linkOptions={linkOptions}
           onLink={onLink}
+          buildItems={importPlan?.ok ? buildItems : []}
+          onBuildPart={onBuildPart}
           />
         )}
     </DeckShell>

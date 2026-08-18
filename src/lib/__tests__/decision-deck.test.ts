@@ -173,7 +173,7 @@ describe('deckSummary — what the run actually did', () => {
       { chargeId: 'c2', kind: 'accepted', merchantLabel: 'B', detail: 'Fuel', previousCategory: null },
       { chargeId: 'c3', kind: 'ignored', merchantLabel: 'C', detail: 'ignored', previousCategory: null },
     ]);
-    expect(summary).toEqual({ accepted: 2, categorized: 0, ignored: 1, total: 3 });
+    expect(summary).toEqual({ accepted: 2, categorized: 0, ignored: 1, imported: 0, total: 3 });
   });
 });
 

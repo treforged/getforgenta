@@ -59,7 +59,13 @@ export function buildDeck<
 }
 
 /** What the user did to one card. `'skipped'` is deliberately absent — a skip writes nothing. */
-export type DeckDecisionKind = 'accepted' | 'categorized' | 'ignored';
+/**
+ * ⚠️ `'imported'` IS THE ONE KIND THAT CREATED MONEY. Every other decision is an annotation that
+ * moves no projected number; an import inserts a row into `public.transactions` that twelve
+ * surfaces then count. It is separated from `'accepted'` for exactly that reason — the end screen
+ * has to be able to say so, and the undo has to delete the ledger row and not merely the review.
+ */
+export type DeckDecisionKind = 'accepted' | 'categorized' | 'ignored' | 'imported';
 
 /** One decision the run made, and everything needed to put it back. */
 export interface DeckDecision {
@@ -78,6 +84,15 @@ export interface DeckDecision {
    * a category the deck never wrote.
    */
   previousCategory: string | null;
+  /**
+   * The ledger row an `'imported'` decision created, so the undo can delete it.
+   *
+   * ⚠️ WITHOUT THIS, UNDOING AN IMPORT IS A DOUBLE-COUNT. Deleting the charge's reviews returns it
+   * to unreviewed — importable again — while the money it already inserted stays in the ledger.
+   * That is the exact state `importToLedger`'s own rollback exists to prevent, reached from the
+   * other end. Null on every other kind, because they created nothing.
+   */
+  importedTransactionId?: string | null;
 }
 
 /**
@@ -146,7 +161,9 @@ export function deckProgress<D>(state: DeckState<D>): DeckProgress | null {
 /** One write that undoing a run performs. Each step is exactly one call to one existing mutation. */
 export type DeckUndoStep =
   | { chargeId: string; write: 'removeReviews' }
-  | { chargeId: string; write: 'setCategory'; category: string | null };
+  | { chargeId: string; write: 'setCategory'; category: string | null }
+  /** Delete the ledger row an import created. Always BEFORE that charge's `removeReviews`. */
+  | { chargeId: string; write: 'deleteTransaction'; transactionId: string };
 
 /**
  * The writes that reverse a whole run, in the order they should be made.
@@ -166,6 +183,17 @@ export function planDeckUndo(decisions: readonly DeckDecision[]): DeckUndoStep[]
       steps.push({ chargeId: decision.chargeId, write: 'setCategory', category: decision.previousCategory });
       continue;
     }
+    // ⚠️ THE MONEY GOES FIRST. If the reviews were deleted first and the ledger delete then
+    // failed, the charge would be unreviewed AND still carry its entry — spending counted twice and
+    // offered for import again. In the other order the worst partial failure leaves a review
+    // pointing at a deleted row, which shows nothing and creates nothing.
+    if (decision.kind === 'imported' && decision.importedTransactionId) {
+      steps.push({
+        chargeId: decision.chargeId,
+        write: 'deleteTransaction',
+        transactionId: decision.importedTransactionId,
+      });
+    }
     steps.push({ chargeId: decision.chargeId, write: 'removeReviews' });
     // Only when there is something to put back. A write that changes nothing is still a write.
     if (decision.previousCategory !== null) {
@@ -180,6 +208,8 @@ export interface DeckSummary {
   accepted: number;
   categorized: number;
   ignored: number;
+  /** Charges that became real ledger entries. Counted apart because this one moved money. */
+  imported: number;
   total: number;
 }
 
@@ -188,6 +218,7 @@ export function deckSummary(decisions: readonly DeckDecision[]): DeckSummary {
     accepted: decisions.filter(d => d.kind === 'accepted').length,
     categorized: decisions.filter(d => d.kind === 'categorized').length,
     ignored: decisions.filter(d => d.kind === 'ignored').length,
+    imported: decisions.filter(d => d.kind === 'imported').length,
     total: decisions.length,
   };
 }
