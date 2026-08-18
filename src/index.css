@@ -151,10 +151,19 @@
    scrolls horizontally inside its own box, so the PAGE never gains a scrollbar
    — the same rule the wide tables follow. */
 @utility seg-track {
-  @apply inline-flex items-center gap-1 p-1 border border-border bg-secondary/50;
+  @apply flex items-center gap-1 p-1 border border-border bg-secondary/50;
   @apply max-w-full overflow-x-auto;
   border-radius: 9999px;
   scrollbar-width: none;
+  /* CENTRED IN ITS SURFACE — Tre, 2026-08-18: "center the section selectors in each tab."
+     ⚠️ Centred with `width: fit-content` + auto margins, NOT with `justify-content: center`.
+     This is a scroll container: with `justify-content: center` an overflowing track centres its
+     content and the browser then makes the START unreachable — the first segment is clipped off
+     the left edge with no way to scroll back to it. Auto margins centre the BOX and leave the
+     content flowing from its start, so a track wider than the page (Debt Payoff's five segments,
+     measured 772px at a 390px clamp) still scrolls from segment one. */
+  width: fit-content;
+  margin-inline: auto;
 }
 
 @utility seg-item {
