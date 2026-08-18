@@ -1,6 +1,7 @@
 import { Outlet, Link } from 'react-router';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
+import MobileTopBar from './MobileTopBar';
 import DemoBanner from '@/components/shared/DemoBanner';
 import { useDemo } from '@/contexts/DemoContext';
 import { CardProjectionProvider } from '@/contexts/CardProjectionContext';
@@ -15,7 +16,11 @@ export default function DashboardLayout() {
       <Sidebar />
 
       <div className="flex-1 flex min-h-0 flex-col min-w-0">
+        {/* Sticky, so the hamburger is on screen at every scroll position on every route — the
+            "at all times" half of Tre's instruction. `MobileTopBar` renders nothing at lg+, where
+            the rail already carries the brand and a permanent Settings row. */}
         <div className="sticky top-0 z-40 bg-background">
+          <MobileTopBar />
           <DemoBanner />
         </div>
 
