@@ -1,5 +1,45 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-18 (backdrop-tap saves, and the demo gets an addressable entry) — **`9f5731d5` on `feat/form-save-and-demo-access`, cut from the merged `main` (`2bd74c68`).** Gates: tsc 0, eslint clean, **1651 passed / 18 skipped across 177**, build exit 0.
+>
+> **PR #112 IS MERGED** — verified by CONTENTS (`SurfaceGuide.tsx` present in `origin/main`).
+>
+> **1. ✅ A TAP OUTSIDE AN EDIT FORM SAVES IT (`34729b0b`).** Tre: *"if someone taps outside of an edit box, it auto closes the input pop up, make it so it saves their inputs."*
+> - **The rule, and why it is not "always save":** three things must hold at once — typed work is never thrown away (the complaint); a half-filled form is never WRITTEN (financial app, a stray thumb must not commit a plan with no amount); an untouched form still closes (answering a dismiss with "Plan name is required" makes the popup feel stuck). Only one rule satisfies all three: **pristine dismisses, dirty SAVES, nothing is ever discarded.** "Save" runs the form's own handler, which already validates and toasts — so an incomplete form stays open with its reason.
+> - **`src/lib/form-dismiss.ts`** holds the rule so the three modals cannot drift into three answers. ⚠️ It compares against the form **as OPENED**, not against an empty form: editing a record and changing nothing is pristine, and comparing to empty would fire a pointless save on every edit-dismiss.
+> - ⚠️ The baseline is a **ref** in the two build modals — nothing renders it, and setting state in their reset effect is the cascading render `react-hooks/set-state-in-effect` objects to. In `Transactions.tsx` it is state, because it is set from event handlers, not an effect.
+> - Wired: the Transactions plan form (`dismissPlanForm`), `BuildFormModal`, `MaintenanceFormModal`. `BuildFormModal` also picked up `modal-overlay`.
+> - 🔬 **LIVE on the plan form, signed in:** pristine + tap outside → closes; name typed with no amount + tap outside → **stays open, "Backdrop test plan" still in the field**, toast "Total amount must be greater than 0".
+> - ⬜ **NOT exercised live: the valid-form-saves-and-closes path.** It would write a real payment plan to Tre's account for a screenshot. It is `handleSavePlan` unchanged, which the Save button already exercises.
+> - ⬜ Other backdrop-dismissing popups NOT converted, and why: `Accounts.tsx:682` and `Transactions.tsx:996` are confirm/choice sheets with no inputs, and BudgetControl's catalog picker is a picker, not an edit form.
+>
+> **2. ✅ `/demo` — AN ADDRESSABLE DEMO ENTRY (`9f5731d5`).** Tre: *"stay reachable for the screenshot script."*
+> - Demo is in-memory React state with **no route and no flag**; the only way in has ever been the "Try Demo" button on `/auth`, which the marketing repo's `capture_demo.mjs` clicks. Landing the replacement entry FIRST makes moving the button a safe edit instead of a coordinated one.
+> - ⚠️ `/demo` is **deliberately unlinked**. It is an address, not a door: it grants access to no real account, it only makes the app render fixture data.
+> - 🔬 **LIVE:** `/demo` lands on `/dashboard` as Jordan, hero "CREDIT CARDS PAID OFF · Nov 2027".
+>
+> ---
+>
+> **3. ⬜ OWED — move the Try Demo button out of `/auth` and into sign-up.** *"lets make the demo only accessible when you sign up, so you can see a reference account for example when the user sets up."*
+> - **The open question is ANSWERED**: entering demo while SIGNED IN works and renders cleanly over the live session, so **the exit is a plain `setIsDemo(false)`, not a sign-out**. Showing a reference account during onboarding is therefore cheap.
+> - What is left: delete the button at `Auth.tsx:631` (and `handleDemoLogin` at :164), add a "See a reference account" entry inside the setup flow — `OnboardingChecklist` and/or `Onboarding.tsx` — and give demo a **visible way back** while signed in, because today `setIsDemo(false)` is only ever reached through sign-out (`AuthContext.tsx:57/215/317`).
+> - ⚠️ Do NOT ship the button removal without the onboarding entry: half of it reads as the feature being deleted.
+>
+> **4. ⬜ OWED — the demo data should demonstrate ALL the features.** Tre, 2026-08-18. This absorbs the older "seeded demo bank activity" item and is now the bigger ask.
+> - **Known-empty in demo:** `useAllSyncedTransactions` → `[]`, so the **Decision Deck AND the rules-from-history patterns card are structurally empty** — the flagship pattern of the whole redesign does not appear on the sales surface.
+> - Also worth auditing against the feature list: builds and the maintenance log, vehicle saving→loan phases, payment plans, goals, the Garage, merchant memory.
+> - ⚠️ Demo stays `is_premium: true` and must look outstanding — it is the sales surface per `DIRECTION.md`.
+>
+> **5. ⬜ DEFERRED BY TRE — updated app screenshots** *"once the app design is done changing"*. Do not run the capture until he says the design has settled. It depends on 3 and 4 landing first, and `capture_demo.mjs` lives in the PRIVATE `treforged/tre-forged-marketing` repo, not here.
+>
+> **⬜ NEXT, otherwise unchanged:** Settings tabs with Profile+Invite together (folding in the merchant-memory reshape); Slice 6 global store→category learning (ATTENDED: migration + RLS + privacy copy); light mode.
+>
+> **⬜ STILL OPEN, carried forward:** the last 15 in the queue are transfers, Zelle-to-self, paychecks wanting rule links and card payments; `undoAll` partial failure surfaces only via toast; `RulesFoundCard` has no tests; `MetricCard`'s unused `orange` variant; two Transactions bottom sheets unconverted; per-surface 390px re-passes (⚠️ `resize_window` no-ops in this Chrome profile — clamp the overlay instead); `handleFinish`'s non-idempotent optional inserts; `53bc12ce` + its handoff commit still never pushed to PR #105; the page-title registry the Monarch format wants; `generateRecommendations` is dead code at runtime; the Dashboard's Liabilities Breakdown is unit-proven but unseen. ⚠️ **Driving the deck programmatically times out** — scope reads to the overlay and batch ~12 per call.
+>
+> **Mechanics:** the worktree is the `ba7db32d` scratchpad's `wt-integration`, **vite serves IT on :8080 with HMR**, `localhost:8080` is the only signed-in origin. ⚠️ Entering `/demo` there flips the tab into demo — **reload to drop it**, the flag is in-memory only.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-18 (post-merge notes: popups fit, one guide per page — **two of Tre's five notes still UNBUILT, specced below**) — **`22682222` on `fix/popup-fit-and-one-guide`, cut from the merged `main` (`327acaa2`).** Gates: tsc 0, eslint clean, **1647 passed / 18 skipped across 176**, build exit 0.
 >
 > **PR #111 IS MERGED** — verified by CONTENTS (`page-guides.ts`, `payoff-trajectory.ts`, `tour-steps.ts` all present in `origin/main`), not by the word "merged".

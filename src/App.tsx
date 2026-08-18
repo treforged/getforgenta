@@ -125,6 +125,17 @@ function AccountsRedirect() {
 }
 
 /**
+ * Turns demo mode on and lands on the Dashboard — the same two lines `/auth`'s Try Demo
+ * button ran, addressable so an automated screenshot run does not depend on a button's
+ * position or label. See the route comment below for why it exists and what it does not do.
+ */
+function DemoEntry() {
+  const { setIsDemo } = useDemo();
+  useEffect(() => { setIsDemo(true); }, [setIsDemo]);
+  return <Navigate to="/dashboard" replace />;
+}
+
+/**
  * `/budget` is no longer a page — it is the third panel of the Activity surface (2026-08-18). A
  * component and not a bare <Navigate> so the whole query string rides along, the same reason
  * `AccountsRedirect` is one; nothing writes a `?tab=` at `/budget` today, but a redirect that
@@ -191,6 +202,20 @@ function AppRoutes() {
       <CaptureReferral />
       <Routes>
       <Route path="/" element={<ErrorBoundary label="Home" homeTo={null}><Landing /></ErrorBoundary>} />
+      {/* The demo's non-UI entry point.
+
+          Demo mode is in-memory React state with no route and no flag: the ONLY way in has
+          always been the "Try Demo" button on `/auth`. Tre is moving that button inside
+          sign-up (2026-08-18) so the demo reads as a reference account a new user looks at
+          while setting up, rather than as a way past the front door — and asked that it
+          "stay reachable for the screenshot script", which drives the real UI and would
+          break the moment the button moved.
+
+          ⚠️ This route is deliberately NOT linked from anywhere. It is an address the
+          marketing repo's `capture_demo.mjs` can navigate to, nothing more. It grants no
+          access to any real account: it flips a local flag that makes the app render
+          fixture data, exactly as the button did. */}
+      <Route path="/demo" element={<DemoEntry />} />
       <Route path="/auth" element={<ErrorBoundary label="Sign in" homeTo="/"><Suspense fallback={<PageLoader />}><Auth /></Suspense></ErrorBoundary>} />
       {/* The layout boundary is the last line of defence: a crash in the nav or
           the shell itself would otherwise take the whole app white. It offers no

@@ -1,3 +1,4 @@
+import { backdropAction } from '@/lib/form-dismiss';
 import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
@@ -86,6 +87,10 @@ export default function Transactions() {
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [editPlanId, setEditPlanId] = useState<string | null>(null);
   const [planForm, setPlanForm] = useState(emptyPlanForm);
+  // The form as it was when the popup opened. A backdrop tap compares against THIS, not
+  // against an empty form, so editing an existing plan without changing anything still
+  // counts as pristine. See `lib/form-dismiss.ts`.
+  const [planBaseline, setPlanBaseline] = useState(emptyPlanForm);
   const [planDeleteConfirm, setPlanDeleteConfirm] = useState<string | null>(null);
   // N7 — the transaction the open plan modal was converted FROM, or null for an ordinary add/edit.
   // Held here rather than folded into `editPlanId` because the two mean opposite things at save
@@ -473,7 +478,7 @@ export default function Transactions() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
-  const openAddPlan = () => { setPlanForm(emptyPlanForm); setEditPlanId(null); setConvertSourceTxnId(null); setShowPlanForm(true); };
+  const openAddPlan = () => { setPlanForm(emptyPlanForm); setPlanBaseline(emptyPlanForm); setEditPlanId(null); setConvertSourceTxnId(null); setShowPlanForm(true); };
 
   // N7 — the row's own "Convert to payment plan" action. Every refusal rule and every mapped field
   // lives in the lib function, so the button's visibility and this handler cannot disagree.
@@ -481,6 +486,7 @@ export default function Transactions() {
     const intent = planDraftFromTransaction(t, { paymentSource: normalizeSource(t.payment_source) });
     if (!intent.ok) { toast.error(intent.reason); return; }
     setPlanForm(intent.draft);
+    setPlanBaseline(intent.draft);
     setEditPlanId(null);
     setConvertSourceTxnId(t.id);
     setShowPlanForm(true);
@@ -489,8 +495,18 @@ export default function Transactions() {
 
   const closePlanForm = () => { setShowPlanForm(false); setConvertSourceTxnId(null); };
 
+  /**
+   * A tap on the backdrop. Pristine dismisses; anything typed goes through the real save
+   * handler, which validates — so an incomplete form stays open with its own message
+   * instead of being discarded or written half-finished. See `lib/form-dismiss.ts`.
+   */
+  const dismissPlanForm = () => {
+    if (backdropAction(planForm, planBaseline) === 'close') { closePlanForm(); return; }
+    void handleSavePlan();
+  };
+
   const openEditPlan = (plan: PaymentPlan) => {
-    setPlanForm({
+    const loaded = {
       name: plan.name,
       provider: plan.provider ?? '',
       total_amount: String(plan.total_amount),
@@ -501,7 +517,9 @@ export default function Transactions() {
       payment_source: plan.payment_source ?? '',
       plan_type: plan.plan_type ?? 'upfront',
       notes: plan.notes ?? '',
-    });
+    };
+    setPlanForm(loaded);
+    setPlanBaseline(loaded);
     setEditPlanId(plan.id);
     setConvertSourceTxnId(null);
     setShowPlanForm(true);
@@ -1038,7 +1056,7 @@ export default function Transactions() {
 
       {/* Payment Plan Form Modal */}
       {showPlanForm && (
-        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4" onClick={closePlanForm}>
+        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4" onClick={dismissPlanForm}>
           <div className="bg-card border border-border w-full sm:max-w-md rounded-t-(--radius) rounded-b-none sm:rounded-b-(--radius) overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h3 className="text-sm font-display font-bold">{editPlanId ? 'Edit Payment Plan' : convertSourceTxnId ? 'Convert to Payment Plan' : 'Add Payment Plan'}</h3>
