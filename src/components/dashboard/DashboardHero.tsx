@@ -23,18 +23,18 @@ type Props = {
 /** Copy for each honest empty state: what is missing, and the one action that fills it. */
 const EMPTY_COPY: Record<HeroEmptyReason, { label: string; title: string; body: string; action?: { to: string; label: string } }> = {
   'no-accounts': {
-    label: 'Your debt-free date',
+    label: 'Your card payoff date',
     title: 'Nothing to read yet',
-    body: 'Connect a bank or add an account and your debt-free date lands here.',
+    body: 'Connect a bank or add an account and your credit-card payoff date lands here.',
     action: { to: '/dashboard?tab=accounts', label: 'Add an account' },
   },
   projecting: {
-    label: 'Your debt-free date',
+    label: 'Your card payoff date',
     title: 'Working it out',
     body: 'Your payoff plan is still being calculated. This lands as soon as it converges.',
   },
   'no-payoff-in-range': {
-    label: 'Your debt-free date',
+    label: 'Your card payoff date',
     title: 'Not within 5 years',
     body: 'At the current plan your cards do not clear inside the projection. Raising the payment moves this date.',
     action: { to: '/debt', label: 'Review the plan' },
@@ -76,9 +76,12 @@ function CashAboveFloorLine({ value, onFloorClick }: { value: number | null; onF
 
 export default function DashboardHero({ state, onFloorClick }: Props) {
   if (state.kind === 'payoff') {
-    const { payoff, cashAboveFloor } = state;
+    const { payoff, cashAboveFloor, hasOtherDebt } = state;
     return (
-      <HeroShell label="Debt free">
+      // The label names the debt, because the date only ever covered credit cards: it comes
+      // from the revolving engine, which never sees a car loan. "Debt free" over it was a
+      // true number making a claim the data does not support.
+      <HeroShell label="Credit cards paid off">
         <p className="text-5xl font-display font-bold text-foreground tracking-tight mt-1">
           {payoff.date.toLocaleString('en', { month: 'short', year: 'numeric' })}
         </p>
@@ -86,20 +89,33 @@ export default function DashboardHero({ state, onFloorClick }: Props) {
           {payoff.monthsAway === 0
             ? 'This month'
             : `${payoff.monthsAway} month${payoff.monthsAway === 1 ? '' : 's'} away`}
-          {' · credit cards'}
         </p>
+        {hasOtherDebt && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Loans run on their own schedule and are not in this date.
+          </p>
+        )}
         <CashAboveFloorLine value={cashAboveFloor} onFloorClick={onFloorClick} />
       </HeroShell>
     );
   }
 
   if (state.kind === 'cash') {
-    const { cashAboveFloor, carriesCardBalance } = state;
+    const { cashAboveFloor, carriesCardBalance, hasOtherDebt } = state;
     const below = cashAboveFloor < 0;
     return (
       // A card paid in full every cycle is not the same claim as owing nothing, so the
-      // label says which one is true rather than flattening both into "debt free".
-      <HeroShell label={carriesCardBalance ? 'No interest to pay' : "You're debt free"}>
+      // label says which one is true rather than flattening both into "debt free" — and
+      // "debt free" is reserved for the one user who owes nothing on a loan either.
+      <HeroShell
+        label={
+          carriesCardBalance
+            ? 'No interest to pay'
+            : hasOtherDebt
+              ? 'No credit card debt'
+              : "You're debt free"
+        }
+      >
         <p className={`text-5xl font-display font-bold tracking-tight mt-1 ${below ? 'text-destructive' : 'text-foreground'}`}>
           {formatCurrency(Math.abs(cashAboveFloor), false)}
         </p>
@@ -109,6 +125,11 @@ export default function DashboardHero({ state, onFloorClick }: Props) {
         <p className="text-sm text-muted-foreground mt-1">
           {carriesCardBalance ? 'Your cards clear each month — nothing revolving' : 'No credit card balances'}
         </p>
+        {hasOtherDebt && (
+          <p className="text-xs text-muted-foreground mt-1">
+            You still owe on a loan — see the Debt page.
+          </p>
+        )}
         {onFloorClick && (
           <button
             onClick={onFloorClick}

@@ -331,6 +331,21 @@ export function totalsFromBreakdown({ assets, liabilities }: NetWorthBreakdown):
   return { totalAssets, totalLiabilities, netWorth: totalAssets - totalLiabilities };
 }
 
+/**
+ * Outstanding debt that is NOT a credit card — loans, mortgages, manual liabilities.
+ *
+ * Exists so the Dashboard hero can tell "your cards clear in Jul 2028" apart from "you are
+ * debt free": the revolving engine projects cards only, and an auto loan running past that
+ * date makes the unqualified claim false. Reads the breakdown's own `type`, which is
+ * {@link ACCOUNT_TYPE_GROUP}'s label, so a new liability account type is counted here the
+ * day it is added rather than being silently treated as a card.
+ */
+export function nonCardLiabilityTotal({ liabilities }: NetWorthBreakdown): number {
+  return liabilities
+    .filter(l => l.type !== ACCOUNT_TYPE_GROUP.credit_card)
+    .reduce((sum, l) => sum + Math.max(0, l.balance), 0);
+}
+
 /** Total assets, liabilities and net worth across live accounts plus manual rows. */
 export function aggregateNetWorth(
   accounts: readonly NetWorthAccount[],

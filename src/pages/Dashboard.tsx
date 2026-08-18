@@ -47,7 +47,7 @@ import { buildMonthlyExpenseModel } from '@/lib/monthly-expense-model';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
 import { getTotalCarLoanMonthly, generateCarLoanTransactions, getActiveCarLoanPayments, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
-import { buildNetWorthBreakdown, totalsFromBreakdown } from '@/lib/net-worth';
+import { buildNetWorthBreakdown, totalsFromBreakdown, nonCardLiabilityTotal } from '@/lib/net-worth';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
 import { buildGoalOwnCompletionCutoffs } from '@/lib/goal-linkage';
 import {
@@ -654,16 +654,23 @@ export default function Dashboard() {
     return cash - forecastFloor0.monthMinSafe;
   }, [accounts.length, cardProjection, monthEndCash, forecastFloor0.monthMinSafe]);
 
+  // The payoff date is a CREDIT-CARD date — the revolving engine never sees a car loan — so
+  // the hero needs to know whether anything else is still owed before it may say "debt free".
+  // Read off the same breakdown the net-worth tile itemises, so the two cannot disagree about
+  // what counts as a loan.
+  const otherDebtNow = useMemo(() => nonCardLiabilityTotal(netWorthBreakdown), [netWorthBreakdown]);
+
   const heroState = useMemo(
     () => selectDashboardHero({
       hasAccounts: accounts.length > 0,
       revolvingDebt: revolvingDebtNow,
       cardBalance: accountSummary.ccDebt,
+      otherDebt: otherDebtNow,
       payoff: heroPayoff,
       cashAboveFloor,
       projectionReady: cardProjection != null,
     }),
-    [accounts.length, revolvingDebtNow, accountSummary.ccDebt, heroPayoff, cashAboveFloor, cardProjection],
+    [accounts.length, revolvingDebtNow, accountSummary.ccDebt, otherDebtNow, heroPayoff, cashAboveFloor, cardProjection],
   );
 
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });

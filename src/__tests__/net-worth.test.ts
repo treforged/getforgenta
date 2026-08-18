@@ -3,6 +3,7 @@ import {
   aggregateNetWorth,
   buildNetWorthBreakdown,
   isLiabilityAccountType,
+  nonCardLiabilityTotal,
   sharesDistinctiveToken,
   totalsFromBreakdown,
   type NetWorthAccount,
@@ -363,5 +364,43 @@ describe('buildNetWorthBreakdown — end to end from a real car_funds row', () =
     );
     const breakdown = buildNetWorthBreakdown([fixedRateLoanAccount], [], [], vehicleLoans);
     expect(breakdown.liabilities.map(l => l.name)).toEqual(['FIXED RATE LOAN', '2004 Chevorlet C5']);
+  });
+});
+
+
+describe('nonCardLiabilityTotal', () => {
+  // The Dashboard hero leads with a CREDIT-CARD payoff date. This is the predicate that stops
+  // it calling a user with a car loan "debt free" — it must count every liability that is not
+  // a card, including one the app has never heard of.
+  const cards = account({ id: 'cc', name: 'Prime Visa', account_type: 'credit_card', balance: 6976.94 });
+
+  it('is zero when the only debt is on cards', () => {
+    const breakdown = buildNetWorthBreakdown([cards], [], []);
+    expect(nonCardLiabilityTotal(breakdown)).toBe(0);
+  });
+
+  it('counts an auto loan, a mortgage and a student loan alongside a card', () => {
+    const breakdown = buildNetWorthBreakdown([
+      cards,
+      account({ id: 'l1', name: 'Auto', account_type: 'auto_loan', balance: 24310 }),
+      account({ id: 'l2', name: 'House', account_type: 'mortgage', balance: 180000 }),
+      account({ id: 'l3', name: 'School', account_type: 'student_loan', balance: 5200 }),
+    ], [], []);
+    expect(nonCardLiabilityTotal(breakdown)).toBe(24310 + 180000 + 5200);
+  });
+
+  it('counts a MANUAL liability, which has no account type at all', () => {
+    const breakdown = buildNetWorthBreakdown([cards], [], [
+      { id: 'm1', name: 'Loan from Dad', type: 'Other Liability', balance: 1500 },
+    ]);
+    expect(nonCardLiabilityTotal(breakdown)).toBe(1500);
+  });
+
+  it('ignores an account that is not active — it counts on neither side of net worth', () => {
+    const breakdown = buildNetWorthBreakdown([
+      cards,
+      account({ id: 'l1', name: 'Old Auto', account_type: 'auto_loan', balance: 24310, active: false }),
+    ], [], []);
+    expect(nonCardLiabilityTotal(breakdown)).toBe(0);
   });
 });

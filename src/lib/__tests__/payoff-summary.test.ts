@@ -132,28 +132,28 @@ describe('selectDashboardHero', () => {
     const state = selectDashboardHero({
       hasAccounts: true, revolvingDebt: 6800, payoff, cashAboveFloor: 412, projectionReady: true,
     });
-    expect(state).toEqual({ kind: 'payoff', payoff, cashAboveFloor: 412 });
+    expect(state).toEqual({ kind: 'payoff', payoff, cashAboveFloor: 412, hasOtherDebt: false });
   });
 
   it('still leads with the payoff date when the floor reading is missing', () => {
     const state = selectDashboardHero({
       hasAccounts: true, revolvingDebt: 6800, payoff, cashAboveFloor: null, projectionReady: true,
     });
-    expect(state).toEqual({ kind: 'payoff', payoff, cashAboveFloor: null });
+    expect(state).toEqual({ kind: 'payoff', payoff, cashAboveFloor: null, hasOtherDebt: false });
   });
 
   it('leads with cash above floor when there is no card debt', () => {
     const state = selectDashboardHero({
       hasAccounts: true, revolvingDebt: 0, payoff: null, cashAboveFloor: 1240, projectionReady: true,
     });
-    expect(state).toEqual({ kind: 'cash', cashAboveFloor: 1240, carriesCardBalance: false });
+    expect(state).toEqual({ kind: 'cash', cashAboveFloor: 1240, carriesCardBalance: false, hasOtherDebt: false });
   });
 
   it('keeps a NEGATIVE cash-above-floor as the hero — bad news is not suppressed', () => {
     const state = selectDashboardHero({
       hasAccounts: true, revolvingDebt: 0, payoff: null, cashAboveFloor: -310, projectionReady: true,
     });
-    expect(state).toEqual({ kind: 'cash', cashAboveFloor: -310, carriesCardBalance: false });
+    expect(state).toEqual({ kind: 'cash', cashAboveFloor: -310, carriesCardBalance: false, hasOtherDebt: false });
   });
 
   it('does NOT call a pay-in-full user debt free — a cleared card still carries a balance', () => {
@@ -161,7 +161,46 @@ describe('selectDashboardHero', () => {
       hasAccounts: true, revolvingDebt: 0, cardBalance: 940, payoff: null,
       cashAboveFloor: 1240, projectionReady: true,
     });
-    expect(state).toEqual({ kind: 'cash', cashAboveFloor: 1240, carriesCardBalance: true });
+    expect(state).toEqual({ kind: 'cash', cashAboveFloor: 1240, carriesCardBalance: true, hasOtherDebt: false });
+  });
+
+  it('flags other debt on the payoff hero — the date is a CARD date, not a debt-free date', () => {
+    const state = selectDashboardHero({
+      hasAccounts: true, revolvingDebt: 6800, otherDebt: 24_310, payoff,
+      cashAboveFloor: 412, projectionReady: true,
+    });
+    expect(state).toEqual({ kind: 'payoff', payoff, cashAboveFloor: 412, hasOtherDebt: true });
+  });
+
+  it('does NOT call a user with a car loan debt free just because the cards are clear', () => {
+    const state = selectDashboardHero({
+      hasAccounts: true, revolvingDebt: 0, otherDebt: 24_310, payoff: null,
+      cashAboveFloor: 1240, projectionReady: true,
+    });
+    expect(state).toEqual({ kind: 'cash', cashAboveFloor: 1240, carriesCardBalance: false, hasOtherDebt: true });
+  });
+
+  it('treats a settled loan as no loan — a $0 balance is not a claim to soften', () => {
+    const state = selectDashboardHero({
+      hasAccounts: true, revolvingDebt: 0, otherDebt: 0, payoff: null,
+      cashAboveFloor: 1240, projectionReady: true,
+    });
+    expect(state).toEqual({ kind: 'cash', cashAboveFloor: 1240, carriesCardBalance: false, hasOtherDebt: false });
+  });
+
+  it('other debt NARROWS the claim and never changes which hero is shown', () => {
+    // Same inputs but for otherDebt: the empty reason must be identical, because a loan is
+    // not a reading the card hero could have led with.
+    const withLoan = selectDashboardHero({
+      hasAccounts: true, revolvingDebt: 6800, otherDebt: 24_310, payoff: null,
+      cashAboveFloor: 100, projectionReady: false,
+    });
+    const without = selectDashboardHero({
+      hasAccounts: true, revolvingDebt: 6800, otherDebt: 0, payoff: null,
+      cashAboveFloor: 100, projectionReady: false,
+    });
+    expect(withLoan).toEqual(without);
+    expect(withLoan).toEqual({ kind: 'empty', reason: 'projecting' });
   });
 
   it('is empty, not $0, when there are no accounts', () => {

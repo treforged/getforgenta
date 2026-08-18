@@ -98,13 +98,21 @@ export type HeroEmptyReason =
   | 'no-reading';
 
 export type DashboardHeroState =
-  | { kind: 'payoff'; payoff: RevolvingPayoff; cashAboveFloor: number | null }
+  /**
+   * `hasOtherDebt` is carried on BOTH readings because the payoff date is a CREDIT-CARD
+   * date — `selectRevolvingPayoff` reads the revolving engine and knows nothing about a
+   * car loan, a mortgage or a student loan. A hero that says "debt free" over that date
+   * while an auto loan runs three years past it is the confident-zero rule broken from
+   * the other end: not a fabricated number, but a true number carrying a false claim.
+   */
+  | { kind: 'payoff'; payoff: RevolvingPayoff; cashAboveFloor: number | null; hasOtherDebt: boolean }
   /**
    * No interest-bearing debt, so cash above the floor IS the hero. `carriesCardBalance`
    * separates "owes nothing" from "pays the statement in full every month" — calling the
-   * second one debt free would be a claim the data does not support.
+   * second one debt free would be a claim the data does not support. `hasOtherDebt` is the
+   * same guard for the loans half: only a user with neither is actually debt free.
    */
-  | { kind: 'cash'; cashAboveFloor: number; carriesCardBalance: boolean }
+  | { kind: 'cash'; cashAboveFloor: number; carriesCardBalance: boolean; hasOtherDebt: boolean }
   | { kind: 'empty'; reason: HeroEmptyReason };
 
 export interface DashboardHeroInput {
@@ -118,6 +126,13 @@ export interface DashboardHeroInput {
   revolvingDebt: number;
   /** Total balance across open cards, revolving or not. Only distinguishes the cash hero's copy. */
   cardBalance?: number;
+  /**
+   * Outstanding NON-CARD debt — loans, mortgages, anything the revolving engine does not
+   * project. Use {@link nonCardLiabilityTotal} so this and the net-worth breakdown cannot
+   * come to disagree about what counts as a card. Only ever narrows a claim; it can never
+   * change WHICH hero is shown.
+   */
+  otherDebt?: number;
   /** Result of `selectRevolvingPayoff`. */
   payoff: RevolvingPayoff | null;
   /** Projected cash minus the safety floor. Null when there is no reading — never a zero. */
@@ -132,17 +147,19 @@ export interface DashboardHeroInput {
  * branch can produce a $0 or a fabricated date.
  */
 export function selectDashboardHero(input: DashboardHeroInput): DashboardHeroState {
-  const { hasAccounts, revolvingDebt, cardBalance = 0, payoff, cashAboveFloor, projectionReady } = input;
+  const { hasAccounts, revolvingDebt, cardBalance = 0, otherDebt = 0, payoff, cashAboveFloor, projectionReady } = input;
+
+  const hasOtherDebt = otherDebt > 0;
 
   if (!hasAccounts) return { kind: 'empty', reason: 'no-accounts' };
 
   if (revolvingDebt <= 0) {
     return cashAboveFloor != null
-      ? { kind: 'cash', cashAboveFloor, carriesCardBalance: cardBalance > 0 }
+      ? { kind: 'cash', cashAboveFloor, carriesCardBalance: cardBalance > 0, hasOtherDebt }
       : { kind: 'empty', reason: 'no-reading' };
   }
 
-  if (payoff) return { kind: 'payoff', payoff, cashAboveFloor };
+  if (payoff) return { kind: 'payoff', payoff, cashAboveFloor, hasOtherDebt };
 
   return { kind: 'empty', reason: projectionReady ? 'no-payoff-in-range' : 'projecting' };
 }
