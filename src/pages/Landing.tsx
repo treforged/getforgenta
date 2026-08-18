@@ -66,11 +66,10 @@ export default function Landing() {
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get('ref');
-    if (ref) sessionStorage.setItem('forgenta:ref', ref);;
-  }, []);
+  // Referral capture used to live here, Landing-only and writing a key nothing read. It is now
+  // `CaptureReferral` in `App.tsx`, which runs on every route — a shared link that points anywhere
+  // other than the home page (`/auth?ref=…`, a deep link into a build) attributes just the same.
+  // See `@/lib/referral`.
   const springX = useSpring(mouseX, { stiffness: 60, damping: 20 });
   const springY = useSpring(mouseY, { stiffness: 60, damping: 20 });
 

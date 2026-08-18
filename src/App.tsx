@@ -10,6 +10,7 @@ import { useOnboardingStatus } from "@/hooks/useOnboardingStatus";
 import { DemoProvider, useDemo } from "@/contexts/DemoContext";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import BlackScreenDebug from "@/components/debug/BlackScreenDebug";
+import { captureReferral } from "@/lib/referral";
 import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { supabase } from '@/lib/supabase';
@@ -151,10 +152,28 @@ function ScrollToTop() {
   return null;
 }
 
+/**
+ * Records `?ref=` from whatever URL the visitor actually arrived on.
+ *
+ * ⚠️ THIS RUNS ON EVERY ROUTE ON PURPOSE. The capture used to sit inside `Landing`, so a shared
+ * link that pointed anywhere but the home page attributed nothing. It is also the half of the
+ * referral chain that was silently broken until 2026-08-18 — see the header of `@/lib/referral`.
+ * `captureReferral` is first-capture-wins and validates the code, so running it on every navigation
+ * is idempotent and cannot be used to overwrite a pending attribution.
+ */
+function CaptureReferral() {
+  const { search } = useLocation();
+  useEffect(() => {
+    captureReferral(search);
+  }, [search]);
+  return null;
+}
+
 function AppRoutes() {
   return (
     <>
       <ScrollToTop />
+      <CaptureReferral />
       <Routes>
       <Route path="/" element={<ErrorBoundary label="Home" homeTo={null}><Landing /></ErrorBoundary>} />
       <Route path="/auth" element={<ErrorBoundary label="Sign in" homeTo="/"><Suspense fallback={<PageLoader />}><Auth /></Suspense></ErrorBoundary>} />

@@ -17,6 +17,7 @@ import { onboardingQueryKey } from '@/hooks/useOnboardingStatus';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
+import { readReferral, clearReferral, resolveReferrerForSignup } from '@/lib/referral';
 import {
   markOnboardingComplete,
   readOnboardingCache,
@@ -206,7 +207,12 @@ export default function Onboarding() {
       // the others and a retry cannot duplicate the rows that already landed.
       const failed: string[] = [];
 
-      const refCode = sessionStorage.getItem('forged:ref') || null;
+      // ⚠️ THIS READ WAS THE BROKEN HALF OF THE REFERRAL CHAIN UNTIL 2026-08-18. It asked
+      // sessionStorage for `forged:ref`; the capture in `Landing` wrote `forgenta:ref`. Nothing
+      // ever wrote the key this line read, so `referred_by` was never populated for anybody —
+      // 46 profiles, 0 referrers, measured. Both halves now go through `@/lib/referral`, which
+      // owns the one key, and `resolveReferrerForSignup` drops a user's own code.
+      const refCode = resolveReferrerForSignup(readReferral(), user?.id);
       // `onboarding_completed` rides along with the profile write rather than being a second call:
       // it is the same row, the write is idempotent, and a separate call could fail on its own and
       // leave a finished setup marked unfinished (or worse, the reverse).
@@ -221,7 +227,9 @@ export default function Onboarding() {
         ...(refCode ? { referred_by: refCode } : {}),
       }).eq('user_id', user!.id);
       if (profileError) throw profileError;
-      if (refCode) sessionStorage.removeItem('forged:ref');
+      // Cleared only after the profile write above succeeded (it throws on error), so a failed
+      // setup that the user retries does not lose the attribution on the first attempt.
+      if (refCode) clearReferral();
 
       const expenses = [
         { label: 'Rent / Mortgage', amount: data.monthlyRent, category: 'Housing' },
