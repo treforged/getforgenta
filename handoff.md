@@ -1,5 +1,31 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-18 (deck chips) — **TRE, MID-SESSION: "why is income or subscripiton not even an option" — both answered, two commits, `e51b76e6` + `be93c949` on `redesign/integration`, still ALL LOCAL.** Gates on the committed tree: **tsc 0, 1518 passed / 18 skipped across 164 files** (was 1508), **build exit 0**. Backup at `backups/2026-08-18_deck-chip-row/`.
+>
+> **One cause, two layers, and the second is the one that matters.** The chip row caps at nine so the `1`–`9` shortcuts stay honest, and it LEADS with every category the user has taught. Tre has taught exactly nine. So his own history filled the row outright and **the deck could only ever offer a category he had already used** — `Income`, and equally `Subscriptions`, `Rent`, `Utilities`, `Insurance`, `Health`, `Shopping`, `Debt Payments`, were not buried, they were unreachable, with no affordance anywhere on the card to reach them.
+>
+> **`e51b76e6` — ordering.** New pure **`deckChipRow(rules, merchantRule, amount, common?, limit?)`**, now the deck's only chip path: **merchant's own remembered category → the direction's categories → the rest of the taught frequency order → the common list**. The principle the old order protected is narrower than the code was — what outranks the direction is the user's answer about THIS MERCHANT (so a correction still looks like it took), not their overall spending frequency, which was doing the burying. `orderCategoryChips` unchanged.
+>
+> **`be93c949` — reachability.** New pure **`remainingCategories(chips, common?)`**, disjoint from the row and together with it the whole of `CATEGORIES`. The card gained an **"N more"** toggle that names the count instead of hiding the size of the list; overflow chips carry **no digit** (the shortcut contract is nine keys — a tenth digit nobody can see is worse than no shortcut) and it opens **collapsed on every card** (the card is keyed on the charge), so the deck stays one decision and not the wall of choices it replaced.
+>
+> **⚠️ THE LESSON IS ABOUT THE FIXTURES.** `fa766cfb`'s direction lead was CORRECT and shipped and still did not reach Tre, because **every test fixture used a taught list of length 0 or 1** — `rules: {}` in the component mock. A fixture of nobody's data proves nothing about the person using the app. Both test files now carry his real nine-category taught set, and `DecisionDeck.paycheck.test.tsx` is proven to bite: restoring the old call fails "offers Income as the FIRST chip".
+>
+> **Live-verified signed in, on the real deck:** card 1 reads `1 Income, 2 Business, 3 Savings, 4 Investing, 5 Other, 6 Gas, 7 Groceries, 8 Travel, 9 Bills` + **"17 more"**, which expands to every remaining category including `Subscriptions`; card 2 (Amazon, −$8, an outflow) renders the expense row exactly as before.
+>
+> **✅ ALSO THIS SESSION — the two owed passes from `4f45364c`, both confirmed signed in.** `/garage` → Active Loans reads **$16,254 remaining** (the synced balance, not the ~$16,247 drifted amortization). The Forecast Sep-2026 drawer itemises **one** `2004 Chevorlet C5 $15,969.49` row with **no** flat "FIXED RATE LOAN" beside it, and `Total Liabilities $34,242.49` is exactly `$18,273.00` CC + `$15,969.49`. (Garage now opens on Builds; Active Loans is the middle pill.)
+>
+> **⏭ NOT DONE, deliberately:** accepting the paycheck offer to watch the `linked_rule` row land in `synced_transaction_reviews`. That is a write to Tre's live financial rows for a check he did not ask for, and the write path is already pinned to `acceptRuleInput` by test. Only `Skip` was pressed (it writes nothing).
+>
+> **⬜ NEXT, in order:**
+> 1. **`totalLiabilityBal` (`forecast-engine.ts:~1304`)** sums `otherDebtBalance` from the **`debts`** table while the popup itemises rows built from **`accounts`** — it can itemise a liability its own total does not count. Sep-2026 reconciles exactly today, so a repro needs a liability living in only one of the two.
+> 2. **`linkSuggestionFor` is read only by the deck.** The Bank Activity LIST asks the same question about the same charges and does not offer it — the exact drift `review-write-inputs.ts` exists to prevent. Same now applies to `deckChipRow`: the list's category picker has no "more" problem (it is a full dropdown), but the two surfaces order their suggestions differently.
+> 3. **Light mode** (scouted below: no light palette, `:root` and `.dark` byte-identical dark values, `index.html` hardcodes `class=\"dark\"`, ~48 hardcoded colors).
+> 4. Still owed from 2026-08-14: **Tre's review** + the ship decision (one PR or per-slice); **Slice 6 global store→category learning** (ATTENDED — new aggregate table + RLS + privacy copy); small flagged items (`undoAll` partial failure only toasts, `RulesFoundCard` has no tests, `MetricCard`'s unused `orange` variant, two unconverted Transactions bottom sheets, per-surface 390px re-passes); 4a's non-idempotent `handleFinish` optional inserts (pre-existing).
+>
+> **Mechanics:** :8080 already serves this worktree (`vite --port 8080 --strictPort`); the signed-in tab keeps the Supabase token fresh. **Restore `node scripts/dev-session.mjs up` from the main tree when the review is done.**
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-18 (browser passes) — **ALL THREE OWED BROWSER PASSES DONE, SIGNED IN ON THE REAL DATA — and the paycheck pass FAILED, so the defect it exposed was fixed: `e51b76e6` on `redesign/integration`, still ALL LOCAL, nothing pushed.** Gates on the committed tree: **tsc 0, 1513 passed / 18 skipped across 164 files** (was 1508), **build exit 0**. Backup at `backups/2026-08-18_deck-chip-row/`.
 >
 > **✅ `4f45364c`'s two passes, both confirmed.** `/garage` → Active Loans reads **$16,254 remaining** on the 2004 Chevrolet C5, i.e. the bank's synced balance and not the ~$16,247 the manual amortization had drifted to — the splice reaches the page. The Forecast Sep-2026 month drawer itemises liabilities as **one** `2004 Chevorlet C5 $15,969.49` row with **no** flat "FIXED RATE LOAN" line beside it, and `Total Liabilities $34,242.49` is exactly `$18,273.00` CC + `$15,969.49` — the total counts what the popup shows. (The Garage tab now leads with Builds; Active Loans is the middle pill.)
