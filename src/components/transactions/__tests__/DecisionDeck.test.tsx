@@ -14,7 +14,7 @@ import { acceptRuleInput, ignoreInput } from '@/lib/review-write-inputs';
 
 vi.mock('@/hooks/useMerchantMemory', () => ({
   useMerchantMemory: () => ({
-    rules: {}, pass: { writes: [], byMerchant: [] }, reviewsByCharge: {},
+    rules: {}, linkRules: {}, pass: { writes: [], byMerchant: [] }, reviewsByCharge: {},
     suppressed: {}, setSuppressed: () => {}, isLoading: false,
   }),
 }));
@@ -59,6 +59,7 @@ function setup(overrides: Partial<React.ComponentProps<typeof DecisionDeck>> = {
       cards={cards()}
       accountName={{ 'acct-1': 'Prime Visa' }}
       reviewsByCharge={{}}
+      rules={[rentRule]}
       save={save}
       setCategory={setCategory}
       remove={remove}

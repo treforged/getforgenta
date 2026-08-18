@@ -29,11 +29,12 @@ import type { BankActivityRow, RuleRow, TransactionRow, SyncedTransactionReviewR
 import type { ObligationPlan } from '@/lib/charge-obligations';
 import { useMerchantMemory } from '@/hooks/useMerchantMemory';
 import { merchantRuleFor, merchantLabel } from '@/lib/merchant-memory';
+import { linkSuggestionFor } from '@/lib/merchant-link-memory';
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion';
-import { planSuggestionAccept, ignoreInput } from '@/lib/review-write-inputs';
+import { planSuggestionAccept, ignoreInput, acceptRuleInput } from '@/lib/review-write-inputs';
 import {
   initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress, planDeckUndo,
-  deckSummary, orderCategoryChips, taughtCategoryOrder,
+  deckSummary, orderCategoryChips, taughtCategoryOrder, chargeDirection,
   type DeckCard, type DeckDecision,
 } from '@/lib/decision-deck';
 import DecisionDeckCard from './DecisionDeckCard';
@@ -46,6 +47,14 @@ export interface DecisionDeckProps {
   accountName: Readonly<Record<string, string>>;
   /** Every decision already on each charge, so a card can read the category it already carries. */
   reviewsByCharge: Readonly<Record<string, SyncedTransactionReviewRow[]>>;
+  /**
+   * The user's recurring rules — the SAME array the queue was built from.
+   *
+   * Needed because a remembered link names a rule by id, and `acceptRuleInput` needs the whole row
+   * to place the occurrence (`ruleOccurrence` reads its frequency and due day). Passed in rather
+   * than fetched so the deck cannot end up offering a rule the queue never saw.
+   */
+  rules: readonly RuleRow[];
   /** The parent's own mutations. Passed in rather than re-instantiated — see this file's header. */
   save: { mutateAsync: (input: ReviewInput) => Promise<unknown> };
   setCategory: { mutateAsync: (v: { syncedTransactionId: string; category: string | null }) => Promise<unknown> };
@@ -74,7 +83,7 @@ const errorMessage = (e: unknown): string =>
   e instanceof Error && e.message ? e.message : 'Something went wrong.';
 
 export default function DecisionDeck({
-  cards, accountName, reviewsByCharge, save, setCategory, remove, onClose,
+  cards, accountName, reviewsByCharge, rules, save, setCategory, remove, onClose,
 }: DecisionDeckProps) {
   // Snapshotted, deliberately — see this file's header. The prop may shrink under us as writes land.
   const [deck] = useState<readonly BankDeckCard[]>(cards);
@@ -84,7 +93,11 @@ export default function DecisionDeck({
   /** The decisions actually undone, so the end screen stops offering an undo it already performed. */
   const [undone, setUndone] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
-  const { rules: merchantRules, suppressed } = useMerchantMemory();
+  const { rules: merchantRules, linkRules, suppressed } = useMerchantMemory();
+  const rulesById = useMemo(
+    () => Object.fromEntries(rules.map(r => [r.id, r])) as Readonly<Record<string, RuleRow>>,
+    [rules],
+  );
 
   const card = deck[state.index] ?? null;
   const complete = isDeckComplete(state);
@@ -100,10 +113,26 @@ export default function DecisionDeck({
   const chips = useMemo<Category[]>(() => {
     if (!card) return [];
     const taught = taughtCategoryOrder(merchantRules, merchantRuleFor(card.charge, merchantRules, suppressed));
-    return orderCategoryChips(taught, CATEGORIES);
+    // Direction REORDERS the row, never filters it — see `orderCategoryChips`. Before this, `Income`
+    // sat 25th of 26 against a nine-chip cap, so a paycheck card could not offer it at all.
+    return orderCategoryChips(taught, CATEGORIES, undefined, chargeDirection(card.charge.amount));
   }, [card, merchantRules, suppressed]);
 
-  const suggestionLabel = card ? describeSuggestion(card) : null;
+  /**
+   * The rule this MERCHANT keeps getting linked to, when the matcher had nothing to say about this
+   * charge. Gated entirely inside `linkSuggestionFor` — every one of its conditions is a reason to
+   * stay silent, and it is never consulted when `card.suggestion` is set.
+   */
+  const linkOffer = useMemo(
+    () => (card ? linkSuggestionFor(card.charge, card.suggestion, linkRules, rulesById, suppressed) : null),
+    [card, linkRules, rulesById, suppressed],
+  );
+
+  const suggestionLabel = card ? describeSuggestion(card) ?? linkOffer?.rule.name ?? null : null;
+  /** Provenance, always, when the offer came from memory rather than from matching this charge. */
+  const suggestionNote = !card || describeSuggestion(card) || !linkOffer
+    ? null
+    : `You've linked ${linkOffer.memory.label} here ${linkOffer.memory.linkedCount} times before.`;
 
   /**
    * One decision: perform the write, then move on.
@@ -134,9 +163,12 @@ export default function DecisionDeck({
     if (!card || busy) return;
     // Built by the shared planner, never here. A suggestion the planner cannot route is not accepted
     // — no fallback, no guess.
-    const input = planSuggestionAccept(card.charge, card.suggestion, currentCategoryOf(card.charge.id));
+    // The matcher's answer first, then the merchant's remembered one. Both write through
+    // `review-write-inputs.ts` — the deck never builds a row of its own (see this file's header).
+    const input = planSuggestionAccept(card.charge, card.suggestion, currentCategoryOf(card.charge.id))
+      ?? (linkOffer ? acceptRuleInput(card.charge, linkOffer.rule) : null);
     if (!input) return;
-    const label = describeSuggestion(card);
+    const label = describeSuggestion(card) ?? linkOffer?.rule.name ?? null;
     void decide(() => save.mutateAsync(input), {
       chargeId: card.charge.id,
       kind: 'accepted',
@@ -144,7 +176,7 @@ export default function DecisionDeck({
       detail: label ?? 'linked',
       previousCategory: currentCategoryOf(card.charge.id),
     });
-  }, [card, busy, currentCategoryOf, decide, save]);
+  }, [card, busy, currentCategoryOf, decide, linkOffer, save]);
 
   const onCategory = useCallback((category: Category) => {
     if (!card || busy) return;
@@ -273,6 +305,7 @@ export default function DecisionDeck({
             date={card.charge.date}
             accountLabel={card.charge.account_id ? accountName[card.charge.account_id] ?? null : null}
             suggestionLabel={suggestionLabel}
+            suggestionNote={suggestionNote}
             chips={chips}
             currentCategory={currentCategoryOf(card.charge.id)}
             busy={busy}

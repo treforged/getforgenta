@@ -5,10 +5,12 @@ import { describe, it, expect } from 'vitest';
 import {
   buildDeck, initialDeckState, advanceDeck, recordDeckDecision, isDeckComplete, deckProgress,
   planDeckUndo, orderCategoryChips, taughtCategoryOrder, deckSummary, CHIP_LIMIT,
+  chargeDirection, MONEY_IN_CATEGORIES,
   type DeckDecision,
 } from '../decision-deck';
 import { buildReviewQueue, type ReviewQueue } from '../bank-activity-queue';
 import type { MerchantRule } from '../merchant-memory';
+import { CATEGORIES } from '../types';
 
 const charge = (id: string, date: string, amount = 10) => ({ id, account_id: 'a1', amount, date });
 
@@ -215,5 +217,61 @@ describe('category chips — the user\'s own answers first', () => {
 
   it('refuses a category that is not one of the app\'s own', () => {
     expect(orderCategoryChips(['Not A Category'], ['Bills'], 5)).toEqual(['Bills']);
+  });
+});
+
+// The bug: a MONEY IN card offered nine expense chips and no way to say "income".
+//
+// Tre hit it on card 1 of his own run on 2026-08-18 — an $815.75 payroll deposit. It was not that
+// `Income` was buried; with `CATEGORIES` listing it 25th of 26 against a nine-chip cap, it could not
+// appear at all. These tests run against the REAL `CATEGORIES` for that reason: a fixture list would
+// pass while the shipped one still hid the chip.
+describe('chargeDirection', () => {
+  it('reads a deposit as money IN — outflow is positive on these rows', () => {
+    expect(chargeDirection(-815.75)).toBe('in');
+    expect(chargeDirection('-815.75')).toBe('in');
+  });
+
+  it('reads a purchase as money OUT', () => {
+    expect(chargeDirection(42.5)).toBe('out');
+    expect(chargeDirection('42.50')).toBe('out');
+  });
+
+  it('reports no direction rather than guessing one', () => {
+    // A zero or unreadable amount is ABSENT, not an expense. Same rule as everywhere else here:
+    // never draw a confident answer over a missing reading.
+    expect(chargeDirection(0)).toBeNull();
+    expect(chargeDirection(null)).toBeNull();
+    expect(chargeDirection(undefined)).toBeNull();
+    expect(chargeDirection('not a number')).toBeNull();
+  });
+});
+
+describe('orderCategoryChips — direction', () => {
+  it('puts Income on the paycheck card, where it could not previously appear at all', () => {
+    expect(orderCategoryChips([], CATEGORIES, CHIP_LIMIT, 'in')[0]).toBe('Income');
+    // The bite: the OLD call — no direction — cannot reach it, which is the whole defect.
+    expect(orderCategoryChips([], CATEGORIES, CHIP_LIMIT)).not.toContain('Income');
+  });
+
+  it('leaves an expense card exactly as it was', () => {
+    expect(orderCategoryChips(['Gas'], CATEGORIES, CHIP_LIMIT, 'out'))
+      .toEqual(orderCategoryChips(['Gas'], CATEGORIES, CHIP_LIMIT));
+  });
+
+  it('reorders and never filters — every category is still offerable on a deposit', () => {
+    // A deposit really can be a refund the user files under Shopping.
+    const chips = orderCategoryChips([], CATEGORIES, CATEGORIES.length, 'in');
+    expect([...chips].sort()).toEqual([...CATEGORIES].sort());
+  });
+
+  it('keeps what the user TAUGHT ahead of the direction', () => {
+    // Their own previous answer about this merchant is the better evidence; demoting it would make
+    // a correction look like it did not take.
+    expect(orderCategoryChips(['Business'], CATEGORIES, CHIP_LIMIT, 'in')[0]).toBe('Business');
+  });
+
+  it('still caps at the limit with the inflow categories in front', () => {
+    expect(orderCategoryChips([], CATEGORIES, 3, 'in')).toEqual(MONEY_IN_CATEGORIES.slice(0, 3));
   });
 });

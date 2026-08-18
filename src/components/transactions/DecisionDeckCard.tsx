@@ -37,6 +37,16 @@ export interface DecisionDeckCardProps {
   accountLabel: string | null;
   /** What the app already thinks this is, in one phrase, or null when it thinks nothing. */
   suggestionLabel: string | null;
+  /**
+   * WHERE that suggestion came from, when it did not come from matching this charge.
+   *
+   * ⚠️ REQUIRED FOR A REMEMBERED OFFER, and the reason is that the two are not equally strong. A
+   * matched suggestion is evidence about THIS row — same amount, same window. A remembered one is
+   * evidence about the merchant ("you have linked this one 22 times"), which is often the better
+   * answer and is never the same claim. Rendering them identically would tell the user the app
+   * matched something it did not.
+   */
+  suggestionNote?: string | null;
   chips: readonly Category[];
   /** The category the charge already carries, so the chip row can show which one is current. */
   currentCategory: string | null;
@@ -51,8 +61,8 @@ export interface DecisionDeckCardProps {
 }
 
 export default function DecisionDeckCard({
-  merchantLabel, amount, date, accountLabel, suggestionLabel, chips, currentCategory,
-  busy, error, reducedMotion, onAccept, onCategory, onSkip, onIgnore,
+  merchantLabel, amount, date, accountLabel, suggestionLabel, suggestionNote = null, chips,
+  currentCategory, busy, error, reducedMotion, onAccept, onCategory, onSkip, onIgnore,
 }: DecisionDeckCardProps) {
   const isInflow = amount < 0;
 
@@ -112,6 +122,10 @@ export default function DecisionDeckCard({
       <p className="text-sm font-medium leading-snug">
         {suggestionLabel ? `Is this your ${suggestionLabel}?` : 'What is this?'}
       </p>
+
+      {suggestionLabel && suggestionNote && (
+        <p className="text-[11px] text-muted-foreground">{suggestionNote}</p>
+      )}
 
       {error && (
         <p className="flex items-start gap-1.5 text-[11px] text-destructive" role="alert">

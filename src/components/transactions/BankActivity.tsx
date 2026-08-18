@@ -550,6 +550,8 @@ export default function BankActivity() {
           cards={deckCards}
           accountName={accountName}
           reviewsByCharge={reviewsByTxn}
+          // The queue's own rules, so a remembered link can only ever name one the queue also saw.
+          rules={rules}
           // The parent's own mutations, passed down rather than re-instantiated: one write path per
           // decision, however the user made it. See `DecisionDeck.tsx`'s header.
           save={save}

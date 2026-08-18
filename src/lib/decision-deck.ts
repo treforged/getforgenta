@@ -215,18 +215,55 @@ export function taughtCategoryOrder(
 }
 
 /**
+ * Which way the money moved on a charge. `null` when the row carries no readable amount — absent, not
+ * assumed to be an expense.
+ *
+ * ⚠️ OUTFLOW IS POSITIVE. That is Stage A's convention on `synced_transactions.amount` and it is the
+ * opposite of what the sign reads like, so it is asserted here once rather than re-derived at each
+ * caller. A $815.75 paycheck arrives as `-815.75`.
+ */
+export function chargeDirection(amount: number | string | null | undefined): 'in' | 'out' | null {
+  const value = typeof amount === 'string' ? Number(amount) : amount;
+  if (value == null || !Number.isFinite(value) || value === 0) return null;
+  return value < 0 ? 'in' : 'out';
+}
+
+/**
+ * The categories a MONEY IN card leads with.
+ *
+ * ⚠️ WHY THIS EXISTS AT ALL. The chip row was direction-blind: it was `orderCategoryChips(taught,
+ * CATEGORIES)` for every card, and `CATEGORIES` lists `Income` 25th of 26 against a nine-chip cap —
+ * so `Income` was not merely buried on a deposit card, it was UNREACHABLE. Tre hit this on card 1 of
+ * his own run: an $815.75 payroll deposit offered nine expense chips and no way to call it income
+ * (2026-08-18). A deposit is not a kind of spending, and the deck should not open by asking which
+ * kind of spending it is.
+ *
+ * Deliberately short. These are the categories money genuinely arrives under; the rest of the app's
+ * list still follows behind them, so nothing is taken away — it is reordered.
+ */
+export const MONEY_IN_CATEGORIES: readonly Category[] = ['Income', 'Business', 'Savings', 'Investing'];
+
+/**
  * The chip row: what the user has taught first, then the app's common categories, capped.
  *
  * Anything that is not one of the app's own categories is dropped rather than rendered — a chip that
  * writes a value `isValidCategory` rejects would fail at the mutation with nothing on screen
  * explaining why.
+ *
+ * ⚠️ `direction` REORDERS, IT NEVER FILTERS. Every category stays offerable — a deposit really can be
+ * a refund the user files under `Shopping` — but on a money-in card the inflow categories come first
+ * so the honest answer is on screen instead of off the end of a nine-chip row. What the user has
+ * TAUGHT still outranks the direction: their own previous answer about this merchant is the better
+ * evidence, and demoting it would make the correction look like it did not take.
  */
 export function orderCategoryChips(
   taught: readonly string[],
   common: readonly string[],
   limit: number = CHIP_LIMIT,
+  direction: 'in' | 'out' | null = null,
 ): Category[] {
-  return dedupe([...taught, ...common].filter(isValidCategory)).slice(0, limit);
+  const leading = direction === 'in' ? MONEY_IN_CATEGORIES : [];
+  return dedupe([...taught, ...leading, ...common].filter(isValidCategory)).slice(0, limit);
 }
 
 const dedupe = (values: readonly string[]): Category[] => {
