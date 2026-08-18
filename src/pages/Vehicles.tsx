@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
-import { Link } from 'react-router';
+import { Link, useSearchParams } from 'react-router';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,7 +14,9 @@ import { buildConfirmedOccurrences } from '@/lib/confirmed-capture';
 import { mergeWithGeneratedTransactions, getRemainingTransactionIncomeThisMonth, getRemainingTransactionExpensesThisMonth, getRemainingTransactionDebtPaymentsThisMonth } from '@/lib/pay-schedule';
 import { useDemo } from '@/contexts/DemoContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
-import { Plus, Edit2, Trash2, Car, TrendingDown, AlertTriangle, Link2, Undo2, CalendarClock, X, Check } from 'lucide-react';
+import Builds from '@/pages/Builds';
+import { garageTabFromSearch, type GarageTab } from '@/lib/garage-tab';
+import { Plus, Edit2, Trash2, Car, TrendingDown, Wrench, AlertTriangle, Link2, Undo2, CalendarClock, X, Check } from 'lucide-react';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -869,7 +871,22 @@ export default function Vehicles() {
   const { data: syncedReviews } = useSyncedTransactionReviews();
   const confirmedOccurrences = useMemo(() => buildConfirmedOccurrences(syncedReviews), [syncedReviews]);
 
-  const [activeTab, setActiveTab] = usePersistedState<'saving' | 'loan'>('tre:vehicles:activeTab', 'saving');
+  // ⚠️ THE KEY IS STILL `tre:vehicles:activeTab`. Builds joined this page as a third panel; renaming
+  // the key would have silently reset the remembered tab for every existing user to buy nothing.
+  const [activeTab, setActiveTab] = usePersistedState<GarageTab>('tre:vehicles:activeTab', 'saving');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // A deep link (`/vehicles?tab=builds`, which is where the old `/builds` route now lands) names the
+  // panel it means; the persisted tab cannot, because a redirect writes no localStorage. Honoured
+  // once, then stripped so a later reload is a plain visit and the user's own tab wins again.
+  const askedTab = garageTabFromSearch(searchParams);
+  useEffect(() => {
+    if (!askedTab) return;
+    setActiveTab(askedTab);
+    const next = new URLSearchParams(searchParams);
+    next.delete('tab');
+    setSearchParams(next, { replace: true });
+  }, [askedTab, searchParams, setSearchParams, setActiveTab]);
   const [showSavingForm, setShowSavingForm] = useState(false);
   const [showLoanForm, setShowLoanForm] = useState(false);
   const [buyItFor, setBuyItFor] = useState<CarFund | null>(null);
@@ -1253,7 +1270,7 @@ export default function Vehicles() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Vehicles</h1>
+            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Garage</h1>
             <InstructionsModal pageTitle="Vehicles Guide" sections={[
               { title: 'Two phases', body: 'Saving phase: track your down payment goal and preview loan costs. Set a planned purchase date to anchor the Forecast transition. Loan phase: enter your actual loan terms and track full amortization to payoff.' },
               { title: 'Planned Purchase Date', body: 'Set the month you plan to buy. In the Forecast, saving contributions stop that month, the down payment is shown as an outflow, and the projected loan payment starts the following month. Estimated values are used until you hit "I bought it."' },
@@ -1264,7 +1281,7 @@ export default function Vehicles() {
               { title: 'Connects to Forecast', body: 'Active loan payments appear as "Car Loan Payments" in the Forecast drawer. Projected loans for saving-phase vehicles appear as "Est. Car Loan (projected)" starting the month after the planned purchase date.' },
             ]} />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">Track every vehicle from saving to payoff</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Every vehicle from saving to payoff — and every build</p>
         </div>
         <div className="flex gap-2 shrink-0">
           {activeTab === 'saving' && (
@@ -1321,7 +1338,20 @@ export default function Vehicles() {
           <TrendingDown size={13} /> Active Loans
           {loanVehicles.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{loanVehicles.length}</span>}
         </button>
+        <button onClick={() => setActiveTab('builds')}
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'builds' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          style={{ borderRadius: 'var(--radius)' }}>
+          <Wrench size={13} /> Builds
+        </button>
       </div>
+
+      {/*
+        ⚠️ RENDERED, NOT LINKED TO — and `Builds` is unchanged from when it was its own route. It
+        owns its build switcher, its own "New Build" button and every write it ever made, so hosting
+        it here is a change of shell and nothing else. It is mounted only on its own tab, so the
+        page does not pay for its four queries while a user is looking at a loan.
+      */}
+      {activeTab === 'builds' && <Builds />}
 
       {activeTab === 'saving' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

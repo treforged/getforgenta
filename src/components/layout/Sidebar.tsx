@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark, PiggyBank,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight,
-  Sliders, TrendingUp, Building2, Home, Sparkles, Zap, Car, Wrench,
+  Sliders, TrendingUp, Building2, Home, Sparkles, Zap, Car,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
@@ -18,8 +18,7 @@ const navItems = [
   { to: '/budget', icon: Sliders, label: 'Budget Control' },
   { to: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { to: '/debt', icon: Landmark, label: 'Debt Payoff', highlight: true },
-  { to: '/vehicles', icon: Car, label: 'Vehicles' },
-  { to: '/builds', icon: Wrench, label: 'Builds' },
+  { to: '/vehicles', icon: Car, label: 'Garage' },
   { to: '/goals', icon: PiggyBank, label: 'Goals' },
   { to: '/forecast', icon: TrendingUp, label: 'Forecast' },
   ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),

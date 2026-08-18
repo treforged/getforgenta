@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router';
 import {
   LayoutDashboard, ArrowLeftRight, Sliders, Landmark,
   MoreHorizontal, Building2, PiggyBank, TrendingUp,
-  Settings, Crown, LogOut, Home, X, Sparkles, Car, Wrench,
+  Settings, Crown, LogOut, Home, X, Sparkles, Car,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,8 +30,7 @@ const PRIMARY = [
 const SECONDARY = [
   { to: '/budget', icon: Sliders, label: 'Budget Control' },
   { to: '/accounts', icon: Building2, label: 'Accounts' },
-  { to: '/vehicles', icon: Car, label: 'Vehicles' },
-  { to: '/builds', icon: Wrench, label: 'Builds' },
+  { to: '/vehicles', icon: Car, label: 'Garage' },
   ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
   { to: '/goals', icon: PiggyBank, label: 'Goals' },
   { to: '/settings', icon: Settings, label: 'Settings' },

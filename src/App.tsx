@@ -136,8 +136,11 @@ function AppRoutes() {
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Transactions"><Transactions /></ErrorBoundary></Suspense>} />
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Debt Payoff"><DebtPayoff /></ErrorBoundary></Suspense>} />
         <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Savings Goals"><SavingsGoals /></ErrorBoundary></Suspense>} />
-        <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Vehicles"><Vehicles /></ErrorBoundary></Suspense>} />
-        <Route path="/builds" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Builds"><Builds /></ErrorBoundary></Suspense>} />
+        <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Garage"><Vehicles /></ErrorBoundary></Suspense>} />
+        {/* Builds is a PANEL of the Garage now, not a route. The redirect keeps every existing
+            bookmark and in-app link working and names the panel it meant — see `garage-tab.ts`. */}
+        <Route path="/builds" element={<Navigate to="/vehicles?tab=builds" replace />} />
+        <Route path="/garage" element={<Navigate to="/vehicles" replace />} />
         <Route path="/net-worth" element={<Navigate to="/accounts" replace />} />
         <Route path="/forecast" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Forecast"><Forecast /></ErrorBoundary></Suspense>} />
         <Route path="/settings" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Settings"><SettingsPage /></ErrorBoundary></Suspense>} />
