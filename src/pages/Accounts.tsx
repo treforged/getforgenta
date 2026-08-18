@@ -888,16 +888,16 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       {/* Panel switcher — Garage-style pills. The summary numbers above stay put on every panel:
           they are the page's hero and hiding them behind a tab would make the answer depend on
           which tab you happened to be on. */}
-      <div className="flex gap-2 overflow-x-auto">
+      <div className="seg-track" role="tablist">
         <button onClick={() => setActiveTab('balances')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press shrink-0 ${effectiveTab === 'balances' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${effectiveTab === 'balances' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Wallet size={13} /> Balances
           {activeAccounts.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{activeAccounts.length}</span>}
         </button>
         {!isDemo && (
           <button onClick={() => setActiveTab('banks')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press shrink-0 ${effectiveTab === 'banks' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+            className={`seg-item btn-press ${effectiveTab === 'banks' ? 'seg-item-active' : ''}`}
             style={{ borderRadius: 'var(--radius)' }}>
             <Link2 size={13} /> Linked Banks
             {plaidItems.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{plaidItems.length}</span>}
@@ -909,7 +909,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       {effectiveTab === 'balances' && (
       <div className="flex gap-2">
         {(['all', 'assets', 'liabilities'] as const).map(t => (
-          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:text-foreground'}`} style={{ borderRadius: 'var(--radius)' }}>
+          <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1 text-xs font-medium border btn-press ${filterType === t ? 'border-primary text-primary' : ''}`} style={{ borderRadius: 'var(--radius)' }}>
             {t === 'all' ? 'All Accounts' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}

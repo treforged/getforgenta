@@ -132,6 +132,47 @@
   border-radius: var(--radius);
 }
 
+/* ── Segmented control ────────────────────────────────────────────────────────
+   ONE answer for every panel selector in the app. Tre, 2026-08-18: *"make the
+   top navigation for tab sections, ovals like copilot and monarch do, its the
+   better more premium design."* Both references do the same thing — a recessed
+   track with the ACTIVE segment as a filled oval — and both are read as premium
+   for the same reason: the row states which of a small set you are in, once,
+   instead of underlining a word and hoping the difference reads.
+
+   ⚠️ THESE ARE THE ONE EXCEPTION TO THE APP'S SQUARE `var(--radius)` CORNERS,
+   and that is deliberate rather than a drift. Everything that HOLDS content
+   (`card-forged`, inputs, modals) stays forged and square; only this control,
+   which holds no content and exists to be pressed, goes fully round. Do not
+   spread `rounded-full` outward from here.
+
+   ⚠️ THE TRACK SCROLLS, IT DOES NOT WRAP. Five segments (Debt Payoff) do not fit
+   390px, and a wrapped selector reads as two rows of unrelated buttons. It
+   scrolls horizontally inside its own box, so the PAGE never gains a scrollbar
+   — the same rule the wide tables follow. */
+@utility seg-track {
+  @apply inline-flex items-center gap-1 p-1 border border-border bg-secondary/50;
+  @apply max-w-full overflow-x-auto;
+  border-radius: 9999px;
+  scrollbar-width: none;
+}
+
+@utility seg-item {
+  @apply flex shrink-0 items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium whitespace-nowrap;
+  @apply text-muted-foreground transition-colors duration-150;
+  @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60;
+  @apply hover:text-foreground;
+  border-radius: 9999px;
+}
+
+/* The filled oval. `bg-primary` + `text-primary-foreground` rather than a tinted
+   outline, because the whole point of the reference designs is that the active
+   segment is a SOLID shape you can find without reading. */
+@utility seg-item-active {
+  @apply bg-primary text-primary-foreground;
+  @apply hover:text-primary-foreground;
+}
+
 /* ── Vertical rhythm ──────────────────────────────────────────────────────────
    Even spacing is not one number. `space-y-8` on a page root puts the SAME 2rem
    between a hero and the body as between two one-line control rows, which is
@@ -213,6 +254,12 @@
 @utility icon-btn {
   /* 44px minimum tap target for icon-only buttons */
   @apply flex items-center justify-center min-h-[44px] min-w-[44px];
+}
+
+@layer utilities {
+  /* Companion to `seg-track`: `scrollbar-width: none` covers Firefox, this covers
+     WebKit/Blink. A visible scrollbar under a pill row reads as a broken control. */
+  .seg-track::-webkit-scrollbar { display: none; }
 }
 
 @layer utilities {

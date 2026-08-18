@@ -239,29 +239,29 @@ export default function DebtPayoff() {
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
       {/* Tabs */}
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="seg-track" role="tablist">
         <button onClick={() => setActiveTab('cards')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'cards' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{accounts?.filter(a => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
         </button>
         <button onClick={() => setActiveTab('auto')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'auto' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'auto' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{activeAutoLoans.length}</span>}
         </button>
         <button onClick={() => setActiveTab('mortgage')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'mortgage' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'mortgage' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Landmark size={13} /> Mortgage {mortgageDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{mortgageDebts.length}</span>}
         </button>
         <button onClick={() => setActiveTab('student')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'student' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'student' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{studentDebts.length}</span>}
         </button>
         <button onClick={() => setActiveTab('other')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'other' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'other' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{otherDebts.length}</span>}
         </button>

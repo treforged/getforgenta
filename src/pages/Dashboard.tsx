@@ -1457,14 +1457,14 @@ export default function Dashboard() {
           The panel row is styled exactly like the Garage's (`Vehicles.tsx`). Two entries, so it
           stays one line even at 320px. */}
       <div className="stack-row">
-      <div className="flex gap-2">
+      <div className="seg-track" role="tablist">
         <button onClick={() => setActiveTab('overview')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'overview' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'overview' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <LayoutDashboard size={13} /> Overview
         </button>
         <button onClick={() => setActiveTab('accounts')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'accounts' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'accounts' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Building2 size={13} /> Accounts
         </button>

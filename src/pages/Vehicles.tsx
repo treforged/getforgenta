@@ -1330,21 +1330,21 @@ export default function Vehicles() {
       {/* The pill row and the panels it switches are ONE group (`stack-row`): a control row
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
-      <div className="flex gap-2">
+      <div className="seg-track" role="tablist">
         <button onClick={() => setActiveTab('saving')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'saving' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'saving' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Car size={13} /> Saving for Down Payment
           {savingVehicles.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{savingVehicles.length}</span>}
         </button>
         <button onClick={() => setActiveTab('loan')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'loan' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'loan' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <TrendingDown size={13} /> Active Loans
           {loanVehicles.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{loanVehicles.length}</span>}
         </button>
         <button onClick={() => setActiveTab('builds')}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'builds' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
+          className={`seg-item btn-press ${activeTab === 'builds' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Wrench size={13} /> Builds
         </button>

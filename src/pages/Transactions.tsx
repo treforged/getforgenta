@@ -618,7 +618,7 @@ export default function Transactions() {
       for and is waiting on. NOT a count of unreviewed rows — most rows are unreviewed by design and
       always will be; see `@/lib/bank-activity-queue`. `useBankReviewQueueCount` returns null rather
       than 0, so a quiet queue and a queue that has not loaded both render nothing. */}
-  <div className="flex items-center gap-1 border-b border-border">
+  <div className="seg-track" role="tablist">
     {([
       // Budget Control leads (Tre, 2026-08-18: "move budget control as the first tab of
       // transactions") — the rules are what every other number on this page derives from, so it
@@ -632,15 +632,17 @@ export default function Transactions() {
       <button
         key={t.id}
         onClick={() => setActiveTab(t.id)}
-        className={`flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
-          activeTab === t.id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-        }`}
+        className={`seg-item btn-press ${activeTab === t.id ? 'seg-item-active' : ''}`}
+        role="tab"
+        aria-selected={activeTab === t.id}
       >
         {t.label}
         {t.count !== null && (
           <span
-            className="text-[10px] font-semibold bg-primary/15 text-primary px-1.5 py-0.5 leading-none"
-            style={{ borderRadius: 'var(--radius)' }}
+            className={`text-[10px] font-semibold px-1.5 py-0.5 leading-none ${
+              activeTab === t.id ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/15 text-primary'
+            }`}
+            style={{ borderRadius: '9999px' }}
             title={`${t.count} bank ${t.count === 1 ? 'charge has' : 'charges have'} a suggested match waiting for you`}
           >
             {t.count}
