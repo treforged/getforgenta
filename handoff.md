@@ -1,5 +1,45 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-18 (post-merge notes: popups fit, one guide per page — **two of Tre's five notes still UNBUILT, specced below**) — **`22682222` on `fix/popup-fit-and-one-guide`, cut from the merged `main` (`327acaa2`).** Gates: tsc 0, eslint clean, **1647 passed / 18 skipped across 176**, build exit 0.
+>
+> **PR #111 IS MERGED** — verified by CONTENTS (`page-guides.ts`, `payoff-trajectory.ts`, `tour-steps.ts` all present in `origin/main`), not by the word "merged".
+>
+> Tre's five notes after merging. **Two done, one superseded, two owed.**
+>
+> **1. ✅ POPUPS FIT A SHORT SCREEN, CENTRED WITH EQUAL GAPS.** *"with a shorter screen, some popups like the guides cut off since they dont fit. it should be vertically centered so it has equal spacing on both sides."* Both halves had ONE cause: the overlay padded 1rem around a card capped at **85–90vh**, which on a short screen is MORE than the viewport — so the card was **clipped rather than scrolled** — and a one-sided `padding-top: max(1rem, env(safe-area-inset-top))` pushed it off centre on top of that.
+> - New **`modal-overlay`** utility in `index.css`: symmetric padding INCLUDING the safe areas on all four sides, card capped at **`max-h-full`** instead of a viewport fraction. The card then can never be taller than the box it is centred in, so the gaps are equal by construction and the card's own body scrolls.
+> - Applied to `InstructionsModal`, `ModalShell`, `CalcDrawer`, BudgetControl's catalog picker, `MaintenanceFormModal`. `CookieBanner` keeps its mobile bottom-sheet alignment and only loses the bad cap.
+> - ⚠️ Verified against the **BUILT stylesheet** (`dist/assets/*.css`), not the source — the token-sweep lesson.
+> - 🔬 **LIVE:** at a 380px-tall box the card is 344px with an **18px gap top AND bottom**, `clipped: false`, body scrolling, header and close button still reachable.
+>
+> **2. ✅ ONE GUIDE PER PAGE, AT THE TITLE, CARRYING EVERY SECTION.** *"move the guide up to where the title for the tab is. put the guide for both sections in the same guide."* This SUPERSEDES the per-panel placement shipped hours earlier in #111 — do not re-split it.
+> - **`resolveSurfaceGuide(surface)`** composes a page's panels into one guide, each block carrying its panel as a heading. It **COMPOSES the per-panel entries rather than duplicating them**, so the two readings cannot fork. `resolveGuide` (per panel) is still there and still the source of truth.
+> - ⚠️ **Home's guide reaches ACROSS surfaces on purpose**: `SURFACE_PANELS.dashboard` pulls in `accounts:balances` and `accounts:banks`, because Accounts is HOSTED on the Dashboard and its sub-panels would otherwise only be reachable by switching panel first. This is why the map is keyed on full `GuideKey`s, not on bare panel names.
+> - **`SurfaceGuide`** renders as the last item of each page's header cluster. **`PanelBar` is now purely the panel row** and its docstring says not to put a second guide back in it.
+> - `Accounts.tsx` renders its own `SurfaceGuide` **only when `!embedded`** — hosted on the Dashboard, Home's guide already carries it.
+> - 🔬 **LIVE:** exactly ONE guide on each of the five surfaces, all on the title row (h1 top 86; guide tops 88–102), named **Home / Activity / Debt / Forecast / Garage**, and the Debt guide carries all five panels under their own headings.
+>
+> ---
+>
+> **3. ⬜ OWED — "if someone taps outside of an edit box, it auto closes the input pop up, make it so it saves their inputs."**
+> **NOT built, deliberately.** Backdrop-tap currently DISCARDS. Making it blind-submit a half-filled form in a financial app can write a bad row, so this wants a session with room to check each form's validation.
+> - **The candidates, already surveyed** (overlays whose `onClick` closes and which contain inputs): `src/pages/Transactions.tsx:1041` (`closePlanForm` — **most likely the one Tre hit**), `Transactions.tsx:996` (edit-choice sheet), `src/components/builds/BuildFormModal.tsx:61`, `src/components/builds/MaintenanceFormModal.tsx:219`, `src/pages/BudgetControl.tsx:1704` (catalog picker — a PICKER, not an edit form, and it also clears `customLabel`).
+> - **Recommended shape, and why:** on backdrop tap, **submit if the form is valid; if it is not, keep the popup open** rather than discarding. That satisfies "saves their inputs" literally, never writes an invalid financial row, and never loses work — the three constraints together. A plain "always submit" fails the second; a plain "never close" fails the ask.
+> - Ask Tre which popup he hit if it is ambiguous, but do NOT block on it — the shape above is right for all of them.
+>
+> **4. ⬜ OWED — "lets make the demo only accessible when you sign up, so you can see a reference account for example when the user sets up."**
+> **NOT built.** Today demo is **in-memory React state entered ONLY by clicking "Try Demo" on `/auth`** — no route, no flag (see the demo-mode memory). Tre wants that entry point gone from the signed-out page and the demo reachable instead from inside onboarding, as a reference account a new user can look at while setting up.
+> - Touches: the `/auth` page's Try Demo button, `Onboarding.tsx` (where the reference link belongs), and whatever holds the demo flag. ⚠️ Demo stays `is_premium: true` and must still look outstanding — it is the sales surface per `DIRECTION.md`.
+> - ⚠️ **Check the marketing pipeline first**: `capture_demo.mjs` takes the social screenshots FROM demo mode without a password. If the only entry point moves behind sign-up, that script breaks. Either keep a non-UI entry for it or update the script in the same slice.
+>
+> **⬜ NEXT, unchanged otherwise:** Settings tabs with Profile+Invite together (folding in the merchant-memory reshape); **seeded demo bank activity** (the deck AND the patterns card are structurally empty in demo — and note this now interacts with item 4); Slice 6 global store→category learning (ATTENDED: migration + RLS + privacy copy); light mode.
+>
+> **⬜ STILL OPEN, carried forward:** the last 15 in the queue are transfers, Zelle-to-self, paychecks wanting rule links and card payments; `undoAll` partial failure surfaces only via toast; `RulesFoundCard` has no tests; `MetricCard`'s unused `orange` variant; two Transactions bottom sheets unconverted; per-surface 390px re-passes (⚠️ `resize_window` no-ops in this Chrome profile — clamp the overlay instead); `handleFinish`'s non-idempotent optional inserts; `53bc12ce` + its handoff commit still never pushed to PR #105; the page-title registry the Monarch format wants; `generateRecommendations` is dead code at runtime; the Dashboard's Liabilities Breakdown is unit-proven but nobody has looked at it. ⚠️ **Driving the deck programmatically times out** — scope reads to the overlay and batch ~12 per call.
+>
+> **Mechanics:** the worktree is the `ba7db32d` scratchpad's `wt-integration`, **vite serves IT on :8080 with HMR**, and `localhost:8080` is the only signed-in origin. ⚠️ **The worktree is now on `fix/popup-fit-and-one-guide`, not `redesign/integration`** — that branch is merged and done with.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-18 (the milestone became a run, the guides moved to their panels, the tour stopped lying — and **the redesign is PUSHED**) — **`77b3616e` on `redesign/integration`.** Gates: tsc 0, eslint clean, **1644 passed / 18 skipped across 176** (was 1625, +19), build exit 0.
 >
 > Tre, mid-session, three asks then a fourth: *"make the milestone on the dashboard more exciting also."* → *"also make the guide location more consistent across tabs. move the guides into each individual section."* → *"then update onboarding once these updates are done. make sure the tour makes everything simple for users to understand."* → *"after that push current updates."* All four done.
