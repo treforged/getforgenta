@@ -1,7 +1,7 @@
+import PanelBar from '@/components/shared/PanelBar';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
 import { useAccounts, useAssets, useDebts, useLiabilities, useAccountReconciliations, useNetWorthSnapshots, useCarFunds, type AccountRow } from '@/hooks/useSupabaseData';
@@ -732,12 +732,6 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             {!embedded && <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Accounts</h1>}
-            <InstructionsModal pageTitle="Accounts Guide" sections={[
-              { title: 'What is this page?', body: 'Accounts is the centralized source of truth for all your financial balances — checking, savings, investments, retirement, credit cards, and loans.' },
-              { title: 'How it connects', body: 'Account balances drive net worth, liquid cash calculations, debt payoff recommendations, and payment source availability across the entire app.' },
-              { title: 'Credit Cards', body: 'Credit card accounts automatically appear in the Debt Payoff Planner. Set APR and credit limits here for accurate utilization and interest calculations.' },
-              { title: 'Tips', body: 'Mark accounts as inactive to exclude them from calculations without deleting. Use the filter to view assets vs liabilities separately.' },
-            ]} />
           </div>
           {!embedded && <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>}
         </div>
@@ -888,7 +882,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       {/* Panel switcher — Garage-style pills. The summary numbers above stay put on every panel:
           they are the page's hero and hiding them behind a tab would make the answer depend on
           which tab you happened to be on. */}
-      <div className="seg-track" role="tablist">
+      <PanelBar surface="accounts" panel={effectiveTab}>
         <button onClick={() => setActiveTab('balances')}
           className={`seg-item btn-press ${effectiveTab === 'balances' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
@@ -903,7 +897,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
             {plaidItems.length > 0 && <span className={`seg-badge ${effectiveTab === 'banks' ? 'seg-badge-active' : ''}`}>{plaidItems.length}</span>}
           </button>
         )}
-      </div>
+      </PanelBar>
 
       {/* Filter */}
       {effectiveTab === 'balances' && (

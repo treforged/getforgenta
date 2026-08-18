@@ -32,7 +32,8 @@ describe('DashboardHero — debt + data', () => {
     // Gold is for money-in-motion and primary actions; the hero number is foreground.
     expect(hero.className).toContain('text-foreground');
     expect(hero.className).not.toContain('text-primary');
-    expect(screen.getByText(/23 months away/)).toBeTruthy();
+    // 23 months reads as a length of time, not a figure to decode.
+    expect(screen.getByText(/1 yr 11 mo away/)).toBeTruthy();
     // The date comes from the revolving engine, so the label must name credit cards. An
     // unqualified "Debt free" over it is the claim this test exists to keep out.
     expect(screen.getByText('Credit cards paid off')).toBeTruthy();
@@ -126,5 +127,47 @@ describe('DashboardHero — no data', () => {
     renderHero({ kind: 'empty', reason: 'no-reading' });
     expect(screen.getByText('No reading yet')).toBeTruthy();
     expect(screen.getByRole('link', { name: /Set up your budget/ }).getAttribute('href')).toBe('/budget');
+  });
+});
+
+// ── The milestone's curve ────────────────────────────────────────────────────────────
+//
+// The run is drawn only when the engine published one. These pin the absent-not-flat rule
+// at the RENDER layer: the lib may return null, and when it does the hero must lose the
+// chart entirely rather than draw a line along the axis.
+describe('DashboardHero — the payoff run', () => {
+  const payoff = selectRevolvingPayoff({
+    simRevolvingPayoffMonth: 24, forecastRevolvingPayoffMonth: null,
+  }, ASOF)!;
+
+  const trajectory = {
+    points: [
+      { month: 1, balance: 6000 },
+      { month: 2, balance: 3000 },
+      { month: 3, balance: 0 },
+    ],
+    startBalance: 6000,
+    endMonth: 3,
+  };
+
+  it('draws the run and anchors both ends with real figures', () => {
+    render(
+      <MemoryRouter>
+        <DashboardHero
+          state={{ kind: 'payoff', payoff, cashAboveFloor: 412, hasOtherDebt: false }}
+          trajectory={trajectory}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/\$6,000 today/)).toBeTruthy();
+    // The end anchor names the same month the hero prints — one date, twice.
+    expect(screen.getByText(/\$0 · Jul 2028/)).toBeTruthy();
+    expect(document.querySelector('svg polyline')).toBeTruthy();
+  });
+
+  it('renders no chart at all when there is no trajectory to draw', () => {
+    renderHero({ kind: 'payoff', payoff, cashAboveFloor: 412, hasOtherDebt: false });
+    expect(document.querySelector('svg polyline')).toBeNull();
+    expect(screen.queryByText(/today$/)).toBeNull();
   });
 });

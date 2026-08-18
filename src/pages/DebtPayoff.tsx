@@ -1,3 +1,4 @@
+import PanelBar from '@/components/shared/PanelBar';
 import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router';
 import { DebtSkeleton } from '@/components/shared/PageSkeleton';
@@ -5,7 +6,6 @@ import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { formatCurrency, calculatePayoffMonths, calculateTotalInterest, simulateDebtPayoff } from '@/lib/calculations';
 import { useDebts, useAccounts, useTransactions, useRecurringRules, useProfile, useAccountReconciliations, useSavingsGoals, useCarFunds, usePaymentPlans } from '@/hooks/useSupabaseData';
 import FormModal from '@/components/shared/FormModal';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import CreditCardEngine from '@/components/debt/CreditCardEngine';
 import { useDemo } from '@/contexts/DemoContext';
 import { Plus, Edit2, Trash2, CreditCard, Landmark, Car } from 'lucide-react';
@@ -188,17 +188,6 @@ export default function DebtPayoff() {
             <h1 className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Debt Payoff Planner</h1>
             <p className="text-xs text-muted-foreground mt-0.5 truncate">Eliminate debt with realistic, due-date-aware projections</p>
           </div>
-          <InstructionsModal pageTitle="Debt Payoff Guide" sections={[
-            { title: 'What is this page?', body: 'The Debt Payoff Planner runs a full 60-month simulation with real monthly interest, minimum payments, and optional payment plan charges. It tells you exactly when each card is paid off and how much interest you will pay.' },
-            { title: 'Strategies', body: 'Avalanche pays the highest-APR card first to minimize total interest. Snowball pays the smallest balance first for early momentum. Both always cover every card\'s minimum first, then put the remaining available cash toward the priority card.' },
-            { title: 'Statement vs. revolving cards', body: 'Cards set to "pay in full" clear their full balance each month — new purchases are included in the payment. Revolving cards carry a balance month-to-month and accrue interest. The engine handles both correctly and never over-pays a statement card.' },
-            { title: 'Payment plans on cards', body: 'Installment plans (Amazon, Apple Pay Later, etc.) linked to a credit card are added as monthly charges to that card — they are not deducted from your cash directly. The engine factors these charges into each card\'s projected balance and interest each month.' },
-            { title: 'Due dates', body: 'Each card can have a due date. The engine estimates how much cash you will have by that date — accounting for scheduled income and expenses — so it knows exactly what is safe to pay without dropping below your floor before the next paycheck.' },
-            { title: 'Est. Liquid Cash & Safe to Pay', body: 'Liquid Cash = your funding account balance + Transactions income scheduled before the due date. Safe to Pay = Liquid Cash − Safe Minimum − other cards\' autopay amounts. Budget Control income is not separately counted — Transactions is the source of truth to prevent double-counting.' },
-            { title: 'Minimum payment priority', body: 'All minimums across every card are covered first. Only after every minimum is met does the engine allocate the extra available amount to the strategy\'s priority card.' },
-            { title: 'Recommended Safe Minimum', body: 'The greater of your cash floor setting and estimated next-month bills due before your next paycheck. This prevents your account from going negative between pay periods.' },
-            { title: 'Overrides & reset', body: 'Click any monthly payment cell to manually set an amount. Use "Revert" to restore the engine\'s recommendation for that month. "Reset & Recalculate" clears all manual overrides and recalculates from scratch — only needed after manual adjustments.' },
-          ]} />
         </div>
         <Link
           to={`/accounts?new=1&type=${
@@ -248,7 +237,7 @@ export default function DebtPayoff() {
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
       {/* Tabs */}
-      <div className="seg-track" role="tablist">
+      <PanelBar surface="debt" panel={activeTab}>
         <button onClick={() => setActiveTab('cards')}
           className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
@@ -274,7 +263,7 @@ export default function DebtPayoff() {
           style={{ borderRadius: 'var(--radius)' }}>
           <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className={`seg-badge ${activeTab === 'other' ? 'seg-badge-active' : ''}`}>{otherDebts.length}</span>}
         </button>
-      </div>
+      </PanelBar>
 
       {activeTab === 'cards' && (
         <div className="flex items-center justify-between p-3 bg-secondary border border-border" style={{ borderRadius: 'var(--radius)' }}>

@@ -1,7 +1,7 @@
+import PanelBar from '@/components/shared/PanelBar';
 import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import { TransactionsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency } from '@/lib/calculations';
 import { useTransactions, useAccounts, useRecurringRules, useAccountReconciliations, usePaymentPlans, useCarFunds, type AccountRow, type RuleRow } from '@/hooks/useSupabaseData';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -602,15 +602,6 @@ export default function Transactions() {
       Activity
     </h1>
 
-    <InstructionsModal
-      pageTitle="Transactions Guide"
-      sections={[
-        { title: 'What is this page?', body: 'Transactions shows your complete ledger — real transactions you enter plus auto-generated ones from your Budget Control recurring rules and debt payoff plan.' },
-        { title: 'Generated vs Real', body: 'Entries with badges (recurring, debt payment) are auto-generated from rules. Edit the occurrence to override just that instance, or edit the rule to change all future occurrences.' },
-        { title: 'Filters', body: 'Filter by type (income/expense), category, or payment source to find specific entries.' },
-        { title: 'How it affects the rest', body: 'Transactions feed the Dashboard monthly totals, Forecast projections, and spending breakdowns.' },
-      ]}
-    />
   </div>
 
   {/* Tabs — planning stream vs what the bank reported.
@@ -618,7 +609,7 @@ export default function Transactions() {
       for and is waiting on. NOT a count of unreviewed rows — most rows are unreviewed by design and
       always will be; see `@/lib/bank-activity-queue`. `useBankReviewQueueCount` returns null rather
       than 0, so a quiet queue and a queue that has not loaded both render nothing. */}
-  <div className="seg-track" role="tablist">
+  <PanelBar surface="transactions" panel={activeTab}>
     {([
       // Budget Control leads (Tre, 2026-08-18: "move budget control as the first tab of
       // transactions") — the rules are what every other number on this page derives from, so it
@@ -648,7 +639,7 @@ export default function Transactions() {
         )}
       </button>
     ))}
-  </div>
+  </PanelBar>
 
   {/* Action Buttons — export and manual entry belong to the planning ledger only */}
   <div className={`flex flex-col gap-2 sm:flex-row sm:flex-wrap ${activeTab === 'planning' ? '' : 'hidden'}`}>

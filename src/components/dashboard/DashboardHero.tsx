@@ -2,6 +2,9 @@ import { Link } from 'react-router';
 import { ArrowUpRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import type { DashboardHeroState, HeroEmptyReason } from '@/lib/payoff-summary';
+import type { PayoffTrajectory } from '@/lib/payoff-trajectory';
+import { formatMonthsAway } from '@/lib/payoff-trajectory';
+import PayoffTrack from './PayoffTrack';
 
 /**
  * The one number the Dashboard leads with (DIRECTION.md rule 2).
@@ -18,6 +21,13 @@ type Props = {
   state: DashboardHeroState;
   /** Opens the cash-floor calculator drawer, so the second read is auditable. */
   onFloorClick?: () => void;
+  /**
+   * The payoff run drawn under the date. Optional and absent-not-empty: a hero with no
+   * published trajectory renders exactly as it did before, never a flat line on the axis.
+   * It is a prop rather than part of `DashboardHeroState` because it changes nothing about
+   * WHICH hero is shown — `selectDashboardHero` stays a decision about readings.
+   */
+  trajectory?: PayoffTrajectory | null;
 };
 
 /** Copy for each honest empty state: what is missing, and the one action that fills it. */
@@ -74,24 +84,25 @@ function CashAboveFloorLine({ value, onFloorClick }: { value: number | null; onF
   );
 }
 
-export default function DashboardHero({ state, onFloorClick }: Props) {
+export default function DashboardHero({ state, onFloorClick, trajectory }: Props) {
   if (state.kind === 'payoff') {
     const { payoff, cashAboveFloor, hasOtherDebt } = state;
+    const monthLabel = payoff.date.toLocaleString('en', { month: 'short', year: 'numeric' });
     return (
       // The label names the debt, because the date only ever covered credit cards: it comes
       // from the revolving engine, which never sees a car loan. "Debt free" over it was a
       // true number making a claim the data does not support.
       <HeroShell label="Credit cards paid off">
-        <p className="text-5xl font-display font-bold text-foreground tracking-tight mt-1">
-          {payoff.date.toLocaleString('en', { month: 'short', year: 'numeric' })}
-        </p>
-        <p className="text-sm text-muted-foreground mt-2">
-          {payoff.monthsAway === 0
-            ? 'This month'
-            : `${payoff.monthsAway} month${payoff.monthsAway === 1 ? '' : 's'} away`}
-        </p>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mt-1">
+          <p className="text-5xl font-display font-bold text-foreground tracking-tight">
+            {monthLabel}
+          </p>
+          {/* The countdown is the part that moves, so it reads as a run, not a fact. */}
+          <p className="text-sm text-muted-foreground">{formatMonthsAway(payoff.monthsAway)}</p>
+        </div>
+        {trajectory && <PayoffTrack trajectory={trajectory} endLabel={monthLabel} />}
         {hasOtherDebt && (
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-2">
             Loans run on their own schedule and are not in this date.
           </p>
         )}

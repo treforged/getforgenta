@@ -7,7 +7,6 @@ import { requestReviewAfterAction } from '@/hooks/useInAppReview';
 import { Link } from 'react-router';
 import { GoalsSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { useSavingsGoals, useCarFunds, useAccounts, useRecurringRules, useProfile, useTransactions, useDebts, type AccountRow } from '@/hooks/useSupabaseData';
 import ProgressBar from '@/components/shared/ProgressBar';
@@ -632,12 +631,6 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         <div>
           <div className="flex items-center gap-2">
             {!embedded && <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Goals</h1>}
-            <InstructionsModal pageTitle="Savings Goals Guide" sections={[
-              { title: 'What is this page?', body: 'Track progress toward your financial goals — emergency fund, vacation, down payment, or retirement. Link goals to real accounts for automatic balance sync.' },
-              { title: 'Linked Accounts', body: 'When linked to an account, the goal\'s "current saved" automatically reflects that account balance. "Available after bills" shows the realistic amount after subtracting scheduled outflows.' },
-              { title: 'Target Date', body: 'Set a target date to see estimated completion. The chart projects growth based on your monthly contribution.' },
-              { title: 'Vehicles', body: 'Tracking a car purchase? Use the Vehicles page for down payment goals and full loan amortization.' },
-            ]} />
           </div>
           {!embedded && <p className="text-xs text-muted-foreground mt-0.5">Build your financial runway</p>}
         </div>

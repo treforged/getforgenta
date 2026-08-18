@@ -1,4 +1,5 @@
 ﻿import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
+import PanelBar from '@/components/shared/PanelBar';
 import { Link, useSearchParams } from 'react-router';
 import { ForecastSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
@@ -7,7 +8,6 @@ import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { ordinal } from '@/lib/ordinal';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { useIsViewportBelow } from '@/hooks/use-mobile';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import { useDebts, useSavingsGoals, useCarFunds, useAccounts, useSubscriptions, useBudgetItems, useProfile, useRecurringRules, useTransactions, usePaymentPlans } from '@/hooks/useSupabaseData';
 import { getCalendarYearMonthRange, getCalendarYearLabel } from '@/lib/scheduling';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
@@ -375,18 +375,6 @@ export default function Forecast() {
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Forecast</h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">60-month projections driven by live data</p>
           </div>
-          <InstructionsModal pageTitle="Forecast Guide" sections={[
-            { title: 'What is this page?', body: 'The Forecast projects your cash, debt, investments, and net worth across 60 months using your live accounts, recurring rules, debt payoff plan, savings goals, vehicle funds, and one-time transactions.' },
-            { title: 'Three-stage engine', body: 'Each month runs in three stages. Stage 1 applies income and all baseline expenses. Stage 2 looks ahead to known large expenses — holding back extra debt payments early so a future month never falls below your safe floor. Stage 3 takes any cash still above the floor and automatically redirects it to your highest-priority credit card debt.' },
-            { title: 'Automatic surplus routing', body: 'When your projected end cash exceeds the Safe Minimum, that surplus is automatically sent to credit card debt — on top of your regular planned payment. Months where surplus fully routed will show end cash pinned near the floor. The CC badge shows the full payment for the month, not just the planned amount.' },
-            { title: 'CC payment badge', body: 'The CC badge (e.g. CC $1,318) shows the total cash that goes to credit cards that month — your regular revolving payment plus any surplus automatically added. It rises above the Debt Payoff plan amount in months where extra cash is available above the floor.' },
-            { title: 'Look-ahead protection & save-up months', body: 'When a known large expense is coming (car purchase, one-time cost), the engine stops routing surplus to debt in earlier months and lets cash accumulate instead. Regular minimums are always paid — only the extra surplus is held back. You will see end cash stay above the floor in those months.' },
-            { title: 'Payment plans on cards', body: 'Buy-now-pay-later or installment plans linked to a credit card (e.g. Amazon) are charged to that card each month — they do not reduce your cash balance directly. The CC payment covers them. Months with active plans show higher card charges and the engine factors them into the revolving balance projection.' },
-            { title: 'Card balance popup', body: 'Tapping a month row shows each card\'s projected balance for that month. Revolving cards (Discover, Prime Visa) show the full balance including that month\'s purchases and payment plan charges. The popup tracks the actual balance — not just the carry-over — so it matches what you would see on your statement.' },
-            { title: 'Savings & liquid cash', body: 'End Cash reflects only checking and cash accounts — savings, HYSA, and investments are excluded so the engine does not treat them as available for debt payments. Those balances still grow in the Net Worth projection.' },
-            { title: 'Cash safety floor', body: 'End Cash enforces the Safe Minimum = max(your cash floor setting, estimated next-month bills due before your next paycheck). Debt payments automatically decrease to stay above this floor. Minimums are always paid first.' },
-            { title: 'Charts & legends', body: 'Click any legend item to toggle that data series on or off. Preferences are saved — no refresh needed.' },
-          ]} />
         </div>
         <div className="grid grid-cols-1 sm:flex gap-2 w-full sm:w-auto">
           <button onClick={() => setChartMode(chartMode === 'combo' ? 'line' : 'combo')}
@@ -468,7 +456,7 @@ export default function Forecast() {
         other panelled surface uses. This is the FIRST segmented control on this page; the chart's
         1Y/2Y/3Y range pickers stay square on purpose, because they pick a range, not a panel.
       */}
-      <div className="seg-track" role="tablist">
+      <PanelBar surface="forecast" panel={activeTab}>
         <button onClick={() => setStoredTab('forecast')}
           className={`seg-item btn-press ${activeTab === 'forecast' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
@@ -479,7 +467,7 @@ export default function Forecast() {
           style={{ borderRadius: 'var(--radius)' }}>
           <PiggyBank size={13} /> Goals
         </button>
-      </div>
+      </PanelBar>
 
       {activeTab === 'goals' && (
         <Suspense fallback={<div className="h-64" />}>

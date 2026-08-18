@@ -1,10 +1,10 @@
+import PanelBar from '@/components/shared/PanelBar';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { Link, useSearchParams } from 'react-router';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { useFormDraft, type FormDraft } from '@/hooks/useFormDraft';
 import { Skeleton } from '@/components/ui/skeleton';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import FormModal, { type Field } from '@/components/shared/FormModal';
 import ProgressBar from '@/components/shared/ProgressBar';
 import { formatCurrency, calculateMonthlyPayment, formatYAxisTick } from '@/lib/calculations';
@@ -1273,15 +1273,6 @@ export default function Vehicles() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Garage</h1>
-            <InstructionsModal pageTitle="Vehicles Guide" sections={[
-              { title: 'Two phases', body: 'Saving phase: track your down payment goal and preview loan costs. Set a planned purchase date to anchor the Forecast transition. Loan phase: enter your actual loan terms and track full amortization to payoff.' },
-              { title: 'Planned Purchase Date', body: 'Set the month you plan to buy. In the Forecast, saving contributions stop that month, the down payment is shown as an outflow, and the projected loan payment starts the following month. Estimated values are used until you hit "I bought it."' },
-              { title: 'Linked Account', body: 'Link your savings account to auto-pull the current balance as your down payment progress. When linked, "Current Saved" in the form is skipped — the live balance is used instead.' },
-              { title: 'Transfer Rule', body: 'Link a recurring transfer rule to auto-sync the monthly contribution amount for the estimated completion date.' },
-              { title: 'I bought it', body: 'Hit "I bought it" to enter your real loan amount, APR, start date, first payment date, and interest start date. If you clicked by accident, use the undo button on the loan card.' },
-              { title: 'Undo Purchase', body: 'The undo button (↩) on a loan card reverts back to saving phase. Click once to see "Confirm?", click again to revert. Your saving-phase details are preserved.' },
-              { title: 'Connects to Forecast', body: 'Active loan payments appear as "Car Loan Payments" in the Forecast drawer. Projected loans for saving-phase vehicles appear as "Est. Car Loan (projected)" starting the month after the planned purchase date.' },
-            ]} />
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">Every vehicle from saving to payoff — and every build</p>
         </div>
@@ -1330,7 +1321,7 @@ export default function Vehicles() {
       {/* The pill row and the panels it switches are ONE group (`stack-row`): a control row
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
-      <div className="seg-track" role="tablist">
+      <PanelBar surface="garage" panel={activeTab}>
         <button onClick={() => setActiveTab('saving')}
           className={`seg-item btn-press ${activeTab === 'saving' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
@@ -1348,7 +1339,7 @@ export default function Vehicles() {
           style={{ borderRadius: 'var(--radius)' }}>
           <Wrench size={13} /> Builds
         </button>
-      </div>
+      </PanelBar>
 
       {/*
         ⚠️ RENDERED, NOT LINKED TO — and `Builds` is unchanged from when it was its own route. It

@@ -1,7 +1,7 @@
+import PanelBar from '@/components/shared/PanelBar';
 import { useMemo, useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { useRetirementAutoUpdate } from '@/hooks/useRetirementAutoUpdate';
-import InstructionsModal from '@/components/shared/InstructionsModal';
 import MetricCard from '@/components/shared/MetricCard';
 import AppTour from '@/components/shared/AppTour';
 import ProgressBar from '@/components/shared/ProgressBar';
@@ -61,6 +61,7 @@ import StatChipRow from '@/components/dashboard/StatChipRow';
 import { buildDashboardChips, CHIP_WIDGET_IDS, type ChipWidgetId } from '@/lib/dashboard-chips';
 import CalcDrawer from '@/components/shared/CalcDrawer';
 import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary';
+import { buildPayoffTrajectory } from '@/lib/payoff-trajectory';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
@@ -671,6 +672,20 @@ export default function Dashboard() {
       projectionReady: cardProjection != null,
     }),
     [accounts.length, revolvingDebtNow, accountSummary.ccDebt, otherDebtNow, heroPayoff, cashAboveFloor, cardProjection],
+  );
+
+  // The curve under the milestone. Same converged map `selectRevolvingPayoff`'s per-card
+  // fallback reads, so the drawn run and the printed date cannot disagree; null whenever
+  // there is nothing honest to draw and the hero then renders as it did before.
+  const heroTrajectory = useMemo(
+    () => (heroPayoff
+      ? buildPayoffTrajectory({
+          monthlyRevolvingBalances: cardProjection?.monthlyRevolvingBalances ?? null,
+          cardIds: cardProjection?.simCards.map(c => c.id) ?? [],
+          payoffMonth: heroPayoff.month,
+        })
+      : null),
+    [cardProjection, heroPayoff],
   );
 
   useWidgetSync({ monthEndCash, netWorth: accountSummary.netWorth, enabled: !isDemo && !essentialLoading });
@@ -1392,18 +1407,6 @@ export default function Dashboard() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-xs uppercase tracking-wider text-muted-foreground">Command Center</h1>
-              <InstructionsModal
-                pageTitle="Dashboard Guide"
-                sections={[
-                  { title: 'What is this page?', body: 'The Command Center gives you a real-time snapshot of your financial health — income, expenses, net worth, savings, debt, and upcoming bills for the current month.' },
-                  { title: 'The headline number', body: 'The top of the page shows the month your credit card debt clears, and how much cash sits above your safety floor. If either has no reading yet, the page says so rather than showing a zero.' },
-                  { title: 'Stat chips', body: 'The scrolling row of chips carries the supporting numbers. Tap any chip to see exactly how it is calculated, including which accounts and transactions are included.' },
-                  { title: 'Projected Month-End Cash', body: 'Shows your expected cash position at month end: current liquid cash + remaining paychecks − remaining expenses − debt payments. Must stay above your cash floor.' },
-                  { title: 'Cash Flow Chart', body: 'Displays the last 6 months of income vs expenses with net cash flow trend line.' },
-                  { title: 'Customize Dashboard', body: 'Click the Customize button to show/hide widgets and use the up/down arrows to reorder them. Layout is saved to your account.' },
-                  { title: 'How edits affect this page', body: 'Changes to Accounts, Budget Control rules, or Debt Payoff recommendations instantly update all dashboard metrics.' },
-                ]}
-              />
             </div>
             <p className="text-[11px] text-muted-foreground/80 mt-0.5">
               {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
@@ -1464,7 +1467,7 @@ export default function Dashboard() {
           The panel row is styled exactly like the Garage's (`Vehicles.tsx`). Two entries, so it
           stays one line even at 320px. */}
       <div className="stack-row">
-      <div className="seg-track" role="tablist">
+      <PanelBar surface="dashboard" panel={activeTab}>
         <button onClick={() => setActiveTab('overview')}
           className={`seg-item btn-press ${activeTab === 'overview' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
@@ -1475,7 +1478,7 @@ export default function Dashboard() {
           style={{ borderRadius: 'var(--radius)' }}>
           <Building2 size={13} /> Accounts
         </button>
-      </div>
+      </PanelBar>
 
       {/*
         ⚠️ RENDERED, NOT LINKED TO — and `Accounts` is unchanged apart from an `embedded` prop that
@@ -1495,7 +1498,7 @@ export default function Dashboard() {
       {/* The hero. Fixed at the top: NOT a `useDashboardLayout` widget, so it is neither
           reorderable nor hideable — it is the one thing the page is for. It keeps a full
           section gap below it; the widgets under it are siblings and sit at `stack-block`. */}
-      <DashboardHero state={heroState} onFloorClick={openFloorCalc} />
+      <DashboardHero state={heroState} onFloorClick={openFloorCalc} trajectory={heroTrajectory} />
 
       <div className="stack-block">
 
