@@ -19,6 +19,7 @@ import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-pr
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
+import { buildNonCCLiabilities, type LiabilityDebtInput } from '@/lib/non-cc-liabilities';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -529,19 +530,18 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       carFunds as unknown as { linked_loan_account_id: string | null }[],
       active as unknown as { id: string; balance: number | null; active?: boolean | null }[],
     );
+    //
+    // The exclusion is applied INSIDE buildNonCCLiabilities (below) rather than here, because a
+    // linked account also has to silence any `debts` row wearing its name — dropping the account
+    // early would leave that row behind to be itemised as a second copy of the same loan.
     const nonCCLiabAccts = active
       .filter((a) => liabilityTypes.includes(a.account_type) && a.account_type !== 'credit_card')
-      .filter((a) => !linkedVehicleAccountIds.has(a.id as string))
-      .map((a) => {
-        const matched = debts.find((d) => (d.name as string).toLowerCase() === (a.name as string).toLowerCase());
-        return {
-          id: a.id as string,
-          name: a.name as string,
-          account_type: a.account_type as string,
-          startBalance: Number(a.balance),
-          monthlyPayment: Number(matched?.target_payment ?? 0),
-        };
-      });
+      .map((a) => ({
+        id: a.id as string,
+        name: a.name as string,
+        account_type: a.account_type as string,
+        balance: Number(a.balance),
+      }));
 
     // Per-month remaining car loan balance for liabilities (active loans + projected future loans)
     const carLoanBalanceByMonth = new Array(PROJECTION_MONTHS).fill(0);
@@ -693,28 +693,22 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         })()
       : -1;
 
-    // Non-CC debt amortization — compute the projected balance for each non-CC debt record
-    // using proper interest accrual (balance × monthly_rate - payment) rather than the
-    // previous flat linear decay (staticBalance - payment × i) that ignored APR entirely
-    // and underestimated later-month balances for any loan with a non-zero APR.
-    const nonCCDebtItems = debts.filter(
-      dd => !accounts.some(a => a.account_type === 'credit_card' && a.name.toLowerCase() === (dd.name ?? '').toLowerCase())
-    );
-    const nonCCDebtBalanceByMonth = (() => {
-      const arr = new Array<number>(PROJECTION_MONTHS).fill(0);
-      for (const dd of nonCCDebtItems) {
-        let bal = Number(dd.balance);
-        const monthlyRate = (Number(dd.apr) || 0) / 1200;
-        const payment = Number(dd.target_payment) || 0;
-        for (let m = 0; m < PROJECTION_MONTHS; m++) {
-          arr[m] += Math.max(0, bal);
-          bal = monthlyRate > 0
-            ? Math.max(0, bal * (1 + monthlyRate) - payment)
-            : Math.max(0, bal - payment);
-        }
-      }
-      return arr;
-    })();
+    // Non-CC liabilities: ONE projection feeding BOTH the total below and the month drawer's
+    // itemised rows (`nonCCLiabBreakdown`). Before 2026-08-18 the total was summed from the
+    // `debts` table while the rows were built from `accounts`, so the drawer could itemise a
+    // liability its own total did not count, and vice versa — see `non-cc-liabilities.ts` for the
+    // three divergence cases. Amortization (balance × monthly rate − payment) is unchanged; it
+    // simply happens once now, where both readers can see it.
+    const nonCCLiabilities = buildNonCCLiabilities({
+      accounts: nonCCLiabAccts,
+      debts: debts as unknown as LiabilityDebtInput[],
+      creditCardAccountNames: accounts
+        .filter(a => a.account_type === 'credit_card')
+        .map(a => a.name as string),
+      excludedAccountIds: linkedVehicleAccountIds,
+      months: PROJECTION_MONTHS,
+    });
+    const nonCCDebtBalanceByMonth = nonCCLiabilities.totalByMonth;
 
     for (let i = 0; i < PROJECTION_MONTHS; i++) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() + i, 1);
@@ -1554,11 +1548,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           ...Array.from(perAcctSavings.entries()).map(([id, a]) => ({ bucket: 'savings' as const, id, name: a.name, balance: a.balance })),
           ...Array.from(goalPools.entries()).map(([id, p]) => ({ bucket: 'savings' as const, id, name: p.name, balance: p.balance })),
         ],
-        nonCCLiabBreakdown: nonCCLiabAccts.map(la => ({
+        nonCCLiabBreakdown: nonCCLiabilities.rows.map(la => ({
           id: la.id,
           name: la.name,
           account_type: la.account_type,
-          balance: Math.max(0, la.startBalance - la.monthlyPayment * i),
+          balance: la.balances[i],
         })),
         carLoanBreakdown: carLoanPerFund
           .map(cf => ({ name: cf.name, balance: cf.balances[i] ?? 0 }))
