@@ -18,6 +18,7 @@ import { getMonthNetIncome, getNormalizedMonthNetIncome, getPaychecksInMonth, ge
 import { projectMilestones, monthlyContribForAccount } from '@/lib/retirement-projection';
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
+import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 import { isCapturedInBalance, dueDateInMonth } from '@/lib/sync-cutoff';
 import { carChargeEvidence } from '@/lib/capture-evidence';
 import type { MatchableTransaction } from '@/lib/transaction-matching';
@@ -511,9 +512,26 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       }
       return items;
     });
-    // Non-CC liability accounts with matched debt payments for per-account popup display
+    // Non-CC liability accounts with matched debt payments for per-account popup display.
+    //
+    // ⚠️ Accounts a vehicle loan is explicitly linked to are DROPPED here: the car fund's own
+    // amortizing row already carries that balance (and now carries the account's live figure —
+    // see `vehicle-loan-link.ts`), so keeping both rendered the same debt twice in the month
+    // drawer — once amortizing, once as a flat line for all 60 months, because a Plaid auto_loan
+    // account has `min_payment` null and there is no `debts` row to match it to.
+    //
+    // This drops the OPPOSITE row from `net-worth.ts`, which drops the car fund and keeps the
+    // account. That is deliberate, not an inconsistency to reconcile: the two agree on the
+    // number, and they differ on which row carries it because only the car fund has a rate, a
+    // term and a payment. Net worth reports one instant, so the row the user maintains wins;
+    // forecast projects forward, so the row that can move has to survive.
+    const linkedVehicleAccountIds = linkedLoanAccountIds(
+      carFunds as unknown as { linked_loan_account_id: string | null }[],
+      active as unknown as { id: string; balance: number | null; active?: boolean | null }[],
+    );
     const nonCCLiabAccts = active
       .filter((a) => liabilityTypes.includes(a.account_type) && a.account_type !== 'credit_card')
+      .filter((a) => !linkedVehicleAccountIds.has(a.id as string))
       .map((a) => {
         const matched = debts.find((d) => (d.name as string).toLowerCase() === (a.name as string).toLowerCase());
         return {
@@ -542,11 +560,19 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
             interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
             actualMonthlyPayment: Number(cf.actual_monthly_payment),
             lumpSumPayments: cf.lump_sum_payments ?? [],
+            currentBalance: cf.current_balance_override ?? null,
           }, nowDate);
           for (let i = 0; i < PROJECTION_MONTHS; i++) {
-            const schedIdx = proj.monthsElapsed - 1 + i;
-            const bal = schedIdx < 0 ? Number(cf.loan_amount)
-              : (proj.schedule[schedIdx]?.endBalance ?? 0);
+            // Forecast month i owes the balance the month OPENS at, which is the start balance of
+            // its own row — previously read as the end balance of the row before it. The two are
+            // equal by construction for an unamortized-elsewhere loan, but not for a linked one:
+            // the live-balance splice lands on the first not-yet-paid row's startBalance, and the
+            // paid row before it deliberately keeps its historical end balance. Reading the row
+            // before therefore showed the drifted estimate in month 0 and the bank's figure in
+            // every month after. Indexing forward also folds in the old `schedIdx < 0` case
+            // (`schedule[0].startBalance` IS the loan amount) and the past-the-end case (no row,
+            // nothing owed).
+            const bal = proj.schedule[proj.monthsElapsed + i]?.startBalance ?? 0;
             fundBalances[i] = Math.max(0, bal);
             carLoanBalanceByMonth[i] += fundBalances[i];
           }

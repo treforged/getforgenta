@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { toast } from 'sonner';
+import { applyLinkedLoanBalances } from '@/lib/vehicle-loan-link';
 import { sanitizePayload } from '@/lib/sanitize';
 import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
@@ -390,6 +392,13 @@ export function useCarFunds() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const qc = useQueryClient();
+  // A vehicle loan the user linked to a connected account is amortized from the BANK's
+  // outstanding principal, not from the figure typed at activation, which nothing ever
+  // re-anchors and which therefore drifts monotonically. Resolved here, once, at the data
+  // layer — so every consumer of a CarFund gets the corrected projection with no signature
+  // change and `getActiveCarLoanPayments` never needs an `accounts` argument it cannot get
+  // from its pure callers. See `vehicle-loan-link.ts`.
+  const { data: accountsForLoanLink } = useAccounts();
   const query = useQuery({
     queryKey: ['car_funds', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
@@ -412,7 +421,12 @@ export function useCarFunds() {
   const update = useMutation({
     mutationFn: async ({ id, ...item }: { id: string } & Partial<Tables<'car_funds'>>) => {
       if (isDemo || !user) throw new Error('Demo mode');
-      const { error } = await supabase.from('car_funds').update(sanitizePayload(item)).eq('id', id).eq('user_id', user.id);
+      // `current_balance_override` is resolved, not stored — there is no such column. A caller
+      // that spreads a whole CarFund into this mutation would otherwise send it and get a
+      // schema error, so it is stripped here rather than depending on every call site.
+      const { current_balance_override: _resolved, ...storable } =
+        item as Partial<Tables<'car_funds'>> & { current_balance_override?: number | null };
+      const { error } = await supabase.from('car_funds').update(sanitizePayload(storable)).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_funds'] }); toast.success('Vehicle updated'); },
@@ -427,7 +441,11 @@ export function useCarFunds() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['car_funds'] }); toast.success('Vehicle deleted'); },
     onError: (e) => toast.error(e.message),
   });
-  return { data: query.data ?? [], loading: query.isLoading, error: query.error, add, update, remove };
+  const data = useMemo(
+    () => applyLinkedLoanBalances(query.data ?? [], accountsForLoanLink),
+    [query.data, accountsForLoanLink],
+  );
+  return { data, loading: query.isLoading, error: query.error, add, update, remove };
 }
 
 // ─── Lump Sum Transfers ───────────────────────────────────

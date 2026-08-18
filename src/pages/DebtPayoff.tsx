@@ -303,6 +303,9 @@ export default function DebtPayoff() {
                 interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
                 actualMonthlyPayment: cf.actual_monthly_payment,
                 lumpSumPayments: cf.lump_sum_payments ?? [],
+                // Live balance from the linked account, when there is one — so this page cannot
+                // disagree with /vehicles or the forecast about what is owed.
+                currentBalance: cf.current_balance_override ?? null,
               });
               const payoffFmt = new Date(proj.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
               return (

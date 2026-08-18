@@ -520,6 +520,8 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
       loanStartDate: cf.loan_start_date, paymentStartDate: cf.payment_start_date,
       interestStartDate: cf.interest_start_date ?? cf.payment_start_date,
       actualMonthlyPayment: cf.actual_monthly_payment,
+      // Resolved by useCarFunds from the linked account's live balance; null when unlinked.
+      currentBalance: cf.current_balance_override ?? null,
     };
   }, [cf]);
 
@@ -1483,7 +1485,7 @@ export default function Vehicles() {
             { key: 'monthly_insurance', label: 'Monthly Insurance', type: 'number', placeholder: '180', step: '0.01' },
             { key: 'insurance_start_date', label: 'Insurance Start Date (if different from loan start)', type: 'date' },
             { key: 'loan_payment_account', label: 'Monthly Payment Account', type: 'select', options: accountOptions },
-            { key: 'linked_loan_account_id', label: 'Linked Loan Account (net worth dedup)', type: 'select', options: autoLoanAccountOptions },
+            { key: 'linked_loan_account_id', label: 'Linked Loan Account (uses its live balance)', type: 'select', options: autoLoanAccountOptions },
           ]}
           values={loanForm}
           onChange={(k, v) => setLoanForm(prev => ({ ...prev, [k]: v }))}
