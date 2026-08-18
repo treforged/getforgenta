@@ -1225,7 +1225,7 @@ export default function Vehicles() {
   };
 
   if (loading) return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-5 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-1.5">
@@ -1268,7 +1268,7 @@ export default function Vehicles() {
   );
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-5 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
@@ -1327,6 +1327,9 @@ export default function Vehicles() {
         </div>
       )}
 
+      {/* The pill row and the panels it switches are ONE group (`stack-row`): a control row
+          belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
+      <div className="stack-row">
       <div className="flex gap-2">
         <button onClick={() => setActiveTab('saving')}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'saving' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
@@ -1447,6 +1450,8 @@ export default function Vehicles() {
           onConfirm={handleBuyIt} onClose={() => setBuyItFor(null)}
         />
       )}
+
+      </div>
 
       {showSavingForm && (
         <FormModal

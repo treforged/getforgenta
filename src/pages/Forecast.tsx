@@ -298,7 +298,7 @@ export default function Forecast() {
   if (forecastInputsLoading) return <ForecastSkeleton />;
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 lg:space-y-8 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {!isDemo && !assumptionsTutorialSeen && (
         <div
           className="fixed inset-0 z-60 flex items-center justify-center"
@@ -481,6 +481,10 @@ export default function Forecast() {
         />
       )}
 
+      {/* The year filter, the floor notice and the projection they govern are ONE group
+          (`stack-row`): a control row belongs to the content below it. See the
+          vertical-rhythm block in `src/index.css`. */}
+      <div className="stack-row">
       {/* Year Filter — premium only */}
       {!freePreview && (
         <div className="flex gap-1.5 sm:gap-2 overflow-x-auto w-full pb-1">
@@ -642,6 +646,8 @@ export default function Forecast() {
           </div>
         </div>
       )}
+
+      </div>
 
       {/* ── Retirement & Investment Growth Projections ─────────────────── */}
       {retirementProjections.length > 0 && (

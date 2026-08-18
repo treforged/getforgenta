@@ -612,7 +612,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
   if (summaryLoading) return <AccountsSkeleton />;
 
   return (
-    <div className={embedded ? 'space-y-8 overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden'}>
+    <div className={embedded ? 'stack-section overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden'}>
       {/* Plaid link success overlay */}
       {plaidSyncResult && !plaidSyncing && (
         <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
@@ -723,6 +723,11 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           <p className="text-xs text-muted-foreground">Exchanging token and syncing balances</p>
         </div>
       )}
+      {/* Group A — the action row and the summary card it sits above. `stack-row`, not a
+          section gap: embedding this page dropped the <h1> but left the row's band, so two
+          small controls were eating ~108px of the fold. A control row belongs to its content
+          (vertical-rhythm block in `src/index.css`). */}
+      <div className="stack-row">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -876,6 +881,10 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
         </div>
       </div>
 
+      </div>
+
+      {/* Group B — the panel pills, the filter row and the list they govern. Same rule. */}
+      <div className="stack-row">
       {/* Panel switcher — Garage-style pills. The summary numbers above stay put on every panel:
           they are the page's hero and hiding them behind a tab would make the answer depend on
           which tab you happened to be on. */}
@@ -1157,6 +1166,8 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           )}
         </div>
       )}
+
+      </div>
 
       {/* ── Account Match Modal ─────────────────────────────────────────── */}
       {showMatchModal && (

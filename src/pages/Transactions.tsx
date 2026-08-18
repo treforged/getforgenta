@@ -567,7 +567,7 @@ export default function Transactions() {
   }
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-6 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {/* Header */}
 <div className="space-y-3">
   {/* Title Row */}

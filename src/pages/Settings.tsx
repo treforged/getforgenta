@@ -414,7 +414,7 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="py-4 lg:py-6 max-w-2xl mx-auto space-y-6 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-2xl mx-auto stack-section overflow-x-hidden">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <SettingsIcon size={18} className="text-primary" />

@@ -169,7 +169,7 @@ export default function DebtPayoff() {
   }
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-4 sm:space-y-6 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       <div className="flex items-start sm:items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
@@ -235,6 +235,9 @@ export default function DebtPayoff() {
         </div>
       )}
 
+      {/* The tab row and the panels it switches are ONE group (`stack-row`): a control row
+          belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
+      <div className="stack-row">
       {/* Tabs */}
       <div className="flex flex-col gap-2 sm:flex-row">
         <button onClick={() => setActiveTab('cards')}
@@ -605,6 +608,8 @@ export default function DebtPayoff() {
           </div>
         </div>
       )}
+
+      </div>
 
       {showForm && (
         <FormModal

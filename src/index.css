@@ -132,6 +132,45 @@
   border-radius: var(--radius);
 }
 
+/* ── Vertical rhythm ──────────────────────────────────────────────────────────
+   Even spacing is not one number. `space-y-8` on a page root puts the SAME 2rem
+   between a hero and the body as between two one-line control rows, which is
+   where the app's dead space came from (measured 2026-08-18: the Accounts panel
+   spent 108px of a 253px band on three rows totalling 109px of content).
+
+   Three steps, chosen by what the element IS, never by how it looks:
+
+     stack-section  1.5rem   between major regions — header block, hero, body
+     stack-block    1rem     between sibling cards/widgets inside one region
+     stack-row      0.75rem  a control/nav/filter row and the thing it controls
+
+   The section step is 1.5rem because that is the TIGHT end of what the app was
+   already doing, not the average: measured 2026-08-18, the same relationship got
+   23px on the Garage, 27px on Debt/Goals/Settings/Activity and 36px on
+   Dashboard/Budget/Forecast. Levelling up would have added dead space to four
+   surfaces to fix three.
+
+   The rule that decides the ambiguous cases: A CONTROL ROW BELONGS TO THE
+   CONTENT BELOW IT. Pills, filters and toolbars take a `section` gap above and
+   a `row` gap below, so they read as a label on their content rather than as a
+   region of their own.
+
+   This is spacing only. Nothing here removes information — see
+   rules/common/deciding-for-tre.md: move it, demote it, link to it, but the
+   page that had the answer still has it.
+   ──────────────────────────────────────────────────────────────────────────── */
+@utility stack-section {
+  & > * + * { margin-top: 1.5rem; }
+}
+
+@utility stack-block {
+  & > * + * { margin-top: 1rem; }
+}
+
+@utility stack-row {
+  & > * + * { margin-top: 0.75rem; }
+}
+
 @utility btn-press {
   @apply active:scale-[0.98] transition-transform duration-75;
   @apply focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-1 focus-visible:ring-offset-background;

@@ -1344,7 +1344,7 @@ export default function Dashboard() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto space-y-8 overflow-x-hidden">
+    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {founderNoteVisible && <FounderNoteModal onDismiss={handleFounderNoteDismiss} />}
       {!isDemo && <AppTour variant="new-user" />}
       <AccountUpdateReminder />
@@ -1450,8 +1450,13 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* The panel row, styled exactly like the Garage's (`Vehicles.tsx`). Two entries, so it
+      {/* The panel row and the panel it switches are ONE group (`stack-row`): a control row
+          belongs to the content below it, so it reads as that content's label instead of as a
+          region of its own. See the vertical-rhythm block in `src/index.css`.
+
+          The panel row is styled exactly like the Garage's (`Vehicles.tsx`). Two entries, so it
           stays one line even at 320px. */}
+      <div className="stack-row">
       <div className="flex gap-2">
         <button onClick={() => setActiveTab('overview')}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-medium border btn-press ${activeTab === 'overview' ? 'border-primary text-primary bg-primary/5' : 'border-border text-muted-foreground hover:text-foreground'}`}
@@ -1478,10 +1483,14 @@ export default function Dashboard() {
         </Suspense>
       )}
 
-      {activeTab === 'overview' && (<>
+      {activeTab === 'overview' && (
+      <div className="stack-section">
       {/* The hero. Fixed at the top: NOT a `useDashboardLayout` widget, so it is neither
-          reorderable nor hideable — it is the one thing the page is for. */}
+          reorderable nor hideable — it is the one thing the page is for. It keeps a full
+          section gap below it; the widgets under it are siblings and sit at `stack-block`. */}
       <DashboardHero state={heroState} onFloorClick={openFloorCalc} />
+
+      <div className="stack-block">
 
       {isDemo && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
@@ -1527,7 +1536,10 @@ export default function Dashboard() {
           <Widget id={id} render={renderWidget} />
         </ErrorBoundary>
       ))}
-      </>)}
+      </div>
+      </div>
+      )}
+      </div>
 
       {/* Customizer panel */}
       {isCustomizing && (
