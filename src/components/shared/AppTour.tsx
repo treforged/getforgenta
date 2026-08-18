@@ -1,77 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
+import { NEW_USER_STEPS, PREMIUM_STEPS } from '@/lib/tour-steps';
 
 export type TourVariant = 'new-user' | 'premium';
-
-interface TourStep {
-  title: string;
-  body: string;
-  emoji: string;
-}
-
-const NEW_USER_STEPS: TourStep[] = [
-  {
-    emoji: '🏠',
-    title: 'Command Center',
-    body: 'Your dashboard shows net worth, cash position, and key KPIs at a glance. Everything updates live as you add data.',
-  },
-  {
-    emoji: '⚙️',
-    title: 'Budget Control first',
-    body: 'Start in Budget Control — add your income and recurring expenses. These power every projection in the app.',
-  },
-  {
-    emoji: '💳',
-    title: 'Debt Payoff engine',
-    body: 'Add your credit cards and loans. The avalanche engine tells you exactly how much to throw at each one each month.',
-  },
-  {
-    emoji: '🎯',
-    title: 'Savings Goals',
-    body: 'Track emergency funds, vacations, down payments, and more. Goals link to real accounts so balances stay accurate.',
-  },
-  {
-    emoji: '📈',
-    title: '60-Month Forecast',
-    body: 'See your full financial trajectory. Debt payoff, savings growth, and net worth — all projected five years out.',
-  },
-  {
-    emoji: '💡',
-    title: "You're set",
-    body: 'Tap any section to explore. The more data you add, the sharper your plan gets. Welcome to Forgenta.',
-  },
-];
-
-const PREMIUM_STEPS: TourStep[] = [
-  {
-    emoji: '✨',
-    title: 'Premium unlocked',
-    body: 'You now have access to every feature in Forgenta. Here\'s what\'s new for you.',
-  },
-  // Skipped while the feature is off — the step points at a nav entry that is not rendered.
-  ...(AI_ADVISOR_ENABLED ? [{
-    emoji: '🤖',
-    title: 'AI Advisor',
-    body: 'Get a financial health score, spending analysis, and ask any money question. Find it in the More menu.',
-  }] : []),
-  {
-    emoji: '🏦',
-    title: 'Bank auto-sync',
-    body: 'Connect your bank via Plaid in Accounts. Balances update automatically — no more manual entry.',
-  },
-  {
-    emoji: '📄',
-    title: 'PDF export',
-    body: 'Download your 60-month forecast as a print-ready PDF. Put it on the wall. Watch it happen.',
-  },
-  {
-    emoji: '🏷️',
-    title: 'Custom categories',
-    body: 'In Budget Control, you can now type any category name for your recurring rules instead of using preset options.',
-  },
-];
 
 // Flag keys stored in profiles.tour_flags JSONB — account-based, cross-device
 const FLAG_KEY: Record<TourVariant, string> = {
