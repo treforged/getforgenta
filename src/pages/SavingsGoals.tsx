@@ -336,7 +336,17 @@ function SavingsGrowthChart({ goals }: { goals: EnrichedGoal[] }) {
   );
 }
 
-export default function SavingsGoals() {
+/**
+ * ⚠️ GOALS IS NOT A ROUTE ANY MORE. It is the Forecast's second panel (Tre, 2026-08-18: "well
+ * add goals to forecast then."), hosted the way the Dashboard hosts `Accounts` — rendered, not
+ * linked to, and mounted only on its own panel. A goal's hero number is a target and an ETA, which
+ * is the Forecast's whole subject.
+ *
+ * `embedded` suppresses ONLY the page <h1> and its subtitle, because the Forecast already carries a
+ * page heading and two of them is the thing the merge was meant to remove. Everything else — Add
+ * Goal, the Vehicles link, the projection chart, every modal — is untouched.
+ */
+export default function SavingsGoals({ embedded = false }: { embedded?: boolean } = {}) {
   const { data: goals, add, update, remove, loading: goalsLoading } = useSavingsGoals();
   const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { data: accounts, loading: accountsLoading } = useAccounts();
@@ -617,11 +627,11 @@ export default function SavingsGoals() {
   if (accountsLoading || goalsLoading || carFundsLoading) return <GoalsSkeleton />;
 
   return (
-    <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
+    <div className={embedded ? 'stack-section overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden'}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Goals</h1>
+            {!embedded && <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Goals</h1>}
             <InstructionsModal pageTitle="Savings Goals Guide" sections={[
               { title: 'What is this page?', body: 'Track progress toward your financial goals — emergency fund, vacation, down payment, or retirement. Link goals to real accounts for automatic balance sync.' },
               { title: 'Linked Accounts', body: 'When linked to an account, the goal\'s "current saved" automatically reflects that account balance. "Available after bills" shows the realistic amount after subtracting scheduled outflows.' },
@@ -629,7 +639,7 @@ export default function SavingsGoals() {
               { title: 'Vehicles', body: 'Tracking a car purchase? Use the Vehicles page for down payment goals and full loan amortization.' },
             ]} />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">Build your financial runway</p>
+          {!embedded && <p className="text-xs text-muted-foreground mt-0.5">Build your financial runway</p>}
         </div>
         <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:shrink-0">
           {(isPremium || isDemo || goals.length < 3) ? (

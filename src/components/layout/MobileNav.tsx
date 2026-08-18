@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark,
-  MoreHorizontal, PiggyBank, TrendingUp,
+  MoreHorizontal, TrendingUp,
   Settings, Crown, LogOut, Home, X, Sparkles, Car,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -35,11 +35,15 @@ const PRIMARY = [
 // especially on mobile" ask, and the More grid is two columns so it loses a half-row.
 // Budget Control left it the same day for the same reason: it is the third panel of Activity,
 // which is already a PRIMARY tab. Four entries — the More grid is two columns, so it loses a row.
+// Goals left it on the same day for the same reason: it is the second panel of Forecast, which is
+// already a PRIMARY tab (Tre: "well add goals to forecast then."). `/goals` still resolves — it
+// redirects to `/forecast?tab=goals`.
 const SECONDARY = [
-  { to: '/vehicles', icon: Car, label: 'Garage' },
   ...(AI_ADVISOR_ENABLED ? [{ to: '/ai', icon: Sparkles, label: 'AI Advisor' }] : []),
-  { to: '/goals', icon: PiggyBank, label: 'Goals' },
   { to: '/settings', icon: Settings, label: 'Settings' },
+  // Garage is LAST on narrow viewports — Tre, 2026-08-18: "make Garage the last tab for lower
+  // width viewports." Scoped to this nav only; the desktop rail's order is unchanged.
+  { to: '/vehicles', icon: Car, label: 'Garage' },
 ];
 
 export default function MobileNav() {

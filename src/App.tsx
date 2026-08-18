@@ -30,7 +30,6 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 
 const Transactions = lazy(() => import("@/pages/Transactions"));
 const DebtPayoff = lazy(() => import("@/pages/DebtPayoff"));
-const SavingsGoals = lazy(() => import("@/pages/SavingsGoals"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const Premium = lazy(() => import("@/pages/Premium"));
 const PremiumSuccess = lazy(() => import("@/pages/PremiumSuccess"));
@@ -142,6 +141,22 @@ function BudgetRedirect() {
   return <Navigate to={`/transactions?${params.toString()}`} replace />;
 }
 
+/**
+ * `/goals` is no longer a page — it is the Forecast's second panel (Tre, 2026-08-18: "well add
+ * goals to forecast then."). A component and not a bare <Navigate> so the whole query string rides
+ * along, the same reason `AccountsRedirect` and `BudgetRedirect` are components.
+ *
+ * ⚠️ THE IN-APP LINKS STILL POINT AT `/goals` ON PURPOSE — the Dashboard chips, two goal cards
+ * and `OnboardingChecklist` all do. Repointing them would leave this redirect, which is what every
+ * existing bookmark and the `/car-fund` alias land on, covered by nothing. Same call as `/budget`.
+ */
+function GoalsRedirect() {
+  const { search } = useLocation();
+  const params = new URLSearchParams(search);
+  params.set('tab', 'goals');
+  return <Navigate to={`/forecast?${params.toString()}`} replace />;
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -186,7 +201,7 @@ function AppRoutes() {
         <Route path="/budget" element={<BudgetRedirect />} />
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Transactions"><Transactions /></ErrorBoundary></Suspense>} />
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Debt Payoff"><DebtPayoff /></ErrorBoundary></Suspense>} />
-        <Route path="/goals" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Savings Goals"><SavingsGoals /></ErrorBoundary></Suspense>} />
+        <Route path="/goals" element={<GoalsRedirect />} />
         <Route path="/vehicles" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Garage"><Vehicles /></ErrorBoundary></Suspense>} />
         {/* Builds is a PANEL of the Garage now, not a route. The redirect keeps every existing
             bookmark and in-app link working and names the panel it meant — see `garage-tab.ts`. */}
