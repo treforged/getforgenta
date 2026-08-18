@@ -1335,13 +1335,13 @@ export default function Vehicles() {
           className={`seg-item btn-press ${activeTab === 'saving' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <Car size={13} /> Saving for Down Payment
-          {savingVehicles.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{savingVehicles.length}</span>}
+          {savingVehicles.length > 0 && <span className={`seg-badge ${activeTab === 'saving' ? 'seg-badge-active' : ''}`}>{savingVehicles.length}</span>}
         </button>
         <button onClick={() => setActiveTab('loan')}
           className={`seg-item btn-press ${activeTab === 'loan' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
           <TrendingDown size={13} /> Active Loans
-          {loanVehicles.length > 0 && <span className="ml-1 bg-primary/20 text-primary px-1.5 py-0.5 text-[10px]" style={{ borderRadius: 'var(--radius)' }}>{loanVehicles.length}</span>}
+          {loanVehicles.length > 0 && <span className={`seg-badge ${activeTab === 'loan' ? 'seg-badge-active' : ''}`}>{loanVehicles.length}</span>}
         </button>
         <button onClick={() => setActiveTab('builds')}
           className={`seg-item btn-press ${activeTab === 'builds' ? 'seg-item-active' : ''}`}

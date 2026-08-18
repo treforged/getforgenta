@@ -243,27 +243,27 @@ export default function DebtPayoff() {
         <button onClick={() => setActiveTab('cards')}
           className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{accounts?.filter(a => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
+          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className={`seg-badge ${activeTab === 'cards' ? 'seg-badge-active' : ''}`}>{accounts?.filter(a => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
         </button>
         <button onClick={() => setActiveTab('auto')}
           className={`seg-item btn-press ${activeTab === 'auto' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{activeAutoLoans.length}</span>}
+          <Car size={13} /> Auto Loans {activeAutoLoans.length > 0 && <span className={`seg-badge ${activeTab === 'auto' ? 'seg-badge-active' : ''}`}>{activeAutoLoans.length}</span>}
         </button>
         <button onClick={() => setActiveTab('mortgage')}
           className={`seg-item btn-press ${activeTab === 'mortgage' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Landmark size={13} /> Mortgage {mortgageDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{mortgageDebts.length}</span>}
+          <Landmark size={13} /> Mortgage {mortgageDebts.length > 0 && <span className={`seg-badge ${activeTab === 'mortgage' ? 'seg-badge-active' : ''}`}>{mortgageDebts.length}</span>}
         </button>
         <button onClick={() => setActiveTab('student')}
           className={`seg-item btn-press ${activeTab === 'student' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{studentDebts.length}</span>}
+          <Landmark size={13} /> Student Loans {studentDebts.length > 0 && <span className={`seg-badge ${activeTab === 'student' ? 'seg-badge-active' : ''}`}>{studentDebts.length}</span>}
         </button>
         <button onClick={() => setActiveTab('other')}
           className={`seg-item btn-press ${activeTab === 'other' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className="ml-1 text-xs bg-primary/20 text-primary px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>{otherDebts.length}</span>}
+          <Landmark size={13} /> Other Debts {otherDebts.length > 0 && <span className={`seg-badge ${activeTab === 'other' ? 'seg-badge-active' : ''}`}>{otherDebts.length}</span>}
         </button>
       </div>
 
