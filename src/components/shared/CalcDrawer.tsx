@@ -42,13 +42,13 @@ export default function CalcDrawer({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1rem, env(safe-area-inset-top))', zIndex }}
+      className="modal-overlay"
+      style={{ background: 'rgba(0,0,0,0.85)', zIndex }}
       onClick={onClose}
     >
       <div
         className="card-forged w-full max-w-sm sm:max-w-md flex flex-col"
-        style={{ maxHeight: 'min(85vh, calc(100dvh - 2rem))' }}
+        style={{ maxHeight: '100%' }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Sticky header */}

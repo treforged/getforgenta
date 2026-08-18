@@ -15,11 +15,11 @@ export default function ModalShell({ onDismiss, children, zIndex = 'z-50' }: Pro
 
   return (
     <div
-      className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 bg-background/85 backdrop-blur-sm`}
+      className={`modal-overlay ${zIndex} bg-background/85 backdrop-blur-sm`}
       onClick={onDismiss}
     >
       <div
-        className="card-forged w-full max-w-md flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-[90dvh]"
+        className="card-forged w-full max-w-md flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 max-h-full"
         onClick={e => e.stopPropagation()}
       >
         {children}

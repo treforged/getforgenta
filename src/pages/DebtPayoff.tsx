@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router';
 import { DebtSkeleton } from '@/components/shared/PageSkeleton';
@@ -202,6 +203,7 @@ export default function DebtPayoff() {
         >
           <Plus size={12} /> Add Account
         </Link>
+        <SurfaceGuide surface="debt" />
       </div>
 
       {isDemo && (
@@ -237,7 +239,7 @@ export default function DebtPayoff() {
           belongs to the content below it. See the vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
       {/* Tabs */}
-      <PanelBar surface="debt" panel={activeTab}>
+      <PanelBar>
         <button onClick={() => setActiveTab('cards')}
           className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>

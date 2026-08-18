@@ -29,6 +29,12 @@
 export interface GuideSection {
   title: string;
   body: string;
+  /**
+   * Which panel this block is about. Set by {@link resolveSurfaceGuide} when it combines a
+   * surface's panels into one guide; the per-panel entries below never carry it, because
+   * inside a single panel's guide the answer is "this one".
+   */
+  group?: string;
 }
 
 export interface PageGuide {
@@ -250,4 +256,81 @@ const SURFACE_FALLBACK: Record<GuideSurface, GuideKey> = {
  */
 export function resolveGuide(surface: GuideSurface, panel: string): PageGuide {
   return PAGE_GUIDES[`${surface}:${panel}`] ?? PAGE_GUIDES[SURFACE_FALLBACK[surface]];
+}
+
+/**
+ * The label each panel goes under inside a combined guide, and — because the object is
+ * ordered — the order the panels appear in. Reads as the panel row does, left to right.
+ *
+ * ⚠️ A panel with a guide but no label here would be silently dropped from its surface's
+ * guide, so `resolveSurfaceGuide` asserts over THIS map rather than over `PAGE_GUIDES`.
+ */
+const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> = {
+  // WARNING: Home's guide reaches ACROSS surfaces on purpose. The Accounts page is hosted
+  // here as a panel and brings its own two sub-panels with it, so a reader who opens Home's
+  // guide gets the whole page — including the parts that are another module's code.
+  dashboard: [
+    { key: 'dashboard:overview', label: 'Overview' },
+    { key: 'dashboard:accounts', label: 'Accounts' },
+    { key: 'accounts:balances', label: 'Accounts · Balances' },
+    { key: 'accounts:banks', label: 'Accounts · Bank connections' },
+  ],
+  accounts: [
+    { key: 'accounts:balances', label: 'Balances' },
+    { key: 'accounts:banks', label: 'Bank connections' },
+  ],
+  transactions: [
+    { key: 'transactions:budget', label: 'Budget Control' },
+    { key: 'transactions:planning', label: 'Planning' },
+    { key: 'transactions:bank', label: 'Bank Activity' },
+  ],
+  debt: [
+    { key: 'debt:cards', label: 'Credit cards' },
+    { key: 'debt:auto', label: 'Auto loans' },
+    { key: 'debt:mortgage', label: 'Mortgage' },
+    { key: 'debt:student', label: 'Student loans' },
+    { key: 'debt:other', label: 'Other debt' },
+  ],
+  forecast: [
+    { key: 'forecast:forecast', label: 'Forecast' },
+    { key: 'forecast:goals', label: 'Goals' },
+  ],
+  garage: [
+    { key: 'garage:saving', label: 'Saving for a car' },
+    { key: 'garage:loan', label: 'Car loans' },
+    { key: 'garage:builds', label: 'Builds' },
+  ],
+};
+
+/** The name a combined guide goes by — the page, not any one of its panels. */
+const SURFACE_TITLE: Record<GuideSurface, string> = {
+  dashboard: 'Home Guide',
+  accounts: 'Accounts Guide',
+  transactions: 'Activity Guide',
+  debt: 'Debt Guide',
+  forecast: 'Forecast Guide',
+  garage: 'Garage Guide',
+};
+
+/**
+ * ONE guide for a whole page, carrying every panel's sections under its own heading.
+ *
+ * Tre, 2026-08-18: *"put the guide for both sections in the same guide"*. A page's panels
+ * are two views of one subject, and a reader who opens the guide from Overview usually
+ * wants to know what the Accounts panel does too — the per-panel split meant the answer
+ * was only reachable by switching panel first.
+ *
+ * ⚠️ This does NOT replace {@link resolveGuide}. The per-panel entries stay the source of
+ * truth and are still what a panel-scoped caller reads; this only composes them, so the
+ * copy cannot fork between the two readings.
+ */
+export function resolveSurfaceGuide(surface: GuideSurface): PageGuide {
+  const sections = SURFACE_PANELS[surface].flatMap(({ key, label }) => {
+    const guide = PAGE_GUIDES[key];
+    // A panel listed with no guide registered is a gap, not a crash: skip it rather than
+    // render a heading over nothing.
+    if (!guide) return [];
+    return guide.sections.map(section => ({ ...section, group: label }));
+  });
+  return { title: SURFACE_TITLE[surface], sections };
 }

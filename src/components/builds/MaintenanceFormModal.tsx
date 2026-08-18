@@ -216,9 +216,9 @@ export default function MaintenanceFormModal({
   const modeBtnStyle = (active: boolean) => (active ? { background: '#c8a84b' } : undefined);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="modal-overlay z-50 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-card border border-border rounded w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-card border border-border rounded w-full max-w-md shadow-2xl max-h-full overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card z-10">

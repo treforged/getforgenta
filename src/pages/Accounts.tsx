@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -735,6 +736,9 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           </div>
           {!embedded && <p className="text-sm text-muted-foreground mt-1">Manage all financial accounts in one place</p>}
         </div>
+        {/* Hosted inside the Dashboard, this page's panels are already in Home's guide —
+            a second button here is the two-at-once state the registry exists to end. */}
+        {!embedded && <SurfaceGuide surface="accounts" />}
         <button onClick={() => openAdd()} className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press" style={{ borderRadius: 'var(--radius)' }}>
           <Plus size={14} /> Add Account
         </button>
@@ -882,7 +886,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       {/* Panel switcher — Garage-style pills. The summary numbers above stay put on every panel:
           they are the page's hero and hiding them behind a tab would make the answer depend on
           which tab you happened to be on. */}
-      <PanelBar surface="accounts" panel={effectiveTab}>
+      <PanelBar>
         <button onClick={() => setActiveTab('balances')}
           className={`seg-item btn-press ${effectiveTab === 'balances' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>

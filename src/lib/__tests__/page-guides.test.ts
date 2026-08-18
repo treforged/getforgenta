@@ -4,7 +4,7 @@
 // five panels and `/dashboard` rendered two guide buttons at once, so these assert that
 // each panel resolves to its own entry rather than to a page-shaped one.
 import { describe, it, expect } from 'vitest';
-import { PAGE_GUIDES, resolveGuide, type GuideSurface } from '../page-guides';
+import { PAGE_GUIDES, resolveGuide, resolveSurfaceGuide, type GuideSurface } from '../page-guides';
 
 const SURFACES: GuideSurface[] = ['dashboard', 'accounts', 'transactions', 'debt', 'forecast', 'garage'];
 
@@ -46,6 +46,36 @@ describe('resolveGuide', () => {
     for (const surface of SURFACES) {
       const keys = Object.keys(PAGE_GUIDES).filter(k => k.startsWith(`${surface}:`));
       expect(keys.length, surface).toBeGreaterThan(1);
+    }
+  });
+  it('combines a page into ONE guide carrying every panel under its own heading', () => {
+    const debt = resolveSurfaceGuide('debt');
+    expect(debt.title).toBe('Debt Guide');
+    // All five panels, each block labelled with the panel it came from.
+    expect(new Set(debt.sections.map(s => s.group))).toEqual(
+      new Set(['Credit cards', 'Auto loans', 'Mortgage', 'Student loans', 'Other debt']),
+    );
+    // Composed, not forked: the combined copy IS the per-panel copy.
+    expect(debt.sections.filter(s => s.group === 'Auto loans').map(s => s.title))
+      .toEqual(PAGE_GUIDES['debt:auto'].sections.map(s => s.title));
+  });
+
+  it("carries the Accounts panel's own sub-panels into Home's guide", () => {
+    // Accounts is HOSTED by the Dashboard, so its two sub-panels have to reach the reader
+    // through Home's guide — otherwise they are only findable by switching panel first.
+    const groups = resolveSurfaceGuide('dashboard').sections.map(s => s.group);
+    expect(groups).toContain('Accounts · Balances');
+    expect(groups).toContain('Accounts · Bank connections');
+  });
+
+  it('gives every surface a combined guide with sections in it', () => {
+    for (const surface of SURFACES) {
+      const guide = resolveSurfaceGuide(surface);
+      expect(guide.title, surface).toBeTruthy();
+      expect(guide.sections.length, surface).toBeGreaterThan(2);
+      // Every section in a combined guide is attributed — an unlabelled block in a
+      // multi-panel document leaves the reader guessing which panel it describes.
+      for (const section of guide.sections) expect(section.group, `${surface}/${section.title}`).toBeTruthy();
     }
   });
 });

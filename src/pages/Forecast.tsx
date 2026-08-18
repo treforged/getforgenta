@@ -1,5 +1,6 @@
 ﻿import { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import PanelBar from '@/components/shared/PanelBar';
+import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { Link, useSearchParams } from 'react-router';
 import { ForecastSkeleton } from '@/components/shared/PageSkeleton';
 import { useDemo } from '@/contexts/DemoContext';
@@ -376,7 +377,7 @@ export default function Forecast() {
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">60-month projections driven by live data</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:flex gap-2 w-full sm:w-auto">
+        <div className="grid grid-cols-1 sm:flex sm:items-center gap-2 w-full sm:w-auto">
           <button onClick={() => setChartMode(chartMode === 'combo' ? 'line' : 'combo')}
             className="w-full sm:w-auto min-w-0 flex items-center justify-center gap-1.5 bg-secondary border border-border px-2 sm:px-3 py-1 sm:py-1.5 text-xs font-medium btn-press" style={{ borderRadius: 'var(--radius)' }}>
             <TrendingUp size={12} /> {chartMode === 'combo' ? 'Line' : 'Bars'}
@@ -448,6 +449,7 @@ export default function Forecast() {
               </Link>
             </>
           )}
+          <SurfaceGuide surface="forecast" />
         </div>
       </div>
 
@@ -456,7 +458,7 @@ export default function Forecast() {
         other panelled surface uses. This is the FIRST segmented control on this page; the chart's
         1Y/2Y/3Y range pickers stay square on purpose, because they pick a range, not a panel.
       */}
-      <PanelBar surface="forecast" panel={activeTab}>
+      <PanelBar>
         <button onClick={() => setStoredTab('forecast')}
           className={`seg-item btn-press ${activeTab === 'forecast' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
