@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { backdropAction } from '@/lib/form-dismiss';
+import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
@@ -16,6 +17,11 @@ const empty = { name: '', year: '', make: '', model: '', notes: '' };
 
 export default function BuildFormModal({ open, build, onClose, onSave, saving }: BuildFormModalProps) {
   const [form, setForm] = useState(empty);
+  // The form as the modal opened. A backdrop tap compares against THIS, so opening an
+  // existing build and changing nothing still counts as pristine (`lib/form-dismiss.ts`).
+  // A ref, not state: nothing renders it, and setting state in the reset effect below
+  // would be the cascading render the lint rule objects to.
+  const baseline = useRef(empty);
   const [nameError, setNameError] = useState('');
 
   useEffect(() => {
@@ -24,22 +30,30 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
       // component stays mounted while closed (it only returns null), so its state
       // survives between openings and has to be reset explicitly. The fields are
       // user-editable, so they cannot be derived from the `build` prop.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm(build ? {
+      const loaded = build ? {
         name: build.name,
         year: build.year ? String(build.year) : '',
         make: build.make ?? '',
         model: build.model ?? '',
         notes: build.notes ?? '',
-      } : empty);
+      } : empty;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setForm(loaded);
+      baseline.current = loaded;
       setNameError('');
     }
   }, [open, build]);
 
   if (!open) return null;
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  /** Pristine dismisses; anything typed goes through the validating save. */
+  function dismiss() {
+    if (backdropAction(form, baseline.current) === 'close') { onClose(); return; }
+    handleSubmit();
+  }
+
+  function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!form.name.trim()) { setNameError('Name is required'); return; }
     const nameResult = filterProfanity(form.name.trim().slice(0, LIMITS.buildName));
     const notesResult = filterProfanity(form.notes.trim().slice(0, LIMITS.buildNotes));
@@ -58,7 +72,7 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
   const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="modal-overlay z-50 bg-black/60 backdrop-blur-sm" onClick={dismiss}>
       <div className="bg-card border border-border rounded w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <span className="text-sm font-semibold text-foreground">

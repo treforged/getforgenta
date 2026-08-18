@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
+import { backdropAction } from '@/lib/form-dismiss';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
@@ -85,6 +86,11 @@ export default function MaintenanceFormModal({
   open, log, lastOdometer, transactions, paymentSourceOptions, onClose, onSave, saving,
 }: MaintenanceFormModalProps) {
   const [form, setForm] = useState<FormState>(() => emptyForm(lastOdometer));
+  // The form as the modal opened — what a backdrop tap compares against, so opening an
+  // existing log and changing nothing still counts as pristine (`lib/form-dismiss.ts`).
+  // A ref, not state: nothing renders it, and setting state in the reset effect below
+  // would be the cascading render the lint rule objects to.
+  const baseline = useRef<FormState>(emptyForm(lastOdometer));
   const [serviceError, setServiceError] = useState('');
 
   const linkedTx = useMemo(
@@ -96,8 +102,7 @@ export default function MaintenanceFormModal({
     if (!open) return;
     // The modal stays mounted while closed, so its state survives between openings
     // and has to be reset explicitly against the entry being edited.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setForm(log ? {
+    const loaded: FormState = log ? {
       service: log.service,
       serviceDate: log.service_date,
       odometer: log.odometer !== null ? String(log.odometer) : '',
@@ -113,11 +118,20 @@ export default function MaintenanceFormModal({
       txDate: linkedTx?.date ?? log.service_date,
       txAmount: linkedTx ? String(linkedTx.amount) : (log.cost !== null ? String(log.cost) : ''),
       txPaymentSource: linkedTx?.payment_source ?? '',
-    } : emptyForm(lastOdometer));
+    } : emptyForm(lastOdometer);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setForm(loaded);
+    baseline.current = loaded;
     setServiceError('');
   }, [open, log, lastOdometer, linkedTx]);
 
   if (!open) return null;
+
+  /** Pristine dismisses; anything typed goes through the validating save. */
+  function dismiss() {
+    if (backdropAction(form, baseline.current) === 'close') { onClose(); return; }
+    handleSubmit();
+  }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => ({ ...f, [key]: value }));
@@ -171,8 +185,8 @@ export default function MaintenanceFormModal({
     return Number.isFinite(n) ? n : null;
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!form.service.trim()) { setServiceError('Service is required'); return; }
 
     const values: MaintenanceFormValues = {
@@ -216,7 +230,7 @@ export default function MaintenanceFormModal({
   const modeBtnStyle = (active: boolean) => (active ? { background: '#c8a84b' } : undefined);
 
   return (
-    <div className="modal-overlay z-50 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="modal-overlay z-50 bg-black/60 backdrop-blur-sm" onClick={dismiss}>
       <div
         className="bg-card border border-border rounded w-full max-w-md shadow-2xl max-h-full overflow-y-auto"
         onClick={e => e.stopPropagation()}
