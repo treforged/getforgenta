@@ -6,7 +6,7 @@ import {
   openCreditLimitAtMonth, getPlanInterestNextMonth,
 } from '@/lib/credit-card-engine';
 import { getStrategyPayoffOrder, payoffOrderAsOf, utilizationComparisonOrder } from '@/lib/debt-payoff-order';
-import { cardStartMonthOffset } from '@/lib/card-start-date';
+import { cardStartMonthOffset, isSimCardOpenAsOf } from '@/lib/card-start-date';
 import UtilizationPanel from './UtilizationPanel';
 import DebtHero from './DebtHero';
 import AvalancheOrderList from './AvalancheOrderList';
@@ -931,13 +931,21 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const todayDay = now.getDate();
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const nextMonthName = MONTHS[(now.getMonth() + 1) % 12];
-    const perCardAdj = month0?.perCardAdjusted ?? [];
+    // A card whose card_start_date has not arrived cannot receive a payment this month.
+    // Display layer only — the simulation still models it turning on (cardStartMonths), and
+    // the Dashboard widget applies the same filter in `buildMonth0DebtBreakdown`.
+    // ⚠️ Keyed on the cards KNOWN to be unopened, not on "not in the open set" — a
+    // perCardAdjusted entry with no matching card row is still shown, same as the
+    // Dashboard's shared builder does.
+    const unopenedCardIds = new Set(cards.filter(c => !isSimCardOpenAsOf(c, now)).map(c => c.id));
+    const perCardAdj = (month0?.perCardAdjusted ?? []).filter(item => !unopenedCardIds.has(item.id));
     const totalAvailableCash = month0?.safeToPayTotal ?? 0;
     const strategyLabel = strategy === 'avalanche' ? 'Avalanche' : 'Snowball';
     // Same predicate the engine reserves against — see `m0MinDueSettled`. Was open-coded here
     // (and in `month0-debt-breakdown.ts`) as `dueDateStr > syncCutoffDate`, which is how this
     // display could disagree with the engine about the very minimums it was summarising.
     const totalMinimumsdue = cards
+      .filter(c => !unopenedCardIds.has(c.id))
       .filter(c => !c.autopayFullBalance && c.balance > 0)
       .filter(c => !m0MinDueSettled(c.dueDay, syncCutoffDate, now))
       .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
@@ -1099,6 +1107,22 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // Keep roughly 10 x-axis ticks regardless of horizon: 5Y -> 5 (unchanged from before), 3Y -> 3, 2Y -> 2, 1Y -> 1.
   const chartTickInterval = Math.max(0, Math.ceil((parseInt(chartYears, 10) * 12) / 10) - 1);
 
+  // A card that draws nothing gets no legend entry. Cards before their card_start_date are
+  // already null here (a gap, not a $0 line, see debtChartData), so an unopened card was
+  // contributing a NAME and a COLOUR to a chart it never appears in — the same leak as the
+  // recommendation panel, seen from the legend.
+  //
+  // ⚠️ Deliberately a property of the DATA, not a card_start_date special case: a card that
+  // carries any balance anywhere in the drawn window can never be dropped, whatever its start
+  // date, and a fully paid-off card disappears for the same honest reason.
+  const chartSeries = useMemo(
+    () => projections.filter(p => visibleChartData.some(row => {
+      const v = row[p.card.name];
+      return typeof v === 'number' && v > 0;
+    })),
+    [projections, visibleChartData],
+  );
+
   // `month` = whole months from now until utilization first sits under the threshold.
   // 0 means it is already there — previously this returned the projection INDEX, so a threshold
   // cleared by the end of the current month reported "0 months", which reads as "already below"
@@ -1141,7 +1165,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   // A card with a future card_start_date is not open yet — its limit is not available
   // credit (session 93's rule, same filter Dashboard's utilization tile uses). Both sides
   // of the ratio use the same filter so Balance / Limit / Utilization stay consistent.
-  const openCardsNow = cards.filter(c => cardStartMonthOffset(c.startDate, new Date()) === 0);
+  const openCardsNow = cards.filter(c => isSimCardOpenAsOf(c, new Date()));
   const totalBalance = openCardsNow.reduce((s, c) => s + c.balance, 0);
   const totalLimit = openCardsNow.reduce((s, c) => s + c.creditLimit, 0);
   const overallUtil = totalLimit > 0 ? (totalBalance / totalLimit) * 100 : 0;
@@ -1308,7 +1332,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <YAxis tick={{ fontSize: 10, fill: 'hsl(240, 4%, 50%)' }} tickFormatter={formatYAxisTick} />
                 <RechartsTooltip formatter={(v, name) => [`$${Number(v).toLocaleString()}`, name]} labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} itemStyle={{ fontSize: 13 }} contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }} />
                 <Legend wrapperStyle={{ fontSize: 10 }} />
-                {projections.map(p => (
+                {chartSeries.map(p => (
                   <Line key={p.card.name} type="monotone" dataKey={p.card.name} stroke={p.card.color} strokeWidth={2} dot={false} />
                 ))}
               </LineChart>

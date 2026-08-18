@@ -404,3 +404,44 @@ describe('nonCardLiabilityTotal', () => {
     expect(nonCardLiabilityTotal(breakdown)).toBe(0);
   });
 });
+
+describe('buildNetWorthBreakdown — a card the user has not opened yet', () => {
+  // `card_start_date` in the FUTURE means planned, not opened: the two real cases are
+  // Venture X (2026-12-20) and Apple Card (2028-02-28), both `active = true` with a $0
+  // balance. They were rendering as $0 liability rows for cards that do not exist.
+  const ASOF = new Date(2026, 7, 18); // 2026-08-18
+
+  const planned = account({
+    name: 'Venture X', account_type: 'credit_card', balance: 0, card_start_date: '2026-12-20',
+  });
+  const open = account({
+    name: 'Discover', account_type: 'credit_card', balance: 1500, card_start_date: '2024-01-05',
+  });
+
+  it('leaves an unopened card out of the liabilities list entirely', () => {
+    const { liabilities } = buildNetWorthBreakdown([planned, open], [], [], [], ASOF);
+    expect(liabilities.map(l => l.name)).toEqual(['Discover']);
+  });
+
+  it('counts the same card once its start date has arrived', () => {
+    const { liabilities } = buildNetWorthBreakdown(
+      [{ ...planned, balance: 400 }, open], [], [], [], new Date(2027, 0, 5),
+    );
+    expect(liabilities.map(l => l.name).sort()).toEqual(['Discover', 'Venture X']);
+  });
+
+  it('never changes the totals — an unopened card owes $0 either way', () => {
+    const withPlanned = totalsFromBreakdown(buildNetWorthBreakdown([planned, open], [], [], [], ASOF));
+    const withoutPlanned = totalsFromBreakdown(buildNetWorthBreakdown([open], [], [], [], ASOF));
+    expect(withPlanned).toEqual(withoutPlanned);
+  });
+
+  it('passes every non-card account through untouched', () => {
+    // The predicate must not become a general "hide accounts" filter: only credit cards
+    // have a start date, and a checking account with one set is still an asset.
+    const { assets } = buildNetWorthBreakdown(
+      [account({ name: 'Checking', card_start_date: '2030-01-01' })], [], [], [], ASOF,
+    );
+    expect(assets.map(a => a.name)).toEqual(['Checking']);
+  });
+});

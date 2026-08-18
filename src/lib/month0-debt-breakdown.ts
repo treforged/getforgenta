@@ -15,6 +15,7 @@
  * one number. Extracted verbatim from Dashboard's `dashboardDebtRecs`.
  */
 import { m0MinDueSettled } from '@/lib/credit-card-engine';
+import { isSimCardOpenAsOf } from '@/lib/card-start-date';
 import type { CardData, MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
 import type { Month0Result } from '@/lib/debt-model-types';
 
@@ -57,19 +58,34 @@ export function buildMonth0DebtBreakdown({
 
   const totalAvailableCash = month0.safeToPayTotal;
 
+  // A card whose `card_start_date` has not arrived is one the user has PLANNED, not opened.
+  // It cannot receive a payment this month and it owes nothing today, so it belongs in no
+  // part of this breakdown. It stays in the simulation (`cardStartMonths`) — that is where
+  // it is supposed to turn on — which is why the filter lives here, at the display layer.
+  const openCards = simCards.filter(c => isSimCardOpenAsOf(c, now));
+  // ⚠️ Keyed on the cards KNOWN to be unopened, never on "not in the open set". A
+  // perCardAdjusted entry with no matching simCards row is a payment the sim made on a card
+  // this list cannot describe, and it is still shown (neutral colour, no due day) — hiding a
+  // recommended payment because the row went missing is the opposite of the fix.
+  const unopenedCardIds = new Set(
+    simCards.filter(c => !isSimCardOpenAsOf(c, now)).map(c => c.id),
+  );
+
   // "Is this card's month-0 minimum already paid?" is exactly what `m0MinDueSettled` decides for
   // the engine. This used to open-code the inverse (`dueDateStr > syncCutoffDate`), so the number
   // shown here could disagree with the number the engine reserved — §1.1 cause C in miniature.
-  const totalMinimumsDue = simCards
+  const totalMinimumsDue = openCards
     .filter(c => !c.autopayFullBalance && c.balance > 0)
     .filter(c => !m0MinDueSettled(c.dueDay, syncCutoffDate, now))
     .reduce((s, c) => s + Math.min(c.minPayment, c.balance), 0);
 
-  const autopayTotal = simCards
+  const autopayTotal = openCards
     .filter(c => c.autopayFullBalance)
     .reduce((s, c) => s + c.monthlyNewPurchases, 0);
 
-  const recommendations = month0.perCardAdjusted.map(item => {
+  const openPerCard = month0.perCardAdjusted.filter(item => !unopenedCardIds.has(item.id));
+
+  const recommendations = openPerCard.map(item => {
     const card = simCards.find(c => c.id === item.id);
     let reason: string;
     let isMinimumOnly = false;

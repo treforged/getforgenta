@@ -71,6 +71,7 @@
  * record of the pre-link rule rather than a casualty of the bug. Decision stands
  * unchanged, now on evidence rather than on principle alone.
  */
+import { isCardOpenAsOf } from './card-start-date';
 
 /** Account types that reduce net worth. Everything else is an asset. */
 export const LIABILITY_ACCOUNT_TYPES = [
@@ -115,6 +116,10 @@ export interface NetWorthAccount {
   account_type: string;
   balance: Money;
   active: boolean;
+  /** `accounts.card_start_date` — a credit card the user has PLANNED but not opened yet.
+   * Optional so callers that never carry cards (tests, snapshots of asset-only sets) still
+   * satisfy the shape; when present and in the future the card is not a liability yet. */
+  card_start_date?: string | null;
 }
 
 export interface NetWorthManualAsset {
@@ -242,8 +247,15 @@ export function buildNetWorthBreakdown(
   manualAssets: readonly NetWorthManualAsset[],
   manualLiabilities: readonly NetWorthManualLiability[],
   vehicleLoans: readonly NetWorthVehicleLoan[] = [],
+  /** Injectable for tests; defaults to now. Only reads whether a card has been opened yet. */
+  asOf: Date = new Date(),
 ): NetWorthBreakdown {
-  const active = accounts.filter(a => a.active);
+  // `active` alone is not "does this account exist" for a credit card: a card the user has
+  // planned carries `active = true` with a future `card_start_date`, and it was rendering as a
+  // $0 liability row for a card that has not been opened. `isCardOpenAsOf` is the one predicate
+  // for that — it passes every non-card straight through, so nothing else here changes, and the
+  // TOTALS are untouched either way because an unopened card's balance is $0.
+  const active = accounts.filter(a => a.active && isCardOpenAsOf(a, asOf));
   const liveAssetAccounts = active.filter(a => !isLiabilityAccountType(a.account_type));
   const liveLiabilityAccounts = active.filter(a => isLiabilityAccountType(a.account_type));
 

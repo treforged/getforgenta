@@ -13,6 +13,7 @@ import { buildAmortizationSchedule, getActiveCarLoanPayments, calculateScheduled
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import { isCardOpenAsOf } from '@/lib/card-start-date';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -155,7 +156,15 @@ export default function DebtPayoff() {
     else { setDeleteConfirm(id); setTimeout(() => setDeleteConfirm(null), 3000); }
   };
 
-  const hasCreditCards = accounts?.some(a => a.account_type === 'credit_card' && a.active) ?? false;
+  // `active` is not the flag for "has this card been opened yet" — `card_start_date` is, and
+  // `isCardOpenAsOf` is its only predicate. A planned card is `active = true` with a future
+  // start date, and counting it made the tab badge claim cards the panels below correctly
+  // refuse to list.
+  const openCreditCards = useMemo(
+    () => (accounts ?? []).filter(a => a.account_type === 'credit_card' && a.active && isCardOpenAsOf(a, new Date())),
+    [accounts],
+  );
+  const hasCreditCards = openCreditCards.length > 0;
 
   const activeAutoLoans = useMemo(() => getActiveCarLoanPayments(carFunds), [carFunds]);
   const loanVehicles = useMemo(() => carFunds.filter(c => c.phase === 'loan'), [carFunds]);
@@ -243,7 +252,7 @@ export default function DebtPayoff() {
         <button onClick={() => setActiveTab('cards')}
           className={`seg-item btn-press ${activeTab === 'cards' ? 'seg-item-active' : ''}`}
           style={{ borderRadius: 'var(--radius)' }}>
-          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className={`seg-badge ${activeTab === 'cards' ? 'seg-badge-active' : ''}`}>{accounts?.filter(a => a.account_type === 'credit_card' && a.active).length ?? 0}</span>}
+          <CreditCard size={13} /> Credit Card Payoff {hasCreditCards && <span className={`seg-badge ${activeTab === 'cards' ? 'seg-badge-active' : ''}`}>{openCreditCards.length}</span>}
         </button>
         <button onClick={() => setActiveTab('auto')}
           className={`seg-item btn-press ${activeTab === 'auto' ? 'seg-item-active' : ''}`}

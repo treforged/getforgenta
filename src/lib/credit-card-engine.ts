@@ -9,7 +9,7 @@ import type { ConfirmedOccurrences } from './confirmed-capture';
 import { countRuleOccurrencesInMonth, PROJECTION_MONTHS } from './scheduling';
 import { FLOOR_CUSHION_DOLLARS } from './floor-protection';
 import { isCapturedInBalance, dueDateInMonth } from './sync-cutoff';
-import { cardStartMonthOffset } from './card-start-date';
+import { cardStartMonthOffset, isSimCardOpenAsOf } from './card-start-date';
 import {
   parseTranches, trancheInterestBreakdown, allocatePaymentAcrossTranches,
   type BalanceTranche,
@@ -2173,8 +2173,15 @@ export function generateRecommendations(
   // Preference cards = zero-balance cycling cards only (balance <= 0 encoded in autopayFullBalance).
   // Positive-balance full/statement cards compete under normal strategy in revolvingCards —
   // the preference only kicks in once the balance reaches zero (cycling mode going forward).
-  const preferenceCards = cards.filter(c => c.autopayFullBalance);
-  const revolvingCards = cards.filter(c => !c.autopayFullBalance && c.balance > 0);
+  // ⚠️ A card whose card_start_date has not arrived is NOT a zero-balance cycling card — it is a
+  // card that does not exist yet, and it lands in this bucket for the wrong reason: the bucket is
+  // keyed on `autopayFullBalance`, which encodes balance <= 0. It cannot receive a payment this
+  // month, so it is held out of BOTH recommendation buckets. The simulation below still models it
+  // turning on (cardStartMonths) — this filter is the recommendation layer only.
+  const recNow = new Date();
+  const payableCards = cards.filter(c => isSimCardOpenAsOf(c, recNow));
+  const preferenceCards = payableCards.filter(c => c.autopayFullBalance);
+  const revolvingCards = payableCards.filter(c => !c.autopayFullBalance && c.balance > 0);
 
   // Manual interest-saving balance: this month's obligation is $0 when the card's due day
   // has already passed (that statement was paid before today), else exactly the entered
