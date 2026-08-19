@@ -1,5 +1,26 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (the merge that only half landed, the installment token, and pricing on shared builds) — **`7d5d7828` on `fix/installment-badge`.** Gates: tsc 0, eslint clean, **1736 passed across 185 files**, build exit 0.
+>
+> **🚨 READ THIS FIRST — #115 AND #116 NEVER REACHED `main`, AND `gh` SAYS ALL THREE ARE MERGED.**
+> They ARE merged — into each other. #114 merged to `main` at 04:58:43; **#115 merged into `feat/demo-in-signup` 39 seconds LATER**, i.e. into a branch that had already gone; #116 merged into the slice6 branch. Verified BY CONTENTS, which is the only reason it was caught: `crowd-category.ts`, `theme.ts`, the slice-6 migration and the light palette were all **MISSING from `origin/main`** while every PR read MERGED.
+> - ⚠️ **THE LESSON FOR NEXT TIME: do not stack PRs here.** A stacked PR whose base is merged-and-deleted does not retarget; it merges into a dead branch and reports success. Either merge strictly bottom-up and wait, or cut every branch from `main`.
+> - **This branch is the recovery**: cut from `feat/slice6-...` (which carries everything), so its PR to `main` lands Slice 6 + light mode + the share fix + Slice 7 + the two new pieces below, in one.
+>
+> **1. ✅ THE INSTALLMENT BADGE (`b7a15f6c`).** Tre's call, delegated. Looking at the whole family settled it: `/transactions` labels a row five ways and four already used `text-X bg-X/10` with a token — the blue was simply the one that got missed. But it could not be reassigned: `success` is car loan, `muted` is paused, and **`primary` and `gold` are the same hue**, so debt payoff and reconciled already read alike. Blue was carrying a real distinction, so it got a real token. **`--info`, in both palettes, measured**: dark 3.94 → **7.47:1**, light 4.95 → **6.09:1**. The old value was worse in DARK than in light, i.e. this is a legibility fix that happens to also be a theming fix.
+> - ⬜ **REPORTED, NOT FIXED:** `--primary` and `--gold` are identical in both palettes, so two badges are visually the same. Palette decision, not a sweep decision.
+>
+> **2. ✅ PRICING ON SHARED BUILDS (`7d5d7828`).** Migration APPLIED to production.
+> - ⚠️ **DEFAULT TRUE — THE OPPOSITE OF `maintenance_public`, and this is the design decision.** The log was a new capability so private-by-default cost nobody anything; pricing has been on every shared page since the feature existed, so defaulting off would silently blank prices on links **already sent to people**. Rule is `!== false`, not `=== true` — which also means an old deployed function still shows prices.
+> - ⚠️ **Gate at the FETCH, not the render**: `public-build` drops `price` from its SELECT. ⚠️ **The build total and phase totals hide too** — leaving the sum publishes the number, and a total plus one known price gives the rest away.
+> - 🔬 **VERIFIED LIVE both ways:** hidden → 12 items returned, keys are brand/build_id/completed/id/link/name/phase_id/sort_order, **the string "price" does not appear in the body at all**; shown → 49 items with prices. Page with pricing off: no total, no phase totals, no price column, build still reads as a build. Test flag flipped on a SECONDARY build and restored; all three verified back at `true`.
+>
+> **⬜ NEXT:** (1) **Push and file this branch's PR to `main`** — nothing is in main past #114 until it lands. (2) Per-surface **390px re-passes**, in both themes. (3) Screenshots still DEFERRED.
+>
+> **⬜ CARRIED:** `useSyncedTransactions(monthKey)` still `[]` in demo; no crowd suggestion seen rendered yet (Slice 6's table is empty until votes accumulate); merchant memory + Garage maintenance log unaudited in demo.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (the shared maintenance log, and Slice 7) — **`45efa0fc` on `fix/public-maintenance-log`**, cut from `feat/slice6-store-category-learning`. Gates: tsc 0, eslint clean, **1726 passed across 184 files**, build exit 0. NOT yet pushed.
 >
 > ⚠️ **BRANCH STACK: `main` ← #114 (`feat/demo-in-signup`) ← #115 (`feat/slice6-...`) ← this branch.** Merge in that order.
