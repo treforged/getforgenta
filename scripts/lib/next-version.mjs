@@ -120,6 +120,84 @@ export function underScheme(version) {
  * What happens between here and 6.0 is unchanged, and the changeover is a
  * decision someone makes on purpose.
  */
+/**
+ * What KIND of bump does a set of commits deserve?
+ *
+ * Tre, 2026-08-19: "can you set up to auto determine when something is a major update."
+ *
+ * The scheme already carried a MECHANICAL major — minor 9 rolls to the next major — but that is a
+ * ceiling, not a judgement. It says "you have shipped ten customer releases", never "this one
+ * breaks things". So this reads the commits, which is the only place in the repo that knows what
+ * the work actually was.
+ *
+ * The rules, in order, first match wins:
+ *
+ *   major   a commit marked breaking: `feat!:` / `fix(scope)!:`, or `BREAKING CHANGE:` in a body.
+ *           The conventional-commits marker, because it is the one signal a person deliberately
+ *           writes when they know they have broken something.
+ *   minor   any `feat:`. A new capability is what a customer push is FOR.
+ *   patch   everything else — fix, refactor, perf, docs, chore, test, style, ci, build.
+ *
+ * ⚠️ IT NEVER RETURNS MAJOR ON ITS OWN GUESS. There is no heuristic here reading diffs and
+ * deciding a rename "looks breaking". A major is the most expensive version to publish wrongly —
+ * both stores require monotonic versions, so it cannot be walked back — and the difference between
+ * a breaking change and a large one is a judgement only the author has. If nobody wrote the
+ * marker, this returns minor and says why. Under-calling costs a version number; over-calling
+ * costs the ability to ever use that number again.
+ *
+ * ⚠️ AN EMPTY LIST IS `patch`, NOT AN ERROR. A release cut with no commits since the last one is a
+ * rebuild, and the honest answer for a rebuild is the smallest possible bump.
+ *
+ * Pure: it is handed commit messages rather than shelling out to git, so it is testable and so the
+ * caller decides what "since the last release" means.
+ */
+export function classifyBump(commitMessages) {
+  const messages = (commitMessages ?? []).filter(m => typeof m === "string" && m.trim() !== "");
+  if (messages.length === 0) return { kind: "patch", reason: "no commits since the last version" };
+
+  const breaking = messages.find(isBreaking);
+  if (breaking) {
+    return { kind: "major", reason: `breaking change declared: ${firstLine(breaking)}` };
+  }
+
+  const feature = messages.find(isFeature);
+  if (feature) {
+    return { kind: "minor", reason: `new capability: ${firstLine(feature)}` };
+  }
+
+  return {
+    kind: "patch",
+    reason: `${messages.length} commit${messages.length === 1 ? "" : "s"}, none of them a feature or a declared break`,
+  };
+}
+
+const firstLine = m => m.split("\n")[0].trim();
+
+/**
+ * ⚠️ The `!` must be matched on the TYPE, not anywhere in the subject. `fix: don't panic!` is not a
+ * breaking change, and a looser test would have made it one.
+ */
+function isBreaking(message) {
+  const subject = firstLine(message);
+  if (/^[a-z]+(\([^)]*\))?!:/i.test(subject)) return true;
+  // The footer form. Both spellings are legal in the spec.
+  return /^BREAKING[ -]CHANGE:/m.test(message);
+}
+
+function isFeature(message) {
+  return /^feat(\([^)]*\))?:/i.test(firstLine(message));
+}
+
+/**
+ * The bump a classification produces. Separate from {@link nextVersion} because that one refuses a
+ * major on purpose — a major is only ever reached by the 9-carry, or declared here.
+ */
+export function applyBump(current, kind) {
+  const v = typeof current === "string" ? parseVersion(current) : { ...current };
+  if (kind === "major") return { major: v.major + 1, minor: 0, patch: 0 };
+  return nextVersion(v, kind);
+}
+
 export function nextVersion(current, kind) {
   const v = typeof current === "string" ? parseVersion(current) : { ...current };
   if (!underScheme(v)) {
