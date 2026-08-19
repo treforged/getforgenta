@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   allocateRankedSurplus,
+  computeAutoExtraReserve,
   rankTargets,
   type RankedTarget,
 } from '../ranked-surplus-allocation';
@@ -160,5 +161,49 @@ describe('allocateRankedSurplus — conservation and edges', () => {
     const a = [goal('g1', 2, 500), card('c1', 0, 100, 5_000), carFund('cf', 1, 300)];
     const b = [carFund('cf', 1, 300), goal('g1', 2, 500), card('c1', 0, 100, 5_000)];
     expect(allocateRankedSurplus(900, a)).toEqual(allocateRankedSurplus(900, b));
+  });
+});
+
+describe('computeAutoExtraReserve', () => {
+  const g = (id: string, sortOrder: number, capacity: number, autoExtra = true): RankedTarget =>
+    ({ id, kind: 'goal', sortOrder, minimum: 0, capacity, autoExtra });
+
+  it('reserves nothing when no target is opted in — the pre-feature path', () => {
+    expect(computeAutoExtraReserve(5_000, 300, 20_000, [])).toEqual({ reserved: 0, perTarget: [] });
+    expect(computeAutoExtraReserve(5_000, 300, 20_000, [g('a', 0, 1_000, false)]))
+      .toEqual({ reserved: 0, perTarget: [] });
+  });
+
+  it('reserves nothing for a goal that is already full', () => {
+    expect(computeAutoExtraReserve(5_000, 300, 20_000, [g('full', 0, 0)]).reserved).toBe(0);
+  });
+
+  it('keeps the cards first on an exact rank tie, rather than deciding it on a uuid', () => {
+    // Both at rank 0. The cards absorb the pool; the goal gets what is left, which is nothing.
+    const r = computeAutoExtraReserve(1_000, 200, 20_000, [g('tie', 0, 10_000)]);
+    expect(r.reserved).toBe(0);
+  });
+
+  it('reserves for a goal the user ranked above the cards', () => {
+    const r = computeAutoExtraReserve(1_000, 200, 20_000, [g('vacation', 0, 10_000)], 1);
+    // $200 of card minimum is settled first, then the goal takes the surplus.
+    expect(r.reserved).toBe(800);
+    expect(r.perTarget).toEqual([{ id: 'vacation', kind: 'goal', amount: 800 }]);
+  });
+
+  it('never reserves a card minimum, whatever the rank', () => {
+    for (const pool of [0, 50, 199.99, 200, 1_000, 25_000]) {
+      const r = computeAutoExtraReserve(pool, 200, 20_000, [g('greedy', 0, 1e9)], 99);
+      expect(r.reserved).toBeLessThanOrEqual(Math.max(0, pool - 200) + 0.005);
+    }
+  });
+
+  it('caps each goal at its remaining need and passes the rest down the ranking', () => {
+    const r = computeAutoExtraReserve(2_000, 0, 20_000, [g('small', 0, 150), g('big', 1, 10_000)], 5);
+    expect(r.perTarget).toEqual([
+      { id: 'small', kind: 'goal', amount: 150 },
+      { id: 'big', kind: 'goal', amount: 1_850 },
+    ]);
+    expect(r.reserved).toBe(2_000);
   });
 });

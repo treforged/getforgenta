@@ -16,6 +16,10 @@ import {
 } from './balance-tranches';
 import type { AccountRow, RuleRow, DebtRow } from '@/hooks/useSupabaseData';
 import type { Tables } from '@/integrations/supabase/types';
+// `ranked-surplus-allocation` imports nothing, deliberately: routing this through
+// `ranked-extra-payment-targets` instead would close a cycle back into this file via
+// `debt-payoff-order`.
+import { computeAutoExtraReserve, type AutoExtraReserve, type RankedTarget } from './ranked-surplus-allocation';
 // Re-exported so every file that already imports from credit-card-engine.ts (the bulk of the
 // debt/forecast surface) gets this without needing a second import line — scheduling.ts is the
 // canonical source since it has zero internal dependencies, avoiding a circular import (this
@@ -116,6 +120,9 @@ export type RecommendationSummary = {
   projectedPayoffMonths: number;
   utilizationMilestones: { threshold: number; month: number | null }[];
   cashWarning: boolean;
+  /** Ranked automatic extra payments held back from the card pool this month for opted-in goals
+   * and car funds. `reserved` is 0 and `perTarget` empty when nothing is opted in. */
+  autoExtra: AutoExtraReserve;
   strategyLabel: string;
   recommendedSafeMinimum: number;
   userCashFloor: number;
@@ -2169,6 +2176,11 @@ export function generateRecommendations(
   // §1B Stage 4A — rule occurrences the user confirmed a bank transaction already paid. Optional
   // and defaulted: omitting it must leave the recommendation byte-identical to pre-Stage-4.
   confirmedOccurrences?: ConfirmedOccurrences,
+  // Ranked automatic extra payments. Opted-in savings goals and car funds (auto_extra), already
+  // built by `buildRankedTargets`. Omitting it -- and passing only targets that are full or opted
+  // out -- leaves the recommendation byte-identical to before the feature existed, which is every
+  // existing user, since `auto_extra` defaults to false.
+  autoExtraTargets?: readonly RankedTarget[],
 ): RecommendationSummary {
   // Preference cards = zero-balance cycling cards only (balance <= 0 encoded in autopayFullBalance).
   // Positive-balance full/statement cards compete under normal strategy in revolvingCards —
@@ -2277,7 +2289,16 @@ export function generateRecommendations(
     });
   }
 
-  const safeToPayTotal = preferencePool; // remaining for revolving cards
+  // Ranked automatic extra payments. The card cascade below is left completely alone: this only
+  // decides how much of the pool belongs to opted-in goals and car funds, and the cascade then runs
+  // on the reduced pool exactly as it always has. `computeAutoExtraReserve` routes the decision
+  // through `allocateRankedSurplus`, where the combined card minimum is settled before any rank is
+  // consulted -- so a goal ranked above the cards can take only surplus, never a minimum.
+  const autoExtra = computeAutoExtraReserve(
+    preferencePool, totalMinDue, revolvingCards.reduce((s2, c) => s2 + Math.max(0, c.balance), 0),
+    autoExtraTargets ?? [],
+  );
+  const safeToPayTotal = preferencePool; // remaining for revolving cards, BEFORE the auto-extra reserve
 
   const cashWarning = Math.ceil(safeToPayTotal - totalMinDue) < 0;
 
@@ -2297,7 +2318,7 @@ export function generateRecommendations(
     snowball: 'Smallest Balance First',
   };
 
-  let remaining = safeToPayTotal;
+  let remaining = Math.max(0, safeToPayTotal - autoExtra.reserved);
   const recs: PayoffRecommendation[] = [...preferenceRecs];
 
   // Pure strategy sort — no preference-card priority. Full/statement positive-balance
@@ -2413,7 +2434,8 @@ export function generateRecommendations(
   return {
     totalAvailableCash: totalRecommendedPayment,
     totalMinimumsdue: totalMinDue,
-    extraCashAvailable: Math.max(0, safeToPayTotal - totalMinDue),
+    extraCashAvailable: Math.max(0, safeToPayTotal - totalMinDue - autoExtra.reserved),
+    autoExtra,
     recommendations: filteredRecs,
     interestAvoided: Math.round((interestMinOnly - interestWithRecs) * 100) / 100,
     projectedPayoffMonths,

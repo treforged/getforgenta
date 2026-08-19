@@ -129,3 +129,60 @@ export function allocateRankedSurplus(
     minimumShortfall: round2(minimumShortfall < CENT ? 0 : minimumShortfall),
   };
 }
+
+export type AutoExtraReserve = {
+  /** Total to hold back from the card pool this month for goals and car funds. */
+  reserved: number;
+  /** Per-target share, in ranked order. Empty when nothing is reserved. */
+  perTarget: { id: string; kind: 'car_fund' | 'goal'; amount: number }[];
+};
+
+/**
+ * How much of the revolving-card pool this month belongs to opted-in goals and car funds.
+ *
+ * The card cascade in `generateRecommendations` is elaborate and correct, and replacing it would
+ * risk everything the Q1–Q12 anomaly history bought. So this does not replace it: it decides a
+ * RESERVE, the cascade then runs unchanged on the reduced pool. When nothing is opted in the
+ * reserve is 0 and the cascade sees exactly the pool it saw before — which is every existing user,
+ * since `auto_extra` defaults to false.
+ *
+ * The whole card block enters the allocator as ONE synthetic target carrying the combined minimum
+ * due and the combined balance. That is what keeps the minimum-protection proof intact: a goal
+ * ranked above the cards is ranked above the block's SURPLUS, never its minimums, because
+ * `allocateRankedSurplus` settles every minimum before it consults a rank at all.
+ */
+export function computeAutoExtraReserve(
+  pool: number,
+  cardMinimumsTotal: number,
+  cardBalanceTotal: number,
+  targets: readonly RankedTarget[],
+  /** Where the card block sits in the user's list. Defaults to 0 -- cards first, today's
+   * behaviour, and the conservative reading for a user who has ranked nothing yet. */
+  cardsSortOrder = 0,
+): AutoExtraReserve {
+  const rankable = targets.filter(t => t.kind !== 'card' && t.autoExtra !== false && t.capacity >= CENT);
+  if (rankable.length === 0) return { reserved: 0, perTarget: [] };
+
+  const CARD_BLOCK = '__cards__';
+  const { allocations } = allocateRankedSurplus(pool, [
+    ...rankable,
+    {
+      // Half a rank ahead of its nominal position, so an exact tie with a target's rank resolves
+      // in favour of the cards. Ties are otherwise broken on id, which for a uuid vs a sentinel is
+      // arbitrary -- and "arbitrary" is not an acceptable way to decide whether debt or a goal gets
+      // the money. Every non-tie comparison is unaffected: a UI that hands out 0, 1, 2 places the
+      // card row exactly where the user dragged it.
+      id: CARD_BLOCK, kind: 'card', sortOrder: cardsSortOrder - 0.5,
+      minimum: Math.max(0, cardMinimumsTotal), capacity: Math.max(0, cardBalanceTotal),
+    },
+  ]);
+
+  const perTarget = allocations
+    .filter(a => a.id !== CARD_BLOCK && a.total >= CENT)
+    .map(a => ({ id: a.id, kind: a.kind as 'car_fund' | 'goal', amount: a.total }));
+
+  return {
+    reserved: Math.round(perTarget.reduce((s, t) => s + t.amount, 0) * 100) / 100,
+    perTarget,
+  };
+}
