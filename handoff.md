@@ -1,5 +1,25 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (the shared maintenance log, and Slice 7) — **`45efa0fc` on `fix/public-maintenance-log`**, cut from `feat/slice6-store-category-learning`. Gates: tsc 0, eslint clean, **1726 passed across 184 files**, build exit 0. NOT yet pushed.
+>
+> ⚠️ **BRANCH STACK: `main` ← #114 (`feat/demo-in-signup`) ← #115 (`feat/slice6-...`) ← this branch.** Merge in that order.
+>
+> **1. ✅ THE PUBLIC MAINTENANCE LOG (`43cba8a4`).** Tre: *"when maintenance log is marked public, its not showing on the shared build page."*
+> - ⚠️ **THE CODE SHIPPED; THE FUNCTION NEVER DID.** `public-build` was live at **version 10, last updated June**; the maintenance feature is dated **2026-08-12**. The deployed function selected no `maintenance_public`, ran no maintenance query and returned neither field. Every other half — migration, toggle, column allowlist, share page, tests — had been correct and unreachable for a week. **No test could see it**: `public-maintenance.test.ts` asserts the SOURCE, which was right.
+> - ⚠️ **AND THE FIX WOULD HAVE SHIPPED A WORSE BUG.** `public-build` was **absent from `supabase/config.toml`**, the file whose own header says an undeclared function *"is not left alone on deploy — it is silently flipped to true"*. A routine `supabase functions deploy public-build` would have set `verify_jwt = true` on an endpoint whose whole purpose is serving strangers with a link.
+> - **It was not alone.** Auditing all 25 live functions found **15 undeclared, 7 of them anonymous-callable**: `public-build`, `verify-turnstile`, `verify-checkout`, `grant-promo-premium`, `unverified-nudge`, `newsletter-digest`, `publish-slot`. All 25 now declared, every value **read off the LIVE list**, not off what the file believed.
+> - 🔬 **VERIFIED AGAINST THE RUNNING ENDPOINT:** now v11, `verify_jwt` still false, all other functions unchanged. Flag ON → `maintenancePublic true`, 7 rows. Flag OFF → false, 0 rows. Returned fields are `id, service, service_date, odometer, next_due_date, next_due_odometer` — **`cost`, `vendor`, `notes` absent**, `share_token` absent, `maintenance_public` stripped from the build object, malformed token still 404.
+>
+> **2. ✅ SLICE 7 — TOKEN SWEEP (`45efa0fc`).** Light mode turned this from cleanup into correctness. 49 hardcoded hexes + 35 raw palette classes, all mapped to the ROLE they meant.
+> - ⚠️ **WHAT WAS LEFT ALONE ON PURPOSE, because off-token ≠ wrong:** the **phase accent palettes** (decorative identity per phase, same role as chart series colours — they must NOT follow the theme, and the sweep skips those lines by content); **`BlackScreenDebug.tsx`** entirely (it renders when styling has FAILED); the **`installment` blue** in `Transactions.tsx` (blue has no token role — flattening it to gold would remove a distinction, so it is reported not recoloured); BuildHeader's banner gradient.
+> - 🔬 **LIVE in light mode:** Garage list + an expanded phase's item rows (were `bg-[#0e0e0e]` / `text-[#c8c2b8]`), and the Debt utilization panel. Theme restored to `system` afterwards.
+>
+> **⬜ NEXT:** (1) Push this branch and file its PR. (2) ⬜ **Decide the `installment` blue** — it wants a token or a deliberate recolour. (3) Per-surface **390px re-passes**, now doubly worth doing in both themes. (4) Screenshots still DEFERRED.
+>
+> **⬜ CARRIED:** `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges); no crowd suggestion seen rendered yet (Slice 6's table is empty until votes accumulate); merchant memory + Garage maintenance log unaudited in demo.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (Slice 6 and light mode) — **`36944227` on `feat/slice6-store-category-learning`**, cut from `feat/demo-in-signup`. Gates: tsc 0, eslint clean, **1726 passed across 184 files** (+18), build exit 0.
 >
 > **PR #114 IS OPEN AND FILED** (demo audit + DTI + §2.4 Phase 2 + Settings panels). This branch stacks on it — it does NOT branch from `main`, because main does not have #114 yet. Merge #114 first.
