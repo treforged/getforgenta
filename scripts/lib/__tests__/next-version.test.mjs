@@ -121,8 +121,17 @@ describe("the VERSION file this repo actually ships", () => {
     expect(underScheme(declared)).toBe(true);
   });
 
-  it("starts the scheme at 6.0.0", () => {
-    expect(declared).toBe("6.0.0");
+  // ⚠️ THIS USED TO ASSERT THE LITERAL "6.0.0", which made it a test that fails on every release
+  // rather than on every mistake. It went red the moment VERSION was bumped to 6.1.0 for the next
+  // customer push -- correct behaviour, red test -- and the bump was made after that run's suite,
+  // so a red suite shipped unnoticed (2026-08-19). A test that pins a value designed to move is
+  // not protecting anything; what actually matters is that the file never goes BACKWARDS past the
+  // start of the scheme and never becomes illegal.
+  it("is at or after the version the scheme starts from, and never before it", () => {
+    const v = parseVersion(declared);
+    const start = parseVersion("6.0.0");
+    const rank = ({ major, minor, patch }) => major * 10_000 + minor * 100 + patch;
+    expect(rank(v)).toBeGreaterThanOrEqual(rank(start));
   });
 });
 

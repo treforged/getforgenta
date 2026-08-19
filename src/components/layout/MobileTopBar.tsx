@@ -52,7 +52,18 @@ export default function MobileTopBar() {
 
   return (
     <>
-      <div className="lg:hidden relative flex items-center h-12 px-2 border-b border-border bg-card">
+      {/* ⚠️ THE SAFE-AREA INSET IS ON THE BAR ITSELF, and it has to be. `index.html` sets
+          `viewport-fit=cover`, so on a notched iPhone the web view extends UNDER the status bar —
+          and this bar is the topmost element in the normal signed-in app. Without the inset its
+          44px hamburger sat beneath the clock and the Dynamic Island, which is not merely ugly:
+          the menu is the ONLY route to Settings on mobile, so the button being untappable put
+          Settings out of reach entirely (Tre, 2026-08-19, from TestFlight).
+          ⚠️ WHY NOBODY CAUGHT IT: `DemoBanner` carries its own safe-area padding and renders ABOVE
+          this bar, so every check run in demo mode looked correct. The bug only exists signed in. */}
+      <div
+        className="lg:hidden relative flex items-center h-12 px-2 border-b border-border bg-card"
+        style={{ paddingTop: 'env(safe-area-inset-top)', boxSizing: 'content-box' }}
+      >
         <button
           onClick={() => setOpen(!open)}
           aria-label="Open menu"

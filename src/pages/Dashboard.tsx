@@ -1414,7 +1414,13 @@ export default function Dashboard() {
       {/* Header. Demoted to the section-label style: the hero number below is the biggest
           thing on the page, and the <h1> outranking it was the old shape, not a bug here. */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-row items-center justify-between gap-3">
+        {/* ⚠️ STACKS ON NARROW. This was `flex-row` at every width with four `shrink-0` buttons in
+            it, and at 390px the arithmetic could only end one way: the buttons refused to shrink,
+            the title's `min-w-0` let it collapse, and the row overflowed left ACROSS the title —
+            "COMMAND CENTER / August 2026" wrapped to three lines with Customize/PDF/Add/Guide
+            drawn on top of it (Tre, 2026-08-19, iPhone). Every other page header in the app
+            already used this pattern; the dashboard was the one that did not. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h1 className="text-xs uppercase tracking-wider text-muted-foreground">Command Center</h1>
@@ -1424,8 +1430,9 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {/* One compact row on every width. The labels stay — collapsing to bare icons
-              would take the affordance away, and these are the page's only actions. */}
+          {/* The labels stay — collapsing to bare icons would take the affordance away, and these
+              are the page's only actions. What changed is WHERE the row goes when it does not fit:
+              onto its own line, rather than over the title. */}
           <div className="flex flex-row items-center gap-1.5 shrink-0">
             <button
               onClick={() => setCustomizing(true)}
