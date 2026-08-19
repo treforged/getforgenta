@@ -1,5 +1,7 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
+import ConnectionNotice from '@/components/shared/ConnectionNotice';
+import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router";
 import { Capacitor } from '@capacitor/core';
@@ -93,12 +95,52 @@ function ThemeSync() {
   return null;
 }
 
+/**
+ * How long a route may be "loading" before the app admits something is wrong.
+ *
+ * Long enough that a slow-but-working connection is never accused — a cold chunk over poor mobile
+ * data can legitimately take several seconds — and short enough that nobody sits watching a
+ * shimmer that is never going to resolve. Offline is not subject to it: if the device says there
+ * is no network, there is nothing to wait for.
+ */
+const SLOW_ROUTE_MS = 12_000;
+
 function PageLoader() {
-  return (
-    <div className="flex items-center justify-center min-h-[50vh]">
-      <div className="text-sm text-muted-foreground animate-pulse">Loading…</div>
-    </div>
-  );
+  const [tooLong, setTooLong] = useState(false);
+  const [offline, setOffline] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setTooLong(true), SLOW_ROUTE_MS);
+    return () => clearTimeout(t);
+  }, [attempt]);
+
+  useEffect(() => {
+    const on = () => setOffline(false);
+    const off = () => setOffline(true);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+
+  // ⚠️ OFFLINE SHOWS IMMEDIATELY; SLOW HAS TO EARN IT. A device that reports no network is a fact,
+  // not a suspicion, and making someone watch a shimmer for twelve seconds to be told what their
+  // status bar already says is the app pretending not to know.
+  if (offline || tooLong) {
+    return (
+      <ConnectionNotice
+        offline={offline}
+        // Re-arm the clock rather than reloading. React re-attempts the lazy import on its own; a
+        // reload would discard the whole session to retry one file. See ConnectionNotice.
+        onRetry={() => { setTooLong(false); setAttempt(a => a + 1); }}
+      />
+    );
+  }
+
+  // ⚠️ THE SHAPE FIRST. `PageSkeleton` holds the layout of what is coming, which a spinner cannot,
+  // and this is a route chunk arriving rather than an error — so for the first stretch the honest
+  // picture is "your page is on its way", not "something is wrong".
+  return <PageSkeleton />;
 }
 
 function GateNotice({ label }: { label: string }) {

@@ -278,6 +278,39 @@
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
+/* ── Skeleton shimmer ──────────────────────────────────────────────────────────────────────
+   A light sweeping left to right across a loading placeholder, on top of its flat `bg-muted`.
+
+   WHY A SWEEP RATHER THAN THE PULSE IT REPLACES. A pulse fades the whole block in and out, which
+   at a glance is hard to tell from a UI element that is disabled or half-rendered — a still frame
+   of it looks like a bug. A sweep has a direction, and direction reads as progress: something is
+   travelling, so something is happening. That is the one thing a loading state has to say.
+
+   ⚠️ IT IS DELIBERATELY FAINT (7%). The placeholder's job is to hold the SHAPE of what is coming;
+   a bright shimmer competes with the real content the moment it lands, and on this app's near-black
+   background anything stronger reads as a highlight rather than a wait.
+
+   ⚠️ MOTION IS OFF FOR ANYONE WHO ASKED FOR THAT. It degrades to the flat block, which still holds
+   the shape — the information is in the layout, not the animation, so nothing is lost. */
+@utility skeleton-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--foreground) / 0.07) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+    background-image: none;
+  }
+}
+
 @utility pt-safe {
   padding-top: max(0.75rem, env(safe-area-inset-top));
 }

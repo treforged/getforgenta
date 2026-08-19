@@ -60,10 +60,10 @@ export default function MobileTopBar() {
           Settings out of reach entirely (Tre, 2026-08-19, from TestFlight).
           ⚠️ WHY NOBODY CAUGHT IT: `DemoBanner` carries its own safe-area padding and renders ABOVE
           this bar, so every check run in demo mode looked correct. The bug only exists signed in. */}
-      <div
-        className="lg:hidden relative flex items-center h-12 px-2 border-b border-border bg-card"
-        style={{ paddingTop: 'env(safe-area-inset-top)', boxSizing: 'content-box' }}
-      >
+      {/* ⚠️ NO SAFE-AREA INSET HERE. `DashboardLayout`'s sticky wrapper owns it — see the comment
+          there. This bar is `lg:hidden`, so it cannot be the inset's owner for the whole app, and
+          for one build it carried the inset while `main` carried a second copy. */}
+      <div className="lg:hidden relative flex items-center h-12 px-2 border-b border-border bg-card">
         <button
           onClick={() => setOpen(!open)}
           aria-label="Open menu"

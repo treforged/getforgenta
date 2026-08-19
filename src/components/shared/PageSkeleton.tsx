@@ -59,7 +59,7 @@ export function SkeletonMetricGrid({ count = 4 }: { count?: number }) {
 export function SkeletonChart({ height = 200, bars = 8 }: { height?: number; bars?: number }) {
   const heights = [42, 58, 50, 66, 72, 60, 78, 84, 70, 90, 62, 76];
   return (
-    <div className="flex items-end gap-2 px-2 pb-4 animate-pulse" style={{ height }}>
+    <div className="flex items-end gap-2 px-2 pb-4 skeleton-shimmer" style={{ height }}>
       {Array.from({ length: bars }).map((_, i) => (
         <div key={i} className="flex-1 bg-muted/40 rounded-sm" style={{ height: `${heights[i % heights.length]}%` }} />
       ))}
