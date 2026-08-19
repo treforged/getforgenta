@@ -13,6 +13,7 @@ follows.
 """
 
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -24,11 +25,51 @@ _ROOT = Path(__file__).resolve().parent.parent
 _BACKUPS_DIR = _ROOT / "backups"
 _STATE_FILE = _BACKUPS_DIR / ".drive-sync-state.json"
 _LOG_FILE = _ROOT / "scripts" / "backup-drive-sync.log"
-_RETENTION_DAYS = 14
+# Env-overridable so a run can be made non-destructive: `FORGENTA_BACKUP_RETENTION_DAYS=100000`
+# uploads without pruning anything. Added 2026-08-19 for the first run after the six-week outage --
+# proving the upload path works again should not be the same action that deletes local copies.
+_RETENTION_DAYS = int(os.environ.get("FORGENTA_BACKUP_RETENTION_DAYS", "14"))
+# Set FORGENTA_BACKUP_DRY_RUN=1 to zip and report without uploading or deleting.
+_DRY_RUN = os.environ.get("FORGENTA_BACKUP_DRY_RUN") == "1"
 _DRIVE_FOLDER_NAME = "Forgenta Local Backups"
 
-sys.path.insert(0, str(_ROOT / "tre-forged-marketing" / "src"))
-from gdrive import _get_or_create_folder, _get_service  # noqa: E402
+# Where the Drive helper lives, and why this is a search rather than one path.
+#
+# THIS IS THE SECOND HALF OF THE 2026-08-19 OUTAGE, and it is a different bug from the OneDrive
+# lock. `tre-forged-marketing` used to sit inside this repo; it is now its own private repo, a
+# SIBLING of it. The moment it moved, this import raised ModuleNotFoundError -- at module scope,
+# before `main()` and before any logging could happen. Task Scheduler recorded the 2026-08-13 run
+# as started and finished with result 0, and the log has nothing at all for that date. A job that
+# dies at import is invisible to every safety measure inside the file.
+#
+# So: look in both places, allow an env override, and if it still cannot be found, say so in the
+# LOG rather than only on a stderr nobody is reading.
+_GDRIVE_CANDIDATES = [
+    Path(p) for p in [os.environ.get("FORGENTA_MARKETING_SRC", "")] if p
+] + [
+    _ROOT / "tre-forged-marketing" / "src",       # historic: nested inside this repo
+    _ROOT.parent / "tre-forged-marketing" / "src",  # current: sibling private repo
+]
+
+for _candidate in _GDRIVE_CANDIDATES:
+    if (_candidate / "gdrive.py").exists():
+        sys.path.insert(0, str(_candidate))
+        break
+
+try:
+    from gdrive import _get_or_create_folder, _get_service  # noqa: E402
+except ModuleNotFoundError as _exc:  # pragma: no cover - the failure this exists to make visible
+    _searched = "; ".join(str(c) for c in _GDRIVE_CANDIDATES)
+    _msg = (
+        f"*** BACKUP SYNC CANNOT START: gdrive.py not found. Searched: {_searched}. "
+        f"Set FORGENTA_MARKETING_SRC to its src/ directory. ({_exc}) ***"
+    )
+    try:
+        with open(_ROOT / "scripts" / "backup-drive-sync.log", "a", encoding="utf-8") as _fh:
+            _fh.write(f"{datetime.now().isoformat(timespec='seconds')}  {_msg}\n")
+    except Exception:  # noqa: BLE001 - never let logging failure hide the real error
+        pass
+    raise SystemExit(_msg)
 
 
 def _log(msg: str) -> None:
