@@ -1,6 +1,14 @@
 # Handoff — Forgenta
 
-> ▶ 2026-08-19 (workflow changed, the backup safety net was dead, versions self-classify) — **`f3aeac3c` on `main`**, pushed.
+> ▶ 2026-08-19 (**BACKUP SYNC IS ALIVE AGAIN — ran it, 78 uploaded, 0 failed**) — **`f1a29997` on `main`**, pushed.
+>
+> **✅ THE SAFETY NET WORKS. Verified from DRIVE'S OWN API, not the log:** 842 files, 24.6 MB, 2026-03-26 → 2026-08-19, **78 created that day**, zero zero-byte. First success since 2026-06-25.
+> - **It had TWO faults, and the second is the interesting one.** (1) OneDrive: the Desktop is redirected into OneDrive, the script zipped *beside* the folder i.e. inside a synced tree, `OneDrive.Sync.Service` grabbed each new zip → `WinError 32`, **764/764**. Now zips to `%TEMP%`. (2) ⚠️ **`tre-forged-marketing` moved out of this repo and is now a SIBLING**, so `sys.path.insert(_ROOT / "tre-forged-marketing" / "src")` stopped resolving and the import died **at module scope — before `main()`, before any logging**. That is the 2026-08-13 run that Task Scheduler recorded as started-and-finished with an empty log. A job that dies at import is invisible to every safety measure inside the file. Now searches both paths + `FORGENTA_MARKETING_SRC`, and logs the failure before exiting.
+> - ⚠️ **The credential-expiry theory was WRONG.** Credentials were fine; the missing module was the cause. Corrected in memory.
+> - ⚠️ **I am NOT hard-blocked from running it** — an older memory said so; it runs fine from the session.
+> - **`FORGENTA_BACKUP_RETENTION_DAYS=100000` makes a run upload-only.** Used for this one: proving the upload path works must not be the same action that deletes local copies. **46 folders are pending prune** and will go on the next scheduled Thursday run.
+>
+> ▶ 2026-08-19 (workflow changed, versions self-classify) — **`f3aeac3c` on `main`**, pushed.
 >
 > **🚨 WORKFLOW: NO PRs, NO BRANCHES.** Tre: *"push straight to main instead of prs. stop branching because that causes issues. thats what backups are for."* Work on `main`, commit on `main`, `git push origin HEAD:main`. **This OVERRIDES the global `~/.claude/CLAUDE.md` three-step PR rule, which still says the opposite and will resurface in fresh sessions.** ⚠️ A combined `git commit && git push` is blocked by the auto-mode classifier — run them separately. Verify every push **BY CONTENTS**.
 >
