@@ -1,5 +1,34 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-18 (the demo stops aging and stops contradicting itself) — **`e5db12fa` on `feat/demo-in-signup`.** Gates: tsc 0, eslint clean, **1693 passed across 180 files** (+11), build exit 0. NOT pushed.
+>
+> **✅ OWED ITEM 4 IS SUBSTANTIALLY CLOSED.** Tre: *"the demo data should demonstrate ALL the features."* The audit was done with the app open in demo at `localhost:8080`, surface by surface, and every fault below was invisible from the fixture file alone.
+>
+> ⚠️ **FIRST, A CORRECTION TO THE PREVIOUS HANDOFF.** It said `useAllSyncedTransactions` returns `[]` in demo and that the Decision Deck and the patterns card are structurally empty. **That was already fixed in PR #111** — `demoSyncedTransactions` exists, the deck holds 81 cards and Bank Activity badges 42. Do not re-do it.
+>
+> **What was actually wrong, and what shipped:**
+> - **The ledger accused itself of double-charging.** Every recurring demo row restated a row `demoRecurringRules` generates, so `scanForDuplicateTransactions` correctly put *"Possible duplicate payment — 4 months"* across the top of the sales surface. ⚠️ **The fix is `origin: 'synced'` on the recorded months, and it is not a trick** — it is what those rows are, history that reached the ledger from the bank feed, and `isManualCandidate` exempts exactly that. A test flips them back to `'manual'` and asserts the collisions RETURN, so the exemption cannot widen into "nothing is ever checked". `Transaction` gained `origin?: string` (the DB column already existed).
+> - **The current month is no longer written out at all.** `mergeWithGeneratedTransactions` expands the rules over it; restating it WAS the duplication. Past months recorded, this month projected.
+> - **130 hand-written rows became a generator over five months.** Four months of ledger against a six-month cash-flow chart opened on two empty bars. Now six filled bars.
+> - **Month names out of the notes** — "Roommate – April" was appearing against 2026-08-01. A test forbids a month name in any note.
+> - **Net worth history was frozen in Jan–Apr 2026:** the chart ran to Mar 27 and ended at +$3,900 while the tile above it read −$22,600. 26 weekly points, derived, ending today and closing on the fixture's own totals. ⚠️ **The RAV4 is now booked as a $29,000 ASSET** — that was the actual missing piece, the tile read −$22,600 for someone who owns the car. It reads **+$6,400** now, and `demoAssets` is no longer empty (which also gives the Accounts page's Assets filter something a live account cannot show).
+> - **Three of five `/debt` panels were empty, Other Debts reading "$0 / $0 / $0".** A `student_loan` account + matching debt row lights Student Loans ($8,000, 5.5%, 107 months, $2,165 interest); a dental plan matching no account lands in Other Debts, which is the rule `DebtPayoff.tsx` already uses. ⚠️ **Mortgage stays empty ON PURPOSE** — Jordan rents (rule r2, $1,600), and inventing a mortgage to light a tab is the one demo number a visitor could catch out. A test pins that reasoning.
+> - **The bank feed no longer serves settled charges dated after today** — the cadences run to the 27th, so before then the deck was handing out `pending: false` charges dated in the future.
+> - **Subscription renewals and payment-plan start dates are derived.** All six renewals were pinned to 2026-04-xx, and the four-payment AirPods plan had already run to completion.
+> - **Two guides stopped naming fixtures that were removed months ago** — a "$6,000 car purchase in June" and a "$3,000 gift in June" on the Planning tab — and the story card's "debt-free in under a year" now matches the hero's "1 yr 3 mo".
+>
+> 🔬 **LIVE-VERIFIED in demo:** no duplicate warning on any month; six filled cash-flow bars; net worth history **Feb 23 → Aug 1 ending on $6,400** with the tile agreeing; Student Loans and Other Debts both populated; **payoff date unchanged at Nov 2027** (the new minimums cost $62 of floor headroom, $1,374 → $1,312).
+>
+> ⚠️ **MECHANICS WORTH KEEPING.** `localhost:8080` is served by the MAIN tree (checked via `netstat -ano` → `Get-CimInstance Win32_Process`). **Any full page load drops the demo flag** — it is in-memory — so navigate inside the app by clicking the nav, not by `navigate`. The dashboard scrolls in an inner container: **scroll at x≈855**, the outer edge, or nothing moves. `javascript_tool` still returns `[BLOCKED]` on large text dumps. And a screenshot right after a click **times out on the first attempt and succeeds on the second** — just call it twice.
+>
+> **⬜ RAISED, NOT FIXED — the Dashboard's Debt-to-Income tile reads 0.5%.** `dti = debtBreakdown.totalMinimumsDue / summary.income`, i.e. what is LEFT to pay this month, not the monthly debt obligation a DTI means. It is an app-level metric definition, not a demo fixture, and redefining a ratio in a financial app is Tre's call — flagged rather than changed.
+>
+> **⬜ LEFT OF ITEM 4, deliberately:** `useSyncedTransactions(monthKey)` still returns `[]` in demo, so Budget Control's bank-confirmation badges stay dark. Serving the month-scoped slice of `demoSyncedTransactions` would light them, but that hook also feeds `CardProjectionContext`'s month-0 spend, so it can move the payoff date — it wants its own slice with the engine numbers re-checked. Also unaudited: merchant memory and the Garage's maintenance log beyond a glance.
+>
+> **⬜ NEXT, otherwise unchanged:** (1) Settings tabs with Profile+Invite together, folding in the merchant-memory reshape. (2) Slice 6 global store→category learning (ATTENDED: migration + RLS + privacy copy). (3) Light mode. (4) Screenshots stay DEFERRED until Tre says the design has settled.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-18 (the demo moves inside sign-up) — **`db9da7c3` on `feat/demo-in-signup`, cut from merged `main` (`d5efd42a`).** Gates: tsc 0, eslint clean, **1682 passed across 179 files** (+13), build exit 0. NOT pushed.
 >
 > **✅ OWED ITEM 3 IS CLOSED.** Tre: *"lets make the demo only accessible when you sign up, so you can see a reference account for example when the user sets up."*
