@@ -1,12 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Json } from '@/integrations/supabase/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { useProfile, useAccounts } from '@/hooks/useSupabaseData';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Capacitor } from '@capacitor/core';
-import { Link } from 'react-router';
-import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Terminal } from 'lucide-react';
+import { Link, useLocation } from 'react-router';
+import { Settings as SettingsIcon, Crown, Save, CheckCircle, AlertCircle, Lock, Mail, CreditCard, X, Loader2, Trash2, MessageCircle, Shield, Copy, Share2, Monitor, Bug, LogOut, Terminal, User } from 'lucide-react';
 
 const DEV_EMAIL = 'tre@treforged.com';
 const DEV_DEBUG_KEY = 'forged:dev_debug';
@@ -20,6 +20,9 @@ interface TrustedDevice {
 import { LinkedAccounts } from '@/components/settings/LinkedAccounts';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
+import { usePersistedState } from '@/hooks/usePersistedState';
+import PanelBar from '@/components/shared/PanelBar';
+import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { getDayName } from '@/lib/scheduling';
 import { supabase } from '@/integrations/supabase/client';
 import { tracedInvoke } from '@/lib/tracer';
@@ -104,9 +107,42 @@ function PaymentUpdateForm({ onSuccess, onCancel }: { onSuccess: () => void; onC
 }
 
 
+/** The panel row's own values. `page-guides.ts` keys `settings:<panel>` off exactly these. */
+type SettingsPanel = 'account' | 'security' | 'preferences' | 'plan';
+
 export default function SettingsPage() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
+  const location = useLocation();
+
+  // ── Panels ────────────────────────────────────────────────────────────────────────────
+  // Settings was one scrolling column of nine cards. Tre asked for tabs with "Profile and
+  // Invite together", which is the grouping below: Account is who you are and how you share
+  // or end the account, and the merchant-memory card moved in beside Display because both are
+  // about how the app behaves rather than who you are.
+  const [activeTab, setActiveTab] = usePersistedState<SettingsPanel>('tre:settings:activeTab', 'account');
+
+  // ⚠️ THE ROW IS BUILT, NOT HARD-CODED. Security, Plan and the Danger Zone all render nothing
+  // in demo, so a fixed row would offer two tabs that open onto an empty page — the emptiest
+  // possible empty state, one with not even a reason in it.
+  const panels = useMemo<{ key: SettingsPanel; label: string; icon: typeof User }[]>(() => [
+    { key: 'account' as const, label: 'Account', icon: User },
+    ...(isDemo ? [] : [{ key: 'security' as const, label: 'Security', icon: Shield }]),
+    { key: 'preferences' as const, label: 'Preferences', icon: Monitor },
+    ...(isDemo ? [] : [{ key: 'plan' as const, label: 'Plan', icon: Crown }]),
+  ], [isDemo]);
+
+  // A persisted tab outlives the reason it was available: leaving demo and coming back, or the
+  // reverse, can restore a panel this render does not offer. Fall back rather than show nothing.
+  const panel: SettingsPanel = panels.some(p => p.key === activeTab) ? activeTab : 'account';
+
+  // ⚠️ `/settings#security` IS A LIVE LINK — the Dashboard's security prompt points at it. Behind
+  // a tab that anchor would scroll to an element that is not rendered, i.e. do nothing at all, so
+  // the hash selects the panel instead. Deliberately not `panel` in the deps: this must fire when
+  // the user ARRIVES on the link, not every time they then click another tab.
+  useEffect(() => {
+    if (location.hash === '#security' && !isDemo) setActiveTab('security');
+  }, [location.hash, isDemo, setActiveTab]);
   const { data: profile, loading, update } = useProfile();
   const { data: accounts } = useAccounts();
   const { subscription, isPremium, hasStripeCustomer, isLoading: subLoading, refetch: refetchSub } = useSubscription();
@@ -420,11 +456,17 @@ export default function SettingsPage() {
           <SettingsIcon size={18} className="text-primary" />
           <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Settings</h1>
         </div>
-        {dirty && !isDemo && (
-          <button onClick={handleSave} disabled={update.isPending} className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
-            <Save size={12} /> {update.isPending ? 'Saving...' : 'Save Changes'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* ⚠️ SAVE STAYS OUTSIDE THE PANELS, and that is load-bearing: edits on one panel must
+              still be savable after switching to another, or tabbing away would quietly discard
+              typed work — the rule the backdrop-tap save was built on. */}
+          {dirty && !isDemo && (
+            <button onClick={handleSave} disabled={update.isPending} className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 text-xs font-medium btn-press disabled:opacity-50" style={{ borderRadius: 'var(--radius)' }}>
+              <Save size={12} /> {update.isPending ? 'Saving...' : 'Save Changes'}
+            </button>
+          )}
+          <SurfaceGuide surface="settings" />
+        </div>
       </div>
 
       {isDemo && (
@@ -434,6 +476,20 @@ export default function SettingsPage() {
         </div>
       )}
 
+      <div className="stack-row">
+        <PanelBar>
+          {panels.map(({ key, label, icon: Icon }) => (
+            <button key={key} onClick={() => setActiveTab(key)}
+              className={`seg-item btn-press ${panel === key ? 'seg-item-active' : ''}`}
+              style={{ borderRadius: 'var(--radius)' }}>
+              <Icon size={13} /> {label}
+            </button>
+          ))}
+        </PanelBar>
+      </div>
+
+      {/* ── Preferences: how the app behaves ──────────────────────────────────────────── */}
+      {panel === 'preferences' && (<>
       {/* Display Preferences */}
       <div className="card-forged p-5 space-y-4">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Display</h2>
@@ -471,7 +527,10 @@ export default function SettingsPage() {
           the whole promise of the feature: a decision the app applies everywhere has to be
           reversible somewhere obvious. Renders nothing at all until something has been learned. */}
       <MerchantRulesSettings />
+      </>)}
 
+      {/* ── Account: who you are, how you share it, how you end it ────────────────────── */}
+      {panel === 'account' && (<>
       {/* Profile */}
       <div className="card-forged p-5 space-y-4">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Profile</h2>
@@ -486,9 +545,22 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Account Security — hidden in demo */}
-      {!isDemo && (
-        <div id="security" className="card-forged p-5 space-y-5">
+      </>)}
+
+      {/* ── Security: who can get in ──────────────────────────────────────────────────── */}
+      {/* ⚠️ Account renders in TWO fragments — here and again below — because the source order is
+          Profile, Security, Invite, Support, Danger Zone and this keeps every card exactly where
+          it has always been in the file. Moving 200 lines to make one fragment would buy tidiness
+          with a diff nobody can review. On screen they are still contiguous: Security is filtered
+          out of the Account panel entirely. */}
+      {/* Account Security — hidden in demo.
+          ⚠️ THE `id="security"` ANCHOR IS GONE ON PURPOSE. The hash is handled by the effect at
+          the top of this component, which selects the panel; leaving the anchor in as well made
+          the browser ALSO attempt its native jump, and with the card inside a freshly-mounted
+          panel that landed as a sideways scroll with the page cut off at the right edge. One
+          mechanism, not two. `/settings#security` still works — it just works once. */}
+      {panel === 'security' && !isDemo && (
+        <div className="card-forged p-5 space-y-5">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Account Security</h2>
 
           {/* Change Email */}
@@ -698,8 +770,8 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Invite a Friend */}
-      {!isDemo && user && (
+      {/* Invite a Friend — Tre asked for this to sit with Profile (2026-08-18) */}
+      {panel === 'account' && !isDemo && user && (
         <div className="card-forged p-5 space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Share2 size={12} /> Invite a Friend
@@ -736,7 +808,7 @@ export default function SettingsPage() {
       )}
 
       {/* Support */}
-      {!isDemo && (
+      {panel === 'account' && !isDemo && (
         <div className="card-forged p-5 space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Support</h2>
           {isPremium ? (
@@ -801,8 +873,10 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Danger Zone — hidden in demo mode */}
-      {!isDemo && (
+      {/* Danger Zone — hidden in demo mode. Last card on Account, and deliberately so: the way
+          out of the product sits at the bottom of the page about the account, not beside a
+          preference someone is mid-way through changing. */}
+      {panel === 'account' && !isDemo && (
         <div className="card-forged p-5 space-y-4 border border-destructive/20">
           <h2 className="text-xs font-medium text-destructive uppercase tracking-wider">Danger Zone</h2>
 
@@ -905,8 +979,9 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* ── Plan: the subscription ─────────────────────────────────────────────────────── */}
       {/* Subscription Management — hidden in demo mode */}
-      {!isDemo && (
+      {panel === 'plan' && !isDemo && (
         <div className="card-forged p-5 space-y-4">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Subscription</h2>
 
@@ -1049,8 +1124,9 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Developer — only visible to tre@treforged.com */}
-      {isNative && user?.email === DEV_EMAIL && (
+      {/* Developer — only visible to tre@treforged.com. Filed under Plan because it is the only
+          panel a signed-in owner reaches that is not about their own data. */}
+      {panel === 'plan' && isNative && user?.email === DEV_EMAIL && (
         <div className="card-forged p-5 space-y-4">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <Terminal size={12} /> Developer
