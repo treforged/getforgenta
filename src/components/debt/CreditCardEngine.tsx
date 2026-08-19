@@ -1688,7 +1688,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   <hr className="my-1 border-border/50" />
                   <div className="flex justify-between gap-3 font-bold"><span>= Safe to Pay</span><span className="text-primary">{formatCurrency(month0Recs.totalAvailableCash, false)}</span></div>
                   {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
-                    <div className="flex justify-between gap-3 text-amber-400 text-[10px] mt-1">
+                    <div className="flex justify-between gap-3 text-primary text-[10px] mt-1">
                       <span>Holdback: {formatCurrency(month0.holdback, false)} reserved for {month0.holdbackEvent.eventName} ({month0.holdbackEvent.monthLabel})</span>
                     </div>
                   )}
@@ -1703,7 +1703,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
 
           {month0 != null && month0.holdback > 0 && month0.holdbackEvent && (
-            <div className="flex items-start gap-2 bg-amber-400/10 border border-amber-400/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-amber-400" style={{ borderRadius: 'var(--radius)' }}>
+            <div className="flex items-start gap-2 bg-primary/10 border border-primary/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-primary" style={{ borderRadius: 'var(--radius)' }}>
               <AlertTriangle size={14} className="shrink-0 mt-0.5" />
               <span>Forecast is reserving <strong>{formatCurrency(month0.holdback, false)}</strong> for <strong>{month0.holdbackEvent.eventName}</strong> ({month0.holdbackEvent.monthLabel}). Paying the full amounts below may reduce that reserve — see the per-card caps.</span>
             </div>
@@ -1722,7 +1722,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         <CheckCircle2 size={9} /> autopay
                       </span>
                     ) : r.pastDue ? (
-                      <span className="text-[9px] sm:text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>saving</span>
+                      <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 border border-primary/30 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>saving</span>
                     ) : r.isMinimumOnly ? (
                       <span className="text-[9px] sm:text-[10px] text-muted-foreground bg-muted/50 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>min</span>
                     ) : (
@@ -1741,7 +1741,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     {hasHoldbackCap && month0?.holdbackEvent && (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="text-[9px] sm:text-[10px] text-amber-400 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.5 cursor-pointer" style={{ borderRadius: 'var(--radius)' }}>
+                          <span className="text-[9px] sm:text-[10px] text-primary bg-primary/10 border border-primary/30 px-1.5 py-0.5 cursor-pointer" style={{ borderRadius: 'var(--radius)' }}>
                             max {formatCurrency(r.maxPayment, false)}
                           </span>
                         </TooltipTrigger>

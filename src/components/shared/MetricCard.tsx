@@ -25,7 +25,7 @@ export default function MetricCard({
     silver: 'text-foreground',
     crimson: 'text-destructive',
     success: 'text-success',
-    orange: 'text-orange-400',
+    orange: 'text-primary',
   };
 
   const glowMap = {
@@ -41,7 +41,7 @@ export default function MetricCard({
     silver: 'bg-muted text-foreground',
     crimson: 'bg-destructive/10 text-destructive',
     success: 'bg-success/10 text-success',
-    orange: 'bg-orange-400/10 text-orange-400',
+    orange: 'bg-primary/10 text-primary',
   };
 
   return (

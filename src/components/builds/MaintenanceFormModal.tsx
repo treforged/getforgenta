@@ -221,13 +221,13 @@ export default function MaintenanceFormModal({
     onSave(values, tx);
   }
 
-  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-2 rounded focus:outline-hidden focus:border-[#c8a84b] font-mono';
+  const inputCls = 'w-full bg-secondary border border-border text-foreground text-sm px-3 py-2 rounded focus:outline-hidden focus:border-primary font-mono';
   const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5';
   const modeBtnCls = (active: boolean) => cn(
     'px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider rounded border transition-colors',
     active ? 'text-black border-transparent' : 'text-muted-foreground border-border hover:text-foreground',
   );
-  const modeBtnStyle = (active: boolean) => (active ? { background: '#c8a84b' } : undefined);
+  const modeBtnStyle = (active: boolean) => (active ? { background: 'hsl(var(--primary))' } : undefined);
 
   return (
     <div className="modal-overlay z-50 bg-black/60 backdrop-blur-sm" onClick={dismiss}>
@@ -316,8 +316,8 @@ export default function MaintenanceFormModal({
           </div>
 
           {/* ── Next due ─────────────────────────────────────── */}
-          <div className="pt-3 border-t border-[#1e1e1e] space-y-3">
-            <div className="text-[11px] font-mono uppercase tracking-widest" style={{ color: '#c8a84b' }}>
+          <div className="pt-3 border-t border-border space-y-3">
+            <div className="text-[11px] font-mono uppercase tracking-widest" style={{ color: 'hsl(var(--primary))' }}>
               Next Due
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -381,7 +381,7 @@ export default function MaintenanceFormModal({
           </div>
 
           {/* ── Transaction ──────────────────────────────────── */}
-          <div className="pt-3 border-t border-[#1e1e1e] space-y-2">
+          <div className="pt-3 border-t border-border space-y-2">
             <label className={labelCls}>Transaction</label>
             <div className="flex gap-1.5">
               {(['none', 'existing', 'new'] as const).map(m => (
@@ -461,7 +461,7 @@ export default function MaintenanceFormModal({
               type="submit"
               disabled={saving}
               className="flex-1 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
-              style={{ background: '#c8a84b', color: '#000' }}
+              style={{ background: 'hsl(var(--primary))', color: '#000' }}
             >
               {saving ? 'Saving…' : log ? 'Save Changes' : 'Log Service'}
             </button>

@@ -43,6 +43,42 @@ verify_jwt = false
 [functions.plaid-create-link-token]
 verify_jwt = false
 
+# Serves the shared build page to people who are not signed in at all. There is
+# nothing to mint a JWT with: the caller is a stranger with a link. Authorization
+# is the exact share-token match the function performs itself with the service
+# role, and the token never appears in a response.
+# ⚠️ ADDED 2026-08-19 after this entry's ABSENCE was found the hard way. The
+# function had been live and anonymous since June, undeclared here, so the very
+# `supabase functions deploy` that would have shipped the maintenance log to it
+# would also have flipped it to verify_jwt = true and made every shared build
+# link 401 for the people it exists for.
+[functions.public-build]
+verify_jwt = false
+
+# Turnstile verification happens BEFORE sign-up, so by definition the caller has
+# no account and no JWT.
+[functions.verify-turnstile]
+verify_jwt = false
+
+# Reached on return from Stripe Checkout, where the session may not be
+# re-established yet. Validates the checkout session with Stripe itself.
+[functions.verify-checkout]
+verify_jwt = false
+
+# Promo redemption from a link, before the recipient necessarily has a session.
+[functions.grant-promo-premium]
+verify_jwt = false
+
+# Scheduled jobs driven by pg_cron via pg_net, which cannot mint a Supabase JWT.
+[functions.unverified-nudge]
+verify_jwt = false
+
+[functions.newsletter-digest]
+verify_jwt = false
+
+[functions.publish-slot]
+verify_jwt = false
+
 # ── verify_jwt = true: caller is the authenticated app ─────────────────────────
 
 # Serves _shared/sync-handler.ts, which requires a user Bearer token and calls
@@ -64,4 +100,31 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.delete-account]
+verify_jwt = true
+
+# The Stripe billing surfaces. Every one is reached from inside the signed-in
+# app, so the platform check is the outer guard and the function's own
+# auth.getUser() is the inner one.
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.create-portal-session]
+verify_jwt = true
+
+[functions.create-setup-intent]
+verify_jwt = true
+
+[functions.manage-subscription]
+verify_jwt = true
+
+[functions.update-payment-method]
+verify_jwt = true
+
+[functions.sync-stripe-email]
+verify_jwt = true
+
+[functions.update-password]
+verify_jwt = true
+
+[functions.ai-advisor]
 verify_jwt = true

@@ -68,7 +68,7 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
     });
   }
 
-  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-2 rounded focus:outline-hidden focus:border-[#c8a84b] font-mono';
+  const inputCls = 'w-full bg-secondary border border-border text-foreground text-sm px-3 py-2 rounded focus:outline-hidden focus:border-primary font-mono';
   const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-widest mb-1.5';
 
   return (
@@ -148,7 +148,7 @@ export default function BuildFormModal({ open, build, onClose, onSave, saving }:
               type="submit"
               disabled={saving}
               className="flex-1 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
-              style={{ background: '#c8a84b', color: '#000' }}
+              style={{ background: 'hsl(var(--primary))', color: '#000' }}
             >
               {saving ? 'Saving…' : build ? 'Save Changes' : 'Create Build'}
             </button>

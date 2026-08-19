@@ -1081,7 +1081,7 @@ export default function Dashboard() {
                   {carGoalData.monthlyNeeded > 0 ? (
                     <>
                       <p className="text-xs text-muted-foreground uppercase">Save / mo</p>
-                      <p className="text-lg font-display font-bold text-amber-400">{formatCurrency(carGoalData.monthlyNeeded, false)}</p>
+                      <p className="text-lg font-display font-bold text-primary">{formatCurrency(carGoalData.monthlyNeeded, false)}</p>
                     </>
                   ) : (
                     <>

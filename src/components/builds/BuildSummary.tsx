@@ -21,10 +21,10 @@ export default function BuildSummary({ phases, items }: BuildSummaryProps) {
   return (
     <div className="mt-8 border border-border rounded overflow-hidden">
       <div className="flex justify-between items-center px-5 py-[13px] border-b border-border bg-card/50">
-        <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest" style={{ color: '#c8a84b' }}>
+        <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest" style={{ color: 'hsl(var(--primary))' }}>
           Grand Total (active phases)
         </span>
-        <span className="font-mono text-base font-medium" style={{ color: '#c8a84b' }}>
+        <span className="font-mono text-base font-medium" style={{ color: 'hsl(var(--primary))' }}>
           {/* "+ TBD" stays outside the counter: it is not part of the number,
               and interpolating toward a caveat is meaningless. */}
           <CountUp value={grandTotal} format={money} />{hasTbd ? ' + TBD' : ''}
@@ -34,7 +34,7 @@ export default function BuildSummary({ phases, items }: BuildSummaryProps) {
         <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest">
           Spent (marked complete)
         </span>
-        <span className="font-mono text-sm" style={{ color: '#3a8a5a' }}>
+        <span className="font-mono text-sm" style={{ color: 'hsl(var(--success))' }}>
           <CountUp value={spent} format={money} />
         </span>
       </div>
