@@ -198,8 +198,8 @@ export const demoDebts: (Omit<Debt, 'id' | 'user_id' | 'created_at'> & { credit_
 // ── Demo Savings Goals ─────────────────────────────────────
 // Emergency Fund linked to Marcus HYS (d3) so balance auto-pulls from the account.
 export const demoSavingsGoals: (Omit<SavingsGoal, 'id' | 'user_id' | 'created_at'> & { linked_account?: string; goal_type?: string })[] = [
-  { name: 'Emergency Fund', target_amount: 15000, current_amount: 5800, monthly_contribution: 300, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund', lump_sum_payments: [] },
-  { name: 'Vacation Fund',  target_amount:  3000, current_amount:  850, monthly_contribution: 150, target_date: d(1, 15), goal_type: 'Custom', lump_sum_payments: [] },
+  { name: 'Emergency Fund', target_amount: 15000, current_amount: 5800, monthly_contribution: 300, target_date: d(1, 18), linked_account: 'd3', goal_type: 'Emergency Fund', lump_sum_payments: [], sort_order: 0, auto_extra: false },
+  { name: 'Vacation Fund',  target_amount:  3000, current_amount:  850, monthly_contribution: 150, target_date: d(1, 15), goal_type: 'Custom', lump_sum_payments: [], sort_order: 1, auto_extra: false },
 ];
 
 // ── Demo Car Funds ─────────────────────────────────────────
@@ -219,7 +219,7 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     // $1,200 against d1's $2,800 is 42.857…%, which would put float noise into a money figure on
     // the demo dashboard. Percent mode is exercised by its unit tests instead.
     saved_source: 'fixed',
-    saved_percent: 0,
+    saved_percent: 0, sort_order: 0, auto_extra: false,
     monthly_insurance: 180,
     expected_apr: 5.9,
     loan_term_months: 60,
@@ -245,7 +245,7 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
     down_payment_goal: 6800,
     current_saved: 6800,
     saved_source: 'fixed',
-    saved_percent: 0,
+    saved_percent: 0, sort_order: 0, auto_extra: false,
     monthly_insurance: 210,
     expected_apr: 6.4,
     loan_term_months: 60,

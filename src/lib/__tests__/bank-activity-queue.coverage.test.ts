@@ -179,7 +179,7 @@ describe('case 4 — vehicle loan payments and insurance premiums', () => {
   const c5: CarFund = {
     id: 'cf-c5', user_id: 'u', vehicle_name: '2004 Chevorlet C5',
     target_price: 0, tax_fees: 0, down_payment_goal: 0, current_saved: 0,
-    saved_source: 'fixed', saved_percent: 0,
+    saved_source: 'fixed', saved_percent: 0, sort_order: 0, auto_extra: false,
     monthly_insurance: 173.23, expected_apr: 10.18, loan_term_months: 48, phase: 'loan',
     loan_amount: 16530, loan_start_date: '2026-06-21', payment_start_date: '2026-08-07',
     interest_start_date: '2026-08-07', insurance_start_date: '2026-06-25',

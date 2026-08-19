@@ -39,6 +39,15 @@ export type SavingsGoal = {
   monthly_contribution: number;
   target_date: string;
   lump_sum_payments: { id: string; date: string; amount: number }[];
+  /** Rank for automatic extra payments, ascending -- the `sort_order` pattern used by builds,
+   * phases and items. Ranks the month's SURPLUS only: it can never reorder a credit card's
+   * minimum payment. See `allocateRankedSurplus` (`ranked-surplus-allocation.ts`), where that is
+   * enforced structurally rather than by convention. */
+  sort_order: number;
+  /** Whether this target draws automatic extra payments from the month's deployable surplus.
+   * Defaults to false for every existing row -- turning it on is the user's decision, since
+   * diverting surplus away from the cards moves their payoff date. */
+  auto_extra: boolean;
   created_at: string;
 };
 
@@ -101,6 +110,15 @@ export type CarFund = {
   planned_purchase_date: string | null;
   gift_contribution: number;
   lump_sum_payments: { id: string; date: string; amount: number; label?: string }[];
+  /** Rank for automatic extra payments, ascending -- the `sort_order` pattern used by builds,
+   * phases and items. Ranks the month's SURPLUS only: it can never reorder a credit card's
+   * minimum payment. See `allocateRankedSurplus` (`ranked-surplus-allocation.ts`), where that is
+   * enforced structurally rather than by convention. */
+  sort_order: number;
+  /** Whether this target draws automatic extra payments from the month's deployable surplus.
+   * Defaults to false for every existing row -- turning it on is the user's decision, since
+   * diverting surplus away from the cards moves their payoff date. */
+  auto_extra: boolean;
   created_at: string;
 };
 

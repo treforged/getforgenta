@@ -13,7 +13,7 @@ import type { CarFund } from '../types';
 const makeCarFund = (o: Partial<CarFund> = {}): CarFund => ({
   id: 'car-1', user_id: 'u1', created_at: '2026-01-01', vehicle_name: 'Test Car',
   target_price: 0, tax_fees: 0, down_payment_goal: 7700, current_saved: 1084.53,
-  saved_source: 'fixed', saved_percent: 0,
+  saved_source: 'fixed', saved_percent: 0, sort_order: 0, auto_extra: false,
   monthly_insurance: 0, expected_apr: 6, loan_term_months: 60, phase: 'saving',
   loan_amount: 0, loan_start_date: null, payment_start_date: null, interest_start_date: null,
   insurance_start_date: null, actual_monthly_payment: 0, linked_account: null, linked_rule_id: null,

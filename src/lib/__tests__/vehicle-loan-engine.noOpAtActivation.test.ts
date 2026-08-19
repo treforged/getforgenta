@@ -12,7 +12,7 @@ import type { CarFund } from '../types';
 function makeSavingPhaseCarFund(): CarFund {
   return {
     id: 'car-1', user_id: 'u1', vehicle_name: 'Real Account Car',
-    target_price: 21070, tax_fees: 3000, down_payment_goal: 7700, current_saved: 1084.53, saved_source: 'fixed', saved_percent: 0,
+    target_price: 21070, tax_fees: 3000, down_payment_goal: 7700, current_saved: 1084.53, saved_source: 'fixed', saved_percent: 0, sort_order: 0, auto_extra: false,
     gift_contribution: 6700, monthly_insurance: 77, expected_apr: 10.18, loan_term_months: 48,
     phase: 'saving', loan_amount: 0, loan_start_date: null,
     payment_start_date: '2026-08-07', interest_start_date: null, actual_monthly_payment: 0,
