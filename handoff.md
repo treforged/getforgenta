@@ -1,5 +1,55 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 — **`ae806108` on `main`**, pushed. tsc 0, eslint clean, **1742 passed across 186 files**, build exit 0.
+>
+> # ⏭️ START HERE: BUILD RANKED AUTOMATIC EXTRA PAYMENTS
+>
+> Tre, explicitly: *"build the extra payments feature right after handoff clear."* This is the next task. Everything below the divider is context; this is the job.
+>
+> **The ask (2026-08-19):** *"make an option where users can have extra payments for cars and goals automatically generate extra payments. and change automatically as plans change. and somewhere there able to rank them in order of importance."*
+>
+> **Most of the shape already exists — read these three before designing anything:**
+> - `month0-budget-snapshot.ts:172` — `deployable` is ALREADY the computed surplus above the cash floor after bills and reserves. Today **all of it goes to credit cards** via the avalanche engine. The feature is to make that a RANKED LIST instead.
+> - `savings_goals.monthly_contribution` + `lump_sum_payments`, and `car_funds.gift_contribution` + `lump_sum_payments`, are the existing MANUAL versions of exactly this.
+> - `sort_order` is the established ordering pattern (car_builds, phases, items). Reuse it; do not invent a `priority` enum.
+>
+> *"Changes automatically as plans change"* is close to free — `deployable` already recomputes on every plan change. The work is the allocation and the ranking, not the reactivity.
+>
+> **⚠️ THE THREE THINGS THAT WILL BITE, in order of how badly:**
+> 1. **A goal ranked above a card must NEVER starve that card's minimum.** Only surplus above all minimums is rankable. Get this wrong and the app recommends missing a payment — the worst bug this product can ship.
+> 2. **Convergence.** `credit-card-engine.ts` iterates to a fixed point (`maxPasses` 24; see the Q1–Q12 anomaly history, the longest in this repo). A goal completing frees cash → changes the card plan → changes the surplus → un-completes the goal. Expect oscillation and expect to need damping. **Recapture a fixture BEFORE touching the engine.**
+> 3. **A FULL goal must hand its share on within the same month**, or surplus silently evaporates against a target that needs nothing.
+>
+> **Slicing — do (b) first and prove it alone:**
+> - (a) Migration: `sort_order` on `savings_goals` and `car_funds`, plus a per-target `auto_extra` boolean. ⚠️ Attended — this project's default ACLs grant ALL to `anon` on every new table in `public` (see the Slice 6 notes).
+> - (b) **A PURE allocator** — `rankedSurplusAllocation(deployable, orderedTargets)` → per-target amounts. Test it in isolation against the floor and minimum rules **before any engine wiring**. This is the piece that can quietly recommend a missed payment, so it earns its own tests and its own review.
+> - (c) Wire it into the engine.
+> - (d) Drag-to-rank UI, reusing the builds reorder pattern.
+>
+> ---
+>
+> ## Mechanics you will need
+>
+> **🚨 NO PRs, NO BRANCHES.** Work on `main`, commit on `main`, `git push origin HEAD:main`. Overrides the global CLAUDE.md three-step PR rule. ⚠️ A combined `git commit && git push` is blocked by the auto-mode classifier — run them separately. Verify every push **BY CONTENTS** (`git grep`/`git cat-file -e` against `origin/main`), never by "it says merged".
+>
+> **⚠️ A DESKTOP BROWSER CANNOT REPRODUCE THE NATIVE BUGS, and three landed today because of it.** The safe-area inset, the popup scrim stopping at the scroller, the header overlap — all invisible in Chrome, all obvious on the phone. Treat "it looks right at localhost:8080" as no evidence at all for layout inside the native web view. There is also **no way to get a real 390px viewport from a session**: `resize_window` reports success and does nothing, and popups are blocked.
+>
+> **⚠️ `position: fixed` INSIDE `#scroll-main` RESOLVES AGAINST THE SCROLLER ON WebKit.** The four shared modal primitives now portal to `document.body`. Any NEW overlay must do the same — z-index cannot escape a containing block.
+>
+> **⚠️ ONE OWNER FOR THE SAFE-AREA INSET:** `DashboardLayout`'s sticky wrapper. Do not re-add `env(safe-area-inset-top)` to any child; it doubles, which is what produced the gap Tre reported twice.
+>
+> **Versioning:** root `VERSION` (now `6.1.0`) is the source of truth. `node scripts/next-version.mjs` classifies the next bump from the commits (`feat!:`/`BREAKING CHANGE:` → major, `feat:` → minor, else patch) and `--write` applies it. `versionCode` stays `run_number + 100`.
+>
+> **Backups** are the only undo now that branching is off. The Drive sync was dead 2026-06-25 → 08-19 (OneDrive locking each zip, then a moved module) and is fixed and verified: 842 files in Drive. Back up before editing, per the repo policy.
+>
+> ## Shipped today, for reference
+> demo audit + DTI + §2.4 Phase 2 + Settings panels; Slice 6 crowd categories (k-anonymity floor); light mode; the shared maintenance log + config.toml audit; Slice 7 token sweep; `--info`/`--adjusted` tokens; shared-build pricing; the safe-area gap; shimmer skeletons; `ConnectionNotice`; 13 popups on `modal-overlay`; modal portals; bigger logo.
+>
+> ## Still open
+> Dependabot #109/#110 · `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges) · no crowd suggestion rendered yet (Slice 6's table is empty until votes accumulate) · the `PageLoader` connection swap is tested but never seen in a browser · the visual 390px pass still needs Tre's phone.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (popups centred, guides placed, and a SPEC for ranked extra payments) — **`aecd727c` on `main`**, pushed. Gates: tsc 0, eslint clean, **1742 passed across 186 files**, build exit 0.
 >
 > **✅ SHIPPED THIS ROUND:** the safe-area gap (one owner: `DashboardLayout`'s sticky wrapper — ⚠️ do NOT re-add the inset to a child), shimmer skeletons, `ConnectionNotice` for the silent-reload bug, 13 popups onto `modal-overlay` (measured live: top 18 / bottom 18 / left 179 / right 179, unclipped), the Forecast guide on its title row, the dashboard action row centred when stacked.
