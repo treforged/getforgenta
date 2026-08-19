@@ -63,6 +63,7 @@ import { buildDashboardChips, CHIP_WIDGET_IDS, type ChipWidgetId } from '@/lib/d
 import CalcDrawer from '@/components/shared/CalcDrawer';
 import { selectRevolvingPayoff, selectDashboardHero } from '@/lib/payoff-summary';
 import { buildPayoffTrajectory } from '@/lib/payoff-trajectory';
+import { debtToIncomeRatio } from '@/lib/debt-to-income';
 import { buildMonth0Snapshot } from '@/lib/month0-budget-snapshot';
 import DebtRecommendationsWidget from '@/components/dashboard/DebtRecommendationsWidget';
 import { useWidgetSync } from '@/hooks/useWidgetSync';
@@ -737,10 +738,14 @@ export default function Dashboard() {
     return available / burn;
   }, [accountSummary.liquidCash, cashFloor, expenseModel.cashOut, totalDebtPayments]);
 
-  const dti = useMemo(() => {
-    if (summary.income <= 0) return null;
-    return (debtBreakdown.totalMinimumsDue / summary.income) * 100;
-  }, [debtBreakdown.totalMinimumsDue, summary.income]);
+  // ⚠️ NOT `debtBreakdown.totalMinimumsDue`, which is what is still UNPAID on the cards this month.
+  // Dividing that by income gave a ratio that fell to 0% as the month's minimums cleared, ignored
+  // every loan, and ignored autopay-in-full cards — 0.5% and "healthy" for an account carrying
+  // $47,200. `debt-to-income.ts` carries the reasoning and the contractual-not-chosen rule.
+  const dti = useMemo(
+    () => debtToIncomeRatio({ debts, accounts, carFunds, income: summary.income }),
+    [debts, accounts, carFunds, summary.income],
+  );
 
   const recentTxns = useMemo(() => {
     const todayDate = new Date();
