@@ -1,3 +1,17 @@
+> ▶ 2026-08-18 (Debt-to-Income stops measuring the calendar) — **`aa547344`, same branch.** Gates: tsc 0, eslint clean, **1700 passed across 181 files** (+7), build exit 0.
+>
+> Tre: *"do what you believe is best"* — so the DTI item raised at the end of the previous entry was decided rather than left open.
+>
+> **✅ THE TILE WAS 0.5% AND "HEALTHY" FOR AN ACCOUNT CARRYING $47,200.** It read `debtBreakdown.totalMinimumsDue / summary.income`, and `totalMinimumsDue` is what is still UNPAID on the CARDS this month — so it fell towards zero as the month went on, hit 0% the day the last minimum cleared, ignored every loan, and ignored autopay-in-full cards. New `src/lib/debt-to-income.ts` sums the monthly OBLIGATION instead: card minimums + loan minimums + `getActiveCarLoanPayments`.
+> - ⚠️ **Contractual, never chosen.** Never what the avalanche engine recommends paying — overpaying a card does not make you more indebted, and a DTI that rose when you did would punish the behaviour the app exists for. A test asserts the number is identical on the 1st and the 28th.
+> - ⚠️ Unopened cards held out (same rule as the recommendations and the liabilities list); **null, not 0%**, with no income.
+> - 🔬 **LIVE in demo: 15.2%, healthy** — $492 of minimums + a $537 car payment against $6,750 income.
+>
+> **⚠️ TWO DASHBOARD NUMBERS MOVED AS A CONSEQUENCE OF THE DEMO FIX BELOW, AND BOTH MOVES ARE CORRECTIONS.**
+> - **AVG MONTHLY SPEND $2,132 → $3,574.** The old figure averaged five months of which two had no recorded rows at all. Now every month has them.
+> - **ANNUAL SAVINGS +$21,922 → −$2,525.** The old figure was an artifact of the duplication: the current month counted BOTH the hand-written rows and the generated ones, so demo income was booked twice. The demo's real month is $6,750 in, $6,960 out — Jordan is voluntarily overpaying the cards by ~$1,000/mo out of $9,900 of liquid cash, which is exactly what the engine is designed to do.
+> - **⬜ OPEN, NOT FIXED, AND WORTH A DECISION:** "Annual Savings" is `cashFlow * 12`, and cash flow counts debt PRINCIPAL and the $1,375/mo of 401k/Roth/HYS contributions as outflow. So a user aggressively paying down debt and investing hard reads as *negative annual savings* — the label and the arithmetic disagree. Same class of fault as the DTI one, but redefining a second metric before Tre has looked at the first would be over-reach, so it is flagged rather than changed.
+
 # Handoff — Forgenta
 
 > ▶ 2026-08-18 (the demo stops aging and stops contradicting itself) — **`e5db12fa` on `feat/demo-in-signup`.** Gates: tsc 0, eslint clean, **1693 passed across 180 files** (+11), build exit 0. NOT pushed.
