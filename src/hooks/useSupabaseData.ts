@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
 import { toast } from 'sonner';
+import { useRecordCrowdVote } from '@/hooks/useCrowdCategories';
 import { applyLinkedLoanBalances } from '@/lib/vehicle-loan-link';
 import { sanitizePayload } from '@/lib/sanitize';
 import {
@@ -712,6 +713,7 @@ export function useSyncedTransactionReviews() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const qc = useQueryClient();
+  const recordCrowdVote = useRecordCrowdVote();
   const query = useQuery({
     queryKey: ['synced_transaction_reviews', isDemo ? 'demo' : user?.id],
     enabled: isDemo || !!user,
@@ -780,7 +782,12 @@ export function useSyncedTransactionReviews() {
   // Category is the one field a user edits WITHOUT taking a position on what the charge is, so it
   // gets its own path: overriding the category of an already-linked row must not disturb the link.
   const setCategory = useMutation({
-    mutationFn: async ({ syncedTransactionId, category }: { syncedTransactionId: string; category: string | null }) => {
+    // ⚠️ `merchantKey` IS OPTIONAL AND IS NOT USED FOR THE WRITE. It exists so the one path that
+    // records a category can also cast the user's vote into the shared merchant map (Slice 6),
+    // rather than a caller having to remember to do both — the same reasoning that keeps the ledger
+    // row and the `'imported'` decision in one act below. A caller that does not know the merchant
+    // simply does not vote; nothing else changes.
+    mutationFn: async ({ syncedTransactionId, category, merchantKey }: { syncedTransactionId: string; category: string | null; merchantKey?: string | null }) => {
       if (isDemo || !user) throw new Error('Demo mode');
       // The lookup moved off the cached `query.data` and onto the database for the same reason the
       // upsert below did: a stale cache decides INSERT vs UPDATE wrongly, and both wrong answers
@@ -816,7 +823,16 @@ export function useSyncedTransactionReviews() {
         }));
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] }); },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] });
+      // Slice 6. Fire and forget, and only ever on the user's OWN successful decision — the vote is
+      // a by-product of a thing they meant to do, never a separate action they are asked about.
+      // ⚠️ CLEARING a category does not retract an earlier vote. The ballot is an upsert keyed on
+      // (merchant, user), so changing the label moves the vote; removing the label leaves the last
+      // one standing. Retraction would need a delete path and a reason to believe "no label" means
+      // "not that" rather than "not yet", and it does not.
+      if (vars.category) void recordCrowdVote(vars.merchantKey, vars.category);
+    },
     onError: (e: Error) => toast.error(friendlyReviewWriteError(e) ?? e.message),
   });
 
@@ -1735,14 +1751,19 @@ export function usePublicBuild(shareToken: string | undefined) {
         ...json,
         maintenancePublic: json.maintenancePublic === true,
         maintenance: json.maintenance ?? [],
+        // ⚠️ NOT `=== true`. Only an explicit false hides pricing, so an OLD deployed function
+        // that does not send the field at all still shows prices — which is what every shared
+        // link did before the flag existed. See src/lib/public-pricing.ts.
+        pricingPublic: json.pricingPublic !== false,
       } as {
         // The flag is reported once, as `maintenancePublic` — the Edge Function
         // strips it from the build object, so the type must not claim it.
-        build: Omit<CarBuild, 'maintenance_public'>;
+        build: Omit<CarBuild, 'maintenance_public' | 'pricing_public'>;
         phases: CarBuildPhase[];
         items: CarBuildItem[];
         maintenancePublic: boolean;
         maintenance: PublicMaintenanceEntry[];
+        pricingPublic: boolean;
         displayName: string | null;
       };
     },

@@ -439,6 +439,29 @@ export default function Builds() {
     }
   }
 
+  /**
+   * Whether the share link shows what the parts cost.
+   *
+   * ⚠️ OPT-OUT, NOT OPT-IN — the reverse of the maintenance switch above, and deliberately.
+   * Pricing has been on every shared build page since the feature existed, so defaulting it off
+   * would have silently changed what links already sent to people show. The maintenance log had no
+   * such history, which is why that one is private until asked for.
+   *
+   * When off, prices do not reach the page at all: `public-build` drops `price` from its SELECT,
+   * so nothing is sent and hidden in the browser.
+   */
+  async function handleTogglePricingPublic() {
+    if (!activeBuild) return;
+    const next = !(activeBuild.pricing_public !== false);
+    setShareLoading(true);
+    try {
+      await updateBuild.mutateAsync({ id: activeBuild.id, pricing_public: next });
+      toast.success(next ? 'Prices are shown on the share link' : 'Prices are hidden from the share link');
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
   function shareUrl() {
     if (!activeBuild?.share_token) return '';
     return `${SHARE_BASE}/builds/share/${activeBuild.share_token}`;
@@ -660,7 +683,7 @@ export default function Builds() {
             <select
               value={activeBuild?.id ?? ''}
               onChange={e => { setActiveBuildId(e.target.value); setDragPhaseOrder(null); setDragItemOrder(null); }}
-              className="w-full appearance-none bg-card border border-border text-foreground text-sm font-mono px-3 py-2 pr-8 rounded focus:outline-hidden focus:border-[#c8a84b] cursor-pointer"
+              className="w-full appearance-none bg-card border border-border text-foreground text-sm font-mono px-3 py-2 pr-8 rounded focus:outline-hidden focus:border-primary cursor-pointer"
             >
               {builds.map((b: CarBuild) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -685,7 +708,7 @@ export default function Builds() {
           <button
             onClick={() => setShareOpen(o => !o)}
             title="Share build"
-            className={`p-2 border rounded transition-colors ${shareOpen ? 'text-[#c8a84b] border-[#c8a84b]' : 'text-muted-foreground hover:text-[#c8a84b] border-border hover:border-[#c8a84b]'}`}
+            className={`p-2 border rounded transition-colors ${shareOpen ? 'text-primary border-primary' : 'text-muted-foreground hover:text-primary border-border hover:border-primary'}`}
           >
             <Share2 size={14} />
           </button>
@@ -694,7 +717,7 @@ export default function Builds() {
           <button
             onClick={() => handleDeleteBuild(activeBuild)}
             title="Delete build"
-            className="p-2 text-muted-foreground hover:text-red-400 border border-border rounded hover:border-red-400/50 transition-colors"
+            className="p-2 text-muted-foreground hover:text-destructive border border-border rounded hover:border-destructive/50 transition-colors"
           >
             <Trash2 size={14} />
           </button>
@@ -702,7 +725,7 @@ export default function Builds() {
         <button
           onClick={() => { setEditingBuild(null); setFormOpen(true); }}
           className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors shrink-0"
-          style={{ background: '#c8a84b', color: '#000' }}
+          style={{ background: 'hsl(var(--primary))', color: '#000' }}
         >
           <Plus size={13} /> New Build
         </button>
@@ -718,7 +741,7 @@ export default function Builds() {
               <input
                 readOnly
                 value={shareUrl()}
-                className="w-full bg-[#111] border border-border rounded px-3 py-1.5 text-[12px] text-[#8ab0e0] focus:outline-hidden select-all"
+                className="w-full bg-card border border-border rounded px-3 py-1.5 text-[12px] text-primary focus:outline-hidden select-all"
                 onFocus={e => e.target.select()}
               />
               <div className="flex items-center justify-between gap-2">
@@ -726,14 +749,14 @@ export default function Builds() {
                   <button
                     onClick={handleCopyLink}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors"
-                    style={{ background: '#c8a84b', color: '#000' }}
+                    style={{ background: 'hsl(var(--primary))', color: '#000' }}
                   >
                     <Copy size={12} /> Copy
                   </button>
                   <button
                     onClick={handleOpenShareLink}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors border"
-                    style={{ color: '#c8a84b', borderColor: '#c8a84b', background: 'transparent' }}
+                    style={{ color: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary))', background: 'transparent' }}
                   >
                     <ExternalLink size={12} /> Open Preview
                   </button>
@@ -741,7 +764,7 @@ export default function Builds() {
                 <button
                   onClick={handleDisableShare}
                   disabled={shareLoading}
-                  className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-red-400 hover:border-red-400/40 transition-colors disabled:opacity-40"
+                  className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors disabled:opacity-40"
                 >
                   Disable
                 </button>
@@ -764,11 +787,37 @@ export default function Builds() {
                     aria-pressed={activeBuild.maintenance_public}
                     className="shrink-0 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-colors disabled:opacity-40"
                     style={activeBuild.maintenance_public
-                      ? { background: '#c8a84b', color: '#000', borderColor: '#c8a84b' }
-                      : { color: '#c8a84b', borderColor: '#c8a84b', background: 'transparent' }
+                      ? { background: 'hsl(var(--primary))', color: '#000', borderColor: 'hsl(var(--primary))' }
+                      : { color: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary))', background: 'transparent' }
                     }
                   >
                     {activeBuild.maintenance_public ? '✓ Public' : 'Private'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Pricing on the share link — shown by default, see handleTogglePricingPublic */}
+              <div className="pt-3 border-t border-border">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[12px] text-foreground">Prices on this link</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {activeBuild.pricing_public !== false
+                        ? 'Visible: each part’s price, the phase totals and the build total.'
+                        : 'Hidden. Prices are not sent to the share page at all — the parts list still shows.'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleTogglePricingPublic}
+                    disabled={shareLoading}
+                    aria-pressed={activeBuild.pricing_public !== false}
+                    className="shrink-0 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-colors disabled:opacity-40"
+                    style={activeBuild.pricing_public !== false
+                      ? { background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', borderColor: 'hsl(var(--primary))' }
+                      : { color: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary))', background: 'transparent' }
+                    }
+                  >
+                    {activeBuild.pricing_public !== false ? '✓ Shown' : 'Hidden'}
                   </button>
                 </div>
               </div>
@@ -800,7 +849,7 @@ export default function Builds() {
                 onClick={handleEnableShare}
                 disabled={shareLoading}
                 className="flex items-center gap-1.5 px-4 py-2 text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-40"
-                style={{ background: '#c8a84b', color: '#000' }}
+                style={{ background: 'hsl(var(--primary))', color: '#000' }}
               >
                 <Share2 size={12} /> {shareLoading ? 'Creating…' : 'Create Share Link'}
               </button>
@@ -816,7 +865,7 @@ export default function Builds() {
           <button
             onClick={() => { setEditingBuild(null); setFormOpen(true); }}
             className="px-5 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded"
-            style={{ background: '#c8a84b', color: '#000' }}
+            style={{ background: 'hsl(var(--primary))', color: '#000' }}
           >
             Create Your First Build
           </button>
@@ -852,7 +901,7 @@ export default function Builds() {
                 return (
                   <Fragment key={ph.id}>
                     {isPhaseTarget && !phaseDropBelow && (
-                      <div className="h-0.5 rounded mx-0.5 mb-1" style={{ background: '#c8a84b' }} />
+                      <div className="h-0.5 rounded mx-0.5 mb-1" style={{ background: 'hsl(var(--primary))' }} />
                     )}
                     <PhaseBlock
                       phase={ph}
@@ -897,7 +946,7 @@ export default function Builds() {
                       onCreatePlanForItem={handleCreatePlanForItem}
                     />
                     {isPhaseTarget && phaseDropBelow && (
-                      <div className="h-0.5 rounded mx-0.5 mt-1" style={{ background: '#c8a84b' }} />
+                      <div className="h-0.5 rounded mx-0.5 mt-1" style={{ background: 'hsl(var(--primary))' }} />
                     )}
                   </Fragment>
                 );
@@ -905,7 +954,7 @@ export default function Builds() {
 
               <button
                 onClick={handleAddPhase}
-                className="flex items-center justify-center gap-2.5 w-full mt-3 px-5 py-3.5 text-[13px] font-mono uppercase tracking-[0.12em] text-muted-foreground border border-dashed border-[#2a2a2a] rounded hover:text-[#c8a84b] hover:border-[#c8a84b] hover:bg-[#0d0d0d] transition-colors"
+                className="flex items-center justify-center gap-2.5 w-full mt-3 px-5 py-3.5 text-[13px] font-mono uppercase tracking-[0.12em] text-muted-foreground border border-dashed border-border rounded hover:text-primary hover:border-primary hover:bg-accent transition-colors"
               >
                 <Plus size={16} /> Add Phase
               </button>

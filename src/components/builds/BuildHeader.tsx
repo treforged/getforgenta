@@ -48,7 +48,7 @@ export default function BuildHeader({ build, phases, items }: BuildHeaderProps) 
           <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.15em] mb-0.5">
             Total Budget
           </div>
-          <div className="text-4xl font-display font-bold tracking-wide leading-none" style={{ color: '#c8a84b' }}>
+          <div className="text-4xl font-display font-bold tracking-wide leading-none" style={{ color: 'hsl(var(--primary))' }}>
             {/* The biggest figure on the page, and the one the brief named:
                 it moves when an item is priced or a phase is hidden, so it
                 counts rather than jumping. The "+ TBD items" caveat below

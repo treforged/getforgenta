@@ -61,7 +61,7 @@ export default function BuildShare() {
     );
   }
 
-  const { build, phases, items, displayName, maintenancePublic, maintenance } = data;
+  const { build, phases, items, displayName, maintenancePublic, maintenance, pricingPublic } = data;
 
   const hasPlannedPhases = phases.some((p: CarBuildPhase) => p.hidden);
 
@@ -106,14 +106,14 @@ export default function BuildShare() {
           <Link
             to="/"
             className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all hover:opacity-90"
-            style={{ background: '#c8a84b', color: '#000' }}
+            style={{ background: 'hsl(var(--primary))', color: '#000' }}
           >
             Powered by Forgenta
           </Link>
         </div>
         {/* Print-only Forgenta badge */}
         <div className="hidden print:flex justify-end mb-4">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded" style={{ background: '#c8a84b', color: '#000' }}>
+          <span className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded" style={{ background: 'hsl(var(--primary))', color: '#000' }}>
             Powered by Forgenta
           </span>
         </div>
@@ -134,22 +134,28 @@ export default function BuildShare() {
             )}
           </div>
           <div className="sm:text-right shrink-0">
+            {/* ⚠️ THE TOTAL GOES TOO, not just the per-item prices. Hiding the line items while
+                leaving the sum on the page publishes the number the owner asked to keep back —
+                and with the item list visible, a total plus one known part price starts giving
+                the rest away. Pricing is one decision, so it hides as one thing. */}
+            {pricingPublic && (<>
             <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.15em] mb-0.5">
               {includePlanned ? 'Total Mod Cost' : 'Total Budget'}
             </div>
-            <div className="text-4xl font-display font-bold tracking-wide leading-none" style={{ color: '#c8a84b' }}>
+            <div className="text-4xl font-display font-bold tracking-wide leading-none" style={{ color: 'hsl(var(--primary))' }}>
               ${totalConfirmed.toLocaleString()}
             </div>
             {hasTbd && (
               <div className="text-[12px] font-mono text-muted-foreground mt-0.5">+ TBD items</div>
             )}
+            </>)}
             {hasPlannedPhases && (
               <button
                 onClick={() => setIncludePlanned(v => !v)}
                 className="mt-2 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all print:hidden"
                 style={includePlanned
-                  ? { background: '#c8a84b', color: '#000' }
-                  : { background: '#1a1a1a', color: '#c8a84b', border: '1px solid #c8a84b' }
+                  ? { background: 'hsl(var(--primary))', color: '#000' }
+                  : { background: '#1a1a1a', color: 'hsl(var(--primary))', border: '1px solid #c8a84b' }
                 }
               >
                 {includePlanned ? '✓ Planned included' : '+ Include planned'}
@@ -242,7 +248,7 @@ export default function BuildShare() {
                       </span>
                       {allDone && !ph.hidden && (
                         <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0"
-                          style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>
+                          style={{ color: 'hsl(var(--success))', borderColor: 'hsl(var(--success))' }}>
                           ✓ Done
                         </span>
                       )}
@@ -257,8 +263,8 @@ export default function BuildShare() {
                       {doneCount > 0 ? `${doneCount} / ${phItems.length} complete` : `${phItems.length} item${phItems.length !== 1 ? 's' : ''}`}
                     </div>
                   </div>
-                  <div className="font-mono text-base font-medium text-right shrink-0 mr-2" style={{ color: '#c8a84b' }}>
-                    {phTotal > 0 ? `$${phTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
+                  <div className="font-mono text-base font-medium text-right shrink-0 mr-2" style={{ color: 'hsl(var(--primary))' }}>
+                    {!pricingPublic ? null : phTotal > 0 ? `$${phTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
                   </div>
                   <ChevronDown
                     size={14}
@@ -272,10 +278,10 @@ export default function BuildShare() {
                     {phItems.map((item: CarBuildItem, ii: number) => (
                       <div
                         key={item.id}
-                        className={`print-item flex items-center gap-2.5 px-4 py-3 border-b border-[#141414] ${item.completed ? 'opacity-50' : ''}`}
+                        className={`print-item flex items-center gap-2.5 px-4 py-3 border-b border-border ${item.completed ? 'opacity-50' : ''}`}
                       >
                         {/* Complete indicator */}
-                        <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 ${item.completed ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white' : 'border-border bg-transparent'}`}>
+                        <div className={`w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 ${item.completed ? 'border-success bg-success text-white' : 'border-border bg-transparent'}`}>
                           {item.completed && <Check size={11} strokeWidth={3} />}
                         </div>
 
@@ -286,7 +292,7 @@ export default function BuildShare() {
 
                         {/* Name + brand + link */}
                         <div className="flex-1 min-w-0">
-                          <div className={`text-sm text-[#c8c2b8] leading-snug ${item.completed ? 'line-through' : ''}`}>
+                          <div className={`text-sm text-foreground leading-snug ${item.completed ? 'line-through' : ''}`}>
                             {item.name}
                           </div>
                           {item.brand && (
@@ -308,13 +314,17 @@ export default function BuildShare() {
                           )}
                         </div>
 
-                        {/* Price */}
-                        <div className="text-right shrink-0">
-                          {item.price !== null
-                            ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
-                            : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
-                          }
-                        </div>
+                        {/* Price. ⚠️ `item.price` is UNDEFINED here when the owner hid pricing —
+                            the Edge Function drops it from the SELECT rather than sending it for
+                            the page to ignore — so this guard is belt-and-braces, not the gate. */}
+                        {pricingPublic && (
+                          <div className="text-right shrink-0">
+                            {item.price !== null && item.price !== undefined
+                              ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
+                              : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
+                            }
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -342,10 +352,10 @@ export default function BuildShare() {
                 {maintenance.map((entry: PublicMaintenanceEntry) => (
                   <div
                     key={entry.id}
-                    className="print-item flex items-start justify-between gap-3 px-4 py-3 border-b border-[#141414] last:border-b-0"
+                    className="print-item flex items-start justify-between gap-3 px-4 py-3 border-b border-border last:border-b-0"
                   >
                     <div className="min-w-0">
-                      <div className="text-sm text-[#c8c2b8] leading-snug wrap-break-word">
+                      <div className="text-sm text-foreground leading-snug wrap-break-word">
                         {entry.service}
                       </div>
                       {entry.next_due_date !== null || entry.next_due_odometer !== null ? (
@@ -386,7 +396,7 @@ export default function BuildShare() {
           <Link
             to="/auth"
             className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold uppercase tracking-wider px-6 py-2.5 rounded transition-all hover:opacity-90"
-            style={{ background: '#c8a84b', color: '#000' }}
+            style={{ background: 'hsl(var(--primary))', color: '#000' }}
           >
             Share Your Build →
           </Link>
@@ -404,7 +414,7 @@ export default function BuildShare() {
               'Violations may result in share link removal.',
             ].map((rule, i) => (
               <li key={i} className="flex items-start gap-2 text-[11px] font-mono text-muted-foreground">
-                <span className="shrink-0" style={{ color: '#c8a84b' }}>{i + 1}.</span>
+                <span className="shrink-0" style={{ color: 'hsl(var(--primary))' }}>{i + 1}.</span>
                 <span>{rule}</span>
               </li>
             ))}

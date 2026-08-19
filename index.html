@@ -41,6 +41,29 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" /></noscript>
+    <!-- Theme, applied BEFORE first paint.
+         WARNING: this has to be inline and synchronous. React mounts after the first paint, so a
+         light-mode user whose theme is set from a component watches the dark palette flash on every
+         single load. Keep it dependency-free and keep it in <head>: the moment it needs an import
+         it is no longer earlier than the paint. Mirrors src/lib/theme.ts; both are small enough
+         that duplicating them beats shipping a module to run one line. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('forgenta.theme.v1');
+          var choice = (stored === 'light' || stored === 'dark' || stored === 'system') ? stored : 'system';
+          var light = choice === 'light'
+            || (choice === 'system' && window.matchMedia
+                && window.matchMedia('(prefers-color-scheme: light)').matches);
+          var root = document.documentElement;
+          root.classList.remove('light', 'dark');
+          root.classList.add(light ? 'light' : 'dark');
+          root.style.colorScheme = light ? 'light' : 'dark';
+        } catch (e) {
+          /* Dark is the app's default palette, i.e. what :root already is. Doing nothing is correct. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -968,7 +968,7 @@ export default function Transactions() {
           const canConvertToPlan = (isPremium || isDemo)
             && planDraftFromTransaction(t, { paymentSource: normalizeSource(t.payment_source) }).ok;
           return (
-            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-gold/40' : ''}`}>
+            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-adjusted/40' : ''}`}>
               <div className="flex items-center gap-3">
                 {isRecon
                   ? <SlidersHorizontal size={14} className="text-gold" />
@@ -979,12 +979,12 @@ export default function Transactions() {
                     <p className="text-xs font-medium">{t.note || '—'}</p>
                     {t.isGenerated && !t.isDebtPayment && <Repeat size={10} className="text-primary" />}
                     {t.isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
-                    {t.isPlanPayment && <span className="text-[9px] text-blue-600 bg-blue-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
+                    {t.isPlanPayment && <span className="text-[9px] text-info bg-info/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
                     {t.isCarLoanPayment && <span className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>car loan</span>}
                     {pauseSavings && t.ruleId && savingsRuleIdsForBadge.has(t.ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
-                    {isRecon && <span className="text-[9px] text-gold bg-gold/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
+                    {isRecon && <span className="text-[9px] text-adjusted bg-adjusted/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }} title="Manual balance correction">reconciled</span>}
                     {sourceMissing && <span className="text-destructive" aria-label="Linked account not found"><AlertTriangle size={10} /></span>}
                   </div>
                   <p className="text-xs text-muted-foreground">

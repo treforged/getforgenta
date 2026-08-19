@@ -489,6 +489,7 @@ export type Database = {
           created_at: string
           id: string
           maintenance_public: boolean
+          pricing_public: boolean
           make: string | null
           model: string | null
           name: string
@@ -503,6 +504,7 @@ export type Database = {
           created_at?: string
           id?: string
           maintenance_public?: boolean
+          pricing_public?: boolean
           make?: string | null
           model?: string | null
           name: string
@@ -517,6 +519,7 @@ export type Database = {
           created_at?: string
           id?: string
           maintenance_public?: boolean
+          pricing_public?: boolean
           make?: string | null
           model?: string | null
           name?: string
@@ -1969,6 +1972,18 @@ export type Database = {
           stage: string
           user_id: string
         }[]
+      }
+      crowd_merchant_categories: {
+        Args: { p_min_voters?: number }
+        Returns: {
+          merchant_key: string
+          category: string
+          voters: number
+        }[]
+      }
+      record_merchant_category_vote: {
+        Args: { p_merchant_key: string; p_category: string }
+        Returns: undefined
       }
       rate_limit_check: {
         Args: { p_key: string; p_max: number; p_window_ms: number }

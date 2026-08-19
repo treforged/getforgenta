@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
+import { useTheme } from '@/hooks/useTheme';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router";
 import { Capacitor } from '@capacitor/core';
@@ -75,6 +76,20 @@ function AppReadySignal() {
     window.__forgenta_app_ready = true;
     return () => { window.__forgenta_app_ready = false; };
   }, []);
+  return null;
+}
+
+/**
+ * Keeps the theme in step for the whole session.
+ *
+ * ⚠️ IT EXISTS FOR THE `system` LISTENER, not for first paint — the inline script in `index.html`
+ * already did that, earlier than React can. What this adds is that a user on "match my device"
+ * whose phone flips to dark at sunset flips WITH it, rather than only at the next launch. Mounted
+ * here rather than in Settings because a preference that follows the device has to keep following
+ * it when nobody is looking at the settings page.
+ */
+function ThemeSync() {
+  useTheme();
   return null;
 }
 
@@ -401,6 +416,7 @@ const App = () => (
       {Capacitor.isNativePlatform() ? (
         <MemoryRouter initialEntries={['/auth']}>
           <AppReadySignal />
+      <ThemeSync />
           <DemoProvider>
           <AuthProvider>
             <SubscriptionProvider>

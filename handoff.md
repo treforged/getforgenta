@@ -1,5 +1,72 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (the merge that only half landed, the installment token, and pricing on shared builds) — **`7d5d7828` on `fix/installment-badge`.** Gates: tsc 0, eslint clean, **1736 passed across 185 files**, build exit 0.
+>
+> **🚨 READ THIS FIRST — #115 AND #116 NEVER REACHED `main`, AND `gh` SAYS ALL THREE ARE MERGED.**
+> They ARE merged — into each other. #114 merged to `main` at 04:58:43; **#115 merged into `feat/demo-in-signup` 39 seconds LATER**, i.e. into a branch that had already gone; #116 merged into the slice6 branch. Verified BY CONTENTS, which is the only reason it was caught: `crowd-category.ts`, `theme.ts`, the slice-6 migration and the light palette were all **MISSING from `origin/main`** while every PR read MERGED.
+> - ⚠️ **THE LESSON FOR NEXT TIME: do not stack PRs here.** A stacked PR whose base is merged-and-deleted does not retarget; it merges into a dead branch and reports success. Either merge strictly bottom-up and wait, or cut every branch from `main`.
+> - **This branch is the recovery**: cut from `feat/slice6-...` (which carries everything), so its PR to `main` lands Slice 6 + light mode + the share fix + Slice 7 + the two new pieces below, in one.
+>
+> **1. ✅ THE INSTALLMENT BADGE (`b7a15f6c`).** Tre's call, delegated. Looking at the whole family settled it: `/transactions` labels a row five ways and four already used `text-X bg-X/10` with a token — the blue was simply the one that got missed. But it could not be reassigned: `success` is car loan, `muted` is paused, and **`primary` and `gold` are the same hue**, so debt payoff and reconciled already read alike. Blue was carrying a real distinction, so it got a real token. **`--info`, in both palettes, measured**: dark 3.94 → **7.47:1**, light 4.95 → **6.09:1**. The old value was worse in DARK than in light, i.e. this is a legibility fix that happens to also be a theming fix.
+> - ⬜ **REPORTED, NOT FIXED:** `--primary` and `--gold` are identical in both palettes, so two badges are visually the same. Palette decision, not a sweep decision.
+>
+> **2. ✅ PRICING ON SHARED BUILDS (`7d5d7828`).** Migration APPLIED to production.
+> - ⚠️ **DEFAULT TRUE — THE OPPOSITE OF `maintenance_public`, and this is the design decision.** The log was a new capability so private-by-default cost nobody anything; pricing has been on every shared page since the feature existed, so defaulting off would silently blank prices on links **already sent to people**. Rule is `!== false`, not `=== true` — which also means an old deployed function still shows prices.
+> - ⚠️ **Gate at the FETCH, not the render**: `public-build` drops `price` from its SELECT. ⚠️ **The build total and phase totals hide too** — leaving the sum publishes the number, and a total plus one known price gives the rest away.
+> - 🔬 **VERIFIED LIVE both ways:** hidden → 12 items returned, keys are brand/build_id/completed/id/link/name/phase_id/sort_order, **the string "price" does not appear in the body at all**; shown → 49 items with prices. Page with pricing off: no total, no phase totals, no price column, build still reads as a build. Test flag flipped on a SECONDARY build and restored; all three verified back at `true`.
+>
+> **⬜ NEXT:** (1) **Push and file this branch's PR to `main`** — nothing is in main past #114 until it lands. (2) Per-surface **390px re-passes**, in both themes. (3) Screenshots still DEFERRED.
+>
+> **⬜ CARRIED:** `useSyncedTransactions(monthKey)` still `[]` in demo; no crowd suggestion seen rendered yet (Slice 6's table is empty until votes accumulate); merchant memory + Garage maintenance log unaudited in demo.
+
+# Handoff — Forgenta
+
+> ▶ 2026-08-19 (the shared maintenance log, and Slice 7) — **`45efa0fc` on `fix/public-maintenance-log`**, cut from `feat/slice6-store-category-learning`. Gates: tsc 0, eslint clean, **1726 passed across 184 files**, build exit 0. NOT yet pushed.
+>
+> ⚠️ **BRANCH STACK: `main` ← #114 (`feat/demo-in-signup`) ← #115 (`feat/slice6-...`) ← this branch.** Merge in that order.
+>
+> **1. ✅ THE PUBLIC MAINTENANCE LOG (`43cba8a4`).** Tre: *"when maintenance log is marked public, its not showing on the shared build page."*
+> - ⚠️ **THE CODE SHIPPED; THE FUNCTION NEVER DID.** `public-build` was live at **version 10, last updated June**; the maintenance feature is dated **2026-08-12**. The deployed function selected no `maintenance_public`, ran no maintenance query and returned neither field. Every other half — migration, toggle, column allowlist, share page, tests — had been correct and unreachable for a week. **No test could see it**: `public-maintenance.test.ts` asserts the SOURCE, which was right.
+> - ⚠️ **AND THE FIX WOULD HAVE SHIPPED A WORSE BUG.** `public-build` was **absent from `supabase/config.toml`**, the file whose own header says an undeclared function *"is not left alone on deploy — it is silently flipped to true"*. A routine `supabase functions deploy public-build` would have set `verify_jwt = true` on an endpoint whose whole purpose is serving strangers with a link.
+> - **It was not alone.** Auditing all 25 live functions found **15 undeclared, 7 of them anonymous-callable**: `public-build`, `verify-turnstile`, `verify-checkout`, `grant-promo-premium`, `unverified-nudge`, `newsletter-digest`, `publish-slot`. All 25 now declared, every value **read off the LIVE list**, not off what the file believed.
+> - 🔬 **VERIFIED AGAINST THE RUNNING ENDPOINT:** now v11, `verify_jwt` still false, all other functions unchanged. Flag ON → `maintenancePublic true`, 7 rows. Flag OFF → false, 0 rows. Returned fields are `id, service, service_date, odometer, next_due_date, next_due_odometer` — **`cost`, `vendor`, `notes` absent**, `share_token` absent, `maintenance_public` stripped from the build object, malformed token still 404.
+>
+> **2. ✅ SLICE 7 — TOKEN SWEEP (`45efa0fc`).** Light mode turned this from cleanup into correctness. 49 hardcoded hexes + 35 raw palette classes, all mapped to the ROLE they meant.
+> - ⚠️ **WHAT WAS LEFT ALONE ON PURPOSE, because off-token ≠ wrong:** the **phase accent palettes** (decorative identity per phase, same role as chart series colours — they must NOT follow the theme, and the sweep skips those lines by content); **`BlackScreenDebug.tsx`** entirely (it renders when styling has FAILED); the **`installment` blue** in `Transactions.tsx` (blue has no token role — flattening it to gold would remove a distinction, so it is reported not recoloured); BuildHeader's banner gradient.
+> - 🔬 **LIVE in light mode:** Garage list + an expanded phase's item rows (were `bg-[#0e0e0e]` / `text-[#c8c2b8]`), and the Debt utilization panel. Theme restored to `system` afterwards.
+>
+> **⬜ NEXT:** (1) Push this branch and file its PR. (2) ⬜ **Decide the `installment` blue** — it wants a token or a deliberate recolour. (3) Per-surface **390px re-passes**, now doubly worth doing in both themes. (4) Screenshots still DEFERRED.
+>
+> **⬜ CARRIED:** `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges); no crowd suggestion seen rendered yet (Slice 6's table is empty until votes accumulate); merchant memory + Garage maintenance log unaudited in demo.
+
+# Handoff — Forgenta
+
+> ▶ 2026-08-19 (Slice 6 and light mode) — **`36944227` on `feat/slice6-store-category-learning`**, cut from `feat/demo-in-signup`. Gates: tsc 0, eslint clean, **1726 passed across 184 files** (+18), build exit 0.
+>
+> **PR #114 IS OPEN AND FILED** (demo audit + DTI + §2.4 Phase 2 + Settings panels). This branch stacks on it — it does NOT branch from `main`, because main does not have #114 yet. Merge #114 first.
+>
+> **1. ✅ SLICE 6 — GLOBAL STORE→CATEGORY LEARNING (`27a567b0`). MIGRATION APPLIED TO PRODUCTION** (`mdtosrbfkextcaezuclh`), attended, and mirrored into `supabase/migrations/20260819_*.sql` so the schema is reviewable in the repo.
+> - ⚠️ **THE SPEC AS WRITTEN HAD A PRIVACY HOLE.** It said "merchant key + category + count ONLY; no user ids" and called that aggregate-by-construction. It is not: a normalized merchant key is not always a business — **this account's own memory holds "Zelle payment from ARIA…"**. A bare count would have published one user's counterparty names to everyone. There is now a **distinct-voter threshold of 3**, which needs to know who voted, so ballots are kept in a table only the definer functions can see. A private payee has one voter forever.
+> - ⚠️ **THE FLOOR IS CLAMPED IN SQL** — `greatest(coalesce(p_min_voters,3),3)`. Probed live: passing `p_min_voters => 1` returns the same single row as the default. A caller can only make it stricter.
+> - ⚠️ **NOTHING LIVES IN `public`, AND THIS IS WHY.** Verified on this project: default ACLs grant `arwdDxtm` (ALL) to **both anon and authenticated** on every new table in public. A table there is world-writable the instant it exists. The `crowd` schema has no default ACLs, no grants, no schema USAGE for either role, RLS on and **no policies** (deny-all), reachable only via two SECURITY DEFINER functions with `search_path = ''`. All of that re-queried after applying.
+> - Client: `src/lib/crowd-category.ts` owns the order — **your own memory > the crowd > the bank's label** — and carries `source` so the UI can say which answered. The crowd line never names a headcount (a test forbids a digit in it). Votes ride on `setCategory`, the single existing write path. Demo reads and writes nothing.
+> - ⬜ **KNOWN LIMITS, stated:** clearing a category does not retract a vote; poisoning a pair needs three colluding accounts.
+> - ⬜ **NOT YET SEEN WITH REAL CROWD DATA** — the table is empty, so no charge row has shown a crowd suggestion yet. It will populate as categorisations happen. The precedence and the copy are unit-proven; the rendered "Other people who shop here say this" line is not.
+>
+> **2. ✅ LIGHT MODE (`36944227`).** Dark stays the default; `:root` IS dark and `.light` overrides it.
+> - ⚠️ **THE RISK WAS `dark:` VARIANTS**, since the script now always puts a class on `<html>` where there was none. **Closed by evidence: grep finds ZERO `dark:` variants**, and the `.dark` block is a duplicate of `:root`, so the class is a no-op for existing dark mode.
+> - ⚠️ **THE GOLD IS NOT THE SAME GOLD.** Brand gold on near-white is ~2.6:1 and `--primary` is used as a TEXT colour everywhere. Light deepens it to a bronze clearing 4.5:1, and `--primary-foreground` becomes white because the relationship inverts on a fill.
+> - ⚠️ Page is 98%, cards are 100% — reversing them flattens every surface. The **named colours flip too** (`--silver` is a LIGHT text colour in dark; left alone it is white-on-white).
+> - Applied **before first paint** by an inline script in `index.html` — React mounts after the paint, so setting it from a component flashes dark on every load. Per **device**, not profile. `ThemeSync` in `App.tsx` keeps `system` following the OS live.
+> - ⚠️ `resolved` is DERIVED, not stored — eslint's `react-hooks/set-state-in-effect` caught the first version.
+> - 🔬 **LIVE:** Settings and Dashboard both render in light, readable, charts intact. **Left on `system`** afterwards.
+>
+> **⬜ NEXT:** (1) Merge #114, then this branch's PR. (2) Slice 7 — token sweep (~164 ad-hoc card sites vs 155 `card-forged`; 73 in four files). ⚠️ **Light mode makes this more valuable AND more urgent**: an ad-hoc `bg-[#0a0a0a]` or `text-amber-400` does not follow the theme, so any card still off-token is a dark card on a light page. Nobody has swept for that yet. (3) Screenshots stay DEFERRED until Tre says the design has settled.
+>
+> **⬜ CARRIED:** `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges); merchant memory + Garage maintenance log unaudited in demo; per-surface 390px re-passes.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (saving stops counting as spending, and Settings gets panels) — **`95351821` on `feat/demo-in-signup`.** Gates: tsc 0, eslint clean, **1708 passed across 182 files** (+8), build exit 0. NOT pushed.
 >
 > **1. ✅ §2.4 PHASE 2 — ANNUAL SAVINGS WAS −$3,185 FOR SOMEONE SAVING $16,500 A YEAR (`a48303bd`).** Tre reported the number; the tile got worse the more the user saved.

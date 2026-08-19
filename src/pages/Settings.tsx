@@ -21,6 +21,8 @@ import { LinkedAccounts } from '@/components/settings/LinkedAccounts';
 import { TwoFactorAuth } from '@/components/settings/TwoFactorAuth';
 import MerchantRulesSettings from '@/components/settings/MerchantRulesSettings';
 import { usePersistedState } from '@/hooks/usePersistedState';
+import { useTheme } from '@/hooks/useTheme';
+import type { ThemeChoice } from '@/lib/theme';
 import PanelBar from '@/components/shared/PanelBar';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { getDayName } from '@/lib/scheduling';
@@ -114,6 +116,7 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { isDemo } = useDemo();
   const location = useLocation();
+  const { choice: themeChoice, resolved: resolvedTheme, choose: chooseTheme } = useTheme();
 
   // ── Panels ────────────────────────────────────────────────────────────────────────────
   // Settings was one scrolling column of nine cards. Tre asked for tabs with "Profile and
@@ -507,6 +510,25 @@ export default function SettingsPage() {
             <label className="text-xs text-muted-foreground uppercase">Budget Start Day</label>
             <input type="number" min={1} max={28} value={startDay} onChange={e => { setStartDay(e.target.value); markDirty(); }}
               className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }} />
+          </div>
+          {/* ⚠️ THEME IS NOT PART OF `dirty` AND HAS NO SAVE BUTTON, unlike everything else on this
+              card. It applies the instant it is picked, because the only way to judge a theme is to
+              see it — a preview you have to press Save to view is not a preview. It is also stored
+              per DEVICE rather than on the profile: a phone read in bed and a desktop under office
+              lights are not the same request. See `src/lib/theme.ts`. */}
+          <div>
+            <label className="text-xs text-muted-foreground uppercase" htmlFor="theme-choice">Appearance</label>
+            <select id="theme-choice" value={themeChoice} onChange={e => chooseTheme(e.target.value as ThemeChoice)}
+              className="w-full mt-1 bg-secondary border border-border px-2 py-1.5 text-xs text-foreground" style={{ borderRadius: 'var(--radius)' }}>
+              <option value="system">Match my device</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              {themeChoice === 'system'
+                ? `Following your device — currently ${resolvedTheme}. Applies to this device only.`
+                : 'Applies to this device only.'}
+            </p>
           </div>
         </div>
         <div className="flex items-center justify-between">
