@@ -1,5 +1,36 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (popups centred, guides placed, and a SPEC for ranked extra payments) — **`aecd727c` on `main`**, pushed. Gates: tsc 0, eslint clean, **1742 passed across 186 files**, build exit 0.
+>
+> **✅ SHIPPED THIS ROUND:** the safe-area gap (one owner: `DashboardLayout`'s sticky wrapper — ⚠️ do NOT re-add the inset to a child), shimmer skeletons, `ConnectionNotice` for the silent-reload bug, 13 popups onto `modal-overlay` (measured live: top 18 / bottom 18 / left 179 / right 179, unclipped), the Forecast guide on its title row, the dashboard action row centred when stacked.
+>
+> ---
+>
+> **⬜ SPECCED, NOT BUILT — RANKED AUTOMATIC EXTRA PAYMENTS.** Tre, 2026-08-19: *"make an option where users can have extra payments for cars and goals automatically generate extra payments. and change automatically as plans change. and somewhere there able to rank them in order of importance."*
+>
+> **Why it is not half-built in this session:** it is an engine change in `credit-card-engine.ts`, whose Q1–Q12 anomaly history is the longest in this repo, plus a migration and a reorder UI. Started at the tail of a very long session it would be the worst kind of half-done. The survey below is the real work; the build is a fresh slice.
+>
+> **What already exists, and it is most of the shape:**
+> - `availableToDeploy` / `deployable` (`month0-budget-snapshot.ts:172`) is ALREADY the computed surplus above the cash floor after bills and reserves. Today **all of it goes to credit cards** via the avalanche engine.
+> - Car funds already have a reserve concept the snapshot narrates: *"still your cash, just not deployable this month"*.
+> - `savings_goals.monthly_contribution` + `lump_sum_payments`, `car_funds.gift_contribution` + `lump_sum_payments` are the existing manual versions of exactly this.
+> - `sort_order` is an established pattern (builds, phases, items) — the ranking should reuse it, not invent a `priority` enum.
+>
+> **The shape:** `deployable` stops being "what the cards get" and becomes "what the RANKED LIST gets". One ordered list mixing cards, car funds and goals; each target takes its fill in order; the remainder flows to the next. Recomputation is free — it already re-runs on every plan change, which is what makes *"change automatically as plans change"* nearly a property of the existing design rather than new work.
+>
+> **⚠️ THE THREE THINGS THAT WILL BITE:**
+> 1. **The cash floor is not negotiable and neither are minimums.** A goal ranked above a card must never starve a card's MINIMUM — only the surplus above minimums is rankable. Get this wrong and the app recommends missing a payment.
+> 2. **Convergence.** The engine iterates to a fixed point (`maxPasses` 24, see the Q4/Q10 history). Feeding goal contributions into that loop can oscillate — a goal that completes frees cash, which changes the card plan, which changes the surplus, which un-completes the goal. Expect to need damping, and pin a fixture before touching it.
+> 3. **A goal that is FULL must hand its share on** within the same month, or surplus silently evaporates against a target that needs nothing.
+>
+> **Suggested slicing:** (a) migration: `sort_order` on `savings_goals` and `car_funds` + a per-target `auto_extra` boolean; (b) a PURE allocator (`rankedSurplusAllocation`) taking deployable + ordered targets and returning per-target amounts, tested in isolation against the floor/minimum rules BEFORE any engine wiring; (c) wire it; (d) the drag-to-rank UI, reusing the builds reorder pattern. ⚠️ Do (b) first and prove it alone — that is the part that can quietly recommend a missed payment.
+>
+> ---
+>
+> **⬜ ALSO OPEN:** Dependabot #109/#110; `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges); no crowd suggestion rendered yet (Slice 6's table is empty until votes accumulate); the PageLoader connection swap is tested but never seen in a browser (chunks resolve instantly on a local dev server).
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (390px pass — **the mechanical half is done and clean; the visual half CANNOT be done from a session**) — no code change needed.
 >
 > **✅ NO HORIZONTAL OVERFLOW AT 390px ON ANY SURFACE, IN EITHER THEME.** `/dashboard`, `/transactions`, `/debt`, `/forecast`, `/vehicles`, `/settings` — every one `bodyOverflow = 0`.
