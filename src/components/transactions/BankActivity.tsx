@@ -42,6 +42,9 @@ import { toast } from 'sonner';
 import { formatCurrency } from '@/lib/calculations';
 import { CATEGORIES, CATEGORY_EMOJI } from '@/lib/types';
 import { suggestCategory, hasCategorySuggestion, isValidCategory } from '@/lib/plaid-category-map';
+import { useCrowdCategories } from '@/hooks/useCrowdCategories';
+import { resolveCategorySuggestion, describeSuggestionSource, CROWD_PRIVACY_NOTE } from '@/lib/crowd-category';
+import { normalizeMerchant } from '@/lib/merchant-memory';
 import {
   useAllSyncedTransactions, useSyncedTransactionReviews, useAccounts, useRecurringRules,
   useTransactions, usePaymentPlans, useCarFunds, isHandledReview, planLedgerImport,
@@ -84,6 +87,7 @@ type ViewMode = 'needs' | 'all';
 
 export default function BankActivity() {
   const { data: synced = [], isLoading } = useAllSyncedTransactions();
+  const { crowd } = useCrowdCategories();
   const {
     data: reviews, save, setCategory, remove, removeLink, importToLedger, undoImport,
   } = useSyncedTransactionReviews();
@@ -733,12 +737,26 @@ export default function BankActivity() {
           const amount = Number(txn.amount);
           const isInflow = amount < 0;
           const mapped = suggestCategory(txn.category);
+          // Slice 6 — the three answers, in one order, in one place. The user's own always wins;
+          // the crowd only speaks where at least three different people agreed; the bank's own
+          // label is last because it is a bucketing, not a decision.
+          const merchantKey = normalizeMerchant(txn.merchant_name ?? txn.name);
+          const categorySuggestion = resolveCategorySuggestion({
+            ownCategory: exclusive?.category_override,
+            crowd: merchantKey ? crowd[merchantKey] : null,
+            providerCategory: mapped,
+            providerHasOpinion: hasCategorySuggestion(txn.category),
+          });
           // The category comes off the EXCLUSIVE row and nowhere else (Tre, 2026-08-09). A charge
           // split across Rent and Water has one merchant and one label, not two.
           const category = exclusive?.category_override && isValidCategory(exclusive.category_override)
             ? exclusive.category_override
-            : mapped;
+            : (categorySuggestion.category ?? mapped);
+          // ⚠️ STILL A GUESS WHEN THE CROWD ANSWERED. A crowd suggestion is other people's first
+          // draft about this merchant, not a fact about THIS charge — so it fills the dropdown and
+          // says where it came from, and it does not stop the row reading as unconfirmed.
           const isGuess = !exclusive?.category_override && !hasCategorySuggestion(txn.category);
+          const suggestionNote = exclusive?.category_override ? null : describeSuggestionSource(categorySuggestion);
 
           return (
             <div key={txn.id} className="px-4 py-3 space-y-2">
@@ -796,13 +814,21 @@ export default function BankActivity() {
                   <>
                     <select
                       value={category}
-                      onChange={e => setCategory.mutate({ syncedTransactionId: txn.id, category: e.target.value })}
+                      onChange={e => setCategory.mutate({ syncedTransactionId: txn.id, category: e.target.value, merchantKey })}
                       className="bg-secondary border border-border px-2 py-1 text-[11px] text-foreground"
                       style={{ borderRadius: 'var(--radius)' }}
                       aria-label="Category"
                     >
                       {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
+                    {/* ⚠️ THE SOURCE IS NAMED, ALWAYS. "You said this" and "other people say this"
+                        are different promises, and a dropdown that renders them identically makes
+                        the stronger one on the weaker one's evidence. */}
+                    {suggestionNote && (
+                      <span className="text-[10px] text-muted-foreground" title={categorySuggestion.source === 'crowd' ? CROWD_PRIVACY_NOTE : undefined}>
+                        {suggestionNote}
+                      </span>
+                    )}
 
                     {/* An unmapped provider category is uncategorized, not "Other". Saying "Other"
                         asserts the charge is miscellaneous; the honest claim is that we do not know. */}
