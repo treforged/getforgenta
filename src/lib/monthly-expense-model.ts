@@ -43,10 +43,18 @@ export type MonthlyExpenseModel = {
   /** Auto-loan principal. Net-worth-neutral, so Option B keeps it out of `expenses`. */
   principal: number;
   /**
-   * Goal / investment contributions. Reserved for Phase 2 and currently always 0: the stream does
-   * not carry the originating rule_type, so transfers are today indistinguishable from living
-   * spend and stay folded into `living` exactly as they were before this module existed. Splitting
-   * them is a definition change, and Phase 1 is deliberately additive only.
+   * Goal / investment contributions — money moved between two of the user's OWN accounts.
+   *
+   * ⚠️ LIVE AS OF §2.4 PHASE 2 (2026-08-19). This was pinned at 0 because "the stream does not
+   * carry the originating rule_type"; `generateMonthTransactionsFromRules` now stamps
+   * `isTransfer`, so it does. Contributions are held OUT of `living`, which is what stops a Roth
+   * contribution from reading as an expense — and stopped the Dashboard's "Annual Savings" tile
+   * from going DOWN the more the user saved.
+   *
+   * ⚠️ GENERATED ROWS ONLY, and that limit is real: a transfer someone typed by hand carries no
+   * rule_type and stays in `living`. Better than the zero it replaces, not yet complete. Widening
+   * it means linking a recorded row back to its rule (§1B), not guessing from the category name —
+   * category strings are user-editable, and this module's own header forbids classifying by name.
    */
   transfers: number;
   /**
@@ -63,11 +71,20 @@ export type MonthlyExpenseModel = {
   byCategoryAllIn: Record<string, number>;
   /** Option B headline: living + interest. */
   expenses: number;
-  /** Everything that actually left, debt principal included. The Phase 1 headline. */
+  /**
+   * Everything that actually left the account — debt principal AND contributions included.
+   *
+   * ⚠️ ITS VALUE IS UNCHANGED BY PHASE 2, deliberately. Contributions moved out of `living` and
+   * are added back here, so every caller reporting "cash that left" (the month-0 snapshot, the
+   * cash flow chart, the PDF) sees exactly the dollars it saw before. Only `expenses` moved.
+   * Note this is therefore NO LONGER `expenses + principal`; writing it that way would silently
+   * drop the contributions back out.
+   */
   expensesAllIn: number;
   /** interest + principal. */
   debtService: number;
-  /** expensesAllIn + transfers. Emergency-runway burn rate. */
+  /** Emergency-runway burn rate. Identical to `expensesAllIn` — kept as its own name because the
+   *  question it answers ("what does a month cost me in cash") is not the same question. */
   cashOut: number;
 };
 
@@ -110,17 +127,27 @@ export function buildMonthlyExpenseModel(input: MonthlyExpenseInput): MonthlyExp
     bump(byCategory, category, amount);
     bump(byCategoryAllIn, category, amount);
   };
+  // Both write to the CASH view only: principal and contributions are money that left the account
+  // without being spent, so they belong in `byCategoryAllIn` and never in the expense view.
   const addPrincipalOnly = (category: string, amount: number) => bump(byCategoryAllIn, category, amount);
+  const addTransferOnly = (category: string, amount: number) => bump(byCategoryAllIn, category, amount);
 
   let living = 0;
   let interest = 0;
   let principal = 0;
+  let transfers = 0;
 
   for (const t of monthTxns) {
     if (t.type !== 'expense') continue;
     if (isDerivedElsewhere(t)) continue;
     const amount = Number(t.amount || 0);
     if (!Number.isFinite(amount) || amount <= 0) continue;
+    // §2.4 Phase 2 — a contribution to your own savings or investment account is not spending.
+    if (t.isTransfer) {
+      transfers = round2(transfers + amount);
+      addTransferOnly(t.category, amount);
+      continue;
+    }
     living = round2(living + amount);
     add(t.category, amount);
   }
@@ -166,9 +193,10 @@ export function buildMonthlyExpenseModel(input: MonthlyExpenseInput): MonthlyExp
     add('Insurance', premium);
   }
 
-  const transfers = 0;
   const expenses = round2(living + interest);
-  const expensesAllIn = round2(expenses + principal);
+  // ⚠️ NOT `expenses + principal`. Contributions were taken out of `living` above and have to be
+  // added back for the cash view, or every "what left the account" surface under-reports them.
+  const expensesAllIn = round2(living + interest + principal + transfers);
 
   return {
     living,
@@ -180,6 +208,6 @@ export function buildMonthlyExpenseModel(input: MonthlyExpenseInput): MonthlyExp
     expenses,
     expensesAllIn,
     debtService: round2(interest + principal),
-    cashOut: round2(expensesAllIn + transfers),
+    cashOut: expensesAllIn,
   };
 }

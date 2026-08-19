@@ -456,11 +456,16 @@ export default function Dashboard() {
     // paying off less debt. So the tile is now living + interest, and the principal is reported
     // beside it as DEBT SERVICE rather than hidden inside a total.
     //
-    // CRITICAL: this is a RELABEL, not a revaluation. `expenses + debtService` is exactly the
-    // old `expensesAllIn + totalDebtPayments`, so cashFlow, savingsRate and Annual Savings do not
-    // move by a cent — the same dollars, split into two truthful buckets instead of one blurred
-    // one. Any future edit that breaks that identity is changing what the user is owed, not how
-    // it is labeled.
+    // Phase 1 was a RELABEL, not a revaluation: `expenses + debtService` equalled the old
+    // `expensesAllIn + totalDebtPayments` exactly.
+    //
+    // ⚠️ §2.4 PHASE 2 (2026-08-19) BREAKS THAT IDENTITY ON PURPOSE, and it is now
+    // `expenses + debtService + transfers`. Contributions to your own savings and investment
+    // accounts left `expenses`, because they are not spending — and while they sat inside it the
+    // "Annual Savings" tile went DOWN the more the user saved. On the demo account, $1,375/mo of
+    // 401k, Roth, brokerage and emergency-fund transfers were being counted as money gone, which
+    // is what put that tile at −$3,185 a year for someone saving $16,500 of it.
+    // `expensesAllIn` is unchanged to the cent, so every cash-that-left surface is untouched.
     const expenses = expenseModel.expenses;
     const debtService = expenseModel.principal + totalDebtPayments;
     const totalDebt = debts.reduce((s, d) => s + Number(d.balance || 0), 0);

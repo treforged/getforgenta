@@ -298,3 +298,66 @@ describe('buildMonthlyExpenseModel', () => {
     });
   });
 });
+
+// ── §2.4 Phase 2 — a contribution to your own account is not an expense ────────────────────
+//
+// ⚠️ WHAT THIS PROTECTS. `transfers` was pinned at 0, so every 401k, Roth, brokerage and
+// emergency-fund contribution counted as `living`. The Dashboard's "Annual Savings" tile is
+// `cashFlow * 12`, so it went DOWN the more the user saved — on the demo account, $16,500/yr of
+// contributions rendered as −$3,185 of annual savings. These tests are the definition change,
+// and the last one is the guard rail on it: the cash view must not move by a cent.
+describe('§2.4 Phase 2: transfers leave the expense view without leaving the cash view', () => {
+  const base = { paymentPlans: [], carFunds: [], creditCardSourceIds: ccSources, asOf: new Date(2026, 7, 15) };
+
+  const groceries = txn({ amount: 400, category: 'Groceries' });
+  const roth = txn({ amount: 250, category: 'Investing', isTransfer: true });
+  const hys = txn({ amount: 300, category: 'Savings', isTransfer: true });
+
+  it('keeps contributions out of living and out of `expenses`', () => {
+    const m = buildMonthlyExpenseModel({ ...base, monthTxns: [groceries, roth, hys] });
+    expect(m.living).toBe(400);
+    expect(m.transfers).toBe(550);
+    expect(m.expenses).toBe(400);
+  });
+
+  it('still counts them as cash that left', () => {
+    const m = buildMonthlyExpenseModel({ ...base, monthTxns: [groceries, roth, hys] });
+    expect(m.expensesAllIn).toBe(950);
+    expect(m.cashOut).toBe(950);
+  });
+
+  // The whole point: the model must not be able to make saving look like spending again.
+  it('moves `expenses` DOWN when the user contributes more, never up', () => {
+    const modest = buildMonthlyExpenseModel({ ...base, monthTxns: [groceries, txn({ amount: 100, category: 'Investing', isTransfer: true })] });
+    const heavy = buildMonthlyExpenseModel({ ...base, monthTxns: [groceries, txn({ amount: 900, category: 'Investing', isTransfer: true })] });
+    expect(heavy.expenses).toBe(modest.expenses);
+    expect(heavy.expensesAllIn).toBeGreaterThan(modest.expensesAllIn);
+  });
+
+  it('shows a contribution in the cash breakdown but not the expense breakdown', () => {
+    const m = buildMonthlyExpenseModel({ ...base, monthTxns: [groceries, roth] });
+    expect(m.byCategory.Investing).toBeUndefined();
+    expect(m.byCategoryAllIn.Investing).toBe(250);
+    expect(m.byCategory.Groceries).toBe(400);
+  });
+
+  // ⚠️ THE GUARD RAIL. Every "what left the account" surface — the month-0 snapshot, the cash flow
+  // chart, the PDF — reads `expensesAllIn`. Phase 2 must be invisible to all of them, so this
+  // asserts the cash total is identical whichever side of the split the rows fall on.
+  it('leaves the cash total identical to the pre-split accounting', () => {
+    const asSpending = buildMonthlyExpenseModel({
+      ...base,
+      monthTxns: [groceries, txn({ amount: 250, category: 'Investing' }), txn({ amount: 300, category: 'Savings' })],
+    });
+    const asTransfers = buildMonthlyExpenseModel({ ...base, monthTxns: [groceries, roth, hys] });
+    expect(asTransfers.expensesAllIn).toBe(asSpending.expensesAllIn);
+    expect(asTransfers.cashOut).toBe(asSpending.cashOut);
+    expect(asTransfers.expenses).toBeLessThan(asSpending.expenses);
+  });
+
+  it('an untagged row stays spending — the split is opt-in, never guessed from the category name', () => {
+    const m = buildMonthlyExpenseModel({ ...base, monthTxns: [txn({ amount: 250, category: 'Investing' })] });
+    expect(m.transfers).toBe(0);
+    expect(m.expenses).toBe(250);
+  });
+});
