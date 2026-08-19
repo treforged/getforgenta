@@ -1751,14 +1751,19 @@ export function usePublicBuild(shareToken: string | undefined) {
         ...json,
         maintenancePublic: json.maintenancePublic === true,
         maintenance: json.maintenance ?? [],
+        // ⚠️ NOT `=== true`. Only an explicit false hides pricing, so an OLD deployed function
+        // that does not send the field at all still shows prices — which is what every shared
+        // link did before the flag existed. See src/lib/public-pricing.ts.
+        pricingPublic: json.pricingPublic !== false,
       } as {
         // The flag is reported once, as `maintenancePublic` — the Edge Function
         // strips it from the build object, so the type must not claim it.
-        build: Omit<CarBuild, 'maintenance_public'>;
+        build: Omit<CarBuild, 'maintenance_public' | 'pricing_public'>;
         phases: CarBuildPhase[];
         items: CarBuildItem[];
         maintenancePublic: boolean;
         maintenance: PublicMaintenanceEntry[];
+        pricingPublic: boolean;
         displayName: string | null;
       };
     },

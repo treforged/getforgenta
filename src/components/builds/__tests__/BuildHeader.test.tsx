@@ -30,6 +30,7 @@ const build: CarBuild = {
   sort_order: 0,
   share_token: null,
   maintenance_public: false,
+  pricing_public: true,
   photos: null,
   created_at: '2026-01-01T00:00:00Z',
 };

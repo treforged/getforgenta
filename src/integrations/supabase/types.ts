@@ -489,6 +489,7 @@ export type Database = {
           created_at: string
           id: string
           maintenance_public: boolean
+          pricing_public: boolean
           make: string | null
           model: string | null
           name: string
@@ -503,6 +504,7 @@ export type Database = {
           created_at?: string
           id?: string
           maintenance_public?: boolean
+          pricing_public?: boolean
           make?: string | null
           model?: string | null
           name: string
@@ -517,6 +519,7 @@ export type Database = {
           created_at?: string
           id?: string
           maintenance_public?: boolean
+          pricing_public?: boolean
           make?: string | null
           model?: string | null
           name?: string

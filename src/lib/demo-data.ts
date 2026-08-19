@@ -306,6 +306,7 @@ export const demoCarBuilds: CarBuild[] = [
     sort_order: 0,
     share_token: null,
     maintenance_public: false,
+    pricing_public: true,
     photos: null,
     created_at: '',
   },

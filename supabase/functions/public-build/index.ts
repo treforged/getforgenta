@@ -23,6 +23,12 @@
  *     changed at 92,400 miles is the feature; publishing what someone paid and
  *     the name of their local shop is a different one. A cost never crosses the
  *     network, rather than being sent and hidden in the browser.
+ * Pricing (2026-08-19):
+ *   - `car_build_items.price` is fetched ONLY when the build's `pricing_public`
+ *     flag is not false. Defaults to shown, because every shared link already
+ *     displayed prices before the column existed and flipping that silently
+ *     would change what links already in the wild show.
+ *
  *   - `car_maintenance_logs` gets NO anon RLS policy. See
  *     20260812_car_builds_maintenance_public.sql for why re-adding one would
  *     restore the enumeration hole 20260615_fix_public_rls.sql closed.
@@ -97,7 +103,7 @@ Deno.serve(async (req) => {
   const { data: build, error: buildErr } = await supabase
     .from("car_builds")
     .select(
-      "id, name, year, make, model, notes, user_id, photos, maintenance_public",
+      "id, name, year, make, model, notes, user_id, photos, maintenance_public, pricing_public",
     )
     .eq("share_token", token)
     .single();
@@ -105,6 +111,10 @@ Deno.serve(async (req) => {
   if (buildErr || !build) {
     return jsonResponse({ error: "Not found" }, 404, corsHeaders);
   }
+
+  // ⚠️ Only an explicit false hides pricing. Every shared link showed prices before this column
+  // existed, so an absent or null flag has to keep showing them — see src/lib/public-pricing.ts.
+  const pricingPublic = build.pricing_public !== false;
 
   const [{ data: phases }, { data: items }, { data: profile }] =
     await Promise.all([
@@ -116,7 +126,13 @@ Deno.serve(async (req) => {
       supabase
         .from("car_build_items")
         .select(
-          "id, phase_id, build_id, name, brand, price, link, completed, sort_order",
+          // ⚠️ `price` IS IN THE SELECT ONLY WHEN THE OWNER PUBLISHES IT. Fetching it and letting
+          // the page decide not to draw it would still publish it — it would sit in the network
+          // tab of anyone with the link. Same rule as `cost`/`vendor`/`notes` on the maintenance
+          // allowlist above: a figure the owner chose not to share never crosses the network.
+          pricingPublic
+            ? "id, phase_id, build_id, name, brand, price, link, completed, sort_order"
+            : "id, phase_id, build_id, name, brand, link, completed, sort_order",
         )
         .eq("build_id", build.id)
         .order("sort_order"),
@@ -143,10 +159,11 @@ Deno.serve(async (req) => {
   // `maintenance_public` is the owner's own setting and tells the page whether an
   // empty list means "nothing logged" or "not shared" — but it is not build data,
   // so it is stripped from the build object and reported once, on its own.
-  const { maintenance_public: _flag, ...publicBuild } = build as Record<
-    string,
-    unknown
-  >;
+  const {
+    maintenance_public: _flag,
+    pricing_public: _pricingFlag,
+    ...publicBuild
+  } = build as Record<string, unknown>;
 
   return jsonResponse(
     {
@@ -155,6 +172,7 @@ Deno.serve(async (req) => {
       items: items ?? [],
       maintenancePublic,
       maintenance: maintenance ?? [],
+      pricingPublic,
       displayName:
         (profile as Record<string, unknown> | null)?.display_name ?? null,
     },

@@ -61,7 +61,7 @@ export default function BuildShare() {
     );
   }
 
-  const { build, phases, items, displayName, maintenancePublic, maintenance } = data;
+  const { build, phases, items, displayName, maintenancePublic, maintenance, pricingPublic } = data;
 
   const hasPlannedPhases = phases.some((p: CarBuildPhase) => p.hidden);
 
@@ -134,6 +134,11 @@ export default function BuildShare() {
             )}
           </div>
           <div className="sm:text-right shrink-0">
+            {/* ⚠️ THE TOTAL GOES TOO, not just the per-item prices. Hiding the line items while
+                leaving the sum on the page publishes the number the owner asked to keep back —
+                and with the item list visible, a total plus one known part price starts giving
+                the rest away. Pricing is one decision, so it hides as one thing. */}
+            {pricingPublic && (<>
             <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-[0.15em] mb-0.5">
               {includePlanned ? 'Total Mod Cost' : 'Total Budget'}
             </div>
@@ -143,6 +148,7 @@ export default function BuildShare() {
             {hasTbd && (
               <div className="text-[12px] font-mono text-muted-foreground mt-0.5">+ TBD items</div>
             )}
+            </>)}
             {hasPlannedPhases && (
               <button
                 onClick={() => setIncludePlanned(v => !v)}
@@ -258,7 +264,7 @@ export default function BuildShare() {
                     </div>
                   </div>
                   <div className="font-mono text-base font-medium text-right shrink-0 mr-2" style={{ color: 'hsl(var(--primary))' }}>
-                    {phTotal > 0 ? `$${phTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
+                    {!pricingPublic ? null : phTotal > 0 ? `$${phTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
                   </div>
                   <ChevronDown
                     size={14}
@@ -308,13 +314,17 @@ export default function BuildShare() {
                           )}
                         </div>
 
-                        {/* Price */}
-                        <div className="text-right shrink-0">
-                          {item.price !== null
-                            ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
-                            : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
-                          }
-                        </div>
+                        {/* Price. ⚠️ `item.price` is UNDEFINED here when the owner hid pricing —
+                            the Edge Function drops it from the SELECT rather than sending it for
+                            the page to ignore — so this guard is belt-and-braces, not the gate. */}
+                        {pricingPublic && (
+                          <div className="text-right shrink-0">
+                            {item.price !== null && item.price !== undefined
+                              ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
+                              : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
+                            }
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

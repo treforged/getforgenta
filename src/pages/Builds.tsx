@@ -439,6 +439,29 @@ export default function Builds() {
     }
   }
 
+  /**
+   * Whether the share link shows what the parts cost.
+   *
+   * ⚠️ OPT-OUT, NOT OPT-IN — the reverse of the maintenance switch above, and deliberately.
+   * Pricing has been on every shared build page since the feature existed, so defaulting it off
+   * would have silently changed what links already sent to people show. The maintenance log had no
+   * such history, which is why that one is private until asked for.
+   *
+   * When off, prices do not reach the page at all: `public-build` drops `price` from its SELECT,
+   * so nothing is sent and hidden in the browser.
+   */
+  async function handleTogglePricingPublic() {
+    if (!activeBuild) return;
+    const next = !(activeBuild.pricing_public !== false);
+    setShareLoading(true);
+    try {
+      await updateBuild.mutateAsync({ id: activeBuild.id, pricing_public: next });
+      toast.success(next ? 'Prices are shown on the share link' : 'Prices are hidden from the share link');
+    } finally {
+      setShareLoading(false);
+    }
+  }
+
   function shareUrl() {
     if (!activeBuild?.share_token) return '';
     return `${SHARE_BASE}/builds/share/${activeBuild.share_token}`;
@@ -769,6 +792,32 @@ export default function Builds() {
                     }
                   >
                     {activeBuild.maintenance_public ? '✓ Public' : 'Private'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Pricing on the share link — shown by default, see handleTogglePricingPublic */}
+              <div className="pt-3 border-t border-border">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[12px] text-foreground">Prices on this link</div>
+                    <div className="text-[11px] text-muted-foreground mt-0.5">
+                      {activeBuild.pricing_public !== false
+                        ? 'Visible: each part’s price, the phase totals and the build total.'
+                        : 'Hidden. Prices are not sent to the share page at all — the parts list still shows.'}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleTogglePricingPublic}
+                    disabled={shareLoading}
+                    aria-pressed={activeBuild.pricing_public !== false}
+                    className="shrink-0 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 rounded border transition-colors disabled:opacity-40"
+                    style={activeBuild.pricing_public !== false
+                      ? { background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))', borderColor: 'hsl(var(--primary))' }
+                      : { color: 'hsl(var(--primary))', borderColor: 'hsl(var(--primary))', background: 'transparent' }
+                    }
+                  >
+                    {activeBuild.pricing_public !== false ? '✓ Shown' : 'Hidden'}
                   </button>
                 </div>
               </div>
