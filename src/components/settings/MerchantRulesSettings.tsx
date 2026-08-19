@@ -15,6 +15,7 @@ import { Tag, RotateCcw } from 'lucide-react';
 import { CATEGORIES, type Category } from '@/lib/types';
 import { useMerchantMemory } from '@/hooks/useMerchantMemory';
 import { useAllSyncedTransactions, useSyncedTransactionReviews } from '@/hooks/useSupabaseData';
+import { CROWD_PRIVACY_NOTE } from '@/lib/crowd-category';
 import { planMerchantRelabel, type MerchantRelabel } from '@/lib/merchant-memory';
 
 /** A re-label that actually landed, kept whole so it reverses as one act. */
@@ -107,6 +108,15 @@ export default function MerchantRulesSettings() {
             with it — charges with no category yet are left alone, and undo puts a change back.
             Switching a merchant off leaves those labels exactly as they are — it only stops new
             charges being labeled automatically, and it applies on this device.
+          </p>
+          {/* Slice 6 requires this note wherever the shared map is in play, and Settings is where a
+              person comes looking. ⚠️ It is deliberately specific about what is NOT sent: a vague
+              "we use aggregated data" reassures nobody and tells them nothing. The sentence itself
+              lives in `crowd-category.ts` so the copy here and the copy on the charge row cannot
+              come to say two different things. */}
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span className="text-foreground font-medium">Shared suggestions. </span>
+            {CROWD_PRIVACY_NOTE}
           </p>
         </div>
       </div>
