@@ -1014,7 +1014,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
               .at(-1);
             return (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-green-500' : 'bg-gold'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-success' : 'bg-gold'}`} />
                 {mostRecent
                   ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs daily at ${formatDailySyncTime()}`
                   : `Not yet synced · Syncs daily at ${formatDailySyncTime()}`}

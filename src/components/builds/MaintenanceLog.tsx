@@ -27,10 +27,12 @@ interface MaintenanceLogProps {
 }
 
 const STATUS_COLORS: Record<MaintenanceStatus, string> = {
-  overdue: '#e05a5a',
-  'due-soon': '#c8a84b',
-  scheduled: '#6b7280',
-  none: '#6b7280',
+  overdue: 'hsl(var(--destructive))',
+  'due-soon': 'hsl(var(--primary))',
+  // Token, not a grey: on a light page a hardcoded #6b7280 is the only status that does not
+  // move with the theme, and 'no schedule' would read as the loudest state on the row.
+  scheduled: 'hsl(var(--muted-foreground))',
+  none: 'hsl(var(--muted-foreground))',
 };
 
 function todayISO(): string {
@@ -92,7 +94,7 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
         <button
           onClick={() => setExpanded(e => !e)}
           className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest"
-          style={{ color: '#c8a84b' }}
+          style={{ color: 'hsl(var(--primary))' }}
         >
           <ChevronDown size={14} className={cn('transition-transform', !expanded && '-rotate-90')} />
           <Wrench size={13} />
@@ -112,7 +114,7 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
         <button
           onClick={onAdd}
           className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-wider rounded transition-colors"
-          style={{ background: '#c8a84b', color: '#000' }}
+          style={{ background: 'hsl(var(--primary))', color: '#000' }}
         >
           <Plus size={12} /> Log Service
         </button>
@@ -219,7 +221,7 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
                         <div className="text-[11px] text-muted-foreground mt-1 whitespace-pre-wrap">{log.notes}</div>
                       )}
                       {linked.length > 0 && (
-                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono" style={{ color: '#3a8a5a' }}>
+                        <div className="flex items-center gap-1.5 mt-1 text-[11px] font-mono" style={{ color: 'hsl(var(--success))' }}>
                           <Receipt size={11} />
                           {linked.map(t => `${money(Number(t.amount))} · ${t.date}`).join('  |  ')}
                         </div>
@@ -239,7 +241,7 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
                       <button
                         onClick={() => onDelete(log)}
                         title="Delete service"
-                        className="p-1.5 text-muted-foreground hover:text-red-400 transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                       >
                         <Trash2 size={13} />
                       </button>

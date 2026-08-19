@@ -272,12 +272,12 @@ export default function PhaseBlock({
     setItemEdits(prev => ({ ...prev, [itemId]: { ...prev[itemId], ...fields } }));
   }
 
-  const inputCls = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-hidden focus:border-[#c8a84b] font-sans';
-  const monoInput = 'w-full bg-[#1a1a1a] border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-hidden focus:border-[#c8a84b] font-mono';
+  const inputCls = 'w-full bg-secondary border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-hidden focus:border-primary font-sans';
+  const monoInput = 'w-full bg-secondary border border-border text-foreground text-sm px-3 py-[5px] rounded focus:outline-hidden focus:border-primary font-mono';
   const labelCls = 'block text-[11px] font-mono text-muted-foreground uppercase tracking-widest mb-1';
   const modeBtnCls = (active: boolean) => cn(
     'px-2.5 py-[3px] text-[10px] font-mono uppercase tracking-wider rounded border transition-colors',
-    active ? 'border-[#c8a84b] text-[#c8a84b]' : 'border-border text-muted-foreground hover:border-muted-foreground',
+    active ? 'border-primary text-primary' : 'border-border text-muted-foreground hover:border-muted-foreground',
   );
 
   return (
@@ -286,7 +286,7 @@ export default function PhaseBlock({
         'border border-border rounded overflow-hidden mb-2 transition-all duration-150',
         phase.hidden && 'opacity-80',
         isDragging && 'opacity-40',
-        isDragOver && 'border-[#c8a84b] shadow-[0_0_0_1px_#c8a84b]',
+        isDragOver && 'border-primary shadow-[0_0_0_1px_hsl(var(--primary))]',
       )}
       onDragOver={e => !isTouch && onPhaseDragOver(e, phase.id)}
       onDrop={e => !isTouch && onPhaseDrop(e, phase.id)}
@@ -326,28 +326,28 @@ export default function PhaseBlock({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-start gap-1.5 min-w-0">
-            <button onClick={openTitleEdit} className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-[#c8a84b] transition-all shrink-0 mt-0.5" title="Rename phase">
+            <button onClick={openTitleEdit} className="text-muted-foreground opacity-40 hover:opacity-100 hover:text-primary transition-all shrink-0 mt-0.5" title="Rename phase">
               <Pencil size={12} />
             </button>
             <span className="text-sm font-semibold uppercase tracking-wide text-foreground wrap-break-word flex-1 min-w-0">{phase.title}</span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             {allDone && (
-              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0" style={{ color: '#3a8a5a', borderColor: '#3a8a5a' }}>✓ Done</span>
+              <span className="text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0" style={{ color: 'hsl(var(--success))', borderColor: 'hsl(var(--success))' }}>✓ Done</span>
             )}
             <span className="text-[12px] font-mono text-muted-foreground">{phase.hidden ? `planned · ${subtitle}` : subtitle}</span>
           </div>
         </div>
 
-        <div className="font-mono text-base font-medium text-right shrink-0" style={{ color: '#c8a84b' }}>
+        <div className="font-mono text-base font-medium text-right shrink-0" style={{ color: 'hsl(var(--primary))' }}>
           {phaseTotal > 0 ? `$${phaseTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
         </div>
 
         <button onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }} title={phase.hidden ? 'Phase hidden (planned) — click to show' : 'Hide phase (mark as planned)'} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
-          {phase.hidden ? <EyeOff size={14} style={{ color: '#c8a84b' }} /> : <Eye size={14} />}
+          {phase.hidden ? <EyeOff size={14} style={{ color: 'hsl(var(--primary))' }} /> : <Eye size={14} />}
         </button>
 
-        <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all">
+        <button onClick={e => { e.stopPropagation(); onDeletePhase(phase.id); }} title="Delete phase" className="shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive transition-all">
           <Trash2 size={13} />
         </button>
 
@@ -356,7 +356,7 @@ export default function PhaseBlock({
 
       {/* Inline title edit */}
       {editingTitle && (
-        <div className="bg-[#0e0e0e] border-t border-border px-4 py-3" onClick={e => e.stopPropagation()}>
+        <div className="bg-card border-t border-border px-4 py-3" onClick={e => e.stopPropagation()}>
           <label className={labelCls}>Phase Title</label>
           <input
             ref={titleRef}
@@ -366,7 +366,7 @@ export default function PhaseBlock({
             onKeyDown={e => { if (e.key === 'Enter') saveTitleEdit(); if (e.key === 'Escape') setEditingTitle(false); }}
           />
           <div className="flex gap-2 mt-2">
-            <button onClick={saveTitleEdit} className="px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider rounded" style={{ background: '#c8a84b', color: '#000' }}>Save</button>
+            <button onClick={saveTitleEdit} className="px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider rounded" style={{ background: 'hsl(var(--primary))', color: '#000' }}>Save</button>
             <button onClick={() => setEditingTitle(false)} className="px-3 py-1 text-[11px] font-mono text-muted-foreground border border-border rounded hover:border-muted-foreground transition-colors">Cancel</button>
           </div>
         </div>
@@ -382,13 +382,13 @@ export default function PhaseBlock({
             return (
               <div key={item.id}>
                 {isItemTarget && !itemDropBelow && (
-                  <div className="h-0.5 rounded mx-4" style={{ background: '#c8a84b' }} />
+                  <div className="h-0.5 rounded mx-4" style={{ background: 'hsl(var(--primary))' }} />
                 )}
 
                 {/* Item Row */}
                 <div
                   className={cn(
-                    'flex items-start gap-2.5 px-4 py-3 border-b border-[#141414] hover:bg-[#0f0f0f] transition-colors',
+                    'flex items-start gap-2.5 px-4 py-3 border-b border-border hover:bg-accent transition-colors',
                     item.completed && 'opacity-50',
                     dragItemId === item.id && 'opacity-40',
                   )}
@@ -410,7 +410,7 @@ export default function PhaseBlock({
                     onClick={() => onToggleItem(item.id, !item.completed)}
                     className={cn(
                       'w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center shrink-0 transition-all duration-200 mt-0.5',
-                      item.completed ? 'border-[#3a8a5a] bg-[#3a8a5a] text-white' : 'border-border bg-transparent hover:border-[#3a8a5a]',
+                      item.completed ? 'border-success bg-success text-white' : 'border-border bg-transparent hover:border-success',
                     )}
                   >
                     {item.completed && <Check size={11} strokeWidth={3} />}
@@ -421,7 +421,7 @@ export default function PhaseBlock({
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className={cn('text-sm text-[#c8c2b8] leading-snug wrap-break-word', item.completed && 'line-through')}>
+                    <div className={cn('text-sm text-foreground leading-snug wrap-break-word', item.completed && 'line-through')}>
                       {item.name}
                     </div>
                     {item.brand && (
@@ -430,19 +430,19 @@ export default function PhaseBlock({
                     {(linkedPlan || linkedTx) && (
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         {linkedPlan && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#c8a84b]/40 text-[#c8a84b]/80">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-primary/40 text-primary/80">
                             {linkedPlan.name}
                           </span>
                         )}
                         {linkedTx && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-green-700/40 text-green-500/80">
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-success/40 text-success/80">
                             ✓ ${Number(linkedTx.amount).toLocaleString()} · {linkedTx.date}
                           </span>
                         )}
                       </div>
                     )}
                     {item.link && (
-                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-mono mt-0.5 transition-colors hover:underline" style={{ color: '#6a90c0' }} onClick={e => e.stopPropagation()}>
+                      <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] font-mono mt-0.5 transition-colors hover:underline" style={{ color: 'hsl(var(--primary))' }} onClick={e => e.stopPropagation()}>
                         <ExternalLink size={10} /> VIEW LISTING
                       </a>
                     )}
@@ -453,19 +453,19 @@ export default function PhaseBlock({
                       ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
                       : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
                     }
-                    <button onClick={e => openItemEditPanel(item, e)} className="text-[11px] font-mono px-2 py-0.5 border border-border rounded text-muted-foreground hover:border-[#c8a84b] hover:text-[#c8a84b] transition-colors">
+                    <button onClick={e => openItemEditPanel(item, e)} className="text-[11px] font-mono px-2 py-0.5 border border-border rounded text-muted-foreground hover:border-primary hover:text-primary transition-colors">
                       EDIT
                     </button>
                   </div>
 
-                  <button onClick={() => onDeleteItem(item.id)} className="shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-red-400 transition-all ml-0.5">
+                  <button onClick={() => onDeleteItem(item.id)} className="shrink-0 text-muted-foreground opacity-35 hover:opacity-100 hover:text-destructive transition-all ml-0.5">
                     <Trash2 size={13} />
                   </button>
                 </div>
 
                 {/* Inline item edit panel */}
                 {openItemEdit === item.id && itemEdits[item.id] && (
-                  <div className="bg-[#0e0e0e] border-b border-border px-4 py-3 pl-18" onClick={e => e.stopPropagation()}>
+                  <div className="bg-card border-b border-border px-4 py-3 pl-18" onClick={e => e.stopPropagation()}>
                     <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
                       {/* Left column */}
                       <div className="space-y-2.5">
@@ -500,7 +500,7 @@ export default function PhaseBlock({
                             maxLength={LIMITS.itemLink}
                             onChange={e => updateItemEdit(item.id, 'link', e.target.value)}
                             placeholder="https://..."
-                            style={{ color: '#8ab0e0', borderColor: !isSafeUrl(itemEdits[item.id].link).safe ? '#e05a5a' : undefined }}
+                            style={{ color: 'hsl(var(--primary))', borderColor: !isSafeUrl(itemEdits[item.id].link).safe ? 'hsl(var(--destructive))' : undefined }}
                           />
                         </div>
                         <div>
@@ -513,7 +513,7 @@ export default function PhaseBlock({
                         </div>
 
                         {/* ── Financing section ─────────────────────────── */}
-                        <div className="pt-1 border-t border-[#1e1e1e]">
+                        <div className="pt-1 border-t border-border">
                           <label className={labelCls}>Financing</label>
                           <div className="flex gap-1 mb-2">
                             {(['none', 'transaction', 'plan'] as LinkMode[]).map(m => (
@@ -695,7 +695,7 @@ export default function PhaseBlock({
                         onClick={() => { void saveItemEdit(item); }}
                         disabled={savingItemId === item.id}
                         className="px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider rounded disabled:opacity-40"
-                        style={{ background: '#c8a84b', color: '#000' }}
+                        style={{ background: 'hsl(var(--primary))', color: '#000' }}
                       >
                         {savingItemId === item.id ? 'Saving…' : 'Save'}
                       </button>
@@ -707,7 +707,7 @@ export default function PhaseBlock({
                 )}
 
                 {isItemTarget && itemDropBelow && (
-                  <div className="h-0.5 rounded mx-4" style={{ background: '#c8a84b' }} />
+                  <div className="h-0.5 rounded mx-4" style={{ background: 'hsl(var(--primary))' }} />
                 )}
               </div>
             );
@@ -722,7 +722,7 @@ export default function PhaseBlock({
               onDrop={e => { setDragOverBottom(false); onItemDropAtEnd(e, phase.id); }}
             >
               {dragOverBottom && (
-                <div className="h-0.5 rounded mx-4 mt-1.5" style={{ background: '#c8a84b' }} />
+                <div className="h-0.5 rounded mx-4 mt-1.5" style={{ background: 'hsl(var(--primary))' }} />
               )}
             </div>
           )}
@@ -750,7 +750,7 @@ export default function PhaseBlock({
               }));
               setOpenItemEdit(newId);
             }}
-            className="flex items-center gap-2 w-full px-4 py-2.5 text-[12px] font-mono uppercase tracking-widest text-muted-foreground hover:text-[#c8a84b] hover:bg-[#0d0d0d] transition-colors border-t border-dashed border-[#1e1e1e]"
+            className="flex items-center gap-2 w-full px-4 py-2.5 text-[12px] font-mono uppercase tracking-widest text-muted-foreground hover:text-primary hover:bg-accent transition-colors border-t border-dashed border-border"
           >
             <Plus size={14} /> Add Item
           </button>

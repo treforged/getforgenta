@@ -139,7 +139,7 @@ function ScoreRing({ score, size = 88 }: { score: number; size?: number }) {
 
 function InsightCard({ insight }: { insight: Insight }) {
   const cfg = {
-    positive: { Icon: CheckCircle2, border: 'border-green-500/25', bg: 'bg-green-500/8', label: 'text-green-400' },
+    positive: { Icon: CheckCircle2, border: 'border-success/25', bg: 'bg-success/8', label: 'text-success' },
     warning:  { Icon: AlertTriangle, border: 'border-gold/25', bg: 'bg-gold/8', label: 'text-gold' },
     action:   { Icon: ChevronRight,  border: 'border-primary/20',   bg: 'bg-primary/6',   label: 'text-primary' },
   }[insight.type] ?? { Icon: ChevronRight, border: 'border-border/50', bg: 'bg-secondary/50', label: 'text-muted-foreground' };

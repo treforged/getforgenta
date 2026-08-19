@@ -578,7 +578,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
           <span className="text-[10px] bg-success/15 text-success px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>Active Loan</span>
           <button
             onClick={onUndo}
-            className={`icon-btn text-sm flex items-center gap-1 px-2 ${undoConfirm ? 'text-amber-400' : 'text-muted-foreground hover:text-amber-400'}`}
+            className={`icon-btn text-sm flex items-center gap-1 px-2 ${undoConfirm ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
             title={undoConfirm ? 'Click again to confirm undo' : 'Undo purchase — revert to saving phase'}
           >
             <Undo2 size={16} />
@@ -590,7 +590,7 @@ function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, undoConfirm, on
       </div>
 
       {effective.isDeferredInterest && effective.monthsElapsed === 0 && (
-        <div className="flex items-center gap-2 p-2 bg-amber-400/10 border border-amber-400/20 text-xs text-amber-400" style={{ borderRadius: 'var(--radius)' }}>
+        <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/20 text-xs text-primary" style={{ borderRadius: 'var(--radius)' }}>
           <AlertTriangle size={12} />
           <span>Deferred interest until {new Date((cf.interest_start_date ?? '') + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
         </div>
