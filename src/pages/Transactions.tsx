@@ -777,8 +777,11 @@ export default function Transactions() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
               { label: 'Auto-generated entries', desc: 'Budget Control recurring rules create transactions automatically — weekly paychecks, rent, groceries, and more.' },
-              { label: 'One-time expenses', desc: 'The $6,000 car purchase in June reduces available cash that month — the forecast pre-saves in prior months to cover it.' },
-              { label: 'Income windfalls', desc: 'The $3,000 gift in June is a one-time income entry — the debt engine adds it to available surplus for that month.' },
+              // ⚠️ Do not name a figure or a month here unless `demo-data.ts` still carries it. Both of these
+              // lines used to cite a "$6,000 car purchase in June" and a "$3,000 gift in June" that had been
+              // out of the fixture for months, so the guide described entries a visitor could not find.
+              { label: 'One-time expenses', desc: 'A planned car down payment sits in a future month — it reduces available cash there, and the forecast pre-saves in the months before to cover it.' },
+              { label: 'Bank-imported history', desc: 'Rows that came from the bank feed rather than being typed — the same charges the Bank Activity tab decides on.' },
               { label: 'Debt payments', desc: 'Auto-generated from the Debt Payoff engine each month — click to see the recommended amount per card.' },
             ].map((f, i) => (
               <div key={i} className="flex gap-2 p-2.5 bg-secondary/40 text-xs" style={{ borderRadius: 'var(--radius)' }}>

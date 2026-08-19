@@ -8,175 +8,191 @@ function d(day: number, monthOffset = 0) {
   return new Date(y, m + monthOffset, day).toISOString().split('T')[0];
 }
 
-// ── Net Worth Snapshots — 14 weekly Fridays (Jan 3 – Apr 3, 2026) ─────────
-// Starts negative (~-$7,800 in Jan), crosses zero around Mar 7, ends at
-// +$3,900 (matches live account totals: assets $24,600 - liabilities $20,700).
-// Dip at Jan 10 from a car repair that spiked CC balance.
-export const demoNetWorthSnapshots = [
-  { snapshot_date: '2026-01-03', total_assets: 19200, total_liabilities: 27000, net_worth:  -7800 },
-  { snapshot_date: '2026-01-10', total_assets: 18500, total_liabilities: 27500, net_worth:  -9000 }, // car repair spike
-  { snapshot_date: '2026-01-17', total_assets: 19100, total_liabilities: 27600, net_worth:  -8500 },
-  { snapshot_date: '2026-01-24', total_assets: 19800, total_liabilities: 27300, net_worth:  -7500 },
-  { snapshot_date: '2026-01-31', total_assets: 20700, total_liabilities: 26900, net_worth:  -6200 },
-  { snapshot_date: '2026-02-07', total_assets: 21600, total_liabilities: 26500, net_worth:  -4900 },
-  { snapshot_date: '2026-02-14', total_assets: 22500, total_liabilities: 26000, net_worth:  -3500 },
-  { snapshot_date: '2026-02-21', total_assets: 23300, total_liabilities: 25500, net_worth:  -2200 },
-  { snapshot_date: '2026-02-28', total_assets: 24000, total_liabilities: 25000, net_worth:  -1000 },
-  { snapshot_date: '2026-03-07', total_assets: 24600, total_liabilities: 24500, net_worth:    100 }, // turns positive
-  { snapshot_date: '2026-03-14', total_assets: 25200, total_liabilities: 24100, net_worth:   1100 },
-  { snapshot_date: '2026-03-21', total_assets: 25900, total_liabilities: 23700, net_worth:   2200 },
-  { snapshot_date: '2026-03-28', total_assets: 26500, total_liabilities: 23300, net_worth:   3200 },
-  { snapshot_date: '2026-04-03', total_assets: 24600, total_liabilities: 20700, net_worth:   3900 }, // rent paid Apr 1
+// ── Net Worth Snapshots — 26 weekly points ending today ───────────────────
+//
+// ⚠️ THESE USED TO BE FOURTEEN HAND-WRITTEN DATES IN Jan–Apr 2026. By August the chart on the demo
+// dashboard ran Jan 2 → Mar 27 and ended at +$3,900 while the tile directly above it read
+// −$22,600. A history that stops five months short of the number printed over it is worse than no
+// history: the two readings cannot both be right and nothing on screen says which one is stale.
+// Every point is therefore DERIVED, relative to today, and the series ends exactly on the totals
+// the rest of this file declares.
+//
+// The step nine weeks ago is the RAV4 purchase — a $27,500 loan appearing against a $29,000
+// vehicle asset, which is what financing a car does to a net worth chart. It is here because a
+// straight line demonstrates nothing, and because the Garage's Active Loans panel and
+// `demoLiabilities` are telling the same event from their own ends. Change one, change all three.
+const DEMO_SNAPSHOT_WEEKS = 26;
+/** Matches `demoCarFunds`' RAV4 loan_start_date, which is two months back. */
+const DEMO_AUTO_LOAN_WEEKS_AGO = 9;
+const DEMO_VEHICLE_ASSET_VALUE = 29_000;
+const DEMO_AUTO_LOAN_AT_ORIGINATION = 27_500;
+const DEMO_AUTO_LOAN_TODAY = 26_500;
+/** Account balances today, i.e. `demoAccounts` less the two cards. */
+const DEMO_ACCOUNT_ASSETS_TODAY = 24_600;
+/** Cards + student loan today: 8,500 + 4,200 + 8,000. */
+const DEMO_NON_AUTO_LIABILITIES_TODAY = 20_700;
+/** Where those two lines stood 26 weeks ago — less saved, more owed on the cards. */
+const DEMO_ACCOUNT_ASSETS_START = 19_800;
+const DEMO_NON_AUTO_LIABILITIES_START = 24_900;
+
+function demoSnapshotDate(weeksAgo: number) {
+  return new Date(y, m, now.getDate() - weeksAgo * 7).toISOString().split('T')[0];
+}
+
+function demoNetWorthSeries() {
+  const last = DEMO_SNAPSHOT_WEEKS - 1;
+
+  return Array.from({ length: DEMO_SNAPSHOT_WEEKS }, (_, i) => {
+    const t = i / last;
+    const ownsCar = i >= last - DEMO_AUTO_LOAN_WEEKS_AGO;
+
+    const total_assets =
+      Math.round(DEMO_ACCOUNT_ASSETS_START + t * (DEMO_ACCOUNT_ASSETS_TODAY - DEMO_ACCOUNT_ASSETS_START))
+      + (ownsCar ? DEMO_VEHICLE_ASSET_VALUE : 0);
+
+    const paidWeeks = i - (last - DEMO_AUTO_LOAN_WEEKS_AGO);
+    const total_liabilities =
+      Math.round(DEMO_NON_AUTO_LIABILITIES_START + t * (DEMO_NON_AUTO_LIABILITIES_TODAY - DEMO_NON_AUTO_LIABILITIES_START))
+      + (ownsCar
+        ? Math.round(DEMO_AUTO_LOAN_AT_ORIGINATION
+            + (paidWeeks / DEMO_AUTO_LOAN_WEEKS_AGO) * (DEMO_AUTO_LOAN_TODAY - DEMO_AUTO_LOAN_AT_ORIGINATION))
+        : 0);
+
+    return {
+      snapshot_date: demoSnapshotDate(last - i),
+      total_assets,
+      total_liabilities,
+      net_worth: total_assets - total_liabilities,
+    };
+  });
+}
+
+export const demoNetWorthSnapshots = demoNetWorthSeries();
+
+// ── Demo Transactions — five recorded months, then today's month from the rules ──
+//
+// ⚠️ THIS WAS 130 HAND-WRITTEN ROWS ACROSS FOUR MONTHS, and it had three faults that were only
+// visible with the app open:
+//   1. The notes carried literal month names ("Roommate – April") while the dates were relative, so
+//      by August the demo ledger read "Roommate – April" against 2026-08-01.
+//   2. Four months of rows is two months short of the Dashboard's six-month cash flow chart, which
+//      therefore opened on two empty bars.
+//   3. Every recurring row restated a row `demoRecurringRules` already generates, so
+//      `scanForDuplicateTransactions` was right to raise "Possible duplicate payment — 4 months"
+//      across the top of the demo ledger. The warning was working; the fixture was wrong.
+//
+// ⚠️ THE RECORDED MONTHS CARRY `origin: 'synced'`, AND THAT IS THE FIX FOR (3) — not a trick to
+// quiet the detector. It is what these rows are: history that reached the ledger from the bank
+// feed, which is how a real account fills in, and `isManualCandidate` exempts exactly that. Only a
+// row a person typed can duplicate a rule, so the one-offs below stay 'manual' and would still be
+// caught if one of them ever matched a rule.
+//
+// ⚠️ THE CURRENT MONTH IS DELIBERATELY ABSENT. `mergeWithGeneratedTransactions` expands the
+// recurring rules over it, so writing it out here would duplicate every one of them. Past months
+// are recorded, this month is projected — which is also the behaviour being demonstrated.
+
+/** The recorded months, oldest first. The Dashboard's cash flow chart draws five past months. */
+const DEMO_LEDGER_MONTHS = [-5, -4, -3, -2, -1] as const;
+
+/** Paycheck and fill-up days. The SAME days as `demoSyncedTransactions` — one story, two surfaces. */
+const DEMO_LEDGER_WEEKLY_DAYS = [3, 10, 17, 24] as const;
+
+/** Per-month grocery and fuel spend, so no two bars on the chart are identical. Index = month age. */
+const DEMO_GROCERY_RUNS = [
+  [94.00, 87.50, 91.00, 88.00],
+  [96.00, 83.50, 92.00, 85.00],
+  [98.00, 86.00, 93.50, 90.00],
+  [89.50, 95.00, 84.00, 97.00],
+  [92.50, 88.50, 96.50, 86.50],
+] as const;
+
+const DEMO_FUEL_RUNS = [
+  [58.00, 61.50, 54.00, 63.00],
+  [57.00, 60.00, 52.50, 65.00],
+  [59.00, 62.50, 55.00, 60.00],
+  [56.50, 58.50, 63.50, 57.50],
+  [61.00, 54.50, 59.50, 62.00],
+] as const;
+
+/** Two dinners a month, varied the same way. `[day, amount, note]`. */
+const DEMO_DINING_RUNS: readonly (readonly [number, number, string])[][] = [
+  [[7, 48.00, 'Chipotle + Panera'], [20, 72.00, 'Olive Garden — dinner']],
+  [[11, 34.00, 'Chipotle + Starbucks'], [22, 42.00, 'Local sushi']],
+  [[8, 39.00, 'Shake Shack + coffee'], [20, 65.00, 'Italian place — dinner']],
+  [[9, 31.50, 'Taco night'], [23, 58.00, 'Steakhouse — birthday']],
+  [[6, 44.00, 'Ramen + drinks'], [21, 36.50, 'Chipotle + coffee']],
 ];
 
-// ── Demo Transactions — 90 days of realistic activity (Jan 1 – Apr 3, 2026) ──
-// Income deposits to Chase Checking (d1).
-// Rent $1,600 and utilities $200 reflect the updated recurring rules.
-// Gas paid from checking (d1). Groceries + dining on Sapphire (d7). Subs on Discover (d8).
-export const demoTransactions: Omit<Transaction, 'id' | 'user_id' | 'created_at'>[] = [
+type DemoTransaction = Omit<Transaction, 'id' | 'user_id' | 'created_at'>;
 
-  // ══════════════════════════════════════════════════════════
-  // JANUARY 2026
-  // ══════════════════════════════════════════════════════════
+/** A row that reached the ledger from the bank feed. Never a duplicate-warning candidate. */
+function syncedTxn(
+  monthOffset: number, day: number, type: 'income' | 'expense',
+  amount: number, category: string, account: string, note: string, source: string,
+): DemoTransaction {
+  return { date: d(day, monthOffset), type, amount, category, account, note, payment_source: source, origin: 'synced' };
+}
 
-  // Income
-  { date: d(1,  -3), type: 'income',  amount:  900.00, category: 'Other',         account: 'Checking',    note: 'Roommate – January',              payment_source: 'account:d1' },
-  { date: d(2,  -3), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(9,  -3), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(16, -3), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(23, -3), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(30, -3), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
+function demoLedger(): DemoTransaction[] {
+  const rows: DemoTransaction[] = [];
 
-  // Fixed expenses
-  { date: d(1,  -3), type: 'expense', amount: 1600.00, category: 'Bills',         account: 'Checking',    note: 'Rent',                            payment_source: 'account:d1' },
-  { date: d(4,  -3), type: 'expense', amount:   85.00, category: 'Subscriptions', account: 'Credit Card', note: 'Streaming + Gym',                 payment_source: 'account:d8' },
-  { date: d(14, -3), type: 'expense', amount:  280.00, category: 'Car',           account: 'Checking',    note: 'Car Insurance – Jan',             payment_source: 'account:d1' },
-  { date: d(15, -3), type: 'expense', amount:  200.00, category: 'Bills',         account: 'Checking',    note: 'Electric, Water & Internet',       payment_source: 'account:d1' },
+  DEMO_LEDGER_MONTHS.forEach((M, ageIndex) => {
+    // Income — the roommate's half of the rent, then four weekly deposits.
+    rows.push(syncedTxn(M, 1, 'income', 900.00, 'Other', 'Checking', 'Roommate — rent split', 'account:d1'));
+    for (const day of DEMO_LEDGER_WEEKLY_DAYS) {
+      rows.push(syncedTxn(M, day, 'income', 1462.50, 'Other', 'Checking', 'Weekly Paycheck', 'account:d1'));
+    }
 
-  // Groceries (Sapphire)
-  { date: d(3,  -3), type: 'expense', amount:   94.00, category: 'Groceries',     account: 'Credit Card', note: 'Trader Joe\'s',                   payment_source: 'account:d7' },
-  { date: d(10, -3), type: 'expense', amount:   87.50, category: 'Groceries',     account: 'Credit Card', note: 'Whole Foods',                     payment_source: 'account:d7' },
-  { date: d(17, -3), type: 'expense', amount:   91.00, category: 'Groceries',     account: 'Credit Card', note: 'Trader Joe\'s',                   payment_source: 'account:d7' },
-  { date: d(24, -3), type: 'expense', amount:   88.00, category: 'Groceries',     account: 'Credit Card', note: 'Whole Foods',                     payment_source: 'account:d7' },
+    // Fixed expenses.
+    rows.push(syncedTxn(M, 1, 'expense', 1600.00, 'Bills', 'Checking', 'Rent', 'account:d1'));
+    rows.push(syncedTxn(M, 4, 'expense', 85.00, 'Subscriptions', 'Credit Card', 'Streaming + Gym', 'account:d8'));
+    rows.push(syncedTxn(M, 14, 'expense', 280.00, 'Car', 'Checking', 'Car Insurance', 'account:d1'));
+    rows.push(syncedTxn(M, 15, 'expense', 200.00, 'Bills', 'Checking', 'Electric, Water & Internet', 'account:d1'));
+    rows.push(syncedTxn(M, 5, 'expense', 450.00, 'Groceries', 'Credit Card', 'Monthly card spend — Sapphire', 'account:d7'));
 
-  // Gas (Checking)
-  { date: d(4,  -3), type: 'expense', amount:   58.00, category: 'Gas',           account: 'Checking',    note: 'Shell – fill-up',                 payment_source: 'account:d1' },
-  { date: d(11, -3), type: 'expense', amount:   61.50, category: 'Gas',           account: 'Checking',    note: 'BP – fill-up',                    payment_source: 'account:d1' },
-  { date: d(18, -3), type: 'expense', amount:   54.00, category: 'Gas',           account: 'Checking',    note: 'Shell – fill-up',                 payment_source: 'account:d1' },
-  { date: d(25, -3), type: 'expense', amount:   63.00, category: 'Gas',           account: 'Checking',    note: 'Sunoco – fill-up',                payment_source: 'account:d1' },
+    // Weekly variable spend.
+    DEMO_LEDGER_WEEKLY_DAYS.forEach((day, week) => {
+      rows.push(syncedTxn(M, day + 3, 'expense', DEMO_GROCERY_RUNS[ageIndex][week], 'Groceries', 'Credit Card', 'Groceries', 'account:d7'));
+      rows.push(syncedTxn(M, day, 'expense', DEMO_FUEL_RUNS[ageIndex][week], 'Gas', 'Checking', 'Fill-up', 'account:d1'));
+    });
 
-  // Dining (Sapphire)
-  { date: d(7,  -3), type: 'expense', amount:   48.00, category: 'Dining',        account: 'Credit Card', note: 'Chipotle + Panera',               payment_source: 'account:d7' },
-  { date: d(20, -3), type: 'expense', amount:   72.00, category: 'Dining',        account: 'Credit Card', note: 'Olive Garden – dinner',           payment_source: 'account:d7' },
+    for (const [day, amount, note] of DEMO_DINING_RUNS[ageIndex]) {
+      rows.push(syncedTxn(M, day, 'expense', amount, 'Dining', 'Credit Card', note, 'account:d7'));
+    }
+  });
 
-  // One-time: car repair — causes Jan 10 net worth dip
-  { date: d(17, -3), type: 'expense', amount:  380.00, category: 'Car',           account: 'Checking',    note: 'Meineke – brake pads & rotors',   payment_source: 'account:d1' },
+  return rows;
+}
 
-  // Monthly CC batch (dr-cc1)
-  { date: d(5,  -3), type: 'expense', amount:  450.00, category: 'Groceries',     account: 'Credit Card', note: 'Monthly CC expenses – Sapphire',  payment_source: 'account:d7' },
+export const demoTransactions: DemoTransaction[] = [
+  ...demoLedger(),
 
-  // ══════════════════════════════════════════════════════════
-  // FEBRUARY 2026
-  // ══════════════════════════════════════════════════════════
+  // ── One-offs: typed by hand, which is why they stay 'manual' ─────────────
+  // Nothing recurring generates these, so they are what a duplicate warning SHOULD stay quiet about.
+  { date: d(17, -5), type: 'expense', amount: 380.00, category: 'Car',           account: 'Checking',    note: 'Meineke — brake pads & rotors', payment_source: 'account:d1' },
+  { date: d(28, -4), type: 'expense', amount:  89.00, category: 'Entertainment', account: 'Credit Card', note: 'Amazon — Bluetooth speaker',    payment_source: 'account:d7' },
+  { date: d(21, -2), type: 'expense', amount: 642.00, category: 'Car',           account: 'Credit Card', note: 'Tire Rack — wheels & tires',    payment_source: 'account:d7' },
+  { date: d( 9, -1), type: 'expense', amount: 218.44, category: 'Car',           account: 'Credit Card', note: 'Summit Racing — exhaust parts', payment_source: 'account:d7' },
 
-  // Income
-  { date: d(1,  -2), type: 'income',  amount:  900.00, category: 'Other',         account: 'Checking',    note: 'Roommate – February',             payment_source: 'account:d1' },
-  { date: d(6,  -2), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(13, -2), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(20, -2), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(27, -2), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-
-  // Fixed expenses
-  { date: d(1,  -2), type: 'expense', amount: 1600.00, category: 'Bills',         account: 'Checking',    note: 'Rent',                            payment_source: 'account:d1' },
-  { date: d(4,  -2), type: 'expense', amount:   85.00, category: 'Subscriptions', account: 'Credit Card', note: 'Streaming + Gym',                 payment_source: 'account:d8' },
-  { date: d(14, -2), type: 'expense', amount:  280.00, category: 'Car',           account: 'Checking',    note: 'Car Insurance – Feb',             payment_source: 'account:d1' },
-  { date: d(15, -2), type: 'expense', amount:  200.00, category: 'Bills',         account: 'Checking',    note: 'Electric, Water & Internet',       payment_source: 'account:d1' },
-
-  // Groceries
-  { date: d(7,  -2), type: 'expense', amount:   96.00, category: 'Groceries',     account: 'Credit Card', note: 'Whole Foods',                     payment_source: 'account:d7' },
-  { date: d(14, -2), type: 'expense', amount:   83.50, category: 'Groceries',     account: 'Credit Card', note: 'Trader Joe\'s',                   payment_source: 'account:d7' },
-  { date: d(21, -2), type: 'expense', amount:   92.00, category: 'Groceries',     account: 'Credit Card', note: 'Whole Foods',                     payment_source: 'account:d7' },
-  { date: d(28, -2), type: 'expense', amount:   85.00, category: 'Groceries',     account: 'Credit Card', note: 'Aldi + Sprouts',                  payment_source: 'account:d7' },
-
-  // Gas
-  { date: d(7,  -2), type: 'expense', amount:   57.00, category: 'Gas',           account: 'Checking',    note: 'BP – fill-up',                    payment_source: 'account:d1' },
-  { date: d(14, -2), type: 'expense', amount:   60.00, category: 'Gas',           account: 'Checking',    note: 'Shell – fill-up',                 payment_source: 'account:d1' },
-  { date: d(21, -2), type: 'expense', amount:   52.50, category: 'Gas',           account: 'Checking',    note: 'Sunoco – fill-up',                payment_source: 'account:d1' },
-  { date: d(28, -2), type: 'expense', amount:   65.00, category: 'Gas',           account: 'Checking',    note: 'Shell – fill-up',                 payment_source: 'account:d1' },
-
-  // Dining
-  { date: d(11, -2), type: 'expense', amount:   34.00, category: 'Dining',        account: 'Credit Card', note: 'Chipotle + Starbucks',            payment_source: 'account:d7' },
-  { date: d(14, -2), type: 'expense', amount:   88.00, category: 'Dining',        account: 'Credit Card', note: 'Valentine\'s dinner',             payment_source: 'account:d7' },
-  { date: d(22, -2), type: 'expense', amount:   42.00, category: 'Dining',        account: 'Credit Card', note: 'Local sushi',                     payment_source: 'account:d7' },
-
-  // One-time: online gadget
-  { date: d(28, -2), type: 'expense', amount:   89.00, category: 'Entertainment', account: 'Credit Card', note: 'Amazon – Bluetooth speaker',      payment_source: 'account:d7' },
-
-  // Monthly CC batch
-  { date: d(5,  -2), type: 'expense', amount:  450.00, category: 'Groceries',     account: 'Credit Card', note: 'Monthly CC expenses – Sapphire',  payment_source: 'account:d7' },
-
-  // ══════════════════════════════════════════════════════════
-  // MARCH 2026
-  // ══════════════════════════════════════════════════════════
-
-  // Income
-  { date: d(1,  -1), type: 'income',  amount:  900.00, category: 'Other',         account: 'Checking',    note: 'Roommate – March',                payment_source: 'account:d1' },
-  { date: d(6,  -1), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(13, -1), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(20, -1), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-  { date: d(27, -1), type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-
-  // Fixed expenses
-  { date: d(1,  -1), type: 'expense', amount: 1600.00, category: 'Bills',         account: 'Checking',    note: 'Rent',                            payment_source: 'account:d1' },
-  { date: d(4,  -1), type: 'expense', amount:   85.00, category: 'Subscriptions', account: 'Credit Card', note: 'Streaming + Gym',                 payment_source: 'account:d8' },
-  { date: d(14, -1), type: 'expense', amount:  280.00, category: 'Car',           account: 'Checking',    note: 'Car Insurance – Mar',             payment_source: 'account:d1' },
-  { date: d(15, -1), type: 'expense', amount:  200.00, category: 'Bills',         account: 'Checking',    note: 'Electric, Water & Internet',       payment_source: 'account:d1' },
-  { date: d(15, -1), type: 'expense', amount:  139.00, category: 'Subscriptions', account: 'Credit Card', note: 'Amazon Prime – annual renewal',   payment_source: 'account:d7' },
-
-  // Groceries
-  { date: d(7,  -1), type: 'expense', amount:   98.00, category: 'Groceries',     account: 'Credit Card', note: 'Whole Foods',                     payment_source: 'account:d7' },
-  { date: d(14, -1), type: 'expense', amount:   86.00, category: 'Groceries',     account: 'Credit Card', note: 'Trader Joe\'s',                   payment_source: 'account:d7' },
-  { date: d(21, -1), type: 'expense', amount:   93.50, category: 'Groceries',     account: 'Credit Card', note: 'Whole Foods',                     payment_source: 'account:d7' },
-  { date: d(28, -1), type: 'expense', amount:   90.00, category: 'Groceries',     account: 'Credit Card', note: 'Costco run',                      payment_source: 'account:d7' },
-
-  // Gas
-  { date: d(7,  -1), type: 'expense', amount:   59.00, category: 'Gas',           account: 'Checking',    note: 'Shell – fill-up',                 payment_source: 'account:d1' },
-  { date: d(14, -1), type: 'expense', amount:   62.50, category: 'Gas',           account: 'Checking',    note: 'BP – fill-up',                    payment_source: 'account:d1' },
-  { date: d(21, -1), type: 'expense', amount:   55.00, category: 'Gas',           account: 'Checking',    note: 'Sunoco – fill-up',                payment_source: 'account:d1' },
-  { date: d(28, -1), type: 'expense', amount:   60.00, category: 'Gas',           account: 'Checking',    note: 'Shell – fill-up',                 payment_source: 'account:d1' },
-
-  // Dining
-  { date: d(8,  -1), type: 'expense', amount:   39.00, category: 'Dining',        account: 'Credit Card', note: 'Shake Shack + coffee',            payment_source: 'account:d7' },
-  { date: d(20, -1), type: 'expense', amount:   65.00, category: 'Dining',        account: 'Credit Card', note: 'Italian place – dinner',          payment_source: 'account:d7' },
-  { date: d(29, -1), type: 'expense', amount:   28.00, category: 'Dining',        account: 'Credit Card', note: 'Chipotle',                        payment_source: 'account:d7' },
-
-  // Monthly CC batch
-  { date: d(5,  -1), type: 'expense', amount:  450.00, category: 'Groceries',     account: 'Credit Card', note: 'Monthly CC expenses – Sapphire',  payment_source: 'account:d7' },
-
-  // ══════════════════════════════════════════════════════════
-  // APRIL 2026 — current month
-  // ══════════════════════════════════════════════════════════
-
-  // Income so far
-  { date: d(1,  0),  type: 'income',  amount:  900.00, category: 'Other',         account: 'Checking',    note: 'Roommate – April',                payment_source: 'account:d1' },
-  { date: d(3,  0),  type: 'income',  amount: 1462.50, category: 'Other',         account: 'Checking',    note: 'Weekly Paycheck',                 payment_source: 'account:d1' },
-
-  // Fixed — already due
-  { date: d(1,  0),  type: 'expense', amount: 1600.00, category: 'Bills',         account: 'Checking',    note: 'Rent',                            payment_source: 'account:d1' },
-  { date: d(4,  0),  type: 'expense', amount:   85.00, category: 'Subscriptions', account: 'Credit Card', note: 'Streaming + Gym',                 payment_source: 'account:d8' },
-
-  // Monthly CC batch
-  { date: d(5,  0),  type: 'expense', amount:  450.00, category: 'Groceries',     account: 'Credit Card', note: 'Monthly CC expenses – Sapphire',  payment_source: 'account:d7' },
-
-  // Upcoming (future) — car down payment
-  { date: d(15, 4),  type: 'expense', amount: 5000.00, category: 'Car',           account: 'Checking',    note: 'Car down payment (planned)',      payment_source: 'account:d1' },
+  // Planned, not yet spent — the Forecast draws the outflow in the month it lands.
+  { date: d(15, 4), type: 'expense', amount: 5000.00, category: 'Car', account: 'Checking', note: 'Car down payment (planned)', payment_source: 'account:d1' },
 ];
 
 // ── Demo Debts ─────────────────────────────────────────────
-// Larger balances: Sapphire ~3 months to pay off (avalanche), Discover ~2-3 after.
+// ⚠️ THE LAST THREE ENTRIES EXIST TO FILL THE DEBT PAGE'S OTHER PANELS. `/debt` has five, and with
+// only the two cards here three of them rendered an empty state on the sales surface — Other Debts
+// showing "$0 / $0 / $0", three confident zeros for a person who owes money on two of them.
+// `DebtPayoff.tsx` sorts a debt into a panel by matching its NAME against an account of that type,
+// so a student loan needs BOTH the row here and the `student_loan` account in `demoAccounts`; the
+// dental plan matches no account type and therefore lands in Other Debts, which is the rule the
+// page uses, not a special case.
+// Mortgage is left empty ON PURPOSE. Jordan rents — $1,600 a month, rule r2 — and inventing a
+// mortgage to light up a tab would be the one demo number a visitor could catch out.
 export const demoDebts: (Omit<Debt, 'id' | 'user_id' | 'created_at'> & { credit_limit?: number })[] = [
   { name: 'Chase Sapphire', balance: 8500, apr: 22.99, min_payment: 212, target_payment: 600, credit_limit: 12000 },
   { name: 'Discover It',    balance: 4200, apr: 18.99, min_payment: 105, target_payment: 300, credit_limit:  7500 },
+  { name: 'Student Loan',   balance: 8000, apr:  5.50, min_payment:  95, target_payment:  95 },
+  { name: 'Dental Financing', balance: 640, apr: 0,    min_payment:  80, target_payment:  80 },
 ];
 
 // ── Demo Savings Goals ─────────────────────────────────────
@@ -251,15 +267,23 @@ export const demoCarFunds: (Omit<CarFund, 'id' | 'user_id' | 'created_at'>)[] = 
 ];
 
 // ── Demo Assets ────────────────────────────────────────────
-// No manual assets — all assets come from live accounts.
-// Keeping it simple for the "paying off debt" starter story.
-export const demoAssets: Omit<Asset, 'id' | 'user_id' | 'created_at'>[] = [];
+// ⚠️ THIS WAS AN EMPTY ARRAY, on the reasoning that live accounts carry every asset. The RAV4
+// broke that: `demoLiabilities` books a $26,500 loan against a car that appeared nowhere on the
+// other side of the ledger, so the net worth tile read −$22,600 for someone who owns the car.
+// A financed asset has to be booked as an asset or the number is simply wrong — and it is also
+// what makes the Accounts page's "Assets" filter show something a live account cannot.
+export const demoAssets: Omit<Asset, 'id' | 'user_id' | 'created_at'>[] = [
+  { name: '2022 Toyota RAV4', type: 'Vehicle', value: 29000, notes: 'Financed — see the loan under Liabilities' },
+];
 
 // ── Demo Liabilities ───────────────────────────────────────
-// Student loan + auto loan on the RAV4 contribute to the negative early net worth.
+// ⚠️ THE STUDENT LOAN MOVED TO `demoAccounts` as a `student_loan` account and must NOT be repeated
+// here: `buildNetWorthBreakdown` drops a manual liability whose name matches a live liability
+// account, so a copy would be silently ignored on the net worth tile while still confusing anyone
+// reading this file. The auto loan stays manual on purpose — `net-worth.ts` documents the demo
+// RAV4 as the case its vehicle-loan dedup is written against.
 export const demoLiabilities: Omit<Liability, 'id' | 'user_id' | 'created_at'>[] = [
-  { name: 'Student Loan',      type: 'student_loan', balance:  8000, apr: 5.5, notes: 'Federal direct' },
-  { name: 'Auto Loan — RAV4', type: 'auto_loan',     balance: 26500, apr: 6.4, notes: '2022 Toyota RAV4 — 60-month term, started Feb 2026' },
+  { name: 'Auto Loan — RAV4', type: 'auto_loan', balance: 26500, apr: 6.4, notes: '2022 Toyota RAV4 — 60-month term' },
 ];
 
 // ── Demo Car Builds ────────────────────────────────────────
@@ -454,8 +478,15 @@ function demoFeed(): DemoSyncedTransaction[] {
   rows.push(demoCharge('coffee', 0, 6, 'd7', 12.00, 'CARS AND COFFEE DTWN', 'Cars & Coffee', 'Entertainment'));
   rows.push(demoCharge('dyno', -2, 27, 'd7', 175.00, 'APEX DYNO SESSION', 'Apex Dyno', 'Car'));
 
+  // ⚠️ NOTHING IN THE CURRENT MONTH MAY BE DATED AFTER TODAY. Every row here is `pending: false`,
+  // i.e. a SETTLED charge the bank has already reported, and the cadences above run to the 27th —
+  // so on any day before the 27th the feed was handing the Decision Deck settled charges dated in
+  // the future. A bank cannot have reported tomorrow's coffee.
+  const today = d(now.getDate());
+  const settled = rows.filter(r => r.date <= today);
+
   // Newest first, the order `useAllSyncedTransactions` returns from the database.
-  return rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? 1 : -1));
+  return settled.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : a.id < b.id ? 1 : -1));
 }
 
 export const demoSyncedTransactions: DemoSyncedTransaction[] = demoFeed();
@@ -480,6 +511,10 @@ export const demoAccounts = [
   { id: 'd6', user_id: 'demo', name: 'Robinhood', account_type: 'brokerage', institution: 'Robinhood', balance: 2000, credit_limit: null, apr: null, active: true, notes: 'Index funds', created_at: '', updated_at: '' },
   { id: 'd7', user_id: 'demo', name: 'Chase Sapphire', account_type: 'credit_card', institution: 'Chase', balance: 8500, credit_limit: 12000, apr: 22.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 15, payment_preference: 'statement' },
   { id: 'd8', user_id: 'demo', name: 'Discover It', account_type: 'credit_card', institution: 'Discover', balance: 4200, credit_limit: 7500, apr: 18.99, active: true, notes: '', created_at: '', updated_at: '', payment_due_day: 22, payment_preference: 'full' },
+  // Named to match the `Student Loan` row in `demoDebts` — `DebtPayoff.tsx` pairs the two by name,
+  // and `net-worth.ts` counts a `student_loan` account as a liability, which is why the manual
+  // liability row for it was removed rather than kept alongside.
+  { id: 'd10', user_id: 'demo', name: 'Student Loan', account_type: 'student_loan', institution: 'Nelnet', balance: 8000, credit_limit: null, apr: 5.5, active: true, notes: 'Federal direct', created_at: '', updated_at: '' },
   { id: 'd9', user_id: 'demo', name: 'Cash', account_type: 'cash', institution: '', balance: 300, credit_limit: null, apr: null, active: true, notes: '', created_at: '', updated_at: '' },
 ];
 

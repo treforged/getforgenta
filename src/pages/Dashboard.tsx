@@ -1511,7 +1511,7 @@ export default function Dashboard() {
             <div>
               <p className="text-xs font-semibold text-foreground">Jordan&apos;s Story — How it all connects</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                26 y/o with $12,700 in CC debt, a steady paycheck, and a plan to be debt-free in under a year.
+                26 y/o with $12,700 in CC debt, a steady paycheck, and a plan that clears the cards in a little over a year.
                 Every number here is live-calculated from the data below.
               </p>
             </div>
