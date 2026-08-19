@@ -332,7 +332,7 @@ export default function Forecast() {
     <div className="py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden">
       {!isDemo && !assumptionsTutorialSeen && (
         <div
-          className="fixed inset-0 z-60 flex items-center justify-center"
+          className="modal-overlay z-60"
           style={{ background: 'rgba(0,0,0,0.85)', paddingTop: 'max(1.5rem, env(safe-area-inset-top))', paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))', paddingLeft: '1rem', paddingRight: '1rem' }}
           onClick={() => setAssumptionsTutorialSeen(true)}
         >
@@ -371,10 +371,17 @@ export default function Forecast() {
         </div>
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-2 sm:gap-3 min-w-0">
+        {/* ⚠️ THE GUIDE BELONGS ON THE TITLE ROW (Tre, 2026-08-19), which is where every other
+            surface already puts it. It had been sitting at the end of the action row, so on this
+            page alone its position was a function of how many buttons happened to be premium-gated
+            — the same drift #112 fixed everywhere else and missed here. */}
+        <div className="flex items-start justify-between gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Forecast</h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">60-month projections driven by live data</p>
+          </div>
+          <div className="shrink-0">
+            <SurfaceGuide surface="forecast" />
           </div>
         </div>
         <div className="grid grid-cols-1 sm:flex sm:items-center gap-2 w-full sm:w-auto">
@@ -449,7 +456,6 @@ export default function Forecast() {
               </Link>
             </>
           )}
-          <SurfaceGuide surface="forecast" />
         </div>
       </div>
 

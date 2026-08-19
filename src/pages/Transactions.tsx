@@ -1014,8 +1014,8 @@ export default function Transactions() {
 
       {/* Edit Choice Dialog for Generated Transactions */}
       {editChoiceId && (
-        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4" onClick={() => { setEditChoiceId(null); setEditChoiceRule(null); }}>
-          <div className="bg-card border border-border p-4 sm:p-6 w-full sm:max-w-sm space-y-4 rounded-t-(--radius) rounded-b-none sm:rounded-b-(--radius)" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay z-60 bg-black/60 backdrop-blur-sm" onClick={() => { setEditChoiceId(null); setEditChoiceRule(null); }}>
+          <div className="bg-card border border-border p-4 sm:p-6 w-full sm:max-w-sm space-y-4 rounded-(--radius)" onClick={e => e.stopPropagation()}>
             <h3 className="text-sm font-display font-bold">Edit Recurring Transaction</h3>
             <p className="text-xs text-muted-foreground">This transaction was auto-generated from a recurring rule. How would you like to edit it?</p>
             <div className="space-y-2">
@@ -1059,8 +1059,8 @@ export default function Transactions() {
 
       {/* Payment Plan Form Modal */}
       {showPlanForm && (
-        <div className="fixed inset-0 z-60 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4" onClick={dismissPlanForm}>
-          <div className="bg-card border border-border w-full sm:max-w-md rounded-t-(--radius) rounded-b-none sm:rounded-b-(--radius) overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay z-60 bg-black/60 backdrop-blur-sm" onClick={dismissPlanForm}>
+          <div className="bg-card border border-border w-full sm:max-w-md rounded-(--radius) overflow-y-auto max-h-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-border">
               <h3 className="text-sm font-display font-bold">{editPlanId ? 'Edit Payment Plan' : convertSourceTxnId ? 'Convert to Payment Plan' : 'Add Payment Plan'}</h3>
               <button onClick={closePlanForm} className="text-xs text-muted-foreground hover:text-foreground">Cancel</button>

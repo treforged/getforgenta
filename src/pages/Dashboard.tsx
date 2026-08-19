@@ -1433,7 +1433,11 @@ export default function Dashboard() {
           {/* The labels stay — collapsing to bare icons would take the affordance away, and these
               are the page's only actions. What changed is WHERE the row goes when it does not fit:
               onto its own line, rather than over the title. */}
-          <div className="flex flex-row items-center gap-1.5 shrink-0">
+          {/* ⚠️ CENTRED WHEN IT STACKS, right-aligned when it does not (Tre, 2026-08-19). On its
+              own line the row is the only thing there, and left-aligning it put it out of step
+              with the panel pills directly beneath, which have always been centred. At sm+ the
+              parent is a `justify-between` row again and the buttons belong at the end. */}
+          <div className="flex flex-row items-center justify-center sm:justify-end gap-1.5 shrink-0">
             <button
               onClick={() => setCustomizing(true)}
               className="flex items-center justify-center gap-1.5 bg-secondary border border-border px-2.5 py-1.5 text-[11px] font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors"

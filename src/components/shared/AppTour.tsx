@@ -73,7 +73,7 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-0 z-100 flex items-end sm:items-center justify-center px-4 pb-6 sm:pb-0">
+    <div className="modal-overlay z-100">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={dismiss} />
 

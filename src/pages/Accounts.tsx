@@ -616,7 +616,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
     <div className={embedded ? 'stack-section overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden'}>
       {/* Plaid link success overlay */}
       {plaidSyncResult && !plaidSyncing && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/85 backdrop-blur-sm p-4">
+        <div className="modal-overlay z-70 bg-background/85 backdrop-blur-sm">
           <div className="card-forged w-full max-w-sm p-5 flex flex-col gap-4">
             <div className="flex flex-col items-center text-center gap-1.5">
               <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
@@ -679,7 +679,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
 
       {/* Delete account confirmation modal */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center bg-background/85 backdrop-blur-sm p-4" onClick={() => setDeleteConfirm(null)}>
+        <div className="modal-overlay z-70 bg-background/85 backdrop-blur-sm" onClick={() => setDeleteConfirm(null)}>
           <div className="card-forged w-full max-w-sm p-6 flex flex-col gap-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">

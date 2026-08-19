@@ -115,7 +115,7 @@ export default function AppLockSetupModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-9998 bg-background/80 backdrop-blur-sm flex items-center justify-center px-6">
+    <div className="modal-overlay z-9998 bg-background/80 backdrop-blur-sm">
       <div className="w-full max-w-sm bg-background border border-border shadow-xl flex flex-col items-center gap-6 p-6 relative" style={{ borderRadius: 'var(--radius)' }}>
 
         {/* Dismiss (always available) */}

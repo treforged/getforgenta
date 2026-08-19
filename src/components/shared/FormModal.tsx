@@ -40,14 +40,14 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
 
   return (
     <div
-      className="fixed inset-0 z-60 flex items-end sm:items-center justify-center sm:p-4"
+      className="modal-overlay z-60"
       style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
       onClick={onClose}
     >
       <div
-        className="card-forged w-full sm:max-w-md flex flex-col rounded-t-(--radius) rounded-b-none sm:rounded-b-(--radius)"
+        className="card-forged w-full sm:max-w-md flex flex-col rounded-(--radius)"
         style={{
-          maxHeight: 'calc(88dvh - env(safe-area-inset-bottom))',
+          maxHeight: '100%',
           paddingBottom: 'env(safe-area-inset-bottom)',
         }}
         onClick={e => e.stopPropagation()}
