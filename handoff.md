@@ -1,3 +1,27 @@
+# Handoff — Forgenta
+
+> ▶ 2026-08-19 (saving stops counting as spending, and Settings gets panels) — **`95351821` on `feat/demo-in-signup`.** Gates: tsc 0, eslint clean, **1708 passed across 182 files** (+8), build exit 0. NOT pushed.
+>
+> **1. ✅ §2.4 PHASE 2 — ANNUAL SAVINGS WAS −$3,185 FOR SOMEONE SAVING $16,500 A YEAR (`a48303bd`).** Tre reported the number; the tile got worse the more the user saved.
+> - `MonthlyExpenseModel.transfers` had been pinned at 0 since Phase 1 and its own docstring said why — *"the stream does not carry the originating rule_type"*. So every 401k/Roth/brokerage/emergency-fund contribution landed in `living` → `expenses` → `cashFlow`, and Annual Savings is `cashFlow * 12`. Money moved between two of your own accounts counted as money gone.
+> - Fixed at the source: **`generateMonthTransactionsFromRules` now stamps `isTransfer` and `ruleId`**, because that is the last place `rule_type` is in hand. `buildMonthlyExpenseModel` routes those rows to `transfers` and to the CASH breakdown only — the same two-map trick `addPrincipalOnly` already used for debt principal.
+> - ⚠️ **THE CASH VIEW DOES NOT MOVE BY A CENT.** `expensesAllIn` is now `living + interest + principal + transfers`, **not** `expenses + principal` — write it the old way and the contributions silently drop out of every "cash that left" surface. A test builds the same month both ways and asserts the cash totals match while `expenses` falls.
+> - ⚠️ **The Phase 1 identity is broken ON PURPOSE**: `expenses + debtService` is now that **plus `transfers`**. The Dashboard comment asserting the old identity was rewritten, not left to rot.
+> - ⚠️ **Generated rows only.** A hand-typed transfer carries no rule_type and stays in `living`. Widening it means linking a recorded row back to its rule (§1B) — **never** guessing from the category name; the module header forbids classifying by name and "Investing" is user-editable.
+> - 🔬 **LIVE:** Annual Savings **−$3,185 → +$10,315**; Spending by Category $5,256 → $4,131 with Investing and Savings gone from the EXPENSE view; and the two cash-view tiles **unmoved** — Avg Monthly Spend $3,574, Emergency Runway 1.2 mo. The invariant held on screen, not only in a test.
+>
+> **2. ✅ SETTINGS IS FOUR PANELS (`95351821`)** — the top NEXT item. 1,085 lines of one scrolling column became **Account** (Profile · Invite · Support · Danger Zone), **Security**, **Preferences** (Display · Merchant memory), **Plan** (Subscription · Developer), on the same PanelBar + SurfaceGuide as every other surface.
+> - Profile and Invite together per Tre; merchant memory moved beside Display — both are about how the app BEHAVES, not who you are. That is the "merchant-memory reshape" folded in.
+> - ⚠️ **The row is BUILT, not hard-coded**: Security, Plan and the Danger Zone render nothing in demo, and a fixed row would offer two tabs onto an empty page. A persisted tab that is no longer available falls back to Account.
+> - ⚠️ **`/settings#security` is a LIVE link** (Dashboard's security prompt). The hash now selects the panel, and **`id="security"` was removed in the same move** — with both, the browser also tried its native jump and landed as a sideways scroll with the page cut off at the right.
+> - ⚠️ **Save stays OUTSIDE the panels** so switching tabs cannot discard typed work.
+> - Account renders in **two fragments** on purpose — source order is Profile, Security, Invite, Support, Danger Zone, and moving 200 lines for tidiness buys an unreviewable diff. On screen they are contiguous because Security is filtered out.
+> - 🔬 **LIVE signed in:** all four panels render, `#security` opens Security cleanly, Preferences carries Display + Merchant memory, and the one Guide button at the title opens all four under their own headings.
+>
+> **⬜ NEXT:** (1) **Slice 6 — global store→category learning.** ⚠️ ATTENDED: needs a migration + RLS + privacy copy, and anon holds blanket table grants (remember 2026-06-15), so it must not be done unattended. (2) **Light mode** — confirmed wanted, its own token-driven slice. (3) Screenshots stay DEFERRED until Tre says the design has settled.
+>
+> **⬜ CARRIED, AND STILL WORTH DOING:** `useSyncedTransactions(monthKey)` returns `[]` in demo so Budget Control's bank-confirmation badges stay dark — it also feeds `CardProjectionContext`'s month-0 spend, so it can move the payoff date and wants the engine numbers re-checked. Merchant memory and the Garage maintenance log are still unaudited in demo beyond a glance.
+
 > ▶ 2026-08-18 (Debt-to-Income stops measuring the calendar) — **`aa547344`, same branch.** Gates: tsc 0, eslint clean, **1700 passed across 181 files** (+7), build exit 0.
 >
 > Tre: *"do what you believe is best"* — so the DTI item raised at the end of the previous entry was decided rather than left open.
