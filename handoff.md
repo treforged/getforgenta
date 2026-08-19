@@ -1,5 +1,31 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (Slice 6 and light mode) — **`36944227` on `feat/slice6-store-category-learning`**, cut from `feat/demo-in-signup`. Gates: tsc 0, eslint clean, **1726 passed across 184 files** (+18), build exit 0.
+>
+> **PR #114 IS OPEN AND FILED** (demo audit + DTI + §2.4 Phase 2 + Settings panels). This branch stacks on it — it does NOT branch from `main`, because main does not have #114 yet. Merge #114 first.
+>
+> **1. ✅ SLICE 6 — GLOBAL STORE→CATEGORY LEARNING (`27a567b0`). MIGRATION APPLIED TO PRODUCTION** (`mdtosrbfkextcaezuclh`), attended, and mirrored into `supabase/migrations/20260819_*.sql` so the schema is reviewable in the repo.
+> - ⚠️ **THE SPEC AS WRITTEN HAD A PRIVACY HOLE.** It said "merchant key + category + count ONLY; no user ids" and called that aggregate-by-construction. It is not: a normalized merchant key is not always a business — **this account's own memory holds "Zelle payment from ARIA…"**. A bare count would have published one user's counterparty names to everyone. There is now a **distinct-voter threshold of 3**, which needs to know who voted, so ballots are kept in a table only the definer functions can see. A private payee has one voter forever.
+> - ⚠️ **THE FLOOR IS CLAMPED IN SQL** — `greatest(coalesce(p_min_voters,3),3)`. Probed live: passing `p_min_voters => 1` returns the same single row as the default. A caller can only make it stricter.
+> - ⚠️ **NOTHING LIVES IN `public`, AND THIS IS WHY.** Verified on this project: default ACLs grant `arwdDxtm` (ALL) to **both anon and authenticated** on every new table in public. A table there is world-writable the instant it exists. The `crowd` schema has no default ACLs, no grants, no schema USAGE for either role, RLS on and **no policies** (deny-all), reachable only via two SECURITY DEFINER functions with `search_path = ''`. All of that re-queried after applying.
+> - Client: `src/lib/crowd-category.ts` owns the order — **your own memory > the crowd > the bank's label** — and carries `source` so the UI can say which answered. The crowd line never names a headcount (a test forbids a digit in it). Votes ride on `setCategory`, the single existing write path. Demo reads and writes nothing.
+> - ⬜ **KNOWN LIMITS, stated:** clearing a category does not retract a vote; poisoning a pair needs three colluding accounts.
+> - ⬜ **NOT YET SEEN WITH REAL CROWD DATA** — the table is empty, so no charge row has shown a crowd suggestion yet. It will populate as categorisations happen. The precedence and the copy are unit-proven; the rendered "Other people who shop here say this" line is not.
+>
+> **2. ✅ LIGHT MODE (`36944227`).** Dark stays the default; `:root` IS dark and `.light` overrides it.
+> - ⚠️ **THE RISK WAS `dark:` VARIANTS**, since the script now always puts a class on `<html>` where there was none. **Closed by evidence: grep finds ZERO `dark:` variants**, and the `.dark` block is a duplicate of `:root`, so the class is a no-op for existing dark mode.
+> - ⚠️ **THE GOLD IS NOT THE SAME GOLD.** Brand gold on near-white is ~2.6:1 and `--primary` is used as a TEXT colour everywhere. Light deepens it to a bronze clearing 4.5:1, and `--primary-foreground` becomes white because the relationship inverts on a fill.
+> - ⚠️ Page is 98%, cards are 100% — reversing them flattens every surface. The **named colours flip too** (`--silver` is a LIGHT text colour in dark; left alone it is white-on-white).
+> - Applied **before first paint** by an inline script in `index.html` — React mounts after the paint, so setting it from a component flashes dark on every load. Per **device**, not profile. `ThemeSync` in `App.tsx` keeps `system` following the OS live.
+> - ⚠️ `resolved` is DERIVED, not stored — eslint's `react-hooks/set-state-in-effect` caught the first version.
+> - 🔬 **LIVE:** Settings and Dashboard both render in light, readable, charts intact. **Left on `system`** afterwards.
+>
+> **⬜ NEXT:** (1) Merge #114, then this branch's PR. (2) Slice 7 — token sweep (~164 ad-hoc card sites vs 155 `card-forged`; 73 in four files). ⚠️ **Light mode makes this more valuable AND more urgent**: an ad-hoc `bg-[#0a0a0a]` or `text-amber-400` does not follow the theme, so any card still off-token is a dark card on a light page. Nobody has swept for that yet. (3) Screenshots stay DEFERRED until Tre says the design has settled.
+>
+> **⬜ CARRIED:** `useSyncedTransactions(monthKey)` still `[]` in demo (Budget Control bank badges); merchant memory + Garage maintenance log unaudited in demo; per-surface 390px re-passes.
+
+# Handoff — Forgenta
+
 > ▶ 2026-08-19 (saving stops counting as spending, and Settings gets panels) — **`95351821` on `feat/demo-in-signup`.** Gates: tsc 0, eslint clean, **1708 passed across 182 files** (+8), build exit 0. NOT pushed.
 >
 > **1. ✅ §2.4 PHASE 2 — ANNUAL SAVINGS WAS −$3,185 FOR SOMEONE SAVING $16,500 A YEAR (`a48303bd`).** Tre reported the number; the tile got worse the more the user saved.
