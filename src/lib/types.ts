@@ -8,6 +8,11 @@ export type Transaction = {
   account: string;
   note: string;
   payment_source?: string;
+  /**
+   * `transactions.origin` — 'manual' for a row a person typed, 'synced' for one imported from the
+   * bank feed. Read by `isManualCandidate`: only a typed row can duplicate a recurring rule.
+   */
+  origin?: string;
   car_build_item_id?: string | null;
   car_maintenance_log_id?: string | null;
   created_at: string;

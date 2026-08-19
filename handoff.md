@@ -1,5 +1,92 @@
 # Handoff — Forgenta
 
+> ▶ 2026-08-19 (saving stops counting as spending, and Settings gets panels) — **`95351821` on `feat/demo-in-signup`.** Gates: tsc 0, eslint clean, **1708 passed across 182 files** (+8), build exit 0. NOT pushed.
+>
+> **1. ✅ §2.4 PHASE 2 — ANNUAL SAVINGS WAS −$3,185 FOR SOMEONE SAVING $16,500 A YEAR (`a48303bd`).** Tre reported the number; the tile got worse the more the user saved.
+> - `MonthlyExpenseModel.transfers` had been pinned at 0 since Phase 1 and its own docstring said why — *"the stream does not carry the originating rule_type"*. So every 401k/Roth/brokerage/emergency-fund contribution landed in `living` → `expenses` → `cashFlow`, and Annual Savings is `cashFlow * 12`. Money moved between two of your own accounts counted as money gone.
+> - Fixed at the source: **`generateMonthTransactionsFromRules` now stamps `isTransfer` and `ruleId`**, because that is the last place `rule_type` is in hand. `buildMonthlyExpenseModel` routes those rows to `transfers` and to the CASH breakdown only — the same two-map trick `addPrincipalOnly` already used for debt principal.
+> - ⚠️ **THE CASH VIEW DOES NOT MOVE BY A CENT.** `expensesAllIn` is now `living + interest + principal + transfers`, **not** `expenses + principal` — write it the old way and the contributions silently drop out of every "cash that left" surface. A test builds the same month both ways and asserts the cash totals match while `expenses` falls.
+> - ⚠️ **The Phase 1 identity is broken ON PURPOSE**: `expenses + debtService` is now that **plus `transfers`**. The Dashboard comment asserting the old identity was rewritten, not left to rot.
+> - ⚠️ **Generated rows only.** A hand-typed transfer carries no rule_type and stays in `living`. Widening it means linking a recorded row back to its rule (§1B) — **never** guessing from the category name; the module header forbids classifying by name and "Investing" is user-editable.
+> - 🔬 **LIVE:** Annual Savings **−$3,185 → +$10,315**; Spending by Category $5,256 → $4,131 with Investing and Savings gone from the EXPENSE view; and the two cash-view tiles **unmoved** — Avg Monthly Spend $3,574, Emergency Runway 1.2 mo. The invariant held on screen, not only in a test.
+>
+> **2. ✅ SETTINGS IS FOUR PANELS (`95351821`)** — the top NEXT item. 1,085 lines of one scrolling column became **Account** (Profile · Invite · Support · Danger Zone), **Security**, **Preferences** (Display · Merchant memory), **Plan** (Subscription · Developer), on the same PanelBar + SurfaceGuide as every other surface.
+> - Profile and Invite together per Tre; merchant memory moved beside Display — both are about how the app BEHAVES, not who you are. That is the "merchant-memory reshape" folded in.
+> - ⚠️ **The row is BUILT, not hard-coded**: Security, Plan and the Danger Zone render nothing in demo, and a fixed row would offer two tabs onto an empty page. A persisted tab that is no longer available falls back to Account.
+> - ⚠️ **`/settings#security` is a LIVE link** (Dashboard's security prompt). The hash now selects the panel, and **`id="security"` was removed in the same move** — with both, the browser also tried its native jump and landed as a sideways scroll with the page cut off at the right.
+> - ⚠️ **Save stays OUTSIDE the panels** so switching tabs cannot discard typed work.
+> - Account renders in **two fragments** on purpose — source order is Profile, Security, Invite, Support, Danger Zone, and moving 200 lines for tidiness buys an unreviewable diff. On screen they are contiguous because Security is filtered out.
+> - 🔬 **LIVE signed in:** all four panels render, `#security` opens Security cleanly, Preferences carries Display + Merchant memory, and the one Guide button at the title opens all four under their own headings.
+>
+> **⬜ NEXT:** (1) **Slice 6 — global store→category learning.** ⚠️ ATTENDED: needs a migration + RLS + privacy copy, and anon holds blanket table grants (remember 2026-06-15), so it must not be done unattended. (2) **Light mode** — confirmed wanted, its own token-driven slice. (3) Screenshots stay DEFERRED until Tre says the design has settled.
+>
+> **⬜ CARRIED, AND STILL WORTH DOING:** `useSyncedTransactions(monthKey)` returns `[]` in demo so Budget Control's bank-confirmation badges stay dark — it also feeds `CardProjectionContext`'s month-0 spend, so it can move the payoff date and wants the engine numbers re-checked. Merchant memory and the Garage maintenance log are still unaudited in demo beyond a glance.
+
+> ▶ 2026-08-18 (Debt-to-Income stops measuring the calendar) — **`aa547344`, same branch.** Gates: tsc 0, eslint clean, **1700 passed across 181 files** (+7), build exit 0.
+>
+> Tre: *"do what you believe is best"* — so the DTI item raised at the end of the previous entry was decided rather than left open.
+>
+> **✅ THE TILE WAS 0.5% AND "HEALTHY" FOR AN ACCOUNT CARRYING $47,200.** It read `debtBreakdown.totalMinimumsDue / summary.income`, and `totalMinimumsDue` is what is still UNPAID on the CARDS this month — so it fell towards zero as the month went on, hit 0% the day the last minimum cleared, ignored every loan, and ignored autopay-in-full cards. New `src/lib/debt-to-income.ts` sums the monthly OBLIGATION instead: card minimums + loan minimums + `getActiveCarLoanPayments`.
+> - ⚠️ **Contractual, never chosen.** Never what the avalanche engine recommends paying — overpaying a card does not make you more indebted, and a DTI that rose when you did would punish the behaviour the app exists for. A test asserts the number is identical on the 1st and the 28th.
+> - ⚠️ Unopened cards held out (same rule as the recommendations and the liabilities list); **null, not 0%**, with no income.
+> - 🔬 **LIVE in demo: 15.2%, healthy** — $492 of minimums + a $537 car payment against $6,750 income.
+>
+> **⚠️ TWO DASHBOARD NUMBERS MOVED AS A CONSEQUENCE OF THE DEMO FIX BELOW, AND BOTH MOVES ARE CORRECTIONS.**
+> - **AVG MONTHLY SPEND $2,132 → $3,574.** The old figure averaged five months of which two had no recorded rows at all. Now every month has them.
+> - **ANNUAL SAVINGS +$21,922 → −$2,525.** The old figure was an artifact of the duplication: the current month counted BOTH the hand-written rows and the generated ones, so demo income was booked twice. The demo's real month is $6,750 in, $6,960 out — Jordan is voluntarily overpaying the cards by ~$1,000/mo out of $9,900 of liquid cash, which is exactly what the engine is designed to do.
+> - **⬜ OPEN, NOT FIXED, AND WORTH A DECISION:** "Annual Savings" is `cashFlow * 12`, and cash flow counts debt PRINCIPAL and the $1,375/mo of 401k/Roth/HYS contributions as outflow. So a user aggressively paying down debt and investing hard reads as *negative annual savings* — the label and the arithmetic disagree. Same class of fault as the DTI one, but redefining a second metric before Tre has looked at the first would be over-reach, so it is flagged rather than changed.
+
+# Handoff — Forgenta
+
+> ▶ 2026-08-18 (the demo stops aging and stops contradicting itself) — **`e5db12fa` on `feat/demo-in-signup`.** Gates: tsc 0, eslint clean, **1693 passed across 180 files** (+11), build exit 0. NOT pushed.
+>
+> **✅ OWED ITEM 4 IS SUBSTANTIALLY CLOSED.** Tre: *"the demo data should demonstrate ALL the features."* The audit was done with the app open in demo at `localhost:8080`, surface by surface, and every fault below was invisible from the fixture file alone.
+>
+> ⚠️ **FIRST, A CORRECTION TO THE PREVIOUS HANDOFF.** It said `useAllSyncedTransactions` returns `[]` in demo and that the Decision Deck and the patterns card are structurally empty. **That was already fixed in PR #111** — `demoSyncedTransactions` exists, the deck holds 81 cards and Bank Activity badges 42. Do not re-do it.
+>
+> **What was actually wrong, and what shipped:**
+> - **The ledger accused itself of double-charging.** Every recurring demo row restated a row `demoRecurringRules` generates, so `scanForDuplicateTransactions` correctly put *"Possible duplicate payment — 4 months"* across the top of the sales surface. ⚠️ **The fix is `origin: 'synced'` on the recorded months, and it is not a trick** — it is what those rows are, history that reached the ledger from the bank feed, and `isManualCandidate` exempts exactly that. A test flips them back to `'manual'` and asserts the collisions RETURN, so the exemption cannot widen into "nothing is ever checked". `Transaction` gained `origin?: string` (the DB column already existed).
+> - **The current month is no longer written out at all.** `mergeWithGeneratedTransactions` expands the rules over it; restating it WAS the duplication. Past months recorded, this month projected.
+> - **130 hand-written rows became a generator over five months.** Four months of ledger against a six-month cash-flow chart opened on two empty bars. Now six filled bars.
+> - **Month names out of the notes** — "Roommate – April" was appearing against 2026-08-01. A test forbids a month name in any note.
+> - **Net worth history was frozen in Jan–Apr 2026:** the chart ran to Mar 27 and ended at +$3,900 while the tile above it read −$22,600. 26 weekly points, derived, ending today and closing on the fixture's own totals. ⚠️ **The RAV4 is now booked as a $29,000 ASSET** — that was the actual missing piece, the tile read −$22,600 for someone who owns the car. It reads **+$6,400** now, and `demoAssets` is no longer empty (which also gives the Accounts page's Assets filter something a live account cannot show).
+> - **Three of five `/debt` panels were empty, Other Debts reading "$0 / $0 / $0".** A `student_loan` account + matching debt row lights Student Loans ($8,000, 5.5%, 107 months, $2,165 interest); a dental plan matching no account lands in Other Debts, which is the rule `DebtPayoff.tsx` already uses. ⚠️ **Mortgage stays empty ON PURPOSE** — Jordan rents (rule r2, $1,600), and inventing a mortgage to light a tab is the one demo number a visitor could catch out. A test pins that reasoning.
+> - **The bank feed no longer serves settled charges dated after today** — the cadences run to the 27th, so before then the deck was handing out `pending: false` charges dated in the future.
+> - **Subscription renewals and payment-plan start dates are derived.** All six renewals were pinned to 2026-04-xx, and the four-payment AirPods plan had already run to completion.
+> - **Two guides stopped naming fixtures that were removed months ago** — a "$6,000 car purchase in June" and a "$3,000 gift in June" on the Planning tab — and the story card's "debt-free in under a year" now matches the hero's "1 yr 3 mo".
+>
+> 🔬 **LIVE-VERIFIED in demo:** no duplicate warning on any month; six filled cash-flow bars; net worth history **Feb 23 → Aug 1 ending on $6,400** with the tile agreeing; Student Loans and Other Debts both populated; **payoff date unchanged at Nov 2027** (the new minimums cost $62 of floor headroom, $1,374 → $1,312).
+>
+> ⚠️ **MECHANICS WORTH KEEPING.** `localhost:8080` is served by the MAIN tree (checked via `netstat -ano` → `Get-CimInstance Win32_Process`). **Any full page load drops the demo flag** — it is in-memory — so navigate inside the app by clicking the nav, not by `navigate`. The dashboard scrolls in an inner container: **scroll at x≈855**, the outer edge, or nothing moves. `javascript_tool` still returns `[BLOCKED]` on large text dumps. And a screenshot right after a click **times out on the first attempt and succeeds on the second** — just call it twice.
+>
+> **⬜ RAISED, NOT FIXED — the Dashboard's Debt-to-Income tile reads 0.5%.** `dti = debtBreakdown.totalMinimumsDue / summary.income`, i.e. what is LEFT to pay this month, not the monthly debt obligation a DTI means. It is an app-level metric definition, not a demo fixture, and redefining a ratio in a financial app is Tre's call — flagged rather than changed.
+>
+> **⬜ LEFT OF ITEM 4, deliberately:** `useSyncedTransactions(monthKey)` still returns `[]` in demo, so Budget Control's bank-confirmation badges stay dark. Serving the month-scoped slice of `demoSyncedTransactions` would light them, but that hook also feeds `CardProjectionContext`'s month-0 spend, so it can move the payoff date — it wants its own slice with the engine numbers re-checked. Also unaudited: merchant memory and the Garage's maintenance log beyond a glance.
+>
+> **⬜ NEXT, otherwise unchanged:** (1) Settings tabs with Profile+Invite together, folding in the merchant-memory reshape. (2) Slice 6 global store→category learning (ATTENDED: migration + RLS + privacy copy). (3) Light mode. (4) Screenshots stay DEFERRED until Tre says the design has settled.
+
+# Handoff — Forgenta
+
+> ▶ 2026-08-18 (the demo moves inside sign-up) — **`db9da7c3` on `feat/demo-in-signup`, cut from merged `main` (`d5efd42a`).** Gates: tsc 0, eslint clean, **1682 passed across 179 files** (+13), build exit 0. NOT pushed.
+>
+> **✅ OWED ITEM 3 IS CLOSED.** Tre: *"lets make the demo only accessible when you sign up, so you can see a reference account for example when the user sets up."*
+> - **Out of `/auth`:** the Try Demo button, `handleDemoLogin`, the `useDemo` import and the now-orphaned `.auth-cta-3` animation delay are gone. `/demo` (#113) stays — it is what `capture_demo.mjs` drives and it is deliberately unlinked.
+> - **Into setup:** `src/components/shared/ReferenceAccountButton.tsx` is the demo's only door, rendered on the onboarding **welcome step** and at the foot of the Dashboard **checklist** (the surface someone who skipped the wizard actually meets). ONE component on purpose — two copies would become two promises.
+> - **The way back:** `src/hooks/useDemoSession.ts` owns `isPreview = isDemo && !!user`, read by `DemoBanner`, `Sidebar` and `MobileTopBar` so the three cannot offer three different doors. A signed-out visitor still gets "Sign Up Free"; a signed-in one gets **"← Back to my account"**, and leaving is `setIsDemo(false)` + `/dashboard`, **never a sign-out** — the real session sits underneath the fixture data the whole time. A user still mid-setup is carried on to `/onboarding` by the route gate the moment the flag drops.
+> - **Typed work is never thrown away** (the rule the backdrop-tap save was built on): looking at the demo unmounts the wizard, so the answers now live in `src/lib/onboarding-draft.ts` — **stamped with the user id, a mismatched stamp IGNORED not merged** (shared device), written from an effect not the state updater, cleared on finish and on skip. It also fixes the older quiet version of the same loss: a mid-wizard refresh used to empty every field. 7 tests.
+> - 🔬 **LIVE, signed in on real data:** `/demo` renders Jordan over the live session, banner reads "← Back to my account" with no "Sign Up Free"; clicking it lands back on Tre's own dashboard (**Jun 2028 · $18,410 today**), session intact, no demo chrome.
+> - ⬜ **Unit-proven only, deliberately:** the `/auth` landing without the button (signed in, `/auth` bounces to `/dashboard`) and the wizard's welcome step (his account is onboarded, and flipping that to take a screenshot writes to his data).
+>
+> **⚠️ THE :8080 SERVER WAS THE WRONG TREE, and it cost this session ~20 minutes.** Vite was still being served from the previous session's **scratchpad worktree** (`…\scratchpad\wt-integration`), so the browser showed OLD code and the new banner looked broken. **`curl http://localhost:8080/src/<file>` is NOT a valid check — vite answers unknown paths with `index.html`, 200.** Check the process instead: `netstat -ano | grep :8080` then `Get-CimInstance Win32_Process -Filter "ProcessId=<pid>"` and read the CommandLine. The stale server is now killed and `node scripts/dev-session.mjs up` serves the MAIN tree.
+>
+> **✅ THE STALE WORKTREES ARE GONE (same session, Tre asked).** All eight `.claude/worktrees/agent-*` were clean, every tip an ancestor of `redesign/integration`, and their content is on `origin/main` (verified by CONTENTS: `review-write-inputs.ts`, `DashboardHero.tsx`, `RulesFromHistoryDeck.tsx`, `onboarding-state.ts`, `ForecastHero.tsx`, `utilizationComparisonOrder` all present) — PR #111 squashed, so ancestry against `main` proves nothing. The scratchpad `wt-integration` (PR #113, merged) went too. **A bare `npx vitest run` is green again: 179 files, 1682 passed** — the `--exclude '**/.claude/**'` workaround is no longer needed.
+>
+> **⚠️ AND THE REMOVAL BIT BACK — read this before removing another worktree here.** The scratchpad worktree's `node_modules` was an `mklink /J` **junction into the main repo's `node_modules`**, and `git worktree remove --force` deleted THROUGH it before dying on "Filename too long": the main tree lost `node_modules/.bin` (99 shims), so `npx vitest` became "not recognized". Fix was `npm ci`, which first needed the dev server stopped (EPERM on a locked `lightningcss` `.node`). **Order that works: `cmd /c rmdir <wt>
+ode_modules` to drop the junction WITHOUT following it, then delete the tree, then `git worktree prune`.** Toolchain restored and re-verified: tsc 0, 1682 passed, build exit 0, `:8080` serving the main tree again.
+>
+> **⬜ NEXT:** (1) **Owed item 4 — the demo data should demonstrate ALL the features** (Tre, 2026-08-18): `useAllSyncedTransactions` → `[]` in demo, so the **Decision Deck and the rules-from-history patterns card are structurally empty on the sales surface**; also audit builds + maintenance log, vehicle saving→loan phases, payment plans, goals, the Garage, merchant memory. Demo stays `is_premium: true` and must look outstanding (`DIRECTION.md`). (2) Settings tabs with Profile+Invite together, folding in the merchant-memory reshape. (3) Slice 6 global store→category learning (ATTENDED: migration + RLS + privacy copy). (4) Light mode. (5) Screenshots stay DEFERRED until Tre says the design has settled.
+
+
 > ▶ 2026-08-18 (backdrop-tap saves, and the demo gets an addressable entry) — **`9f5731d5` on `feat/form-save-and-demo-access`, cut from the merged `main` (`2bd74c68`).** Gates: tsc 0, eslint clean, **1651 passed / 18 skipped across 177**, build exit 0.
 >
 > **PR #112 IS MERGED** — verified by CONTENTS (`SurfaceGuide.tsx` present in `origin/main`).

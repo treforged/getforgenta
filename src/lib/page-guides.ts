@@ -50,7 +50,8 @@ export type GuideSurface =
   | 'transactions'
   | 'debt'
   | 'forecast'
-  | 'garage';
+  | 'garage'
+  | 'settings';
 
 export type GuideKey = `${GuideSurface}:${string}`;
 
@@ -237,6 +238,45 @@ export const PAGE_GUIDES: Record<GuideKey, PageGuide> = {
       { title: 'Maintenance log', body: 'Servicing is tracked separately from the build — what was done, when, and what it cost, with a 12-month running total.' },
     ],
   },
+  // ── Settings ────────────────────────────────────────────────────────────────────────
+  // New copy: Settings was a single scrolling column of nine cards and never had a guide.
+  // ⚠️ Two of these panels do not exist in demo (there is no account to secure and no plan
+  // to manage), which is why `Settings.tsx` builds its panel row rather than hard-coding it.
+  'settings:account': {
+    title: 'Account Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Who you are in the app, the invite link that shares it, where to get help, and — at the very bottom — deleting the account.' },
+      { title: 'Display name', body: 'The name the app greets you with. It is not your login: changing it here changes nothing about how you sign in.' },
+      { title: 'Invite a friend', body: 'Your personal link. It is safe to share — it opens sign-up and grants no access whatsoever to your data.' },
+      { title: 'Deleting your account', body: 'Permanent, and it takes every account, rule, goal and build with it. If a subscription is active the delete flow says what happens to it before you confirm.' },
+    ],
+  },
+  'settings:security': {
+    title: 'Security Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Everything that controls who can get into this account: the email and password you sign in with, connected sign-in providers, two-factor, and the devices already trusted.' },
+      { title: 'Changing your email', body: 'The new address has to be confirmed before it becomes your login, so a typo cannot lock you out — the old address keeps working until the new one is verified.' },
+      { title: 'Two-factor authentication', body: 'A second step at sign-in. Worth turning on: a password on its own is one leak away from being someone else’s.' },
+      { title: 'Trusted devices and signing out everywhere', body: 'Signing out all devices ends every session but this one. Use it if a phone goes missing — it is the fastest lever on this page.' },
+    ],
+  },
+  'settings:preferences': {
+    title: 'Preferences Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'How the app displays and interprets your numbers, plus the merchant answers it has learned from you.' },
+      { title: 'Currency and month start day', body: 'The month start day decides where every monthly total is cut. Move it and the Dashboard, Budget Control and Forecast all re-cut together — nothing is recalculated differently, it is the same money in different boxes.' },
+      { title: 'Merchant memory', body: 'When you tell the app what a charge is, it remembers the merchant so it stops asking. This is the one place those answers can be changed or switched off — a decision the app applies everywhere has to be reversible somewhere obvious.' },
+      { title: 'Why it may be empty', body: 'The merchant list appears once something has been learned. Nothing there means nothing has been taught yet, not that the feature is off.' },
+    ],
+  },
+  'settings:plan': {
+    title: 'Plan Guide',
+    sections: [
+      { title: 'What is this panel?', body: 'Your subscription: what you are on, when it renews, the payment method, and cancelling or resuming.' },
+      { title: 'Cancelling', body: 'A cancellation runs to the end of the period already paid for — you keep everything until then, and the page shows the date. It can be resumed before that date without re-subscribing.' },
+      { title: 'Updating a card', body: 'The payment form is handled by Stripe and opens inside the page. Card details never reach this app.' },
+    ],
+  },
 };
 
 /** Where an unrecognised panel lands. One entry per surface, and every one exists above. */
@@ -247,6 +287,7 @@ const SURFACE_FALLBACK: Record<GuideSurface, GuideKey> = {
   debt: 'debt:cards',
   forecast: 'forecast:forecast',
   garage: 'garage:saving',
+  settings: 'settings:account',
 };
 
 /**
@@ -300,6 +341,15 @@ const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> =
     { key: 'garage:loan', label: 'Car loans' },
     { key: 'garage:builds', label: 'Builds' },
   ],
+  // ⚠️ Security and Plan are listed here even though `Settings.tsx` hides those panels in demo.
+  // This map is the GUIDE's table of contents, not the panel row: a reader in demo is better
+  // served by a guide that explains the whole page than by one that quietly omits half of it.
+  settings: [
+    { key: 'settings:account', label: 'Account' },
+    { key: 'settings:security', label: 'Security' },
+    { key: 'settings:preferences', label: 'Preferences' },
+    { key: 'settings:plan', label: 'Plan' },
+  ],
 };
 
 /** The name a combined guide goes by — the page, not any one of its panels. */
@@ -310,6 +360,7 @@ const SURFACE_TITLE: Record<GuideSurface, string> = {
   debt: 'Debt Guide',
   forecast: 'Forecast Guide',
   garage: 'Garage Guide',
+  settings: 'Settings Guide',
 };
 
 /**

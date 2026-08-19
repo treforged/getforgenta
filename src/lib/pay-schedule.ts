@@ -43,6 +43,13 @@ export type EnrichedTransaction = {
   isReconciliation?: boolean;
   reconciliationDelta?: number;
   ruleId?: string;
+  /**
+   * This row moves money between two of the user's OWN accounts — a `transfer` or `investment`
+   * rule. Set only on generated rows, because only there is the originating `rule_type` knowable;
+   * a hand-entered transfer is indistinguishable from spending and stays in `living`. Read by
+   * `buildMonthlyExpenseModel` to keep a Roth contribution out of the expense view (§2.4 Phase 2).
+   */
+  isTransfer?: boolean;
 };
 
 export type PayFrequency = 'weekly' | 'biweekly' | 'monthly';
@@ -1267,6 +1274,10 @@ export function generateMonthTransactionsFromRules(
         id: `gen:${r.id}:${dateStr}`, date: dateStr, type: txType,
         amount: Number(r.amount), category: txCategory, note: r.name,
         payment_source: source, isGenerated: true,
+        ruleId: r.id,
+        // §2.4 Phase 2. The rule_type is known HERE and nowhere downstream, which is exactly why
+        // `MonthlyExpenseModel.transfers` sat at 0 until now.
+        isTransfer: r.rule_type === 'transfer' || r.rule_type === 'investment',
       });
     }
   });

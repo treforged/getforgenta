@@ -9,7 +9,6 @@ import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
 import { AuthSession } from '@/lib/auth-session';
-import { useDemo } from '@/contexts/DemoContext';
 import { trackSignUp } from '@/lib/analytics';
 import { getTrustedDeviceId, isDeviceTrusted, TRUSTED_DEVICE_KEY, type TrustedDevice } from '@/lib/trusted-device';
 
@@ -59,7 +58,6 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('landing');
-  const { setIsDemo } = useDemo();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -159,11 +157,6 @@ export default function Auth() {
     setDisplayName('');
     setResetSent(false);
     if (next === 'landing') setEmail('');
-  };
-
-  const handleDemoLogin = () => {
-    setIsDemo(true);
-    navigate('/dashboard', { replace: true });
   };
 
   const handleTrustDevice = async () => {
@@ -600,7 +593,6 @@ export default function Auth() {
           .auth-cta   { opacity: 0; animation: authEntrance 0.5s ease forwards; }
           .auth-cta-1 { animation-delay: 0.4s; }
           .auth-cta-2 { animation-delay: 0.55s; }
-          .auth-cta-3 { animation-delay: 0.7s; }
           .auth-trust { opacity: 0; animation: authEntrance 0.5s ease 0.85s forwards; }
         `}</style>
         <div className="w-full max-w-xs space-y-10">
@@ -627,13 +619,6 @@ export default function Auth() {
               style={{ borderRadius: 'var(--radius)' }}
             >
               Sign In
-            </button>
-            <button
-              onClick={handleDemoLogin}
-              className="auth-cta auth-cta-3 w-full py-3 text-sm font-semibold text-foreground/70 hover:text-foreground border border-border/50 hover:border-border transition-all"
-              style={{ borderRadius: 'var(--radius)' }}
-            >
-              Try Demo
             </button>
           </div>
           {!Capacitor.isNativePlatform() && (

@@ -2,11 +2,11 @@ import { Link, useLocation } from 'react-router';
 import {
   LayoutDashboard, ArrowLeftRight, Landmark,
   Settings, Crown, LogOut, ChevronLeft, ChevronRight,
-  TrendingUp, Home, Sparkles, Zap, Car,
+  TrendingUp, Home, Sparkles, Zap, Car, ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useDemoSession } from '@/hooks/useDemoSession';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
@@ -39,7 +39,7 @@ const navItems = [
 export default function Sidebar() {
   const { pathname } = useLocation();
   const { signOut } = useAuth();
-  const { isDemo } = useDemo();
+  const { isDemo, isPreview, leaveDemo } = useDemoSession();
   const { isPremium } = useSubscription();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -148,7 +148,19 @@ export default function Sidebar() {
       </nav>
 
       <div className="p-2 border-t border-sidebar-border space-y-1">
-        {isDemo ? (
+        {/* A signed-in user looking at the reference account leaves it, they do not sign up for it
+            — one predicate, `useDemoSession().isPreview`, shared with the banner and the mobile
+            menu so the three cannot offer three different doors. */}
+        {isPreview ? (
+          <button
+            onClick={leaveDemo}
+            className="flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors w-full btn-press"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            {!collapsed && <span>Back to my account</span>}
+            {collapsed && <ArrowLeft size={16} />}
+          </button>
+        ) : isDemo ? (
           <>
             <Link
               to="/auth"

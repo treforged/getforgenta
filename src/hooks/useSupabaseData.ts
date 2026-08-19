@@ -1011,13 +1011,27 @@ export function useTransactions() {
 }
 
 // ─── Subscriptions ────────────────────────────────────────
+/**
+ * ⚠️ RENEWAL DATES ARE DERIVED, NOT WRITTEN DOWN. They were all fixed at 2026-04-xx, so by August
+ * every renewal on the demo's subscriptions surface was months in the past — a "next renewal" that
+ * has already happened is not a smaller version of the feature, it is the wrong answer.
+ * `demoRenewal(day)` returns that day in the current month if it is still ahead, otherwise the
+ * next one, which is what a renewal date means.
+ */
+function demoRenewal(day: number, monthsAhead = 0) {
+  const t = new Date();
+  const rolled = monthsAhead === 0 && day < t.getDate() ? 1 : monthsAhead;
+  const dt = new Date(t.getFullYear(), t.getMonth() + rolled, day);
+  return dt.toISOString().split('T')[0];
+}
+
 const demoSubs = [
-  { name: 'Spotify', cost: 10.99, billing: 'monthly', renewal_date: '2026-04-01', active: true },
-  { name: 'Netflix', cost: 15.49, billing: 'monthly', renewal_date: '2026-04-05', active: true },
-  { name: 'Gym Membership', cost: 49.99, billing: 'monthly', renewal_date: '2026-04-01', active: true },
-  { name: 'iCloud Storage', cost: 2.99, billing: 'monthly', renewal_date: '2026-04-15', active: true },
-  { name: 'Adobe Creative Suite', cost: 599.88, billing: 'yearly', renewal_date: '2026-09-01', active: true },
-  { name: 'ChatGPT Plus', cost: 20.00, billing: 'monthly', renewal_date: '2026-04-10', active: false },
+  { name: 'Spotify', cost: 10.99, billing: 'monthly', renewal_date: demoRenewal(1), active: true },
+  { name: 'Netflix', cost: 15.49, billing: 'monthly', renewal_date: demoRenewal(5), active: true },
+  { name: 'Gym Membership', cost: 49.99, billing: 'monthly', renewal_date: demoRenewal(1), active: true },
+  { name: 'iCloud Storage', cost: 2.99, billing: 'monthly', renewal_date: demoRenewal(15), active: true },
+  { name: 'Adobe Creative Suite', cost: 599.88, billing: 'yearly', renewal_date: demoRenewal(1, 5), active: true },
+  { name: 'ChatGPT Plus', cost: 20.00, billing: 'monthly', renewal_date: demoRenewal(10), active: false },
 ];
 
 export function useSubscriptions() {
@@ -1242,6 +1256,18 @@ export function useNetWorthSnapshots() {
 }
 
 // ─── Payment Plans ───────────────────────────────────────
+/**
+ * ⚠️ START DATES ARE DERIVED for the same reason the subscription renewals are. Both plans were
+ * pinned to fixed 2026 dates; by August the four-payment AirPods plan had run to completion and
+ * the panel demonstrated a finished plan rather than a running one. The AirPods plan starts this
+ * month, and the MacBook plan started three months ago so the demo always shows one plan part-paid
+ * and one just beginning — which is the pair worth looking at.
+ */
+function demoPlanStart(day: number, monthOffset: number) {
+  const t = new Date();
+  return new Date(t.getFullYear(), t.getMonth() + monthOffset, day).toISOString().split('T')[0];
+}
+
 const demoPaymentPlans: PaymentPlan[] = [
   {
     id: 'pp1',
@@ -1251,7 +1277,7 @@ const demoPaymentPlans: PaymentPlan[] = [
     total_amount: 249,
     payment_amount: 62.25,
     frequency: 'biweekly',
-    start_date: '2026-06-01',
+    start_date: demoPlanStart(1, 0),
     total_payments: 4,
     category: 'Shopping',
     payment_source: null,
@@ -1268,7 +1294,7 @@ const demoPaymentPlans: PaymentPlan[] = [
     total_amount: 1799,
     payment_amount: 149.92,
     frequency: 'monthly',
-    start_date: '2026-05-15',
+    start_date: demoPlanStart(15, -3),
     total_payments: 12,
     category: 'Shopping',
     payment_source: null,

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { useDemo } from '@/contexts/DemoContext';
+import { useDemoSession } from '@/hooks/useDemoSession';
 
 const routeDescriptions: Record<string, string> = {
   '/dashboard':    'Overview of all accounts, cash flow, and net worth in one place',
@@ -14,7 +14,7 @@ const routeDescriptions: Record<string, string> = {
 };
 
 export default function DemoBanner() {
-  const { isDemo } = useDemo();
+  const { isDemo, isPreview, leaveDemo } = useDemoSession();
   const { pathname } = useLocation();
   if (!isDemo) return null;
 
@@ -37,21 +37,36 @@ export default function DemoBanner() {
         <span className="text-[11px] text-muted-foreground md:hidden">Sample profile</span>
       </div>
 
+      {/* Two audiences, two ways out (`useDemoSession`). A visitor is being sold to. Someone who
+          already signed up and opened the reference account mid-setup is not — offering them
+          "Sign Up Free" would be nonsense, and their exit is the flag dropping, never a sign-out. */}
       <div className="flex items-center gap-2 shrink-0">
-        <Link
-          to="/"
-          className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 border border-border hover:border-border/80 btn-press"
-          style={{ borderRadius: 'var(--radius)' }}
-        >
-          ← Home
-        </Link>
-        <Link
-          to="/auth"
-          className="text-[11px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors px-3 py-1.5 btn-press"
-          style={{ borderRadius: 'var(--radius)' }}
-        >
-          Sign Up Free →
-        </Link>
+        {isPreview ? (
+          <button
+            onClick={leaveDemo}
+            className="text-[11px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors px-3 py-1.5 btn-press"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            ← Back to my account
+          </button>
+        ) : (
+          <>
+            <Link
+              to="/"
+              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 border border-border hover:border-border/80 btn-press"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              ← Home
+            </Link>
+            <Link
+              to="/auth"
+              className="text-[11px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors px-3 py-1.5 btn-press"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              Sign Up Free →
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );

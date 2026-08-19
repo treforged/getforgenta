@@ -3,8 +3,8 @@ import { Menu, Settings, Crown, LogOut, Home, X, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDemo } from '@/contexts/DemoContext';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useDemoSession } from '@/hooks/useDemoSession';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
 /**
@@ -32,7 +32,7 @@ import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 export default function MobileTopBar() {
   const { pathname } = useLocation();
   const { signOut } = useAuth();
-  const { isDemo } = useDemo();
+  const { isDemo, isPreview, leaveDemo } = useDemoSession();
   const { isPremium } = useSubscription();
 
   // The drawer stores the route it was opened on rather than a bare boolean, so it closes itself
@@ -124,7 +124,17 @@ export default function MobileTopBar() {
             </div>
 
             <div className="border-t border-border px-2 pt-2 space-y-1">
-              {isDemo ? (
+              {/* Same predicate as the sidebar and the banner: a signed-in preview leaves, a
+                  visitor signs up. See `useDemoSession`. */}
+              {isPreview ? (
+                <button
+                  onClick={() => { setOpen(false); leaveDemo(); }}
+                  className="flex items-center gap-2 px-3 py-3 text-sm font-semibold text-primary hover:bg-primary/8 btn-press w-full"
+                  style={{ borderRadius: 'var(--radius)' }}
+                >
+                  ← Back to my account
+                </button>
+              ) : isDemo ? (
                 <>
                   <Link
                     to="/auth"
