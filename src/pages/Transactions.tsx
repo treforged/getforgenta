@@ -979,7 +979,7 @@ export default function Transactions() {
                     <p className="text-xs font-medium">{t.note || '—'}</p>
                     {t.isGenerated && !t.isDebtPayment && <Repeat size={10} className="text-primary" />}
                     {t.isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
-                    {t.isPlanPayment && <span className="text-[9px] text-blue-600 bg-blue-500/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
+                    {t.isPlanPayment && <span className="text-[9px] text-info bg-info/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
                     {t.isCarLoanPayment && <span className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>car loan</span>}
                     {pauseSavings && t.ruleId && savingsRuleIdsForBadge.has(t.ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>

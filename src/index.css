@@ -53,6 +53,7 @@
   --color-obsidian: hsl(var(--obsidian));
   --color-crimson: hsl(var(--crimson));
   --color-success: hsl(var(--success));
+  --color-info: hsl(var(--info));
 
   --color-sidebar: hsl(var(--sidebar-background));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
@@ -410,6 +411,15 @@
     --obsidian: 0 0% 2%;
     --crimson: 0 73% 35%;
     --success: 142 50% 40%;
+    /* ⚠️ THE FIFTH BADGE ROLE. `/transactions` labels a row five ways — debt payoff, installment,
+       car loan, paused, reconciled — and four of them already had a token. The fifth was a raw
+       `text-blue-600`, which is the only reason it looked deliberate: every OTHER token in this
+       palette collides with one of its siblings (primary and gold are the same hue, so debt payoff
+       and reconciled already read alike). Blue was carrying a real distinction, so it gets a real
+       token rather than being flattened into one of the others to tidy the sweep.
+       This is also LIGHTER than the `blue-600` it replaces: #2563eb on near-black was about 3.4:1,
+       which was the marginal end of legible. */
+    --info: 213 70% 65%;
 
     --font-display: 'Outfit', sans-serif;
     --font-body: 'Inter', sans-serif;
@@ -473,6 +483,8 @@
     --obsidian: 0 0% 98%;
     --crimson: 0 72% 42%;
     --success: 142 55% 30%;
+    /* Deepened for the same reason the gold is: 213 70% 65% on a near-white page is about 2.4:1. */
+    --info: 213 75% 40%;
   }
 
   .dark {
